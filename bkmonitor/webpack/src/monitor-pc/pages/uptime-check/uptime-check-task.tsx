@@ -765,9 +765,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   }
   // 卡片容器
   getCardData() {
-    return this.loading ? (
-      <TaskCardSkeleton></TaskCardSkeleton>
-    ) : (
+    return (
       <div class='card-data-content'>
         <HeaderTools
           search={this.searchValue}
@@ -775,62 +773,67 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           onSearch={(v: string) => this.handleSearch(v)}
         ></HeaderTools>
         {this.groupDataTask.show ? (
-          this.searchGroupToTaskData.length ? (
-            <CardsContainer style={{ marginTop: '20px' }}>
+          <CardsContainer style={{ marginTop: '20px' }}>
+            <span
+              slot='title'
+              class='card-container-header'
+            >
               <span
-                slot='title'
-                class='card-container-header'
+                class='header-btn'
+                onClick={this.handleBackGroup}
               >
-                <span
-                  class='header-btn'
-                  onClick={this.handleBackGroup}
-                >
-                  {this.$t('拨测任务')}
-                </span>
-                <span class='header-arrow'>{'>'}</span>
-                <span class='header-name'>{this.groupDataTask.groupName}</span>
+                {this.$t('拨测任务')}
               </span>
-              {this.searchGroupToTaskData.map(item => (
-                <TaskCard
-                  data={item}
-                  onCardClick={(id: number) => this.handleTaskCardClick(id)}
-                  onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
-                ></TaskCard>
-              ))}
-            </CardsContainer>
-          ) : undefined
+              <span class='header-arrow'>{'>'}</span>
+              <span class='header-name'>{this.groupDataTask.groupName}</span>
+            </span>
+            {this.searchGroupToTaskData.map(item => (
+              <TaskCard
+                data={item}
+                onCardClick={(id: number) => this.handleTaskCardClick(id)}
+                onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
+              ></TaskCard>
+            ))}
+          </CardsContainer>
         ) : (
           [
-            this.searchGroupData.length ? (
-              <CardsContainer
-                title={this.$tc('拨测任务组')}
-                style={{ marginTop: '20px' }}
-                showSeeAll
-              >
-                {this.searchGroupData.map(item => (
-                  <GroupCard
-                    data={item}
-                    dragStatus={this.dragStatus}
-                    onDropItem={v => this.handleDropItem(v)}
-                    onOperate={(v: IGroupCardOperate) => this.handleGroupCardOperate(v, item.id)}
-                    onCardClick={(id: number) => this.handleGroupCardClick(id)}
-                  ></GroupCard>
-                ))}
-              </CardsContainer>
-            ) : undefined,
+            <CardsContainer
+              title={this.$tc('拨测任务组')}
+              style={{ marginTop: '20px' }}
+              showSeeAll
+            >
+              {this.loading
+                ? new Array(2).fill(null).map((_item, index) => <TaskCardSkeleton key={index}></TaskCardSkeleton>)
+                : this.searchGroupData.map(item => (
+                    <GroupCard
+                      data={item}
+                      dragStatus={this.dragStatus}
+                      onDropItem={v => this.handleDropItem(v)}
+                      onOperate={(v: IGroupCardOperate) => this.handleGroupCardOperate(v, item.id)}
+                      onCardClick={(id: number) => this.handleGroupCardClick(id)}
+                    ></GroupCard>
+                  ))}
+            </CardsContainer>,
             this.searchTaskData.length ? (
               <CardsContainer
                 title={this.$tc('拨测任务')}
                 style={{ marginTop: '12px' }}
               >
-                {this.searchTaskData.map(item => (
-                  <TaskCard
-                    data={item}
-                    onDragStatus={(v: IDragStatus) => this.handleDragStatus(v)}
-                    onCardClick={(id: number) => this.handleTaskCardClick(id)}
-                    onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
-                  ></TaskCard>
-                ))}
+                {this.loading
+                  ? new Array(6).fill(null).map((_item, index) => (
+                      <TaskCardSkeleton
+                        type={2}
+                        key={index}
+                      ></TaskCardSkeleton>
+                    ))
+                  : this.searchTaskData.map(item => (
+                      <TaskCard
+                        data={item}
+                        onDragStatus={(v: IDragStatus) => this.handleDragStatus(v)}
+                        onCardClick={(id: number) => this.handleTaskCardClick(id)}
+                        onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
+                      ></TaskCard>
+                    ))}
               </CardsContainer>
             ) : undefined
           ]

@@ -1,4 +1,16 @@
 @mixin common-style {
+  .w-27 {
+    width: 27px;
+  }
+
+  .w-84 {
+    width: 84px;
+  }
+
+  .w-54 {
+    width: 54px;
+  }
+
   .w-108 {
     width: 108px;
   }
@@ -11,6 +23,18 @@
     width: 116px;
   }
 
+  .w-60 {
+    width: 60px;
+  }
+
+  .w-73 {
+    width: 73px;
+  }
+
+  .w-88 {
+    width: 88px;
+  }
+
   .w-240 {
     width: 240px;
   }
@@ -19,12 +43,36 @@
     width: 116px;
   }
 
+  .w-177 {
+    width: 117px;
+  }
+
+  .w-110 {
+    width: 110px;
+  }
+
   .w-auto {
     width: auto;
   }
 
+  .h-3 {
+    height: 3px;
+  }
+
+  .h-22 {
+    height: 22px;
+  }
+
+  .h-16 {
+    height: 16px;
+  }
+
   .h-20 {
     height: 20px;
+  }
+
+  .h-82 {
+    height: 82px;
   }
 
   .h-32 {
@@ -37,6 +85,10 @@
 
   .h-198 {
     height: 198px;
+  }
+
+  .mt-6 {
+    margin-top: 6px;
   }
 
   .mt-20 {
@@ -55,8 +107,16 @@
     margin-left: 8px;
   }
 
+  .mr-4 {
+    margin-right: 4px;
+  }
+
   .mr-8 {
     margin-right: 8px;
+  }
+
+  .mr-32 {
+    margin-right: 32px;
   }
 
   .ml-auto {

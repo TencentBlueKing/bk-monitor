@@ -23,32 +23,77 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './task-card-skeleton.scss';
 
+interface IProps {
+  type?: number;
+  num?: number;
+}
+
 @Component
-export default class TaskCardSkeleton extends tsc<{}> {
-  render() {
-    return (
-      <div class='uptime-check-task-card-skeleton'>
-        <div class='container-01'>
-          <div class='w-108 h-32 mr-8 skeleton-element'></div>
-          <div class='w-122 h-32 mr-8 skeleton-element'></div>
-          <div class='w-116 h-32 skeleton-element'></div>
-          <div class='w-240 h-32 ml-auto skeleton-element'></div>
+export default class TaskCardSkeleton extends tsc<IProps> {
+  @Prop({ type: Number, default: 1 }) type: number;
+  @Prop({ type: Number, default: 2 }) num: number;
+
+  renderType() {
+    if (this.type === 1) {
+      return (
+        <div class='uptime-check-task-card-skeleton-01'>
+          <div class='head'>
+            <div class='head-ring skeleton-element'></div>
+            <div class='head-right'>
+              <div class='skeleton-element h-16 w-84'></div>
+              <div class='head-right-bottom'>
+                <div class='skeleton-element h-16 w-54 mr-4'></div>
+                <div class='skeleton-element h-16 w-54 mr-4'></div>
+                <div class='skeleton-element h-16 w-54'></div>
+              </div>
+            </div>
+          </div>
+          <div class='bottom'>
+            <div class='bottom-item'>
+              <div class='bottom-item-head'>
+                <div class='skeleton-element h-16 w-84'></div>
+                <div class='skeleton-element h-16 w-27'></div>
+              </div>
+              <div class='skeleton-element w-auto h-3 mt-6'></div>
+            </div>
+            <div class='bottom-item'>
+              <div class='bottom-item-head'>
+                <div class='skeleton-element h-16 w-60'></div>
+                <div class='skeleton-element h-16 w-27'></div>
+              </div>
+              <div class='skeleton-element w-auto h-3 mt-6'></div>
+            </div>
+            <div class='bottom-item'>
+              <div class='bottom-item-head'>
+                <div class='skeleton-element h-16 w-73'></div>
+                <div class='skeleton-element h-16 w-27'></div>
+              </div>
+              <div class='skeleton-element w-auto h-3 mt-6'></div>
+            </div>
+          </div>
         </div>
-        <div class='w-auto h-30 mt-20 skeleton-element'></div>
-        <div class='container-02'>
-          {new Array(6).fill(null).map((_item, index) => (
-            <div
-              class='h-198 skeleton-element'
-              key={index}
-            ></div>
-          ))}
+      );
+    }
+    return (
+      <div class='uptime-check-task-card-skeleton-02'>
+        <div class='header'>
+          <div class='skeleton-element h-22 w-88'></div>
+          <div class='skeleton-element h-16 w-177 mt-6'></div>
+        </div>
+        <div class='bottom'>
+          <div class='skeleton-element h-82 w-110 mr-32'></div>
+          <div class='skeleton-element h-82 w-110'></div>
         </div>
       </div>
     );
+  }
+
+  render() {
+    return this.renderType();
   }
 }
