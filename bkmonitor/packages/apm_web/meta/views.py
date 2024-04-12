@@ -142,6 +142,7 @@ class ApplicationViewSet(ResourceViewSet):
                     resource_meta=ResourceEnum.APM_APPLICATION,
                     id_field=lambda d: d["application_id"],
                     data_field=lambda d: d["data"],
+                    batch_create=True,
                 )
             ],
         ),
