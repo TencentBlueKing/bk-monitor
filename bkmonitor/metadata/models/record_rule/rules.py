@@ -14,13 +14,17 @@ import re
 from typing import Dict, List, Optional, Set
 
 import yaml
+from django.conf import settings
 from django.db import models
 
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.time_format import parse_duration
 from metadata.models.common import BaseModelWithTime
 from metadata.models.record_rule import utils
-from metadata.models.record_rule.constants import DEFAULT_EVALUATION_INTERVAL
+from metadata.models.record_rule.constants import (
+    DEFAULT_EVALUATION_INTERVAL,
+    BkDataFlowStatus,
+)
 
 logger = logging.getLogger("metadata")
 
@@ -104,12 +108,26 @@ class ResultTableFlow(BaseModelWithTime):
     table_id = models.CharField("结果表名", max_length=128)
     flow_id = models.IntegerField("计算流程ID", default=-1)
     config = JsonField("计算配置", null=True, blank=True)
+    status = models.CharField("计算状态", max_length=32, default=BkDataFlowStatus.NO_START.value)
 
     class Meta:
         verbose_name = "结果表计算流程记录"
         verbose_name_plural = "结果表计算流程记录"
 
     @classmethod
-    def compose_config(cls, table_id: str) -> Dict:
+    def compose_config(cls, table_id: str, vm_table_ids: List) -> Dict:
         """组装计算配置"""
-        pass
+        nodes = []
+        # 组装源节点
+        for index, tid in enumerate(vm_table_ids):
+            nodes.append(
+                {
+                    "id": index + 1,
+                    "node_type": "stream_source",
+                    "bk_biz_name": "2005000727",
+                    "bk_biz_id": settings.BK_DATA_BK_BIZ_ID,
+                    "result_table_id": tid,
+                    "name": tid,
+                    "from_result_table_ids": ["2005000727_bkbase_trace1110"],
+                }
+            )

@@ -9,8 +9,29 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from enum import Enum
+
 # 默认的间隔, 默认为60秒
 DEFAULT_EVALUATION_INTERVAL = "60s"
 
 # 请求计算平台指标名的后缀
 DEFAULT_METRIC_NAME_SUFFIX = "_value"
+
+
+class BkDataFlowStatus(Enum):
+    """流程状态"""
+
+    NO_ACCESS = "no-access"
+    NO_CREATE = "no-create"
+    NO_START = "no-start"
+
+    ACCESSING = "accessing"
+    CREATING = "creating"
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+
+    ACCESS_FAILED = "access-failed"
+    CREATE_FAILED = "create-failed"
+    START_FAILED = "start-failed"
+    STOP_FAILED = "stop-failed"

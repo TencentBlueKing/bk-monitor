@@ -1048,5 +1048,5 @@ class ApplyDataFlow(DataAccessAPIResource):
 
     class RequestSerializer(CommonRequestSerializer):
         project_id = serializers.IntegerField(label="计算平台的项目 ID")
-        flow_name = serializers.CharField(label="Flow 名称")
+        flow_name = serializers.CharField(label="流程名称")
         nodes = serializers.ListField(label="流程节点")

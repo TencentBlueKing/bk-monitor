@@ -282,6 +282,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
+        ("BK_DATA_RECORD_RULE_PROJECT_ID", slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1)),
     ]
 )
 
