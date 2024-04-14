@@ -8,19 +8,40 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from collections import defaultdict
+from datetime import datetime
 
 from apm_web.profile.constants import DESCRIBING_SAMPLE_UNIT
 from apm_web.profile.converter import Converter
 
 
+def merge_timestamp(original_dict):
+    """合并相同时间戳的字典"""
+    group_dict = {}
+    final_dict = {}
+
+    for timestamp, value in original_dict.items():
+        dt = datetime.fromtimestamp(timestamp / 1000)  # 转换为秒
+        min_sec_key = dt.strftime('%M:%S')
+        if min_sec_key not in group_dict:
+            group_dict[min_sec_key] = []
+        group_dict[min_sec_key].append((timestamp, value))
+
+    for min_sec, tuples in group_dict.items():
+        min_timestamp = min([t[0] for t in tuples])
+        sum_values = sum([t[1] for t in tuples])
+        final_dict[min_timestamp] = sum_values
+
+    return final_dict
+
+
 def get_statistics(c: Converter) -> dict:
     statistics = defaultdict(int)
     for s in c.raw_data:
-        if s["sample_type"].split("/")[1] != DESCRIBING_SAMPLE_UNIT:
+        if s["sample_type"].split("/")[-1] != DESCRIBING_SAMPLE_UNIT:
             continue
         statistics[s["dtEventTimeStamp"]] += int(s["value"])
 
-    return statistics
+    return merge_timestamp(statistics)
 
 
 class TendencyDiagrammer:
