@@ -57,7 +57,7 @@ class CMDBEnricher(BaseEventEnricher):
 
     def get_host_by_ip(self, ip):
         keys = self.ip_cache.get(HostIPManager.key_to_internal_value(ip)) or []
-        return [self.hosts_cache[key] for key in keys if self.hosts_cache.get(key)]
+        return list({self.hosts_cache[key] for key in keys if self.hosts_cache.get(key)})
 
     def get_host(self, ip, bk_cloud_id):
         key = HostManager.key_to_internal_value(ip, bk_cloud_id)
