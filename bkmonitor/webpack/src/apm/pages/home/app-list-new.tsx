@@ -31,6 +31,7 @@ import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
@@ -883,13 +884,20 @@ export default class AppList extends tsc<{}> {
                       {item.isExpan && (
                         <div class='expan-content'>
                           {item.tableData.data.length || item.tableData.loading ? (
-                            <CommonTable
-                              {...{ props: item.tableData }}
-                              onCollect={val => this.handleCollect(val, item)}
-                              onScrollEnd={() => this.handleScrollEnd(item)}
-                              onSortChange={val => this.handleSortChange(val as any, item)}
-                              onFilterChange={val => this.handleFilterChange(val, item)}
-                            ></CommonTable>
+                            (() => {
+                              if (!item.tableData.data.length) {
+                                return <TableSkeleton class='table-skeleton'></TableSkeleton>;
+                              }
+                              return (
+                                <CommonTable
+                                  {...{ props: item.tableData }}
+                                  onCollect={val => this.handleCollect(val, item)}
+                                  onScrollEnd={() => this.handleScrollEnd(item)}
+                                  onSortChange={val => this.handleSortChange(val as any, item)}
+                                  onFilterChange={val => this.handleFilterChange(val, item)}
+                                ></CommonTable>
+                              );
+                            })()
                           ) : (
                             <EmptyStatus
                               textMap={{
