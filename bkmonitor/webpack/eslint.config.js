@@ -48,7 +48,7 @@ module.exports = [
     },
   },
   {
-    files: ['src/**/*.ts', 'src/**/*.tsx', 'webpack/**/*.js', './*.js'],
+    files: ['src/**/*.ts', 'src/**/*.tsx', 'src/**/*.js'],
     ignores: [],
     languageOptions: {
       parser: typescriptEslintParser,
@@ -163,6 +163,29 @@ module.exports = [
       '@typescript-eslint/explicit-member-accessibility': 'off',
       'comma-dangle': ['error', 'always-multiline'],
       'vue/attributes-order': 'off',
+      'simple-import-sort/exports': 'error',
+      'simple-import-sort/imports': [
+        'error',
+        {
+          groups: [
+            [
+              '^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)',
+            ],
+            // Packages. `react` related packages come first.
+            ['^vue', '^@?\\w'],
+            // Internal packages.
+            ['^(@|@company|@ui|components|utils|config|vendored-lib)(/.*|$)'],
+            // Side effect imports.
+            ['^\\u0000'],
+            // Parent imports. Put `..` last.
+            ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
+            // Other relative imports. Put same-folder imports and `.` last.
+            ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
+            // Style imports.
+            ['^.+\\.s?css$'],
+          ],
+        },
+      ],
       ...deprecateRules,
     },
   },
