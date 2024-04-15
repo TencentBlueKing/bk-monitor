@@ -718,12 +718,12 @@ class CreateActionProcessor:
                 appointee=alerts_appointee[alert.id],
                 follower=alerts_follower[alert.id],
                 supervisor=alerts_supervisor[alert.id],
-                extra_info=alert.extra_info,
                 assign_tags=alert.assign_tags,
             )
             for key, value in update_data.items():
                 setattr(alert, key, value)
 
+            update_data["extra_info"] = alert.extra_info
             update_alerts.append(AlertDocument(**update_data))
 
         cached_alerts = [Alert(data=alert.to_dict()) for alert in self.alerts]
