@@ -50,8 +50,8 @@ export default class StatusTab extends tsc<IProps, IEvents> {
   defaultList: ITableFilterItem[] = [
     {
       id: 'all',
-      name: window.i18n.tc('全部')
-    }
+      name: window.i18n.tc('全部'),
+    },
   ];
 
   @Emit('change')
@@ -83,7 +83,7 @@ export default class StatusTab extends tsc<IProps, IEvents> {
               boundary: 'window',
               disabled: !item.tips,
               delay: 200,
-              allowHTML: false
+              allowHTML: false,
             }}
             onClick={() => this.handleClickItem(item)}
           >

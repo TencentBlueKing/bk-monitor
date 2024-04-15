@@ -33,7 +33,7 @@ import type {
   MarkLineComponentOption,
   TitleComponentOption,
   ToolboxComponentOption,
-  TooltipComponentOption
+  TooltipComponentOption,
 } from 'echarts/components';
 import {
   GeoComponent,
@@ -45,7 +45,7 @@ import {
   MarkPointComponent,
   TitleComponent,
   ToolboxComponent,
-  TooltipComponent
+  TooltipComponent,
 } from 'echarts/components';
 import type { ComposeOption } from 'echarts/core';
 import * as echarts from 'echarts/core';
@@ -80,7 +80,7 @@ echarts.use([
   MarkLineComponent,
   MarkPointComponent,
   GraphicComponent,
-  GeoComponent
+  GeoComponent,
 ]);
 
 export { echarts };

@@ -77,12 +77,12 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
       (this as any).instance?.setOption({
         yAxis: {
           splitNumber: 2,
-          scale: false
-        }
+          scale: false,
+        },
       });
     }
     (this as any).instance?.resize({
-      silent: true
+      silent: true,
     });
   }
   @Watch('width')
@@ -90,11 +90,11 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     (this as any).instance?.setOption({
       xAxis: {
         splitNumber: Math.ceil(this.width / 150),
-        min: 'dataMin'
-      }
+        min: 'dataMin',
+      },
     });
     (this as any).instance?.resize({
-      silent: true
+      silent: true,
     });
   }
   mounted() {
@@ -141,7 +141,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
         (this as any).instance.setOption(v, { notMerge: true, lazyUpdate: false, silent: true });
         (this as any).curChartOption = (this as any).instance.getOption();
       },
-      { deep: false }
+      { deep: false },
     );
   }
   // 初始化chart Action
@@ -149,7 +149,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     this.dispatchAction({
       type: 'takeGlobalCursor',
       key: 'dataZoomSelect',
-      dataZoomSelectActive: true
+      dataZoomSelectActive: true,
     });
   }
   initChartEvent() {
