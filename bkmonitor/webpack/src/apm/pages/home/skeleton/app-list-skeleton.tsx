@@ -23,14 +23,56 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './app-list-skeleton.scss';
 
+interface IProps {
+  count?: number;
+}
+
 @Component
-export default class AppListSkeleton extends tsc<{}> {
+export default class AppListSkeleton extends tsc<IProps> {
+  @Prop({ type: Number, default: 10 }) count: number;
   render() {
-    return <div class='app-list-skeleton'></div>;
+    return (
+      <div class='app-list-skeleton'>
+        {new Array(this.count).fill(null).map((_item, index) => (
+          <div
+            class='expan-header'
+            key={index}
+          >
+            <div class='header-left'>
+              <span class='icon-monitor icon-mc-triangle-down'></span>
+              <div class='skeleton-01 skeleton-element'></div>
+              <div class='skeleton-02 skeleton-element'></div>
+              <div class='skeleton-03 skeleton-element'></div>
+              <div class='skeleton-04 skeleton-element'></div>
+              <div class='skeleton-05 skeleton-element'></div>
+            </div>
+            <div class='header-right'>
+              <bk-button
+                class='mr-8'
+                size='small'
+                theme='primary'
+                outline
+              >
+                {this.$t('查看详情')}
+              </bk-button>
+              <bk-button
+                class='mr-8'
+                size='small'
+              >
+                {this.$t('配置')}
+              </bk-button>
+              <div class='more-btn'>
+                <span class='icon-monitor icon-mc-more'></span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 }

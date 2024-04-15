@@ -44,6 +44,7 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 
+import AppListSkeleton from './skeleton/app-list-skeleton';
 import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
 import { SEARCH_KEYS, STATUS_MAP } from './utils';
@@ -733,9 +734,9 @@ export default class AppList extends tsc<{}> {
         <div
           class='app-list-main'
           onScroll={this.handleScroll}
-          v-bkloading={{
-            isLoading: this.pagination.current === 1 && this.loading
-          }}
+          // v-bkloading={{
+          //   isLoading: this.pagination.current === 1 && this.loading
+          // }}
         >
           {this.showGuidePage ? (
             <GuidePage
@@ -773,144 +774,150 @@ export default class AppList extends tsc<{}> {
                   onInput={this.handleSearch}
                 ></Input> */}
               </div>
-              <div class='app-list-content-data'>
-                {this.appList.map(item => (
-                  <div
-                    key={item.application_id}
-                    class='item-expan-wrap'
-                  >
+              {this.pagination.current === 1 && this.loading ? (
+                <AppListSkeleton></AppListSkeleton>
+              ) : (
+                <div class='app-list-content-data'>
+                  {this.appList.map(item => (
                     <div
-                      class='expan-header'
-                      onClick={() => this.handleExpanChange(item)}
+                      key={item.application_id}
+                      class='item-expan-wrap'
                     >
-                      <div class='header-left'>
-                        <span class={['icon-monitor icon-mc-triangle-down', { expan: item.isExpan }]}></span>
-                        <div
-                          class='first-code'
-                          style={{
-                            background: item.firstCodeColor
-                          }}
-                        >
-                          <span>{item.firstCode}</span>
-                        </div>
-                        <div class='biz-name-01'>{item.app_alias?.value}</div>
-                        <div class='biz-name-02'>（{item.app_name}）</div>
-                        <div class='item-label'>{this.$t('服务数量')}:</div>
-                        <div class='item-content'>
-                          <span>
-                            {item.service_count === null ? (
-                              <div class='spinner'></div>
-                            ) : (
-                              item?.service_count?.value || 0
-                            )}
-                          </span>
-                        </div>
-                        <div
-                          class='item-label'
-                          v-bk-tooltips={{
-                            placement: 'top',
-                            content: this.$t('10分钟内无数据'),
-                            disabled: item.data_status !== 'no_data'
-                          }}
-                        >
-                          Tracing:
-                        </div>
-                        <div class='item-content'>
+                      <div
+                        class='expan-header'
+                        onClick={() => this.handleExpanChange(item)}
+                      >
+                        <div class='header-left'>
+                          <span class={['icon-monitor icon-mc-triangle-down', { expan: item.isExpan }]}></span>
                           <div
-                            class='trace-status'
-                            style={STATUS_MAP[item.data_status]?.style}
-                          >
-                            {STATUS_MAP[item.data_status]?.name || '--'}
-                          </div>
-                        </div>
-                        <div class='item-label'>Profiling:</div>
-                        <div class='item-content'>
-                          <div
-                            class='trace-status'
-                            style={STATUS_MAP[item.profiling_data_status]?.style}
-                          >
-                            {STATUS_MAP[item.profiling_data_status]?.name || '--'}
-                          </div>
-                        </div>
-                      </div>
-                      <div class='header-right'>
-                        <bk-button
-                          class='mr-8'
-                          size='small'
-                          theme='primary'
-                          outline
-                          onClick={(event: Event) => {
-                            event.stopPropagation();
-                            this.linkToOverview(item);
-                          }}
-                        >
-                          {this.$t('查看详情')}
-                        </bk-button>
-                        <bk-button
-                          class='mr-8'
-                          size='small'
-                          onClick={(event: Event) => {
-                            event.stopPropagation();
-                            this.handleToConfig(item);
-                          }}
-                        >
-                          {this.$t('配置')}
-                        </bk-button>
-                        <OperateOptions
-                          options={{
-                            outside: [],
-                            popover: this.opreateOptions.map(o => ({
-                              ...o,
-                              authority: item?.permission[authorityMap.VIEW_AUTH] ?? true,
-                              authorityDetail: authorityMap.VIEW_AUTH
-                            }))
-                          }}
-                          onOptionClick={id => this.handleConfig(id, item)}
-                        >
-                          <div
-                            class='more-btn'
-                            slot='trigger'
-                          >
-                            <span class='icon-monitor icon-mc-more'></span>
-                          </div>
-                        </OperateOptions>
-                      </div>
-                    </div>
-                    {item.isExpan && (
-                      <div class='expan-content'>
-                        {item.tableData.data.length || item.tableData.loading ? (
-                          <CommonTable
-                            {...{ props: item.tableData }}
-                            onCollect={val => this.handleCollect(val, item)}
-                            onScrollEnd={() => this.handleScrollEnd(item)}
-                            onSortChange={val => this.handleSortChange(val as any, item)}
-                            onFilterChange={val => this.handleFilterChange(val, item)}
-                          ></CommonTable>
-                        ) : (
-                          <EmptyStatus
-                            textMap={{
-                              empty: this.$t('暂无数据')
+                            class='first-code'
+                            style={{
+                              background: item.firstCodeColor
                             }}
-                          ></EmptyStatus>
-                        )}
+                          >
+                            <span>{item.firstCode}</span>
+                          </div>
+                          <div class='biz-name-01'>{item.app_alias?.value}</div>
+                          <div class='biz-name-02'>（{item.app_name}）</div>
+                          <div class='item-label'>{this.$t('服务数量')}:</div>
+                          <div class='item-content'>
+                            <span>
+                              {item.service_count === null ? (
+                                <div class='spinner'></div>
+                              ) : (
+                                item?.service_count?.value || 0
+                              )}
+                            </span>
+                          </div>
+                          <div
+                            class='item-label'
+                            v-bk-tooltips={{
+                              placement: 'top',
+                              content: this.$t('10分钟内无数据'),
+                              disabled: item.data_status !== 'no_data'
+                            }}
+                          >
+                            Tracing:
+                          </div>
+                          <div class='item-content'>
+                            <div
+                              class='trace-status'
+                              style={STATUS_MAP[item.data_status]?.style}
+                            >
+                              {STATUS_MAP[item.data_status]?.name || '--'}
+                            </div>
+                          </div>
+                          <div class='item-label'>Profiling:</div>
+                          <div class='item-content'>
+                            <div
+                              class='trace-status'
+                              style={STATUS_MAP[item.profiling_data_status]?.style}
+                            >
+                              {STATUS_MAP[item.profiling_data_status]?.name || '--'}
+                            </div>
+                          </div>
+                        </div>
+                        <div class='header-right'>
+                          <bk-button
+                            class='mr-8'
+                            size='small'
+                            theme='primary'
+                            outline
+                            onClick={(event: Event) => {
+                              event.stopPropagation();
+                              this.linkToOverview(item);
+                            }}
+                          >
+                            {this.$t('查看详情')}
+                          </bk-button>
+                          <bk-button
+                            class='mr-8'
+                            size='small'
+                            onClick={(event: Event) => {
+                              event.stopPropagation();
+                              this.handleToConfig(item);
+                            }}
+                          >
+                            {this.$t('配置')}
+                          </bk-button>
+                          <OperateOptions
+                            options={{
+                              outside: [],
+                              popover: this.opreateOptions.map(o => ({
+                                ...o,
+                                authority: item?.permission[authorityMap.VIEW_AUTH] ?? true,
+                                authorityDetail: authorityMap.VIEW_AUTH
+                              }))
+                            }}
+                            onOptionClick={id => this.handleConfig(id, item)}
+                          >
+                            <div
+                              class='more-btn'
+                              slot='trigger'
+                            >
+                              <span class='icon-monitor icon-mc-more'></span>
+                            </div>
+                          </OperateOptions>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div class='bottom-loading-status'>
-                {(this.loading || this.pagination.isEnd) && (
-                  <div class='loading-box'>
-                    {this.loading && <div class='spinner'></div>}
-                    {(() => {
-                      if (!this.appList.length) {
-                        return this.$t('暂无数据');
-                      }
-                      return this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…');
-                    })()}
-                  </div>
-                )}
-              </div>
+                      {item.isExpan && (
+                        <div class='expan-content'>
+                          {item.tableData.data.length || item.tableData.loading ? (
+                            <CommonTable
+                              {...{ props: item.tableData }}
+                              onCollect={val => this.handleCollect(val, item)}
+                              onScrollEnd={() => this.handleScrollEnd(item)}
+                              onSortChange={val => this.handleSortChange(val as any, item)}
+                              onFilterChange={val => this.handleFilterChange(val, item)}
+                            ></CommonTable>
+                          ) : (
+                            <EmptyStatus
+                              textMap={{
+                                empty: this.$t('暂无数据')
+                              }}
+                            ></EmptyStatus>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!(this.pagination.current === 1 && this.loading) && (
+                <div class='bottom-loading-status'>
+                  {(this.loading || this.pagination.isEnd) && (
+                    <div class='loading-box'>
+                      {this.loading && <div class='spinner'></div>}
+                      {(() => {
+                        if (!this.appList.length) {
+                          return this.$t('暂无数据');
+                        }
+                        return this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…');
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
