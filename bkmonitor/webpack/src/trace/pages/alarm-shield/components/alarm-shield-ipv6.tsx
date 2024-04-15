@@ -38,7 +38,7 @@ export default defineComponent({
     checkedValue: { type: Object as PropType<IIpV6Value>, default: () => ({}) },
     originCheckedValue: { type: Object as PropType<IIpV6Value>, default: () => ({}) },
     onChange: { type: Function as PropType<(v: { value: IIpV6Value }) => void>, default: () => {} },
-    onCloseDialog: { type: Function as PropType<(v: boolean) => void>, default: () => {} }
+    onCloseDialog: { type: Function as PropType<(v: boolean) => void>, default: () => {} },
   },
   setup(props) {
     const panelList = ref<string[]>([]);
@@ -51,22 +51,22 @@ export default defineComponent({
         inited.value = false;
         nextTick(() => {
           ipCheckValue.value = {
-            [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]]
+            [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]],
           };
           panelList.value = getPanelListByDimension(v);
           setTimeout(() => (inited.value = true), 100);
         });
       },
-      { immediate: true }
+      { immediate: true },
     );
     watch(
       () => props.checkedValue,
       () => {
         ipCheckValue.value = {
-          [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]]
+          [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]],
         };
       },
-      { immediate: true }
+      { immediate: true },
     );
     function getPanelListByDimension(v: string) {
       if (v === 'instance') return ['serviceInstance'];
@@ -113,10 +113,10 @@ export default defineComponent({
       renderFn,
       inited,
       panelList,
-      ipCheckValue
+      ipCheckValue,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

@@ -94,7 +94,7 @@ export function switchReportDataForCreate(data: Report) {
     scenario_config,
     frequency,
     content_config,
-    channels
+    channels,
   };
 }
 
@@ -132,7 +132,7 @@ export function switchReportDataForUpdate(data: Report) {
     scenario_config,
     frequency,
     content_config,
-    channels
+    channels,
   };
 }
 
@@ -156,11 +156,11 @@ export function getDefaultReportData(): Report {
       day_list: [],
       run_time: '',
       week_list: [],
-      data_range: null
+      data_range: null,
     },
     content_config: {
       title: '',
-      is_link_enabled: true
+      is_link_enabled: true,
     },
     scenario_config: {
       index_set_id: null,
@@ -172,7 +172,7 @@ export function getDefaultReportData(): Report {
       // 是否只展示新类
       is_show_new_pattern: false,
       // 这个同比配置不需要前端展示，暂不开放配置入口 （不用管）
-      year_on_year_change: 'all'
+      year_on_year_change: 'all',
     },
     start_time: 0,
     end_time: 0,
@@ -185,24 +185,24 @@ export function getDefaultReportData(): Report {
       {
         is_enabled: true,
         subscribers: [],
-        channel_name: 'user'
+        channel_name: 'user',
       },
       {
         is_enabled: false,
         subscribers: [],
         send_text: '',
-        channel_name: 'email'
+        channel_name: 'email',
       },
       {
         is_enabled: false,
         subscribers: [],
-        channel_name: 'wxbot'
-      }
+        channel_name: 'wxbot',
+      },
     ],
     is_invalid: false,
     is_self_subscribed: false,
     last_send_time: null,
     send_status: '',
-    timerange: []
+    timerange: [],
   };
 }

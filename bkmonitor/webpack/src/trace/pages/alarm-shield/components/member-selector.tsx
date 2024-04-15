@@ -36,24 +36,24 @@ export default defineComponent({
   props: {
     value: {
       type: Array as PropType<string[]>,
-      default: () => []
+      default: () => [],
     },
     api: {
       type: String,
-      default: ''
+      default: '',
     },
     userGroups: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     useGroup: {
       type: Boolean,
-      default: false
+      default: false,
     },
     onChange: {
       type: Function as PropType<(v: string[]) => void>,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -63,7 +63,7 @@ export default defineComponent({
       app_code: 'bk-magicbox',
       page: 1,
       page_size: 20,
-      fuzzy_lookups: ''
+      fuzzy_lookups: '',
     });
     const trigger = ref<'focus' | 'search'>('focus');
     const groupsMap = new Map();
@@ -76,7 +76,7 @@ export default defineComponent({
       userGroups => {
         setUserGroups(userGroups);
       },
-      { deep: true }
+      { deep: true },
     );
     watch(
       () => props.value,
@@ -85,8 +85,8 @@ export default defineComponent({
         setUsersMap(localValue.value);
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
     function init() {
       setUserGroups(props.userGroups);
@@ -113,7 +113,7 @@ export default defineComponent({
               ...item,
               idd: item.id,
               id: item.username,
-              name: item.display_name
+              name: item.display_name,
             };
             usersMap.set(obj.id, obj);
             key.value = random(8);
@@ -132,7 +132,7 @@ export default defineComponent({
             const children = item.children.map(c => {
               const obj = {
                 ...c,
-                name: c.display_name
+                name: c.display_name,
               };
               groupsMap.set(obj.id, obj);
               return obj;
@@ -152,7 +152,7 @@ export default defineComponent({
           ...item,
           idd: item.id,
           id: item.username,
-          name: item.display_name
+          name: item.display_name,
         };
         usersMap.set(obj.id, obj);
         return obj;
@@ -178,7 +178,7 @@ export default defineComponent({
 
     async function getUserList(params: Record<string, any>) {
       return await listUsersUser(params, {
-        needCancel: true
+        needCancel: true,
       })
         .then(res => res?.results || [])
         .catch(() => []);
@@ -251,7 +251,7 @@ export default defineComponent({
       handleChange,
       debounceHandleInput,
       handleFocus,
-      handleBlur
+      handleBlur,
     };
   },
   render() {
@@ -271,7 +271,7 @@ export default defineComponent({
         allowCreate={true}
         isAsyncList={true}
         popoverProps={{
-          extCls: 'member-selector-component-tag-input-pop'
+          extCls: 'member-selector-component-tag-input-pop',
         }}
         filterCallback={(_filterVal, _filterKey, data) => data}
         onUpdate:modelValue={v => this.handleChange(v)}
@@ -280,5 +280,5 @@ export default defineComponent({
         onBlur={this.handleBlur}
       ></TagInput>
     );
-  }
+  },
 });

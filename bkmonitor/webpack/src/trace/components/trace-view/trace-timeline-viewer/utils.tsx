@@ -56,7 +56,7 @@ export function createViewedBoundsFunc(viewRange: { min: number; max: number; vi
    */
   return (start: number, end: number) => ({
     start: (start - viewMin) / viewWindow,
-    end: (end - viewMin) / viewWindow
+    end: (end - viewMin) / viewWindow,
   });
 }
 
@@ -120,13 +120,13 @@ export function findServerChildSpan(spans: Span[]) {
       // ebpf类型节点只是一种补充，不应该影响正常的服务之间的调用关系
       return spans[i];
     }
-    // eslint-disable-next-line no-plusplus
+
     i++;
   }
   return null;
 }
 
-export const isKindClient = (span: Span): Boolean =>
+export const isKindClient = (span: Span): boolean =>
   span.tags.some(({ key, value }) => key === 'span.kind' && value === 'client');
 
 export { formatDuration } from '../utils/date';

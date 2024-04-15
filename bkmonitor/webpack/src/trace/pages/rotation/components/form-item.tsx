@@ -32,28 +32,28 @@ export default defineComponent({
   props: {
     errMsg: {
       type: String,
-      default: ''
+      default: '',
     },
     label: {
       type: String as PropType<any>,
-      default: ''
+      default: '',
     },
     labelWidth: {
       type: Number,
-      default: 135
+      default: 135,
     },
     require: {
       type: Boolean,
-      default: false
+      default: false,
     },
     hasColon: {
       type: Boolean,
-      default: false
+      default: false,
     },
     contentCls: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   setup(props, { slots }) {
     return () => (
@@ -71,5 +71,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

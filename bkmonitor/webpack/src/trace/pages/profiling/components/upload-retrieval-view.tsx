@@ -43,20 +43,20 @@ export default defineComponent({
   props: {
     formData: {
       type: Object as PropType<RetrievalFormData>,
-      required: true
+      required: true,
     },
     queryParams: {
       type: Object as PropType<IQueryParams>,
-      required: true
+      required: true,
     },
     dataTypeList: {
       type: Array as PropType<DataTypeItem[]>,
-      default: () => []
+      default: () => [],
     },
     dataType: {
       type: String,
-      default: 'cpu'
-    }
+      default: 'cpu',
+    },
   },
   emits: ['showFileDetail', 'selectFile', 'dataTypeChange'],
   setup(props, { emit }) {
@@ -70,12 +70,12 @@ export default defineComponent({
     const searchObj = reactive({
       selectFile: '',
       selectFileInfo: null,
-      list: []
+      list: [],
     });
     /* 对比项   暂时不做 */
     const compareObj = reactive({
       selectFile: '',
-      list: []
+      list: [],
     });
     const loading = ref(false);
 
@@ -188,7 +188,7 @@ export default defineComponent({
       handleSelectFile,
       handleRefleshFiles,
       handleDataTypeChange,
-      handleSelectFileToggle
+      handleSelectFileToggle,
     };
   },
   render() {
@@ -210,7 +210,7 @@ export default defineComponent({
               modelValue={this.searchObj.selectFile}
               popoverOptions={{
                 extCls: 'upload-select-popover',
-                zIndex: 1
+                zIndex: 1,
               }}
               clearable={false}
               onSelect={v => this.handleSelectFile(v)}
@@ -256,7 +256,7 @@ export default defineComponent({
                         ></i>
                       </div>
                     </Select.Option>
-                  ))
+                  )),
               }}
             </Select>
           </div>
@@ -266,7 +266,7 @@ export default defineComponent({
               <Select
                 modelValue={this.compareObj.selectFile}
                 popoverOptions={{
-                  extCls: 'upload-select-popover'
+                  extCls: 'upload-select-popover',
                 }}
               >
                 {this.compareObj.list.map(item => (
@@ -327,5 +327,5 @@ export default defineComponent({
         ></ProfilingFileUpload>
       </div>
     );
-  }
+  },
 });

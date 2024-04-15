@@ -53,13 +53,13 @@ export default defineComponent({
       const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
       return {
         lang: currentLang === 'en' ? 'enUS' : 'zhCN',
-        ...(currentLang === 'en' ? en : zhCn)
+        ...(currentLang === 'en' ? en : zhCn),
       };
     });
     const navActive = computed(() => {
       let routeId = bizId.value || 'home';
       const {
-        options: { routes }
+        options: { routes },
       } = router;
       const parentId = (routes.find(item => routeId === item.name)?.meta?.route as any)?.parent;
       routeId = parentId || routeId;
@@ -67,7 +67,7 @@ export default defineComponent({
         item =>
           item.route === routeId ||
           item.id === routeId ||
-          item?.children?.some(child => child.children.some((set: { id: string | number }) => set.id === routeId))
+          item?.children?.some(child => child.children.some((set: { id: string | number }) => set.id === routeId)),
       )?.id;
     });
     onMounted(() => {
@@ -88,7 +88,7 @@ export default defineComponent({
       routeList,
       navActive,
       handleHeaderMenuClick,
-      locale
+      locale,
     };
   },
   render() {
@@ -117,12 +117,12 @@ export default defineComponent({
                     </ul>
                   </div>
                 ),
-              default: () => <RouterView />
+              default: () => <RouterView />,
             }}
           </Navigation>
           <AuthorityModal />
         </div>
       </ConfigProvider>
     );
-  }
+  },
 });

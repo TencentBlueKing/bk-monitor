@@ -38,7 +38,7 @@ const CollapserProps = {
   onCollapseAll: Function as PropType<() => void>,
   onCollapseOne: Function as PropType<() => void>,
   onExpandOne: Function as PropType<() => void>,
-  onExpandAll: Function as PropType<() => void>
+  onExpandAll: Function as PropType<() => void>,
 };
 
 export default defineComponent({
@@ -115,5 +115,5 @@ export default defineComponent({
         </Popover>
       </div>
     );
-  }
+  },
 });

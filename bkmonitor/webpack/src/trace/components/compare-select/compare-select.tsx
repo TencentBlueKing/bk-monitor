@@ -41,15 +41,15 @@ export default defineComponent({
   props: {
     appName: {
       type: String,
-      required: true
+      required: true,
     },
     targetTraceID: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   emits: ['compare', 'cancel'],
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   setup(props, { emit, expose }) {
     /** 对比目标 */
     const compareTarget = ref<string>('');
@@ -74,7 +74,7 @@ export default defineComponent({
     // 设为常用表单
     const formData = ref({
       traceID: '',
-      name: ''
+      name: '',
     });
     // 临时对比 traceID
     const temporaryList = ref<string[]>([]);
@@ -87,21 +87,21 @@ export default defineComponent({
         {
           validator: value => value.length,
           message: t('traceID不能为空'),
-          trigger: 'blur'
-        }
+          trigger: 'blur',
+        },
       ],
       name: [
         {
           validator: value => value.trim?.().length,
           message: t('参照名称不能为空'),
-          trigger: 'blur'
+          trigger: 'blur',
         },
         {
           validator: value => !commonUsedList.value.some(item => item.name === value),
           message: t('参照名重复'),
-          trigger: 'blur'
-        }
-      ]
+          trigger: 'blur',
+        },
+      ],
     }));
     watch(
       () => showSelect.value,
@@ -112,7 +112,7 @@ export default defineComponent({
         isHoverCommonList.value = false;
         showCommonUsed.value = false;
         showDeleteConfirm.value = false;
-      }
+      },
     );
     onMounted(() => {
       compareTarget.value = props.targetTraceID || '';
@@ -122,7 +122,7 @@ export default defineComponent({
     const getCommomUsedList = () => {
       listTraceComparison({
         bk_biz_id: window.bk_biz_id,
-        app_name: props.appName
+        app_name: props.appName,
       }).then(res => (commonUsedList.value = res?.data || []));
     };
     /** 关闭对比选择框 */
@@ -174,13 +174,13 @@ export default defineComponent({
             bk_biz_id: window.bk_biz_id,
             app_name: props.appName,
             trace_id: traceID,
-            name
+            name,
           })
             .then(() => {
               Message({
                 theme: 'success',
                 message: t('保存成功'),
-                width: 200
+                width: 200,
               });
               handleCloseCommonUsed();
               getCommomUsedList();
@@ -220,12 +220,12 @@ export default defineComponent({
       await deleteTraceComparison({
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
-        trace_id: traceID
+        trace_id: traceID,
       })
         .then(() => {
           Message({
             theme: 'success',
-            message: t('删除成功')
+            message: t('删除成功'),
           });
           handleCloseCommonUsed();
           getCommomUsedList();
@@ -253,7 +253,7 @@ export default defineComponent({
     };
     expose({
       handleCancelCompare,
-      clearCompareTarget
+      clearCompareTarget,
     });
 
     return {
@@ -289,7 +289,7 @@ export default defineComponent({
       deleteLoading,
       handleMouseEnterHeader,
       submitLoading,
-      isEditCommonUsed
+      isEditCommonUsed,
     };
   },
   render() {
@@ -352,7 +352,7 @@ export default defineComponent({
                 </Button>
               </Form.FormItem>
             </Form>
-          )
+          ),
         }}
       >
         {isEdit ? (
@@ -400,10 +400,10 @@ export default defineComponent({
                       >
                         {this.$t('对比')}
                       </span>
-                    )
+                    ),
                   }}
                 />
-                {/* eslint-disable-next-line no-nested-ternary */}
+                {}
                 {this.commonUsedList.length === 5 ? ( // 常用参照数量上限为 5
                   <Popover
                     placement='top'
@@ -448,7 +448,7 @@ export default defineComponent({
                         >
                           {item}
                         </span>
-                        {/* eslint-disable-next-line no-nested-ternary */}
+                        {}
                         {!this.isHoverCommonList && item === this.curHoverTraceID ? (
                           this.commonUsedList.length === 5 ? (
                             <Popover
@@ -525,7 +525,7 @@ export default defineComponent({
                                     </Button>
                                   </div>
                                 </div>
-                              )
+                              ),
                             }}
                           >
                             <i
@@ -544,7 +544,7 @@ export default defineComponent({
                 )}
               </div>
             </div>
-          )
+          ),
         }}
       >
         <div class='trace-compare-select-trigger'>
@@ -561,7 +561,7 @@ export default defineComponent({
                 <i
                   class='icon-monitor icon-mc-close-fill'
                   onClick={this.handleCancelCompare}
-                />
+                />,
               ]
             ) : (
               <span class='empty-compare-text'>{this.$t('暂不对比')}</span>
@@ -570,5 +570,5 @@ export default defineComponent({
         </div>
       </Popover>
     );
-  }
+  },
 });

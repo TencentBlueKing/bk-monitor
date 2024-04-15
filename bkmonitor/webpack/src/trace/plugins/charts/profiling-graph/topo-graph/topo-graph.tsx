@@ -34,8 +34,8 @@ export default defineComponent({
   props: {
     topoSrc: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   setup(props) {
     let graphInstance = null;
@@ -54,14 +54,14 @@ export default defineComponent({
         });
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     return {
       graphInstance,
       containerRef,
-      imageRef
+      imageRef,
     };
   },
   render() {
@@ -76,5 +76,5 @@ export default defineComponent({
         />
       </div>
     );
-  }
+  },
 });

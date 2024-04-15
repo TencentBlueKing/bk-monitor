@@ -108,7 +108,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
           getPanelData();
         }, refleshInterval.value);
       },
-      { immediate: true }
+      { immediate: true },
     );
   }
   // 图表是否立即刷新
@@ -153,7 +153,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
     unWatchTimeOffset,
     unWatchTimezone,
     refleshIntervalTimer,
-    beforeUnmount
+    beforeUnmount,
   };
 };
 

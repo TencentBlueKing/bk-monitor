@@ -90,7 +90,7 @@ export default defineComponent({
       authorityDetail,
       handleCloseDialog,
       getResource,
-      goToApply
+      goToApply,
     };
   },
   render() {
@@ -176,9 +176,9 @@ export default defineComponent({
         onClosed={this.handleCloseDialog}
         v-slots={{
           default: () => permissionModal(),
-          footer: () => modalFooter()
+          footer: () => modalFooter(),
         }}
       />
     );
-  }
+  },
 });

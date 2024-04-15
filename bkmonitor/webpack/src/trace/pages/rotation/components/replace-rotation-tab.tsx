@@ -43,8 +43,8 @@ export default defineComponent({
   props: {
     data: {
       type: Object as PropType<ReplaceDataModel[]>,
-      default: undefined
-    }
+      default: undefined,
+    },
   },
   emits: ['change', 'drop'],
   setup(props, { emit }) {
@@ -62,8 +62,8 @@ export default defineComponent({
         }
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     function createDefaultItemData(): ReplaceDataModel {
@@ -78,21 +78,21 @@ export default defineComponent({
           customWorkDays: [],
           periodSettings: {
             unit: 'day',
-            duration: 1
+            duration: 1,
           },
           value: [
             {
               key: random(8, true),
               workTime: [],
-              workDays: [1, 2, 3, 4, 5]
-            }
-          ]
+              workDays: [1, 2, 3, 4, 5],
+            },
+          ],
         },
         users: {
           groupType: 'specified',
           groupNumber: 1,
-          value: [{ key: random(8, true), value: [], orderIndex: 0 }]
-        }
+          value: [{ key: random(8, true), value: [], orderIndex: 0 }],
+        },
       };
     }
 
@@ -126,7 +126,7 @@ export default defineComponent({
       handleAddItem,
       handleDelItem,
       handleEmitDrop,
-      handleEmitData
+      handleEmitData,
     };
   },
   render() {
@@ -183,5 +183,5 @@ export default defineComponent({
         </tr>
       </table>
     );
-  }
+  },
 });

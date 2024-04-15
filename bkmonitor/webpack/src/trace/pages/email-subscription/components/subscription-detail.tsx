@@ -43,8 +43,8 @@ export default defineComponent({
       type: Object as PropType<Report>,
       default() {
         return getDefaultReportData();
-      }
-    }
+      },
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -96,7 +96,7 @@ export default defineComponent({
       getYearOnYearHour,
       userChannel,
       emailChannel,
-      wxgroupChannel
+      wxgroupChannel,
     };
   },
   render() {
@@ -264,7 +264,7 @@ export default defineComponent({
                 ) : (
                   this.getSendFrequencyText(this.detailInfo)
                 );
-              }
+              },
             }}
           />
 
@@ -277,5 +277,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

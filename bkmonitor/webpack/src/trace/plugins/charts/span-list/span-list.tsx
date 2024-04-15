@@ -40,29 +40,29 @@ export default defineComponent({
     // 过滤的 Span Id 列表
     filterSpanIds: {
       type: Array as PropType<string[]>,
-      default: () => []
+      default: () => [],
     },
     // 子标题
     subTitle: {
       type: String,
       required: false,
-      default: ''
+      default: '',
     },
     // 是否折叠
     isCollapsed: {
       type: Boolean,
-      required: false
+      required: false,
     },
     // 对比的 Span 列表
     compareSpanList: {
       type: Array as PropType<Span[]>,
-      default: () => []
+      default: () => [],
     },
     // 对比状态
     isCompare: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['viewDetail', 'listChange'],
   setup(props, { emit }) {
@@ -103,7 +103,7 @@ export default defineComponent({
           isScrollBody.value = spanListBody.value?.scrollHeight > spanListBody.value?.clientHeight;
         }, 100);
       },
-      { immediate: true }
+      { immediate: true },
     );
 
     /** 查看 span 详情 */
@@ -119,7 +119,7 @@ export default defineComponent({
       currentPage,
       handlePageChange,
       spanListBody,
-      isScrollBody
+      isScrollBody,
     };
   },
   render() {
@@ -215,5 +215,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });
