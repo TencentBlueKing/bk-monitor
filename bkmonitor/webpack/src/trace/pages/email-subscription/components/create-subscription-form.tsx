@@ -42,10 +42,10 @@ import {
   TimePicker,
 } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
+import { getExistReports, getVariables } from 'monitor-api/modules/new_report';
+import { copyText, deepClone, transformDataKey } from 'monitor-common/utils';
 
-import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
-import { getExistReports, getVariables } from '../../../../monitor-api/modules/new_report';
-import { copyText, deepClone, transformDataKey } from '../../../../monitor-common/utils';
 import MemberSelect from '../../../components/member-select/member-select';
 import { Scenario } from '../mapping';
 import { FrequencyType, Report } from '../types';

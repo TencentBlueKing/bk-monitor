@@ -43,7 +43,6 @@ import {
 } from 'bkui-vue';
 import { Column } from 'bkui-vue/lib/table/props';
 import dayjs from 'dayjs';
-
 import {
   createOrUpdateReport,
   deleteReport,
@@ -52,9 +51,10 @@ import {
   getReportList,
   getSendRecords,
   sendReport,
-} from '../../../monitor-api/modules/new_report';
-import { deepClone, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
-import { docCookies } from '../../../monitor-common/utils/utils';
+} from 'monitor-api/modules/new_report';
+import { deepClone, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { docCookies } from 'monitor-common/utils/utils';
+
 import NavBar from '../../components/nav-bar/nav-bar';
 
 import CreateSubscriptionForm from './components/create-subscription-form';

@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { deleteItem, itemList } from 'monitor-api/modules/calendar';
 import { Debounce } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
-import { deleteItem, itemList } from '../../../monitor-api/modules/calendar';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import { Storage } from '../../utils';
@@ -124,10 +125,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
   tableData: ICalendarTableItem[] = [];
   virtualRender = false;
   selectedFields = [];
-  tableSize = 'small';
-
-  /** 重复名称映射 */
-  repeatNameMap: Record<ERepeatTypeId, Function> = {
+  repeatNameMap: Record<ERepeatTypeId, (a: any) => string | TranslateResult> = {
     [ERepeatTypeId.days]: () => window.i18n.tc('每天'),
     [ERepeatTypeId.weeks]: row => {
       if (WORKING_DATE_LIST.every(item => row.repeat.every.includes(item))) return this.$t('每个工作日');

@@ -26,15 +26,10 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { cancelOrResubscribeReport, getReportList, getSendRecords, sendReport } from 'monitor-api/modules/new_report';
+import { deepClone, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { docCookies } from 'monitor-common/utils/utils';
 
-import {
-  cancelOrResubscribeReport,
-  getReportList,
-  getSendRecords,
-  sendReport,
-} from '../../../monitor-api/modules/new_report';
-import { deepClone, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
-import { docCookies } from '../../../monitor-common/utils/utils';
 import ReportDetail from '../my-apply/components/report-detail';
 
 import QueryTypeRadio from './components/query-type-radio';
