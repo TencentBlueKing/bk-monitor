@@ -506,10 +506,10 @@ class StrategyCacheManager(CacheManager):
                 # 目标失效检测
                 cls.check_target(strategy, target, invalid_strategy_dict)
 
-                # 如果value为空，则目标配置不生效，默认全部
+                # 如果value为空，则说明模板下不存在节点，过滤掉
                 if not target["value"]:
-                    logger.info(f"strategy({strategy['id']}) target is not effective, because empty")
-                    item["target"] = []
+                    logger.info(f"skip strategy({strategy['id']}) because target is empty")
+                    return False
 
             # 智能异常检测算法，结果表是存在intelligent_detect中，需要用这个配置
             if query_config.get("intelligent_detect"):
