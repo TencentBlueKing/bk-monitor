@@ -8,6 +8,7 @@ const eslintVueParser = require('vue-eslint-parser');
 const simpleImportSort = require('eslint-plugin-simple-import-sort');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
+// const tencentEslintBaseRules = require('eslint-config-tencent/base').rules;
 // console.info(tencentEslintLegacyRules);
 // Shared importSortRules configuration
 const importSortRules = {
@@ -82,6 +83,13 @@ module.exports = [
     plugins: { prettier },
     rules: { ...prettier.configs.recommended.rules },
   },
+  // {
+  //   files: ['src/**/*.js', 'src/**/*.ts', 'src/**/*.tsx'],
+  //   rules: {
+  //     ...tencentEslintBaseRules,
+  //     'operator-linebreak': 'off',
+  //   },
+  // },
   {
     files: ['src/**/*.ts', 'src/**/*.tsx', 'src/**/*.js'],
     ignores: [],
