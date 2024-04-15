@@ -72,12 +72,14 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
 
   @Ref('strategyName') strategyNameEl;
   @Ref('strategyPriority') strategyPriorityEl;
+  @Ref('strategyLabels') strategyLabelsEl;
 
   labelTreeData = [];
 
   errorsMsg = {
     name: '',
-    priority: ''
+    priority: '',
+    labels: ''
   };
 
   created() {
@@ -85,8 +87,8 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
   }
 
   handleLabelsChange(v) {
-    this.baseConfig.labels = [v];
-    this.handleBaseConfigChange();
+    this.baseConfig.labels = v;
+    this.errorsMsg.labels = v.some(item => item.length > 120) ? this.$tc('标签长度不能超过 120 字符') : '';
   }
 
   getLabelListApi() {
@@ -132,6 +134,10 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     this.strategyPriorityEl.$refs.input.focus();
   }
 
+  handleStrategyLabels() {
+    this.strategyLabelsEl.focusInputer();
+  }
+
   // 校验方法
   public validate(): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -149,15 +155,24 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
               });
             }
           }
+        ],
+        labels: [
+          {
+            validator: (rule, value) => {
+              return !value.some(item => item.length > 120);
+            },
+            message: this.$tc('标签长度不能超过 120 字符')
+          }
         ]
       };
       const validator = new Schema(descriptor);
-      validator.validate({ name: this.baseConfig.name, priority: this.baseConfig.priority }, {}, (errors, fields) => {
+      const { name, priority, labels } = this.baseConfig;
+      validator.validate({ name, priority, labels }, {}, (errors, fields) => {
         if (!errors) {
-          this.errorsMsg = { name: '', priority: '' };
+          this.errorsMsg = { name: '', priority: '', labels: '' };
           resolve(null);
         } else {
-          this.errorsMsg = { name: '', priority: '' };
+          this.errorsMsg = { name: '', priority: '', labels: '' };
           errors.forEach(item => {
             this.errorsMsg[item.field] = item.message;
           });
@@ -166,7 +181,8 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
             // 按顺序给依次给表单 input 聚焦。（仅执行一次）
             const methodMap = {
               name: () => this.handleFocusStrategyName(),
-              priority: () => this.handleFocusStrategyPriority()
+              priority: () => this.handleFocusStrategyPriority(),
+              labels: () => this.handleStrategyLabels()
             };
             methodMap[field]();
             break;
@@ -180,7 +196,8 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
   public clearErrorMsg() {
     this.errorsMsg = {
       name: '',
-      priority: ''
+      priority: '',
+      labels: ''
     };
   }
 
@@ -200,7 +217,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
             value={this.bizId}
             searchable
             clearable={false}
-            readonly={this.bizId > 0}
+            readonly={Number(this.bizId) > 0}
             class='base-config-select simplicity-select'
             behavior='simplicity'
             on-change={this.handleBaseConfigChange}
@@ -299,15 +316,21 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
           {this.readonly && !this?.baseConfig?.labels?.length ? (
             <div style='padding-left: 3px;'>--</div>
           ) : (
-            <MultiLabelSelect
+            <ErrorMsg
+              message={this.errorsMsg.labels}
               style='width: 100%;'
-              mode='select'
-              behavior='simplicity'
-              readonly={this.readonly}
-              checked-node={this.baseConfig.labels}
-              tree-data={this.labelTreeData}
-              on-checkedChange={v => (this.baseConfig.labels = v)}
-            ></MultiLabelSelect>
+            >
+              <MultiLabelSelect
+                style='width: 100%;'
+                mode='select'
+                ref='strategyLabels'
+                behavior='simplicity'
+                readonly={this.readonly}
+                checked-node={this.baseConfig.labels}
+                tree-data={this.labelTreeData}
+                on-checkedChange={this.handleLabelsChange}
+              ></MultiLabelSelect>
+            </ErrorMsg>
           )}
         </CommonItem>
         <CommonItem

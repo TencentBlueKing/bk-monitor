@@ -1007,7 +1007,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     ))}
                   </div>
                   <div class='base-info-row'>
-                    <span class='base-info-item lables-item'>
+                    <span class='base-info-item labels'>
                       <span class='base-info-label'>{this.$t('标签')} :</span>
                       <span class='labels-list'>
                         {!!this.baseInfo.labels.length

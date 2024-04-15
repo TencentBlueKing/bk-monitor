@@ -301,25 +301,16 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   @Watch('table.data')
   handleTableDataChange(v) {
     // 用于数据样式自适应
-    setTimeout(() => {
+    this.$nextTick(() => {
       v.forEach((item, index) => {
-        const ref: any = this.$refs[`table-row-${index}`]; /* 告警组 */
+        /* 告警组 */
+        const ref: any = this.$refs.strategyTable?.$refs[`table-row-${index}`];
         item.overflow = ref && ref.clientHeight > 32;
-        const refLabel: any = this.$refs[`table-labels-${index}`];
+        /* 标签组 */
+        const refLabel: any = this.$refs.strategyTable?.$refs[`table-labels-${index}`];
         // 这里计算整个 label 容器内是否会出现 换行 的可能，若换行就显示省略号。
-        item.overflowLabel = refLabel && refLabel.clientHeight > 32; /* 标签组样式 */
-        // if (item.overflowLabel) {
-        //   let overflowIndex = 0;
-        //   const classifyList = refLabel.getElementsByClassName('classifiy-label');
-        //   // eslint-disable-next-line @typescript-eslint/prefer-for-of
-        //   for (let i = 0; i < classifyList.length; i++) {
-        //     if (classifyList[i].offsetTop > 24) {
-        //       overflowIndex = i;
-        //       break;
-        //     }
-        //   }
-        //   item.extraLabel = item.labels.slice(overflowIndex, item.labels.length);
-        // }
+        /* 标签组样式 */
+        item.overflowLabel = refLabel && refLabel.clientHeight > 32;
         const overflowMap = ['signals', 'levels', 'detectionTypes', 'mealNames'];
         overflowMap.forEach(key => {
           // 通用数据样式
@@ -327,7 +318,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
           item[`overflow${key}`] = refDom && refDom.clientHeight > 32;
         });
       });
-    }, 50);
+    });
   }
   /**
    * 由于父容器 content-right 进行自适应宽度调整的过程中
