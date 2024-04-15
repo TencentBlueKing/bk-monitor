@@ -36,7 +36,7 @@ import * as ruleAuth from './authority-map';
 import './setting-modal.scss';
 
 const authorityMap = {
-  ...ruleAuth
+  ...ruleAuth,
 };
 interface ISettingModalProps {
   // 是否显示

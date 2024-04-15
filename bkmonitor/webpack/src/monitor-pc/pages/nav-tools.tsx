@@ -67,8 +67,8 @@ interface INavToolsEvents {
     SpaceManage: () => import(/* webpackChunkName: 'SpaceManage' */ './space-manage/space-manage') as any,
     GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any,
     MyApply: () => import(/* webpackChunkName: 'MyApply' */ './my-apply/my-apply') as any,
-    MySubscription: () => import(/* webpackChunkName: 'MySubscription' */ './my-subscription/my-subscription') as any
-  }
+    MySubscription: () => import(/* webpackChunkName: 'MySubscription' */ './my-subscription/my-subscription') as any,
+  },
   // #endif
 } as any)
 class NavTools extends DocumentLinkMixin {
@@ -110,31 +110,31 @@ class NavTools extends DocumentLinkMixin {
       {
         id: 'DOCS',
         name: this.$t('产品文档').toString(),
-        href: ''
+        href: '',
       },
       {
         id: 'VERSION',
-        name: this.$t('版本日志').toString()
+        name: this.$t('版本日志').toString(),
       },
       {
         id: 'FAQ',
         name: this.$t('问题反馈').toString(),
-        href: window.ce_url
-      }
+        href: window.ce_url,
+      },
     ];
     this.setList = GLOAB_FEATURE_LIST.map(({ name, ...args }) => ({
       name: `route-${name}`,
-      ...args
+      ...args,
     }));
     this.languageList = [
       {
         id: 'zh-cn',
-        name: '中文'
+        name: '中文',
       },
       {
         id: 'en',
-        name: 'English'
-      }
+        name: 'English',
+      },
     ];
   }
   mounted() {
@@ -232,16 +232,16 @@ class NavTools extends DocumentLinkMixin {
       item.id,
       undefined,
       '/',
-      `${window.bk_domain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, '')}`
+      `${window.bk_domain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, '')}`,
     );
     if (window.bk_component_api_url) {
       useJSONP(
         `${window.bk_component_api_url}/api/c/compapi/v2/usermanage/fe_update_user_language`.replace(/\/\//, '/'),
         {
           data: {
-            language: item.id
-          }
-        }
+            language: item.id,
+          },
+        },
       ).finally(() => {
         location.reload();
       });
@@ -319,7 +319,7 @@ class NavTools extends DocumentLinkMixin {
             offset='-10, 4'
             placement='bottom-start'
             tippy-options={{
-              trigger: 'click'
+              trigger: 'click',
             }}
           >
             <div class='header-help'>
@@ -348,7 +348,7 @@ class NavTools extends DocumentLinkMixin {
           offset='-10, 4'
           placement='bottom-start'
           tippy-options={{
-            trigger: 'click'
+            trigger: 'click',
           }}
         >
           <div class='header-language'>
@@ -394,7 +394,7 @@ class NavTools extends DocumentLinkMixin {
             offset='-10, 4'
             placement='bottom-start'
             tippy-options={{
-              trigger: 'click'
+              trigger: 'click',
             }}
           >
             <div class='header-help'>
@@ -419,7 +419,7 @@ class NavTools extends DocumentLinkMixin {
         <div
           class={{
             'header-user is-left': true,
-            'is-external': process.env.APP === 'external'
+            'is-external': process.env.APP === 'external',
           }}
         >
           <bk-popover
@@ -430,7 +430,7 @@ class NavTools extends DocumentLinkMixin {
             placement='bottom'
             disabled={process.env.APP === 'external'}
             tippy-options={{
-              trigger: 'click'
+              trigger: 'click',
             }}
           >
             <span class='header-user-text'>{window.user_name || window.username}</span>
@@ -499,7 +499,7 @@ class NavTools extends DocumentLinkMixin {
                   onChange={this.handleGlobalSearchShowChange}
                 ></GlobalSearchModal>
               )}
-            </keep-alive>
+            </keep-alive>,
           ]
           // #endif
         }

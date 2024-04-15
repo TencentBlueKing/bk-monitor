@@ -31,18 +31,18 @@ export default [
     name: 'share',
     path: '/share/:token',
     components: {
-      noCache: Share
+      noCache: Share,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: {
       title: '临时分享',
       navId: '',
       noNavBar: true,
       route: {
-        parent: 'home'
-      }
-    }
-  }
+        parent: 'home',
+      },
+    },
+  },
 ] as RouteConfig[];

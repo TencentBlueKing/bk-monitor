@@ -29,7 +29,7 @@ import { CancelToken } from 'monitor-api/index';
 import {
   getIntelligentDetectAccessStatus,
   getIntelligentModel,
-  listIntelligentModels
+  listIntelligentModels,
 } from 'monitor-api/modules/strategies';
 
 import { THRESHOLD_METHOD_LIST } from '../../../../../../constant/constant';
@@ -104,8 +104,8 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
       plan_id: '',
       thresholds: [[{ method: 'gte', threshold: 0 }]],
       visual_type: 'forecasting',
-      bound_type: 'middle'
-    }
+      bound_type: 'middle',
+    },
   };
 
   get rules() {
@@ -127,7 +127,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
       type: 'ai-level',
       behavior: 'simplicity',
       required: true,
-      clearable: false
+      clearable: false,
     },
     {
       label: window.i18n.tc('模型名称'),
@@ -138,7 +138,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
       behavior: 'simplicity',
       options: [],
       required: true,
-      clearable: false
+      clearable: false,
     },
     {
       label: window.i18n.tc('预测时长'),
@@ -155,9 +155,9 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
       unitOption: [
         {
           id: 24 * 60 * 60,
-          name: window.i18n.tc('天')
-        }
-      ]
+          name: window.i18n.tc('天'),
+        },
+      ],
     },
     {
       label: window.i18n.tc('告警阈值'),
@@ -168,8 +168,8 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
       type: 'alarm-thresholds',
       unit: '',
       methodList: [],
-      required: true
-    }
+      required: true,
+    },
   ];
   /** 模型、预测时长、阈值 */
   staticFormItem: FormItem[] = [];
@@ -182,7 +182,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
   /** 提示数据 */
   tipsData: ITipsData = {
     status: 'info',
-    message: ''
+    message: '',
   };
   isChangeModel = false;
 
@@ -266,7 +266,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
     const statusMap = {
       waiting: 'info',
       running: 'success',
-      failed: 'error'
+      failed: 'error',
     };
     this.tipsData.status = statusMap[resData.status];
     this.tipsData.message =
@@ -279,7 +279,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
   async getModelList() {
     this.loading = true;
     const resData = await listIntelligentModels({ algorithm: 'TimeSeriesForecasting' }).finally(
-      () => (this.loading = false)
+      () => (this.loading = false),
     );
     let modelItem: FormItem = null;
     let durationItem: FormItem = null;
@@ -300,7 +300,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
           name: item.name,
           default: !!item.is_default,
           loading: false,
-          detail: this.handleCreateModelOptionsDetail(item)
+          detail: this.handleCreateModelOptionsDetail(item),
         };
       });
     }
@@ -320,11 +320,11 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
     const { latest_release_id } = this.currentModelData || {};
     const params = {
       id: modelId,
-      latest_release_id: relId || latest_release_id
+      latest_release_id: relId || latest_release_id,
     };
     needLoading && (this.loading = true);
     const detailData = await getIntelligentModel(params, {
-      cancelToken: new CancelToken(c => (this.modelDetialCancelFn = c))
+      cancelToken: new CancelToken(c => (this.modelDetialCancelFn = c)),
     }).finally(() => needLoading && (this.loading = false));
     const valueDisplay = this.localData.config?.args || {};
     this.argsFormItem = FormItem.createFormItemData(detailData, valueDisplay);
@@ -332,7 +332,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
     this.handleModelChange({
       name: detailData.name,
       instruction: detailData.instruction,
-      document: detailData.document
+      document: detailData.document,
     });
   }
 
@@ -344,18 +344,18 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
       description: {
         dataLength: {
           value: item.ts_depend,
-          isMatch: true
+          isMatch: true,
         },
         frequency: {
           value: item.ts_freq,
-          isMatch: item.ts_freq === 0 ? true : this.interval === item.ts_freq.value
+          isMatch: item.ts_freq === 0 ? true : this.interval === item.ts_freq.value,
         },
         message: {
           value: item.description,
-          isMatch: true
-        }
+          isMatch: true,
+        },
       },
-      instruction: item.instruction || ''
+      instruction: item.instruction || '',
     };
   }
 
@@ -385,7 +385,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
     this.localData.config = {
       ...params,
       args: argsParams,
-      visual_type: this.currentModelData?.visual_type
+      visual_type: this.currentModelData?.visual_type,
     };
     this.emitLocalData();
   }

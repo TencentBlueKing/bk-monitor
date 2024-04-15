@@ -69,7 +69,7 @@ export default class TableStore {
         failureTime: item.failure_time,
         description: item.description,
         status: item.status,
-        dimensionConfig: item.dimension_config
+        dimensionConfig: item.dimension_config,
       });
       i += 1;
     }

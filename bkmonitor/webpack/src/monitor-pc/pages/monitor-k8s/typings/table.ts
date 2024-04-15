@@ -61,7 +61,7 @@ export interface IProgressItem {
 export const progressColor = {
   SUCCESS: '#18c0a1',
   FAILED: '#ea3636',
-  NODATA: '#dcdee5'
+  NODATA: '#dcdee5',
 };
 
 // 作用域插槽类型(不可配置型)

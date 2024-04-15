@@ -46,12 +46,12 @@ interface IHeaderToolsEvents {
 export type IClickType = 'createNode' | 'createTask' | 'createGroup' | 'import';
 
 @Component({
-  name: 'HeaderTools'
+  name: 'HeaderTools',
 })
 export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEvents> {
   @Prop({
     default: () => ({ showTask: true, showGroup: true, showImport: true, showNode: false }),
-    type: Object
+    type: Object,
   })
   option: IHeaderToolsProps['option'];
   @Prop({ default: '', type: String }) search: string;

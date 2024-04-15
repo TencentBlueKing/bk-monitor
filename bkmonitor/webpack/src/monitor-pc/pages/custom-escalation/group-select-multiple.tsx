@@ -106,7 +106,7 @@ export default class GroupSelectMultiple extends tsc<IProps> {
   }
 
   @Emit('toggle')
-  handleToggle(v: Boolean) {
+  handleToggle(v: boolean) {
     return v;
   }
 
@@ -140,7 +140,7 @@ export default class GroupSelectMultiple extends tsc<IProps> {
                       content: this.$t('由匹配规则{0}生成', [this.getDisableTip(item.id)]),
                       placements: ['right'],
                       boundary: 'window',
-                      allowHTML: false
+                      allowHTML: false,
                     }
               }
             ></bk-option>

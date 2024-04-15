@@ -50,8 +50,8 @@ interface IProps {
 }
 @Component({
   components: {
-    StrategyTargetTable
-  }
+    StrategyTargetTable,
+  },
 })
 export default class AiopsMonitorData extends tsc<IProps> {
   /* 指标数据 */
@@ -64,14 +64,14 @@ export default class AiopsMonitorData extends tsc<IProps> {
   /** 表单数据 */
   formModel = {
     level: 0,
-    scene: ''
+    scene: '',
   };
   target: any = {
     targetType: '',
     desc: {
       message: '',
-      subMessage: ''
-    }
+      subMessage: '',
+    },
   };
   /** 表单规则 */
   formRules = {
@@ -79,8 +79,8 @@ export default class AiopsMonitorData extends tsc<IProps> {
       {
         required: true,
         message: this.$t('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     level: [
       {
@@ -88,9 +88,9 @@ export default class AiopsMonitorData extends tsc<IProps> {
           return val > 0;
         },
         message: this.$t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
   // 展开/收起
   tagOpen = false;
@@ -113,7 +113,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
   levelList = [
     { id: 1, name: this.$t('致命'), icon: 'icon-danger' },
     { id: 2, name: this.$t('预警'), icon: 'icon-mind-fill' },
-    { id: 3, name: this.$t('提醒'), icon: 'icon-tips' }
+    { id: 3, name: this.$t('提醒'), icon: 'icon-tips' },
   ];
 
   @Emit('change')
@@ -126,14 +126,14 @@ export default class AiopsMonitorData extends tsc<IProps> {
       type: MetricType.MultivariateAnomalyDetection,
       config: {
         scene_id: this.formModel.scene,
-        metrics: this.scene.metrics
+        metrics: this.scene.metrics,
       },
-      unit_prefix: ''
+      unit_prefix: '',
     };
     return {
       ...this.scene,
       query_configs: [{ ...this.scene.query_config }],
-      algorithms: [algorithm]
+      algorithms: [algorithm],
     };
   }
   @Emit('targetChange')
@@ -155,7 +155,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
       this.targetList,
       this.metricData?.[0]?.targetType,
       this.defaultCheckedTarget?.node_count || 0,
-      this.defaultCheckedTarget?.instance_count || 0
+      this.defaultCheckedTarget?.instance_count || 0,
     );
   }
 
@@ -215,7 +215,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
     targetList: { count: number; bk_obj_id: string; nodes_count?: number; instances_count?: number; all_host: any[] }[],
     bkTargetType: string,
     nodeCount = 0,
-    instance_count = 0
+    instance_count = 0,
   ) {
     const [{ objectType }] = this.metricData;
     const result = handleSetTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
@@ -252,8 +252,8 @@ export default class AiopsMonitorData extends tsc<IProps> {
           {...{
             props: {
               model: this.formModel,
-              rules: this.formRules
-            }
+              rules: this.formRules,
+            },
           }}
         >
           <bk-form-item label={`${this.$t('监控项')}：`}>
@@ -344,7 +344,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
                     ) : (
                       <span>{this.$t('未添加监控目标')}</span>
                     ),
-                    <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>
+                    <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
                   ]
                 : [
                     <i class='icon-monitor icon-mc-tv'></i>,
@@ -368,7 +368,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
                         class='icon-monitor icon-bianji'
                         onClick={this.handleAddTarget}
                       ></span>
-                    )
+                    ),
                   ]}
             </div>
           </bk-form-item>
@@ -381,7 +381,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
               {this.readonly
                 ? this.levelList
                     .filter(
-                      item => (this.formModel.level === item.id || this.formModel.level > item.id ? item.id : 0) !== 0
+                      item => (this.formModel.level === item.id || this.formModel.level > item.id ? item.id : 0) !== 0,
                     )
                     .map(item => (
                       <span class='level-check'>
@@ -398,7 +398,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
                       false-value={0}
                       v-bk-tooltips={{
                         disabled: !(this.formModel.level > item.id),
-                        content: this.$t('已选择更低级告警级别')
+                        content: this.$t('已选择更低级告警级别'),
                       }}
                       onChange={this.handleLevelChange}
                     >

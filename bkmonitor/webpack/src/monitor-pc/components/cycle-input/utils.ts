@@ -68,7 +68,7 @@ export const secToString = compose(toMin, toSec);
 export const timeToSec = (timeVal: ITimeVal): number => {
   const unitMap: { [key in unitType]: Function } = {
     m: (val: number) => val * 60,
-    s: (val: number) => val
+    s: (val: number) => val,
   };
   const sec = unitMap?.[timeVal.unit]?.(timeVal.value);
   return sec;
@@ -82,7 +82,7 @@ export const defaultCycleOptionMin: IOption[] = [
   { id: 5, name: 5 },
   { id: 10, name: 10 },
   { id: 30, name: 30 },
-  { id: 60, name: 60 }
+  { id: 60, name: 60 },
   // { id: 120, name: 120 },
   // { id: 300, name: 300 },
   // { id: 600, name: 600 },
@@ -96,5 +96,5 @@ export const defaultCycleOptionSec: IOption[] = [
   { id: 10, name: 10 },
   { id: 20, name: 20 },
   { id: 30, name: 30 },
-  { id: 60, name: 60 }
+  { id: 60, name: 60 },
 ];

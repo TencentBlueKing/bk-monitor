@@ -64,13 +64,13 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
   @Prop({
     default: () => COMPARE_KEY,
     type: Array,
-    validator: val => val.every(item => COMPARE_KEY.includes(item))
+    validator: val => val.every(item => COMPARE_KEY.includes(item)),
   })
   compareListEnable: PanelToolsType.CompareId[];
   /** 时间对比可选列表 */
   @Prop({
     default: () => COMPARE_TIME_OPTIONS,
-    type: Array
+    type: Array,
   })
   compareTimeOptions: PanelToolsType.ICompareListItem[];
   /** 目标可选项 */
@@ -145,7 +145,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
         if (!allListMap.has(item))
           allList.push({
             id: item,
-            name: item
+            name: item,
           });
       });
     }
@@ -174,9 +174,9 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
   @Watch('targetValue', { immediate: true })
   targetValueChange() {
     const viewOptions = deepClone(this.targetValue) as IViewOptions;
-    // eslint-disable-next-line max-len
-    this.localTargetValue = viewOptions.compares?.targets?.map(
-      item => this.panel.targets?.[0]?.handleCreateItemId(item, true)
+
+    this.localTargetValue = viewOptions.compares?.targets?.map(item =>
+      this.panel.targets?.[0]?.handleCreateItemId(item, true),
     );
     // this.localTargetValue = viewOptions.compares?.targets?.filter(item => item).map(item => item.bk_host_id);
   }
@@ -205,17 +205,17 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
   @Emit('compareChange')
   handleCompareChange(
     type: PanelToolsType.CompareId,
-    val?: PanelToolsType.CompareValue<PanelToolsType.CompareId>
+    val?: PanelToolsType.CompareValue<PanelToolsType.CompareId>,
   ): PanelToolsType.Compare {
     const defaultDataMap: PanelToolsType.ICompareValueType = {
       none: true,
       target: (val as PanelToolsType.CompareValue<'target'>) || [],
       time: (val as PanelToolsType.CompareValue<'time'>) || [],
-      metric: (val as PanelToolsType.CompareValue<'metric'>) || []
+      metric: (val as PanelToolsType.CompareValue<'metric'>) || [],
     };
     const data = {
       type,
-      value: defaultDataMap[type]
+      value: defaultDataMap[type],
     };
     return data;
   }
@@ -240,7 +240,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
       this.$bkMessage({
         theme: 'warning',
         message: this.$t('按照提示输入'),
-        offsetY: 40
+        offsetY: 40,
       });
     }
   }
@@ -254,7 +254,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
     if (this.compareTimeList.every(item => item.id !== str)) {
       this.compareTimeCustomList.push({
         id: str,
-        name: str
+        name: str,
       });
     }
     !timeValue.includes(str) && timeValue.push(str);
@@ -298,8 +298,8 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
     const viewOptions: IViewOptions = {
       ...this.targetValue,
       compares: {
-        targets: targetCheckedList
-      }
+        targets: targetCheckedList,
+      },
     };
     return viewOptions;
   }
@@ -314,15 +314,15 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
   commonSelectTpl() {
     const optionsMap = {
       metric: this.metricOptions,
-      target: this.targetOptionsFilter
+      target: this.targetOptionsFilter,
     };
     const localValueMap = {
       metric: this.localMetricValue,
-      target: this.localTargetValue
+      target: this.localTargetValue,
     };
     const eventMap = {
       metric: this.handleMetricChange,
-      target: this.handleTargetChange
+      target: this.handleTargetChange,
     };
     const options = optionsMap[this.localType] || [];
     const localValue = localValueMap[this.localType];
@@ -425,7 +425,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
             )}
           </div>
         </bk-select>
-      )
+      ),
     };
     return tplMap[this.localType];
   }

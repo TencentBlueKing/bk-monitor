@@ -42,7 +42,7 @@ export const enum EWeek {
   Wed = 3,
   Thu = 4,
   Fri = 5,
-  Sat = 6
+  Sat = 6,
 }
 
 export const enum EType {
@@ -50,7 +50,7 @@ export const enum EType {
   'day',
   'week',
   'month',
-  'hour'
+  'hour',
 }
 
 export interface ITimePeriodValue {

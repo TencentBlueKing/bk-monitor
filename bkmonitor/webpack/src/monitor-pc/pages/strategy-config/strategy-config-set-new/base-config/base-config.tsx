@@ -29,7 +29,6 @@
  * @Description: 策略基本信息
  */
 
-/* eslint-disable camelcase */
 import { Component, Emit, Prop, PropSync, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import Schema from 'async-validator';
@@ -77,7 +76,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
 
   errorsMsg = {
     name: '',
-    priority: ''
+    priority: '',
   };
 
   created() {
@@ -92,29 +91,29 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
   getLabelListApi() {
     const params = {
       bk_biz_id: this.$store.getters.bizId,
-      strategy_id: 0
+      strategy_id: 0,
     };
     return strategyLabelList(params).then(res => {
       const data = transformDataKey(res);
       const globalData = [
         ...data.global,
-        ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName }))
+        ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName })),
       ];
       const customData = [
         ...data.custom,
-        ...data.customParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName }))
+        ...data.customParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName })),
       ];
       this.labelTreeData = [
         {
           group: 'global',
           groupName: this.$t('全局标签'),
-          children: labelListToTreeData(globalData)
+          children: labelListToTreeData(globalData),
         },
         {
           group: 'custom',
           groupName: this.$t('自定义标签'),
-          children: labelListToTreeData(customData)
-        }
+          children: labelListToTreeData(customData),
+        },
       ];
     });
   }
@@ -147,9 +146,9 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
                   resolve();
                 }
               });
-            }
-          }
-        ]
+            },
+          },
+        ],
       };
       const validator = new Schema(descriptor);
       validator.validate({ name: this.baseConfig.name, priority: this.baseConfig.priority }, {}, (errors, fields) => {
@@ -161,12 +160,12 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
           errors.forEach(item => {
             this.errorsMsg[item.field] = item.message;
           });
-          // eslint-disable-next-line no-restricted-syntax
+
           for (const field in fields as Object) {
             // 按顺序给依次给表单 input 聚焦。（仅执行一次）
             const methodMap = {
               name: () => this.handleFocusStrategyName(),
-              priority: () => this.handleFocusStrategyPriority()
+              priority: () => this.handleFocusStrategyPriority(),
             };
             methodMap[field]();
             break;
@@ -180,7 +179,7 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
   public clearErrorMsg() {
     this.errorsMsg = {
       name: '',
-      priority: ''
+      priority: '',
     };
   }
 

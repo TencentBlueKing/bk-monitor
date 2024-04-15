@@ -35,7 +35,7 @@ import {
   filterSelectorPanelSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
@@ -89,20 +89,20 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
       id: 'success',
       status: 'success',
       name: 0,
-      tips: window.i18n.tc('健康状态良好')
+      tips: window.i18n.tc('健康状态良好'),
     },
     {
       id: 'failed',
       status: 'failed',
       name: 0,
-      tips: window.i18n.tc('异常')
+      tips: window.i18n.tc('异常'),
     },
     {
       id: 'disabled',
       status: 'disabled',
       name: 0,
-      tips: window.i18n.tc('全部无数据')
-    }
+      tips: window.i18n.tc('全部无数据'),
+    },
   ];
 
   /** 搜索条件可选项 */
@@ -122,7 +122,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   // active id
@@ -137,13 +137,12 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
     return this.list.filter(
       item =>
         (item.name.includes(this.keyword) || item.id.toString().includes(this.keyword)) &&
-        (this.currentStatus === 'all' ? true : item.status.type === this.currentStatus)
+        (this.currentStatus === 'all' ? true : item.status.type === this.currentStatus),
     );
   }
 
   /** 目标对比选中的主机id */
   get compareTargets() {
-    // eslint-disable-next-line max-len
     return (
       this.viewOptions?.compares?.targets?.map(item => this.panel.targets?.[0]?.handleCreateItemId(item, true)) || []
     );
@@ -192,7 +191,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
       (this as any).$api[item.apiModule]
         [item.apiFunc]({
           ...variablesService.transformVariables(item.data),
-          condition_list: transformConditionValueParams(this.searchCondition)
+          condition_list: transformConditionValueParams(this.searchCondition),
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
@@ -203,10 +202,10 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
             return {
               ...set,
               id,
-              name: set.name || id
+              name: set.name || id,
             };
           });
-        })
+        }),
     );
     const [data] = await Promise.all(promiseList).catch(() => [[]]);
     this.list = data;
@@ -227,7 +226,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
   @Debounce(300)
@@ -244,7 +243,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
     const value = this.panel.targets[0].handleCreateFilterDictValue(data);
     viewOptions.filters = { ...(value || {}) };
     viewOptions.compares = {
-      targets: []
+      targets: [],
     };
     this.handleTitleChange(data.name);
     this.$emit('change', viewOptions);
@@ -273,8 +272,8 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
     const viewOptions: IViewOptions = {
       ...this.viewOptions,
       compares: {
-        targets: this.localCompareTargets
-      }
+        targets: this.localCompareTargets,
+      },
     };
     this.$emit('change', viewOptions);
   }
@@ -350,8 +349,8 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
                         class={[
                           `list-wrapper-item ${data.id === this.activeId ? 'item-active' : ''}`,
                           {
-                            'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId)
-                          }
+                            'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
+                          },
                         ]}
                       >
                         <span class='status-tag-wrap'>
@@ -374,7 +373,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
                         <span>{data.name || '--'}</span>
                       </div>
                     );
-                  }
+                  },
                 }}
               ></bk-virtual-scroll>
             ) : (

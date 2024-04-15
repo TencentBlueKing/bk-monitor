@@ -34,7 +34,7 @@ import {
   getDirectoryTree,
   renameFolder,
   starDashboard,
-  unstarDashboard
+  unstarDashboard,
 } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
 import { deepClone, random } from 'monitor-common/utils/utils';
@@ -84,7 +84,7 @@ export enum MoreType {
   fav /** 收藏 */,
   unfav /** 取消收藏 */,
   export /** 导出 */,
-  rename /** 重命名 */
+  rename /** 重命名 */,
 }
 type FormType = MoreType.dashboard | MoreType.dir;
 @Component
@@ -107,25 +107,25 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     {
       icon: 'icon-mc-youjian',
       tips: window.i18n.tc('route-邮件订阅'),
-      router: 'email-subscriptions'
+      router: 'email-subscriptions',
     },
     {
       icon: 'icon-mc-history',
       tips: window.i18n.tc('route-发送历史'),
-      router: 'email-subscriptions-history'
+      router: 'email-subscriptions-history',
     },
     process.env.APP !== 'external'
       ? {
           icon: 'icon-menu-export',
           tips: window.i18n.tc('批量导入'),
-          router: 'export-import'
+          router: 'export-import',
         }
       : undefined,
     {
       icon: 'icon-shezhi',
       tips: window.i18n.tc('route-仪表盘设置'),
-      router: 'grafana-datasource'
-    }
+      router: 'grafana-datasource',
+    },
   ].filter(Boolean);
 
   /** 我的收藏列表 */
@@ -142,28 +142,28 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         id: MoreType.dashboard,
         name: window.i18n.tc('仪表盘'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       {
         id: MoreType.dir,
         name: window.i18n.tc('目录'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       {
         id: MoreType.import,
         name: window.i18n.tc('导入'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       process.env.APP !== 'external'
         ? {
             id: MoreType.imports,
             name: window.i18n.tc('批量导入'),
             hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-            action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+            action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
           }
-        : undefined
+        : undefined,
     ].filter(Boolean);
   }
 
@@ -172,14 +172,14 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   formData: IFormData = {
     name: '',
-    dir: null
+    dir: null,
   };
   /**
    * 表单校验规则
    */
   formRules = {
     name: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }],
-    dir: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }]
+    dir: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }],
   };
   loading = false;
 
@@ -189,9 +189,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   get searchResList(): TreeMenuItem[] {
     if (!this.keywork) return [];
     const res = this.grafanaList.reduce((total, item) => {
-      // eslint-disable-next-line max-len
       const res = item.children.filter(
-        child => child.title.toLocaleLowerCase().indexOf(this.keywork.toLocaleLowerCase()) > -1
+        child => child.title.toLocaleLowerCase().indexOf(this.keywork.toLocaleLowerCase()) > -1,
       );
       total = [...total, ...res];
       return total;
@@ -209,7 +208,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       if (item.isFolder && item.title && item.uid !== GRAFANA_HOME_ID) {
         total.push({
           id: item.id,
-          name: item.title
+          name: item.title,
         });
       }
       return total;
@@ -248,7 +247,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   async handleFetchStickyList() {
     const params = {
-      username: this.$store.getters.userName
+      username: this.$store.getters.userName,
     };
     const res = await listStickySpaces(params).catch(() => []);
     this.spacestickyList = res;
@@ -288,7 +287,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       icon: 'icon-mc-grafana-home',
       isFolder: false,
       isStarred: false,
-      children: []
+      children: [],
     });
   }
 
@@ -307,7 +306,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         isStarred,
         isFolder: Object.prototype.hasOwnProperty.call(item, 'dashboards'),
         editable: item.editable ?? true,
-        children: this.handleGrafanaTreeData(dashboards)
+        children: this.handleGrafanaTreeData(dashboards),
       };
     });
   }
@@ -321,15 +320,15 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       {
         id: 3,
         name: this.$tc('我的收藏'),
-        children: []
-      }
+        children: [],
+      },
     ];
     favList[0].children = list.reduce((total, item) => {
       if (item.is_starred)
         total.push({
           id: item.id,
           name: item.name,
-          uid: item.uid
+          uid: item.uid,
         });
       return total;
     }, []);
@@ -416,7 +415,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               this.$bkMessage({ message: this.$t('目录删除成功'), theme: 'success' });
               this.handleFetchGrafanaTree();
             }
-          }
+          },
         });
       }
     } else {
@@ -433,7 +432,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             this.$bkMessage({ message: this.$t('仪表盘删除成功'), theme: 'success' });
             this.handleFetchGrafanaTree();
           }
-        }
+        },
       });
     }
   }
@@ -462,7 +461,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleImportsDashboard() {
     this.$router.push({
-      name: 'import-configuration-upload'
+      name: 'import-configuration-upload',
     });
   }
 
@@ -471,7 +470,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleImportDashboard() {
     this.$router.push({
-      path: '/grafana/import'
+      path: '/grafana/import',
     });
   }
 
@@ -482,7 +481,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   async handleFavDashboard(data: IMoreData) {
     if (data.item.isDashboard) {
       const res = await starDashboard({
-        dashboard_id: data.item.id
+        dashboard_id: data.item.id,
       })
         .then(() => true)
         .catch(() => false);
@@ -540,7 +539,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     const params = {
       title: this.formData.name,
       folderId: this.formData.dir,
-      type: 'dashboard'
+      type: 'dashboard',
     };
     return createDashboardOrFolder(params)
       .then(() => true)
@@ -552,7 +551,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   handleAddFolder() {
     const params = {
       title: this.formData.name,
-      type: 'folder'
+      type: 'folder',
     };
     return createDashboardOrFolder(params)
       .then(() => true)
@@ -575,7 +574,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   async handleRename(item: TreeMenuItem) {
     const res = await renameFolder({
       uid: item.uid,
-      title: item.editValue
+      title: item.editValue,
     })
       .then(() => true)
       .catch(() => false);
@@ -591,8 +590,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.$router.push({
       name: 'export-configuration',
       params: {
-        dashboardChecked: checkList as any
-      }
+        dashboardChecked: checkList as any,
+      },
     });
   }
 
@@ -740,7 +739,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                   v-bk-tooltips={{
                     content: item.tips,
                     extCls: 'garfana-link-tips',
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                   class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   onClick={() => this.handleLinkTo(item)}
@@ -766,8 +765,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             {...{
               props: {
                 model: this.formData,
-                rules: this.formRules
-              }
+                rules: this.formRules,
+              },
             }}
             ref='dashboardForm'
             formType='vertical'

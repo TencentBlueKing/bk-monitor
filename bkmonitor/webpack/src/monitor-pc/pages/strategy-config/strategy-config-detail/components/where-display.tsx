@@ -85,20 +85,20 @@ export default class WhereDisplay extends tsc<IProps> {
               data_type_label,
               metric_field,
               result_table_id,
-              where: []
+              where: [],
             },
             data_source_label === 'bk_log_search'
               ? {
-                  index_set_id
+                  index_set_id,
                 }
-              : {}
+              : {},
           ),
-          type: 'dimension'
+          type: 'dimension',
         };
         return getVariableValue(params).then(res => {
           this.whereValueMap.set(
             item.key,
-            res.map(set => ({ id: set.label, name: set.value }))
+            res.map(set => ({ id: set.label, name: set.value })),
           );
         });
       });
@@ -130,7 +130,7 @@ export default class WhereDisplay extends tsc<IProps> {
                 zIndex: 9999,
                 offset: '0, 6',
                 boundary: document.body,
-                allowHTML: false
+                allowHTML: false,
               }}
             >{` ${this.whereNameMap.get(item.key) || item.key} `}</span>
             <span class='where-method'>{` ${this.methodNameMap.get(item.method) || item.method} `}</span>

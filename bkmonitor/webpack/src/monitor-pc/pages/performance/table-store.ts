@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/prefer-for-of */
-/* eslint-disable no-loop-func */
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -30,8 +30,7 @@
  * @LastEditTime: 2021-07-01 17:23:59
  * @Description:
  */
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable no-param-reassign */
+
 // @ts-nocheck
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { typeTools } from 'monitor-common/utils/utils.js';
@@ -61,24 +60,24 @@ export default class TableStore {
   public conditionsList: IOption[] = [
     {
       name: '>',
-      id: '>'
+      id: '>',
     },
     {
       name: '>=',
-      id: '>='
+      id: '>=',
     },
     {
       name: '<',
-      id: '<'
+      id: '<',
     },
     {
       name: '<=',
-      id: '<='
+      id: '<=',
     },
     {
       name: '=',
-      id: '='
-    }
+      id: '=',
+    },
   ];
 
   public fieldData: Array<IFieldConfig> = [
@@ -91,7 +90,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('主机ID'),
@@ -103,7 +102,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('内网IPv6'),
@@ -115,7 +114,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('外网IPv6'),
@@ -127,7 +126,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('内网IP'),
@@ -139,7 +138,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('外网IP'),
@@ -151,7 +150,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('采集状态'),
@@ -164,23 +163,23 @@ export default class TableStore {
       options: [
         {
           name: window.i18n.t('未知'),
-          id: -1
+          id: -1,
         },
         {
           name: window.i18n.t('正常'),
-          id: 0
+          id: 0,
         },
         {
           name: window.i18n.t('无数据上报'),
-          id: 3
+          id: 3,
         },
         {
           name: window.i18n.t('无Agent'),
-          id: 2
-        }
+          id: 2,
+        },
       ],
       value: [],
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('主机名'),
@@ -194,7 +193,7 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       allowEmpt: true, // 允许空筛选选项出现
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('OS名称'),
@@ -208,7 +207,7 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       allowEmpt: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('管控区域'),
@@ -220,7 +219,7 @@ export default class TableStore {
       options: [],
       type: 'select',
       value: '',
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('业务拓扑'),
@@ -231,7 +230,7 @@ export default class TableStore {
       type: 'cascade',
       value: [],
       multiple: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('集群名'),
@@ -245,7 +244,7 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       multiple: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('模块名'),
@@ -259,7 +258,7 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       multiple: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('未恢复告警'),
@@ -267,7 +266,7 @@ export default class TableStore {
       checked: true,
       disable: false,
       type: 'number',
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('CPU五分钟负载'),
@@ -280,7 +279,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-last'
+      headerPreIcon: 'icon-last',
     },
     {
       name: window.i18n.t('CPU使用率'),
@@ -293,7 +292,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-last'
+      headerPreIcon: 'icon-last',
     },
     {
       name: window.i18n.t('磁盘空间使用率'),
@@ -306,7 +305,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-max'
+      headerPreIcon: 'icon-max',
     },
     {
       name: window.i18n.t('磁盘IO使用率'),
@@ -319,7 +318,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-max'
+      headerPreIcon: 'icon-max',
     },
     {
       name: window.i18n.t('应用内存使用率'),
@@ -332,7 +331,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-last'
+      headerPreIcon: 'icon-last',
     },
     {
       name: window.i18n.t('物理内存使用率'),
@@ -345,7 +344,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-last'
+      headerPreIcon: 'icon-last',
     },
     {
       name: window.i18n.t('业务名'),
@@ -357,7 +356,7 @@ export default class TableStore {
       type: 'text',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('进程'),
@@ -371,15 +370,15 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       allowEmpt: true,
-      show: false
-    }
+      show: false,
+    },
   ];
   // 缓存options数据的字段
   public cacheFieldOptionsSet = {
     bk_host_name: new Set(),
     bk_os_name: new Set(),
     bk_cloud_name: new Set(),
-    display_name: new Set() // 进程选项缓存
+    display_name: new Set(), // 进程选项缓存
   };
   public cacheModuleMap = new Map();
   public cacheClusterMap = new Map();
@@ -429,7 +428,7 @@ export default class TableStore {
           topoNameMap[id] = topo_link_display[index];
           return {
             id,
-            name: topo_link_display[index]
+            name: topo_link_display[index],
           };
         });
         return topo;
@@ -451,7 +450,7 @@ export default class TableStore {
             if (key.includes(`${id}|`)) {
               options.push({
                 id: key,
-                name
+                name,
               });
             }
           });
@@ -468,7 +467,7 @@ export default class TableStore {
             multiple: true,
             fuzzySearch: true,
             show: true,
-            dynamic: true
+            dynamic: true,
           });
         }
       });
@@ -479,7 +478,7 @@ export default class TableStore {
     const createNode = data => ({
       id: data.id,
       name: data.name,
-      children: []
+      children: [],
     });
     for (let i = 0; i < list.length; i++) {
       const pathList = list[i];
@@ -507,7 +506,7 @@ export default class TableStore {
           if (id.match(/^set\|/)) {
             options.push({
               id,
-              name
+              name,
             });
           }
         });
@@ -526,7 +525,7 @@ export default class TableStore {
         for (const val of cacheFieldSet.values()) {
           fieldData.options.push({
             id: val,
-            name: val
+            name: val,
           });
         }
       }
@@ -583,21 +582,21 @@ export default class TableStore {
       }
     }
     const module = item.module || [];
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
     for (let i = 0; i < module.length; i++) {
       const currentModule = module[i];
       const {
         id: moduleId,
         bk_inst_name: moduleName,
         topo_link: topoLink,
-        topo_link_display: topoLinkDisplay
+        topo_link_display: topoLinkDisplay,
       } = currentModule;
 
       if (moduleId && moduleName) {
         this.cacheModuleMap.set(moduleId, {
           id: moduleName,
           name: moduleName,
-          moduleId
+          moduleId,
         });
       }
 
@@ -608,7 +607,7 @@ export default class TableStore {
         if (!item.bk_cluster.find(i => i.id === clusterId)) {
           item.bk_cluster.push({
             name: clusterName,
-            id: clusterId
+            id: clusterId,
           });
         }
       }
@@ -669,7 +668,7 @@ export default class TableStore {
   public getTableData() {
     let data = [...(this.panelKey ? this[this.panelKey] : this.allData)];
     const fieldData = this.fieldData.filter(field =>
-      Array.isArray(field.value) ? !!field.value.length : field.value !== '' && field.value !== undefined
+      Array.isArray(field.value) ? !!field.value.length : field.value !== '' && field.value !== undefined,
     );
 
     fieldData.forEach(field => {
@@ -706,7 +705,7 @@ export default class TableStore {
       const ipv6s = ipv6Keyword.match(IPV6_LIST_MATCH);
       if (ipv6s?.length > 0) {
         return data.filter(
-          item => item.bk_host_innerip_v6.includes(keyWord) || ipv6s.includes(item.bk_host_innerip_v6)
+          item => item.bk_host_innerip_v6.includes(keyWord) || ipv6s.includes(item.bk_host_innerip_v6),
         );
       }
     }
@@ -876,7 +875,7 @@ export default class TableStore {
     }
     return {
       originValue,
-      curValue
+      curValue,
     };
   }
 

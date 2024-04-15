@@ -36,7 +36,7 @@ interface ICardsContainerProps {
 }
 
 @Component({
-  name: 'CardsContainer'
+  name: 'CardsContainer',
 })
 export default class CardsContainer extends tsc<ICardsContainerProps> {
   @Prop({ type: String, default: '' }) title: string;

@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -432,5 +431,5 @@ export default {
   '是否开始迁移策略？': 'start migrating the rule?',
   确定回收所选分享链接: 'Recycle these sharing links ?',
   确定回收当前分享链接: 'Recycle the sharing link ?',
-  '是否还原默认配置？': 'Do you want to restore the default configuration?'
+  '是否还原默认配置？': 'Do you want to restore the default configuration?',
 };

@@ -34,7 +34,7 @@ const { i18n } = window;
 
 const AlarmUpdateContent = ctx => {
   const {
-    props: { severity, tag }
+    props: { severity, tag },
   } = ctx;
   const language = getCookie('blueking_language') || 'zhCN';
 

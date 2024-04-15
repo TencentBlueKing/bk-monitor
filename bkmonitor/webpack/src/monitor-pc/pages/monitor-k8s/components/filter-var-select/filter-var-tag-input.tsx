@@ -71,7 +71,7 @@ export default class FilterVarTagInput extends tsc<IProps, IEvents> {
         if (!this.list?.some(item => item.id === val)) {
           ret.push({
             id: val,
-            name: val
+            name: val,
           });
         }
       });

@@ -33,13 +33,13 @@ export const lazyLoadRoute = async (component: any) => {
   const asyncComponent = () => ({
     component,
     loading,
-    delay: 1
+    delay: 1,
   });
   return Promise.resolve({
     functional: true,
     render(h: CreateElement, { data, children }) {
       return h(asyncComponent, data, children);
-    }
+    },
   });
 };
 

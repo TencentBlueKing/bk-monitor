@@ -77,8 +77,8 @@ module.exports = {
     {
       startTag: 'never',
       endTag: 'never',
-      selfClosingTag: 'always'
-    }
+      selfClosingTag: 'always',
+    },
   ],
 
   // https://github.com/vuejs/eslint-plugin-vue/blob/master/docs/rules/html-end-tags.md
@@ -93,8 +93,8 @@ module.exports = {
       baseIndent: 1,
       closeBracket: 0,
       alignAttributesVertically: true,
-      ignores: []
-    }
+      ignores: [],
+    },
   ],
 
   // https://github.com/vuejs/eslint-plugin-vue/blob/master/docs/rules/html-quotes.md
@@ -236,9 +236,9 @@ module.exports = {
         'LIFECYCLE_HOOKS',
         'methods',
         ['template', 'render'],
-        'renderError'
-      ]
-    }
+        'renderError',
+      ],
+    },
   ],
 
   // https://github.com/vuejs/eslint-plugin-vue/blob/master/docs/rules/prop-name-casing.md
@@ -287,8 +287,8 @@ module.exports = {
     4,
     {
       baseIndent: 1,
-      switchCase: 1
-    }
+      switchCase: 1,
+    },
   ],
 
   // https://github.com/vuejs/eslint-plugin-vue/blob/master/docs/rules/singleline-html-element-content-newline.md
@@ -382,8 +382,8 @@ module.exports = {
   'vue/component-tags-order': [
     'error',
     {
-      order: ['template', 'script', 'style']
-    }
+      order: ['template', 'script', 'style'],
+    },
   ],
   'new-cap': 'off',
   indent: 'off',
@@ -405,8 +405,8 @@ module.exports = {
       ignoreTemplateLiterals: true,
       ignoreRegExpLiterals: true,
       ignoreHTMLAttributeValues: true,
-      ignoreHTMLTextContents: true
-    }
+      ignoreHTMLTextContents: true,
+    },
   ],
   '@typescript-eslint/explicit-member-accessibility': 'off',
   'vue/html-indent': [
@@ -417,14 +417,14 @@ module.exports = {
       baseIndent: 1,
       closeBracket: 0,
       alignAttributesVertically: true,
-      ignores: []
-    }
+      ignores: [],
+    },
   ],
   'no-param-reassign': [
     'warn',
     {
-      props: false
-    }
+      props: false,
+    },
   ],
   'codecc/comment-ratio': 0,
   'vue/no-mutating-props': 0,
@@ -438,78 +438,85 @@ module.exports = {
     'kebab-case',
     {
       registeredComponentsOnly: false,
-      ignores: []
-    }
+      ignores: [],
+    },
   ],
   'vue/v-on-function-call': 'error',
   'vue/max-attributes-per-line': [
     'error',
     {
       singleline: {
-        max: 1
+        max: 1,
       },
       multiline: {
-        max: 1
-      }
-    }
+        max: 1,
+      },
+    },
   ],
   'vue/html-closing-bracket-newline': [
-    'error', {
+    'error',
+    {
       singleline: 'never',
-      multiline: 'always'
-    }
-  ],
-  'vue/html-self-closing': ['error', {
-    html: {
-      void: 'never',
-      normal: 'always',
-      component: 'always'
+      multiline: 'always',
     },
-    svg: 'always',
-    math: 'always'
-  }],
-  'vue/singleline-html-element-content-newline': ['error', {
-    ignoreWhenNoAttributes: true,
-    ignoreWhenEmpty: true,
-    ignores: [
-      'a',
-      'abbr',
-      'audio',
-      'b',
-      'bdi',
-      'bdo',
-      'canvas',
-      'cite',
-      'code',
-      'data',
-      'del',
-      'dfn',
-      'em',
-      'i',
-      'iframe',
-      'ins',
-      'kbd',
-      'label',
-      'map',
-      'mark',
-      'noscript',
-      'object',
-      'output',
-      'picture',
-      'q',
-      'ruby',
-      's',
-      'samp',
-      'small',
-      'span',
-      'strong',
-      'sub',
-      'sup',
-      'svg',
-      'time',
-      'u',
-      'var',
-      'video'
-    ]
-  }]
+  ],
+  'vue/html-self-closing': [
+    'error',
+    {
+      html: {
+        void: 'never',
+        normal: 'always',
+        component: 'always',
+      },
+      svg: 'always',
+      math: 'always',
+    },
+  ],
+  'vue/singleline-html-element-content-newline': [
+    'error',
+    {
+      ignoreWhenNoAttributes: true,
+      ignoreWhenEmpty: true,
+      ignores: [
+        'a',
+        'abbr',
+        'audio',
+        'b',
+        'bdi',
+        'bdo',
+        'canvas',
+        'cite',
+        'code',
+        'data',
+        'del',
+        'dfn',
+        'em',
+        'i',
+        'iframe',
+        'ins',
+        'kbd',
+        'label',
+        'map',
+        'mark',
+        'noscript',
+        'object',
+        'output',
+        'picture',
+        'q',
+        'ruby',
+        's',
+        'samp',
+        'small',
+        'span',
+        'strong',
+        'sub',
+        'sup',
+        'svg',
+        'time',
+        'u',
+        'var',
+        'video',
+      ],
+    },
+  ],
 };

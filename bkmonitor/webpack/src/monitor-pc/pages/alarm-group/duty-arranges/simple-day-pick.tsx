@@ -122,7 +122,7 @@ export default class SimpleDayPick extends tsc<IProps, IEvents> {
           this.popoverInstances.destroy();
           this.popoverInstances = null;
           this.removeShiftEventEvent();
-        }
+        },
       });
       this.popoverInstances.show();
       this.addShiftEventEvent();
@@ -232,7 +232,7 @@ export default class SimpleDayPick extends tsc<IProps, IEvents> {
         style = {};
       } else {
         style = {
-          background: '#f0f1f5'
+          background: '#f0f1f5',
         };
       }
     };
@@ -253,7 +253,7 @@ export default class SimpleDayPick extends tsc<IProps, IEvents> {
   firstAndLast() {
     const obj = {
       firstItem: 0,
-      lastItem: 0
+      lastItem: 0,
     };
     this.localList.forEach(v => {
       if (obj.firstItem === 0 && v.active) {

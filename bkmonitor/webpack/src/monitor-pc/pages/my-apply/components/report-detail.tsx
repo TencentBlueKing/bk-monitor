@@ -147,7 +147,7 @@ class ReportDetail extends tsc<IProps> {
                 .find(item => item.channel_name === 'user')
                 ?.subscribers.filter(item => item.is_enabled).length
                 ? '13px'
-                : '20px'
+                : '20px',
             }}
           >
             <div class='label'>

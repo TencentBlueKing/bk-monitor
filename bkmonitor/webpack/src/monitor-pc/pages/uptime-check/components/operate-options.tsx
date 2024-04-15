@@ -51,7 +51,7 @@ interface IOperateOptionsEvents {
 }
 
 @Component({
-  name: 'OperateOptions'
+  name: 'OperateOptions',
 })
 export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOptionsEvents> {
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -82,7 +82,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           document.querySelector('#directive-ele')?.remove();
           this.popoverInstance.destroy();
           this.popoverInstance = null;
-        }
+        },
       });
     }
     this.popoverInstance?.show(100);
@@ -98,7 +98,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
               placement: 'top',
               boundary: 'window',
               disabled: !Boolean(item?.tip),
-              allowHTML: false
+              allowHTML: false,
             }}
           >
             <bk-button

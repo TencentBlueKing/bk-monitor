@@ -103,5 +103,5 @@ export const targetFieldMap: { [key in NotificationType]: FieldType } = {
   INSTANCE: 'ip',
   TOPO: 'host_topo_node',
   SERVICE_TEMPLATE: 'host_service_template',
-  SET_TEMPLATE: 'host_set_template'
+  SET_TEMPLATE: 'host_set_template',
 };

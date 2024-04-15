@@ -32,7 +32,7 @@ import {
   getAutoOrderList,
   getPreviewParams,
   noOrderDutyData,
-  setPreviewDataOfServer
+  setPreviewDataOfServer,
 } from '../../../../trace/pages/rotation/components/calendar-preview';
 import { RotationTabTypeEnum } from '../../../../trace/pages/rotation/typings/common';
 import { randomColor, RuleDetailModel, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
@@ -66,7 +66,7 @@ export default class RotationDetail extends tsc<IProps> {
       { label: this.$t('创建人'), value: this.detailData?.create_user || '--' },
       { label: this.$t('创建时间'), value: this.detailData?.create_time || '--' },
       { label: this.$t('最近更新人'), value: this.detailData?.update_user || '--' },
-      { label: this.$t('修改时间'), value: this.detailData?.update_time || '--' }
+      { label: this.$t('修改时间'), value: this.detailData?.update_time || '--' },
     ];
   }
 
@@ -100,13 +100,13 @@ export default class RotationDetail extends tsc<IProps> {
     const params = {
       ...getPreviewParams(this.detailData.effective_time),
       source_type: 'DB',
-      id: this.id
+      id: this.id,
     };
     const data = await previewDutyRulePlan(params).catch(() => []);
     const autoOrders = getAutoOrderList(this.detailData);
     this.previewData = setPreviewDataOfServer(
       this.detailData.category === 'regular' ? noOrderDutyData(data) : data,
-      autoOrders
+      autoOrders,
     );
   }
 
@@ -174,7 +174,7 @@ export default class RotationDetail extends tsc<IProps> {
             this.$t('轮值类型'),
             <span class='detail-text'>
               {this.type === RotationTabTypeEnum.REGULAR ? this.$t('日常轮班') : this.$t('交替轮值')}
-            </span>
+            </span>,
           )}
           {formItem(
             this.type === RotationTabTypeEnum.REGULAR ? this.$t('值班规则') : this.$t('轮值规则'),
@@ -184,7 +184,7 @@ export default class RotationDetail extends tsc<IProps> {
                   <div class='rule-item'>
                     {rule.ruleTime.length > 1 && [
                       <span class='rule-item-index'>{this.$t('第 {num} 班', { num: ind + 1 })}</span>,
-                      <div class='col-separate'></div>
+                      <div class='col-separate'></div>,
                     ]}
                     <span class='rule-item-title'>{time.day}</span>
                     {time.timer.map(item => (
@@ -225,13 +225,13 @@ export default class RotationDetail extends tsc<IProps> {
                   ))}
                 </div>
               </div>
-            ))
+            )),
           )}
           {formItem(
             this.$t('生效时间'),
             <span class='detail-text'>{`${this.detailData?.effective_time} - ${
               this.detailData?.end_time || this.$t('永久')
-            }`}</span>
+            }`}</span>,
           )}
           {formItem(this.$t('轮值预览'), <RotationCalendarPreview value={this.previewData}></RotationCalendarPreview>)}
         </div>

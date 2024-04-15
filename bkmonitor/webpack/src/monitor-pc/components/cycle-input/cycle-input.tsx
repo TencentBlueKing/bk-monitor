@@ -40,8 +40,8 @@ export default class CycleInput extends tsc<IProps, IEvent> {
     type: Array,
     default: () => [
       { id: 's', name: i18n.t('秒'), children: defaultCycleOptionSec },
-      { id: 'm', name: i18n.t('分'), children: defaultCycleOptionMin }
-    ]
+      { id: 'm', name: i18n.t('分'), children: defaultCycleOptionMin },
+    ],
   })
   options: IOption[];
   @Prop({ default: 10, type: Number }) minSec: number; // 最小值 单位：秒
@@ -209,7 +209,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
                 class={[
                   'cycle-item',
                   { 'cycle-item-active': this.localValue === item.id },
-                  { 'item-disabled': this.checkDisable(item.id) }
+                  { 'item-disabled': this.checkDisable(item.id) },
                 ]}
                 onClick={() => this.handleSelectCycle(item.id as number)}
               >

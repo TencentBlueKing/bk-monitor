@@ -232,5 +232,5 @@ export default {
   '输入自定义小时，按 Enter 确认': 'Enter custom hours and press Enter to confirm',
   '有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。':
     'Within the validity period, the subscription task will be sent normally; beyond the validity period, the task will become invalid and the sending will stop.',
-  当前日志查询时间范围不支持静态区间: 'The current log query time range does not support static intervals.'
+  当前日志查询时间范围不支持静态区间: 'The current log query time range does not support static intervals.',
 };

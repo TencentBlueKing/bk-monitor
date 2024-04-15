@@ -58,8 +58,8 @@ const i18n = new VueI18n({
   silentTranslationWarn: false, // 是否警告翻译缺失
   messages: {
     // 翻译文件
-    ...mergeI18nJson()
-  }
+    ...mergeI18nJson(),
+  },
 });
 
 // 将 VueI18n 实例挂载到全局变量 window.i18n 上

@@ -84,7 +84,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
         onHidden: () => {
           this.favoriteMessageInstance?.destroy();
           this.favoriteMessageInstance = null;
-        }
+        },
       });
       this.favoriteMessageInstance.show(500);
     }
@@ -118,8 +118,8 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
             'group-title fl-jcsb',
             {
               'is-active': !this.isClickIcon,
-              'is-move-cur': !this.isSearchFilter && !this.isCannotChange
-            }
+              'is-move-cur': !this.isSearchFilter && !this.isCannotChange,
+            },
           ]}
           onMouseenter={() => (this.isHoverTitle = true)}
           onMouseleave={() => (this.isHoverTitle = false)}
@@ -143,7 +143,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
               <div
                 class={{
                   'group-item-left': true,
-                  'active-name': this.isActiveFavorite(item.id)
+                  'active-name': this.isActiveFavorite(item.id),
                 }}
               >
                 <span

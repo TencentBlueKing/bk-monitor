@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
+
 import { Component, Emit, InjectReactive, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
@@ -81,9 +81,9 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
                   return {
                     ...param,
                     value: paramItem?.value || param?.default || param?.shortlist[0],
-                    edit: false
+                    edit: false,
                   };
-                }) || []
+                }) || [],
             });
           } else {
             hasInvalid = true;
@@ -97,7 +97,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
     this.localValue.push({
       ...item,
       key: random(10),
-      params: item.params.map(param => ({ ...param, value: param?.default || param?.shortlist[0], edit: false }))
+      params: item.params.map(param => ({ ...param, value: param?.default || param?.shortlist[0], edit: false })),
     });
     this.handleValueChange();
   }
@@ -110,7 +110,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
   handleValueChange() {
     return this.localValue.map(({ id, params }) => ({
       id,
-      params: params?.map(({ id, value }) => ({ id, value }))
+      params: params?.map(({ id, value }) => ({ id, value })),
     }));
   }
   // 点击函数名称时触发
@@ -170,7 +170,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
       followCursor: false,
       onHidden: () => {
         typeof onHide === 'function' && onHide();
-      }
+      },
     });
     this.popoverInstance?.show?.(100);
   }
@@ -186,8 +186,8 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
         class={[
           'function-select-wrap',
           {
-            'is-readonly': this.readonly
-          }
+            'is-readonly': this.readonly,
+          },
         ]}
       >
         <span

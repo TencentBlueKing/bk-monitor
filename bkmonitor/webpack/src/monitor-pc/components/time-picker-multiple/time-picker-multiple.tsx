@@ -28,7 +28,7 @@ import { Component as tsc, modifiers } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import {
   defaultAddTimeRange,
-  timeRangeValidate
+  timeRangeValidate,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
@@ -53,7 +53,7 @@ interface IEvents {
 }
 enum EMode {
   edit = 'edit', // 编辑时间范围
-  add = 'add' // 新增时间范围
+  add = 'add', // 新增时间范围
 }
 /**
  * 多选的时间范围组件
@@ -219,7 +219,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
       }
       this.$bkMessage({
         theme: 'warning',
-        message: this.$tc('时间段重叠了')
+        message: this.$tc('时间段重叠了'),
       });
     }
   }
@@ -353,7 +353,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
     } else {
       this.$bkMessage({
         message: this.$tc('时间格式错误'),
-        theme: 'error'
+        theme: 'error',
       });
     }
   }
@@ -374,7 +374,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
           content: this.$t('暂无可选时间段'),
           // showOnInit: true,
           delay: 200,
-          disabled: this.isAllowAdd
+          disabled: this.isAllowAdd,
         }}
       >
         <i class='icon-monitor icon-mc-time'></i>
@@ -388,8 +388,8 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
                 class={[
                   'time-range-item',
                   {
-                    'no-empty-time': !this.isAllowAdd && index === this.localValue.length - 1
-                  }
+                    'no-empty-time': !this.isAllowAdd && index === this.localValue.length - 1,
+                  },
                 ]}
                 onClick={modifiers.stop(evt => this.handleClickItem(evt, index))}
               >
@@ -407,8 +407,8 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
               class={[
                 'trigger-input-wrap',
                 {
-                  'hide-second': this.format === 'HH:mm'
-                }
+                  'hide-second': this.format === 'HH:mm',
+                },
               ]}
               ref='triggerInputRef'
               onClick={modifiers.stop(() => {})}

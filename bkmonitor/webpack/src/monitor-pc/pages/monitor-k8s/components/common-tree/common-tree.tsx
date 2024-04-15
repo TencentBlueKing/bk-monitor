@@ -97,20 +97,20 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       id: 'success',
       status: 'success',
       name: 0,
-      tips: window.i18n.tc('无异常')
+      tips: window.i18n.tc('无异常'),
     },
     {
       id: 'failed',
       status: 'failed',
       name: 0,
-      tips: window.i18n.tc('异常')
+      tips: window.i18n.tc('异常'),
     },
     {
       id: 'disabled',
       status: 'disabled',
       name: 0,
-      tips: window.i18n.tc('无数据')
-    }
+      tips: window.i18n.tc('无数据'),
+    },
   ];
 
   /** 过滤已选得搜索条件 */
@@ -125,7 +125,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   /** 树形组件的高度 */
@@ -184,7 +184,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     this.$api[this.apiData.apiModule]
       [this.apiData.apiFunc]({
         ...variablesService.transformVariables(this.apiData.data),
-        condition_list: transformConditionValueParams(this.searchCondition)
+        condition_list: transformConditionValueParams(this.searchCondition),
       })
       .then(data => {
         const treeData = typeTools.isObject(data) ? data.data : data;
@@ -203,7 +203,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
   @Debounce(300)
   handleLocalSearch() {
     this.bigTreeRef?.filter({
-      keyword: this.searchKeyword
+      keyword: this.searchKeyword,
     });
   }
   handleRefresh() {
@@ -237,7 +237,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     viewOptions.filters = {
       endpoint_name: node.endpoint,
       service_name: node.service_name,
-      app_name: node.app_name
+      app_name: node.app_name,
     };
 
     return viewOptions;
@@ -271,7 +271,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     this.currentStatus = v;
     this.bigTreeRef?.filter({
       status: this.currentStatus,
-      keyword: this.searchKeyword
+      keyword: this.searchKeyword,
     });
   }
 
@@ -295,7 +295,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
             <span class='item-name'>{data.name}</span>
           </span>
         </div>
-      )
+      ),
     };
     return (
       <div
