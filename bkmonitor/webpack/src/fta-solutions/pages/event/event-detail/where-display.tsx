@@ -32,7 +32,7 @@ import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from 'moni
 import {
   ICommonItem,
   IWhereItem,
-  MetricDetail
+  MetricDetail,
 } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './where-display.scss';
@@ -103,9 +103,9 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
           data_type_label,
           metric_field,
           result_table_id,
-          where: []
+          where: [],
         },
-        type: 'dimension'
+        type: 'dimension',
       };
       if (this.allWhereValueMap.get(item.key)) {
         this.whereValueMap.set(item.key, this.allWhereValueMap.get(item.key));
@@ -114,13 +114,13 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
       return getVariableValue(params).then(res => {
         this.whereValueMap.set(
           item.key,
-          res.map(set => ({ id: set.label, name: set.value }))
+          res.map(set => ({ id: set.label, name: set.value })),
         );
         /* 将变量保存在父组件 */
         const valueMap = new Map(this.allWhereValueMap);
         valueMap.set(
           item.key,
-          res.map(set => ({ id: set.label, name: set.value }))
+          res.map(set => ({ id: set.label, name: set.value })),
         );
         this.handleValueMap(valueMap);
       });

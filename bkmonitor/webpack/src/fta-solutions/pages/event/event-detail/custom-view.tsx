@@ -70,7 +70,7 @@ export default class CustomView extends tsc<IProps> {
       <div class='event-detail-custom-view'>
         <div
           style={{
-            height: this.height
+            height: this.height,
           }}
           class='view-content-wrap'
         >

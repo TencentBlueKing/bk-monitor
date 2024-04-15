@@ -85,12 +85,12 @@ export default class SceneView extends tsc<IProps> {
       method: this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_method || 'AVG',
       variables: {},
       interval,
-      group_by: []
+      group_by: [],
     };
     const viewList = await getSceneViewList({
       bk_biz_id: this.detail.bk_biz_id,
       scene_id: this.sceneId,
-      type: 'detail'
+      type: 'detail',
     }).catch(() => []);
     if (!viewList.length) {
       this.loading = false;
@@ -101,7 +101,7 @@ export default class SceneView extends tsc<IProps> {
       scene_id: this.sceneId,
       type: 'detail',
       id: dashboardId,
-      bk_biz_id: this.detail.bk_biz_id
+      bk_biz_id: this.detail.bk_biz_id,
     }).catch(() => ({ id: '', panels: [], name: '' }));
     const sceneData = new BookMarkModel(data || { id: '', panels: [], name: '' });
     this.isSingleChart =
@@ -137,7 +137,7 @@ export default class SceneView extends tsc<IProps> {
 
   handleToCustomScene() {
     window.open(
-      `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/custom-scenes/view/${this.sceneId}?name=${this.sceneName}`
+      `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/custom-scenes/view/${this.sceneId}?name=${this.sceneName}`,
     );
   }
 

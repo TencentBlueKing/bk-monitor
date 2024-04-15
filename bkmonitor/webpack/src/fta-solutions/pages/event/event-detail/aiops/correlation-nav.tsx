@@ -41,7 +41,7 @@ interface IProps {
 @Component({})
 export default class CorrelationNav extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) list: any[];
-  @Inject('reportEventLog') reportEventLog: Function;
+  @Inject('reportEventLog') reportEventLog: (eventType: string) => void;
 
   /** 当前选中指标 */
   active: string | null = null;
@@ -70,7 +70,7 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
           <span class='classification-num'>
             {/* <i class='icon-monitor icon-mc-correlation-metrics'></i> */}
             {this.$t('{slot0} 个指标', {
-              slot0: item.metrics.length
+              slot0: item.metrics.length,
             })}
           </span>
         </p>
@@ -86,11 +86,11 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
                 class='classification-list-item-num'
                 v-bk-tooltips={{
                   content: this.$t('共 {slot0} 个维度', {
-                    slot0: metric.totalPanels.length
+                    slot0: metric.totalPanels.length,
                   }),
                   onShown: () => {
                     this.reportEventLog?.(EventReportType.Tips);
-                  }
+                  },
                 }}
               >
                 <i class='icon-monitor icon-mc-dimension'></i>

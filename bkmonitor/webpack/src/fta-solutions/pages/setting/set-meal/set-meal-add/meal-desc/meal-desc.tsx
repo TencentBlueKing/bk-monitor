@@ -43,7 +43,7 @@ interface IMealDescEvent {
 }
 
 @Component({
-  name: 'MealDesc'
+  name: 'MealDesc',
 })
 export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
   @Prop({ default: true }) show: boolean;
@@ -82,7 +82,7 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
               <div class='detail'>
                 <i18n path='套餐是业务运维设计制作的一套恢复故障的方案，可以复用于不同的告警，也可作为原子套餐用于制作组合套餐'></i18n>
                 。
-              </div>
+              </div>,
               // <div class="see-detail">
               //   <i18n path="更多详情查看"></i18n>
               //   <span class="see-detail-btn">

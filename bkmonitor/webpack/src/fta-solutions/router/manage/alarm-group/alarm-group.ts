@@ -36,49 +36,49 @@ export default [
     name: 'alarm-group',
     props: true,
     components: {
-      noCache: AlarmGroup
+      noCache: AlarmGroup,
     },
     meta: {
       title: '告警组',
       navId: 'alarm-group',
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       authority: {
         map: AlarmGroupAuth,
-        page: AlarmGroupAuth.VIEW_AUTH
+        page: AlarmGroupAuth.VIEW_AUTH,
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/alarm-group-add',
     name: 'alarm-group-add',
     props: true,
     components: {
-      noCache: AlarmGroupAdd
+      noCache: AlarmGroupAdd,
     },
     meta: {
       title: '新增告警组',
       navId: 'alarm-group',
       needBack: true,
       route: {
-        parent: 'alarm-group'
+        parent: 'alarm-group',
       },
       authority: {
         map: AlarmGroupAuth,
-        page: AlarmGroupAuth.MANAGE_AUTH
-      }
-    }
+        page: AlarmGroupAuth.MANAGE_AUTH,
+      },
+    },
   },
   {
     path: '/alarm-group/edit/:id',
     name: 'alarm-group-edit',
     components: {
-      noCache: AlarmGroupAdd
+      noCache: AlarmGroupAdd,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: {
       title: '编辑告警组',
@@ -86,12 +86,12 @@ export default [
       needBack: true,
       needCopyLink: true,
       route: {
-        parent: 'alarm-group'
+        parent: 'alarm-group',
       },
       authority: {
         map: AlarmGroupAuth,
-        page: AlarmGroupAuth.MANAGE_AUTH
-      }
-    }
-  }
+        page: AlarmGroupAuth.MANAGE_AUTH,
+      },
+    },
+  },
 ] as RouteConfig[];

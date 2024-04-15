@@ -78,7 +78,7 @@ export default class InstallPluginDialog extends tsc<IInstallPluginDialogProps, 
       } else {
         this.formLoading = true;
         const detail = await getEventPluginInstance(this.data.pluginId, { version: this.data.version }).catch(
-          () => null
+          () => null,
         );
         if (detail) {
           this.handleDynamicFormData(detail.params_schema);
@@ -124,12 +124,12 @@ export default class InstallPluginDialog extends tsc<IInstallPluginDialogProps, 
     this.loading = true;
     const data = await createEventPluginInstance(this.data.pluginId, {
       version: this.data.version,
-      config_params: this.formModel
+      config_params: this.formModel,
     }).catch(() => null);
     if (data) {
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('安装成功')
+        message: this.$t('安装成功'),
       });
       this.$emit('change', false);
       this.$emit('success');

@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
-/* eslint-disable no-param-reassign */
+
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
 import {
@@ -37,13 +36,13 @@ import {
   listAllowedBiz,
   listSearchHistory,
   searchAction,
-  searchAlert
+  searchAlert,
 } from 'monitor-api/modules/alert';
 import {
   createSearchFavorite,
   destroySearchFavorite,
   listSearchFavorite,
-  partialUpdateSearchFavorite
+  partialUpdateSearchFavorite,
 } from 'monitor-api/modules/model';
 // const sleep = async (timer = 1000) => await new Promise(resolve => setTimeout(resolve, timer))
 @Module({ name: 'event', dynamic: true, namespaced: true, store })

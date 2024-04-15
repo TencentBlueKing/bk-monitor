@@ -59,15 +59,15 @@ if (window.__BK_WEWEB_APP_KEY__) {
     bizList: window.space_list,
     csrfCookieName: window.csrf_cookie_name || '',
     siteUrl: window.site_url,
-    bkUrl: window.bk_url
+    bkUrl: window.bk_url,
   });
-  // eslint-disable-next-line no-new
+
   new Vue({
     el: '#app',
     router,
     store,
     i18n,
-    render: h => h(App)
+    render: h => h(App),
   });
   Vue.prototype.$bus = new Vue();
   Vue.prototype.$api = Api;
@@ -77,7 +77,7 @@ if (window.__BK_WEWEB_APP_KEY__) {
     .enhancedContext({
       space_uid: spaceUid || undefined,
       bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
-      context_type: 'basic'
+      context_type: 'basic',
     })
     .then(data => {
       Object.keys(data).forEach(key => {
@@ -96,15 +96,15 @@ if (window.__BK_WEWEB_APP_KEY__) {
         bizList: window.space_list,
         csrfCookieName: window.csrf_cookie_name || '',
         siteUrl: window.site_url,
-        bkUrl: window.bk_url
+        bkUrl: window.bk_url,
       });
-      // eslint-disable-next-line no-new
+
       new Vue({
         el: '#app',
         router,
         store,
         i18n,
-        render: h => h(App)
+        render: h => h(App),
       });
       Vue.prototype.$bus = new Vue();
       Vue.prototype.$api = Api;
@@ -113,7 +113,7 @@ if (window.__BK_WEWEB_APP_KEY__) {
         .enhancedContext({
           space_uid: spaceUid || undefined,
           bk_biz_id: bizId,
-          context_type: 'extra'
+          context_type: 'extra',
         })
         .then(data => {
           Object.keys(data).forEach(key => {

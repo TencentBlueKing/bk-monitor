@@ -56,14 +56,14 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
   localActions: any[] = []; // 告警列表
   actionStatusMap = {
     success: window.i18n.t('成功'),
-    failure: window.i18n.t('失败')
+    failure: window.i18n.t('失败'),
   };
   curHandleData = {
     operator: [],
     type: '',
     check: '',
     operateTargetString: '',
-    statusTip: ''
+    statusTip: '',
   };
   loading = false;
   checkedCount = 0; // 当前选中的
@@ -72,7 +72,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
     // 通知类型表格数据
     tableData: [],
     tableColumns: [],
-    hasColumns: []
+    hasColumns: [],
   };
 
   get list() {
@@ -81,7 +81,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
         id: item.id,
         name: `${this.$t('第 {n} 次', { n: index + 1 })}（${dayjs
           .tz(item.create_time * 1000)
-          .format('YYYY-MM-DD HH:mm:ss')}）`
+          .format('YYYY-MM-DD HH:mm:ss')}）`,
       }))
       .reverse();
   }
@@ -94,8 +94,8 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
         check: this.curHandleData.check, // 执行状态
         operateTargetString: this.curHandleData.operateTargetString, // 执行对象
         type: this.curHandleData.type, // 套餐类型
-        statusTip: this.curHandleData.statusTip // 失败是展示tips
-      }
+        statusTip: this.curHandleData.statusTip, // 失败是展示tips
+      },
     ];
   }
 
@@ -133,8 +133,8 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
         .then(res =>
           res.map(item => ({
             label: item.label,
-            prop: item.type
-          }))
+            prop: item.type,
+          })),
         )
         .catch(() => []);
     }
@@ -149,7 +149,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
             const statusData = data?.[key]?.[subKey] || {};
             temp[subKey] = {
               label: statusData?.status_display || '',
-              tip: statusData?.status_tips || ''
+              tip: statusData?.status_tips || '',
             };
           });
           return temp;
@@ -167,7 +167,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
       type: temp?.action_plugin.name, // 套餐类型
       check: temp?.status, // 执行状态   operate_target_string
       operateTargetString: temp?.operate_target_string, // 执行对象
-      statusTip: temp?.status_tips || ''
+      statusTip: temp?.status_tips || '',
     };
     if (temp.action_plugin_type === NOTICE) {
       this.getNoticeStatusData(temp.id);
@@ -185,13 +185,13 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
   // table
   getTableComponent() {
     const typeSlot = {
-      default: ({ row }) => row.type
+      default: ({ row }) => row.type,
     };
     const operateTargetStringSlot = {
-      default: ({ row }) => row.operateTargetString
+      default: ({ row }) => row.operateTargetString,
     };
     const operatorSlot = {
-      default: ({ row }) => row.operator?.join(';')
+      default: ({ row }) => row.operator?.join(';'),
     };
     const checkSlot = {
       default: ({ row }) => (
@@ -203,12 +203,12 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
             width: 200,
             allowHtml: false,
             html: false,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {this.actionStatusMap[row.check]}
         </span>
-      )
+      ),
     };
     return (
       <bk-table
