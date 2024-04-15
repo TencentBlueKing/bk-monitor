@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
+
 import type { Dayjs } from 'dayjs';
 
 import i18n from './i18n/i18n';
@@ -45,7 +45,7 @@ declare global {
     bk_log_search_url: string;
     bklogsearch_host: string;
     bk_url: string;
-    source_app: 'trace';
+    source_app: string;
     i18n: typeof i18n.global;
     __BK_WEWEB_DATA__?: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: boolean;
