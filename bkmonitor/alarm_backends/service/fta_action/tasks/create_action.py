@@ -639,13 +639,6 @@ class CreateActionProcessor:
                 alert_log = assignee_manager.match_manager.get_alert_log()
                 if alert_log:
                     alert_logs.append(AlertLog(**alert_log))
-
-        # 更新是否已经处理的状态至告警
-        is_handled = True if self.noise_reduce_result else bool(new_actions)
-        self.update_alert_documents(
-            alerts_assignee, shield_ids, is_handled, alerts_appointee, alerts_supervisor, alerts_follower
-        )
-
         if action_instances:
             ActionInstance.objects.bulk_create(action_instances)
             new_actions.extend(
@@ -666,8 +659,12 @@ class CreateActionProcessor:
             len(new_actions),
             new_actions,
         )
-
+        # 更新是否已经处理的状态至告警
         # 当前告警如果是降噪处理，也认为是已经处理，不需要创建任务出来
+        is_handled = True if self.noise_reduce_result else bool(new_actions)
+        self.update_alert_documents(
+            alerts_assignee, shield_ids, is_handled, alerts_appointee, alerts_supervisor, alerts_follower
+        )
         if qos_alerts:
             # 有qos处理记录， 这里只有可能是通知处理的
             alert_logs.append(Alert.create_qos_log(qos_alerts, current_qos_count, len(qos_alerts)))
@@ -704,9 +701,8 @@ class CreateActionProcessor:
         :param is_handled:
         :return:
         """
-        update_alerts = []
-        for alert in self.alerts:
-            update_data = dict(
+        handled_alerts = [
+            AlertDocument(
                 id=alert.id,
                 is_handled=is_handled,
                 is_ack_noticed=True if self.signal == ActionSignal.ACK else alert.is_ack_noticed,
@@ -721,11 +717,8 @@ class CreateActionProcessor:
                 extra_info=alert.extra_info,
                 assign_tags=alert.assign_tags,
             )
-            for key, value in update_data.items():
-                setattr(alert, key, value)
-
-            update_alerts.append(AlertDocument(**update_data))
-
+            for alert in self.alerts
+        ]
         cached_alerts = [Alert(data=alert.to_dict()) for alert in self.alerts]
         AlertCache.save_alert_to_cache(cached_alerts)
         AlertCache.save_alert_snapshot(cached_alerts)
@@ -733,7 +726,7 @@ class CreateActionProcessor:
         while retry_times < 3:
             # 更新alert 的时候，可能会有版本冲突，所以需要做重试处理，最多3次
             try:
-                AlertDocument.bulk_create(update_alerts, action=BulkActionType.UPDATE)
+                AlertDocument.bulk_create(handled_alerts, action=BulkActionType.UPDATE)
                 break
             except ConflictError:
                 # 版本冲突一般是由于其他进程并发导致，在1分钟的周期任务频率下会比较严重，可以加重试处理
