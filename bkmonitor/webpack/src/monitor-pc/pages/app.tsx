@@ -60,7 +60,6 @@ import { getDashboardCache } from './grafana/utils';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 // import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
-
 const changeNoticeRouteList = [
   'strategy-config-add',
   'strategy-config-edit',

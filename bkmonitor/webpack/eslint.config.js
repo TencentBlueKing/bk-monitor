@@ -8,6 +8,7 @@ const eslintVueParser = require('vue-eslint-parser');
 const simpleImportSort = require('eslint-plugin-simple-import-sort');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
+// console.info(tencentEslintLegacyRules);
 // Shared importSortRules configuration
 const importSortRules = {
   'simple-import-sort/exports': 'error',
@@ -76,7 +77,6 @@ module.exports = [
       './mp/*',
     ],
   },
-  ...eslintVuePlugin.configs['flat/vue2-recommended'],
   eslintConfigPrettier,
   {
     plugins: { prettier },
@@ -136,27 +136,38 @@ module.exports = [
       ...importSortRules,
     },
   },
-  // {
-  //   files: ['src/**/*.vue'],
-  //   languageOptions: {
-  //     parser: eslintVueParser,
-  //     parserOptions: {
-  //       allowAutomaticSingleRunInference: false,
-  //       ecmaFeatures: { jsx: true, legacyDecorators: true },
-  //       ecmaVersion: 'latest',
-  //       extraFileExtensions: ['.vue'],
-  //       parser: { '<template>': 'espree', ts: typescriptEslintParser },
-  //       project: true,
-  //     },
-  //   },
-  //   plugins: { '@typescript-eslint': typescriptEslint, 'simple-import-sort': simpleImportSort },
-  //   rules: {
-  //     // ...eslintVuePlugin.configs.recommended,
-  //     ...tencentEslintLegacyRules,
-  //     '@typescript-eslint/explicit-member-accessibility': 'off',
-  //     'comma-dangle': ['error', 'always-multiline'],
-  //     ...importSortRules,
-  //     ...deprecateRules,
-  //   },
-  // },
+  ...eslintVuePlugin.configs['flat/vue2-recommended'].map(config =>
+    config.files
+      ? {
+          ...config,
+          files: ['src/**/*.vue'],
+          languageOptions: {
+            ...config.languageOptions,
+            parser: eslintVueParser,
+            parserOptions: {
+              ...config.languageOptions.parserOptions,
+              allowAutomaticSingleRunInference: false,
+              ecmaFeatures: { jsx: true, legacyDecorators: true },
+              ecmaVersion: 'latest',
+              extraFileExtensions: ['.vue'],
+              parser: { '<template>': 'espree', ts: typescriptEslintParser },
+              project: true,
+            },
+          },
+          plugins: {
+            '@typescript-eslint': typescriptEslint,
+            vue: eslintVuePlugin,
+            'simple-import-sort': simpleImportSort,
+          },
+          rules: {
+            ...config.rules,
+            ...tencentEslintLegacyRules,
+            '@typescript-eslint/explicit-member-accessibility': 'off',
+            'comma-dangle': ['error', 'always-multiline'],
+            ...importSortRules,
+            ...deprecateRules,
+          },
+        }
+      : config,
+  ),
 ];
