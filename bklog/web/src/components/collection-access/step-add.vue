@@ -70,7 +70,7 @@
           :label="$t('数据名')"
           :required="true"
           :rules="rules.collector_config_name_en"
-          :icon-offset="120"
+          :icon-offset="84"
           :property="'collector_config_name_en'"
         >
           <div class="en-name-box">
@@ -79,7 +79,6 @@
                 v-model="formData.collector_config_name_en"
                 class="w520"
                 show-word-limit
-                maxlength="50"
                 data-test-id="baseMessage_input_fillEnglishName"
                 :disabled="isUpdate && !!formData.collector_config_name_en"
                 :placeholder="$t('支持数字、字母、下划线，长短5～50字符')"
@@ -948,7 +947,7 @@ export default {
             trigger: 'blur'
           },
           {
-            max: 50,
+            validator: this.checkEnNameLength,
             message: this.$t('不能多于{n}个字符', { n: 50 }),
             trigger: 'blur'
           },
@@ -2066,6 +2065,12 @@ export default {
     checkEnNameValidator(val) {
       this.isTextValid = new RegExp(/^[A-Za-z0-9_]+$/).test(val);
       return this.isTextValid;
+    },
+    checkEnNameLength(val) {
+      // 编辑时，不需要验证采集项英文名
+      if (this.isUpdate) return true;
+      // 判断字符串长度是否大于50
+      return val.length <= 50;
     },
     objCompare(objectA = {}, objectB = {}) {
       return JSON.stringify(objectA) === JSON.stringify(objectB);
