@@ -78,7 +78,10 @@ class DiffNode:
     def delta(self) -> Optional[float]:
         """Node delta as percentage."""
         if self.mark == DiffMark.CHANGED:
-            return (self.comparison.value - self.baseline.value) / self.baseline.value * 100
+            if self.comparison.value > self.baseline.value:
+                return -round((self.comparison.value / self.baseline.value) * 100, 2)
+            else:
+                return round((self.baseline.value / self.comparison.value) * 100, 2)
         elif self.mark == DiffMark.UNCHANGED:
             return 0
 
