@@ -62,7 +62,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
   operatorMaps = {
     eq: window.i18n.tc('相等'),
     nq: window.i18n.tc('不相等'),
-    reg: window.i18n.tc('正则')
+    reg: window.i18n.tc('正则'),
   };
   formData = {
     type: '', // 远程服务类型
@@ -72,31 +72,31 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
     rules: {
       host: { operator: 'eq', value: '' },
       path: { operator: 'eq', value: '' },
-      params: [{ name: '', operator: '', value: '' }]
-    }
+      params: [{ name: '', operator: '', value: '' }],
+    },
   };
   rules = {
     type: [
       {
         required: true,
         message: window.i18n.tc('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     name: [
       {
         required: true,
         message: window.i18n.tc('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     regex: [
       {
         required: true,
         message: window.i18n.tc('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
   /** 调试结果列表 */
   debuggerResult: string[] | null = null;
@@ -124,8 +124,8 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
         rules: {
           host: { operator: 'eq', value: '' },
           path: { operator: 'eq', value: '' },
-          params: [{ name: '', operator: '', value: '' }]
-        }
+          params: [{ name: '', operator: '', value: '' }],
+        },
       };
       this.addServiceForm.clearError();
       this.debugged = false;
@@ -144,7 +144,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
     this.urlListLoading = true;
     const data = await customServiceDataSource({
       app_name: this.appName,
-      type: 'http' // 暂时只有一种类型
+      type: 'http', // 暂时只有一种类型
     }).catch(() => []);
     this.urlResource = data.join('\n');
     this.urlListLoading = false;
@@ -195,7 +195,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
       name,
       type,
       match_type: matchType,
-      rules: Object.assign(this.formData.rules, rule)
+      rules: Object.assign(this.formData.rules, rule),
     });
     if (matchType === 'auto') {
       this.formData.regex = rule.regex;
@@ -210,7 +210,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
       app_name: this.appName,
       type,
       match_type: matchType,
-      rule: {}
+      rule: {},
     };
 
     if (matchType === 'auto') {
@@ -238,7 +238,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
     if (!Object.keys(payload.rule).length) {
       this.$bkMessage({
         message: this.$t('至少填写一项过滤规则'),
-        theme: 'error'
+        theme: 'error',
       });
       return false;
     }
@@ -257,7 +257,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
           .then(() => {
             this.$bkMessage({
               message: this.$t('保存成功'),
-              theme: 'success'
+              theme: 'success',
             });
             this.handleCancel();
             this.$emit('refresh');
@@ -341,7 +341,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
           >
             <div class='header-tool'>
               <label>{this.$t('URI源')}</label>
-              {/* eslint-disable-next-line @typescript-eslint/no-misused-promises */}
+              {}
               <span
                 class='right-btn-wrap'
                 slot='headerTool'
@@ -367,8 +367,8 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
             {...{
               props: {
                 model: this.formData,
-                rules: this.rules
-              }
+                rules: this.rules,
+              },
             }}
           >
             <bk-form-item

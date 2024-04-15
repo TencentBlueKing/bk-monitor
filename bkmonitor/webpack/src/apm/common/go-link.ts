@@ -26,6 +26,7 @@
 const { bklogsearch_host: bklogsearchHost } = window;
 const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : location.origin;
 
+type TologSearchFunction = (indexSetId: number, bizId: number, params: any) => void;
 /**
  * 跳转到日志检索
  * @param indexSetId 索引集id
@@ -33,13 +34,13 @@ const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : l
  * @param params
  * @returns
  */
-const tologSearch: Function = (indexSetId: number, bizId: number, params) => {
+const tologSearch: TologSearchFunction = (indexSetId, bizId, params) => {
   if (params) {
     window.open(`${bklogsearchHost}#/retrieve/${indexSetId}?bizId=${bizId}`);
     return;
   }
   window.open(
-    `${bklogsearchHost}#/retrieve/${indexSetId}?bizId=${bizId}&retrieveParams=${encodeURI(JSON.stringify(params))}`
+    `${bklogsearchHost}#/retrieve/${indexSetId}?bizId=${bizId}&retrieveParams=${encodeURI(JSON.stringify(params))}`,
   );
 };
 
@@ -48,7 +49,9 @@ const tologSearch: Function = (indexSetId: number, bizId: number, params) => {
  * @param bizId
  * @param id
  */
-const toPerformanceDetail: Function = (bizId: number, id: string) => {
+type PerformanceDetailFunction = (bizId: number, id: string) => void;
+
+const toPerformanceDetail: PerformanceDetailFunction = (bizId, id) => {
   window.open(`${origin}${location.pathname.toString().replace('apm/', '')}?bizId=${bizId}#/performance/detail/${id}`);
 };
 
@@ -57,9 +60,11 @@ const toPerformanceDetail: Function = (bizId: number, id: string) => {
  * @param bizId
  * @param id
  */
-const toStrategyConfigDetail: Function = (bizId: number, id: string) => {
+type StrategyConfigDetailFunction = (bizId: number, id: string) => void;
+
+const toStrategyConfigDetail: StrategyConfigDetailFunction = (bizId, id) => {
   window.open(
-    `${origin}${location.pathname.toString().replace('apm/', '')}?bizId=${bizId}#/strategy-config/detail/${id}`
+    `${origin}${location.pathname.toString().replace('apm/', '')}?bizId=${bizId}#/strategy-config/detail/${id}`,
   );
 };
 

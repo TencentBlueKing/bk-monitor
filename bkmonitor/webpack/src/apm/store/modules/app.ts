@@ -28,7 +28,7 @@
  * @LastEditTime: 2021-06-26 11:33:00
  * @Description:
  */
-/* eslint-disable new-cap */
+
 import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
 import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';

@@ -63,19 +63,19 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
       vm.routeList = [
         {
           id: 'home',
-          name: 'APM'
+          name: 'APM',
         },
         {
           id: 'application',
           name: `${window.i18n.tc('应用')}：${appName}`,
           query: {
-            'filter-app_name': appName
-          }
+            'filter-app_name': appName,
+          },
         },
         {
           id: 'service-add',
-          name: vm.$t('接入服务')
-        }
+          name: vm.$t('接入服务'),
+        },
       ];
     });
   }
