@@ -701,8 +701,9 @@ class CreateActionProcessor:
         :param is_handled:
         :return:
         """
-        handled_alerts = [
-            AlertDocument(
+        update_alerts = []
+        for alert in self.alerts:
+            update_data = dict(
                 id=alert.id,
                 is_handled=is_handled,
                 is_ack_noticed=True if self.signal == ActionSignal.ACK else alert.is_ack_noticed,
@@ -717,8 +718,9 @@ class CreateActionProcessor:
                 extra_info=alert.extra_info,
                 assign_tags=alert.assign_tags,
             )
-            for alert in self.alerts
-        ]
+            for key, value in update_data.items():
+                setattr(alert, key, value)
+            update_alerts.append(AlertDocument(**update_data))
         cached_alerts = [Alert(data=alert.to_dict()) for alert in self.alerts]
         AlertCache.save_alert_to_cache(cached_alerts)
         AlertCache.save_alert_snapshot(cached_alerts)
@@ -726,7 +728,7 @@ class CreateActionProcessor:
         while retry_times < 3:
             # 更新alert 的时候，可能会有版本冲突，所以需要做重试处理，最多3次
             try:
-                AlertDocument.bulk_create(handled_alerts, action=BulkActionType.UPDATE)
+                AlertDocument.bulk_create(update_alerts, action=BulkActionType.UPDATE)
                 break
             except ConflictError:
                 # 版本冲突一般是由于其他进程并发导致，在1分钟的周期任务频率下会比较严重，可以加重试处理
