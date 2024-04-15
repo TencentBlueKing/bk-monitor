@@ -66,7 +66,6 @@ class TableDiagrammer:
                 {
                     **node.default.to_dict(),
                     **node.diff_info,
-                    "diff": node.delta,
                     "baseline_node": node.baseline.to_dict() if node.baseline else miss_value,
                     "comparison_node": node.comparison.to_dict() if node.comparison else miss_value,
                 }

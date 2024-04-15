@@ -79,9 +79,9 @@ class DiffNode:
         """Node delta as percentage."""
         if self.mark == DiffMark.CHANGED:
             if self.comparison.value > self.baseline.value:
-                return -round((self.comparison.value / self.baseline.value) * 100, 2)
+                return -round(((self.comparison.value - self.baseline.value) / self.comparison.value), 4)
             else:
-                return round((self.baseline.value / self.comparison.value) * 100, 2)
+                return round(((self.baseline.value - self.comparison.value) / self.baseline.value), 4)
         elif self.mark == DiffMark.UNCHANGED:
             return 0
 
@@ -102,6 +102,7 @@ class DiffNode:
             diff_info["baseline"] = self.baseline.value
             diff_info["comparison"] = self.comparison.value
 
+        diff_info["diff"] = self.delta
         return diff_info
 
     @property

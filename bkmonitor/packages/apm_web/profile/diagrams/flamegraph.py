@@ -53,7 +53,6 @@ class FlamegraphDiagrammer:
         flame_data = [
             {
                 **root.default.to_dict(),
-                "diff": root.delta,
                 "diff_info": root.diff_info,
                 "children": [diff_node_to_element(child) for child in root.children],
             }

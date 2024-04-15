@@ -197,8 +197,6 @@ class QueryProfileBarGraphResource(Resource):
             labels_data.append(
                 {
                     "time": happen_time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "start_time": int(happen_time.timestamp() * 1000 - 10),
-                    "end_time": int(happen_time.timestamp() * 1000 + 10),
                     "span_id": i.get("labels", {}).get("profile_id", "unknown"),
                 }
             )
