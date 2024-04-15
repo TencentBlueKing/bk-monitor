@@ -19,9 +19,12 @@ from metadata.models.record_rule.constants import DEFAULT_METRIC_NAME_SUFFIX
 logger = logging.getLogger("metadata")
 
 
-def generate_table_id(space_type: str, space_id: str) -> str:
+def generate_table_id(space_type: str, space_id: str, record_name: str) -> str:
     """生成项目下的结果表"""
-    return f"bkmonitor_{space_type}_{space_id}_record_rule.__default__"
+    # 处理预计算的名称
+    # 替换`.`|`-`|`/`为`_`, 符合标准
+    record_name = record_name.replace(".", "_").replace("-", "_").replace("/", "_").strip("_")
+    return f"bkmonitor_{space_type}_{space_id}_{record_name}.__default__"
 
 
 def transform_record_to_metric_name(record: str) -> str:
@@ -65,8 +68,3 @@ def refine_bk_sql_and_metrics(promql: str, all_rule_record: List[str]) -> Dict:
         raise
     # 去掉`bkmonitor:`
     return {"promql": sql["promql"].replace("bkmonitor:", ""), "metrics": metrics}
-
-
-def create_bkbase_data_link():
-    """创建计算平台预计算链路"""
-    pass

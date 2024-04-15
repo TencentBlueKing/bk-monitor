@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import re
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Set, Union
 
 import yaml
 from django.conf import settings
@@ -71,7 +71,7 @@ class RecordRule(BaseModelWithTime):
         return {"bksql": bksql_list, "metrics": metrics}
 
     @classmethod
-    def get_src_table_ids(cls, space_type: str, space_id: str, metrics: Optional[List, Set]) -> List:
+    def get_src_table_ids(cls, space_type: str, space_id: str, metrics: Union[List, Set]) -> List:
         """获取源结果表列表"""
         # 通过指标和所属空间，查询需要预计算的结果表
         # 获取空间所在记录的ID
@@ -115,7 +115,12 @@ class ResultTableFlow(BaseModelWithTime):
         verbose_name_plural = "结果表计算流程记录"
 
     @classmethod
-    def compose_config(cls, table_id: str, vm_table_ids: List) -> Dict:
+    def compose_flow_name(cls, table_id: str) -> str:
+        """组装计算流程名称"""
+        pass
+
+    @classmethod
+    def compose_source_node(cls, table_id: str, vm_table_ids: List) -> Dict:
         """组装计算配置"""
         nodes = []
         # 组装源节点
@@ -128,6 +133,6 @@ class ResultTableFlow(BaseModelWithTime):
                     "bk_biz_id": settings.BK_DATA_BK_BIZ_ID,
                     "result_table_id": tid,
                     "name": tid,
-                    "from_result_table_ids": ["2005000727_bkbase_trace1110"],
+                    "from_result_table_ids": [tid],
                 }
             )
