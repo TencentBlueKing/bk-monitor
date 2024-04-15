@@ -1,13 +1,6 @@
 {
-  "include": [
-    "./**/*.ts",
-    "./**/*.js",
-    "./*.ts",
-    "./**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules"
-  ],
+  "include": ["./**/*.ts", "./**/*.js", "./*.ts", "./**/*.tsx"],
+  "exclude": ["node_modules"],
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
@@ -16,14 +9,10 @@
     "allowJs": true,
     "module": "esnext",
     "target": "esnext",
-    "outDir": "dist",
     "moduleResolution": "node",
     "sourceMap": true,
     "pretty": true,
     "jsx": "preserve",
-    "lib": [
-      "es2018",
-      "dom"
-    ]
+    "lib": ["es2018", "dom"]
   }
 }

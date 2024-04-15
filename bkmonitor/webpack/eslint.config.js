@@ -5,11 +5,10 @@ const typescriptEslintParser = require('@typescript-eslint/parser');
 const codecc = require('eslint-plugin-codecc');
 const eslintVueParser = require('vue-eslint-parser');
 // const perfectionistNatural = require('eslint-plugin-perfectionist/configs/recommended-natural');
-
 const simpleImportSort = require('eslint-plugin-simple-import-sort');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
-
+console.info(eslintVuePlugin.configs.recommended);
 // Shared importSortRules configuration
 const importSortRules = {
   'simple-import-sort/exports': 'error',
@@ -64,7 +63,20 @@ const deprecateRules = Object.fromEntries(
 );
 
 module.exports = [
-  { ignores: ['node_modules', 'dist', 'vue2/*', 'vue3/*'] },
+  {
+    ignores: [
+      'node_modules',
+      'dist',
+      '*.json',
+      './monitor/*',
+      './apm/*',
+      './fta/*',
+      './weixin/*',
+      './trace/*',
+      './external/*',
+      './mp/*',
+    ],
+  },
   eslintConfigPrettier,
   {
     plugins: { prettier },
@@ -139,7 +151,7 @@ module.exports = [
     },
     plugins: { '@typescript-eslint': typescriptEslint, vue: eslintVuePlugin, 'simple-import-sort': simpleImportSort },
     rules: {
-      ...eslintVuePlugin.configs['vue3-recommended'].rules,
+      ...eslintVuePlugin.configs.recommended,
       ...tencentEslintLegacyRules,
       '@typescript-eslint/explicit-member-accessibility': 'off',
       'comma-dangle': ['error', 'always-multiline'],

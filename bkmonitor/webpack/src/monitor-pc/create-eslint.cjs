@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 const tsParser = require('@typescript-eslint/parser');
 const vueRules = require('./vue-rules.cjs');
 /**
