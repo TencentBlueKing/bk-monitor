@@ -5,47 +5,70 @@ const typescriptEslintParser = require('@typescript-eslint/parser');
 const codecc = require('eslint-plugin-codecc');
 const eslintVueParser = require('vue-eslint-parser');
 // const perfectionistNatural = require('eslint-plugin-perfectionist/configs/recommended-natural');
+
 const simpleImportSort = require('eslint-plugin-simple-import-sort');
 const eslintVuePlugin = require('eslint-plugin-vue');
-const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules; // tencent ts eslint
-//deprecating formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
-const deprecateRules = {
-  '@typescript-eslint/ban-ts-comment': 'off',
-  '@typescript-eslint/block-spacing': 'off',
-  '@typescript-eslint/brace-style': 'off',
-  '@typescript-eslint/comma-dangle': 'off',
-  '@typescript-eslint/comma-spacing': 'off',
-  '@typescript-eslint/func-call-spacing': 'off',
-  '@typescript-eslint/indent': 'off',
-  '@typescript-eslint/key-spacing': 'off',
-  '@typescript-eslint/keyword-spacing': 'off',
-  '@typescript-eslint/lines-around-comment': 'off',
-  '@typescript-eslint/lines-between-class-members': 'off',
-  '@typescript-eslint/member-delimiter-style': 'off',
-  '@typescript-eslint/no-explicit-any': 'off',
-  '@typescript-eslint/no-extra-parens': 'off',
-  '@typescript-eslint/no-extra-semi': 'off',
-  '@typescript-eslint/padding-line-between-statements': 'off',
-  '@typescript-eslint/quotes': 'off',
-  '@typescript-eslint/semi': 'off',
-  '@typescript-eslint/space-before-blocks': 'off',
-  '@typescript-eslint/space-before-function-paren': 'off',
-  '@typescript-eslint/space-infix-ops': 'off',
-  '@typescript-eslint/type-annotation-spacing': 'off',
+const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
+
+// Shared importSortRules configuration
+const importSortRules = {
+  'simple-import-sort/exports': 'error',
+  'simple-import-sort/imports': [
+    'error',
+    {
+      groups: [
+        // System packages
+        [
+          '^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)',
+        ],
+        // Vue & external packages
+        ['^vue', '^@?\\w'],
+        // Internal packages
+        ['^(@|@company|@ui|components|utils|config|vendored-lib)(/.*|$)'],
+        ['^\\u0000'], // Side effect imports
+        ['^\\.\\.(?!/?$)', '^\\.\\./?$'], // Parent imports
+        ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'], // Other relative imports
+        ['^.+\\.s?css$'], // Style imports
+      ],
+    },
+  ],
 };
+
+// Deprecate formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
+const deprecateRules = Object.fromEntries(
+  [
+    'ban-ts-comment',
+    'block-spacing',
+    'brace-style',
+    'comma-dangle',
+    'comma-spacing',
+    'func-call-spacing',
+    'indent',
+    'key-spacing',
+    'keyword-spacing',
+    'lines-around-comment',
+    'lines-between-class-members',
+    'member-delimiter-style',
+    'no-explicit-any',
+    'no-extra-parens',
+    'no-extra-semi',
+    'padding-line-between-statements',
+    'quotes',
+    'semi',
+    'space-before-blocks',
+    'space-before-function-paren',
+    'space-infix-ops',
+    'type-annotation-spacing',
+    'no-misused-promises',
+  ].map(rule => [`@typescript-eslint/${rule}`, 'off']),
+);
+
 module.exports = [
-  {
-    ignores: ['node_modules', 'dist', 'vue2/*', 'vue3/*'],
-  },
+  { ignores: ['node_modules', 'dist', 'vue2/*', 'vue3/*'] },
   eslintConfigPrettier,
-  // perfectionistNatural,
   {
-    plugins: {
-      prettier,
-    },
-    rules: {
-      ...prettier.configs.recommended.rules,
-    },
+    plugins: { prettier },
+    rules: { ...prettier.configs.recommended.rules },
   },
   {
     files: ['src/**/*.ts', 'src/**/*.tsx', 'src/**/*.js'],
@@ -53,17 +76,11 @@ module.exports = [
     languageOptions: {
       parser: typescriptEslintParser,
       parserOptions: {
-        ecmaFeatures: {
-          jsx: true,
-          legacyDecorators: true,
-        },
+        ecmaFeatures: { jsx: true, legacyDecorators: true },
         ecmaVersion: 'latest',
         project: true,
-        // sourceType: 'module',
-        // tsconfigRootDir: __dirname,
       },
     },
-    linterOptions: {},
     plugins: {
       '@typescript-eslint': typescriptEslint,
       codecc,
@@ -104,34 +121,8 @@ module.exports = [
       ...typescriptEslint.configs.recommended.rules,
       ...tencentEslintLegacyRules,
       ...deprecateRules,
-      // 'import/first': 'error',
-      // 'import/newline-after-import': 'error',
-      // 'import/no-duplicates': 'error',
-      'simple-import-sort/exports': 'error',
-      'simple-import-sort/imports': [
-        'error',
-        {
-          groups: [
-            [
-              '^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)',
-            ],
-            // Packages. `react` related packages come first.
-            ['^vue', '^@?\\w'],
-            // Internal packages.
-            ['^(@|@company|@ui|components|utils|config|vendored-lib)(/.*|$)'],
-            // Side effect imports.
-            ['^\\u0000'],
-            // Parent imports. Put `..` last.
-            ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
-            // Other relative imports. Put same-folder imports and `.` last.
-            ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
-            // Style imports.
-            ['^.+\\.s?css$'],
-          ],
-        },
-      ],
+      ...importSortRules,
     },
-    settings: {},
   },
   {
     files: ['src/**/*.vue'],
@@ -139,53 +130,20 @@ module.exports = [
       parser: eslintVueParser,
       parserOptions: {
         allowAutomaticSingleRunInference: false,
-        ecmaFeatures: {
-          jsx: true,
-          legacyDecorators: true,
-        },
+        ecmaFeatures: { jsx: true, legacyDecorators: true },
         ecmaVersion: 'latest',
         extraFileExtensions: ['.vue'],
-        parser: {
-          '<template>': 'espree',
-          ts: typescriptEslintParser,
-        },
+        parser: { '<template>': 'espree', ts: typescriptEslintParser },
         project: true,
       },
     },
-    plugins: {
-      '@typescript-eslint': typescriptEslint,
-      vue: eslintVuePlugin,
-      'simple-import-sort': simpleImportSort,
-    },
+    plugins: { '@typescript-eslint': typescriptEslint, vue: eslintVuePlugin, 'simple-import-sort': simpleImportSort },
     rules: {
       ...eslintVuePlugin.configs['vue3-recommended'].rules,
       ...tencentEslintLegacyRules,
       '@typescript-eslint/explicit-member-accessibility': 'off',
       'comma-dangle': ['error', 'always-multiline'],
-      'vue/attributes-order': 'off',
-      'simple-import-sort/exports': 'error',
-      'simple-import-sort/imports': [
-        'error',
-        {
-          groups: [
-            [
-              '^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)',
-            ],
-            // Packages. `react` related packages come first.
-            ['^vue', '^@?\\w'],
-            // Internal packages.
-            ['^(@|@company|@ui|components|utils|config|vendored-lib)(/.*|$)'],
-            // Side effect imports.
-            ['^\\u0000'],
-            // Parent imports. Put `..` last.
-            ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
-            // Other relative imports. Put same-folder imports and `.` last.
-            ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
-            // Style imports.
-            ['^.+\\.s?css$'],
-          ],
-        },
-      ],
+      ...importSortRules,
       ...deprecateRules,
     },
   },

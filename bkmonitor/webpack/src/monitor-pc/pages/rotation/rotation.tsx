@@ -32,7 +32,7 @@ import './rotation.scss';
 const wewebId = 'trace';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class Rotation extends tsc<{}> {
+export default class Rotation extends tsc<object> {
   get rotationHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -44,7 +44,7 @@ export default class Rotation extends tsc<{}> {
   get rotationData() {
     return JSON.stringify({
       host: this.rotationHost,
-      baseroute: '/trace/'
+      baseroute: '/trace/',
     });
   }
   beforeRouteLeave(to, from, next) {

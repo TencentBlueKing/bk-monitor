@@ -24,14 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-/* eslint-disable max-len  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import {
   checkClusterHealth,
   listDataPipeline,
   listDataSourceByDataPipeline,
-  updateDataPipeline
+  updateDataPipeline,
 } from 'monitor-api/modules/commons';
 import { random } from 'monitor-common/utils';
 
@@ -49,7 +48,7 @@ enum EColunm {
   kafkaStorage = 'kafkaStorage',
   isDefault = 'isDefault',
   isEnable = 'isEnable',
-  operate = 'operate'
+  operate = 'operate',
 }
 enum EChildColunm {
   name = 'name',
@@ -57,7 +56,7 @@ enum EChildColunm {
   type = 'type',
   kafkaTopic = 'kafkaTopic',
   influxdbStorage = 'influxdbStorage',
-  kafkaTopicStorage = 'kafkaTopicStorage'
+  kafkaTopicStorage = 'kafkaTopicStorage',
 }
 
 interface IChildTableData {
@@ -119,7 +118,7 @@ const STATUS_01 = [1, 1, 1, 1, 1, 1];
 const STATUS_02 = [2, 2, 2, 2, 2, 2];
 
 @Component
-export default class DataPipeline extends tsc<{}> {
+export default class DataPipeline extends tsc<object> {
   /* 搜索 */
   searchValue = '';
   /* 表格数据 */
@@ -141,16 +140,16 @@ export default class DataPipeline extends tsc<{}> {
         checked: true,
         filters: [
           { text: window.i18n.tc('是'), value: true },
-          { text: window.i18n.tc('否'), value: false }
+          { text: window.i18n.tc('否'), value: false },
         ],
-        filterMultiple: false
+        filterMultiple: false,
       },
-      { id: EColunm.operate, name: window.i18n.tc('操作'), width: 70, disabled: true, checked: true }
+      { id: EColunm.operate, name: window.i18n.tc('操作'), width: 70, disabled: true, checked: true },
     ],
     expandRowKeys: [],
     /* 搜索及筛选数据 */
     filterData: [],
-    data: []
+    data: [],
   };
   childTableColumns = [
     { id: EChildColunm.name, name: window.i18n.tc('数据名'), width: 300 },
@@ -158,7 +157,7 @@ export default class DataPipeline extends tsc<{}> {
     { id: EChildColunm.type, name: window.i18n.tc('类型') },
     { id: EChildColunm.kafkaTopic, name: 'Kafka (topic)' },
     { id: EChildColunm.influxdbStorage, name: window.i18n.tc('投递到 influxdb') },
-    { id: EChildColunm.kafkaTopicStorage, name: window.i18n.tc('投递到 Kafka (topic)') }
+    { id: EChildColunm.kafkaTopicStorage, name: window.i18n.tc('投递到 Kafka (topic)') },
   ];
   childTablePageSize = 10; // 子表格每页显示条数
   childTableLoading = false; // 子表格loading
@@ -170,7 +169,7 @@ export default class DataPipeline extends tsc<{}> {
   /* 侧栏新建及编辑数据 */
   configData: { data: IPiplineData; show: boolean } = {
     show: false,
-    data: null
+    data: null,
   };
   /* 是否启用筛选 */
   filterIsEnable = -1;
@@ -191,7 +190,7 @@ export default class DataPipeline extends tsc<{}> {
       isDefalut: item.isDefault,
       name: item.name,
       etl_config: item.etl_config,
-      spaces: item.spaces
+      spaces: item.spaces,
     }));
   }
   /* 初始化 */
@@ -208,10 +207,10 @@ export default class DataPipeline extends tsc<{}> {
         }
         return false;
       })(),
-      page_size: 999
+      page_size: 999,
     }).catch(() => ({
       data: [],
-      total: 0
+      total: 0,
     }));
     const spaceMap = new Map();
     this.$store.getters.bizList.forEach(item => {
@@ -230,8 +229,8 @@ export default class DataPipeline extends tsc<{}> {
         childTable: {
           total: 0,
           page: 0,
-          data: []
-        }
+          data: [],
+        },
       };
     }) as any;
     if (this.tableData.data.length) {
@@ -268,16 +267,16 @@ export default class DataPipeline extends tsc<{}> {
       checkClusterHealth({
         /* transfer需要加上cluster_type */
         cluster_type: transferId.has(id) ? 'transfer' : undefined,
-        cluster_id: id
+        cluster_id: id,
       })
         .then(res => {
           this.statusCompilation.set(id, {
-            success: !!res
+            success: !!res,
           });
         })
         .catch(() => {
           this.statusCompilation.set(id, {
-            success: false
+            success: false,
           });
         });
     const promiseList = [];
@@ -326,14 +325,14 @@ export default class DataPipeline extends tsc<{}> {
       const data = await listDataSourceByDataPipeline({
         data_pipeline_name: tableData.name,
         page: curPage,
-        page_size: this.childTablePageSize
+        page_size: this.childTablePageSize,
       })
         .then(res => ({
           ...res,
           data: res.data.map(item => {
             const kafkaTopic = item?.mq_config?.storage_config?.topic;
             const influxdbDomainName = item?.result_table_list?.[0].shipper_list?.find(
-              r => r.cluster_type === 'influxdb'
+              r => r.cluster_type === 'influxdb',
             )?.cluster_config?.domain_name;
             const kafkaStorageTopic = item?.result_table_list?.[0].shipper_list?.find(r => r.cluster_type === 'kafka')
               ?.storage_config?.topic;
@@ -346,13 +345,13 @@ export default class DataPipeline extends tsc<{}> {
               kafkaStorageTopic,
               isPlatformDataId: !!item.is_platform_data_id,
               spaceId: item.space.space_id,
-              spaceName
+              spaceName,
             };
-          })
+          }),
         }))
         .catch(() => ({
           total: 0,
-          data: []
+          data: [],
         }));
       if (data.data.length) {
         childTable.page = curPage;
@@ -408,7 +407,7 @@ export default class DataPipeline extends tsc<{}> {
         influxdb_storage_cluster_id: row.influxdb_storage_cluster_id,
         kafka_storage_cluster_id: row.kafka_storage_cluster_id,
         is_enable: !row.is_enable,
-        description: row.description
+        description: row.description,
       })
         .then(() => {
           resolve(!row.is_enable);
@@ -652,8 +651,8 @@ export default class DataPipeline extends tsc<{}> {
               props: {
                 data: this.tableData.data,
                 expandRowKeys: this.tableData.expandRowKeys,
-                rowKey: row => row.key
-              }
+                rowKey: row => row.key,
+              },
             }}
             on-row-click={this.handleRowClick}
             on-filter-change={this.handleFilterChange}
@@ -680,9 +679,9 @@ export default class DataPipeline extends tsc<{}> {
                           props: {
                             data: row.childTable.data,
                             scrollLoading: {
-                              isLoading: this.bottomLoading
-                            }
-                          }
+                              isLoading: this.bottomLoading,
+                            },
+                          },
                         }}
                         on-scroll-end={this.handleScrollEnd}
                       >
@@ -696,7 +695,7 @@ export default class DataPipeline extends tsc<{}> {
                         ))}
                       </bk-table>
                     </div>
-                  )
+                  ),
                 }}
               ></bk-table-column>
             }

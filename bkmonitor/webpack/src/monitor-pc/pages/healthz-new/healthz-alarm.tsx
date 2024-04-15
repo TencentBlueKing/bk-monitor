@@ -32,10 +32,10 @@ import MemberSelector from '../alarm-group/alarm-group-add/member-selector.vue';
 import './healthz-alarm.scss';
 
 @Component
-export default class HealthzAlarm extends tsc<{}> {
+export default class HealthzAlarm extends tsc<object> {
   formData = {
     alarm_role: [],
-    alarm_type: []
+    alarm_type: [],
   };
   rules = {};
   loading = false;
@@ -45,16 +45,16 @@ export default class HealthzAlarm extends tsc<{}> {
         {
           validator: this.checkAlarmRole,
           message: this.$t('必选项'),
-          trigger: 'change'
-        }
+          trigger: 'change',
+        },
       ],
       alarm_type: [
         {
           validator: this.checkAlarmType,
           message: this.$t('必选项'),
-          trigger: 'change'
-        }
-      ]
+          trigger: 'change',
+        },
+      ],
     };
     this.getAlarmConfig();
   }
@@ -63,7 +63,7 @@ export default class HealthzAlarm extends tsc<{}> {
     const data = await getAlarmConfig().catch(() => {
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('获取通知设置失败')
+        message: this.$t('获取通知设置失败'),
       });
       return false;
     });
@@ -84,7 +84,7 @@ export default class HealthzAlarm extends tsc<{}> {
       this.loading = false;
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('校验失败，请检查参数')
+        message: this.$t('校验失败，请检查参数'),
       });
       return;
     }
@@ -92,13 +92,13 @@ export default class HealthzAlarm extends tsc<{}> {
   }
   async setAlarmConfig() {
     const success = await updateAlarmConfig({
-      alarm_config: this.formData
+      alarm_config: this.formData,
     })
       .then(() => true)
       .catch(() => false);
     this.$bkMessage({
       theme: success ? 'success' : 'error',
-      message: success ? this.$t('保存成功') : this.$t('获取通知设置失败')
+      message: success ? this.$t('保存成功') : this.$t('获取通知设置失败'),
     });
     this.loading = false;
   }
@@ -107,7 +107,7 @@ export default class HealthzAlarm extends tsc<{}> {
       <div
         class='healthz-alarm'
         v-bkloading={{
-          isLoading: this.loading
+          isLoading: this.loading,
         }}
       >
         <div class='healthz-alarm-title'>{this.$t('通知设置')}</div>
@@ -155,7 +155,7 @@ export default class HealthzAlarm extends tsc<{}> {
             <span
               class='role-tips'
               v-bk-tooltips={{
-                content: this.$t('当蓝鲸监控的进程状态异常或告警队列拥塞时会通知相关人员')
+                content: this.$t('当蓝鲸监控的进程状态异常或告警队列拥塞时会通知相关人员'),
               }}
             >
               <i class='icon-monitor icon-hint' />

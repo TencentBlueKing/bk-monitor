@@ -41,7 +41,7 @@ import Performance from './performance.vue';
 import './performance-wrapper.scss';
 
 @Component
-export default class PerformanceWrapper extends tsc<{}> {
+export default class PerformanceWrapper extends tsc<object> {
   // 监控左侧栏是否收缩配置 自愈默认未收缩
   @Prop({ default: false, type: Boolean }) toggleSet: boolean;
   activeTab = 'list';
@@ -66,10 +66,10 @@ export default class PerformanceWrapper extends tsc<{}> {
           dataType: 'dict',
           api: 'scene_view.getStrategyAndEventCount',
           data: {
-            scene_id: 'host'
-          }
-        }
-      ]
+            scene_id: 'host',
+          },
+        },
+      ],
     };
     return new PanelModel(data as any);
   }
@@ -82,8 +82,8 @@ export default class PerformanceWrapper extends tsc<{}> {
     this.tabList = [
       {
         id: 'list',
-        name: window.i18n.tc('主机列表')
-      }
+        name: window.i18n.tc('主机列表'),
+      },
     ];
     this.loading = false;
   }
@@ -144,7 +144,7 @@ export default class PerformanceWrapper extends tsc<{}> {
             class='split-panel-wrapper'
             style={{
               width: `${this.splitPanelWidth}px`,
-              display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none'
+              display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
             }}
           >
             {this.isSplitPanel ? (

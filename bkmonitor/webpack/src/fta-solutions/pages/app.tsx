@@ -41,7 +41,7 @@ import { ISpaceItem } from '../typings';
 import './app.scss';
 
 @Component
-export default class App extends tsc<{}> {
+export default class App extends tsc<object> {
   @Ref('menuSearchInput') menuSearchInputRef: any;
   private routeList = createRouteConfig();
   private menuToggle = false;
@@ -55,7 +55,7 @@ export default class App extends tsc<{}> {
   get navActive() {
     let routeId = this.routeId || 'home';
     const {
-      options: { routes }
+      options: { routes },
     } = this.$router;
     const parentId = routes.find(item => routeId === item.name)?.meta?.route?.parent;
     routeId = parentId || routeId;
@@ -63,7 +63,7 @@ export default class App extends tsc<{}> {
       item =>
         item.route === routeId ||
         item.id === routeId ||
-        item?.children?.some(child => child.children.some(set => set.id === routeId))
+        item?.children?.some(child => child.children.some(set => set.id === routeId)),
     )?.id;
   }
   get routeId() {
@@ -75,7 +75,7 @@ export default class App extends tsc<{}> {
   // 业务列表
   get bizList() {
     return this.$store.getters.bizList.filter(
-      item => item.text.includes(this.keyword) || String(item.id).includes(this.keyword)
+      item => item.text.includes(this.keyword) || String(item.id).includes(this.keyword),
     );
   }
   get bizName() {
@@ -105,7 +105,7 @@ export default class App extends tsc<{}> {
   handleSowNav() {
     const routeList = [];
     const {
-      options: { routes }
+      options: { routes },
     } = this.$router;
     const { meta, name } = this.$route;
     this.showNav = !meta.noNavBar && !!name;
@@ -139,7 +139,7 @@ export default class App extends tsc<{}> {
       await this.$nextTick();
       if (!(this.$router as any).history.pending) {
         this.$router.push({
-          name: id
+          name: id,
         });
       }
     }
@@ -147,12 +147,12 @@ export default class App extends tsc<{}> {
   handleBeforeNavChange(newId, oldId) {
     if (
       ['strategy-config-add', 'strategy-config-edit', 'alarm-shield-add', 'alarm-shield-edit'].includes(
-        this.$route.name
+        this.$route.name,
       )
     ) {
       if (newId !== oldId) {
         this.$router.push({
-          name: newId
+          name: newId,
         });
       }
       return false;
@@ -318,7 +318,7 @@ export default class App extends tsc<{}> {
                         </bk-navigation-menu-item>
                       ))}
                     </bk-navigation-menu-group>
-                  ) : undefined
+                  ) : undefined,
                 )}
               </bk-navigation-menu>
             </div>

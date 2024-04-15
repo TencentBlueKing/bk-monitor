@@ -68,7 +68,7 @@ const changeNoticeRouteList = [
   'alarm-shield-add',
   'alarm-shield-edit',
   'plugin-add',
-  'plugin-edit'
+  'plugin-edit',
 ];
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
@@ -84,10 +84,10 @@ if (currentLang === 'en') {
 }
 @Component({
   components: {
-    NoticeComponent: () => import(/* webpackChunkName: "notice-component" */ '@blueking/notice-component-vue2')
-  }
+    NoticeComponent: () => import(/* webpackChunkName: "notice-component" */ '@blueking/notice-component-vue2'),
+  },
 })
-export default class App extends tsc<{}> {
+export default class App extends tsc<object> {
   @Ref('menuSearchInput') menuSearchInputRef: any;
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
   @Ref('headerDrowdownMenu') headerDrowdownMenuRef: any;
@@ -122,7 +122,7 @@ export default class App extends tsc<{}> {
   get navActive() {
     let routeId = this.routeId || 'home';
     const {
-      options: { routes }
+      options: { routes },
     } = this.$router;
     const parentId = routes.find(item => routeId === item.name)?.meta?.route?.parent;
     routeId = parentId || routeId;
@@ -131,7 +131,7 @@ export default class App extends tsc<{}> {
         item.route === routeId ||
         item.id === routeId ||
         item?.children?.some(child => child.id === routeId) ||
-        item?.children?.some(child => child?.children?.some(set => set.id === routeId))
+        item?.children?.some(child => child?.children?.some(set => set.id === routeId)),
     )?.id;
   }
   get routeId() {
@@ -167,7 +167,7 @@ export default class App extends tsc<{}> {
       item =>
         item.text.includes(this.keyword) ||
         String(item.id).includes(this.keyword) ||
-        item.py_text.includes(this.keyword)
+        item.py_text.includes(this.keyword),
     );
   }
   get bizName() {
@@ -204,23 +204,23 @@ export default class App extends tsc<{}> {
       {
         target: '#head-nav-performance',
         title: this.$tc('观测场景'),
-        content: this.$tc('各种监控场景能力，当前有主机监控、服务拨测、Kubernetes监控，还可以自定义观测场景')
+        content: this.$tc('各种监控场景能力，当前有主机监控、服务拨测、Kubernetes监控，还可以自定义观测场景'),
       },
       {
         target: '#head-nav-strategy-config',
         title: this.$tc('配置管理'),
-        content: this.$tc('告警策略配置、处理套餐、告警组、屏蔽等各种配置管理操作')
+        content: this.$tc('告警策略配置、处理套餐、告警组、屏蔽等各种配置管理操作'),
       },
       {
         target: '#head-nav-plugin-manager',
         title: this.$tc('route-集成'),
-        content: this.$tc('可以制作插件、批量导出导入配置、可自定义数据采集')
+        content: this.$tc('可以制作插件、批量导出导入配置、可自定义数据采集'),
       },
       {
         target: '#nav-search-bar',
         title: this.$tc('全站搜索'),
-        content: this.$tc('全站搜索，可以跨业务直接搜索任意资源')
-      }
+        content: this.$tc('全站搜索，可以跨业务直接搜索任意资源'),
+      },
     ];
     this.getDocsLinkMapping();
   }
@@ -278,7 +278,7 @@ export default class App extends tsc<{}> {
    */
   async handleFetchStickyList() {
     const params = {
-      username: this.$store.getters.userName
+      username: this.$store.getters.userName,
     };
     const res = await listStickySpaces(params).catch(() => []);
     this.spacestickyList = res;
@@ -289,7 +289,7 @@ export default class App extends tsc<{}> {
   handleSowNav() {
     const routeList = [];
     const {
-      options: { routes }
+      options: { routes },
     } = this.$router;
     const { meta, name } = this.$route;
     this.showNav = !meta.noNavBar && !!name;
@@ -346,8 +346,8 @@ export default class App extends tsc<{}> {
       STORE_USER_MENU_KEY,
       JSON.stringify({
         ...storeMenu,
-        ...newMenu
-      })
+        ...newMenu,
+      }),
     );
   }
   /**
@@ -369,7 +369,7 @@ export default class App extends tsc<{}> {
         const route = item.usePath ? { path: item.path } : { name: item.id };
         !item.noCache &&
           this.setUserStoreMenu({
-            [this.headerNav]: route
+            [this.headerNav]: route,
           });
         if (isMicroApp) {
           location.hash = item.href;
@@ -391,7 +391,7 @@ export default class App extends tsc<{}> {
     if (changeNoticeRouteList.includes(this.$route.name)) {
       if (newId !== oldId) {
         this.$router.push({
-          name: newId
+          name: newId,
         });
       }
       return false;
@@ -473,7 +473,7 @@ export default class App extends tsc<{}> {
           .catch(() => false)
           .finally(() => {
             setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
-          })
+          }),
       );
       [, hasAuthority] = await Promise.all(promiseList);
       if (!hasAuthority) {
@@ -482,11 +482,11 @@ export default class App extends tsc<{}> {
           query: {
             actionId: authority.page || '',
             fromUrl: (path || this.$route.path).replace(/^\//, ''),
-            parentRoute: this.$route.meta.route.parent
+            parentRoute: this.$route.meta.route.parent,
           },
           params: {
-            title: '无权限'
-          }
+            title: '无权限',
+          },
         });
         return false;
       }
@@ -549,7 +549,7 @@ export default class App extends tsc<{}> {
           if (navList?.length) {
             const storeRoute = storeVal[this.headerNav];
             const hasRoute = navList.find(
-              item => item.id === storeRoute?.name || item?.children?.some(set => set.id === storeRoute?.name)
+              item => item.id === storeRoute?.name || item?.children?.some(set => set.id === storeRoute?.name),
             );
             this.$router.push(hasRoute ? storeRoute : route);
             if (!hasRoute) {
@@ -576,18 +576,18 @@ export default class App extends tsc<{}> {
       this.handleHeaderSettingShowChange(false);
       const route = item.usePath
         ? {
-            path: item.path
+            path: item.path,
           }
         : { name: item.id };
       !item.noCache &&
         this.setUserStoreMenu({
-          [this.headerNav]: route
+          [this.headerNav]: route,
         });
       this.$router.push({
         ...route,
         query: {
-          ...item.query
-        }
+          ...item.query,
+        },
       });
     }
   }
@@ -595,7 +595,7 @@ export default class App extends tsc<{}> {
     this.handleHeaderSettingShowChange(false);
     (this.$refs.NavTools as any).handleSet({
       id: 'space-manage',
-      name: window.i18n.tc('空间管理').toString()
+      name: window.i18n.tc('空间管理').toString(),
     });
   }
   handleGlobSettingsShowChange(v: boolean) {
@@ -682,13 +682,13 @@ export default class App extends tsc<{}> {
             domPropsInnerHTML={this.footerHtml}
           ></div>
         ) : undefined}
-      </div>
+      </div>,
     ];
     return (
       <div
         class='bk-monitor'
         style={{
-          '--notice-alert-height': this.showAlert ? '40px' : '0px'
+          '--notice-alert-height': this.showAlert ? '40px' : '0px',
         }}
       >
         {process.env.NODE_ENV !== 'development' && (
@@ -699,7 +699,7 @@ export default class App extends tsc<{}> {
         )}
         <bk-navigation
           class={{
-            'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share'
+            'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share',
           }}
           navigation-type='top-bottom'
           on-toggle={this.handleToggle}
@@ -725,7 +725,7 @@ export default class App extends tsc<{}> {
                         key={id}
                         class={[
                           'header-list-item',
-                          { 'item-active': !this.globalSettingShow && id === this.headerNav }
+                          { 'item-active': !this.globalSettingShow && id === this.headerNav },
                         ]}
                         onMousedown={() => this.handleHeaderNavClick(id)}
                         id={`head-nav-${route}`}
@@ -735,7 +735,7 @@ export default class App extends tsc<{}> {
                       >
                         {this.$t(name.startsWith('route-') ? name : `route-${name}`)}
                       </a>
-                    )
+                    ),
                 )}
                 {this.hideNavCount > 0 && (
                   <bk-dropdown-menu
@@ -767,7 +767,7 @@ export default class App extends tsc<{}> {
                             >
                               {this.$t(name.startsWith('route-') ? name : `route-${name}`)}
                             </a>
-                          )
+                          ),
                       )}
                     </ul>
                   </bk-dropdown-menu>
@@ -837,7 +837,7 @@ export default class App extends tsc<{}> {
                                       >
                                         {this.$t(set.name)}
                                       </bk-navigation-menu-item>
-                                    ))
+                                    )),
                                 }}
                                 {...{ props: child }}
                               >
@@ -863,7 +863,7 @@ export default class App extends tsc<{}> {
                             {item.navIcon && <i class={item.navIcon} />}
                           </span>
                         </bk-navigation-menu-item>
-                      )
+                      ),
                     )}
                 </bk-navigation-menu>
               </div>
