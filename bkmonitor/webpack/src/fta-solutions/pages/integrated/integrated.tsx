@@ -31,6 +31,7 @@ import IntegratedModule from '../../store/modules/integrated';
 import MonitorDrag from '../event/monitor-drag';
 
 import EventSourceDetail from './event-source-detail/event-source-detail';
+import IntegratedFilterSkeleton from './skeleton/integrated-filter-skeleton';
 import CheckboxTree, { ICheckedData } from './checkbox-tree';
 import ContentGroupItem, { IPluginDetail, OperateType } from './content-group-item';
 import Group, { IGroupData } from './group';
@@ -324,7 +325,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
     return (
       <section
         class='integrated'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         {/* 筛选条件 */}
         <div
@@ -335,16 +336,20 @@ export default class Integrated extends tsc<IIntegratedProps> {
             display: this.filterWidth > 200 ? 'flex' : 'none'
           }}
         >
-          <Group
-            data={this.filterPanelData}
-            defaultActiveName={this.defaultActiveFilterGroup}
-            onActiveChange={v => (this.defaultActiveFilterGroup = v)}
-            scopedSlots={{
-              default: ({ item }) => this.filterGroupSlot(item)
-            }}
-            theme='filter'
-            onClear={this.handleClearChecked}
-          ></Group>
+          {this.loading ? (
+            <IntegratedFilterSkeleton></IntegratedFilterSkeleton>
+          ) : (
+            <Group
+              data={this.filterPanelData}
+              defaultActiveName={this.defaultActiveFilterGroup}
+              onActiveChange={v => (this.defaultActiveFilterGroup = v)}
+              scopedSlots={{
+                default: ({ item }) => this.filterGroupSlot(item)
+              }}
+              theme='filter'
+              onClear={this.handleClearChecked}
+            ></Group>
+          )}
           <MonitorDrag on-move={this.handleDragFilter} />
         </div>
         {/* 插件内容 */}

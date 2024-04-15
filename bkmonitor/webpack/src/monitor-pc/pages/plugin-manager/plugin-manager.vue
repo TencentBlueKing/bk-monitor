@@ -97,7 +97,7 @@
           </li>
           <li class="tab-list-blank" />
         </ul>
-        <table-skeleton v-if="loading || table.loading" :type="2" class="mt-16"></table-skeleton>
+        <table-skeleton v-if="loading || table.loading" :type="2" class="plugin-table-skeleton"></table-skeleton>
         <template v-else>
           <bk-table
             class="plugin-table"
@@ -1217,8 +1217,8 @@ export default {
 .mr-6 {
   margin-right: 6px;
 }
-.mt-16 {
-  margin-top: 16px;
+.plugin-table-skeleton {
+  padding: 16px 16px 0 16px;
 }
 
 .popover-tag {

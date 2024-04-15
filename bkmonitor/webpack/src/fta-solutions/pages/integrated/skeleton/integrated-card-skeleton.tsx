@@ -26,27 +26,19 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './filter-skeleton.scss';
+import './integrated-card-skeleton.scss';
 
 @Component
-export default class FilterSkeleton extends tsc<{}> {
+export default class IntegratedCardSkeleton extends tsc<{}> {
   render() {
     return (
-      <div class='event-filter-skeleton'>
-        <div class='h-24 w--100 mt-12 ml-16 mr-24 skeleton-element'></div>
-        {new Array(5).fill(null).map((_item, index) => (
-          <div
-            class='h-24 w--100 mt-12 ml-24 mr-24 skeleton-element'
-            key={`a_${index}`}
-          ></div>
-        ))}
-        <div class='h-24 w--100 mt-12 ml-16 mr-24 skeleton-element'></div>
-        {new Array(2).fill(null).map((_item, index) => (
-          <div
-            class='h-24 w--100 mt-12 ml-24 mr-24 skeleton-element'
-            key={`b_${index}`}
-          ></div>
-        ))}
+      <div class='integrated-filter-skeleton'>
+        <div class='skeleton-element w-48 h-48 mt-28'></div>
+        <div class='skeleton-element w-86 h-20 mt-8'></div>
+        <div class='bottom'>
+          <div class='skeleton-element w-39 h-16'></div>
+          <div class='skeleton-element w-39 h-16'></div>
+        </div>
       </div>
     );
   }
