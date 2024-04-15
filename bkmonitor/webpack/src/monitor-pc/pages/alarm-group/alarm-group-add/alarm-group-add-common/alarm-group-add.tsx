@@ -72,7 +72,7 @@ interface IAlarmGroupAdd {
   type?: TGroupType;
 }
 
-type TRouterName = 'alarm-group' | 'strategy-config-edit' | 'strategy-config-add';
+type TRouterName = 'alarm-group' | 'strategy-config-edit' | 'strategy-config-add' | 'strategy-config-clone';
 type TRouterNameMap = { [key in TRouterName]: Function };
 
 interface IFormData {
@@ -668,6 +668,15 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           name: 'strategy-config-add',
           params: {
             alarmGroupId: id
+          }
+        });
+      },
+      'strategy-config-clone': () => {
+        this.$router.replace({
+          name: 'strategy-config-clone',
+          params: {
+            alarmGroupId: id,
+            id: this.$route.params.strategyId
           }
         });
       }
