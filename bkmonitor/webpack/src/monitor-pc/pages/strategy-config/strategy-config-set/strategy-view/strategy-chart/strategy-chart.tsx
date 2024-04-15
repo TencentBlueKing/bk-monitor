@@ -416,7 +416,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 const method = aggMethod === 'REAL_TIME' || this.dataMode === 'realtime' ? 'REAL_TIME' : aggMethod;
                 let localMetrics = this.hasIntelligentDetect
                   ? this.createMetrics(isMetric)
-                  : [{ field: fieldValue(), method, alias, display: dataTypeLabel === 'alert' }];
+                  : [{ field: fieldValue(), method, alias: alias || 'a', display: dataTypeLabel === 'alert' }];
                 if (this.hasTimeSeriesForecast && metrics) {
                   // 时序预测
                   localMetrics = [...localMetrics, ...metrics];
@@ -496,7 +496,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     const metrics = metricFields.map(field => ({
       field,
       method: field === 'anomaly_score' ? '' : this.intelligentDetect?.agg_method || method,
-      alias: field === 'value' ? alias : undefined,
+      alias: field === 'value' ? alias : 'a',
       display: ['anomaly_score', 'value'].includes(field) ? undefined : true
     }));
     return metrics;
