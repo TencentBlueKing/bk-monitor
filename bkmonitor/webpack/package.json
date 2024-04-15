@@ -34,26 +34,11 @@
     "analyze:mobile": "npm run clean && bkmonitor-cli build -m -a",
     "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js",
-    "fix": "eslint --fix --ext .js,.vue src/",
     "iconfont": "node ./webpack/update-iconfont.js"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged --concurrent false",
     "commit-msg": "node ./bkmonitor/webpack/webpack/verify-commit.js $1"
-  },
-  "lint-staged": {
-    "src/**/*.(ts|tsx)": [
-      "eslint --cache --fix",
-      "git add"
-    ],
-    "src/**/*.vue": [
-      "eslint --cache --fix",
-      "git add"
-    ],
-    "src/**/*.(vue|scss|css|sass)": [
-      "stylelint --cache --fix",
-      "git add"
-    ]
   },
   "devDependencies": {
     "@blueking/bkmonitor-cli": "3.0.0-beta.7",
