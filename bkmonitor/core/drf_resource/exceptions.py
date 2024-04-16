@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from bkmonitor.utils.common_utils import failed
 from core.errors import Error
 from core.errors.common import CustomError, DrfApiError, HTTP404Error, UnknownError
+from core.prometheus import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -103,5 +104,14 @@ def custom_exception_handler(exc, context):
 
     if response is not None:
         setattr(response, "exception_instance", exc)
+        metrics.API_FAILED_REQUESTS_TOTAL.labels(
+            action=getattr(context.get('view'), 'action', 'unknown_action'),
+            module=getattr(context.get('view'), 'basename', 'unknown_module'),
+            code=response.data.get('code', 0),
+            role='web',
+            exception=type(exc),
+            user_name=getattr(context.get('request'), 'user', 'unknown_user'),
+        ).inc()
+        metrics.report_all()
 
     return response

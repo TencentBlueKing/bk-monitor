@@ -15,6 +15,7 @@ import six
 from rest_framework.response import Response
 
 from bkmonitor.utils.common_utils import failed
+from core.prometheus import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -33,4 +34,14 @@ def api_exception_handler(exc, context):
 
     json_data["code"] = code
     json_data.pop("msg", None)
+
+    metrics.API_FAILED_REQUESTS_TOTAL.labels(
+        action=getattr(context.get('view'), 'action', 'unknown_action'),
+        module=getattr(context.get('view'), 'basename', 'unknown_module'),
+        code=code,
+        role='api',
+        exception=type(exc),
+        user_name=getattr(context.get('request'), 'user', 'unknown_user'),
+    ).inc()
+    metrics.report_all()
     return Response(json_data, content_type="application/json")
