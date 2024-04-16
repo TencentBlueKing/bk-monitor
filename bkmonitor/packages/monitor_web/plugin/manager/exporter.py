@@ -12,8 +12,12 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import os
+import tarfile
+import zipfile
 from collections import namedtuple
 
+import rarfile
+from django.core.files.base import ContentFile
 from django.utils.translation import ugettext as _
 
 from core.drf_resource import resource
@@ -280,3 +284,129 @@ class ExporterPluginFileManager(PluginFileManager):
     @classmethod
     def valid_aix(cls, file_data):
         pass
+
+
+class ExtFilePluginManager(PluginFileManager):
+    @classmethod
+    def prev_structure(cls, request_file_data, extension=None):
+        """预览压缩包文件结构"""
+        if not extension:
+            raise Exception("file extension is required")
+        try:
+            fd = ContentFile(request_file_data)
+            handler = cls.get_compression_handler(extension)
+            root_tree = handler(fd)
+            # 压缩包，解压出一个根目录
+            return root_tree["children"][0]
+        except Exception as ex:
+            raise IOError(f'preview file structure error: {ex}')
+
+    @classmethod
+    def get_compression_handler(cls, extension):
+        handler_define = [
+            ([".zip"], cls.build_zip_tree),
+            ([".rar"], cls.build_rar_tree),
+            ([".tar", ".tar.gz", ".tgz"], cls.build_tar_tree),
+        ]
+        for target_suffix, handler in handler_define:
+            if extension.strip() in target_suffix:
+                return handler
+        else:
+            raise IOError(f"unsupported file extension: {extension}")
+
+    @classmethod
+    def build_tar_tree(cls, fd):
+        # 初始化根节点
+        tree = {"name": "root", "type": "directory", "children": []}
+        with tarfile.open(fileobj=fd) as tf:
+            for member in tf.getmembers():
+                if member.name.rsplit("/")[-1].startswith('._'):
+                    continue
+                parts = member.name.split('/')
+                print(parts)
+                current_level = tree
+                for part in parts:
+                    found = False
+                    # 遍历当前层级的子节点
+                    if current_level["type"] == "file":
+                        continue
+                    for child in current_level.setdefault("children", []):
+                        if child["name"] == part:
+                            current_level = child
+                            found = True
+                            break
+                    # 如果找不到当前节点，则添加新节点
+                    if not found:
+                        new_node = {
+                            "name": part,
+                            "type": "directory" if member.isdir() else "file",
+                            "children": [],
+                        }
+                        current_level["children"].append(new_node)
+                        current_level = new_node
+
+        return tree
+
+    @classmethod
+    def build_rar_tree(cls, fd):
+        # 初始化根节点
+        tree = {"name": "root", "type": "directory", "children": []}
+        with rarfile.RarFile(fd) as rf:
+            for info in rf.infolist():
+                parts = info.filename.split('/')
+                current_level = tree
+                for part in parts:
+                    if not part:
+                        continue
+                    found = False
+                    # 遍历当前层级的子节点
+                    if current_level["type"] == "file":
+                        continue
+                    for child in current_level.setdefault("children", []):
+                        if child["name"] == part:
+                            current_level = child
+                            found = True
+                            break
+                    # 如果找不到当前节点，则添加新节点
+                    if not found:
+                        new_node = {
+                            "name": part,
+                            # 如果是目录， 则最后以/结尾，parts[-1] 为 ""
+                            "type": "file" if part == parts[-1] else "directory",
+                        }
+
+                        current_level["children"].append(new_node)
+                        current_level = new_node
+        return tree
+
+    @classmethod
+    def build_zip_tree(cls, fd):
+        # 初始化根节点
+        tree = {"name": "root", "type": "directory", "children": []}
+        with zipfile.ZipFile(fd, 'r') as zf:
+            for file_info in zf.filelist:
+                parts = file_info.filename.split('/')
+                current_level = tree
+                for part in parts:
+                    if not part:
+                        continue
+                    found = False
+                    # 遍历当前层级的子节点
+                    if current_level["type"] == "file":
+                        continue
+                    for child in current_level.setdefault("children", []):
+                        if child["name"] == part:
+                            current_level = child
+                            found = True
+                            break
+                    # 如果找不到当前节点，则添加新节点
+                    if not found:
+                        new_node = {
+                            "name": part,
+                            # 如果是目录， 则最后以/结尾，parts[-1] 为 ""
+                            "type": "file" if part == parts[-1] else "directory",
+                        }
+
+                        current_level["children"].append(new_node)
+                        current_level = new_node
+        return tree

@@ -98,8 +98,12 @@ class PluginFileUploadResource(Resource):
         plugin_id = serializers.CharField(required=False)
         plugin_type = serializers.CharField(required=True)
         os = serializers.CharField(required=True)
+        ext = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, validated_request_data):
+        if validated_request_data.get("ext"):
+            return self.save_ext_file(validated_request_data)
+
         validated_request_data.setdefault("file_name", validated_request_data["file_data"].name)
         plugin_type = validated_request_data.get("plugin_type", CollectorPluginMeta.PluginType.EXPORTER)
         plugin_file_manager = PluginFileManagerFactory.get_manager(plugin_type)
@@ -111,6 +115,27 @@ class PluginFileUploadResource(Resource):
             "original_filename": file_manager.file_obj.original_filename,
             "file_md5": file_manager.file_obj.file_md5,
         }
+
+    def save_ext_file(self, validated_request_data):
+        # 新增额外文件上传能力
+        validated_request_data.setdefault("file_name", validated_request_data["file_data"].name)
+        plugin_file_manager = PluginFileManagerFactory.get_ext_file_manager()
+        file_manager = plugin_file_manager.save_file(**validated_request_data)
+        file_name = validated_request_data["file_name"]
+        if self.is_zipfile(file_name):
+            file_tree = file_manager.prev_structure(validated_request_data["file_data"])
+        else:
+            file_tree = {"name": file_name, "type": "file"}
+        return {
+            "file_id": file_manager.file_obj.id,
+            "actual_filename": file_manager.file_obj.actual_filename,
+            "original_filename": file_manager.file_obj.original_filename,
+            "file_md5": file_manager.file_obj.file_md5,
+            "file_tree": file_tree,
+        }
+
+    def is_zipfile(self, file_name):
+        return file_name.endswith((".tar.gz", ".tgz", ".zip", ".rar", ".tar"))
 
 
 class DataDogPluginUploadResource(Resource):
