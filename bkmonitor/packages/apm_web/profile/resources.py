@@ -190,13 +190,18 @@ class QueryProfileBarGraphResource(Resource):
             label_filter={"profile_id": "op_is_not_null", **filter_labels},
             limit=self.POINT_LABEL_LIMIT,
         )
-        trace_data[int(query_params["start_time"])] = [
-            {
-                "time": datetime.datetime.fromtimestamp(i["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S"),
-                "span_id": i.get("labels", {}).get("profile_id", "unknown"),
-            }
-            for i in labels
-        ]
+
+        labels_data = []
+        for i in labels:
+            happen_time = datetime.datetime.fromtimestamp(i["time"] / 1000)
+            labels_data.append(
+                {
+                    "time": happen_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "span_id": i.get("labels", {}).get("profile_id", "unknown"),
+                }
+            )
+
+        trace_data[int(query_params["start_time"])] = labels_data
         datapoints.append([point_count, int(query_params["start_time"])])
 
     def perform_request(self, validate_data):
