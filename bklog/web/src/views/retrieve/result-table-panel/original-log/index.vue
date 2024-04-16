@@ -173,7 +173,7 @@ export default {
   },
   data() {
     return {
-      contentType: 'table',
+      contentType: 'original',
       isWrap: true,
       showFieldsSetting: false,
       showAsyncExport: false, // 异步下载弹窗

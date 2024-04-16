@@ -48,6 +48,7 @@ enum EColunm {
   operate = 'operate',
   failureTime = 'failure_time',
   status = 'status',
+  updateUser = 'update_user',
 }
 export default defineComponent({
   name: 'AlarmShield',
@@ -169,6 +170,13 @@ export default defineComponent({
         {
           id: EColunm.status,
           name: t('状态'),
+          width: 150,
+          disabled: false,
+          checked: true,
+        },
+        {
+          id: EColunm.updateUser,
+          name: t('更新人'),
           width: 150,
           disabled: false,
           checked: true,
@@ -597,6 +605,9 @@ export default defineComponent({
         case EColunm.status: {
           return <span class={statusMap[row.status].className}>{statusMap[row.status].des}</span>;
         }
+        case EColunm.updateUser: {
+          return <span>{row.update_user || '--'}</span>;
+        }
         case EColunm.operate: {
           return (
             <div>
@@ -754,7 +765,7 @@ export default defineComponent({
                     return {
                       ...item,
                       label: (col: any) => col.name,
-                      render: ({ row, _column }) => this.handleSetFormater(row, item.id),
+                      render: ({ row }) => this.handleSetFormater(row, item.id),
                     };
                   })}
                 pagination={false}
