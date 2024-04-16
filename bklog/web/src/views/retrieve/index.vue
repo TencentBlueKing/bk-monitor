@@ -72,10 +72,10 @@
         >
           <!-- 监控显示的 tab 切换 -->
           <!-- <div v-if="isAsIframe" class="bk-button-group">
-          <bk-button @click="handleCheckMonitor">{{ $t('指标检索') }}</bk-button>
-          <bk-button class="is-selected">{{ $t('日志检索') }}</bk-button>
-          <bk-button @click="handleCheckEvent">{{ $t('事件检索') }}</bk-button>
-        </div> -->
+            <bk-button @click="handleCheckMonitor">{{ $t('指标检索') }}</bk-button>
+            <bk-button class="is-selected">{{ $t('日志检索') }}</bk-button>
+            <bk-button @click="handleCheckEvent">{{ $t('事件检索') }}</bk-button>
+          </div> -->
 
           <div
             class="king-tab"
@@ -102,7 +102,7 @@
               >
                 <!-- 选择索引集 -->
                 <div class="tab-item-title">{{ $t('索引集') }}</div>
-                <select-indexSet
+                <select-index-set
                   :index-id="indexId"
                   :index-set-list="indexSetList"
                   :basic-loading.sync="basicLoading"
@@ -217,10 +217,12 @@
               :is-init-page="isInitPage"
               :is-thollte-field="isThollteField"
               :finger-search-state="fingerSearchState"
+              :config-watch-bool="configWatchBool"
               @request-table-data="requestTableData"
               @fieldsUpdated="handleFieldsUpdated"
               @shouldRetrieve="retrieveLog"
               @addFilterCondition="addFilterCondition"
+              @changeShowUnionSource="changeShowUnionSource"
               @backFillClusterRouteParams="backFillClusterRouteParams"
               @showSettingLog="handleSettingMenuClick('clustering')"
             />
@@ -281,7 +283,7 @@
 
 <script>
 import { mapGetters, mapState } from 'vuex';
-import SelectIndexSet from './condition-comp/select-indexSet';
+import SelectIndexSet from './condition-comp/select-index-set.tsx';
 import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
 // import IpSelectorDialog from '@/components/collection-access/ip-selector-dialog';
 import FieldFilter from './condition-comp/field-filter';
@@ -300,10 +302,10 @@ import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import axios from 'axios';
 import * as authorityMap from '../../common/authority-map';
 import { deepClone } from '../../components/monitor-echarts/utils';
-import CancelToken from 'axios/lib/cancel/CancelToken';
 import { updateTimezone } from '../../language/dayjs';
 import dayjs from 'dayjs';
 
+const CancelToken = axios.CancelToken;
 const currentTime = Math.floor(new Date().getTime() / 1000);
 const startTime = currentTime - 15 * 60;
 const endTime = currentTime;
@@ -410,7 +412,10 @@ export default {
       isAsIframe: false,
       localIframeQuery: {},
       isFirstLoad: true,
-      operatorConfig: {}, // 当前table item操作的值
+      operatorConfig: {
+        /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
+        isShowSourceField: false
+      }, // 当前table item操作的值
       authPageInfo: null,
       isShowAddNewCollectDialog: false, // 是否展示新建收藏弹窗
       collectWidth: localStorage.getItem('isAutoShowCollect') === 'true' ? 240 : 0, // 收藏默认栏宽度
@@ -445,9 +450,28 @@ export default {
       isSetDefaultTableColumn: false,
       /** 是否还需要分页 */
       finishPolling: false,
+      catchUnionBeginList: [],
       timezone: dayjs.tz.guess(),
       /** 数据指纹是否请求布尔值 */
-      fingerSearchState: false
+      fingerSearchState: false,
+      logSourceField: {
+        description: null,
+        es_doc_values: false,
+        field_alias: '',
+        field_name: this.$t('日志来源'),
+        field_operator: [],
+        field_type: 'union',
+        filterExpand: false,
+        filterVisible: false,
+        is_analyzed: false,
+        is_display: false,
+        is_editable: false,
+        minWidth: 0,
+        tag: 'union-source',
+        width: 230
+      },
+      // 字段配置下拉框更新监听 因联合查询的字段设置列表需要先请求字段后才能返回
+      configWatchBool: false
     };
   },
   computed: {
@@ -461,7 +485,9 @@ export default {
     }),
     ...mapGetters(['asIframe', 'iframeQuery']),
     ...mapGetters({
-      authMainPageInfo: 'globals/authContainerInfo'
+      authMainPageInfo: 'globals/authContainerInfo',
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch'
     }),
     showAuthInfo() {
       // 无业务权限则展示store里的 然后判断是否有索引集权限
@@ -488,24 +514,14 @@ export default {
   provide() {
     return {
       addFilterCondition: this.addFilterCondition,
+      changeShowUnionSource: this.changeShowUnionSource,
       batchAddCondition: this.batchAddCondition
     };
   },
   watch: {
     indexId(val) {
       // 切换索引集和初始化索引 id 时改变
-      const option = this.indexSetList.find(item => item.index_set_id === val);
-      this.indexSetItem = option ? option : { index_set_name: '', indexName: '', scenario_name: '', scenario_id: '' };
-      // eslint-disable-next-line camelcase
-      this.isSearchAllowed = !!option?.permission?.[authorityMap.SEARCH_LOG_AUTH];
-      if (this.isSearchAllowed) this.authPageInfo = null;
-      this.resetRetrieveCondition();
-      this.resetFavoriteValue();
-      this.$store.commit('updateIndexId', val);
-      val && this.requestSearchHistory(val);
-      this.clearCondition('*', false);
-      this.$refs.searchCompRef?.clearAllCondition();
-      this.isSetDefaultTableColumn = false;
+      this.initIndexSetChangeFn(val);
     },
     spaceUid: {
       async handler() {
@@ -518,6 +534,7 @@ export default {
           this.fetchPageData();
         }
         this.resetFavoriteValue();
+        this.$store.commit('updateUnionIndexList', []);
         this.$refs.searchCompRef?.clearAllCondition();
       },
       immediate: true
@@ -533,6 +550,14 @@ export default {
       handler(val) {
         this.localIframeQuery = val;
       }
+    },
+    unionIndexList: {
+      deep: true,
+      immediate: true,
+      handler(val) {
+        const filterIndexSetList = this.indexSetList.filter(item => val.includes(String(item.index_set_id)));
+        this.$store.commit('updateUnionIndexItemList', filterIndexSetList);
+      }
     }
   },
   created() {
@@ -543,9 +568,24 @@ export default {
   },
   beforeDestroy() {
     updateTimezone();
+    this.$store.commit('updateUnionIndexList', []);
     window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
   },
   methods: {
+    /** 索引集更变时的数据初始化 */
+    initIndexSetChangeFn(val) {
+      const option = this.indexSetList.find(item => item.index_set_id === val);
+      this.indexSetItem = option ? option : { index_set_name: '', indexName: '', scenario_name: '', scenario_id: '' };
+      // eslint-disable-next-line camelcase
+      this.isSearchAllowed = !!option?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      if (this.isSearchAllowed) this.authPageInfo = null;
+      this.resetRetrieveCondition();
+      this.resetFavoriteValue();
+      this.$store.commit('updateIndexId', val);
+      this.clearCondition('*', false);
+      this.$refs.searchCompRef?.clearAllCondition();
+      this.isSetDefaultTableColumn = false;
+    },
     /** 搜索取消请求方法 */
     searchCancelFn() {},
     // 子组件改父组件的值或调用方法;
@@ -753,22 +793,78 @@ export default {
     },
     // 获取检索历史
     requestSearchHistory(indexId) {
-      this.$http
-        .request('retrieve/getSearchHistory', {
-          params: {
-            index_set_id: indexId
+      const queryUrl = this.isUnionSearch ? 'unionSearch/unionSearchHistory' : 'retrieve/getSearchHistory';
+      const params = this.isUnionSearch
+        ? {
+            index_set_ids: this.unionIndexList
           }
+        : {
+            index_set_id: indexId
+          };
+      this.$http
+        .request(queryUrl, {
+          params
         })
         .then(res => {
           this.statementSearchrecords = res.data;
         });
     },
-    // 切换索引
-    handleSelectIndex(val) {
-      this.indexId = val;
-      this.activeFavoriteID = -1;
-      this.activeFavorite = {};
-      this.retrieveLog();
+    /**
+     * @desc: 切换索引
+     * @param {Object} val 切换索引集的数据
+     * @param {Object} params 检索传参数据
+     * @param {Boolean} isFavoriteSearch 是否是收藏
+     * @returns {*}
+     */
+    handleSelectIndex(val, params = {}, isFavoriteSearch = false) {
+      const { ids, selectIsUnionSearch } = val;
+      // 关闭下拉框 判断是否是多选 如果是多选并且非缓存的则执行联合查询
+      if (!isFavoriteSearch) {
+        const favoriteIDs = this.activeFavorite.index_set_ids?.map(item => String(item)) ?? [];
+        if (this.compareArrays(ids, favoriteIDs)) return;
+        this.resetFavoriteValue();
+      }
+      if (selectIsUnionSearch) {
+        if (!this.compareArrays(ids, this.unionIndexList) || isFavoriteSearch) {
+          this.shouldUpdateFields = true;
+          this.initIndexSetChangeFn(this.indexId);
+          this.$store.commit('updateUnionIndexList', ids);
+          this.catchUnionBeginList = [];
+          this.retrieveLog(params);
+        }
+      } else {
+        // 单选时弹窗关闭时 判断之前是否是多选 如果是多选 则直接检索
+        const isChangeIndexId = this.indexId !== ids[0];
+        if (this.isUnionSearch) {
+          // 之前是多选
+          if (isChangeIndexId) this.indexId = ids[0]; // 与缓存的id不同 更新
+          if (!isChangeIndexId) this.initIndexSetChangeFn(ids[0]); // 多选切换到单选必初始化索引集的数据
+          this.retrieveLog(params);
+        } else {
+          // 之前是单选
+          this.indexId = ids[0];
+          if (isChangeIndexId) this.retrieveLog(params);
+        }
+        this.$store.commit('updateUnionIndexList', []);
+      }
+    },
+    /** 检查两个数组否相等 */
+    compareArrays(arr1, arr2) {
+      let allElementsEqual = true;
+      // 检查两个数组的长度是否相等
+      if (arr1.length !== arr2.length) return false;
+      // 对比两个数组的每个元素
+      const sortedArr1 = [...arr1].sort();
+      const sortedArr2 = [...arr2].sort();
+
+      // 逐一比较排序后数组的元素
+      for (let i = 0; i < sortedArr1.length; i++) {
+        if (sortedArr1[i] !== sortedArr2[i]) {
+          allElementsEqual = false; // 发现不匹配元素
+          break;
+        }
+      }
+      return allElementsEqual;
     },
     // 切换索引时重置检索数据
     resetRetrieveCondition() {
@@ -922,7 +1018,28 @@ export default {
       }
       return mappingKey[operator] ?? operator; // is is not 值映射
     },
-
+    /** 改变是否展示联合查询日志来源 */
+    changeShowUnionSource() {
+      this.operatorConfig.isShowSourceField = !this.operatorConfig.isShowSourceField;
+      this.showShowUnionSource();
+    },
+    /** 日志来源显隐操作 */
+    showShowUnionSource(keepLastTime = false) {
+      // 非联合查询 或者清空了所有字段 不走逻辑
+      if (!this.isUnionSearch || !this.visibleFields.length) return;
+      const isExist = this.visibleFields.some(item => item.tag === 'union-source');
+      // 保持之前的逻辑
+      if (keepLastTime) {
+        const isShowSourceField = this.operatorConfig.isShowSourceField;
+        if (isExist) {
+          !isShowSourceField && this.visibleFields.shift();
+        } else {
+          isShowSourceField && this.visibleFields.unshift(this.logSourceField);
+        }
+        return;
+      }
+      isExist ? this.visibleFields.shift() : this.visibleFields.unshift(this.logSourceField);
+    },
     // 打开 ip 选择弹窗
     openIpQuick() {
       this.showIpSelectorDialog = true;
@@ -988,17 +1105,6 @@ export default {
       this.$refs.searchCompRef.clearValue();
       if (this.isSqlSearchType) this.$refs.searchCompRef.handleBlurSearchInput('*');
       if (isRetrieveLog) this.retrieveLog();
-    },
-    // 搜索记录
-    retrieveFavorite({ index_set_id: indexSetID, params }) {
-      if (this.indexSetList.find(item => item.index_set_id === String(indexSetID))) {
-        this.isFavoriteSearch = true;
-        this.indexId = String(indexSetID);
-        const { search_fields, ...reset } = params;
-        this.retrieveLog(reset);
-      } else {
-        this.messageError(this.$t('没有找到该记录下相关索引集'));
-      }
     },
     /**
      * @desc: 检索日志
@@ -1084,6 +1190,7 @@ export default {
           'start_time',
           'end_time',
           // 'time_range',
+          'unionList',
           'activeTableTab', // 表格活跃的lab
           'clusterRouteParams', // 日志聚类参数
           'timezone'
@@ -1123,6 +1230,14 @@ export default {
                         isInclude: item?.isInclude ?? true
                       })) // 若没有启动开关参数则直接显示为开
                     );
+                  }
+                  break;
+                case 'unionList':
+                  {
+                    this.catchUnionBeginList = [];
+                    const unionParamsList = JSON.parse(decodeURIComponent(param));
+                    const resetUnionList = this.isUnionSearch ? this.unionIndexList : unionParamsList;
+                    this.$store.commit('updateUnionIndexList', resetUnionList);
                   }
                   break;
                 case 'ip_chooser':
@@ -1175,6 +1290,11 @@ export default {
                 break;
               case 'end_time':
                 queryParamsStr[field] = this.datePickerValue?.[1] ?? undefined;
+                break;
+              case 'unionList':
+                queryParamsStr[field] = this.isUnionSearch
+                  ? encodeURIComponent(JSON.stringify(this.unionIndexList))
+                  : undefined;
                 break;
               case 'activeTableTab':
               case 'clusterRouteParams':
@@ -1238,7 +1358,6 @@ export default {
           const addition = !!queryParamsStr.addition ? JSON.parse(queryParamsStr?.addition) : undefined;
           const chooserSwitch = Boolean(queryParams.ip_chooser);
           this.$refs.searchCompRef.initConditionList(addition, this.catchIpChooser, chooserSwitch); // 初始化 更新当前添加条件列表
-          // this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
           this.isInitPage = false;
         }
 
@@ -1296,13 +1415,21 @@ export default {
       if (this.isThollteField) return;
       this.isThollteField = true;
       try {
-        const res = await this.$http.request('retrieve/getLogTableHead', {
+        const urlStr = this.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+        const queryData = {
+          start_time: this.retrieveParams.start_time,
+          end_time: this.retrieveParams.end_time,
+          is_realtime: 'True'
+        };
+        if (this.isUnionSearch) {
+          Object.assign(queryData, {
+            index_set_ids: this.unionIndexList
+          });
+        }
+        const res = await this.$http.request(urlStr, {
           params: { index_set_id: this.indexId },
-          query: {
-            start_time: this.retrieveParams.start_time,
-            end_time: this.retrieveParams.end_time,
-            is_realtime: 'True'
-          }
+          query: !this.isUnionSearch ? queryData : undefined,
+          data: this.isUnionSearch ? queryData : undefined
         });
         const notTextTypeFields = [];
         const { data } = res;
@@ -1335,14 +1462,14 @@ export default {
           targetFields: this.indexSetItem.target_fields ?? []
         };
 
-        this.operatorConfig = {
+        Object.assign(this.operatorConfig, {
           // 操作按钮配置信息
           bkmonitor,
           bcsWebConsole,
           contextAndRealtime,
           timeField,
           indexSetValue
-        };
+        });
         // 初始化操作按钮消息
         this.operatorConfig.toolMessage = this.initToolTipsMessage(this.operatorConfig);
         this.cleanConfig = cleanConfig;
@@ -1361,7 +1488,7 @@ export default {
         this.ipTopoSwitch = ipTopoSwitch.is_active;
         this.bkmonitorUrl = bkmonitor.is_active;
         this.asyncExportUsable = asyncExport.is_active;
-        this.asyncExportUsableReason = !asyncExport.is_active ? asyncExport.extra.usable_reason : '';
+        this.asyncExportUsableReason = !asyncExport.is_active ? asyncExport.extra?.usable_reason || '' : '';
         this.timeField = timeField;
         this.totalFields = fields;
         // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
@@ -1379,6 +1506,8 @@ export default {
         this.$store.commit('retrieve/updateFiledSettingConfigID', config_id); // 当前配置ID
         this.$nextTick(() => {
           this.$refs.searchCompRef?.initAdditionDefault();
+          // 字段设置下拉列表更新
+          this.configWatchBool = !this.configWatchBool;
         });
       } catch (e) {
         this.ipTopoSwitch = true;
@@ -1389,6 +1518,7 @@ export default {
         this.totalFields.splice(0);
         this.visibleFields.splice(0);
         this.isThollteField = false;
+        this.isInitPage = false;
         throw e;
       }
     },
@@ -1406,11 +1536,9 @@ export default {
           }
         })
         .filter(Boolean);
+      this.showShowUnionSource(true);
       this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
-      if (!this.isSetDefaultTableColumn) {
-        this.setDefaultTableColumn();
-      }
-      this.isSetDefaultTableColumn = false;
+      this.setDefaultTableColumn();
     },
     sessionShowFieldObj() {
       // 显示字段缓存
@@ -1440,7 +1568,7 @@ export default {
     },
     requestTableData() {
       if (this.requesting) return;
-
+      this.isTablePagination = true;
       this.requestTable();
     },
     // 表格
@@ -1457,25 +1585,46 @@ export default {
       }
 
       const { currentPage, pageSize } = this.$refs.resultMainRef;
-      const begin = currentPage === 1 ? 0 : (currentPage - 1) * pageSize;
       this.formatTimeRange();
       try {
         const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
+        // 区分联合查询和单选查询
+        const searchUrl = !this.isUnionSearch
+          ? `/search/index_set/${this.indexId}/search/`
+          : '/search/index_set/union_search/';
+        const baseData = {
+          ...this.retrieveParams,
+          size: pageSize,
+          interval: this.interval
+        };
+        // 更新联合查询的begin
+        const unionConfigs = this.unionIndexList.map(item => ({
+          begin: this.isTablePagination
+            ? this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
+            : 0,
+          index_set_id: item
+        }));
+        const queryData = Object.assign(
+          baseData,
+          !this.isUnionSearch
+            ? {
+                // 单选检索的begin
+                begin: currentPage === 1 ? 0 : (currentPage - 1) * pageSize
+              }
+            : {
+                union_configs: unionConfigs
+              }
+        );
         const params = {
           method: 'post',
-          url: `/search/index_set/${this.indexId}/search/`,
+          url: searchUrl,
           cancelToken: new CancelToken(c => {
             this.searchCancelFn = c;
           }),
           withCredentials: true,
           baseURL: baseUrl,
           responseType: 'blob',
-          data: {
-            ...this.retrieveParams,
-            begin,
-            size: pageSize,
-            interval: this.interval
-          }
+          data: queryData
         };
         if (this.isExternal) {
           params.headers = {
@@ -1492,6 +1641,7 @@ export default {
         }
         // 判断分页
         this.finishPolling = res.data?.list?.length < pageSize;
+        this.catchUnionBeginList = parseBigNumberList(res.data?.union_configs || []);
 
         this.retrievedKeyword = this.retrieveParams.keyword;
         this.tookTime = this.tookTime + Number(res.data?.took) || 0;
@@ -1509,6 +1659,7 @@ export default {
         if (this.finishPolling) this.$refs.resultMainRef.isPageOver = false;
         this.requesting = false;
         this.tableLoading = false;
+        this.isTablePagination = false;
       }
     },
     // 首次加载设置表格默认宽度自适应
@@ -1693,9 +1844,9 @@ export default {
     initToolTipsMessage(config) {
       const { contextAndRealtime, bcsWebConsole } = config;
       return {
-        webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra.reason,
-        realTimeLog: contextAndRealtime.is_active ? this.$t('实时日志') : contextAndRealtime?.extra.reason,
-        contextLog: contextAndRealtime.is_active ? this.$t('上下文') : contextAndRealtime?.extra.reason
+        webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra?.reason,
+        realTimeLog: contextAndRealtime.is_active ? this.$t('实时日志') : contextAndRealtime?.extra?.reason,
+        contextLog: contextAndRealtime.is_active ? this.$t('上下文') : contextAndRealtime?.extra?.reason
       };
     },
     // 检索头部点击编辑收藏
@@ -1788,17 +1939,25 @@ export default {
       if (!Object.keys(data.params.ip_chooser || []).length) {
         data.params.ip_chooser = {};
       }
-      // 无host_scopes补充空的 host_scopes
-      // if (!value.params?.host_scopes?.target_node_type) {
-      //   value.params.host_scopes = { ...value.params?.host_scopes };
-      //   value.params.host_scopes.target_node_type = '';
-      //   value.params.host_scopes.target_nodes = [];
-      // }
       this.addFavoriteData = {}; // 清空新建收藏的数据
       this.isFavoriteSearch = true;
       this.activeFavorite = deepClone(data);
       this.activeFavoriteID = data.id;
-      this.retrieveFavorite(data);
+      const { index_set_id: indexSetID, params } = data;
+      const selectIsUnionSearch = value.index_set_type === 'union';
+      const ids = selectIsUnionSearch ? value.index_set_ids.map(item => String(item)) : [String(indexSetID)];
+      const filterIDs = this.indexSetList
+        .filter(item => ids.includes(item.index_set_id))
+        .map(item => item.index_set_id);
+      if (filterIDs.length) {
+        const setChangeValue = {
+          ids: filterIDs,
+          selectIsUnionSearch
+        };
+        this.handleSelectIndex(setChangeValue, params, true);
+      } else {
+        this.messageError(this.$t('没有找到该记录下相关索引集'));
+      }
     },
     // 收藏列表刷新, 判断当前是否有点击活跃的收藏 如有则进行数据更新
     updateActiveFavoriteData(value) {

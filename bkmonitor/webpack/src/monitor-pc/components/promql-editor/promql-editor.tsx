@@ -168,7 +168,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   throttleUpdateLayout = () => {};
 
   created() {
-    this.throttleUpdateLayout = throttle(300, false, this.updateLayout);
+    this.throttleUpdateLayout = throttle(300, this.updateLayout);
   }
 
   mounted() {

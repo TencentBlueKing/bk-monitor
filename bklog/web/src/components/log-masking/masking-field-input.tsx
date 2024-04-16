@@ -20,15 +20,15 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component as tsc } from 'vue-tsx-support';
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Prop, Emit, Mixins } from 'vue-property-decorator';
 import { Button, Tab, TabPanel, Alert } from 'bk-magic-vue';
 import MonacoEditor from '../../components/collection-access/components/step-add/monaco-editor.vue';
+import classDragMixin from '../../mixins/class-drag-mixin';
 import $http from '../../api';
 import './masking-field-input.scss';
 
 @Component
-export default class MaskingFieldInput extends tsc<{}> {
+export default class MaskingFieldInput extends Mixins(classDragMixin) {
   /** 是否是采集项脱敏 */
   @Prop({ type: Boolean, default: true }) isIndexSetMasking: boolean;
   @Prop({ type: String, required: true }) operateType: string;
@@ -39,16 +39,11 @@ export default class MaskingFieldInput extends tsc<{}> {
   catchJsonList = [];
   /** 是否钉住 */
   inputFix = false;
-  /** 是否正在改变输入框高度 */
-  isChangingHeight = false;
   /** 输入框最小高度 */
   collectMinHeight = 160;
   /** 输入框最大高度 */
   collectMaxHeight = 600;
-  /** 当前收藏容器的高度 */
-  currentTreeBoxHeight = null;
-  currentScreenY = null;
-  /** 当前收藏容器的高度 */
+  /** 当前容器的高度 */
   collectHeight = 160;
   /** 采样日志列表 */
   jsonValueList = [];
@@ -217,34 +212,6 @@ export default class MaskingFieldInput extends tsc<{}> {
     }
   }
 
-  /** 控制页面布局宽度 */
-  dragBegin(e) {
-    e.stopPropagation();
-    this.isChangingHeight = true;
-    this.currentTreeBoxHeight = this.collectHeight;
-    this.currentScreenY = e.screenY;
-    window.addEventListener('mousemove', this.dragMoving, { passive: true });
-    window.addEventListener('mouseup', this.dragStop, { passive: true });
-  }
-  dragMoving(e) {
-    const newTreeBoxHeight = this.currentTreeBoxHeight + e.screenY - this.currentScreenY;
-    if (newTreeBoxHeight < this.collectMinHeight) {
-      this.collectHeight = this.collectMinHeight;
-      this.dragStop();
-    } else if (newTreeBoxHeight >= this.collectMaxHeight) {
-      this.collectHeight = this.collectMaxHeight;
-    } else {
-      this.collectHeight = newTreeBoxHeight;
-    }
-  }
-  dragStop() {
-    this.isChangingHeight = false;
-    this.currentTreeBoxHeight = null;
-    this.currentScreenY = null;
-    window.removeEventListener('mousemove', this.dragMoving);
-    window.removeEventListener('mouseup', this.dragStop);
-  }
-
   render() {
     return (
       <div
@@ -341,8 +308,8 @@ export default class MaskingFieldInput extends tsc<{}> {
                 ></MonacoEditor>
               </div>
               <div
-                class={['drag-right', { 'drag-ing': this.isChangingHeight }]}
-                onMousedown={this.dragBegin}
+                class={['drag-bottom', { 'drag-ing': this.isChanging }]}
+                onMousedown={e => this.dragBegin(e, 'dragY')}
               ></div>
             </div>
           ) : (

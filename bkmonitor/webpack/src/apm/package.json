@@ -13,7 +13,6 @@
     "@blueking/fork-resize-detector": "^0.0.2",
     "async-validator": "^3.5.2",
     "bk-magic-vue": "2.5.8",
-    "codemirror": "^5.65.16",
     "dayjs": "^1.11.10",
     "deepmerge": "^4.3.1",
     "monitor-api": "workspace:*",

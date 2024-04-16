@@ -35,7 +35,7 @@
 
   .label {
     display: inline-block;
-    padding: 0 2px;
+    padding: 2px;
     margin-right: 3px;
     overflow: hidden;
     font-size: 12px;
@@ -131,8 +131,13 @@
       background: #d8e6ff;
     }
 
+    &.and-or-type {
+      color: #3a84ff;
+    }
+
     &.condition-type-disabled {
-      color: #ced0d4;
+      /* stylelint-disable-next-line declaration-no-important */
+      color: #ced0d4 !important;
       cursor: not-allowed;
       background: transparent;
     }
@@ -140,7 +145,7 @@
 
   .inquire-cascader {
     position: absolute;
-    top: 0;
+    top: -7px;
     left: 0;
     width: 100%;
     opacity: 0;
@@ -161,25 +166,14 @@
     }
   }
 
-  .bk-switcher.bk-switcher-small {
-    width: 22px;
-    height: 12px;
-    flex-shrink: 0;
-
-    &:after {
-      top: 1px;
-      left: 1px;
-      width: 10px;
-      height: 10px;
-    }
-
-    &.is-checked:after {
-      left: 112%;
-    }
+  .include-icon {
+    font-size: 13px;
+    color: #494b50;
+    cursor: pointer;
   }
 }
 
-.ip-filter-container {
+#ip-filter-container {
   display: flex;
   height: 32px;
   align-items: center;

@@ -77,6 +77,8 @@ class Client(object):
 
     def custom_report(self, data):
         path = "v2/push/"
+        if not self._report_host.rstrip("/"):
+            return
         return self._call_api(http_post, self._report_host, path, data, {}, timeout=None)
 
     def save_alarm_strategy(self, data):

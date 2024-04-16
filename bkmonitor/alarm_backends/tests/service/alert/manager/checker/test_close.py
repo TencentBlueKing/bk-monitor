@@ -36,7 +36,6 @@ pytestmark = pytest.mark.django_db
 
 
 class TestCloseStatusChecker(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self) -> None:
@@ -337,8 +336,14 @@ class TestCloseStatusChecker(TestCase):
             bk_module_ids=[1],
             bk_set_ids=[1],
             topo_link={
-                "module|16": [TopoNode("module", 16), TopoNode("set", 13)],
-                "module|28": [TopoNode("module", 28), TopoNode("set", 26)],
+                "module|16": [
+                    {"bk_obj_id": "module", "bk_inst_id": 16},
+                    {"bk_obj_id": "set", "bk_inst_id": 13},
+                ],
+                "module|28": [
+                    {"bk_obj_id": "module", "bk_inst_id": 28},
+                    {"bk_obj_id": "set", "bk_inst_id": 26},
+                ],
             },
         )
         strategy = copy.deepcopy(STRATEGY)
@@ -373,8 +378,14 @@ class TestCloseStatusChecker(TestCase):
             bk_module_ids=[1],
             bk_set_ids=[1],
             topo_link={
-                "module|16": [TopoNode("module", 16), TopoNode("set", 13)],
-                "module|28": [TopoNode("module", 28), TopoNode("set", 26)],
+                "module|16": [
+                    {"bk_obj_id": "module", "bk_inst_id": 16},
+                    {"bk_obj_id": "set", "bk_inst_id": 13},
+                ],
+                "module|28": [
+                    {"bk_obj_id": "module", "bk_inst_id": 28},
+                    {"bk_obj_id": "set", "bk_inst_id": 26},
+                ],
             },
         )
         strategy = copy.deepcopy(STRATEGY)

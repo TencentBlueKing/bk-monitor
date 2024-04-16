@@ -24,8 +24,11 @@ the project delivered to anyone in the future.
 节点管理调用接口汇总
 """
 from apps.api.base import DataAPI  # noqa
+from apps.api.modules.utils import (  # noqa
+    adapt_non_bkcc_for_bknode,
+    add_esb_info_before_request,
+)
 from config.domains import BK_NODE_APIGATEWAY_ROOT  # noqa
-from apps.api.modules.utils import add_esb_info_before_request, adapt_non_bkcc_for_bknode  # noqa
 
 
 def get_bk_node_request_before(params):
@@ -128,6 +131,13 @@ class _BKNodeApi:
             url=BK_NODE_APIGATEWAY_ROOT + "backend/api/subscription/retry/",
             module=self.MODULE,
             description="重试失败的任务",
+            before_request=get_bk_node_request_before,
+        )
+        self.ipchooser_host_details = DataAPI(
+            method="POST",
+            url=BK_NODE_APIGATEWAY_ROOT + "core/api/ipchooser_host/details/",
+            module=self.MODULE,
+            description="获取agent信息",
             before_request=get_bk_node_request_before,
         )
 

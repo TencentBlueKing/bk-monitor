@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 """
 import hashlib
 import re
+import socket
 import unicodedata
 from enum import Enum
 from html.parser import HTMLParser
@@ -174,3 +175,24 @@ def md5_sum(src_str: str):
     md5.update(src_str.encode("utf-8"))
     md5_key = md5.hexdigest()
     return md5_key
+
+
+def get_local_ip():
+    """
+    Returns the actual ip of the local machine.
+    This code figures out what source address would be used if some traffic
+    were to be sent out to some well known address on the Internet. In this
+    case, a Google DNS server is used, but the specific address does not
+    matter much.  No traffic is actually sent.
+
+    stackoverflow上有人说用socket.gethostbyname(socket.getfqdn())
+    但实测后发现有些机器会返回127.0.0.1
+    """
+    try:
+        csock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        csock.connect(("8.8.8.8", 80))
+        (addr, port) = csock.getsockname()
+        csock.close()
+        return addr
+    except socket.error:
+        return "127.0.0.1"
