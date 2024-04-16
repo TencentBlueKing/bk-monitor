@@ -22,6 +22,7 @@
     "pretty": true,
     "jsx": "preserve",
     "lib": ["es2018", "dom"],
+    "outDir": "./dist",
     "paths": {
       "@/*": ["./*"],
       "@router/*": ["./router/*"],

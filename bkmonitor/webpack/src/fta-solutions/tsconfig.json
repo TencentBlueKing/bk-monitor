@@ -16,6 +16,7 @@
     "jsxFactory": "VueTsxSupport",
     "lib": ["es2018", "dom"],
     "removeComments": false,
+    "outDir": "./dist",
     "paths": {
       "@/*": ["./*"],
       "@router/*": ["./router/*"],

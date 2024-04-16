@@ -64,7 +64,20 @@ const deprecateRules = Object.fromEntries(
 
 const recommendedVue2Config = eslintVuePlugin.configs['flat/vue2-recommended'].find(config => config.files);
 const jsVueFiles = ['src/monitor-pc/pages/collector-config/**/*.vue', 'src/monitor-pc/pages/plugin-manager/**/*.vue'];
-
+const vueCommonRules = {
+  'vue/html-self-closing': [
+    'error',
+    {
+      html: {
+        void: 'always',
+        normal: 'always',
+        component: 'always',
+      },
+      svg: 'always',
+      math: 'always',
+    },
+  ],
+};
 module.exports = [
   {
     ignores: [
@@ -178,10 +191,14 @@ module.exports = [
       'comma-dangle': ['error', 'always-multiline'],
       ...importSortRules,
       ...deprecateRules,
+      ...vueCommonRules,
     },
   },
   {
     ...recommendedVue2Config,
     files: jsVueFiles,
+    rules: {
+      ...vueCommonRules,
+    },
   },
 ];

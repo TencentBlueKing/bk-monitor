@@ -13,6 +13,7 @@
     "sourceMap": true,
     "pretty": true,
     "jsx": "preserve",
-    "lib": ["es2018", "dom"]
+    "lib": ["es2018", "dom"],
+    "outDir": "./dist"
   }
 }

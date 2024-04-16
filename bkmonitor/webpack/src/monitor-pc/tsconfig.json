@@ -1,5 +1,5 @@
 {
-  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx"],
+  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/.js"],
   "exclude": ["node_modules"],
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
@@ -16,6 +16,7 @@
     "jsxFactory": "VueTsxSupport",
     "lib": ["es2018", "dom"],
     "removeComments": false,
+    "outDir": "./dist",
     "paths": {
       "@/*": ["./*"],
       "@router/*": ["./router/*"],
