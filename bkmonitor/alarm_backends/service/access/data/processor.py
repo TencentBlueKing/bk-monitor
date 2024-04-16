@@ -62,7 +62,7 @@ logger = logging.getLogger("access.data")
 
 
 class BaseAccessDataProcess(base.BaseAccessProcess):
-    def __init__(self, sub_task_id: str = None, *args, **kwargs):
+    def __init__(self, *args, sub_task_id: str = None, **kwargs):
         super(BaseAccessDataProcess, self).__init__(*args, **kwargs)
         self.add_filter(RangeFilter())
         self.add_filter(ExpireFilter())
@@ -233,7 +233,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
 
 
 class AccessDataProcess(BaseAccessDataProcess):
-    def __init__(self, strategy_group_key: str, sub_task_id: str = None, *args, **kwargs):
+    def __init__(self, strategy_group_key: str, *args, sub_task_id: str = None, **kwargs):
         super(AccessDataProcess, self).__init__(sub_task_id=sub_task_id, *args, **kwargs)
         self.strategy_group_key = strategy_group_key
         self.from_timestamp = None
