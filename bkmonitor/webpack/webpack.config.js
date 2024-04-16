@@ -40,7 +40,6 @@ let devConfig = {
   devProxyUrl,
   loginHost,
   proxy: {},
-  cache: null,
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
