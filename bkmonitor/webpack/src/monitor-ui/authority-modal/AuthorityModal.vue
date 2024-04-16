@@ -116,6 +116,7 @@
 import { Component, Vue, Watch } from 'vue-property-decorator';
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
+// @ts-ignore
 import authorityStore from '@store/modules/authority';
 import lockImg from 'monitor-pc/static/images/svg/lock-radius.svg';
 

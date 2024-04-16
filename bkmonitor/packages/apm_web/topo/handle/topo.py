@@ -259,6 +259,7 @@ class TopoHandler:
             "filters": {
                 "instance_topo_kind": TopoNodeKind.SERVICE,
             },
+            "fields": ["topo_node_key"],
         }
 
         service_components_metric_param = {

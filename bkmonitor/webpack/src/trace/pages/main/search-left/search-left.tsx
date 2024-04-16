@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { Component, PropType } from 'vue';
+import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import * as authorityMap from 'apm/pages/home/authority-map';
@@ -37,7 +37,7 @@ import FieldFiltering from '../event-retrieval/field-filtering';
 
 import './search-left.scss';
 
-export function formItem(label: string | Component, content: Component, key?: string) {
+export function formItem(label: string | JSX.Element, content: JSX.Element, key?: string) {
   return (
     <div
       class='left-form-item'
@@ -124,8 +124,8 @@ export default defineComponent({
               {props.appList.map((item, index) => (
                 <Select.Option
                   key={index}
-                  value={item.app_name}
-                  label={`${item.app_alias}（${item.app_name}）`}
+                  id={item.app_name}
+                  name={`${item.app_alias}（${item.app_name}）`}
                 >
                   <div
                     class={['app-option-wrap', { 'is-disabled': !item.permission?.[authorityMap.VIEW_AUTH] }]}
@@ -157,6 +157,7 @@ export default defineComponent({
             <Button.ButtonGroup class='inquiry-button-container'>
               {searchTypeList.map(item => (
                 <Button
+                  key={item.id}
                   class={{ 'is-selected': props.searchType === item.id }}
                   onClick={() => handleSearchTypeChange(item.id)}
                 >

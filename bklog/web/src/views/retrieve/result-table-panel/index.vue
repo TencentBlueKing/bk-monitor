@@ -63,6 +63,7 @@ import reportLogStore from '@/store/modules/report-log';
 
 export default {
   components: { OriginalLog, LogClustering },
+  inheritAttrs: false,
   props: {
     configData: {
       type: Object,
@@ -124,6 +125,7 @@ export default {
   methods: {
     showOriginLog() {
       this.active = 'origin';
+      this.handleChangeTab('origin');
     },
     async handleChangeTab(name) {
       this.$refs?.logClusteringRef?.$refs.fingerRef?.$refs.groupPopover.instance?.hide();

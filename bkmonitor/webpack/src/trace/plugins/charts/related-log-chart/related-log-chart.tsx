@@ -353,41 +353,40 @@ export default defineComponent({
         });
         await props.panel.targets
           .filter(item => item.dataType === 'time_series')
-          .map(
-            item =>
-              api[item.apiModule]
-                ?.[item.apiFunc](
-                  {
-                    ...variablesService.transformVariables(item.data),
-                    ...params,
-                    view_options: {
-                      // 在继承组件
-                      ...viewOptions.value
-                    }
-                  },
-                  { needMessage: false }
-                )
-                .then(res => {
-                  if (res.series?.[0].datapoints?.length) {
-                    customOptions.value.series = [];
-                    const data = {
-                      series: [
-                        {
-                          data: res.series[0].datapoints,
-                          type: 'bar',
-                          colorBy: 'data',
-                          name: 'COUNT ',
-                          zlevel: 100
-                        }
-                      ]
-                    };
-                    const updateOption = deepmerge(option, data);
-                    customOptions.value = deepmerge(customOptions.value, updateOption);
-                    emptyChart.value = false;
-                  } else {
-                    emptyChart.value = true;
+          .map(item =>
+            api[item.apiModule]
+              ?.[item.apiFunc](
+                {
+                  ...variablesService.transformVariables(item.data),
+                  ...params,
+                  view_options: {
+                    // 在继承组件
+                    ...viewOptions.value
                   }
-                })
+                },
+                { needMessage: false }
+              )
+              .then(res => {
+                if (res.series?.[0].datapoints?.length) {
+                  customOptions.value.series = [];
+                  const data = {
+                    series: [
+                      {
+                        data: res.series[0].datapoints,
+                        type: 'bar',
+                        colorBy: 'data',
+                        name: 'COUNT ',
+                        zlevel: 100
+                      }
+                    ]
+                  };
+                  const updateOption = deepmerge(option, data);
+                  customOptions.value = deepmerge(customOptions.value, updateOption);
+                  emptyChart.value = false;
+                } else {
+                  emptyChart.value = true;
+                }
+              })
           );
       } catch (error) {
         handleErrorMsgChange(error.msg || error.message);
@@ -420,28 +419,27 @@ export default defineComponent({
         });
         await props.panel.targets
           .filter(item => item.dataType === 'table-chart')
-          .map(
-            item =>
-              api[item.apiModule]
-                ?.[item.apiFunc]({
-                  ...variablesService.transformVariables(item.data),
-                  ...params,
-                  view_options: {
-                    ...viewOptions.value
-                  }
-                })
-                .then(data => {
-                  if (isScrollLoadTableData) {
-                    tableData.value.push(...data.data);
-                    isScrollLoadTableData = false;
-                  } else {
-                    tableData.value = data.data;
-                  }
-                  columns.value = data.columns;
-                })
-                .finally(() => {
-                  isScrollLoading.value = false;
-                })
+          .map(item =>
+            api[item.apiModule]
+              ?.[item.apiFunc]({
+                ...variablesService.transformVariables(item.data),
+                ...params,
+                view_options: {
+                  ...viewOptions.value
+                }
+              })
+              .then(data => {
+                if (isScrollLoadTableData) {
+                  tableData.value.push(...data.data);
+                  isScrollLoadTableData = false;
+                } else {
+                  tableData.value = data.data;
+                }
+                columns.value = data.columns;
+              })
+              .finally(() => {
+                isScrollLoading.value = false;
+              })
           );
       } catch (e) {}
       setTimeout(() => {
@@ -661,7 +659,7 @@ export default defineComponent({
                             {this.intervalList.map(item => (
                               <Select.Option
                                 key={item.id}
-                                value={item.name}
+                                id={item.name}
                               >
                                 {item.name}
                               </Select.Option>

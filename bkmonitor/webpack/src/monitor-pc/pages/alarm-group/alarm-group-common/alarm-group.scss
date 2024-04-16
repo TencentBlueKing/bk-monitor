@@ -1,5 +1,5 @@
+/* stylelint-disable declaration-no-important */
 .alarm-group-list-page {
-  /* stylelint-disable-next-line declaration-no-important */
   margin: 0 !important;
 
   .alarm-group-list-page-header {
@@ -29,74 +29,74 @@
     .mr-6 {
       margin-right: 6px;
     }
-  
+
     &.pd0 {
       padding: 0;
     }
-  
+
     .alarm-group-tool {
       display: flex;
-  
+
       .tool-btn {
         margin-right: auto;
       }
-  
+
       .tool-search {
         width: 360px;
         background: #fff;
       }
     }
-  
+
     .alarm-group-table {
       margin-top: 16px;
-  
+
       .col {
         &-appstrategy {
           width: 59px;
           text-align: right;
         }
       }
-  
+
       .notice-group-name {
         color: #3a84ff;
         cursor: pointer;
       }
-  
+
       .strategy-num {
         color: #3a84ff;
         cursor: pointer;
       }
-  
+
       .btn-disabled {
         color: #c4c6cc;
         cursor: not-allowed;
-  
+
         &:hover {
           cursor: not-allowed;
           background: transparent;
         }
-  
+
         i {
           color: #c4c6cc;
         }
       }
-  
+
       .col-btn {
         margin-right: 8px;
       }
-  
+
       .col-name {
         display: flex;
         flex-direction: column;
         justify-content: center;
         height: 58px;
-  
+
         &-label {
           margin-bottom: 3px;
         }
       }
     }
-  
+
     .alarm-group-pagination {
       .config-pagination {
         display: flex;
@@ -105,16 +105,16 @@
         height: 60px;
         padding: 0 20px;
         background: #fff;
+
         // border: 1px solid #dcdee5;
         border-top: 0;
-  
+
         .bk-page-count {
-          /* stylelint-disable-next-line declaration-no-important */
           margin-right: auto !important;
         }
       }
     }
-  
+
     .bk-button-text {
       padding-left: 0;
     }

@@ -138,42 +138,41 @@
         {{ $t('上传内容') }}
       </div>
       <div class="item-container">
-        <div
-          class="upload-container"
-          style="margin: -8px 0 0 -10px"
-        >
-          <div
-            class="upload-item"
-            v-for="(system, index) in systemTabs.list"
-            :key="`${index}-Exporter`"
-            v-show="pluginBasicInfo.type.value === 'Exporter'"
-          >
-            <mo-upload
-              :ref="`uploadFile-exporter-${index}`"
-              :collector="pluginBasicInfo.exporterCollector[system.name]"
-              :is-edit="data.isEdit"
-              :plugin-id="pluginBasicInfo.name"
-              :system="system.name"
-              :plugin-type="pluginBasicInfo.type.value"
-            />
-          </div>
-          <div
-            class="upload-item"
-            v-for="(system, index) in systemTabs.list"
-            :key="`${index}-DataDog`"
-            v-show="pluginBasicInfo.type.value === 'DataDog'"
-          >
-            <mo-upload
-              :ref="`uploadFile-datadog-${index}`"
-              @change="getCheckNameChange"
-              @yaml="getYaml"
-              :collector="pluginBasicInfo.dataDogCollector[system.name]"
-              :is-edit="data.isEdit"
-              :plugin-id="pluginBasicInfo.name"
-              :system="system.name"
-              :plugin-type="pluginBasicInfo.type.value"
-            />
-          </div>
+        <div class="upload-container">
+          <template v-if="pluginBasicInfo.type.value === 'Exporter'">
+            <div
+              class="upload-item"
+              v-for="(system, index) in systemTabs.list"
+              :key="`${index}-Exporter`"
+            >
+              <mo-upload
+                :ref="`uploadFile-exporter-${index}`"
+                :collector="getExportCollector(system.name)"
+                :is-edit="data.isEdit"
+                :plugin-id="pluginBasicInfo.name"
+                :system="system.name"
+                :plugin-type="pluginBasicInfo.type.value"
+              />
+            </div>
+          </template>
+          <template v-else>
+            <div
+              class="upload-item"
+              v-for="(system, index) in systemTabs.list"
+              :key="`${index}-DataDog`"
+            >
+              <mo-upload
+                :ref="`uploadFile-datadog-${index}`"
+                @change="getCheckNameChange"
+                @yaml="getYaml"
+                :collector="pluginBasicInfo.dataDogCollector[system.name]"
+                :is-edit="data.isEdit"
+                :plugin-id="pluginBasicInfo.name"
+                :system="system.name"
+                :plugin-type="pluginBasicInfo.type.value"
+              />
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -488,7 +487,7 @@ import ImportFile from './components/import-file';
 import NewPluginMonaco from './components/new-plugin-monaco';
 import ParamCard from './components/param-card';
 
-import 'codemirror/lib/codemirror.css';
+import './codemirror.css';
 
 export default {
   name: 'StepSetPlugin',
@@ -1336,6 +1335,13 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         params.collector_json = this.getUploadFile(yaml);
       }
     },
+    getExportCollector(type) {
+      return {
+        ...this.pluginBasicInfo.exporterCollector[type],
+        dependFile: this.pluginBasicInfo.exporterCollector?.ext?.[type] || []
+      };
+    },
+
     /**
      * @description 获取系统列表
      * @param { Array } data
@@ -1377,11 +1383,19 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       const name = this.pluginBasicInfo.type.value === 'Exporter' ? 'Exporter' : 'DataDog';
       this.systemTabs.list.forEach((system, index) => {
         const componentName = `uploadFile-${name.toLowerCase()}-${index}`;
-        const [{ fileDesc }] = this.$refs[componentName];
+        const [{ fileDesc, dependFile }] = this.$refs[componentName];
         if (fileDesc) {
           hasfile = true;
           collectorJson[system.name] = fileDesc;
         }
+        const dependFileDesc = dependFile.reduce((pre, cur) => {
+          if (cur.fileDesc) pre.push(cur.fileDesc);
+          return pre;
+        }, []);
+        if (dependFileDesc.length) {
+          !collectorJson.ext && (collectorJson.ext = {});
+          collectorJson.ext[system.name] = dependFileDesc;
+        };
       });
       if (hasfile && name === 'DataDog') {
         collectorJson.config_yaml = yaml;
@@ -1789,7 +1803,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     display: flex;
     flex-direction: row;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 
     .item-label {
       position: relative;
@@ -1963,16 +1977,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       }
 
       .upload-container {
-        display: flex;
-        flex-wrap: wrap;
-
         .upload-item {
-          position: relative;
-          width: calc(50% - 10px);
-          min-width: 350px;
-          margin-top: 8px;
-          margin-left: 10px;
-
           :deep(.bk-upload) {
             .file-wrapper {
               height: 42px;
@@ -2040,6 +2045,10 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       }
     }
 
+    &.upload-package {
+      margin-bottom: 12px;
+    }
+
     &.remote-collector {
       .item-container {
         display: flex;
@@ -2053,10 +2062,6 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       .description {
         color: #979ba5;
       }
-    }
-
-    &.upload-package {
-      margin-bottom: 10px;
     }
 
     &.label-bottom {

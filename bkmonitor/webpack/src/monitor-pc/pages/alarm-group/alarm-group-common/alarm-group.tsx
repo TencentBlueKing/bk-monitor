@@ -190,7 +190,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   created() {
     this.handleTableColumnsData();
-    this.handleSearch = debounce(300, false, this.handleKeywordChange);
+    this.handleSearch = debounce(300, this.handleKeywordChange);
     this.getNoticeGroupList();
   }
   deactivated() {

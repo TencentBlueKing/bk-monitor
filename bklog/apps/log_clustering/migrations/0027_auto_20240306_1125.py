@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='clusteringconfig',
             name='group_fields',
-            field=models.JSONField(blank=True, null=True, default=dict, verbose_name='分组字段 kv格式'),
+            field=models.JSONField(blank=True, null=True, default=list, verbose_name='分组字段 kv格式'),
         ),
         migrations.CreateModel(
             name='ClusteringRemark',

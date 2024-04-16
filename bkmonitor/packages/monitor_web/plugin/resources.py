@@ -138,7 +138,6 @@ class PluginFileUploadResource(Resource):
     def is_zipfile(self, extension):
         return extension in (".tar.gz", ".tgz", ".zip", ".rar", ".tar")
 
-
 class DataDogPluginUploadResource(Resource):
     class RequestSerializer(serializers.Serializer):
         file_data = serializers.FileField(required=True)

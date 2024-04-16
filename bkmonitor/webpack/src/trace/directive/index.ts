@@ -29,11 +29,13 @@ import type { App } from 'vue';
 import { bkTooltips } from 'bkui-vue';
 
 import authority from './authority';
+import watermark from './watermark';
 
 const directives: Record<string, any> = {
   // 指令对象
   authority,
-  bkTooltips
+  bkTooltips,
+  watermark
 };
 
 export default {
