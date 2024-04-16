@@ -1,4 +1,3 @@
-version: '3'
 services:
   web:
     build:
@@ -12,8 +11,6 @@ services:
       - mysql
       - redis
       - rabbitmq
-    env_file:
-      - .env
   mysql:
     image: mysql:8.0
     restart: always
