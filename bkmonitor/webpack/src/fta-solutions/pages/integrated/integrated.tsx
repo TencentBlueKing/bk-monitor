@@ -31,6 +31,7 @@ import IntegratedModule from '../../store/modules/integrated';
 import MonitorDrag from '../event/monitor-drag';
 
 import EventSourceDetail from './event-source-detail/event-source-detail';
+import IntegratedCardSkeleton from './skeleton/integrated-card-skeleton';
 import IntegratedFilterSkeleton from './skeleton/integrated-filter-skeleton';
 import CheckboxTree, { ICheckedData } from './checkbox-tree';
 import ContentGroupItem, { IPluginDetail, OperateType } from './content-group-item';
@@ -363,28 +364,33 @@ export default class Integrated extends tsc<IIntegratedProps> {
             onImportSuccess={this.handleImportSuccess}
           ></Header>
           {/* 过滤空组 */}
-          {this.listPluginData?.length ? (
-            <Group
-              data={this.listPluginData}
-              defaultActiveName={this.defaultActiveContentGroup}
-              onActiveChange={v => (this.defaultActiveContentGroup = v)}
-              scopedSlots={{
-                default: ({ item }) => this.contentGroupSlot(item)
-              }}
-              theme='bold'
-            />
-          ) : (
-            <div class='integrated-content-empty'>
-              {!this.loading ? (
-                <bk-exception
-                  type='empty'
-                  scene='page'
-                >
-                  {this.$t('暂无数据')}
-                </bk-exception>
-              ) : undefined}
-            </div>
-          )}
+          {(() => {
+            if (this.loading) {
+              return <IntegratedCardSkeleton></IntegratedCardSkeleton>;
+            }
+            return this.listPluginData?.length ? (
+              <Group
+                data={this.listPluginData}
+                defaultActiveName={this.defaultActiveContentGroup}
+                onActiveChange={v => (this.defaultActiveContentGroup = v)}
+                scopedSlots={{
+                  default: ({ item }) => this.contentGroupSlot(item)
+                }}
+                theme='bold'
+              />
+            ) : (
+              <div class='integrated-content-empty'>
+                {!this.loading ? (
+                  <bk-exception
+                    type='empty'
+                    scene='page'
+                  >
+                    {this.$t('暂无数据')}
+                  </bk-exception>
+                ) : undefined}
+              </div>
+            );
+          })()}
         </div>
         <EventSourceDetail
           v-model={this.isShowDetail}

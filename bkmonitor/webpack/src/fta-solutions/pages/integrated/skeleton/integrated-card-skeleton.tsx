@@ -28,17 +28,57 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './integrated-card-skeleton.scss';
 
+const list = [
+  {
+    name: window.i18n.t('已安装'),
+    child: 6
+  },
+  {
+    name: window.i18n.t('已停用'),
+    child: 6
+  },
+  {
+    name: window.i18n.t('可用'),
+    child: 6
+  }
+];
+
 @Component
 export default class IntegratedCardSkeleton extends tsc<{}> {
   render() {
     return (
-      <div class='integrated-filter-skeleton'>
-        <div class='skeleton-element w-48 h-48 mt-28'></div>
-        <div class='skeleton-element w-86 h-20 mt-8'></div>
-        <div class='bottom'>
-          <div class='skeleton-element w-39 h-16'></div>
-          <div class='skeleton-element w-39 h-16'></div>
-        </div>
+      <div class='integrated-card-skeleton'>
+        {list.map((item, index) => (
+          <div
+            class='wrap-item'
+            key={index}
+          >
+            <div class='header-wrap'>
+              <span class='bk-icon icon-angle-right'></span>
+              <span class='name'>{item.name}</span>
+              <span class='group-number'>(0)</span>
+            </div>
+            <div class='content-title'>
+              <span class='title-tip'></span>
+              {this.$t('事件插件')}
+            </div>
+            <div class='content-wrap'>
+              {new Array(item.child).fill(null).map((_item, cindex) => (
+                <div
+                  class='card-item'
+                  key={cindex}
+                >
+                  <div class='skeleton-element w-48 h-48 mt-28'></div>
+                  <div class='skeleton-element w-86 h-20 mt-8'></div>
+                  <div class='bottom'>
+                    <div class='skeleton-element w-39 h-16 mr-98'></div>
+                    <div class='skeleton-element w-39 h-16'></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
