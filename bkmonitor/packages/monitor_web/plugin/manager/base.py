@@ -728,7 +728,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
 
                     # 如果存在文件配置，追加到etc文件夹下
                     file_index = 1
-                    for index, config in enumerate(context["config_json"]):
+                    for config in context["config_json"]:
                         if config.get("type") == "file":
                             with open(
                                 os.path.join(dest_dir, "etc", "{{file" + str(file_index) + "}}.tpl"), "w"
@@ -740,6 +740,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
                         file_path = os.path.join(dest_dir, file_info["file_name"])
                         with open(file_path, "wb+") as fd:
                             fd.write(file_info["file_content"])
+            # todo  追加依赖文件
 
             if add_dirs:
                 for os_type, dir_list in list(add_dirs.items()):

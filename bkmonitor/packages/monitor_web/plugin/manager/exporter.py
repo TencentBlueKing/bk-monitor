@@ -250,6 +250,8 @@ class ExporterPluginManager(PluginManager):
                 "file_name": file_manager.file_obj.actual_filename,
                 "md5": file_manager.file_obj.file_md5,
             }
+        # todo 新增ext依赖文件获取
+        pass
 
         return collector_json
 
