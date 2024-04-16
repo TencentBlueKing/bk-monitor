@@ -290,7 +290,7 @@ module.exports = [
     },
   },
   {
-    files: ['src/**/*.ts', 'src/**/*.tsx', './**/*.js'],
+    files: ['src/**/*.ts', 'src/**/*.tsx', './**/*.js', 'src/**/*.js'],
     ignores: [],
     languageOptions: {
       parser: typescriptEslintParser,
