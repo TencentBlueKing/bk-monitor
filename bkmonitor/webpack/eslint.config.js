@@ -258,7 +258,7 @@ module.exports = [
           'custom-groups': {
             value: {
               top: ['./public-path', './public-path.ts', 'monitor-common/polyfill'],
-              vueI18n: ['./i18n/i18n', 'vue'],
+              vueI18n: ['./i18n/i18n', 'vue', 'vue-*'],
               magicBox: ['./common/import-magicbox-ui', 'monitor-ui/directive/index', 'monitor-static/svg-icons'],
               tsxSupport: ['vue-property-decorator', 'vue-tsx-support'],
             },

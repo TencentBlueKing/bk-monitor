@@ -26,11 +26,11 @@
 
 import { Component } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import { metricInfo } from 'monitor-api/modules/apm_meta';
 import { getUnitList } from 'monitor-api/modules/strategies';
 
 import PanelItem from '../../../components/panel-item/panel-item';
-
 import IndicatorDetail from './indicator-detail';
 
 interface IPagination {
@@ -133,7 +133,7 @@ export default class IndicatorDimension extends tsc<object> {
       group.formats.find(option => {
         txt = option.id === unit ? option.name : '';
         return option.id === unit;
-      }),
+      })
     );
     return target ? txt : '';
   }
@@ -277,21 +277,21 @@ export default class IndicatorDimension extends tsc<object> {
       <div class='conf-content indicator-dimension-wrap'>
         <PanelItem title={this.$t('指标列表')}>
           <div
-            slot='headerTool'
             class='indicator-filter'
+            slot='headerTool'
           >
             <bk-select
               class='filter-select'
-              clearable={false}
               v-model={this.localTimeValue}
-              onToggle={this.handleSelectToggle}
-              onSelected={list => this.handleTimeChange(list)}
+              clearable={false}
               onClear={() => this.handleTimeChange('')}
+              onSelected={list => this.handleTimeChange(list)}
+              onToggle={this.handleSelectToggle}
             >
               {this.compareTimeList.map(item => (
                 <bk-option
-                  key={item.id}
                   id={item.id}
+                  key={item.id}
                   name={item.name}
                 />
               ))}
@@ -299,13 +299,13 @@ export default class IndicatorDimension extends tsc<object> {
                 {this.showCustomTime ? (
                   <span class='time-input-wrap'>
                     <bk-input
-                      size='small'
                       v-model={this.customTimeVal}
+                      size='small'
                       onKeydown={(_, evt) => this.handleModifiers(evt, this.handleAddCustomTime)}
                     />
                     <span
-                      v-bk-tooltips={this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')}
                       class='help-icon icon-monitor icon-mc-help-fill'
+                      v-bk-tooltips={this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')}
                     />
                   </span>
                 ) : (
@@ -321,19 +321,19 @@ export default class IndicatorDimension extends tsc<object> {
             <bk-input
               class='filter-input'
               v-model={this.keyword}
-              clearable
               right-icon={'bk-icon icon-search'}
-              onEnter={this.getmetricLst}
+              clearable
               onClear={this.getmetricLst}
+              onEnter={this.getmetricLst}
             />
           </div>
           <bk-table
-            outer-border={false}
+            v-bkloading={{ isLoading: this.loading }}
             data={this.metricList}
+            outer-border={false}
             pagination={this.pagination}
             on-page-change={this.handlePageChange}
             on-page-limit-change={this.handleLimitChange}
-            v-bkloading={{ isLoading: this.loading }}
           >
             <bk-table-column
               label={this.$t('指标名')}
@@ -344,13 +344,13 @@ export default class IndicatorDimension extends tsc<object> {
               scopedSlots={{ default: props => props.row.metric_display_name || '--' }}
             ></bk-table-column>
             <bk-table-column
-              label={this.$t('指标类型')}
               width='100'
+              label={this.$t('指标类型')}
               scopedSlots={{ default: props => props.row.type }}
             ></bk-table-column>
             <bk-table-column
-              label={this.$t('单位')}
               width='160'
+              label={this.$t('单位')}
               scopedSlots={{ default: props => this.getUnitText(props.row.unit) }}
             ></bk-table-column>
             {/* <bk-table-column
@@ -360,26 +360,26 @@ export default class IndicatorDimension extends tsc<object> {
             scopedSlots={{ default: props => props.row.status }}>
           </bk-table-column> */}
             <bk-table-column
-              label={this.$t('操作')}
-              width='120'
-              scopedSlots={operatorSlot}
               key='operator'
+              width='120'
+              label={this.$t('操作')}
+              scopedSlots={operatorSlot}
             ></bk-table-column>
           </bk-table>
         </PanelItem>
 
         <bk-sideslider
           ext-cls='indicator-detail-sideslider'
-          transfer={true}
           isShow={this.sideslider.isShow}
+          transfer={true}
           {...{ on: { 'update:isShow': v => (this.sideslider.isShow = v) } }}
-          quick-close={true}
           width={640}
+          quick-close={true}
           on-hidden={this.handleSliderHidden}
         >
           <div
-            slot='header'
             class='title-wrap'
+            slot='header'
           >
             <span>{`${this.sideslider.title}${this.$t('指标详情')}`}</span>
             <span

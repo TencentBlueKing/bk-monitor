@@ -26,8 +26,8 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
@@ -38,6 +38,8 @@ import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
 import { IAppSelectOptItem } from '../home/app-select';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './service.scss';
 
@@ -76,7 +78,7 @@ export default class Service extends tsc<object> {
   pluginId = '';
   dashboardId = '';
   tabId = '';
-  tabName: string | TranslateResult = '';
+  tabName: TranslateResult | string = '';
   subName = '';
   // menu list
   menuList: IMenuItem[] = [
@@ -226,24 +228,24 @@ export default class Service extends tsc<object> {
         {
           <CommonPage
             ref='commonPageRef'
-            sceneId={'apm_service'}
-            sceneType={'overview'}
-            isShowSplitPanel={false}
             backToOverviewKey={this.backToOverviewKey}
             defaultViewOptions={this.viewOptions}
+            isShowSplitPanel={false}
+            sceneId={'apm_service'}
+            sceneType={'overview'}
             tab2SceneType
+            onSceneTypeChange={this.handleSecendTypeChange}
             onTabChange={this.handleUpdateAppName}
             onTimeRangeChange={this.handelTimeRangeChange}
             onTitleChange={this.handleTitleChange}
-            onSceneTypeChange={this.handleSecendTypeChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={false}
+              needShadow={true}
               positionText={this.positonText}
+              routeList={this.routeList}
+              needCopyLink
             />
             {!this.readonly && !!this.appName && (
               <div

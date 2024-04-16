@@ -37,7 +37,7 @@ interface IProps {
   mode?: 'normal' | 'small';
   multiple?: boolean;
 }
-export type ThemeType = 'system' | 'plugin' | 'lang' | 'intro';
+export type ThemeType = 'intro' | 'lang' | 'plugin' | 'system';
 
 export interface IDescData {
   name: string;
@@ -82,8 +82,8 @@ export default class SelectCardItem extends tsc<IProps, IEvent> {
             {this.multiple && this.checked && <span class='lang-checked-icon'></span>}
             <div class='img-contain'>
               <img
-                src={this.img}
                 alt='img'
+                src={this.img}
               ></img>
             </div>
             <div class='item-title'>{this.title}</div>
@@ -105,8 +105,8 @@ export default class SelectCardItem extends tsc<IProps, IEvent> {
             {this.multiple && this.checked && <span class='lang-checked-icon'></span>}
             <span class='img-contain'>
               <img
-                src={this.img}
                 alt='img'
+                src={this.img}
               ></img>
             </span>
             <span class='item-text'>{this.title}</span>

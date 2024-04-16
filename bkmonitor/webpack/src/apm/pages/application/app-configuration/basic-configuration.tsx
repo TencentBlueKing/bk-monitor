@@ -27,6 +27,7 @@
 
 import { Component, Emit, Inject, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import {
   getDataEncoding,
@@ -58,7 +59,6 @@ import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strateg
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
-
 import { IApdexConfig, IAppInfo, IApplicationSamplerConfig, IInstanceOption, ISamplingRule } from './type';
 
 const TIME_CONDITION_METHOD_LIST = [
@@ -350,7 +350,7 @@ export default class BasicInfo extends tsc<IProps> {
             ...item,
             value: item.type === 'time' ? Number(item.value[0] / Math.pow(10, 6)) : item.value,
           };
-        }),
+        })
       );
       this.handleConditionChange();
     }
@@ -797,7 +797,7 @@ export default class BasicInfo extends tsc<IProps> {
   }
 
   // value变化时触发
-  async handleSamplingRuleValueChange(item, v: string[] | number) {
+  async handleSamplingRuleValueChange(item, v: number | string[]) {
     await this.$nextTick();
     if (typeTools.isNumber(v)) {
       item.value = v;
@@ -883,7 +883,7 @@ export default class BasicInfo extends tsc<IProps> {
         key_alias: '',
         type: '',
       },
-      condition ? { condition } : {},
+      condition ? { condition } : {}
     );
   }
 
@@ -974,26 +974,26 @@ export default class BasicInfo extends tsc<IProps> {
               ? [
                   <div class='item-row'>
                     <EditableFormItem
-                      label={this.$t('应用名')}
-                      value={this.appInfo.app_name}
                       formType='input'
+                      label={this.$t('应用名')}
                       showEditable={false}
+                      value={this.appInfo.app_name}
                     />
                     <EditableFormItem
-                      label='Token'
-                      value={this.secureKey}
-                      formType='password'
-                      showEditable={false}
                       authority={this.authority.MANAGE_AUTH}
+                      formType='password'
+                      label='Token'
+                      showEditable={false}
                       updateValue={() => this.handleUpdateValue()}
+                      value={this.secureKey}
                     />
                   </div>,
                   <div class='item-row'>
                     <EditableFormItem
-                      label={this.$t('所有者')}
-                      value={this.appInfo.create_user}
                       formType='input'
+                      label={this.$t('所有者')}
                       showEditable={false}
+                      value={this.appInfo.create_user}
                     />
                   </div>,
                   <bk-form
@@ -1004,18 +1004,18 @@ export default class BasicInfo extends tsc<IProps> {
                         rules: this.rules,
                       },
                     }}
-                    label-width={116}
                     ref='editInfoForm'
+                    label-width={116}
                   >
                     <bk-form-item
-                      label={this.$t('应用别名')}
-                      required
-                      property='app_alias'
                       error-display-type='normal'
+                      label={this.$t('应用别名')}
+                      property='app_alias'
+                      required
                     >
                       <bk-input
-                        v-model={this.formData.app_alias}
                         class='alias-name-input'
+                        v-model={this.formData.app_alias}
                       />
                     </bk-form-item>
                     <bk-form-item
@@ -1023,36 +1023,36 @@ export default class BasicInfo extends tsc<IProps> {
                       property='description'
                     >
                       <bk-input
-                        v-model={this.formData.description}
-                        type='textarea'
                         class='description-input'
-                        show-word-limit
+                        v-model={this.formData.description}
                         maxlength='100'
+                        type='textarea'
+                        show-word-limit
                       />
                     </bk-form-item>
                     <div
-                      class='item-row'
                       style='margin: 12px 0;'
+                      class='item-row'
                     >
                       <bk-form-item label={`Tracing ${this.$t('启/停')}`}>
                         <bk-switcher
-                          v-model={this.appInfo.is_enabled}
                           v-authority={{ active: !this.authority.MANAGE_AUTH }}
-                          theme='primary'
-                          size='small'
+                          v-model={this.appInfo.is_enabled}
                           pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled, 'tracing')}
+                          size='small'
+                          theme='primary'
                         />
                       </bk-form-item>
                       <bk-form-item
-                        label={`Profiling ${this.$t('启/停')}`}
                         class='form-flex-item'
+                        label={`Profiling ${this.$t('启/停')}`}
                       >
                         <bk-switcher
-                          v-model={this.appInfo.is_enabled_profiling}
                           v-authority={{ active: !this.authority.MANAGE_AUTH }}
-                          theme='primary'
-                          size='small'
+                          v-model={this.appInfo.is_enabled_profiling}
                           pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled_profiling, 'profiling')}
+                          size='small'
+                          theme='primary'
                         />
                       </bk-form-item>
                     </div>
@@ -1076,70 +1076,70 @@ export default class BasicInfo extends tsc<IProps> {
               : [
                   <div class='item-row'>
                     <EditableFormItem
+                      formType='input'
                       label={this.$t('应用名')}
+                      showEditable={false}
                       value={this.appInfo.app_name}
-                      formType='input'
-                      showEditable={false}
                     />
                     <EditableFormItem
+                      authority={this.authority.MANAGE_AUTH}
+                      authorityName={authorityMap.MANAGE_AUTH}
+                      formType='input'
                       label={this.$t('应用别名')}
+                      showEditable={false}
                       value={this.appInfo.app_alias}
-                      formType='input'
-                      authority={this.authority.MANAGE_AUTH}
-                      authorityName={authorityMap.MANAGE_AUTH}
-                      showEditable={false}
                     />
                   </div>,
                   <div class='item-row'>
                     <EditableFormItem
+                      formType='input'
                       label={this.$t('所有者')}
+                      showEditable={false}
                       value={this.appInfo.create_user}
-                      formType='input'
-                      showEditable={false}
                     />
                     <EditableFormItem
-                      label='Token'
-                      value={this.secureKey}
+                      authority={this.authority.MANAGE_AUTH}
                       formType='password'
+                      label='Token'
                       showEditable={false}
-                      authority={this.authority.MANAGE_AUTH}
                       updateValue={() => this.handleUpdateValue()}
+                      value={this.secureKey}
                     />
                   </div>,
                   <div class='item-row'>
                     <EditableFormItem
+                      authority={this.authority.MANAGE_AUTH}
+                      authorityName={authorityMap.MANAGE_AUTH}
+                      formType='input'
                       label={this.$t('描述')}
+                      showEditable={false}
                       value={this.appInfo.description}
-                      formType='input'
-                      authority={this.authority.MANAGE_AUTH}
-                      authorityName={authorityMap.MANAGE_AUTH}
-                      showEditable={false}
                     />
                   </div>,
                   <div class='item-row'>
                     <EditableFormItem
+                      formType='tag'
                       label='Tracing'
-                      value={this.appInfo.is_enabled ? [this.$t('已开启')] : [this.$t('未开启')]}
-                      tagTheme={this.appInfo.is_enabled ? 'success' : ''}
-                      formType='tag'
                       showEditable={false}
+                      tagTheme={this.appInfo.is_enabled ? 'success' : ''}
+                      value={this.appInfo.is_enabled ? [this.$t('已开启')] : [this.$t('未开启')]}
                     />
                     <EditableFormItem
-                      label='Profiling'
-                      value={this.appInfo.is_enabled_profiling ? [this.$t('已开启')] : [this.$t('未开启')]}
-                      tagTheme={this.appInfo.is_enabled_profiling ? 'success' : ''}
                       formType='tag'
+                      label='Profiling'
                       showEditable={false}
+                      tagTheme={this.appInfo.is_enabled_profiling ? 'success' : ''}
+                      value={this.appInfo.is_enabled_profiling ? [this.$t('已开启')] : [this.$t('未开启')]}
                     />
                   </div>,
                   <div class='item-row'>
                     <EditableFormItem
-                      label={this.$t('Tracing 的插件')}
-                      value={this.pluginIdMapping[this.appInfo.plugin_id]}
-                      formType='input'
                       authority={this.authority.MANAGE_AUTH}
                       authorityName={authorityMap.MANAGE_AUTH}
+                      formType='input'
+                      label={this.$t('Tracing 的插件')}
                       showEditable={false}
+                      value={this.pluginIdMapping[this.appInfo.plugin_id]}
                     />
                   </div>,
                 ]}
@@ -1147,8 +1147,8 @@ export default class BasicInfo extends tsc<IProps> {
         </PanelItem>
         {this.isShowLog2TracesFormItem && (
           <PanelItem
-            title='Logs to Traces'
             flexDirection='column'
+            title='Logs to Traces'
           >
             <div class='form-content'>
               {this.isEditing
@@ -1161,28 +1161,28 @@ export default class BasicInfo extends tsc<IProps> {
                           rules: this.rules,
                         },
                       }}
-                      label-width={116}
                       ref='editInfoForm'
+                      label-width={116}
                     >
                       <bk-form-item
-                        label={this.$t('采集目标')}
-                        required
-                        property='plugin_config.target_nodes'
                         error-display-type='normal'
+                        label={this.$t('采集目标')}
+                        property='plugin_config.target_nodes'
+                        required
                       >
                         <div style='display: flex;align-items: center;'>
                           <bk-button
-                            theme='default'
-                            icon='plus'
                             class='btn-target-collect'
+                            icon='plus'
+                            theme='default'
                             onClick={() => (this.selectorDialog.isShow = true)}
                           >
                             {this.$t('选择目标')}
                           </bk-button>
                           {this.formData.plugin_config.target_nodes.length > 0 && (
                             <i18n
-                              path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
                               style='margin-left: 8px;'
+                              path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
                             >
                               <span style='color: #4e99ff;'>{this.formData.plugin_config.target_nodes.length}</span>
                             </i18n>
@@ -1190,10 +1190,10 @@ export default class BasicInfo extends tsc<IProps> {
                         </div>
                       </bk-form-item>
                       <bk-form-item
-                        label={this.$t('日志路径')}
-                        required
-                        property='plugin_config.paths'
                         error-display-type='normal'
+                        label={this.$t('日志路径')}
+                        property='plugin_config.paths'
+                        required
                       >
                         {this.formData.plugin_config.paths.map((path, index) => (
                           <div>
@@ -1206,9 +1206,9 @@ export default class BasicInfo extends tsc<IProps> {
                               }}
                             >
                               <bk-input
+                                style='width: 490px;'
                                 v-model={this.formData.plugin_config.paths[index]}
                                 placeholder={this.$t('请输入')}
-                                style='width: 490px;'
                               />
                               <bk-icon
                                 class='log-path-icon log-path-icon-plus'
@@ -1235,20 +1235,20 @@ export default class BasicInfo extends tsc<IProps> {
                         ))}
                       </bk-form-item>
                       <bk-form-item
-                        label={this.$t('日志字符集')}
-                        required
-                        property='plugin_config.data_encoding'
                         error-display-type='normal'
+                        label={this.$t('日志字符集')}
+                        property='plugin_config.data_encoding'
+                        required
                       >
                         <bk-select
+                          style='width: 490px;'
                           v-model={this.formData.plugin_config.data_encoding}
                           disabled={this.isFetchingEncodingList}
-                          style='width: 490px;'
                         >
                           {this.logAsciiList.map(item => (
                             <bk-option
-                              key={item.id}
                               id={item.id}
+                              key={item.id}
                               name={item.name}
                             ></bk-option>
                           ))}
@@ -1259,13 +1259,13 @@ export default class BasicInfo extends tsc<IProps> {
                 : [
                     <div class='item-row'>
                       <EditableFormItem
-                        label={this.$t('采集目标')}
                         value={this.$t(this.selectedTargetTips[this.appInfo?.plugin_config?.target_node_type], [
                           this.appInfo?.plugin_config?.target_nodes?.length || 0,
                         ])}
-                        formType='input'
                         authority={this.authority.MANAGE_AUTH}
                         authorityName={authorityMap.MANAGE_AUTH}
+                        formType='input'
+                        label={this.$t('采集目标')}
                         showEditable={false}
                       />
                     </div>,
@@ -1281,12 +1281,12 @@ export default class BasicInfo extends tsc<IProps> {
                     </div>,
                     <div class='item-row'>
                       <EditableFormItem
-                        label={this.$t('日志字符集')}
-                        value={this.appInfo.plugin_config.data_encoding}
-                        formType='input'
                         authority={this.authority.MANAGE_AUTH}
                         authorityName={authorityMap.MANAGE_AUTH}
+                        formType='input'
+                        label={this.$t('日志字符集')}
                         showEditable={false}
+                        value={this.appInfo.plugin_config.data_encoding}
                       />
                     </div>,
                   ]}
@@ -1295,26 +1295,26 @@ export default class BasicInfo extends tsc<IProps> {
           </PanelItem>
         )}
         <PanelItem
-          title={this.$t('Apdex设置')}
           flexDirection='column'
+          title={this.$t('Apdex设置')}
         >
           <div
-            class='panel-intro'
             style='position:relative'
+            class='panel-intro'
           >
             <div>
               {this.$t(
-                'Apdex（Application Performance Index）是由 Apdex 联盟开发的用于评估应用性能的工业标准。Apdex 标准从用户的角度出发，将对应用响应时间的表现，转为用户对于应用性能的可量化范围为 0-1 的满意度评价。',
+                'Apdex（Application Performance Index）是由 Apdex 联盟开发的用于评估应用性能的工业标准。Apdex 标准从用户的角度出发，将对应用响应时间的表现，转为用户对于应用性能的可量化范围为 0-1 的满意度评价。'
               )}
             </div>
             <div>
               {this.$t(
-                'Apdex 定义了应用响应时间的最优门槛为 T（即 Apdex 阈值，T 由性能评估人员根据预期性能要求确定），根据应用响应时间结合 T 定义了三种不同的性能表现：',
+                'Apdex 定义了应用响应时间的最优门槛为 T（即 Apdex 阈值，T 由性能评估人员根据预期性能要求确定），根据应用响应时间结合 T 定义了三种不同的性能表现：'
               )}
             </div>
             <div class='indentation-text'>{`● Satisfied ${this.$t('（满意）- 应用响应时间低于或等于')} T`}</div>
             <div class='indentation-text'>{`● Tolerating ${this.$t(
-              '（可容忍）- 应用响应时间大于 T，但同时小于或等于',
+              '（可容忍）- 应用响应时间大于 T，但同时小于或等于'
             )} 4T`}</div>
             <div class='indentation-text'>{`● Frustrated ${this.$t('（烦躁期）- 应用响应时间大于')} 4T`}</div>
           </div>
@@ -1328,20 +1328,20 @@ export default class BasicInfo extends tsc<IProps> {
                     rules: this.rules,
                   },
                 }}
-                label-width={116}
                 ref='editApdexForm'
+                label-width={116}
               >
                 {this.apdexOptionList.map(apdex => (
                   <bk-form-item
+                    error-display-type='normal'
                     label={apdex.name}
                     property={apdex.id}
-                    error-display-type='normal'
                   >
                     <bk-input
-                      v-model={this.formData[apdex.id]}
                       class='apdex-input'
-                      type='number'
+                      v-model={this.formData[apdex.id]}
                       show-controls={false}
+                      type='number'
                     >
                       <template slot='append'>
                         <div class='right-unit'>ms</div>
@@ -1364,15 +1364,15 @@ export default class BasicInfo extends tsc<IProps> {
           </div>
         </PanelItem>
         <PanelItem
-          title={this.$t('采样配置')}
           flexDirection='column'
+          title={this.$t('采样配置')}
         >
           <div
-            class='panel-intro'
             style='position:relative'
+            class='panel-intro'
           >
             {this.$t(
-              ' 根据应用的数据量情况进行设置，如果应用的trace数据量非常大，不仅影响程序的输出、网络的消耗，也需要更大的集群资源成本。 在这种情况下会考虑进行采集，注意错误的Span默认是会被采集不会被采样。',
+              ' 根据应用的数据量情况进行设置，如果应用的trace数据量非常大，不仅影响程序的输出、网络的消耗，也需要更大的集群资源成本。 在这种情况下会考虑进行采集，注意错误的Span默认是会被采集不会被采样。'
             )}
           </div>
           <div class='form-content'>
@@ -1385,13 +1385,13 @@ export default class BasicInfo extends tsc<IProps> {
                     rules: this.rules,
                   },
                 }}
-                label-width={116}
                 ref='editSamplerForm'
+                label-width={116}
               >
                 <bk-form-item
+                  error-display-type='normal'
                   label={this.$t('采样类型')}
                   property='sampler_type'
-                  error-display-type='normal'
                 >
                   <bk-select
                     class='sampling-type-select'
@@ -1401,8 +1401,8 @@ export default class BasicInfo extends tsc<IProps> {
                   >
                     {this.samplingTypeList.map(option => (
                       <bk-option
-                        key={option.id}
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       ></bk-option>
                     ))}
@@ -1413,15 +1413,15 @@ export default class BasicInfo extends tsc<IProps> {
                 </bk-form-item>
                 {this.formData.sampler_type !== 'empty' ? (
                   <bk-form-item
+                    error-display-type='normal'
                     label={this.$t('采样比例')}
                     property='sampler_percentage'
-                    error-display-type='normal'
                   >
                     <bk-input
-                      v-model={this.formData.sampler_percentage}
                       class='sampling-rate-input'
-                      type='number'
+                      v-model={this.formData.sampler_percentage}
                       show-controls={false}
+                      type='number'
                     >
                       <template slot='append'>
                         <div class='right-unit'>%</div>
@@ -1436,9 +1436,9 @@ export default class BasicInfo extends tsc<IProps> {
                 )}
                 {this.formData.sampler_type === 'tail' ? (
                   <bk-form-item
+                    class='sampling-rule-form-item'
                     label={this.$t('必采规则')}
                     property='sampler_rules'
-                    class='sampling-rule-form-item'
                   >
                     <div style='position:relative;'>
                       {this.samplingRulesGroup.length > 1 ? (
@@ -1453,18 +1453,15 @@ export default class BasicInfo extends tsc<IProps> {
                           {group.map((item, index) => [
                             item.condition && item.key && index > 0 ? (
                               <input
-                                style={{ display: item.condition ? 'block' : 'none' }}
                                 key={`condition-${index}-${item.key}`}
+                                style={{ display: item.condition ? 'block' : 'none' }}
                                 class='condition-item-condition'
-                                readonly
                                 value={item.condition.toLocaleUpperCase()}
+                                readonly
                               />
                             ) : undefined,
                             <SimpleSelectInput
                               ref={`selectInput-${gIndex}-${index}`}
-                              placeholder={window.i18n.t('请输入') as string}
-                              value={item.key_alias}
-                              list={this.samplingRuleOptions}
                               v-bk-tooltips={{
                                 content: item.key,
                                 trigger: 'mouseenter',
@@ -1473,11 +1470,14 @@ export default class BasicInfo extends tsc<IProps> {
                                 boundary: document.body,
                                 allowHTML: false,
                               }}
+                              list={this.samplingRuleOptions}
+                              placeholder={window.i18n.t('请输入') as string}
+                              value={item.key_alias}
                               onChange={v => this.handleRuleKeyChange(item, v, gIndex, index)}
                             >
                               <div
-                                slot='extension'
                                 class='extension'
+                                slot='extension'
                                 on-click={() => this.handleDeleteKey(gIndex, index)}
                               >
                                 <i class='icon-monitor icon-chahao'></i>
@@ -1487,8 +1487,8 @@ export default class BasicInfo extends tsc<IProps> {
                             item.key_alias
                               ? [
                                   <span
-                                    class='condition-item-method'
                                     key={`method-${index}-${item.key}`}
+                                    class='condition-item-method'
                                     on-click={e => this.handleToggleMethod(e, { gIndex, index, prop: 'method' })}
                                   >
                                     {this.handleGetMethodNameById(item.method)}
@@ -1506,24 +1506,24 @@ export default class BasicInfo extends tsc<IProps> {
                                     <CycleInput
                                       class='form-interval'
                                       v-model={item.value}
-                                      needAuto={false}
                                       minSec={1}
+                                      needAuto={false}
                                       onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
                                     />
                                   ) : (
                                     <bk-tag-input
                                       key={`value-${gIndex}-${index}-${item.key}-${JSON.stringify(
-                                        this.samplingRuleValueMap[item.key] || [],
+                                        this.samplingRuleValueMap[item.key] || []
                                       )}`}
                                       class='condition-item-value'
                                       list={
                                         this.samplingRuleValueMap[item.key] ? this.samplingRuleValueMap[item.key] : []
                                       }
                                       trigger='focus'
-                                      has-delete-icon
-                                      allow-create
-                                      allow-auto-match
                                       value={item.value}
+                                      allow-auto-match
+                                      allow-create
+                                      has-delete-icon
                                       // paste-fn={v => this.handlePaste(v, item)}
                                       on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
                                     ></bk-tag-input>
@@ -1532,8 +1532,8 @@ export default class BasicInfo extends tsc<IProps> {
                               : undefined,
                           ])}
                           <span
-                            class='condition-add'
                             style={{ display: this.showRuleAdd(gIndex) ? 'flex' : 'none' }}
+                            class='condition-add'
                             on-click={() => this.handleAddCondition(gIndex)}
                           >
                             <i class='bk-icon icon-plus'></i>
@@ -1542,10 +1542,10 @@ export default class BasicInfo extends tsc<IProps> {
                       ))}
                     </div>
                     <bk-button
-                      theme='primary'
-                      icon='plus'
                       class='add-rule-btn'
+                      icon='plus'
                       size='small'
+                      theme='primary'
                       outline
                       text
                       on-click={() => this.handleNewRowCondition()}
@@ -1616,12 +1616,12 @@ export default class BasicInfo extends tsc<IProps> {
           </div>
         </PanelItem>
         <PanelItem
-          title={this.$t('实例名配置')}
           flexDirection='column'
+          title={this.$t('实例名配置')}
         >
           <div
-            class='panel-intro'
             style='position:relative'
+            class='panel-intro'
           >
             {this.$t('通过实例名配置，平台将以实例名维度进行统计，所以确定实例的唯一性有助于观测数据和定位问题。')}
           </div>
@@ -1633,11 +1633,12 @@ export default class BasicInfo extends tsc<IProps> {
               >
                 {this.localInstanceList.map((instance, index) => (
                   <li
-                    class='instanct-wrap'
                     key={instance.name}
+                    class='instanct-wrap'
                   >
                     <div class='drag-item'>
                       <div
+                        key={instance.value}
                         class={[
                           'instance-card',
                           {
@@ -1645,14 +1646,13 @@ export default class BasicInfo extends tsc<IProps> {
                             'disabled-item': !this.isEditing,
                           },
                         ]}
-                        key={instance.value}
                         draggable={this.isEditing}
-                        onDragstart={evt => this.handleDragStart(evt, index)}
                         onDragend={this.handleDragend}
-                        onDrop={this.handleDrop}
                         onDragenter={() => this.handleDragEnter(index)}
-                        onDragover={evt => this.handleDragOver(evt, index)}
                         onDragleave={this.handleDragLeave}
+                        onDragover={evt => this.handleDragOver(evt, index)}
+                        onDragstart={evt => this.handleDragStart(evt, index)}
+                        onDrop={this.handleDrop}
                       >
                         {this.isEditing && <span class='icon-monitor icon-mc-tuozhuai'></span>}
                         {instance.name}
@@ -1676,16 +1676,16 @@ export default class BasicInfo extends tsc<IProps> {
                         'add-button',
                         { 'is-disabled': this.instanceOptionList.length === this.localInstanceList.length },
                       ]}
-                      onClick={() =>
-                        this.instanceOptionList.length === this.localInstanceList.length
-                          ? false
-                          : (this.showInstanceSelector = true)
-                      }
                       v-bk-tooltips={{
                         content: this.$t('已经没有可用的维度'),
                         disabled: this.instanceOptionList.length !== this.localInstanceList.length,
                         allowHTML: false,
                       }}
+                      onClick={() =>
+                        this.instanceOptionList.length === this.localInstanceList.length
+                          ? false
+                          : (this.showInstanceSelector = true)
+                      }
                     >
                       <span class='icon-monitor icon-plus-line'></span>
                     </div>
@@ -1693,17 +1693,17 @@ export default class BasicInfo extends tsc<IProps> {
                       <bk-select
                         class='instance-select'
                         ext-popover-cls='instance-select-popover'
+                        popover-width={300}
                         searchable
                         show-on-init
-                        popover-width={300}
                         onChange={v => this.handleSelectInstance(v)}
                       >
                         {this.instanceOptionList.map(option => (
                           <bk-option
-                            key={option.id}
                             id={option.id}
-                            name={option.name}
+                            key={option.id}
                             disabled={this.localInstanceList.some(val => val.id === option.id)}
+                            name={option.name}
                           >
                             <div
                               class='instance-config-option'
@@ -1732,12 +1732,12 @@ export default class BasicInfo extends tsc<IProps> {
         </PanelItem>
         {/* TODO：记得翻译 */}
         <PanelItem
-          title={this.$t('DB设置')}
           flexDirection='column'
+          title={this.$t('DB设置')}
         >
           <div
-            class='panel-intro'
             style='position:relative'
+            class='panel-intro'
           >
             {this.isEditing ? (
               <div class='db-config-title-container'>
@@ -1745,9 +1745,9 @@ export default class BasicInfo extends tsc<IProps> {
                   <span>{this.$t('DB类型')}</span>
                   <bk-dropdown-menu trigger='click'>
                     <bk-button
-                      text
-                      size='small'
                       slot='dropdown-trigger'
+                      size='small'
+                      text
                     >
                       <div style={{ display: 'flex', alignItems: 'baseline' }}>
                         <bk-icon type='plus-circle' />
@@ -1763,12 +1763,12 @@ export default class BasicInfo extends tsc<IProps> {
                         return (
                           <li>
                             <a
+                              key={s}
                               class={{
                                 'dropdown-list-item-disabled': !!this.appInfo.application_db_config.find(
-                                  option => s === option.db_system,
+                                  option => s === option.db_system
                                 ),
                               }}
-                              key={s}
                               href='javascript:;'
                               onClick={() => this.addDBType(s)}
                             >
@@ -1814,10 +1814,10 @@ export default class BasicInfo extends tsc<IProps> {
                               ref={`cardForm${index}`}
                             >
                               <bk-form-item
-                                label={this.$t('存储方式')}
-                                required
-                                property='trace_mode'
                                 error-display-type='normal'
+                                label={this.$t('存储方式')}
+                                property='trace_mode'
+                                required
                               >
                                 <bk-radio-group v-model={card.trace_mode}>
                                   <bk-radio-button value='origin'>{this.$t('原始命令')}</bk-radio-button>
@@ -1826,33 +1826,33 @@ export default class BasicInfo extends tsc<IProps> {
                                 </bk-radio-group>
                               </bk-form-item>
                               <bk-form-item
-                                label={this.$t('启用慢语句')}
-                                required={card.enabled_slow_sql}
-                                property='threshold'
                                 error-display-type='normal'
+                                label={this.$t('启用慢语句')}
+                                property='threshold'
+                                required={card.enabled_slow_sql}
                               >
                                 <div class='low-sql-container'>
                                   <bk-switcher
                                     v-model={card.enabled_slow_sql}
-                                    theme='primary'
                                     size='small'
+                                    theme='primary'
                                     onChange={() =>
                                       (this.DBTypeRules[index].threshold[0].required = card.enabled_slow_sql)
                                     }
                                   ></bk-switcher>
                                   <span
-                                    class='text'
                                     style='margin-left: 16px;'
+                                    class='text'
                                   >
                                     {this.$t('命令执行时间')}
                                   </span>
                                   <span>{'>'}</span>
                                   <bk-input
+                                    class='excution-input'
                                     v-model={card.threshold}
                                     behavior='simplicity'
-                                    class='excution-input'
-                                    type='number'
                                     min={0}
+                                    type='number'
                                     onInput={() => {
                                       // 如果 card.threshold 为 falsy 值时，服务端的校验是不会通过的。（即使不启用慢语句时也是一样）
                                       // 这里手动判断一次，然后给予一个默认值。
@@ -1864,20 +1864,20 @@ export default class BasicInfo extends tsc<IProps> {
                                 </div>
                               </bk-form-item>
                               <bk-form-item
-                                label={this.$t('语句长度')}
-                                required
-                                property='length'
                                 error-display-type='normal'
+                                label={this.$t('语句长度')}
+                                property='length'
+                                required
                               >
                                 <div class='sql-length-container'>
                                   <span class='text'>{this.$t('截断')}</span>
                                   <span>{'>'}</span>
                                   <bk-input
+                                    class='sql-cut-input'
                                     v-model={card.length}
                                     behavior='simplicity'
-                                    class='sql-cut-input'
-                                    type='number'
                                     min={0}
+                                    type='number'
                                   ></bk-input>
                                   <span class='text'>{this.$t('字符')}</span>
                                 </div>
@@ -1895,10 +1895,10 @@ export default class BasicInfo extends tsc<IProps> {
                 {this.appInfo.application_db_config.map((item, index) => {
                   return (
                     <div
-                      class='db-config-card-preview-container'
                       style={{
                         order: this.appInfo.application_db_config.length - index,
                       }}
+                      class='db-config-card-preview-container'
                     >
                       <div
                         class={{
@@ -1960,10 +1960,10 @@ export default class BasicInfo extends tsc<IProps> {
           {!this.isEditing && (
             <bk-button
               class='edit-btn'
-              theme='primary'
-              size='normal'
-              outline
               v-authority={{ active: !this.authority }}
+              size='normal'
+              theme='primary'
+              outline
               onClick={() => {
                 this.authority ? this.handleEditClick(true) : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
               }}
@@ -1983,8 +1983,8 @@ export default class BasicInfo extends tsc<IProps> {
           <div class='submit-handle'>
             <bk-button
               class='mr10'
-              theme='primary'
               loading={this.isLoading}
+              theme='primary'
               onClick={() => this.handleSubmit()}
             >
               {this.$t('保存')}
@@ -2003,22 +2003,22 @@ export default class BasicInfo extends tsc<IProps> {
 
         {this.isShowLog2TracesFormItem && (
           <StrategyIpv6
-            showDialog={this.selectorDialog.isShow}
+            checkedNodes={this.formData.plugin_config.target_nodes}
             nodeType={this.formData.plugin_config.target_node_type}
             objectType={this.formData.plugin_config.target_object_type}
-            checkedNodes={this.formData.plugin_config.target_nodes}
+            showDialog={this.selectorDialog.isShow}
             onChange={this.handleSelectorChange}
             onCloseDialog={v => (this.selectorDialog.isShow = v)}
           ></StrategyIpv6>
         )}
 
         <SelectMenu
-          show={this.showSelectMenu}
-          target={this.curSelectTarget}
           list={this.menuList}
           min-width={60}
-          on-on-select={item => this.handelMenuSelect(item)}
+          show={this.showSelectMenu}
+          target={this.curSelectTarget}
           on-on-hidden={() => this.handleMenuHidden()}
+          on-on-select={item => this.handelMenuSelect(item)}
         ></SelectMenu>
       </div>
     );
