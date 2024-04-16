@@ -43,13 +43,13 @@ export default defineComponent({
   props: {
     guideInfo: {
       type: Object as PropType<IGuideInfo>,
-      required: true
-    }
+      required: true,
+    },
   },
   setup() {
     const handleButton = () => {};
     return {
-      handleButton
+      handleButton,
     };
   },
   render() {
@@ -67,7 +67,7 @@ export default defineComponent({
                       src={guideInfo.icon}
                       alt=''
                     />
-                  )
+                  ),
                 }
               : null
           }
@@ -87,5 +87,5 @@ export default defineComponent({
         </Exception>
       </div>
     );
-  }
+  },
 });

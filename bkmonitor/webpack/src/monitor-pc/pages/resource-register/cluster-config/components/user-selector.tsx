@@ -124,7 +124,7 @@ export default class UserSelector extends tsc<IProps> {
     const renderTag = {
       display_name: tag.user?.display_name || tag.username,
       id: tag.username,
-      type: ''
+      type: '',
     };
     return this.renderPublicCode(h, renderTag, 'tag', 'text', 'avatar');
   }
@@ -135,7 +135,7 @@ export default class UserSelector extends tsc<IProps> {
       type: user.type,
       index: user.index,
       id: user.username,
-      display_name: user.display_name
+      display_name: user.display_name,
     };
     return this.renderPublicCode(h, renderListItem, 'user-sort-list-component-bk-selector-member', 'text', 'avatar');
   }
@@ -147,9 +147,9 @@ export default class UserSelector extends tsc<IProps> {
             class:
               node.type === 'group'
                 ? 'icon-monitor icon-mc-user-group only-img'
-                : 'icon-monitor icon-mc-user-one only-img'
+                : 'icon-monitor icon-mc-user-one only-img',
           }),
-      h('span', { class: textClass }, node.type === 'group' ? node.display_name : `${node.id} (${node.display_name})`)
+      h('span', { class: textClass }, node.type === 'group' ? node.display_name : `${node.id} (${node.display_name})`),
     ]);
   }
 }

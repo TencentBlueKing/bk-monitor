@@ -32,7 +32,7 @@ import './notice-mode.scss';
 
 export const robot = {
   chatid: 'chatid',
-  wxworkBot: 'wxwork-bot'
+  wxworkBot: 'wxwork-bot',
 };
 
 interface INoticeModeProps {
@@ -66,7 +66,7 @@ interface INoticeModeEvent {
 }
 
 @Component({
-  name: 'NoticeModeNew'
+  name: 'NoticeModeNew',
 })
 export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEvent> {
   @Prop({ type: Array, default: () => [] }) noticeWay!: INoticeWay[];
@@ -75,8 +75,8 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
     default: () => [
       { level: 1, notice_ways: [] },
       { level: 2, notice_ways: [] },
-      { level: 3, notice_ways: [] }
-    ]
+      { level: 3, notice_ways: [] },
+    ],
   })
   notifyConfig: INoticeWayValue[];
   @Prop({ type: Number, default: 0 }) type: number; // 0 提醒 1 执行前
@@ -91,7 +91,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
   tableTitle = [window.i18n.t('告警级别'), window.i18n.t('执行阶段')];
   titleMap = [
     [window.i18n.t('致命'), window.i18n.t('预警'), window.i18n.t('提醒')],
-    [window.i18n.t('失败时'), window.i18n.t('成功时'), window.i18n.t('执行前')]
+    [window.i18n.t('失败时'), window.i18n.t('成功时'), window.i18n.t('执行前')],
   ];
   newNoticeWay = [];
 
@@ -124,7 +124,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
       config[item.level] = {
         notice_ways: item.notice_ways.map(ways => {
           const obj = {
-            ...ways
+            ...ways,
           };
           if (ways?.receivers?.length) {
             if (ways.name === robot.wxworkBot) {
@@ -141,7 +141,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
             }
           }
           return obj;
-        })
+        }),
       };
     });
     this.noticeWay.forEach(set => {
@@ -161,18 +161,18 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
             receivers:
               config[key].notice_ways?.find(item => item.name === set.type)?.receivers ||
               (set.type === robot.wxworkBot ? '' : []),
-            checked: (config[key].notice_ways?.map(item => item.name) || []).includes(set.type)
+            checked: (config[key].notice_ways?.map(item => item.name) || []).includes(set.type),
           };
         }
         return {
           name: set.type,
-          checked: !!config[key]?.notice_ways?.map(item => item.name).includes(set.type)
+          checked: !!config[key]?.notice_ways?.map(item => item.name).includes(set.type),
         };
       });
       tableData.push({
         list,
         level: key,
-        title: this.levelMap[key - 1]
+        title: this.levelMap[key - 1],
       });
     });
     this.noticeData = tableData.reverse();
@@ -189,15 +189,15 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
           .filter(set => set.checked)
           .map(set => {
             const obj = {
-              name: set.name
+              name: set.name,
             };
             set.receivers &&
               Object.assign(obj, {
                 // 替换空格
-                receivers: set.receivers
+                receivers: set.receivers,
               });
             return obj;
-          })
+          }),
       };
       return noticeWay;
     });
@@ -210,7 +210,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
   validator(isStrict = true) {
     const msg = [
       window.i18n.tc('每个告警级别至少选择一种通知方式'),
-      window.i18n.tc('每个执行阶段至少选择一种通知方式')
+      window.i18n.tc('每个执行阶段至少选择一种通知方式'),
     ];
     const res = this.handleParams();
     const isPass = res.every(item => {
@@ -263,7 +263,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               boundary: 'window',
                               placements: ['top'],
                               width: item.width,
-                              allowHTML: true
+                              allowHTML: true,
                             }}
                           ></i>
                         ) : undefined}
@@ -288,7 +288,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                     <td
                       class={[
                         this.channels.length === 3 && 'limit-width',
-                        [robot.wxworkBot, 'bkchat'].includes(notice.name) && 'custom-td'
+                        [robot.wxworkBot, 'bkchat'].includes(notice.name) && 'custom-td',
                       ]}
                     >
                       <div
@@ -306,7 +306,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               content: `${this.$t('电话按通知对象顺序依次拨打,用户组里无法保证顺序')}`,
                               placements: ['top'],
                               boundary: 'window',
-                              disabled: notice.type !== 'voice'
+                              disabled: notice.type !== 'voice',
                             }}
                             on-change={() => this.handleParams()}
                           ></bk-checkbox>

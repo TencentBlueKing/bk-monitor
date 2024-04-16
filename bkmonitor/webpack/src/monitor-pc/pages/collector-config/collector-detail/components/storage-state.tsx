@@ -91,7 +91,7 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
         return {
           ...item,
           isEdit: false,
-          editValue: ''
+          editValue: '',
         };
       }
       return item;
@@ -205,7 +205,7 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
                 })}
               </bk-table>
             </div>
-          </div>
+          </div>,
         ])}
       </div>
     );

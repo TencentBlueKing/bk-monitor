@@ -44,28 +44,28 @@ const addLabelItems = {
   [MetricType.TimeSeries]: {
     name: window.i18n.tc('指标数据'),
     icon: metricImg,
-    displayName: window.i18n.tc('时序数据')
+    displayName: window.i18n.tc('时序数据'),
   },
   [MetricType.EVENT]: {
     name: window.i18n.tc('事件数据'),
     icon: eventImg,
-    displayName: `${window.i18n.tc('系统')}、${window.i18n.tc('自定义事件')}`
+    displayName: `${window.i18n.tc('系统')}、${window.i18n.tc('自定义事件')}`,
   },
   [MetricType.LOG]: {
     name: window.i18n.tc('日志数据'),
     icon: logImg,
-    displayName: window.i18n.tc('多端日志匹配')
+    displayName: window.i18n.tc('多端日志匹配'),
   },
   [MetricType.ALERT]: {
     name: window.i18n.tc('关联告警'),
     icon: alertImg,
-    displayName: window.i18n.tc('关联多个策略判断')
+    displayName: window.i18n.tc('关联多个策略判断'),
   },
   [MetricType.MultivariateAnomalyDetection]: {
     name: window.i18n.tc('场景智能检测'),
     icon: intelligentImg,
-    displayName: `${window.i18n.tc('主机')}、${window.i18n.tc('拨测')}、K8s、APM`
-  }
+    displayName: `${window.i18n.tc('主机')}、${window.i18n.tc('拨测')}、K8s、APM`,
+  },
 };
 interface IMonitorDataEmptyEvent {
   addMetric: { id: string; name: string };
@@ -84,28 +84,28 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       {
         name: this.$t('添加监控指标'),
         id: MetricType.TimeSeries,
-        show: !isFta
+        show: !isFta,
       },
       {
         name: this.$t('添加事件'),
         id: MetricType.EVENT,
-        show: true
+        show: true,
       },
       {
         name: this.$t('添加日志关键字'),
         id: MetricType.LOG,
-        show: !isFta
+        show: !isFta,
       },
       {
         name: this.$t('关联告警'),
         id: MetricType.ALERT,
-        show: true
+        show: true,
       },
       {
         name: this.$t('场景智能检测'),
         id: MetricType.MultivariateAnomalyDetection,
-        show: true
-      }
+        show: true,
+      },
     ].filter(item => item.show);
   }
   mounted() {
@@ -137,7 +137,7 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       offset: '5, 0',
       arrow: true,
       zIndex: 999,
-      onHide: () => !this.tipsRemindShow
+      onHide: () => !this.tipsRemindShow,
     });
     this.tipsInstance?.show?.(100);
   }

@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -1842,5 +1841,5 @@ export default {
   最大展示数量: 'Maximum display number',
   内容配置: 'Content configuration',
   邮件配置: 'Email configuration',
-  只展示新类: 'Only show new classes'
+  只展示新类: 'Only show new classes',
 };

@@ -46,7 +46,7 @@ export default class MessageChart extends CommonSimpleChart {
   pagination: ITablePagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   total = 0;
   async getPanelData(start_time?: string, end_time?: string) {
@@ -62,15 +62,15 @@ export default class MessageChart extends CommonSimpleChart {
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
         end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
-        bk_biz_id: this.bkBizId || window.cc_biz_id
+        bk_biz_id: this.bkBizId || window.cc_biz_id,
       };
       const variablesService = new VariablesService({
         ...this.scopedVars,
         interval: reviewInterval(
           this.viewOptions.interval,
           params.end_time - params.start_time,
-          this.panel.collect_interval
-        )
+          this.panel.collect_interval,
+        ),
       });
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
@@ -79,15 +79,15 @@ export default class MessageChart extends CommonSimpleChart {
               ...variablesService.transformVariables(item.data),
               ...params,
               page: this.pagination.current,
-              page_size: this.pagination.limit
+              page_size: this.pagination.limit,
             },
-            { needMessage: false }
+            { needMessage: false },
           )
           .then(res => {
             this.series = (res.data || []).map(item => ({
               ...item,
               showAll: false,
-              id: item.id.toString()
+              id: item.id.toString(),
             }));
             this.pagination.count = res.total;
             this.clearErrorMsg();
@@ -95,7 +95,7 @@ export default class MessageChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          })
+          }),
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
@@ -217,7 +217,7 @@ export default class MessageChart extends CommonSimpleChart {
                   </bk-collapse-item>
                 ))}
               </bk-collapse>
-            </div>
+            </div>,
           ]
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>

@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-/* eslint-disable no-case-declarations */
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
@@ -68,7 +67,7 @@ interface IColumnItem {
     fixed?: 'left' | 'right';
     minWidth?: number | string;
     resizable?: boolean;
-    formatter?: Function;
+    formatter?: (value: any) => string; // Replace `Function` with a more specific function type
     sortable?: boolean | 'curstom';
   };
 }
@@ -111,7 +110,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     success: '#8DD3B5',
     failure: '#F59E9E',
     skipped: '#FED694',
-    shield: '#CBCDD2'
+    shield: '#CBCDD2',
   };
   actionStatusMap: Record<string, TranslateResult> = {};
   hoverRowIndex = -1;
@@ -161,8 +160,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: true,
           props: {
             width: 160,
-            minWidth: 160
-          }
+            minWidth: 160,
+          },
         },
         {
           id: 'create_time',
@@ -173,8 +172,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 150,
             minWidth: 150,
             sortable: 'curstom',
-            formatter: (row: IEventItem) => this.formatterTime(row.create_time)
-          }
+            formatter: (row: IEventItem) => this.formatterTime(row.create_time),
+          },
         },
         {
           id: 'action_name',
@@ -185,8 +184,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 180,
             minWidth: 180,
             sortable: 'curstom',
-            showOverflowTooltip: true
-          }
+            showOverflowTooltip: true,
+          },
         },
         {
           id: 'action_plugin_type_display',
@@ -195,8 +194,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           props: {
             width: 100,
-            sortable: 'curstom'
-          }
+            sortable: 'curstom',
+          },
         },
         {
           id: 'operate_target_string',
@@ -205,8 +204,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           props: {
             width: 120,
-            showOverflowTooltip: true
-          }
+            showOverflowTooltip: true,
+          },
         },
         {
           id: 'operator',
@@ -229,8 +228,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   >
                     {name}
                   </span>
-                )) || '--'
-          }
+                )) || '--',
+          },
         },
         {
           id: 'alert_count',
@@ -239,9 +238,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: true,
           props: {
             width: 120,
-            minWidth: 120
+            minWidth: 120,
             // sortable: 'curstom'
-          }
+          },
         },
         {
           id: 'converge_count',
@@ -250,8 +249,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: true,
           props: {
             width: 120,
-            minWidth: 120
-          }
+            minWidth: 120,
+          },
         },
         {
           id: 'end_time',
@@ -262,8 +261,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 150,
             minWidth: 150,
             sortable: 'curstom',
-            formatter: (row: IEventItem) => this.formatterTime(row.end_time)
-          }
+            formatter: (row: IEventItem) => this.formatterTime(row.end_time),
+          },
         },
         {
           id: 'duration',
@@ -273,8 +272,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 80,
             minWidth: 80,
-            sortable: 'curstom'
-          }
+            sortable: 'curstom',
+          },
         },
         {
           id: 'status',
@@ -294,8 +293,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   {statusInfo.text || '--'}
                 </span>
               );
-            }
-          }
+            },
+          },
         },
         {
           id: 'content',
@@ -304,15 +303,15 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           props: {
             showOverflowTooltip: true,
-            formatter: (row: IEventItem) => row.content.text || '--'
-          }
-        }
+            formatter: (row: IEventItem) => row.content.text || '--',
+          },
+        },
       ] as IColumnItem[]
     )
       .filter(Boolean)
       .map(item => ({
         ...item,
-        checked: storeColumnList?.length ? storeColumnList.includes(item.id) : item.checked
+        checked: storeColumnList?.length ? storeColumnList.includes(item.id) : item.checked,
       }));
   }
   // 告警列表字段
@@ -333,8 +332,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 140,
             fixed: 'left',
-            resizable: true
-          }
+            resizable: true,
+          },
         },
         this.bizIds.length > 1 || this.bizIds?.[0] === -1
           ? {
@@ -345,8 +344,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               props: {
                 width: 100,
                 fixed: 'left',
-                resizable: true
-              }
+                resizable: true,
+              },
             }
           : undefined,
         {
@@ -357,8 +356,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 160,
             fixed: 'left',
-            resizable: true
-          }
+            resizable: true,
+          },
         },
         {
           id: 'plugin_display_name',
@@ -366,8 +365,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           checked: false,
           props: {
-            minWidth: 110
-          }
+            minWidth: 110,
+          },
         },
         {
           id: 'category_display',
@@ -375,8 +374,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           checked: true,
           props: {
-            minWidth: 160
-          }
+            minWidth: 160,
+          },
         },
         {
           id: 'metric',
@@ -385,8 +384,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           checked: true,
           props: {
             minWidth: 180,
-            sortable: 'curstom'
-          }
+            sortable: 'curstom',
+          },
         },
         {
           id: 'event_count',
@@ -394,8 +393,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           checked: true,
           props: {
-            minWidth: 140
-          }
+            minWidth: 140,
+          },
         },
         {
           id: 'create_time',
@@ -405,8 +404,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.create_time),
-            sortable: 'curstom'
-          }
+            sortable: 'curstom',
+          },
         },
         {
           id: 'begin_time',
@@ -416,8 +415,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.begin_time),
-            sortable: 'curstom'
-          }
+            sortable: 'curstom',
+          },
         },
         {
           id: 'end_time',
@@ -427,8 +426,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.end_time),
-            sortable: 'curstom'
-          }
+            sortable: 'curstom',
+          },
         },
         {
           id: 'latest_time',
@@ -438,8 +437,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.latest_time),
-            sortable: 'curstom'
-          }
+            sortable: 'curstom',
+          },
         },
         {
           id: 'first_anomaly_time',
@@ -449,8 +448,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             minWidth: 150,
             formatter: (row: IEventItem) => this.formatterTime(row.first_anomaly_time),
-            sortable: 'curstom'
-          }
+            sortable: 'curstom',
+          },
         },
         {
           id: 'duration',
@@ -458,8 +457,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           checked: false,
           props: {
-            sortable: 'curstom'
-          }
+            sortable: 'curstom',
+          },
         },
         {
           id: 'description',
@@ -468,8 +467,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           checked: true,
           props: {
             minWidth: 300,
-            width: 300
-          }
+            width: 300,
+          },
         },
         {
           id: 'tags',
@@ -480,8 +479,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 200,
             minWidth: 200,
             formatter: (row: IEventItem) =>
-              row.tags?.map(item => <span class='tag-item'>{`${item.key}: ${item.value}`}</span>) || '--'
-          }
+              row.tags?.map(item => <span class='tag-item'>{`${item.key}: ${item.value}`}</span>) || '--',
+          },
         },
         {
           id: 'extend_info',
@@ -490,8 +489,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           checked: false,
           props: {
             minWidth: 250,
-            width: 250
-          }
+            width: 250,
+          },
         },
         {
           id: 'appointee',
@@ -502,8 +501,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 200,
             minWidth: 200,
             formatter: (row: IEventItem) =>
-              row.appointee?.map(appointee => <span class='tag-item'>{appointee}</span>) || '--'
-          }
+              row.appointee?.map(appointee => <span class='tag-item'>{appointee}</span>) || '--',
+          },
         },
         {
           id: 'assignee',
@@ -514,8 +513,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 200,
             minWidth: 200,
             formatter: (row: IEventItem) =>
-              row.assignee?.map(assginne => <span class='tag-item'>{assginne}</span>) || '--'
-          }
+              row.assignee?.map(assginne => <span class='tag-item'>{assginne}</span>) || '--',
+          },
         },
         {
           id: 'follower',
@@ -526,8 +525,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             width: 200,
             minWidth: 200,
             formatter: (row: IEventItem) =>
-              row.follower?.map(follower => <span class='tag-item'>{follower}</span>) || '--'
-          }
+              row.follower?.map(follower => <span class='tag-item'>{follower}</span>) || '--',
+          },
         },
         // {
         //   id: 'severity',
@@ -548,8 +547,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               >
                 {item.strategy_name || '--'}
               </span>
-            )
-          }
+            ),
+          },
         },
         {
           id: 'labels',
@@ -559,8 +558,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           props: {
             width: 200,
             minWidth: 200,
-            formatter: (row: IEventItem) => row.labels?.map(label => <span class='tag-item'>{label}</span>) || '--'
-          }
+            formatter: (row: IEventItem) => row.labels?.map(label => <span class='tag-item'>{label}</span>) || '--',
+          },
         },
         {
           id: 'stage_display',
@@ -571,8 +570,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             fixed: 'right',
             resizable: true,
             minWidth: 110,
-            formatter: (item: IEventItem) => (!item.stage_display ? '--' : item.stage_display)
-          }
+            formatter: (item: IEventItem) => (!item.stage_display ? '--' : item.stage_display),
+          },
         },
         {
           id: 'status',
@@ -584,15 +583,15 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             resizable: true,
             width: this.$store.getters.lang === 'en' ? 120 : 80,
             minWidth: this.$store.getters.lang === 'en' ? 140 : 110,
-            sortable: 'curstom'
-          }
-        }
+            sortable: 'curstom',
+          },
+        },
       ] as IColumnItem[]
     )
       .filter(Boolean)
       .map(item => ({
         ...item,
-        checked: storeColumnList?.length ? storeColumnList.includes(item.id) : item.checked
+        checked: storeColumnList?.length ? storeColumnList.includes(item.id) : item.checked,
       }));
   }
   get tableColumn() {
@@ -612,37 +611,37 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
       ABNORMAL: {
         color: '#EA3536',
         bgColor: '#FEEBEA',
-        name: this.$t('未恢复')
+        name: this.$t('未恢复'),
       },
       RECOVERED: {
         color: '#14A568',
         bgColor: '#E4FAF0',
-        name: this.$t('已恢复')
+        name: this.$t('已恢复'),
       },
       CLOSED: {
         color: '#63656E',
         bgColor: '#F0F1F5',
-        name: this.$t('已关闭')
-      }
+        name: this.$t('已关闭'),
+      },
     };
     this.extendInfoMap = {
       log_search: this.$t('查看更多相关的日志'),
       custom_event: this.$t('查看更多相关的事件'),
-      bkdata: this.$t('查看更多相关的数据')
+      bkdata: this.$t('查看更多相关的数据'),
     };
     this.tableToolList = [
       {
         id: 'comfirm',
-        name: this.$t('批量确认')
+        name: this.$t('批量确认'),
       },
       {
         id: 'shield',
-        name: this.$t('批量屏蔽')
+        name: this.$t('批量屏蔽'),
       },
       {
         id: 'dispatch',
-        name: this.$t('批量分派')
-      }
+        name: this.$t('批量分派'),
+      },
       // {
       //   id: 'custom',
       //   name: this.$t('批量手动处理')
@@ -653,7 +652,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
       success: this.$t('成功'),
       failure: this.$t('失败'),
       skipped: this.$t('已收敛'),
-      shield: this.$t('已屏蔽')
+      shield: this.$t('已屏蔽'),
     };
 
     // 是否支持一键拉群 todo
@@ -661,7 +660,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     if (this.enableCreateChatGroup) {
       this.tableToolList.push({
         id: 'chat',
-        name: this.$t('一键拉群')
+        name: this.$t('一键拉群'),
       });
     }
   }
@@ -696,13 +695,13 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   handleShowDetail(item: IEventItem, activeTab = ''): IShowDetail {
     const typeMap = {
       alert: 'eventDetail',
-      action: 'handleDetail'
+      action: 'handleDetail',
     };
     return {
       id: item.id,
       bizId: item.bk_biz_id,
       type: typeMap[this.searchType],
-      activeTab
+      activeTab,
     };
   }
   /**
@@ -729,7 +728,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     const storeKey = this.searchType === 'alert' ? alertStoreKey : actionStoreKey;
     localStorage.setItem(
       storeKey,
-      JSON.stringify(this.tableColumn.filter(item => item.checked || item.disabled).map(item => item.id))
+      JSON.stringify(this.tableColumn.filter(item => item.checked || item.disabled).map(item => item.id)),
     );
     this.tableKey = random(10);
   }
@@ -772,7 +771,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     const manage_event_v2 = 'manage_event_v2';
     const data = await checkAllowedByActionIds({
       action_ids: [MANAGE_RULE, manage_event_v2],
-      bk_biz_id: v.bk_biz_id
+      bk_biz_id: v.bk_biz_id,
     }).catch(() => []);
     if (!data.length) {
       authorityStore.getAuthorityDetail(MANAGE_RULE);
@@ -802,7 +801,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
         window.open(
           `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${detailId}`,
-          '__blank'
+          '__blank',
         );
         return;
       // 监控数据检索
@@ -812,7 +811,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           `${origin}${location.pathname
             .toString()
             .replace('fta/', '')}?bizId=${bizId}#/data-retrieval/?targets=${JSON.stringify(targets)}`,
-          '__blank'
+          '__blank',
         );
         return;
       // 日志检索
@@ -821,7 +820,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           // 检索参数
           bizId,
           keyword: extendInfo.query_string, // 搜索关键字
-          addition: extendInfo.agg_condition || []
+          addition: extendInfo.agg_condition || [],
         };
         const queryStr = transformLogUrlQuery(retrieveParams);
         const url = `${this.$store.getters.bkLogSearchUrl}#/retrieve/${extendInfo.index_set_id}${queryStr}`;
@@ -834,7 +833,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           `${origin}${location.pathname
             .toString()
             .replace('fta/', '')}?bizId=${bizId}#/custom-escalation-detail/event/${id}`,
-          '__blank'
+          '__blank',
         );
         return;
     }
@@ -882,7 +881,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             >
               {this.$t('更多')}
             </span>
-          </div>
+          </div>,
         ];
       case 'log_search':
       case 'custom_event':
@@ -915,9 +914,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
       {
         create_time: createTime,
         end_time: endTime,
-        id
+        id,
       },
-      row.bk_biz_id || this.$store.getters.bizId
+      row.bk_biz_id || this.$store.getters.bizId,
     );
   }
   // 时间格式化
@@ -936,10 +935,10 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           dimensions?.map?.(item => `${item.display_key || item.key}(${item.display_value || item.value})`).join('-') ||
           '--'
         }</div>`,
-        `<div class="description-desc">${this.$t('告警内容')}：${description || '--'}</div>`
+        `<div class="description-desc">${this.$t('告警内容')}：${description || '--'}</div>`,
       ]
         .filter(Boolean)
-        .join('')
+        .join(''),
     );
   }
   /**
@@ -953,7 +952,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
       content,
       maxWidth: 320,
       arrow: true,
-      boundary: 'window'
+      boundary: 'window',
     });
     this.popoperInstance?.show?.(100);
   }
@@ -1006,7 +1005,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   askTipMsg(isAak, status, ackOperator, followerDisabled) {
     const statusNames = {
       RECOVERED: this.$t('告警已恢复'),
-      CLOSED: this.$t('告警已关闭')
+      CLOSED: this.$t('告警已关闭'),
     };
     if (followerDisabled) {
       return this.$t('关注人禁用此操作');
@@ -1034,7 +1033,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           this.popoperOperateInstance.destroy();
           this.popoperOperateInstance = null;
           this.popoperOperateIndex = -1;
-        }
+        },
       });
     }
     this.popoperOperateInstance?.show(100);
@@ -1048,7 +1047,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         content: `${data.map(item => `<div>${item.name}</div>`).join('')}`,
         interactive: true,
         distance: 0,
-        duration: [200, 0]
+        duration: [200, 0],
       });
       this.metricPopoverIns?.show?.(100);
     } else {
@@ -1066,7 +1065,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           width='50'
           minWidth='50'
           fixed='left'
-        />
+        />,
       );
     }
     return columList.concat(
@@ -1090,7 +1089,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                     >
                       {row.id}
                     </span>
-                  )
+                  ),
                 }}
               />
             );
@@ -1119,7 +1118,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         ))}
                       </div>
                     </div>
-                  )
+                  ),
                 }}
               />
             );
@@ -1137,7 +1136,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   default: ({
                     row: { status, is_ack: isAck, ack_operator: ackOperator, followerDisabled },
                     $index,
-                    row
+                    row,
                   }: {
                     row: IEventItem;
                     $index: number;
@@ -1147,7 +1146,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         class='status-label'
                         style={{
                           color: this.eventStatusMap?.[status]?.color,
-                          backgroundColor: this.eventStatusMap?.[status]?.bgColor
+                          backgroundColor: this.eventStatusMap?.[status]?.bgColor,
                         }}
                       >
                         {this.eventStatusMap?.[status]?.name || '--'}
@@ -1157,7 +1156,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         v-en-class='en-lang'
                         style={{
                           display:
-                            this.hoverRowIndex === $index || this.popoperOperateIndex === $index ? 'flex' : 'none'
+                            this.hoverRowIndex === $index || this.popoperOperateIndex === $index ? 'flex' : 'none',
                         }}
                       >
                         {this.enableCreateChatGroup ? (
@@ -1172,7 +1171,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         <span
                           class={[
                             'operate-panel-item icon-monitor icon-duihao',
-                            { 'is-disable': isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled }
+                            { 'is-disable': isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled },
                           ]}
                           on-click={() =>
                             !isAck &&
@@ -1187,22 +1186,21 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                                 : this.$t('告警确认'),
                             delay: 200,
                             appendTo: 'parent',
-                            allowHTML: false
+                            allowHTML: false,
                           }}
                         />
                         <span
                           class={[
                             'operate-panel-item icon-monitor icon-chuli',
                             {
-                              'is-disable': followerDisabled
-                            }
+                              'is-disable': followerDisabled,
+                            },
                           ]}
-                          // eslint-disable-next-line @typescript-eslint/no-misused-promises
                           onClick={() => !followerDisabled && this.handleManualProcess(row)}
                           v-bk-tooltips={{
                             content: followerDisabled ? this.$t('关注人禁用此操作') : this.$t('手动处理'),
                             delay: 200,
-                            appendTo: 'parent'
+                            appendTo: 'parent',
                           }}
                         />
                         {/* <span class="operate-panel-item icon-monitor icon-mc-alarm-abnormal"/> */}
@@ -1219,7 +1217,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         </span>
                       </div>
                     </div>
-                  )
+                  ),
                 }}
               />
             );
@@ -1241,7 +1239,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                     >
                       {info?.type ? this.getExtendInfoColumn(info, bizId.toString()) : '--'}
                     </div>
-                  )
+                  ),
                 }}
               />
             );
@@ -1264,7 +1262,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                       </bk-button>
                     ) : (
                       '--'
-                    )
+                    ),
                 }}
               />
             );
@@ -1293,10 +1291,10 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         </div>,
                         <div class='description-desc'>
                           {this.$t('告警内容')}：{description || '--'}
-                        </div>
+                        </div>,
                       ]}
                     </div>
-                  )
+                  ),
                 }}
               />
             );
@@ -1318,7 +1316,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                     >
                       {row.id}
                     </span>
-                  )
+                  ),
                 }}
               />
             );
@@ -1343,7 +1341,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                       </bk-button>
                     ) : (
                       '0'
-                    )
+                    ),
                 }}
               />
             );
@@ -1358,7 +1356,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 scopedSlots={{
                   default: ({ row: { content } }: { row: IEventItem }) => (
                     <div class='col-content'>{content?.() || '--'}</div>
-                  )
+                  ),
                 }}
               />
             );
@@ -1373,7 +1371,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             {...{ props: column.props }}
           />
         );
-      })
+      }),
     );
   }
   render() {
@@ -1477,7 +1475,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               delay: 200,
               placements: ['left'],
               appendTo: () => document.body,
-              allowHTML: false
+              allowHTML: false,
             }}
             on-click={() =>
               !this.opetateRow?.is_shielded &&
@@ -1495,7 +1493,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               content: this.opetateRow?.followerDisabled ? this.$t('关注人禁用此操作') : '',
               delay: 200,
               placements: ['left'],
-              appendTo: () => document.body
+              appendTo: () => document.body,
             }}
             on-click={() => this.handleAlarmDispatch(this.opetateRow)}
           >
@@ -1513,7 +1511,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     const id = `${strategyId}`;
     const { href } = this.$router.resolve({
       name: 'strategy-config-detail',
-      params: { id }
+      params: { id },
     });
 
     window.open(`${location.origin}${location.pathname}?bizId=${bizId}/${href}`, '_blank');

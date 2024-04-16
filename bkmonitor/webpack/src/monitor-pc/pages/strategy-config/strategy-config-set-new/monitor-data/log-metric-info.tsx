@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './log-metric-info.scss';
 
 @Component
-export default class MyComponent extends tsc<{}> {
+export default class MyComponent extends tsc<object> {
   @Prop() a: number;
   @Ref('helpContent') helpContentRef: HTMLDivElement;
   helpPopoverInstance: any = null;
@@ -46,7 +46,7 @@ export default class MyComponent extends tsc<{}> {
         theme: 'light',
         arrow: true,
         interactive: true,
-        hideOnClick: true
+        hideOnClick: true,
       });
     }
     if (!this.helpPopoverInstance?.state?.isShown) {

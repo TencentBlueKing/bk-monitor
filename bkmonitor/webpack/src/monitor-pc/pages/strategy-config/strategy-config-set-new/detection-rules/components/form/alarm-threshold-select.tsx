@@ -73,9 +73,9 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
   @Prop({
     default: () => [
       { id: 'or', name: 'OR' },
-      { id: 'and', name: 'AND' }
+      { id: 'and', name: 'AND' },
     ],
-    type: Array
+    type: Array,
   })
   readonly conditionList: IItem[];
   @Prop({ type: String, default: window.i18n.tc('（当前值）') }) label: string;
@@ -108,7 +108,7 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
         this.localValue.push({
           method: child.method,
           value: child.threshold,
-          condition: isAnd ? 'and' : 'or'
+          condition: isAnd ? 'and' : 'or',
         });
       });
     });
@@ -123,14 +123,14 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
         value.push([
           {
             method: item.method,
-            threshold: item.value
-          }
+            threshold: item.value,
+          },
         ]);
       } else {
         const lastChild = value[value.length - 1];
         lastChild?.push({
           method: item.method,
-          threshold: item.value
+          threshold: item.value,
         });
       }
     });
@@ -167,7 +167,7 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
     this.localValue.push({
       method: 'gte',
       value: 0,
-      condition: 'and'
+      condition: 'and',
     });
     this.emitLocalChange();
   }
@@ -179,7 +179,7 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
     this.curType = isCondition ? 'condition' : 'method';
     this.needDelete = isCondition;
     this.menuList = isCondition ? this.conditionList : this.methodList;
-    // eslint-disable-next-line prefer-destructuring
+
     this.curSelectTarget = this.$refs[ref];
     this.curIndex = index;
     this.curValueIndex = valueIndex;
@@ -271,8 +271,8 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
                     'num-input',
                     {
                       'has-unit': this.unit,
-                      'has-unit-larger': this.unit.length > 2
-                    }
+                      'has-unit-larger': this.unit.length > 2,
+                    },
                   ]}
                   behavior='simplicity'
                   readonly={this.readonly}
@@ -305,8 +305,8 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
             on: {
               'on-delete': this.handleMenuDelete,
               'on-select': this.handelMenuSelect,
-              'on-hidden': this.handleMenuHidden
-            }
+              'on-hidden': this.handleMenuHidden,
+            },
           }}
         ></SelectMenu>
       </div>

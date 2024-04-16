@@ -30,12 +30,12 @@ export enum ViewModeType {
   Table = 'table',
   Combine = 'combine',
   Flame = 'flame',
-  Topo = 'topo'
+  Topo = 'topo',
 }
 
 export enum TextDirectionType {
   Ltr = 'ltr',
-  Rtl = 'rtl'
+  Rtl = 'rtl',
 }
 
 export interface ViewModeItem {

@@ -68,7 +68,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
   emitSelectFav(data: IFavList.favList) {
     return {
       config: data.config,
-      name: data.name
+      name: data.name,
     };
   }
 

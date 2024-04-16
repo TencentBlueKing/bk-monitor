@@ -49,8 +49,8 @@ export interface ICollapseEvents {
  */
 @Component({
   directives: {
-    resize
-  }
+    resize,
+  },
 })
 export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
   /** 展开状态 */
@@ -134,7 +134,7 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
   updateHeight(val: boolean) {
     this.loacalMaxHeight = this.maxHeight;
     const contentHeight = this.collapseContentRef?.scrollHeight;
-    // eslint-disable-next-line no-nested-ternary
+
     this.height = val ? contentHeight : contentHeight < this.defaultHeight ? contentHeight : this.defaultHeight;
     !!this.loacalMaxHeight && val && this.height > this.loacalMaxHeight && (this.height = this.loacalMaxHeight);
   }

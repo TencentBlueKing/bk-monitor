@@ -43,7 +43,7 @@ const DEFAULT_MIN_VALUE = 240;
 
 const TProps = {
   updateViewRangeTime: Function as PropType<TUpdateViewRangeTimeFunction>,
-  updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>
+  updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>,
 };
 
 const NUM_TICKS = 5;
@@ -62,7 +62,7 @@ export default defineComponent({
 
     const state = reactive<IState>({
       height: 0,
-      resizeObserver: null
+      resizeObserver: null,
     });
 
     const trace = computed<ITraceTree>(() => store.traceTree);
@@ -70,7 +70,7 @@ export default defineComponent({
 
     useChildrenHiddenProvide({
       childrenHiddenIds,
-      onChange: (spanId: string) => childrenToggle(spanId)
+      onChange: (spanId: string) => childrenToggle(spanId),
     });
 
     const isFullscreen = inject('isFullscreen', false);
@@ -193,7 +193,7 @@ export default defineComponent({
       expandAll,
       setSpanNameColumnWidth,
       trace,
-      childrenHiddenIds
+      childrenHiddenIds,
     };
   },
 
@@ -223,5 +223,5 @@ export default defineComponent({
         />
       </div>
     );
-  }
+  },
 });

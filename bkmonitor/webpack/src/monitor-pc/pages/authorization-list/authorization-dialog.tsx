@@ -61,13 +61,13 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     action_id: '',
     authorized_users: [],
     resources: [],
-    expire_time: ''
+    expire_time: '',
   };
 
   rules = {
     authorized_users: [{ required: true, message: this.$t('必填项'), trigger: 'blur' }],
     action_id: [{ required: true, message: this.$t('必填项'), trigger: 'blur' }],
-    expire_time: [{ required: true, message: this.$t('必填项'), trigger: 'change' }]
+    expire_time: [{ required: true, message: this.$t('必填项'), trigger: 'change' }],
   };
 
   @Watch('value')
@@ -81,7 +81,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           action_id: '',
           authorized_users: [],
           resources: [],
-          expire_time: ''
+          expire_time: '',
         };
       }
     }
@@ -125,11 +125,11 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             authorized_users: authorized_users.map(item => item.replace(/\s/g, '')),
             authorizer: this.authorizer,
             operate_type: this.rowData ? 'update' : 'create',
-            view_type: this.viewType === 'approval' ? 'user' : this.viewType
+            view_type: this.viewType === 'approval' ? 'user' : this.viewType,
           });
           this.$bkMessage({
             message: res.need_approval ? this.$t('已提交审批') : this.$t('操作成功'),
-            theme: 'primary'
+            theme: 'primary',
           });
           this.handleCancel(false);
           this.$emit('success', res.need_approval);
@@ -157,8 +157,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           {...{
             props: {
               model: this.formData,
-              rules: this.rules
-            }
+              rules: this.rules,
+            },
           }}
         >
           <bk-form-item

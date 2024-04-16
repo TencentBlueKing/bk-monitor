@@ -49,7 +49,7 @@ interface IGroupList {
 }
 
 @Component({
-  name: 'AlarmGroupList'
+  name: 'AlarmGroupList',
 })
 export default class AlarmGroup extends tsc<IGroupList> {
   @Inject('authority') authority;
@@ -67,7 +67,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   tableSize = 'small';
   detail = {
     show: false,
-    id: null
+    id: null,
   };
   emptyType: EmptyStatusType = 'empty';
   // 表格列数据
@@ -81,7 +81,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 100,
       width: null,
       props: { 'show-overflow-tooltip': true },
-      formatter: () => {}
+      formatter: () => {},
     },
     {
       label: i18n.t('分派规则数'),
@@ -90,7 +90,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 120,
       props: {},
-      formatter: () => {}
+      formatter: () => {},
     },
     {
       label: i18n.t('应用策略数'),
@@ -99,7 +99,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 120,
       props: {},
-      formatter: () => {}
+      formatter: () => {},
     },
     {
       label: i18n.t('轮值规则'),
@@ -109,7 +109,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 200,
       width: null,
       props: {},
-      formatter: row => this.dutyRulesRender(row.dutyRuleNames)
+      formatter: row => this.dutyRulesRender(row.dutyRuleNames),
     },
     {
       label: i18n.t('说明'),
@@ -119,7 +119,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 180,
       width: null,
       props: { 'show-overflow-tooltip': true },
-      formatter: row => row.desc || '--'
+      formatter: row => row.desc || '--',
     },
     {
       label: i18n.t('最近更新人'),
@@ -128,7 +128,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 120,
       props: {},
-      formatter: row => row.update_user || '--'
+      formatter: row => row.update_user || '--',
     },
     {
       label: i18n.t('最近更新时间'),
@@ -137,7 +137,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--')
+      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
     },
     {
       label: i18n.t('配置来源'),
@@ -147,7 +147,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 70,
       width: 170,
       props: {},
-      formatter: row => row.config_source || '--'
+      formatter: row => row.config_source || '--',
     },
     {
       label: i18n.t('配置分组'),
@@ -157,7 +157,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 70,
       width: 170,
       props: {},
-      formatter: row => row.app || '--'
+      formatter: row => row.app || '--',
     },
     {
       label: i18n.t('操作'),
@@ -167,10 +167,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: null,
       width: 130,
       props: {
-        fixed: 'right'
+        fixed: 'right',
       },
-      formatter: () => {}
-    }
+      formatter: () => {},
+    },
   ];
 
   settingFields = [];
@@ -215,23 +215,23 @@ export default class AlarmGroup extends tsc<IGroupList> {
       rules_count: this.cellRulesCount,
       strategy_count: this.cellStrategyCount,
       handle: this.cellHandle,
-      update: this.cellUpdate
+      update: this.cellUpdate,
     };
     this.tableColumnsList.forEach(column => {
       const { prop } = column;
-      // eslint-disable-next-line no-param-reassign
+
       fnMap[prop] && (column.formatter = fnMap[prop]);
     });
     this.settingFields = this.tableColumnsList.map(item => ({
       label: item.label,
       id: item.prop,
-      disabled: item.disabled
+      disabled: item.disabled,
     }));
     this.selectedFields = this.tableColumnsList
       .filter(item => item.checked)
       .map(item => ({
         label: item.label,
-        id: item.prop
+        id: item.prop,
       }));
   }
   cellName(row) {
@@ -308,7 +308,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
         }
       >
         {this.$t('删除')}
-      </bk-button>
+      </bk-button>,
     ];
   }
 
@@ -329,8 +329,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
         name: 'alarm-group-edit',
         params: {
           id: row.id,
-          title: `${this.$t('编辑')} - #${row.id} ${row.name}`
-        }
+          title: `${this.$t('编辑')} - #${row.id} ${row.name}`,
+        },
       });
     } else {
       this.$router.push({ name: 'alarm-group-add' });
@@ -358,7 +358,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   async getNoticeGroupList() {
     this.loading = true;
     const query = {
-      type: this.type
+      type: this.type,
     };
     const ruleMap = new Map();
     const ruleList = await listDutyRule().catch(() => []);
@@ -376,9 +376,9 @@ export default class AlarmGroup extends tsc<IGroupList> {
           const name = ruleMap.get(d) || '';
           return {
             id: d,
-            name
+            name,
           };
-        }) || []
+        }) || [],
     }));
     if (!this.tableInstance) {
       this.tableInstance = new TableStore(data);
@@ -393,12 +393,12 @@ export default class AlarmGroup extends tsc<IGroupList> {
         {
           id: 'rule',
           name: window.i18n.t('轮值规则'),
-          values: [{ id: dutyId, name: dutyId }]
-        }
+          values: [{ id: dutyId, name: dutyId }],
+        },
       ];
       this.handleSearchCondition(searchCondition);
       this.$router.replace({
-        query: undefined
+        query: undefined,
       });
     }
     this.tableData = this.tableInstance.getTableData();
@@ -429,7 +429,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
             this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
           })
           .finally(() => (this.loading = false));
-      }
+      },
     });
   }
 
@@ -468,7 +468,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     if (!rulesCount) return;
     this.$router.push({
       name: 'alarm-dispatch',
-      query: { groupName: name }
+      query: { groupName: name },
     });
   }
 
@@ -477,7 +477,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     if (!strategyCount) return;
     this.$router.push({
       name: 'strategy-config',
-      params: { noticeName: name }
+      params: { noticeName: name },
     });
   }
 
@@ -524,7 +524,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
             boundary: 'window',
             content: rules.map(item => item.name).join('、'),
             delay: 200,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {rules.map(item => (
@@ -570,16 +570,16 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 data={[
                   {
                     name: 'ID',
-                    id: 'id'
+                    id: 'id',
                   },
                   {
                     name: this.$t('告警组名称'),
-                    id: 'name'
+                    id: 'name',
                   },
                   {
                     name: this.$t('轮值规则'),
-                    id: 'rule'
-                  }
+                    id: 'rule',
+                  },
                 ]}
                 strink={false}
                 show-condition={false}

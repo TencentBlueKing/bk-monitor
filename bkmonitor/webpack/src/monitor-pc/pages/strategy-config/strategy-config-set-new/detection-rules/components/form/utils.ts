@@ -57,7 +57,7 @@ type IBehavior = 'normal' | 'simplicity';
 export enum EFormItemValueType {
   string = 'string',
   number = 'number',
-  array = 'array'
+  array = 'array',
 }
 
 type TValueType = EFormItemValueType.number | EFormItemValueType.string | EFormItemValueType.array;
@@ -179,8 +179,8 @@ export class FormItem {
           multiple,
           separator,
           is_advanced,
-          is_required
-        }
+          is_required,
+        },
       } = item;
       const res: IFormDataItem = {
         label: variable_alias,
@@ -191,7 +191,7 @@ export class FormItem {
         options:
           allowed_values_map?.map?.(item => ({
             id: item.allowed_value,
-            name: item.allowed_alias
+            name: item.allowed_alias,
           })) || [],
         min,
         max,
@@ -202,7 +202,7 @@ export class FormItem {
         description,
         separator: separator ?? '',
         isAdvanced: is_advanced ?? false,
-        required: is_required ?? false
+        required: is_required ?? false,
       };
       return new FormItem(res);
     });
@@ -238,16 +238,16 @@ export const handleCreateModelOptionsDetail = (item: any, interval: number) => (
   description: {
     dataLength: {
       value: item.ts_depend,
-      isMatch: true
+      isMatch: true,
     },
     frequency: {
       value: item.ts_freq,
-      isMatch: item.ts_freq === 0 ? true : interval === item.ts_freq.value
+      isMatch: item.ts_freq === 0 ? true : interval === item.ts_freq.value,
     },
     message: {
       value: item.description,
-      isMatch: true
-    }
+      isMatch: true,
+    },
   },
-  instruction: item.instruction || ''
+  instruction: item.instruction || '',
 });

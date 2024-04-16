@@ -55,7 +55,7 @@ export default class ListMenu extends tsc<IListMenuProps, IListMenuEvent> {
     if (!this.keyword?.trim?.().length) return this.list;
     const keyword = this.keyword.toLowerCase();
     return this.list.filter(
-      item => item.id.toString().toLowerCase().includes(keyword) || item.name.toLowerCase().includes(keyword)
+      item => item.id.toString().toLowerCase().includes(keyword) || item.name.toLowerCase().includes(keyword),
     );
   }
   beforeDestroy() {
@@ -93,7 +93,7 @@ export default class ListMenu extends tsc<IListMenuProps, IListMenuEvent> {
       onShow: () => {
         this.$emit('show');
         return true;
-      }
+      },
     });
     this.poppoverInstance?.show(100);
   }

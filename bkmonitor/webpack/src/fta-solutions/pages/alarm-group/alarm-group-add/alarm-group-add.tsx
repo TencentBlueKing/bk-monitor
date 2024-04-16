@@ -39,7 +39,7 @@ export default class AlarmGroupAddFta extends tsc<IAlarmGroupAdd> {
   @Prop({ default: null, type: [Number, String] }) id: number | string;
 
   fromRoute = '';
-  beforeRouteEnter(to: Route, from: Route, next: Function) {
+  beforeRouteEnter(to: Route, from: Route, next: (a: (vm: AlarmGroupAddFta) => void) => void) {
     next((vm: AlarmGroupAddFta) => {
       vm.fromRoute = from.name;
     });

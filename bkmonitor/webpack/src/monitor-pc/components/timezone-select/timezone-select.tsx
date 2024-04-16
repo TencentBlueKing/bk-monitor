@@ -44,7 +44,7 @@ export default class TimezoneSelect extends tsc<IProps> {
   curInfo = {
     name: '',
     z: '',
-    Z: ''
+    Z: '',
   };
 
   toggle = false;

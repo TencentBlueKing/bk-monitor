@@ -87,5 +87,5 @@ export default {
   轮值: 'Rotation',
   内部通知对象: 'notify object',
   群机器人: 'Group robots',
-  蓝鲸信息流: 'Bkchat'
+  蓝鲸信息流: 'Bkchat',
 };

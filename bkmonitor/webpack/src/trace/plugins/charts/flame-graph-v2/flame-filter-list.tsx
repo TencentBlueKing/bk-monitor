@@ -70,28 +70,28 @@ export interface IFilterColumnItem<D> {
 const FilterValueColumn = [
   {
     id: 'avg_duration',
-    name: window.i18n.t('平均耗时')
+    name: window.i18n.t('平均耗时'),
   },
   {
     id: 'P95',
-    name: 'P95'
+    name: 'P95',
   },
   {
     id: 'count',
-    name: window.i18n.t('调用次数')
+    name: window.i18n.t('调用次数'),
   },
   {
     id: 'max_duration',
-    name: window.i18n.t('最大耗时')
+    name: window.i18n.t('最大耗时'),
   },
   {
     id: 'min_duration',
-    name: window.i18n.t('最小耗时')
+    name: window.i18n.t('最小耗时'),
   },
   {
     id: 'sum_duration',
-    name: window.i18n.t('总耗时')
-  }
+    name: window.i18n.t('总耗时'),
+  },
 ];
 export default defineComponent({
   name: 'FlameFilterList',
@@ -101,15 +101,15 @@ export default defineComponent({
      */
     data: {
       type: Array as () => IFilterData[],
-      required: true
+      required: true,
     },
     /**
      * 最大高度
      */
     maxHeight: {
       type: Number,
-      default: 300
-    }
+      default: 300,
+    },
   },
   setup(props) {
     const columnKey = ref<FilterKey>('name'); // 默认选中第一列
@@ -128,7 +128,7 @@ export default defineComponent({
           ...item,
           ...item.values,
           value: value ?? '--',
-          raw: item.values[columnValueKey.value]
+          raw: item.values[columnValueKey.value],
         };
       });
     });
@@ -148,7 +148,7 @@ export default defineComponent({
       columnValueKey,
       tableData,
       handleSelectLabelChange,
-      handleColumnValueChange
+      handleColumnValueChange,
     };
   },
   render() {
@@ -175,7 +175,7 @@ export default defineComponent({
           </div>
         ),
         field: 'display_name',
-        sort: false
+        sort: false,
       },
       {
         label: () => (
@@ -203,10 +203,10 @@ export default defineComponent({
           value: 'asc',
           sortFn: (a, b) => {
             return a.raw - b.raw;
-          }
+          },
         },
-        align: 'right'
-      }
+        align: 'right',
+      },
     ];
     return (
       <div>
@@ -220,5 +220,5 @@ export default defineComponent({
         />
       </div>
     );
-  }
+  },
 });

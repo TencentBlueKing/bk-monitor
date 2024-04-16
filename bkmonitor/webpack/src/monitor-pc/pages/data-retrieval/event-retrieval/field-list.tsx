@@ -53,7 +53,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
     return {
       index,
       checked: !item.checked,
-      field: item.field
+      field: item.field,
     };
   }
 
@@ -66,13 +66,13 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
   handleAddConditon(
     method: FieldListType.AddConditionType,
     item: FieldValue,
-    val: FieldFilteringType.IFieldValue
+    val: FieldFilteringType.IFieldValue,
   ): IFilterCondition.localValue {
     return {
       key: item.field,
       method,
       value: [val.id],
-      condition: 'and'
+      condition: 'and',
     };
   }
 
@@ -82,7 +82,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
   handleAlias(key: string) {
     const aliasMap = {
       event_name: this.$t('事件名'),
-      target: this.$t('目标')
+      target: this.$t('目标'),
     };
     return aliasMap[key] ?? key;
   }
@@ -173,7 +173,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
             disabled={!item.dimensions?.length}
             scopedSlots={{
               default: () => titleSlot(item, index),
-              content: () => contentSlot(item)
+              content: () => contentSlot(item),
             }}
           ></bk-collapse-item>
         ))}

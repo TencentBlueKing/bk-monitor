@@ -34,8 +34,8 @@ export default defineComponent({
   props: {
     modelValue: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
@@ -43,7 +43,7 @@ export default defineComponent({
     return {
       t,
       props,
-      emit
+      emit,
     };
   },
   render() {
@@ -71,9 +71,9 @@ export default defineComponent({
                 <span style='margin-left: 10px;font-weight: bold;'>{this.t('发送测试邮件成功')}</span>
               </div>
             );
-          }
+          },
         }}
       ></Dialog>
     );
-  }
+  },
 });

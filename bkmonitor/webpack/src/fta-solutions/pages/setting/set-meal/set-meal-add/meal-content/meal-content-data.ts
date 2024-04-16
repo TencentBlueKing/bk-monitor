@@ -30,7 +30,7 @@ import { INoticeWayValue, robot } from '../components/notice-mode';
 
 export const mealType = {
   notice: 'notice',
-  callback: 'webhook'
+  callback: 'webhook',
 };
 
 export interface INoticeAlert {
@@ -130,41 +130,41 @@ export const templateSignalName = {
   abnormal: window.i18n.tc('告警触发时'),
   recovered: window.i18n.tc('告警恢复时'),
   closed: window.i18n.tc('告警关闭时'),
-  ack: window.i18n.tc('告警确认时')
+  ack: window.i18n.tc('告警确认时'),
 };
 
 export const executionName = {
   1: window.i18n.tc('高危'),
   2: window.i18n.tc('谨慎'),
-  3: window.i18n.tc('普通')
+  3: window.i18n.tc('普通'),
 };
 export const intervalModeName = {
   standard: window.i18n.tc('固定'),
-  increasing: window.i18n.tc('递增')
+  increasing: window.i18n.tc('递增'),
 };
 
 // 敏感度
 export const sensitivityName = {
   1: `${window.i18n.t('高危')}（${window.i18n.t('执行后不可逆')}）`,
   2: `${window.i18n.t('谨慎')}（${window.i18n.t('不能反复执行')}）`,
-  3: `${window.i18n.t('普通')}（${window.i18n.t('有告警就执行')}）`
+  3: `${window.i18n.t('普通')}（${window.i18n.t('有告警就执行')}）`,
 };
 export const sensitivityList = [
   { id: 1, name: `${window.i18n.t('高危')}：${window.i18n.t('执行后不可逆')}` },
   { id: 2, name: `${window.i18n.t('谨慎')}：${window.i18n.t('不能反复执行')}` },
-  { id: 3, name: `${window.i18n.t('普通')}：${window.i18n.t('有告警就执行')}` }
+  { id: 3, name: `${window.i18n.t('普通')}：${window.i18n.t('有告警就执行')}` },
 ];
 export const intervalModeTips = {
   standard: window.i18n.t('固定N分钟间隔进行通知'),
-  increasing: window.i18n.t('按通知次数的指数递增，依次按N，2N，4N，8N,...依次类推执行，最大24小时')
+  increasing: window.i18n.t('按通知次数的指数递增，依次按N，2N，4N，8N,...依次类推执行，最大24小时'),
 };
 
 export const executionTips = {
   1: window.i18n.t('高危代表执行此类操作影响比较大，在执行处理套餐时需要进行及时的通知。'),
   2: window.i18n.t('谨慎代表执行此类操作影响比高危小，但是也不可多次反复的执行，一般在失败时需要提示。'),
   3: window.i18n.t(
-    '大部分的处理套餐建议是可以做成可以反复执行并且风险可控的，常见的回调、发工单等甚至都不需要有额外的通知。'
-  )
+    '大部分的处理套餐建议是可以做成可以反复执行并且风险可控的，常见的回调、发工单等甚至都不需要有额外的通知。',
+  ),
 };
 
 export const DEFAULT_MESSAGE_TMPL = `{{content.level}}
@@ -199,10 +199,10 @@ export const mealDataInit = (): IMealData => ({
         notifyConfig: [
           { level: 1, type: [] },
           { level: 2, type: [] },
-          { level: 3, type: [] }
+          { level: 3, type: [] },
         ],
-        key: random(10)
-      }
+        key: random(10),
+      },
     ],
     execution: [
       {
@@ -210,43 +210,43 @@ export const mealDataInit = (): IMealData => ({
         notifyConfig: [
           { phase: 3, type: [] },
           { phase: 2, type: [] },
-          { phase: 1, type: [] }
-        ]
+          { phase: 1, type: [] },
+        ],
       },
       {
         riskLevel: 2,
         notifyConfig: [
           { phase: 3, type: [] },
           { phase: 2, type: [] },
-          { phase: 1, type: [] }
-        ]
+          { phase: 1, type: [] },
+        ],
       },
       {
         riskLevel: 3,
         notifyConfig: [
           { phase: 3, type: [] },
           { phase: 2, type: [] },
-          { phase: 1, type: [] }
-        ]
-      }
+          { phase: 1, type: [] },
+        ],
+      },
     ],
     template: [
       {
         signal: 'abnormal',
         messageTmpl: DEFAULT_MESSAGE_TMPL,
-        titleTmpl: DEFAULT_TITLE_TMPL
+        titleTmpl: DEFAULT_TITLE_TMPL,
       },
       {
         signal: 'recovered',
         messageTmpl: DEFAULT_MESSAGE_TMPL,
-        titleTmpl: DEFAULT_TITLE_TMPL
+        titleTmpl: DEFAULT_TITLE_TMPL,
       },
       {
         signal: 'closed',
         messageTmpl: DEFAULT_MESSAGE_TMPL,
-        titleTmpl: DEFAULT_TITLE_TMPL
-      }
-    ]
+        titleTmpl: DEFAULT_TITLE_TMPL,
+      },
+    ],
   },
   webhook: {
     // http回调
@@ -255,35 +255,35 @@ export const mealDataInit = (): IMealData => ({
       queryParams: [],
       authorize: {
         authConfig: {},
-        authType: 'none'
+        authType: 'none',
       },
       body: {
         dataType: 'default',
         contentType: 'default',
         content: '',
-        params: []
+        params: [],
       },
       failedRetry: {
         maxRetryTimes: 2,
         needPoll: false,
         notifyInterval: 120,
         retryInterval: 2,
-        timeout: 10
+        timeout: 10,
       },
       url: '',
-      method: 'GET'
+      method: 'GET',
     },
     riskLevel: 2,
-    timeout: 10
+    timeout: 10,
   },
   peripheral: {
     data: {
       formTemplateId: '',
-      templateDetail: {}
+      templateDetail: {},
     },
     riskLevel: 2,
-    timeout: 10
-  }
+    timeout: 10,
+  },
 });
 
 // 将phase转成level
@@ -292,25 +292,25 @@ export const executionNotifyConfigChange = (notifyConfig: INoticeWayValue[], isE
     if (notifyConfig) {
       return notifyConfig.map(item => ({
         ...item,
-        level: item.phase
+        level: item.phase,
       }));
     }
     return [
       { level: 1, notice_ways: [] },
       { level: 2, notice_ways: [] },
-      { level: 3, notice_ways: [] }
+      { level: 3, notice_ways: [] },
     ];
   }
   if (notifyConfig) {
     return notifyConfig.map(item => ({
       ...item,
-      phase: item.level
+      phase: item.level,
     }));
   }
   return [
     { phase: 1, notice_ways: [] },
     { phase: 2, notice_ways: [] },
-    { phase: 3, notice_ways: [] }
+    { phase: 3, notice_ways: [] },
   ];
 };
 // 转换成后端参数
@@ -325,18 +325,18 @@ export const transformMealContentParams = (data: IMealData) => {
             timeRange: (alert.timeRange as string[]).join('--'),
             notifyInterval: alert.notifyInterval * 60,
             intervalNotifyMode: alert.intervalNotifyMode,
-            notifyConfig: alert.notifyConfig
+            notifyConfig: alert.notifyConfig,
           })),
         execution: noticeData.execution.map(execution => ({
           riskLevel: execution.riskLevel,
-          notify_config: execution.notifyConfig
+          notify_config: execution.notifyConfig,
         })),
         template: noticeData.template.map(template => ({
           signal: template.signal,
           messageTmpl: template.messageTmpl,
-          titleTmpl: template.titleTmpl
-        }))
-      }
+          titleTmpl: template.titleTmpl,
+        })),
+      },
     };
   }
   if (data.pluginType === mealType.callback) {
@@ -355,10 +355,10 @@ export const transformMealContentParams = (data: IMealData) => {
           isEnabled: true,
           maxRetryTimes: webhookData.res.failedRetry.maxRetryTimes,
           retryInterval: webhookData.res.failedRetry.retryInterval,
-          timeout: webhookData.res.failedRetry.timeout
-        }
+          timeout: webhookData.res.failedRetry.timeout,
+        },
       },
-      timeout: webhookData.timeout * 60
+      timeout: webhookData.timeout * 60,
     };
   }
   if (data.pluginType !== '') {
@@ -366,7 +366,7 @@ export const transformMealContentParams = (data: IMealData) => {
     return {
       templateDetail: peripheralData.data.templateDetail,
       templateId: peripheralData.data.formTemplateId,
-      timeout: peripheralData.timeout * 60
+      timeout: peripheralData.timeout * 60,
     };
   }
   return null;
@@ -386,13 +386,13 @@ export const mealContentDataBackfill = (data: any): IMealData => {
         notifyInterval: item.notifyInterval / 60,
         intervalNotifyMode: item.intervalNotifyMode,
         notifyConfig: notifyConfigFill(item.notifyConfig),
-        key: index === 0 ? mealData.notice.alert[0].key : random(10)
+        key: index === 0 ? mealData.notice.alert[0].key : random(10),
       })),
       execution: executeConfig.templateDetail.execution.map(item => ({
         ...item,
-        notifyConfig: notifyConfigFill(item.notifyConfig, false)
+        notifyConfig: notifyConfigFill(item.notifyConfig, false),
       })),
-      template: executeConfig.templateDetail.template
+      template: executeConfig.templateDetail.template,
     };
     return mealData;
   }
@@ -409,13 +409,13 @@ export const mealContentDataBackfill = (data: any): IMealData => {
           needPoll: !!templateDetail.needPoll,
           notifyInterval: (templateDetail.notifyInterval || 0) / 60,
           retryInterval: templateDetail.failedRetry?.retryInterval || 0,
-          timeout: templateDetail.failedRetry?.timeout || 0
+          timeout: templateDetail.failedRetry?.timeout || 0,
         },
         url: templateDetail.url,
-        method: templateDetail.method
+        method: templateDetail.method,
       },
       // riskLevel: data.riskLevel,
-      timeout: executeConfig.timeout / 60
+      timeout: executeConfig.timeout / 60,
     };
     return mealData;
   }
@@ -423,10 +423,10 @@ export const mealContentDataBackfill = (data: any): IMealData => {
     mealData.peripheral = {
       data: {
         templateDetail: executeConfig.templateDetail,
-        formTemplateId: executeConfig?.templateId || ''
+        formTemplateId: executeConfig?.templateId || '',
       },
       // riskLevel: data.riskLevel,
-      timeout: executeConfig.timeout / 60
+      timeout: executeConfig.timeout / 60,
     };
     return mealData;
   }
@@ -440,8 +440,8 @@ export const getNotifyConfig = notify_config => {
         ...way,
         // 只有wxwork-bot和bkchat会有receivers
         // 其中wxwork-bot是input框，需要将数组receivers转换为逗号分隔的字符串
-        receivers: way.name === robot.wxworkBot ? way.receivers.join(',') : way.receivers
-      })) || []
+        receivers: way.name === robot.wxworkBot ? way.receivers.join(',') : way.receivers,
+      })) || [],
   }));
 };
 
@@ -451,7 +451,7 @@ export const notifyConfigFill = (notifyConfig: any[], isLevel = true) => {
     const defaultNotifyConfig = [
       { level: 1, type: [] },
       { level: 2, type: [] },
-      { level: 3, type: [] }
+      { level: 3, type: [] },
     ];
     if (!notifyConfig.length) {
       return defaultNotifyConfig;
@@ -472,7 +472,7 @@ export const notifyConfigFill = (notifyConfig: any[], isLevel = true) => {
   const defaultNotifyConfig = [
     { phase: 1, type: [] },
     { phase: 2, type: [] },
-    { phase: 3, type: [] }
+    { phase: 3, type: [] },
   ];
   if (!notifyConfig.length) {
     return defaultNotifyConfig;
@@ -498,12 +498,12 @@ export const otherParams = (data: IMealData) => {
   }
   if (data.pluginType === mealType.callback) {
     return {
-      riskLevel: data.webhook.riskLevel
+      riskLevel: data.webhook.riskLevel,
     };
   }
   if (data.pluginType !== '') {
     return {
-      riskLevel: data.peripheral.riskLevel
+      riskLevel: data.peripheral.riskLevel,
     };
   }
   return {};
@@ -650,6 +650,6 @@ export const defaultAddTimeRange = (allData: string[][], minIsMinute = false) =>
   }, []);
   return allInterval.map(item => [
     timeTransform(item[0], true, minIsMinute),
-    timeTransform(item[1], true, minIsMinute)
+    timeTransform(item[1], true, minIsMinute),
   ]);
 };

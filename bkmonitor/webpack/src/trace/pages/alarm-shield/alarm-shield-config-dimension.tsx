@@ -42,7 +42,7 @@ import './alarm-shield-config-dimension.scss';
 export const dimensionPropData = () => ({
   key: random(8),
   dimension_conditions: [],
-  strategy_id: ''
+  strategy_id: '',
 });
 
 export default defineComponent({
@@ -50,20 +50,20 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     value: {
       type: Object,
-      default: () => dimensionPropData()
+      default: () => dimensionPropData(),
     },
     isEdit: {
       type: Boolean,
-      default: false
+      default: false,
     },
     onChange: {
       type: Function,
-      default: _v => {}
-    }
+      default: _v => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -74,7 +74,7 @@ export default defineComponent({
       dimensionList: [], // 维度列表
       metricMeta: null, // 获取条件候选值得参数
       conditionList: [], // 维度条件数据
-      allNames: {} // 维度名合集
+      allNames: {}, // 维度名合集
     });
 
     const tagsDimension = ref([]);
@@ -84,7 +84,7 @@ export default defineComponent({
     const allStrategy = shallowReactive({
       list: [],
       current: 1,
-      isEnd: false
+      isEnd: false,
     });
     // const strategyLoading = ref(false);
     // const strategyScrollLoading = ref(false);
@@ -93,11 +93,11 @@ export default defineComponent({
     const strategyPagination = reactive({
       current: 1,
       limit: 10,
-      isEnd: false
+      isEnd: false,
     });
     /* 校验 */
     const errMsg = reactive({
-      dimensionCondition: ''
+      dimensionCondition: '',
     });
 
     // const debounceSearchStrategy = debounce(searchStrategy, 300, false);
@@ -113,8 +113,8 @@ export default defineComponent({
         }
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     watch(
@@ -126,13 +126,13 @@ export default defineComponent({
         localValue.value = deepClone(props.value) as any;
         dimensionCondition.conditionList = localValue.value.dimension_conditions.map(item => ({
           ...item,
-          dimensionName: item.name || item.key
+          dimensionName: item.name || item.key,
         }));
         dimensionCondition.conditionList.forEach(item => {
           dimensionCondition.allNames[item.key] = item.name || item.key;
         });
         dimensionCondition.conditionKey = random(8);
-      }
+      },
     );
 
     function handleChange() {
@@ -148,7 +148,7 @@ export default defineComponent({
           key: item.key,
           method: item.method,
           value: item.value,
-          name: item.dimensionName
+          name: item.dimensionName,
         }))
         .filter(item => !!item.key);
       handleChange();
@@ -161,14 +161,14 @@ export default defineComponent({
           ? [
               {
                 key: 'strategy_name',
-                value: [serach]
-              }
+                value: [serach],
+              },
             ]
           : [],
         order_by: '-update_time',
         page: strategyPagination.current,
         page_size: strategyPagination.limit,
-        type: 'monitor'
+        type: 'monitor',
       })
         .then(res => res.strategy_config_list)
         .catch(() => []);
@@ -274,7 +274,7 @@ export default defineComponent({
         query_string: '',
         status: [],
         start_time: startTime,
-        end_time: endTime
+        end_time: endTime,
       }).catch(() => []);
       const tagsDimensionTemp = tags.map(item => ({ ...item, type: 'tags' }));
       tagsDimension.value = tagsDimensionTemp;
@@ -321,8 +321,8 @@ export default defineComponent({
                             );
                           }
                           return '--';
-                        })()
-                    }
+                        })(),
+                    },
                   ]}
                 ></Table>
               </div>
@@ -376,10 +376,10 @@ export default defineComponent({
       renderFn,
       validate,
       localValue,
-      dimensionCondition
+      dimensionCondition,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

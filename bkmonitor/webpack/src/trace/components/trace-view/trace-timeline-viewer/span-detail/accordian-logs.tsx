@@ -51,7 +51,7 @@ export default function AccordianLogs(props: AccordianLogsProps) {
     logs,
     // openedItems,
     // onItemToggle,
-    onToggle
+    onToggle,
     // timestamp
   } = props;
   let arrow;
@@ -68,7 +68,7 @@ export default function AccordianLogs(props: AccordianLogsProps) {
     headerProps = {
       'aria-checked': isOpen,
       onClick: onToggle,
-      role: 'switch'
+      role: 'switch',
     };
   }
 
@@ -109,5 +109,5 @@ AccordianLogs.defaultProps = {
   linksGetter: undefined,
   onItemToggle: undefined,
   onToggle: undefined,
-  openedItems: undefined
+  openedItems: undefined,
 };

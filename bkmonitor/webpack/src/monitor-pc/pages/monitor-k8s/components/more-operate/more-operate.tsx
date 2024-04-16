@@ -65,7 +65,7 @@ export default class MoreOperate extends tsc<IProps, IEvents> {
         onHidden: () => {
           this.popoverInstance.destroy();
           this.popoverInstance = null;
-        }
+        },
       });
     }
     this.popoverInstance?.show(100);

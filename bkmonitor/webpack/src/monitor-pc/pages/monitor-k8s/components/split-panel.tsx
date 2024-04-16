@@ -72,8 +72,8 @@ type IDashbordMode = 'list' | 'chart';
 @Component({
   components: {
     Event: () => import('fta-solutions/pages/event/event'),
-    DashboardPanel: () => import('monitor-ui/chart-plugins/components/dashboard-panel')
-  }
+    DashboardPanel: () => import('monitor-ui/chart-plugins/components/dashboard-panel'),
+  },
 })
 export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> {
   // 分屏最大宽度
@@ -196,7 +196,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         // 获取自定义事件列表
         const { list = [] } = await queryCustomEventGroup({
           page: 1,
-          page_size: 1000
+          page_size: 1000,
         }).catch(() => ({ total: 0, list: [] }));
         this.relateMiddlewareList = list.map(item => ({ id: item.bk_event_group_id, name: item.name }));
         this.relateMiddlewareId = this.relateMiddlewareList[0]?.id;
@@ -223,7 +223,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
       name:
         docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en'
           ? item.id
-          : item.name + (item.type === 'overview' ? this.$t('概览') : this.$t('详情'))
+          : item.name + (item.type === 'overview' ? this.$t('概览') : this.$t('详情')),
     }));
     if (data.length) {
       const [{ id, type }] = this.relateTabList;
@@ -252,7 +252,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
       scene_id: this.sceneId,
       type,
       id,
-      is_split: true
+      is_split: true,
     }).catch(() => ({ id: '', panels: [], name: '' }));
     this.sceneData = new BookMarkModel(data || { id: '', panels: [], name: '' });
     this.localPanels = this.handleGetLocalPanels(this.sceneData.panels);
@@ -269,7 +269,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
   handleFilterVarDataReady(list: FilterDictType[]) {
     this.variables = {
       /** 过滤空字符串、空数组的变量值 */
-      ...list.reduce((pre, cur) => ({ ...pre, ...cur }), {})
+      ...list.reduce((pre, cur) => ({ ...pre, ...cur }), {}),
     };
     this.handleUpdateViewOptions();
     this.filtersReady = true;
@@ -288,11 +288,11 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
     this.viewOptions = {
       variables: {
         ...this.viewOptions.filters,
-        ...this.variables
+        ...this.variables,
       },
       interval: this.interval,
       method: this.method || DEFAULT_METHOD,
-      group_by: this.group_by ? [...this.group_by] : []
+      group_by: this.group_by ? [...this.group_by] : [],
     };
   }
   handleGetLocalPanels(panels: IPanelModel[]) {
@@ -314,7 +314,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
       kubernetes: `${url}#/k8s?dashboardId=${this.relateTab.replace(`_${this.sceneType}`, '')}`,
       alert_event: `${url}#/event-center`,
       action_event: `${url}#/event-center?searchType=action&activeFilterId=action`,
-      custom_event: `${url}#/custom-escalation-event-view/${this.relateMiddlewareId}`
+      custom_event: `${url}#/custom-escalation-event-view/${this.relateMiddlewareId}`,
     };
     window.open(urlMap[this.relatePage]);
   }

@@ -35,7 +35,7 @@ import './metric-view.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class MetricView extends tsc<{}> {
+export default class MetricView extends tsc<object> {
   @Prop({ type: [String, Number], default: '' }) id: string;
 
   viewOptions: IViewOptions = {};
@@ -52,8 +52,8 @@ export default class MetricView extends tsc<{}> {
     {
       id: '',
       name: 'loading...',
-      subName: ''
-    }
+      subName: '',
+    },
   ];
 
   // sceneId
@@ -63,8 +63,8 @@ export default class MetricView extends tsc<{}> {
     {
       id: 'source-manage',
       name: this.$t('数据源管理') as string,
-      show: true
-    }
+      show: true,
+    },
   ];
 
   handleMenuSelect({ id }) {
@@ -73,8 +73,8 @@ export default class MetricView extends tsc<{}> {
         name: 'custom-detail-timeseries',
         params: {
           id: this.$route.params.id || '',
-          type: 'customTimeSeries'
-        }
+          type: 'customTimeSeries',
+        },
       });
     }
   }
@@ -91,7 +91,7 @@ export default class MetricView extends tsc<{}> {
     next((vm: MetricView) => {
       // vm.routeList[1].name = to.query.name || '';
       vm.viewOptions = {
-        filters: {}
+        filters: {},
       };
       vm.sceneId = `custom_metric_${to.params.id}`;
       vm.routeList[0].name = `${vm.$route.query.name}`;

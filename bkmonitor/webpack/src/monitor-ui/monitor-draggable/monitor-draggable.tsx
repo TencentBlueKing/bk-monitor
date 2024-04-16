@@ -109,7 +109,7 @@ export default class MonitorDraggable extends tsc<{}, IDraggableEvent> {
   emitDrop(): IDraggableEvent['onDrop'] {
     return {
       fromIndex: this.fromIndex,
-      toIndex: this.toIndex
+      toIndex: this.toIndex,
     };
   }
 

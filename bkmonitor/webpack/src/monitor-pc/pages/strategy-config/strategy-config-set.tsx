@@ -76,7 +76,7 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
           needBack && this.$router.back();
           resolve(true);
         },
-        cancelFn: () => resolve(false)
+        cancelFn: () => resolve(false),
       });
     });
   }

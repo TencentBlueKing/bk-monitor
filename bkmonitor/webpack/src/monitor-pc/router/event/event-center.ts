@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 import * as eventCenterAuth from '../../pages/event-center/authority-map';
@@ -52,16 +52,16 @@ export default [
     path: '/event-center',
     name: 'event-center',
     components: {
-      noCache: EventCenter
+      noCache: EventCenter,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: Object.assign(
       {
         route: {
-          parent: 'event'
-        }
+          parent: 'event',
+        },
       },
       {
         title: '事件中心',
@@ -69,34 +69,34 @@ export default [
         navClass: 'event-center-nav',
         noNavBar: true,
         authority: {
-          map: eventCenterAuth
-        }
+          map: eventCenterAuth,
+        },
       },
       !isSpecEvent
         ? {
             authorityList: ['view_event_v2'],
             authority: {
               page: eventCenterAuth.VIEW_AUTH,
-              map: eventCenterAuth
-            }
+              map: eventCenterAuth,
+            },
           }
-        : {}
-    )
+        : {},
+    ),
   },
   {
     path: '/event-action',
     name: 'event-action',
     components: {
-      noCache: EventCenter
+      noCache: EventCenter,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: Object.assign(
       {
         route: {
-          parent: 'event'
-        }
+          parent: 'event',
+        },
       },
       {
         title: '事件中心',
@@ -104,19 +104,19 @@ export default [
         navClass: 'event-center-nav',
         noNavBar: true,
         authority: {
-          map: eventCenterAuth
-        }
+          map: eventCenterAuth,
+        },
       },
       !isSpecEvent
         ? {
             authorityList: ['view_event'],
             authority: {
               page: eventCenterAuth.VIEW_AUTH,
-              map: eventCenterAuth
-            }
+              map: eventCenterAuth,
+            },
           }
-        : {}
-    )
+        : {},
+    ),
   },
   {
     path: '/event-center/detail/:id',
@@ -129,8 +129,8 @@ export default [
     meta: Object.assign(
       {
         route: {
-          parent: 'event'
-        }
+          parent: 'event',
+        },
       },
       {
         title: '告警详情',
@@ -139,17 +139,17 @@ export default [
         noNavBar: true,
         navClass: 'event-center-nav',
         authority: {
-          map: eventCenterAuth
-        }
+          map: eventCenterAuth,
+        },
       },
       !isSpecEvent
         ? {
             authority: {
-              page: eventCenterAuth.VIEW_AUTH
-            }
+              page: eventCenterAuth.VIEW_AUTH,
+            },
           }
-        : {}
-    )
+        : {},
+    ),
   },
   {
     path: '/event-center/action-detail/:id',
@@ -162,8 +162,8 @@ export default [
     meta: Object.assign(
       {
         route: {
-          parent: 'event'
-        }
+          parent: 'event',
+        },
       },
       {
         title: '处理记录详情',
@@ -172,16 +172,16 @@ export default [
         noNavBar: true,
         navClass: 'event-center-nav',
         authority: {
-          map: eventCenterAuth
-        }
+          map: eventCenterAuth,
+        },
       },
       !isSpecEvent
         ? {
             authority: {
-              page: eventCenterAuth.VIEW_AUTH
-            }
+              page: eventCenterAuth.VIEW_AUTH,
+            },
           }
-        : {}
-    )
-  }
+        : {},
+    ),
+  },
 ] as RouteConfig[];

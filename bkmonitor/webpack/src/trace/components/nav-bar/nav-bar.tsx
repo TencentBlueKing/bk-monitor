@@ -35,36 +35,36 @@ export default defineComponent({
   props: {
     routeList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     needBack: {
       type: Boolean,
-      default: false
+      default: false,
     },
     needShadow: {
       type: Boolean,
-      default: false
+      default: false,
     },
     needCopyLink: {
       type: Boolean,
-      default: false
+      default: false,
     },
     navMode: {
       type: String,
-      default: 'share'
+      default: 'share',
     },
     positionText: {
       type: String,
-      default: ''
+      default: '',
     },
     backGotoItem: {
       type: Object,
-      default: () => ({ isBack: false })
+      default: () => ({ isBack: false }),
     },
     callbackRouterBack: {
       type: Function,
-      default: undefined
-    }
+      default: undefined,
+    },
   },
   setup(props: ICommonNavBarProps | any, { slots }) {
     const router = useRouter();
@@ -140,10 +140,10 @@ export default defineComponent({
       );
     }
     return {
-      renderFn
+      renderFn,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

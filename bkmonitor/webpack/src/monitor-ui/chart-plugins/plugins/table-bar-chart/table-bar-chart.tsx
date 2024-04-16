@@ -46,7 +46,7 @@ const option: MonitorEchartOptions = {
   color: ['#73C2A8', '#4051A3'],
   xAxis: {
     show: true,
-    type: 'time'
+    type: 'time',
   },
   yAxis: {
     type: 'value',
@@ -54,22 +54,21 @@ const option: MonitorEchartOptions = {
       show: true,
       lineStyle: {
         color: '#F0F1F5',
-        type: 'solid'
-      }
-    }
+        type: 'solid',
+      },
+    },
   },
-  series: []
+  series: [],
 };
 const legendData = [
   { name: 'Limits', max: '2.7%', min: '1.1%', avg: '1.8%', total: '107.7%', color: '#73C2A8', show: true },
-  { name: 'Requests', max: '2.8%', min: '1.1%', avg: '1.8%', total: '105.6%', color: '#4051A3', show: true }
+  { name: 'Requests', max: '2.8%', min: '1.1%', avg: '1.8%', total: '105.6%', color: '#4051A3', show: true },
 ];
 
 interface INumberChartProps {
   panel: PanelModel;
 }
 @Component
-// eslint-disable-next-line max-len
 class TableBarChart extends Mixins<
   ChartLoadingMixin & IntersectionMixin & ChartLoadingMixin & LegendMixin & ToolsMxin & ResizeMixin
 >(IntersectionMixin, ChartLoadingMixin, ChartLoadingMixin, LegendMixin, ToolsMxin, ResizeMixin) {
@@ -81,7 +80,7 @@ class TableBarChart extends Mixins<
 
   legendData = legendData;
   customOptions: MonitorEchartOptions = deepmerge(MONITOR_BAR_OPTIONS, option, {
-    arrayMerge: (_, srcArr) => srcArr
+    arrayMerge: (_, srcArr) => srcArr,
   });
 
   /** 图表数据 */
@@ -94,7 +93,7 @@ class TableBarChart extends Mixins<
   pagination: ITablePagination = {
     current: 1,
     count: 12,
-    limit: 6
+    limit: 6,
   };
 
   /**
@@ -121,22 +120,22 @@ class TableBarChart extends Mixins<
           Events: '1001_log_nginx',
           detail: {
             url: '/',
-            value: '详情'
-          }
+            value: '详情',
+          },
         }),
         columns: [
           { type: 'string', id: 'Timeline', name: 'Timeline' },
           { type: 'string', id: 'Events', name: 'Events' },
-          { type: 'link', id: 'detail', name: '操作', props: { width: 80 } }
+          { type: 'link', id: 'detail', name: '操作', props: { width: 80 } },
         ],
         chartData: [
           {
-            datapoints: []
+            datapoints: [],
           },
           {
-            datapoints: []
-          }
-        ]
+            datapoints: [],
+          },
+        ],
       };
       const linePoit = data.chartData[0].datapoints;
       const barPoit = data.chartData[1].datapoints;
@@ -159,8 +158,8 @@ class TableBarChart extends Mixins<
         Events: '1001_log_nginx',
         detail: {
           url: '/',
-          value: '详情'
-        }
+          value: '详情',
+        },
       });
       setTimeout(() => resolve(data), 1000);
     });
@@ -176,7 +175,7 @@ class TableBarChart extends Mixins<
       xAxis: {
         show: true,
         type: 'time',
-        data: srcData.chartData[0].datapoints.map(item => item[0])
+        data: srcData.chartData[0].datapoints.map(item => item[0]),
       },
       series: [
         {
@@ -184,7 +183,7 @@ class TableBarChart extends Mixins<
           type: 'bar',
           colorBy: 'data',
           name: 'Limits',
-          zlevel: 100
+          zlevel: 100,
         },
         {
           data: srcData.chartData[1].datapoints,
@@ -193,9 +192,9 @@ class TableBarChart extends Mixins<
           barGap: '-100%',
           barCategoryGap: '50%',
           name: 'Requests',
-          zlevel: 100
-        }
-      ]
+          zlevel: 100,
+        },
+      ],
     };
     const updateOption = deepmerge(option, data);
     this.customOptions = deepmerge(this.customOptions, updateOption);
@@ -246,7 +245,7 @@ class TableBarChart extends Mixins<
         position: 'absolute',
         top: '0',
         left: '0',
-        height: 'auto'
+        height: 'auto',
       });
       setStyle(scrollWrap, { overflow: 'initial' });
       this.$el.appendChild(targetEl);
@@ -294,7 +293,7 @@ class TableBarChart extends Mixins<
             class={[
               'monitor-echart-common-content',
               'bar-chart-wrap',
-              { 'right-legend': legend?.placement === 'right' }
+              { 'right-legend': legend?.placement === 'right' },
             ]}
           >
             <div

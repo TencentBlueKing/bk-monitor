@@ -98,7 +98,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
 
@@ -109,7 +109,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
       if (!map.get(item.name)) {
         total.push({
           text: item.name,
-          value: item.name
+          value: item.name,
         });
         map.set(item.name, true);
       }
@@ -141,13 +141,13 @@ export default class Aipanel extends tsc<ICommonListProps> {
     return {
       compare: {
         type: this.compareType !== 'time' ? 'none' : this.compareType,
-        value: this.compareType === 'time' ? this.timeOffset : ''
+        value: this.compareType === 'time' ? this.timeOffset : '',
       },
       tools: {
         timeRange: this.timeRange,
         refleshInterval: this.refleshInterval,
-        searchValue: []
-      }
+        searchValue: [],
+      },
     };
   }
 
@@ -184,7 +184,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
     const params = {
       ...variablesService.transformVariables(target.data),
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     };
     if (this.oldParams && isShadowEqual(params, this.oldParams)) {
       return;
@@ -206,7 +206,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
           value,
           id: `${metric.data_source_label}.${metric.data_type_label}.${metric.result_table_id}.${metric.metric_field}`,
           score: +info.score.toFixed(4),
-          dtEventTime: dayjs.tz(info.dtEventTime).format('YYYY-MM-DD HH:mm:ss')
+          dtEventTime: dayjs.tz(info.dtEventTime).format('YYYY-MM-DD HH:mm:ss'),
         };
       });
     } else {
@@ -233,8 +233,8 @@ export default class Aipanel extends tsc<ICommonListProps> {
           interval: reviewInterval(
             this.viewOptions.interval,
             dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-            row.panel.collect_interval
-          )
+            row.panel.collect_interval,
+          ),
         });
         copyPanel = variablesService.transformVariables(copyPanel);
         copyPanel.targets.forEach((t, tIndex) => {
@@ -245,7 +245,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
         });
         this.viewConfig = {
           config: copyPanel,
-          compareValue: JSON.parse(JSON.stringify(this.compareValue))
+          compareValue: JSON.parse(JSON.stringify(this.compareValue)),
         };
         this.showViewDetail = true;
       }
@@ -280,21 +280,21 @@ export default class Aipanel extends tsc<ICommonListProps> {
             class='icon-monitor icon-hint'
             v-bk-tooltips={{
               content: this.$t('异常分值范围从0～1，越大越异常'),
-              placements: ['top']
+              placements: ['top'],
             }}
           ></i>
           <span
             class='icon-monitor icon-mc-add-strategy'
             v-bk-tooltips={{
               content: this.$t('添加策略'),
-              delay: 200
+              delay: 200,
             }}
             onClick={this.handleToAddStrategy}
           ></span>
           <i
             v-bk-tooltips={{
               content: this.$t('AI设置'),
-              delay: 200
+              delay: 200,
             }}
             class='bk-icon icon-cog-shape setting-icon'
             onClick={this.handlerGoAiSettings}
@@ -313,7 +313,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
                 v-bk-tooltips={{
                   content: item.id,
                   placements: ['left'],
-                  allowHTML: false
+                  allowHTML: false,
                 }}
                 onClick={() => this.handleSetMetricIndex(item)}
               >

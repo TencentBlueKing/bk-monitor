@@ -26,8 +26,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
+import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 
-import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
 import { Scenario } from '../../my-subscription/mapping';
 import { FrequencyType, Report, ReportQueryType } from '../../my-subscription/types';
 import { getDefaultReportData, getSendFrequencyText } from '../../my-subscription/utils';
@@ -147,7 +147,7 @@ class ReportDetail extends tsc<IProps> {
                 .find(item => item.channel_name === 'user')
                 ?.subscribers.filter(item => item.is_enabled).length
                 ? '13px'
-                : '20px'
+                : '20px',
             }}
           >
             <div class='label'>

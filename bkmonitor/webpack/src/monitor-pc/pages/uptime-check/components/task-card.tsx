@@ -36,12 +36,12 @@ const options: { id: IOptionTypes; name: string }[] = [
   { id: 'delete', name: window.i18n.tc('删除') },
   { id: 'clone', name: window.i18n.tc('克隆') },
   { id: 'stop', name: window.i18n.tc('停用') },
-  { id: 'enable', name: window.i18n.tc('启用') }
+  { id: 'enable', name: window.i18n.tc('启用') },
 ];
 
 const contentItem = [
   { id: 'available', alarmId: 'available_alarm', unit: '%', name: window.i18n.t('可用率') },
-  { id: 'task_duration', alarmId: 'task_duration_alarm', unit: 'ms', name: window.i18n.t('平均响应时长') }
+  { id: 'task_duration', alarmId: 'task_duration_alarm', unit: 'ms', name: window.i18n.t('平均响应时长') },
 ];
 
 interface ITaskCardProps {
@@ -67,7 +67,7 @@ export interface IData {
   nodes?: { name?: string }[];
 }
 @Component({
-  name: 'TaskCard'
+  name: 'TaskCard',
 })
 export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
   @Inject('authority') authority;
@@ -84,8 +84,8 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
       available_alarm: false,
       task_duration: 0,
       task_duration_alarm: false,
-      status: ''
-    })
+      status: '',
+    }),
   })
   data: IData;
 
@@ -95,14 +95,14 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
   handleDragStart() {
     const status = {
       taskId: this.data.id,
-      dragging: true
+      dragging: true,
     };
     this.handleDragStatus(status);
   }
   handleDragEnd() {
     this.handleDragStatus({
       taskId: 0,
-      dragging: false
+      dragging: false,
     });
   }
   handleMouseleave() {
@@ -122,7 +122,7 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
       theme: 'light task-card',
       maxWidth: 520,
       duration: [200, 0],
-      appendTo: () => this.$el
+      appendTo: () => this.$el,
     });
     this.popoverInstance?.show(100);
   }

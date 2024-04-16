@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable codecc/comment-ratio */
+
 import { sci, toHex, toHex0x, toPercent, toPercentUnit } from './arithmeticFormatters';
 import {
   dateTimeAsIso,
@@ -41,7 +41,7 @@ import {
   toMinutes,
   toNanoSeconds,
   toSeconds,
-  toTimeTicks
+  toTimeTicks,
 } from './dateTimeFormatters';
 import { binarySIPrefix, currency, decimalSIPrefix } from './symbolFormatters';
 import { locale, scaledUnits, simpleCountUnit, toFixedUnit, ValueFormatCategory } from './valueFormats';
@@ -55,7 +55,7 @@ export default (): ValueFormatCategory[] => [
       {
         name: 'short',
         id: 'short',
-        fn: scaledUnits(1000, ['', ' K', ' Mil', ' Bil', ' Tri', ' Quadr', ' Quint', ' Sext', ' Sept'])
+        fn: scaledUnits(1000, ['', ' K', ' Mil', ' Bil', ' Tri', ' Quadr', ' Quint', ' Sext', ' Sept']),
       },
       { name: 'percent (0-100)', id: 'percent', fn: toPercent },
       { name: 'percent (0.0-1.0)', id: 'percentunit', fn: toPercentUnit },
@@ -65,8 +65,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'hexadecimal', id: 'hex', fn: toHex },
       { name: 'scientific notation', id: 'sci', fn: sci },
       { name: 'locale format', id: 'locale', fn: locale },
-      { name: 'Pixels', id: 'pixel', fn: toFixedUnit('px') }
-    ]
+      { name: 'Pixels', id: 'pixel', fn: toFixedUnit('px') },
+    ],
   },
   {
     // Acceleration
@@ -74,8 +74,8 @@ export default (): ValueFormatCategory[] => [
     formats: [
       { name: 'Meters/sec²', id: 'accMS2', fn: toFixedUnit('m/sec²') },
       { name: 'Feet/sec²', id: 'accFS2', fn: toFixedUnit('f/sec²') },
-      { name: 'G unit', id: 'accG', fn: toFixedUnit('g') }
-    ]
+      { name: 'G unit', id: 'accG', fn: toFixedUnit('g') },
+    ],
   },
   {
     // Angle
@@ -85,8 +85,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'Radians', id: 'radian', fn: toFixedUnit('rad') },
       { name: 'Gradian', id: 'grad', fn: toFixedUnit('grad') },
       { name: 'Arc Minutes', id: 'arcmin', fn: toFixedUnit('arcmin') },
-      { name: 'Arc Seconds', id: 'arcsec', fn: toFixedUnit('arcsec') }
-    ]
+      { name: 'Arc Seconds', id: 'arcsec', fn: toFixedUnit('arcsec') },
+    ],
   },
   {
     // Area
@@ -94,8 +94,8 @@ export default (): ValueFormatCategory[] => [
     formats: [
       { name: 'Square Meters (m²)', id: 'areaM2', fn: toFixedUnit('m²') },
       { name: 'Square Feet (ft²)', id: 'areaF2', fn: toFixedUnit('ft²') },
-      { name: 'Square Miles (mi²)', id: 'areaMI2', fn: toFixedUnit('mi²') }
-    ]
+      { name: 'Square Miles (mi²)', id: 'areaMI2', fn: toFixedUnit('mi²') },
+    ],
   },
   {
     // Computation
@@ -108,8 +108,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'PFLOP/s', id: 'pflops', fn: decimalSIPrefix('FLOP/s', 5) },
       { name: 'EFLOP/s', id: 'eflops', fn: decimalSIPrefix('FLOP/s', 6) },
       { name: 'ZFLOP/s', id: 'zflops', fn: decimalSIPrefix('FLOP/s', 7) },
-      { name: 'YFLOP/s', id: 'yflops', fn: decimalSIPrefix('FLOP/s', 8) }
-    ]
+      { name: 'YFLOP/s', id: 'yflops', fn: decimalSIPrefix('FLOP/s', 8) },
+    ],
   },
   {
     // Concentration
@@ -126,8 +126,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'gram per cubic meter (g/m³)', id: 'congm3', fn: toFixedUnit('g/m³') },
       { name: 'gram per normal cubic meter (g/Nm³)', id: 'congNm3', fn: toFixedUnit('g/Nm³') },
       { name: 'milligrams per decilitre (mg/dL)', id: 'conmgdL', fn: toFixedUnit('mg/dL') },
-      { name: 'millimoles per litre (mmol/L)', id: 'conmmolL', fn: toFixedUnit('mmol/L') }
-    ]
+      { name: 'millimoles per litre (mmol/L)', id: 'conmmolL', fn: toFixedUnit('mmol/L') },
+    ],
   },
   {
     name: 'Currency',
@@ -149,8 +149,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'Bitcoin (฿)', id: 'currencyBTC', fn: currency('฿') },
       { name: 'South African Rand (R)', id: 'currencyZAR', fn: currency('R') },
       { name: 'Indian Rupee (₹)', id: 'currencyINR', fn: currency('₹') },
-      { name: 'South Korean Won (₩)', id: 'currencyKRW', fn: currency('₩') }
-    ]
+      { name: 'South Korean Won (₩)', id: 'currencyKRW', fn: currency('₩') },
+    ],
   },
   {
     name: 'Data (IEC)',
@@ -161,8 +161,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'mebibytes', id: 'mbytes', fn: binarySIPrefix('B', 2) },
       { name: 'gibibytes', id: 'gbytes', fn: binarySIPrefix('B', 3) },
       { name: 'tebibytes', id: 'tbytes', fn: binarySIPrefix('B', 4) },
-      { name: 'pebibytes', id: 'pbytes', fn: binarySIPrefix('B', 5) }
-    ]
+      { name: 'pebibytes', id: 'pbytes', fn: binarySIPrefix('B', 5) },
+    ],
   },
   {
     name: 'Data (Metric)',
@@ -173,8 +173,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'megabytes', id: 'decmbytes', fn: decimalSIPrefix('B', 2) },
       { name: 'gigabytes', id: 'decgbytes', fn: decimalSIPrefix('B', 3) },
       { name: 'terabytes', id: 'dectbytes', fn: decimalSIPrefix('B', 4) },
-      { name: 'petabytes', id: 'decpbytes', fn: decimalSIPrefix('B', 5) }
-    ]
+      { name: 'petabytes', id: 'decpbytes', fn: decimalSIPrefix('B', 5) },
+    ],
   },
   {
     name: 'Data Rate',
@@ -191,16 +191,16 @@ export default (): ValueFormatCategory[] => [
       { name: 'terabytes/sec', id: 'TBs', fn: decimalSIPrefix('B/s', 4) },
       { name: 'terabits/sec', id: 'Tbits', fn: decimalSIPrefix('b/s', 4) },
       { name: 'petabytes/sec', id: 'PBs', fn: decimalSIPrefix('B/s', 5) },
-      { name: 'petabits/sec', id: 'Pbits', fn: decimalSIPrefix('b/s', 5) }
-    ]
+      { name: 'petabits/sec', id: 'Pbits', fn: decimalSIPrefix('b/s', 5) },
+    ],
   },
   {
     name: 'Date & Time',
     formats: [
       { name: 'YYYY-MM-DD HH:mm:ss', id: 'dateTimeAsIso', fn: dateTimeAsIso },
       { name: 'MM/DD/YYYY h:mm:ss a', id: 'dateTimeAsUS', fn: dateTimeAsUS },
-      { name: 'From Now', id: 'dateTimeFromNow', fn: dateTimeFromNow }
-    ]
+      { name: 'From Now', id: 'dateTimeFromNow', fn: dateTimeFromNow },
+    ],
   },
   {
     name: 'Energy',
@@ -242,8 +242,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'Henry (H)', id: 'henry', fn: decimalSIPrefix('H') },
       { name: 'Millihenry (mH)', id: 'mhenry', fn: decimalSIPrefix('H', -1) },
       { name: 'Microhenry (µH)', id: 'µhenry', fn: decimalSIPrefix('H', -2) },
-      { name: 'Lumens (Lm)', id: 'lumens', fn: decimalSIPrefix('Lm') }
-    ]
+      { name: 'Lumens (Lm)', id: 'lumens', fn: decimalSIPrefix('Lm') },
+    ],
   },
   {
     name: 'Flow',
@@ -255,8 +255,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'Litre/hour', id: 'litreh', fn: toFixedUnit('L/h') },
       { name: 'Litre/min (L/min)', id: 'flowlpm', fn: toFixedUnit('L/min') },
       { name: 'milliLitre/min (mL/min)', id: 'flowmlpm', fn: toFixedUnit('mL/min') },
-      { name: 'Lux (lx)', id: 'lux', fn: toFixedUnit('lux') }
-    ]
+      { name: 'Lux (lx)', id: 'lux', fn: toFixedUnit('lux') },
+    ],
   },
   {
     name: 'Force',
@@ -264,8 +264,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'Newton-meters (Nm)', id: 'forceNm', fn: decimalSIPrefix('Nm') },
       { name: 'Kilonewton-meters (kNm)', id: 'forcekNm', fn: decimalSIPrefix('Nm', 1) },
       { name: 'Newtons (N)', id: 'forceN', fn: decimalSIPrefix('N') },
-      { name: 'Kilonewtons (kN)', id: 'forcekN', fn: decimalSIPrefix('N', 1) }
-    ]
+      { name: 'Kilonewtons (kN)', id: 'forcekN', fn: decimalSIPrefix('N', 1) },
+    ],
   },
   {
     name: 'Hash Rate',
@@ -276,8 +276,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'gigahashes/sec', id: 'GHs', fn: decimalSIPrefix('H/s', 3) },
       { name: 'terahashes/sec', id: 'THs', fn: decimalSIPrefix('H/s', 4) },
       { name: 'petahashes/sec', id: 'PHs', fn: decimalSIPrefix('H/s', 5) },
-      { name: 'exahashes/sec', id: 'EHs', fn: decimalSIPrefix('H/s', 6) }
-    ]
+      { name: 'exahashes/sec', id: 'EHs', fn: decimalSIPrefix('H/s', 6) },
+    ],
   },
   {
     name: 'Mass',
@@ -285,8 +285,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'milligram (mg)', id: 'massmg', fn: decimalSIPrefix('g', -1) },
       { name: 'gram (g)', id: 'massg', fn: decimalSIPrefix('g') },
       { name: 'kilogram (kg)', id: 'masskg', fn: decimalSIPrefix('g', 1) },
-      { name: 'metric ton (t)', id: 'masst', fn: toFixedUnit('t') }
-    ]
+      { name: 'metric ton (t)', id: 'masst', fn: toFixedUnit('t') },
+    ],
   },
   {
     name: 'length',
@@ -295,8 +295,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'feet (ft)', id: 'lengthft', fn: toFixedUnit('ft') },
       { name: 'meter (m)', id: 'lengthm', fn: decimalSIPrefix('m') },
       { name: 'kilometer (km)', id: 'lengthkm', fn: decimalSIPrefix('m', 1) },
-      { name: 'mile (mi)', id: 'lengthmi', fn: toFixedUnit('mi') }
-    ]
+      { name: 'mile (mi)', id: 'lengthmi', fn: toFixedUnit('mi') },
+    ],
   },
   {
     name: 'Pressure',
@@ -307,8 +307,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'Hectopascals', id: 'pressurehpa', fn: toFixedUnit('hPa') },
       { name: 'Kilopascals', id: 'pressurekpa', fn: toFixedUnit('kPa') },
       { name: 'Inches of mercury', id: 'pressurehg', fn: toFixedUnit('"Hg') },
-      { name: 'PSI', id: 'pressurepsi', fn: scaledUnits(1000, ['psi', 'ksi', 'Mpsi']) }
-    ]
+      { name: 'PSI', id: 'pressurepsi', fn: scaledUnits(1000, ['psi', 'ksi', 'Mpsi']) },
+    ],
   },
   {
     name: 'Radiation',
@@ -325,8 +325,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'roentgen (R)', id: 'radr', fn: decimalSIPrefix('R') },
       { name: 'Sievert/hour (Sv/h)', id: 'radsvh', fn: decimalSIPrefix('Sv/h') },
       { name: 'milliSievert/hour (mSv/h)', id: 'radmsvh', fn: decimalSIPrefix('Sv/h', -1) },
-      { name: 'microSievert/hour (µSv/h)', id: 'radusvh', fn: decimalSIPrefix('Sv/h', -2) }
-    ]
+      { name: 'microSievert/hour (µSv/h)', id: 'radusvh', fn: decimalSIPrefix('Sv/h', -2) },
+    ],
   },
   {
     // Temperature
@@ -334,8 +334,8 @@ export default (): ValueFormatCategory[] => [
     formats: [
       { name: 'Celsius (°C)', id: 'celsius', fn: toFixedUnit('°C') },
       { name: 'Fahrenheit (°F)', id: 'fahrenheit', fn: toFixedUnit('°F') },
-      { name: 'Kelvin (K)', id: 'kelvin', fn: toFixedUnit('K') }
-    ]
+      { name: 'Kelvin (K)', id: 'kelvin', fn: toFixedUnit('K') },
+    ],
   },
   {
     // Time
@@ -354,8 +354,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'duration (hh:mm:ss)', id: 'dthms', fn: toDurationInHoursMinutesSeconds },
       { name: 'Timeticks (s/100)', id: 'timeticks', fn: toTimeTicks },
       { name: 'clock (ms)', id: 'clockms', fn: toClockMilliseconds },
-      { name: 'clock (s)', id: 'clocks', fn: toClockSeconds }
-    ]
+      { name: 'clock (s)', id: 'clocks', fn: toClockSeconds },
+    ],
   },
   {
     // Throughput
@@ -370,8 +370,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'counts/min (cpm)', id: 'cpm', fn: simpleCountUnit('cpm') },
       { name: 'ops/min (opm)', id: 'opm', fn: simpleCountUnit('opm') },
       { name: 'reads/min (rpm)', id: 'rpm', fn: simpleCountUnit('rpm') },
-      { name: 'writes/min (wpm)', id: 'wpm', fn: simpleCountUnit('wpm') }
-    ]
+      { name: 'writes/min (wpm)', id: 'wpm', fn: simpleCountUnit('wpm') },
+    ],
   },
   {
     name: 'Velocity',
@@ -379,8 +379,8 @@ export default (): ValueFormatCategory[] => [
       { name: 'meters/second (m/s)', id: 'velocityms', fn: toFixedUnit('m/s') },
       { name: 'kilometers/hour (km/h)', id: 'velocitykmh', fn: toFixedUnit('km/h') },
       { name: 'miles/hour (mph)', id: 'velocitymph', fn: toFixedUnit('mph') },
-      { name: 'knot (kn)', id: 'velocityknot', fn: toFixedUnit('kn') }
-    ]
+      { name: 'knot (kn)', id: 'velocityknot', fn: toFixedUnit('kn') },
+    ],
   },
   {
     // Volume
@@ -391,7 +391,7 @@ export default (): ValueFormatCategory[] => [
       { name: 'cubic meter', id: 'm3', fn: toFixedUnit('m³') },
       { name: 'Normal cubic meter', id: 'Nm3', fn: toFixedUnit('Nm³') },
       { name: 'cubic decimeter', id: 'dm3', fn: toFixedUnit('dm³') },
-      { name: 'gallons', id: 'gallons', fn: toFixedUnit('gal') }
-    ]
-  }
+      { name: 'gallons', id: 'gallons', fn: toFixedUnit('gal') },
+    ],
+  },
 ];

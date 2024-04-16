@@ -61,13 +61,13 @@ export default class RotationPreview extends tsc<IProps> {
     dates: getCalendarOfNum(),
     data: [],
     freeTimes: [],
-    overlapTimes: []
+    overlapTimes: [],
   };
   /* 用户组tip */
   popoverInstance = null;
   popover = {
     users: '',
-    time: ''
+    time: '',
   };
   /* 容器宽度 */
   containerWidth = 1000;
@@ -98,7 +98,7 @@ export default class RotationPreview extends tsc<IProps> {
   handleWatchValue(value) {
     this.dutyData = dutyDataConversion({
       ...this.dutyData,
-      data: value
+      data: value,
     });
   }
   /**
@@ -126,7 +126,7 @@ export default class RotationPreview extends tsc<IProps> {
       boundary: 'window',
       theme: 'light',
       arrow: true,
-      interactive: true
+      interactive: true,
     });
     this.popoverInstance?.show(100);
   }
@@ -144,7 +144,7 @@ export default class RotationPreview extends tsc<IProps> {
       new Date(`${preDayDate.year}-${preDayDate.month}-${preDayDate.day}`).getTime() - 8 * 24 * 60 * 60 * 1000;
     this.dutyData = dutyDataConversion({
       ...this.dutyData,
-      dates: getCalendarOfNum(7, preDay)
+      dates: getCalendarOfNum(7, preDay),
     });
     this.handleStartTimeChange();
   }
@@ -156,7 +156,7 @@ export default class RotationPreview extends tsc<IProps> {
     const preDay = new Date(`${preDayDate.year}-${preDayDate.month}-${preDayDate.day}`).getTime();
     this.dutyData = dutyDataConversion({
       ...this.dutyData,
-      dates: getCalendarOfNum(7, preDay)
+      dates: getCalendarOfNum(7, preDay),
     });
     this.handleStartTimeChange();
   }
@@ -204,7 +204,7 @@ export default class RotationPreview extends tsc<IProps> {
     });
     return {
       top: `${top - 21}px`,
-      height: `${height + 42}px`
+      height: `${height + 42}px`,
     };
   }
 
@@ -259,7 +259,7 @@ export default class RotationPreview extends tsc<IProps> {
                 <div
                   class='left-content-item'
                   style={{
-                    height: `${64 + item.maxRow * 22}px`
+                    height: `${64 + item.maxRow * 22}px`,
                   }}
                   key={index}
                 >
@@ -297,7 +297,7 @@ export default class RotationPreview extends tsc<IProps> {
                 <div
                   class='row-content'
                   style={{
-                    height: `${64 + row.maxRow * 22}px`
+                    height: `${64 + row.maxRow * 22}px`,
                   }}
                   key={rowIndex}
                 >
@@ -318,7 +318,7 @@ export default class RotationPreview extends tsc<IProps> {
                           width: `${
                             (duty?.isStartBorder ? -1 : 0) + this.containerWidth * (duty.range[1] - duty.range[0])
                           }px`,
-                          left: `${(duty?.isStartBorder ? 1 : 0) + this.containerWidth * duty.range[0]}px`
+                          left: `${(duty?.isStartBorder ? 1 : 0) + this.containerWidth * duty.range[0]}px`,
                         }}
                         onMouseenter={(event: Event) => this.handleMouseenter(event, duty.other)}
                       >
@@ -343,7 +343,7 @@ export default class RotationPreview extends tsc<IProps> {
                     class='free-col'
                     style={{
                       width: `${this.containerWidth * (item.range[1] - item.range[0])}px`,
-                      left: `${this.containerWidth * item.range[0]}px`
+                      left: `${this.containerWidth * item.range[0]}px`,
                     }}
                     onMouseenter={(event: Event) => this.handleMouseenter(event, { time: item.timeStr })}
                   ></div>
@@ -357,12 +357,12 @@ export default class RotationPreview extends tsc<IProps> {
                     // top: `${(item.verticalRange[0] + 1) * 64 - 21}px`,
                     // height: `${(item.verticalRange[1] - item.verticalRange[0] + 1) * 64 - 86}px`,
                     width: `${this.containerWidth * (item.range.range[1] - item.range.range[0])}px`,
-                    left: `${this.containerWidth * item.range.range[0]}px`
+                    left: `${this.containerWidth * item.range.range[0]}px`,
                   }}
                   onMouseenter={(event: Event) =>
                     this.handleMouseenter(event, {
                       time: item.range.timeStr,
-                      users: this.$t('时间段冲突，优先执行节假日排班')
+                      users: this.$t('时间段冲突，优先执行节假日排班'),
                     })
                   }
                 ></div>

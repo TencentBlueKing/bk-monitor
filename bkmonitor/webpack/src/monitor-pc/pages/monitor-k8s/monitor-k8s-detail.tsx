@@ -36,7 +36,7 @@ import './monitor-k8s-detail.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class MonitorK8s extends tsc<{}> {
+export default class MonitorK8s extends tsc<object> {
   @Prop({ type: String, default: '' }) id: string;
 
   viewOptions: IViewOptions = {};
@@ -61,17 +61,17 @@ export default class MonitorK8s extends tsc<{}> {
       vm.routeList = [
         {
           id: 'k8s',
-          name: 'Kubernetes'
+          name: 'Kubernetes',
         },
         {
           id: 'k8s',
           name: 'container',
-          query: {}
+          query: {},
         },
         {
           id: '',
-          name: 'loading...'
-        }
+          name: 'loading...',
+        },
       ];
       vm.viewOptions = {};
     });

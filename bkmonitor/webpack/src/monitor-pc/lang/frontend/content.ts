@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -161,5 +160,5 @@ export default {
   '当前空间下总共有未恢复告警{0}条': 'There are a total of {0} active alarms in this space',
   '找到 {count} 条结果 , 耗时  {time} ms': 'Found {count} results, cost {time} ms',
   '{0}台主机Agent异常': '{0} agents abnormal',
-  '已勾选{count}个': '{count} checked'
+  '已勾选{count}个': '{count} checked',
 };

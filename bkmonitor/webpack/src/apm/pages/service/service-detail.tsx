@@ -35,7 +35,7 @@ import './service-detail.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class MonitorK8s extends tsc<{}> {
+export default class MonitorK8s extends tsc<object> {
   @Prop({ type: String, default: '' }) id: string;
 
   viewOptions: IViewOptions = {};
@@ -60,17 +60,17 @@ export default class MonitorK8s extends tsc<{}> {
       vm.routeList = [
         {
           id: 'application',
-          name: 'APM'
+          name: 'APM',
         },
         {
           id: 'service',
           name: 'service',
-          query: {}
+          query: {},
         },
         {
           id: '',
-          name: 'loading...'
-        }
+          name: 'loading...',
+        },
       ];
       vm.viewOptions = {};
     });

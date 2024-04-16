@@ -32,7 +32,7 @@ export default [
     name: 'home',
     props: true,
     components: {
-      noCache: AppList
+      noCache: AppList,
     },
     meta: {
       title: '首页',
@@ -41,7 +41,7 @@ export default [
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

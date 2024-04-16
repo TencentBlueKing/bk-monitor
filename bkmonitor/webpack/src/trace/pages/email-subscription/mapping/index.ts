@@ -25,24 +25,24 @@
  */
 export const SendMode = {
   periodic: '周期发送',
-  one_time: '仅发一次'
+  one_time: '仅发一次',
 };
 
 export const SendStatus = {
   failed: '发送失败',
   partial_failed: '发送部分失败',
   success: '发送成功',
-  no_status: '未发送'
+  no_status: '未发送',
 };
 
 export const ChannelName = {
   email: '外部邮件',
   wxbot: '企业微信群',
-  user: '内部用户'
+  user: '内部用户',
 };
 
 export const Scenario = {
   clustering: '日志聚类',
   dashboard: '仪表盘',
-  scene: '观测场景'
+  scene: '观测场景',
 };

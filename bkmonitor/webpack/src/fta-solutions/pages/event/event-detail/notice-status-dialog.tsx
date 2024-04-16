@@ -50,7 +50,7 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
   tableClounms = [];
   classMap = {
     失败: 'failed',
-    成功: 'success'
+    成功: 'success',
   };
   hasColumns = [];
   @Emit('show-change')
@@ -76,8 +76,8 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
         .then(res =>
           res.map(item => ({
             label: item.label,
-            prop: item.type
-          }))
+            prop: item.type,
+          })),
         )
         .catch(() => []);
     }
@@ -92,7 +92,7 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
             const statusData = data?.[key]?.[subKey] || {};
             temp[subKey] = {
               label: statusData?.status_display || '',
-              tip: statusData?.status_tips || ''
+              tip: statusData?.status_tips || '',
             };
           });
           return temp;

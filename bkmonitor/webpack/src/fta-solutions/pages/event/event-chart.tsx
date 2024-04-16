@@ -43,32 +43,32 @@ interface IEventChartEvent {
   onIntervalChange: string | number;
 }
 @Component({
-  components: { MonitorEcharts }
+  components: { MonitorEcharts },
 })
 export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> {
   @Prop({
     default: () => [
       {
         id: 'auto',
-        name: 'Auto'
+        name: 'Auto',
       },
       {
         id: 60,
-        name: '1 min'
+        name: '1 min',
       },
       {
         id: 5 * 60,
-        name: '5 min'
+        name: '5 min',
       },
       {
         id: 60 * 60,
-        name: '1 h'
+        name: '1 h',
       },
       {
         id: 24 * 60 * 60,
-        name: '1 d'
-      }
-    ]
+        name: '1 d',
+      },
+    ],
   })
   intervalList: ICommonItem[];
   @Prop({ default: 'auto', type: [String, Number] }) chartInterval: string | number;
@@ -79,11 +79,11 @@ export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> 
   expand = true;
   chartOption = {
     tool: {
-      show: true
+      show: true,
     },
     grid: {
-      right: '20'
-    }
+      right: '20',
+    },
   };
   get chartColors() {
     return this.searchType === 'action'
@@ -142,7 +142,7 @@ export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> 
                     {item.name}
                   </bk-option>
                 ))}
-              </bk-select>
+              </bk-select>,
             ]}
           </div>
         </monitor-echarts>

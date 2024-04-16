@@ -90,7 +90,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
     e.stopPropagation();
     return {
       config: data.config,
-      name: data.name
+      name: data.name,
     };
   }
 
@@ -104,7 +104,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
     const listWidth = list.offsetWidth;
     let totalWidth = 0;
     await this.$nextTick();
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const i in childs) {
       const item = childs[i] as HTMLDivElement;
       if (!item.className || item.className.indexOf('fav-list-item') === -1) continue;
@@ -226,7 +226,6 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
   }
 
   handleHighlight(item: IFavList.favList) {
-    // eslint-disable-next-line max-len
     const isSame =
       JSON.stringify(item.config) ===
       JSON.stringify(this.checkedValue?.config?.config || this.checkedValue?.config || {});

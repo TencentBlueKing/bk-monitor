@@ -95,7 +95,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
     } else if (this.introduceData.is_no_source) {
       this.$bkInfo({
         title: this.$t('当前未关联任何资源'),
-        subTitle: this.$t('该功能暂不可用')
+        subTitle: this.$t('该功能暂不可用'),
       });
     } else if (item.url.match(/^#\//)) {
       location.href = location.href.replace(location.hash, item.url);
@@ -129,7 +129,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
                   >
                     {this.$t(item.name)}
                   </bk-button>
-                ) : undefined
+                ) : undefined,
               )}
             </div>
             {links?.length > 0 && (
@@ -144,7 +144,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
                       >
                         {this.$t(item.name)}
                       </span>
-                    ) : undefined
+                    ) : undefined,
                   )}
                 </div>
               </div>

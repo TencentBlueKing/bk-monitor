@@ -72,7 +72,7 @@ export default class AlarmDispatchConfigPage extends Mixins(authorityMixinCreate
         },
         cancelFn: () => {
           resolve(false);
-        }
+        },
       });
     });
   }

@@ -36,20 +36,20 @@ import './platform-setting.scss';
 
 enum ENavId {
   dataPipeline = 'dataPipeline',
-  resourceRegister = 'resourceRegister'
+  resourceRegister = 'resourceRegister',
 }
 
 @Component
-export default class PlatformSetting extends tsc<{}> {
+export default class PlatformSetting extends tsc<object> {
   navList = [
     {
       id: ENavId.dataPipeline,
-      name: window.i18n.tc('链路管理')
+      name: window.i18n.tc('链路管理'),
     },
     {
       id: ENavId.resourceRegister,
-      name: window.i18n.tc('资源注册')
-    }
+      name: window.i18n.tc('资源注册'),
+    },
   ];
   curNav = '';
 
@@ -66,8 +66,8 @@ export default class PlatformSetting extends tsc<{}> {
       this.curNav = item.id;
       this.$router.replace({
         query: {
-          nav: item.id
-        }
+          nav: item.id,
+        },
       });
     }
   }

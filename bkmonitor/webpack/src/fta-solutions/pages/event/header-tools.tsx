@@ -75,99 +75,99 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
     this.timerangeList = [
       {
         name: `${this.$t('近{n}分钟', { n: 5 })}`,
-        value: 5 * 60 * 1000
+        value: 5 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}分钟', { n: 15 })}`,
-        value: 15 * 60 * 1000
+        value: 15 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}分钟', { n: 30 })}`,
-        value: 30 * 60 * 1000
+        value: 30 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 1 })}`,
-        value: 1 * 60 * 60 * 1000
+        value: 1 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 3 })}`,
-        value: 3 * 60 * 60 * 1000
+        value: 3 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 6 })}`,
-        value: 6 * 60 * 60 * 1000
+        value: 6 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 12 })}`,
-        value: 12 * 60 * 60 * 1000
+        value: 12 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 24 })}`,
-        value: 24 * 60 * 60 * 1000
+        value: 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近 {n} 天', { n: 2 })}`,
-        value: 2 * 24 * 60 * 60 * 1000
+        value: 2 * 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近 {n} 天', { n: 7 })}`,
-        value: 7 * 24 * 60 * 60 * 1000
+        value: 7 * 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近 {n} 天', { n: 30 })}`,
-        value: 30 * 24 * 60 * 60 * 1000
+        value: 30 * 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('今天')}`,
-        value: 'today'
+        value: 'today',
       },
       {
         name: `${this.$t('昨天')}`,
-        value: 'yesterday'
+        value: 'yesterday',
       },
       {
         name: `${this.$t('前天')}`,
-        value: 'beforeYesterday'
+        value: 'beforeYesterday',
       },
       {
         name: `${this.$t('本周')}`,
-        value: 'thisWeek'
-      }
+        value: 'thisWeek',
+      },
     ];
     this.refleshList = [
       // 刷新间隔列表
       {
         name: 'off',
-        id: -1
+        id: -1,
       },
       {
         name: '1m',
-        id: 60 * 1000
+        id: 60 * 1000,
       },
       {
         name: '5m',
-        id: 5 * 60 * 1000
+        id: 5 * 60 * 1000,
       },
       {
         name: '15m',
-        id: 15 * 60 * 1000
+        id: 15 * 60 * 1000,
       },
       {
         name: '30m',
-        id: 30 * 60 * 1000
+        id: 30 * 60 * 1000,
       },
       {
         name: '1h',
-        id: 60 * 60 * 1000
+        id: 60 * 60 * 1000,
       },
       {
         name: '2h',
-        id: 60 * 2 * 60 * 1000
+        id: 60 * 2 * 60 * 1000,
       },
       {
         name: '1d',
-        id: 60 * 24 * 60 * 1000
-      }
+        id: 60 * 24 * 60 * 1000,
+      },
     ];
   }
   @Emit('timeRangeChange')

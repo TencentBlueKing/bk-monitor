@@ -70,11 +70,11 @@ class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'creat
   handleGotoFavaritate(item: IFavListItem) {
     if (item.uid === GRAFANA_HOME_ID) {
       this.$router.push({
-        name: 'grafana-home'
+        name: 'grafana-home',
       });
     } else {
       this.$router.push({
-        path: `/grafana/d/${item.uid}`
+        path: `/grafana/d/${item.uid}`,
       });
     }
   }

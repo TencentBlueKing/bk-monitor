@@ -138,7 +138,7 @@
                   <span
                     class="config-name"
                     v-bk-tooltips.top="basicInfo[key]"
-                  >{{ basicInfo[key] }}
+                    >{{ basicInfo[key] }}
                   </span>
                   <i
                     class="icon-monitor icon-bianji col-name-icon"
@@ -398,7 +398,8 @@
               theme="primary"
               size="small"
               @click="handleCopyTarget"
-            >{{ $t('复制目标') }}</bk-button>
+              >{{ $t('复制目标') }}</bk-button
+            >
           </div>
           <bk-table
             :data="targetInfo.table_data"
@@ -490,16 +491,16 @@ export default {
   name: 'CollectorConfigDetail',
   components: {
     RightPanel,
-    HistoryDialog
+    HistoryDialog,
   },
   props: {
     sideData: {
       type: Object,
       default() {
         return {};
-      }
+      },
     },
-    sideShow: Boolean
+    sideShow: Boolean,
   },
   inject: ['authority', 'handleShowAuthorityDetail'],
   data() {
@@ -519,17 +520,17 @@ export default {
         period: this.$t('采集周期'),
         update_user: this.$t('操作者'),
         update_time: this.$t('最近更新时间'),
-        bk_biz_id: this.$t('所属')
+        bk_biz_id: this.$t('所属'),
       },
       input: {
         show: false,
-        copyName: ''
+        copyName: '',
       },
       name: '',
       matchType: {
         command: this.$t('命令行匹配'),
-        pid: this.$t('PID文件')
-      }
+        pid: this.$t('PID文件'),
+      },
     };
   },
   computed: {
@@ -542,14 +543,14 @@ export default {
         { label: this.$t('创建人'), value: this.basicInfo.create_user || '--' },
         { label: this.$t('创建时间'), value: this.basicInfo.create_time || '--' },
         { label: this.$t('最近更新人'), value: this.basicInfo.update_user || '--' },
-        { label: this.$t('修改时间'), value: this.basicInfo.update_time || '--' }
+        { label: this.$t('修改时间'), value: this.basicInfo.update_time || '--' },
       ];
-    }
+    },
   },
   watch: {
     sideShow(v) {
       v ? this.getDetailData() : this.handleHidden();
-    }
+    },
   },
   created() {
     // this.getDetailData();
@@ -566,7 +567,7 @@ export default {
       if (!this.sideShow) return;
       this.loading = true;
       frontendCollectConfigDetail({ id: this.sideData.id }, { needMessage: true })
-        .then((data) => {
+        .then(data => {
           const sideDataId = { id: this.sideData.id };
           this.basicInfo = { ...data.basic_info, ...sideDataId };
           if (data.extend_info.log) {
@@ -577,7 +578,7 @@ export default {
               log_path: this.$t('日志路径'),
               filter_patterns: this.$t('排除规则'),
               rules: this.$t('关键字规则'),
-              charset: this.$t('日志字符集')
+              charset: this.$t('日志字符集'),
             };
           }
           if (data.extend_info.process) {
@@ -586,7 +587,7 @@ export default {
               ...this.basicInfoMap,
               match: this.$t('进程匹配'),
               process_name: this.$t('进程名'),
-              port_detect: this.$t('端口探测')
+              port_detect: this.$t('端口探测'),
             };
             const {
               match_type: matchType,
@@ -594,7 +595,7 @@ export default {
               port_detect: portDetect,
               match_pattern: matchPattern,
               exclude_pattern: excludePattern,
-              pid_path: pidPath
+              pid_path: pidPath,
             } = process;
             this.basicInfo = {
               ...this.basicInfo,
@@ -603,7 +604,7 @@ export default {
               exclude_pattern: excludePattern,
               pid_path: pidPath,
               process_name: processName || '--',
-              port_detect: `${portDetect}`
+              port_detect: `${portDetect}`,
             };
           }
           data.metric_list.forEach((item, index) => {
@@ -615,10 +616,10 @@ export default {
           this.input.copyName = data.basic_info.name;
           this.name = data.basic_info.name;
         })
-        .catch((err) => {
+        .catch(err => {
           this.$bkMessage({
             theme: 'error',
-            message: err.message || this.$t('获取数据出错了')
+            message: err.message || this.$t('获取数据出错了'),
           });
           this.$emit('set-hide', false);
         })
@@ -669,13 +670,13 @@ export default {
           this.$emit('update-name', data.id, copyName);
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('修改成功')
+            message: this.$t('修改成功'),
           });
         })
-        .catch((err) => {
+        .catch(err => {
           this.$bkMessage({
             theme: 'error',
-            message: err.message || this.$t('发生错误了')
+            message: err.message || this.$t('发生错误了'),
           });
         })
         .finally(() => {
@@ -702,24 +703,24 @@ export default {
     handleCopyTarget() {
       let copyStr = '';
       if (['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo.target_node_type)) {
-        this.targetInfo.table_data.forEach((item) => {
+        this.targetInfo.table_data.forEach(item => {
           copyStr += `${item.bk_inst_name}\n`;
         });
       } else if (this.targetInfo.target_node_type === 'INSTANCE') {
-        this.targetInfo.table_data.forEach((item) => {
+        this.targetInfo.table_data.forEach(item => {
           copyStr += `${item.display_name || item.ip}\n`;
         });
       }
-      copyText(copyStr, (msg) => {
+      copyText(copyStr, msg => {
         this.$bkMessage({
           message: msg,
-          theme: 'error'
+          theme: 'error',
         });
         return;
       });
       this.$bkMessage({
         message: this.$t('复制成功'),
-        theme: 'success'
+        theme: 'success',
       });
     },
     handleJump() {
@@ -727,24 +728,21 @@ export default {
         name: 'collect-config-view',
         params: {
           id: this.basicInfo.id,
-          title: this.basicInfo.name
+          title: this.basicInfo.name,
         },
         query: {
           name: this.basicInfo.name,
           customQuery: JSON.stringify({
             pluginId: this.basicInfo.pluginId,
-            bizId: this.basicInfo.bk_biz_id
-          })
-        }
+            bizId: this.basicInfo.bk_biz_id,
+          }),
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
-<style
-  lang="scss"
-  scoped
->
+<style lang="scss" scoped>
 .collector-config-detail {
   .detail-header {
     display: flex;

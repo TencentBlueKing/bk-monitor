@@ -33,12 +33,12 @@ import {
   CoutIntanceName,
   IIpV6Value,
   INodeType,
-  TargetObjectType
+  TargetObjectType,
 } from '../../../components/monitor-ip-selector/typing';
 import {
   getPanelListByObjectType,
   transformMonitorToValue,
-  transformValueToMonitor
+  transformValueToMonitor,
 } from '../../../components/monitor-ip-selector/utils';
 
 interface IStrategyIpv6Props {
@@ -58,12 +58,12 @@ const HostTargetFieldMap = {
   TOPO: 'host_topo_node',
   INSTANCE: 'ip',
   SERVICE_TEMPLATE: 'host_service_template',
-  SET_TEMPLATE: 'host_set_template'
+  SET_TEMPLATE: 'host_set_template',
 };
 const ServiceTargetFieldMap = {
   TOPO: 'service_topo_node',
   SERVICE_TEMPLATE: 'service_service_template',
-  SET_TEMPLATE: 'service_set_template'
+  SET_TEMPLATE: 'service_set_template',
 };
 @Component
 export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6Events> {
@@ -97,8 +97,8 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
       return [
         {
           renderHead: h => h('span', this.$t('服务实例数')),
-          renderCell: (h, row) => h('span', row.node.count || '--')
-        }
+          renderCell: (h, row) => h('span', row.node.count || '--'),
+        },
       ];
     }
     return undefined;
@@ -162,12 +162,12 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
                     field:
                       this.ipObjectType === 'HOST' ? HostTargetFieldMap[nodeType] : ServiceTargetFieldMap[nodeType],
                     method: 'eq',
-                    value: data
-                  }
-                ]
+                    value: data,
+                  },
+                ],
               ]
-            : []
-        }
+            : [],
+        },
       })
         .then(() => true)
         .catch(() => false);

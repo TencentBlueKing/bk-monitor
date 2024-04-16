@@ -39,7 +39,7 @@ import {
   filterSelectorPanelSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
@@ -117,7 +117,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   // active id
@@ -134,13 +134,12 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     return this.list.filter(item =>
       (item.name.includes(this.keyword) || item.id.toString().includes(this.keyword)) && this.currentStatus === 'all'
         ? true
-        : item.status?.type === this.currentStatus
+        : item.status?.type === this.currentStatus,
     );
   }
 
   /** 目标对比选中的主机id */
   get compareTargets() {
-    // eslint-disable-next-line max-len
     return (
       this.viewOptions?.compares?.targets?.map(item => this.panel.targets?.[0]?.handleCreateItemId(item, true)) || []
     );
@@ -200,7 +199,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
           end_time: endTime,
           condition_list: transformConditionValueParams(this.searchCondition),
           filter: this.filter === 'all' ? '' : this.filter,
-          keyword: this.keyword
+          keyword: this.keyword,
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
@@ -212,10 +211,10 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
             return {
               ...set,
               id,
-              name: set.name || id
+              name: set.name || id,
             };
           });
-        })
+        }),
     );
     const [data] = await Promise.all(promiseList).catch(() => {
       this.emptyType = '500';
@@ -239,7 +238,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
   @Debounce(300)
@@ -254,7 +253,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     }
     this.handleUpdateQueryData({
       ...this.queryData,
-      keyword: v
+      keyword: v,
     });
   }
   handleRefresh() {
@@ -266,7 +265,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     const value = this.panel.targets[0].handleCreateCompares(data);
     viewOptions.filters = { ...(value || {}) };
     viewOptions.compares = {
-      targets: []
+      targets: [],
     };
     this.handleTitleChange(data.name);
     this.$emit('change', viewOptions);
@@ -283,8 +282,8 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     const viewOptions: IViewOptions = {
       ...this.viewOptions,
       compares: {
-        targets: this.localCompareTargets
-      }
+        targets: this.localCompareTargets,
+      },
     };
     this.$emit('change', viewOptions);
   }
@@ -366,8 +365,8 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
                       class={[
                         `list-wrapper-item ${data.id === this.activeId ? 'item-active' : ''}`,
                         {
-                          'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId)
-                        }
+                          'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
+                        },
                       ]}
                     >
                       {!!data.status?.type && (
@@ -398,7 +397,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
                       </span>
                     </div>
                   );
-                }
+                },
               }}
             ></bk-virtual-scroll>
           ) : (

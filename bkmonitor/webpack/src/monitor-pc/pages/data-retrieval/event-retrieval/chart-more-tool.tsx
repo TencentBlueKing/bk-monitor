@@ -63,33 +63,33 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
         name: this.$t('保存到仪表盘'),
         checked: false,
         id: 'save',
-        icon: 'mc-mark'
+        icon: 'mc-mark',
       },
       {
         name: this.$t('截图到本地'),
         checked: false,
         id: 'screenshot',
-        icon: 'mc-camera'
+        icon: 'mc-camera',
       },
       {
         name: this.$t('查看大图'),
         checked: false,
         id: 'fullscreen',
-        icon: 'fullscreen'
+        icon: 'fullscreen',
       },
       {
         name: this.$t('检索'),
         checked: false,
         id: 'explore',
         icon: 'mc-retrieval',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: this.$t('添加策略'),
         checked: false,
         id: 'strategy',
         icon: 'menu-strategy',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: this.$t('Y轴固定最小值为0'),
@@ -97,7 +97,7 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
         id: 'set',
         nextName: this.$t('Y轴自适应'),
         icon: 'mc-yaxis',
-        nextIcon: 'mc-yaxis-scale'
+        nextIcon: 'mc-yaxis-scale',
       },
       {
         name: this.$t('面积图'),
@@ -105,8 +105,8 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
         id: 'area',
         nextName: this.$t('线性图'),
         icon: 'mc-area',
-        nextIcon: 'mc-line'
-      }
+        nextIcon: 'mc-line',
+      },
     ];
   }
 
@@ -136,7 +136,7 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
         distance: 20,
         zIndex: 1000,
         animation: 'slide-toggle',
-        followCursor: false
+        followCursor: false,
       });
       this.popoverInstance.show();
     }

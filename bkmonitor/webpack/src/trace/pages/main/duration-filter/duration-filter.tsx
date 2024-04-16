@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-properties */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -40,7 +39,7 @@ const DEFAULT_SLIDER_VALUE = {
   min: 0, // 最小值
   max: 1000, // 最大值
   step: 10, // 步长
-  disable: false
+  disable: false,
 };
 
 export default defineComponent({
@@ -48,8 +47,8 @@ export default defineComponent({
   props: {
     range: {
       type: Array as PropType<number[]> | null,
-      default: null
-    }
+      default: null,
+    },
   },
   emits: ['change'],
   setup(props, { emit }) {
@@ -78,7 +77,7 @@ export default defineComponent({
       () => props.range,
       val => {
         if (!val) handleClear();
-      }
+      },
     );
 
     /** 触发重新检索 */
@@ -89,7 +88,7 @@ export default defineComponent({
         emit('change', value);
       },
       300,
-      false
+      false,
     );
     /** 设置滑动选择器配置 */
     const handleSetSlider = (isUpdate = true) => {
@@ -105,7 +104,7 @@ export default defineComponent({
           min: start,
           max: end,
           step: Math.abs(start - end) / 100,
-          disable: start === end
+          disable: start === end,
         });
         errMsg.value = '';
         showExchange.value = false;
@@ -189,7 +188,7 @@ export default defineComponent({
       handleInputChange,
       handleExchange,
       handleRangeChange,
-      handleChangeDebounce
+      handleChangeDebounce,
     };
   },
   render() {
@@ -237,5 +236,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

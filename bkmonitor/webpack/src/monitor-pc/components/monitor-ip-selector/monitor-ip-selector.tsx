@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable camelcase */
 /*
  * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -42,7 +40,7 @@ import {
   serviceInstanceCountIpChooserTemplate,
   templatesIpChooserTemplate,
   treesIpChooserTopo,
-  updateConfigIpChooserConfig
+  updateConfigIpChooserConfig,
 } from 'monitor-api/modules/model';
 
 import {
@@ -65,7 +63,7 @@ import {
   ITemplateHost,
   ITemplateItem,
   ITemplateNode,
-  ITreeItem
+  ITreeItem,
 } from './typing';
 import { PanelTargetMap } from './utils';
 
@@ -73,7 +71,7 @@ import '@blueking/ip-selector/dist/styles/index.css';
 
 const BkIpSelector = create({
   version: '3',
-  serviceConfigError: false
+  serviceConfigError: false,
 });
 export interface IMonitorIpSelectorProps {
   panelList?: string[];
@@ -114,8 +112,8 @@ export interface IMonitorIpSelectorEvents {
 
 @Component({
   components: {
-    BkIpSelector
-  }
+    BkIpSelector,
+  },
 })
 export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMonitorIpSelectorEvents> {
   // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate',
@@ -176,8 +174,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   scopeList: IScopeItme[] = [
     {
       scope_type: 'biz',
-      scope_id: this.$store.getters.bizId
-    }
+      scope_id: this.$store.getters.bizId,
+    },
   ];
   ipSelectorServices: IpSelectorService = {};
   ipSelectorConfig: IpSelectorConfig = {};
@@ -208,7 +206,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       fetchCustomSettings: this.fetchCustomSettings,
       updateCustomSettings: this.updateCustomSettings,
       fetchConfig: this.fetchConfig,
-      ...this.service
+      ...this.service,
     };
     this.ipSelectorConfig = {
       // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'）
@@ -218,7 +216,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
         // 'dynamicGroup',
         'serviceTemplate',
         'setTemplate',
-        'manualInput'
+        'manualInput',
       ],
       // 面板选项的值是否唯一
       unqiuePanelValue: this.unqiuePanelValue,
@@ -235,7 +233,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       //  'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
       hostTableRenderColumnList: this.hostTableRenderColumnList ?? [],
       hostViewFieldRender: this.hostViewFieldRender,
-      serviceConfigError: true
+      serviceConfigError: true,
     };
   }
   // 拉取topology
@@ -247,7 +245,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     const { search_content, ...p } = params;
     const data = {
       scope_list: this.scopeList,
-      ...(search_content ? params : p)
+      ...(search_content ? params : p),
     };
     return await queryHostsIpChooserTopo(data).catch(() => []);
   }
@@ -256,7 +254,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     const { search_content, ...p } = params;
     const data = {
       scope_list: this.scopeList,
-      ...(search_content ? params : p)
+      ...(search_content ? params : p),
     };
     return await queryHostIdInfosIpChooserTopo(data).catch(() => []);
   }
@@ -266,28 +264,28 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     return await queryPathIpChooserTopo(
       this.transformParams({
         scope_list: this.scopeList,
-        ...node
-      })
+        ...node,
+      }),
     ).catch(() => []);
   }
   // 动态拓扑 - 勾选节点(获取多个拓扑节点的主机 Agent 状态统计信息)
   async fetchHostAgentStatisticsNodes(node: IFetchNode): Promise<{ agent_statistics: IStatistics; node: INode }[]> {
     return await agentStatisticsIpChooserTopo({
       scope_list: this.scopeList,
-      ...node
+      ...node,
     }).catch(() => []);
   }
   async fetchHostsDetails(node) {
     return await detailsIpChooserHost({
       scope_list: this.scopeList,
-      ...node
+      ...node,
     }).catch(() => []);
   }
   // 手动输入
   async fetchHostCheck(node: IFetchNode) {
     return await checkIpChooserHost({
       scope_list: this.scopeList,
-      ...node
+      ...node,
     }).catch(() => []);
   }
   // // 获取动态分组列表
@@ -322,8 +320,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       this.transformParams({
         scope_list: this.scopeList,
         template_type: 'SERVICE_TEMPLATE',
-        ...params
-      })
+        ...params,
+      }),
     ).catch(() => []);
   }
   // 获取服务模板下各个节点
@@ -332,8 +330,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       this.transformParams({
         scope_list: this.scopeList,
         template_type: 'SERVICE_TEMPLATE',
-        ...query
-      })
+        ...query,
+      }),
     ).catch(() => []);
   }
   // 获取服务模板下各个主机
@@ -342,7 +340,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
       template_id: query.id,
-      ...query
+      ...query,
     }).catch(() => []);
   }
   // 获取服务模板Agent统计状态
@@ -350,7 +348,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     const params = {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
-      ...query
+      ...query,
     };
     if (this.countInstanceType === 'service_instance') {
       return await serviceInstanceCountIpChooserTemplate(params)
@@ -360,10 +358,10 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
             host_count: item.count,
             node_count: item.node_count || 0,
             agent_statistics: {
-              total_count: item.count
+              total_count: item.count,
             },
-            service_template: query.service_template_list[0]
-          }))
+            service_template: query.service_template_list[0],
+          })),
         )
         .catch(() => []);
     }
@@ -375,8 +373,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       this.transformParams({
         scope_list: this.scopeList,
         template_type: 'SET_TEMPLATE',
-        ...query
-      })
+        ...query,
+      }),
     ).catch(() => []);
   }
   // 获取集群模板下各个节点
@@ -385,8 +383,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       this.transformParams({
         scope_list: this.scopeList,
         template_type: 'SET_TEMPLATE',
-        ...query
-      })
+        ...query,
+      }),
     ).catch(() => []);
   }
   // 获取集群模板下各个主机
@@ -395,7 +393,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
       template_id: query.id,
-      ...query
+      ...query,
     }).catch(() => []);
   }
   // 获取集群模板Agent统计状态
@@ -403,7 +401,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     const params = {
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
-      ...query
+      ...query,
     };
     if (this.countInstanceType === 'service_instance') {
       return await serviceInstanceCountIpChooserTemplate(params)
@@ -413,10 +411,10 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
             host_count: item.count,
             node_count: item.node_count || 0,
             agent_statistics: {
-              total_count: item.count
+              total_count: item.count,
             },
-            set_template: query.set_template_list[0]
-          }))
+            set_template: query.set_template_list[0],
+          })),
         )
         .catch(() => []);
     }
@@ -439,35 +437,35 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       // CMDB 服务模板链接
       bk_cmdb_service_template_url: `${CC_ROOT_URL}/#/business/${bizId}/service/template`,
       // CMDB 集群模板链接
-      bk_cmdb_set_template_url: `${CC_ROOT_URL}/#/business/${bizId}/set/template`
+      bk_cmdb_set_template_url: `${CC_ROOT_URL}/#/business/${bizId}/set/template`,
     };
   }
   // 获取服务实例左侧树topo数据
   async fetchTopologyServiceInstance(): Promise<ITreeItem[]> {
     return await treesIpChooserTopo({
       scope_list: this.scopeList,
-      count_instance_type: 'service_instance'
+      count_instance_type: 'service_instance',
     }).catch(() => []);
   }
   // 获取服务实例列表
   async fetchSeriviceInstanceList(params: CommomParams): Promise<ITreeItem[]> {
     return await queryServiceInstancesIpChooserTopo({
       scope_list: this.scopeList,
-      ...params
+      ...params,
     }).catch(() => []);
   }
   // 获取服务实例详情
   async fetchSeriviceInstanceDetails(params: CommomParams): Promise<ITreeItem[]> {
     return await detailsIpChooserServiceInstance({
       scope_list: this.scopeList,
-      ...params
+      ...params,
     }).catch(() => []);
   }
   transformParams(params: Record<string, any>) {
     if (this.countInstanceType === 'service_instance') {
       return {
         ...params,
-        count_instance_type: this.countInstanceType
+        count_instance_type: this.countInstanceType,
       };
     }
     return params;

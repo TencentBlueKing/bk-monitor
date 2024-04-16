@@ -53,7 +53,7 @@ function getTimeStr(time: string) {
 
 enum Ecategory {
   regular = 'regular',
-  handoff = 'handoff'
+  handoff = 'handoff',
 }
 
 enum EColunm {
@@ -64,11 +64,10 @@ enum EColunm {
   status = 'status',
   scope = 'scope',
   enabled = 'enabled',
-  operate = 'operate'
+  operate = 'operate',
 }
 
 export default defineComponent({
-  // eslint-disable-next-line vue/multi-word-component-names
   name: 'Rotation',
   setup() {
     const { t } = useI18n();
@@ -78,7 +77,7 @@ export default defineComponent({
     const authority = reactive<IAuthority>({
       map: authMap,
       auth: {},
-      showDetail: authorityStore.getAuthorityDetail
+      showDetail: authorityStore.getAuthorityDetail,
     });
     const tableData = reactive({
       loading: false,
@@ -86,11 +85,11 @@ export default defineComponent({
       pagination: {
         current: 1,
         count: 0,
-        limit: 10
+        limit: 10,
       },
       sort: {
         column: '',
-        type: ''
+        type: '',
       },
       columns: [
         {
@@ -98,7 +97,7 @@ export default defineComponent({
           name: t('规则名称'),
           minWidth: 160,
           disabled: true,
-          checked: true
+          checked: true,
         },
         {
           id: EColunm.type,
@@ -111,14 +110,14 @@ export default defineComponent({
             list: [
               {
                 text: t('日常值班'),
-                value: Ecategory.regular
+                value: Ecategory.regular,
               },
               {
                 text: t('交替轮值'),
-                value: Ecategory.handoff
-              }
-            ]
-          }
+                value: Ecategory.handoff,
+              },
+            ],
+          },
         },
         {
           id: EColunm.label,
@@ -128,8 +127,8 @@ export default defineComponent({
           filter: {
             filterFn: () => true,
             checked: [],
-            list: []
-          }
+            list: [],
+          },
         },
         {
           id: EColunm.relation,
@@ -138,8 +137,8 @@ export default defineComponent({
           disabled: false,
           checked: true,
           sort: {
-            value: ''
-          }
+            value: '',
+          },
         },
         {
           id: EColunm.status,
@@ -154,9 +153,9 @@ export default defineComponent({
               { text: statusMap[EStatus.Effective], value: EStatus.Effective },
               { text: statusMap[EStatus.WaitEffective], value: EStatus.WaitEffective },
               { text: statusMap[EStatus.NoEffective], value: EStatus.NoEffective },
-              { text: statusMap[EStatus.Deactivated], value: EStatus.Deactivated }
-            ]
-          }
+              { text: statusMap[EStatus.Deactivated], value: EStatus.Deactivated },
+            ],
+          },
         },
         {
           id: EColunm.scope,
@@ -165,23 +164,23 @@ export default defineComponent({
           disabled: false,
           checked: true,
           sort: {
-            value: ''
-          }
+            value: '',
+          },
         },
         {
           id: EColunm.enabled,
           name: t('启/停'),
           width: 100,
           disabled: true,
-          checked: true
+          checked: true,
         },
         {
           id: EColunm.operate,
           name: t('操作'),
           disabled: true,
-          checked: true
-        }
-      ]
+          checked: true,
+        },
+      ],
     });
     /* 表格设置 */
     const settings = reactive({
@@ -190,25 +189,25 @@ export default defineComponent({
       fields: tableData.columns.map(item => ({
         label: item.name,
         field: item.id,
-        disabled: item.disabled
-      }))
+        disabled: item.disabled,
+      })),
     });
     const searchData = reactive({
       data: [
         {
           name: 'ID',
-          id: 'id'
+          id: 'id',
         },
         {
           name: t('规则名称'),
-          id: 'name'
-        }
+          id: 'name',
+        },
       ],
-      value: []
+      value: [],
     });
     const detailData = reactive({
       show: false,
-      id: ''
+      id: '',
     });
     /* 轮值列表全量数据 */
     const allRotationList = shallowRef([]);
@@ -232,13 +231,13 @@ export default defineComponent({
             labelsSet.add(l);
             filterLabelOptions.push({
               text: l,
-              value: l
+              value: l,
             });
           }
         });
         return {
           ...item,
-          status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
+          status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled),
         };
       });
       (tableData.columns.find(item => item.id === EColunm.label).filter as any).list = filterLabelOptions;
@@ -256,7 +255,7 @@ export default defineComponent({
       const condition = {
         id: [],
         name: [],
-        query: []
+        query: [],
       };
       if (searchData.value.length) {
         needSearch = true;
@@ -277,7 +276,7 @@ export default defineComponent({
       const filterParams = {
         category: [],
         labels: [],
-        status: []
+        status: [],
       };
       tableData.columns.forEach(item => {
         if (item.id === EColunm.type) {
@@ -321,14 +320,14 @@ export default defineComponent({
           filterAllRotationList.sort((a, b) =>
             tableData.sort.type === 'asc'
               ? a.user_groups_count - b.user_groups_count
-              : b.user_groups_count - a.user_groups_count
+              : b.user_groups_count - a.user_groups_count,
           );
         }
         if (tableData.sort.column === EColunm.scope) {
           filterAllRotationList.sort((a, b) =>
             tableData.sort.type === 'asc'
               ? new Date(a.effective_time).getTime() - new Date(b.effective_time).getTime()
-              : new Date(b.effective_time).getTime() - new Date(a.effective_time).getTime()
+              : new Date(b.effective_time).getTime() - new Date(a.effective_time).getTime(),
           );
         }
       }
@@ -336,13 +335,13 @@ export default defineComponent({
       tableData.pagination.count = filterAllRotationList.length;
       const list = filterAllRotationList.slice(
         (tableData.pagination.current - 1) * tableData.pagination.limit,
-        tableData.pagination.current * tableData.pagination.limit
+        tableData.pagination.current * tableData.pagination.limit,
       );
       tableData.data = list;
     }
     function handleAdd() {
       router.push({
-        name: 'rotation-add'
+        name: 'rotation-add',
       });
     }
     /**
@@ -358,7 +357,7 @@ export default defineComponent({
           onConfirm: () => {
             switchDutyRule({
               ids: [row.id],
-              enabled: value
+              enabled: value,
             })
               .then(() => {
                 resolve(value);
@@ -372,7 +371,7 @@ export default defineComponent({
                           labelsSet.add(l);
                           filterLabelOptions.push({
                             text: l,
-                            value: l
+                            value: l,
                           });
                         }
                       });
@@ -384,7 +383,7 @@ export default defineComponent({
                       }
                       return {
                         ...item,
-                        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
+                        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled),
                       };
                     });
                   })
@@ -396,7 +395,7 @@ export default defineComponent({
           },
           onClosed: () => {
             reject();
-          }
+          },
         });
       });
     }
@@ -408,7 +407,7 @@ export default defineComponent({
     function handleColumnSort(opt) {
       const sort = {
         column: '',
-        type: ''
+        type: '',
       };
       if (opt.type !== 'null') {
         sort.column = opt.column.id;
@@ -480,8 +479,8 @@ export default defineComponent({
       router.push({
         name: 'rotation-edit',
         params: {
-          id: row.id
-        }
+          id: row.id,
+        },
       });
     }
 
@@ -502,13 +501,13 @@ export default defineComponent({
                   loading.value = false;
                   Message({
                     theme: 'success',
-                    message: t('删除成功')
+                    message: t('删除成功'),
                   });
                 })
                 .catch(() => {
                   Message({
                     theme: 'danger',
-                    message: t('删除失败')
+                    message: t('删除失败'),
                   });
                 });
             }, 2000);
@@ -516,7 +515,7 @@ export default defineComponent({
         },
         onClosed: () => {
           //
-        }
+        },
       });
     }
 
@@ -568,7 +567,7 @@ export default defineComponent({
             [EStatus.Deactivated]: 'status-red',
             [EStatus.Effective]: 'status-green',
             [EStatus.WaitEffective]: 'status-yellow',
-            [EStatus.NoEffective]: 'status-grey'
+            [EStatus.NoEffective]: 'status-grey',
           };
           return (
             <span class={['status-label', statusClass[row.status]]}>
@@ -602,7 +601,7 @@ export default defineComponent({
                     onChange={v => (row.enabled = v)}
                   ></Switcher>
                 ),
-                content: () => <span>{t('存在关联的告警组')}</span>
+                content: () => <span>{t('存在关联的告警组')}</span>,
               }}
             </Popover>
           );
@@ -632,7 +631,7 @@ export default defineComponent({
                       {t('编辑')}
                     </Button>
                   ),
-                  content: () => <span>{t('当前为全局的')}</span>
+                  content: () => <span>{t('当前为全局的')}</span>,
                 }}
               </Popover>
               <Popover
@@ -658,7 +657,7 @@ export default defineComponent({
                       {t('删除')}
                     </Button>
                   ),
-                  content: () => <span>{t('存在关联的告警组')}</span>
+                  content: () => <span>{t('存在关联的告警组')}</span>,
                 }}
               </Popover>
             </span>
@@ -685,7 +684,7 @@ export default defineComponent({
       handleSettingChange,
       handlePageChange,
       handleLimitChange,
-      handleSearch
+      handleSearch,
     };
   },
 
@@ -730,7 +729,7 @@ export default defineComponent({
                       return {
                         ...item,
                         label: (col: any) => col.name,
-                        render: ({ row, _column }) => this.handleSetFormater(row, item.id)
+                        render: ({ row, _column }) => this.handleSetFormater(row, item.id),
                       };
                     })}
                 ></Table>
@@ -757,5 +756,5 @@ export default defineComponent({
         ></RotationDetail>
       </div>
     );
-  }
+  },
 });

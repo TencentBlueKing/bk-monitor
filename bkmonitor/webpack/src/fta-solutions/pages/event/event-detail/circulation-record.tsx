@@ -47,7 +47,7 @@ interface ICirculationRecordProps {
 }
 
 @Component({
-  name: 'CirculationRecord'
+  name: 'CirculationRecord',
 })
 export default class CirculationRecord extends tsc<ICirculationRecordProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -66,7 +66,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     loading: true,
     abnormal: false,
     defaultClickCollapseIndex: -1,
-    isEnd: false
+    isEnd: false,
   };
   public lastLogOffset = -1;
   public disabledClick = false;
@@ -84,13 +84,13 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     SEVERITY_UP: `【${i18n.t('告警级别调整')}】`,
     ACTION: `【${i18n.t('告警处理')}】`,
     ALERT_QOS: `【${i18n.t('告警流控')}】`,
-    EVENT_DROP: `【${i18n.t('事件忽略')}】`
+    EVENT_DROP: `【${i18n.t('事件忽略')}】`,
   };
   public alertStatusMap = {
     SUCCESS: i18n.t('成功'),
     FAILED: i18n.t('失败'),
     SHIELDED: i18n.t('已屏蔽'),
-    PARTIAL_SUCCESS: i18n.t('部分失败')
+    PARTIAL_SUCCESS: i18n.t('部分失败'),
   };
 
   public isShowHandleStatus = false;
@@ -102,13 +102,13 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     failure: i18n.t('失败'),
     skipped: i18n.t('已收敛'),
     shield: i18n.t('已屏蔽'),
-    partial_success: i18n.t('部分失败')
+    partial_success: i18n.t('部分失败'),
   };
 
   public emptyType: EmptyStatusType = 'empty';
 
   @Watch('show')
-  handleShow(v: Boolean) {
+  handleShow(v: boolean) {
     if (v && !this.circulationRecord.list.length) {
       this.dataReset();
       this.handleGetLogList(this.conditions, true);
@@ -159,7 +159,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
       loading: true,
       abnormal: false,
       defaultClickCollapseIndex: -1,
-      isEnd: false
+      isEnd: false,
     };
     this.lastLogOffset = -1;
     this.isShowHandleStatus = false;
@@ -179,7 +179,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
       id: this.detail.id,
       offset: this.circulationRecord.offset,
       limit: this.circulationRecord.limit,
-      operate
+      operate,
     }).catch(() => {
       this.circulationRecord.loading = false;
       this.circulationRecord.abnormal = true;
@@ -219,13 +219,13 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         if (routerName === 'alarm-shield-detail') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/trace/alarm-shield/edit/${params?.shieldId}`
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/trace/alarm-shield/edit/${params?.shieldId}`,
           };
         }
         if (routerName === 'alarm-dispatch') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`,
           };
         }
       } else if (!!item?.url) {
@@ -235,7 +235,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
           if (!!id) {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`
+              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`,
             };
           }
         }
@@ -261,7 +261,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     const endTime = item.sourceTimestamp;
     this.handleRelatedEvents({
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     });
     // if (!this.disabledClick && item.operate === 'CONVERGE' && item.isMultiple && !item.next) {
     //   this.handleInsertItemIntoLogList(item, index)
@@ -342,10 +342,10 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
               placement: 'top',
               content: showTip ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
               disabled: !showTip,
-              allowHTML: false
+              allowHTML: false,
             }}
             class={{
-              'tip-dashed': showTip
+              'tip-dashed': showTip,
             }}
           >
             {content || '--'}
@@ -372,7 +372,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
               placement: 'top',
               content: item.sourceTime ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
               disabled: !item.sourceTime,
-              allowHTML: false
+              allowHTML: false,
             }}
             on-click={() => item.isMultiple && this.beforeCollapseChange(item)}
             class={{ 'tip-dashed': item.operate === 'CREATE' || item.operate === 'CONVERGE' }}
@@ -412,7 +412,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
           // text,
           textList[0],
           link,
-          textList[2]
+          textList[2],
         ];
       }
     } else if (item.operate === 'ANOMALY_NOTICE') {
@@ -440,7 +440,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
                 placement: 'top',
                 content: item.sourceTime ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
                 disabled: !item.sourceTime,
-                allowHTML: false
+                allowHTML: false,
               }}
               class='tip-dashed'
             >

@@ -86,8 +86,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
         // }
         {
           id: 'configuration',
-          name: window.i18n.tc('配置服务')
-        }
+          name: window.i18n.tc('配置服务'),
+        },
       ];
       vm.appName = appName;
       vm.serviceName = serviceName;
@@ -107,8 +107,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       name: 'service',
       query: {
         'filter-app_name': this.appName,
-        'filter-service_name': this.serviceName
-      }
+        'filter-service_name': this.serviceName,
+      },
     });
   }
 

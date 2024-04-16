@@ -59,7 +59,7 @@ export default class NoPermission extends tsc<AuthorityIDProps> {
     this.getAccess = {
       url: data.get_access_url || '',
       operator: data.operator || [],
-      businessName: data.bk_biz_name || ''
+      businessName: data.bk_biz_name || '',
     };
   }
   handleApply() {

@@ -37,8 +37,8 @@ export default defineComponent({
   props: {
     favoriteList: {
       type: Array as PropType<IFavList.favGroupList[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: [],
   setup(props) {
@@ -51,26 +51,26 @@ export default defineComponent({
       // 排序展示列表
       {
         name: t('按名称 A - Z 排序'),
-        id: 'asc'
+        id: 'asc',
       },
       {
         name: t('按名称 Z - A 排序'),
-        id: 'desc'
+        id: 'desc',
       },
       {
         name: t('按更新时间排序'),
-        id: 'update'
-      }
+        id: 'update',
+      },
     ];
 
     const searchVal = ref('');
     const filterFavoriteList = ref([]);
     const favoriteCount = computed(() =>
-      props.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0)
+      props.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0),
     );
     watch(
       () => props.favoriteList,
-      () => handleSearchFavorite()
+      () => handleSearchFavorite(),
     );
 
     // const isNewSearch = computed(() => !searchVal.value);
@@ -93,7 +93,7 @@ export default defineComponent({
       sortType,
       groupSortList,
       handleSearchFavorite,
-      isShowManageDialog
+      isShowManageDialog,
     };
   },
   render() {
@@ -132,7 +132,7 @@ export default defineComponent({
                       <Button text>{this.$t('确定')}</Button>
                       <span>{this.$t('取消')}</span>
                     </div>
-                  )
+                  ),
                 }}
               </Popover>
               <Popover
@@ -164,7 +164,7 @@ export default defineComponent({
                         <Button>{this.$t('取消')}</Button>
                       </div>
                     </div>
-                  )
+                  ),
                 }}
               </Popover>
             </div>
@@ -177,5 +177,5 @@ export default defineComponent({
         <div class='group-container'></div>
       </div>
     );
-  }
+  },
 });

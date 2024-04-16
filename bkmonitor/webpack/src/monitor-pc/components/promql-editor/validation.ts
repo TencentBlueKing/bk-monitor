@@ -45,7 +45,7 @@ export function validateQuery(
   query: string,
   interpolatedQuery: string,
   queryLines: string[],
-  parser: LRParser
+  parser: LRParser,
 ): ParserErrorBoundary[] | false {
   if (!query) {
     return false;
@@ -61,7 +61,7 @@ export function validateQuery(
     const queryErrors: ParseError[] = parseQuery(query, parser);
     parseErrors = interpolatedErrors.flatMap(
       interpolatedError =>
-        queryErrors.filter(queryError => interpolatedError.text === queryError.text) || interpolatedError
+        queryErrors.filter(queryError => interpolatedError.text === queryError.text) || interpolatedError,
     );
   }
 
@@ -77,10 +77,10 @@ function parseQuery(query: string, parser: LRParser) {
         const { node } = nodeRef;
         parseErrors.push({
           node,
-          text: query.substring(node.from, node.to)
+          text: query.substring(node.from, node.to),
         });
       }
-    }
+    },
   });
   return parseErrors;
 }
@@ -95,7 +95,7 @@ function findErrorBoundary(query: string, queryLines: string[], parseError: Pars
       startColumn: errorNode.from + 1,
       endLineNumber: 1,
       endColumn: errorNode.to + 1,
-      error
+      error,
     };
   }
 
@@ -114,7 +114,7 @@ function findErrorBoundary(query: string, queryLines: string[], parseError: Pars
       startColumn: parseError.node.from - startPos + 1,
       endLineNumber: line + 1,
       endColumn: parseError.node.to - startPos + 1,
-      error: parseError.text
+      error: parseError.text,
     };
   }
 
@@ -132,5 +132,5 @@ export const placeHolderScopedVars = {
   __interval_ms: { text: '1000', value: 1000 },
   __range_ms: { text: '1000', value: 1000 },
   __range_s: { text: '1', value: 1 },
-  __range: { text: '1s', value: '1s' }
+  __range: { text: '1s', value: '1s' },
 };

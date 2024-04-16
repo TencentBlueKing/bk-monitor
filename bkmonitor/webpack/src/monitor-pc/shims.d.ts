@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
+
 import VueI18n, { TranslateResult } from 'vue-i18n';
 import * as base from 'vue-tsx-support/types/base';
 import * as builtin from 'vue-tsx-support/types/builtin-components';
@@ -50,7 +50,7 @@ interface IBkInfoProps {
 declare module 'vue/types/vue' {
   interface Vue {
     $bkInfo?: (p: Partial<IBkInfoProps>) => void;
-    $bkMessage?: (p: Partial<{}>) => void;
+    $bkMessage?: (p: Partial<object>) => void;
     $bkPopover?: (...Object) => void;
     $bkToPinyin?: (str: string, lowerCase?: boolean, separator?: string) => string;
     $bkLoading?: any;
@@ -132,10 +132,10 @@ declare global {
           base.PropsOf<V>,
           base.PrefixedEventsOf<V>,
           base.OnOf<V>,
-          V extends { $scopedSlots: infer X } ? X : {},
+          V extends { $scopedSlots: infer X } ? X : object,
           base.IsPropsObjectAllowed<V>
         > &
-          (V extends { _tsxattrs: infer T } ? T : {})
+          (V extends { _tsxattrs: infer T } ? T : object)
       : P;
 
     interface IntrinsicElements extends base.IntrinsicElements {
@@ -143,9 +143,16 @@ declare global {
       [name: string]: any;
 
       // builtin components
-      transition: base.CombinedTsxComponentAttrs<builtin.TransitionProps, {}, {}, {}, {}, true>;
-      'transition-group': base.CombinedTsxComponentAttrs<builtin.TransitionGroupProps, {}, {}, {}, {}, true>;
-      'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, {}, {}, {}, {}, true>;
+      transition: base.CombinedTsxComponentAttrs<builtin.TransitionProps, object, object, object, object, true>;
+      'transition-group': base.CombinedTsxComponentAttrs<
+        builtin.TransitionGroupProps,
+        object,
+        object,
+        object,
+        object,
+        true
+      >;
+      'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, object, object, object, object, true>;
     }
   }
 }

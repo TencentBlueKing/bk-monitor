@@ -37,7 +37,7 @@ import './condition-input.scss';
 const nullOptions = {
   // 下拉选项第一为空值
   id: '',
-  name: `- ${window.i18n.tc('空')} -`
+  name: `- ${window.i18n.tc('空')} -`,
 };
 interface IMetricMeta {
   dataSourceLabel: string;
@@ -68,7 +68,7 @@ export interface IVarOption {
 }
 export type GetVarApiType = (field: string) => Promise<IVarOption[]>;
 @Component({
-  name: 'ConditionInput'
+  name: 'ConditionInput',
 })
 export default class ConditionInput extends tsc<IConditionInputProps> {
   @Prop({ required: true, type: Array }) readonly dimensionsList: any[];
@@ -198,9 +198,9 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
       {
         key: '',
         value: [],
-        method: 'eq'
+        method: 'eq',
       },
-      needCondition ? { condition: 'and' } : {}
+      needCondition ? { condition: 'and' } : {},
     );
   }
   // key变化时触发
@@ -235,7 +235,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
             zIndex: 9999,
             boundary: document.body,
             appendTo: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {dimension.name}
@@ -282,21 +282,21 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
           field: keyId,
           metric_field: this.metricMeta.metricField,
           result_table_id: this.metricMeta.resultTableId,
-          where: []
+          where: [],
         },
         this.metricMeta.dataSourceLabel === 'bk_log_search'
           ? {
-              index_set_id: this.metricMeta.indexSetId
+              index_set_id: this.metricMeta.indexSetId,
             }
-          : {}
-      )
+          : {},
+      ),
     };
     await getVariableValue(params, { needRes: true })
       .then(({ data, tips }) => {
         if (tips?.length) {
           this.$bkMessage({
             theme: 'warning',
-            message: tips
+            message: tips,
           });
         }
         const result = Array.isArray(data) ? data.map(item => ({ name: item.label.toString(), id: item.value })) : [];
@@ -317,7 +317,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
         ret.push({
           id: val,
           name: val,
-          show: true
+          show: true,
         });
       }
     });
@@ -361,7 +361,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
               zIndex: 9999,
               disabled: !item.key,
               boundary: document.body,
-              allowHTML: false
+              allowHTML: false,
             }}
             on-toggle={e => this.handleToggleKey(e, index)}
             value={item.key}
@@ -398,8 +398,8 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
               value={item.value}
               paste-fn={v => this.handlePaste(v, item)}
               on-change={(v: string[]) => this.handleValueChange(item, v)}
-            ></bk-tag-input>
-          ]
+            ></bk-tag-input>,
+          ],
         ])}
         <span
           class='condition-item condition-add'

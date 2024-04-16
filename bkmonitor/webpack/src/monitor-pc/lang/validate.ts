@@ -277,5 +277,5 @@ export default {
   通知升级的用户组不能包含第一次接收告警的用户组:
     'The user group notified of the upgrade cannot include the user group that received the alarm for the first time',
   暂不支持设置两个智能算法: 'Setting two intelligent algorithms is currently not supported',
-  '标签长度不能超过 120 字符': 'The label length cannot exceed 120 characters'
+  '标签长度不能超过 120 字符': 'The label length cannot exceed 120 characters',
 };
