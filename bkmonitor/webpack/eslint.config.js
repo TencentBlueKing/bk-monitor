@@ -4,13 +4,11 @@ const prettier = require('eslint-plugin-prettier');
 const typescriptEslintParser = require('@typescript-eslint/parser');
 const codecc = require('eslint-plugin-codecc');
 const eslintVueParser = require('vue-eslint-parser');
-// const perfectionistNatural = require('eslint-plugin-perfectionist/configs/recommended-natural');
+// const perfectionist = require('eslint-plugin-perfectionist');
 const simpleImportSort = require('eslint-plugin-simple-import-sort');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
 // const tencentEslintBaseRules = require('eslint-config-tencent/base').rules;
-
-// Shared importSortRules configuration
 const importSortRules = {
   'simple-import-sort/exports': 'error',
   'simple-import-sort/imports': [
@@ -33,6 +31,7 @@ const importSortRules = {
     },
   ],
 };
+
 // Deprecate formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
 const deprecateRules = Object.fromEntries(
   [
@@ -69,12 +68,12 @@ const vueCommonRules = {
     'error',
     {
       html: {
-        void: 'always',
-        normal: 'always',
         component: 'always',
+        normal: 'always',
+        void: 'always',
       },
-      svg: 'always',
       math: 'always',
+      svg: 'always',
     },
   ],
 };
@@ -98,6 +97,165 @@ module.exports = [
     plugins: { prettier },
     rules: { ...prettier.configs.recommended.rules },
   },
+  // {
+  //   files: ['src/**/*.ts', 'src/**/*.js'],
+  //   ignores: ['src/**/*.tsx', 'src/**/*.vue'],
+  //   plugins: { perfectionist },
+  //   rules: {
+  //     'perfectionist/sort-classes': [
+  //       'error',
+  //       {
+  //         groups: [
+  //           'private-decorated-accessor-property',
+  //           'decorated-accessor-property',
+  //           'private-decorated-property',
+  //           'static-private-method',
+  //           'decorated-set-method',
+  //           'decorated-get-method',
+  //           'decorated-property',
+  //           'decorated-method',
+  //           'private-property',
+  //           'static-property',
+  //           'index-signature',
+  //           'private-method',
+  //           'static-method',
+  //           'property',
+  //           'constructor',
+  //           ['get-method', 'set-method'],
+  //           'unknown',
+  //           'method',
+  //         ],
+  //         order: 'asc',
+  //         type: 'natural',
+  //       },
+  //     ],
+  //     'perfectionist/sort-objects': [
+  //       'error',
+  //       {
+  //         'custom-groups': {
+  //           ID: '*(id|ID|Id)',
+  //           NAME: '*(name|Name|NAME)',
+  //           components: 'components',
+  //           directives: 'directives',
+  //           emits: 'emits',
+  //           props: 'props',
+  //           setup: 'setup',
+  //           render: 'render',
+  //         },
+  //         groups: ['ID', 'NAME', 'components', 'directives', 'emits', 'props', 'setup', 'render', 'unknown'],
+  //         order: 'asc',
+  //         'partition-by-comment': 'Part:**',
+  //         type: 'natural',
+  //       },
+  //     ],
+  //   },
+  // },
+  // {
+  //   plugins: { perfectionist },
+  //   rules: {
+  //     'perfectionist/sort-enums': [
+  //       'error',
+  //       {
+  //         order: 'asc',
+  //         type: 'natural',
+  //       },
+  //     ],
+  //     'perfectionist/sort-exports': [
+  //       'error',
+  //       {
+  //         order: 'asc',
+  //         type: 'natural',
+  //       },
+  //     ],
+  //     'perfectionist/sort-jsx-props': [
+  //       'error',
+  //       {
+  //         'custom-groups': {
+  //           CLASS: '*class',
+  //           DEFINITION: 'is',
+  //           DIRECTIVE: 'v-*',
+  //           EVENTS: '*(on*|v-on)',
+  //           GLOBAL: 'id',
+  //           SLOT: '*(v-slot|slot)',
+  //           STYLE: '*style',
+  //           TWO_WAY_BINDING: '*(v-model|vModel)',
+  //           UNIQUE: '*(ref|key)',
+  //         },
+  //         groups: [
+  //           'DEFINITION',
+  //           'GLOBAL',
+  //           'UNIQUE',
+  //           'STYLE',
+  //           'CLASS',
+  //           'TWO_WAY_BINDING',
+  //           'SLOT',
+  //           'DIRECTIVE',
+  //           'multiline',
+  //           'unknown',
+  //           'shorthand',
+  //           'EVENTS',
+  //         ],
+  //         order: 'asc',
+  //         type: 'natural',
+  //       },
+  //     ],
+  //     'perfectionist/sort-maps': [
+  //       'error',
+  //       {
+  //         order: 'asc',
+  //         type: 'natural',
+  //       },
+  //     ],
+  //     'perfectionist/sort-imports': [
+  //       'error',
+  //       {
+  //         type: 'natural',
+  //         order: 'asc',
+  //         groups: [
+  //           'top',
+  //           'vueI18n',
+  //           'magicBox',
+  //           'tsxSupport',
+  //           ['builtin', 'external'],
+  //           ['internal', 'sibling', 'parent', 'side-effect', 'index', 'object'],
+  //           'unknown',
+  //           ['type', 'builtin-type', 'external-type', 'internal-type', 'parent-type', 'sibling-type', 'index-type'],
+  //           ['style', 'side-effect-style'],
+  //         ],
+  //         'custom-groups': {
+  //           value: {
+  //             top: ['./public-path', './public-path.ts', 'monitor-common/polyfill'],
+  //             vueI18n: ['./i18n/i18n', 'vue'],
+  //             magicBox: ['./common/import-magicbox-ui', 'monitor-ui/directive/index', 'monitor-static/svg-icons'],
+  //             tsxSupport: ['vue-property-decorator', 'vue-tsx-support'],
+  //           },
+  //           type: {
+  //             top: 'top',
+  //             vueI18n: 'vueI18n',
+  //             magicBox: 'magicBox',
+  //             tsxSupport: 'tsxSupport',
+  //           },
+  //         },
+  //         'newlines-between': 'always',
+  //         // 'internal-pattern': ['@/components/**', '@/stores/**', '@/pages/**', '@/lib/**'],
+  //       },
+  //     ],
+  //     // 'perfectionist/sort-intersection-types': [
+  //     //   'error',
+  //     //   {
+  //     //     type: 'natural',
+  //     //     order: 'asc',
+  //     //   },
+  //     // ],
+  //     'perfectionist/sort-union-types': [
+  //       'error',
+  //       {
+  //         order: 'asc',
+  //         type: 'natural',
+  //       },
+  //     ],
+  //   },
+  // },
   {
     files: ['src/**/*.ts', 'src/**/*.tsx', './**/*.js'],
     ignores: [],
@@ -167,14 +325,14 @@ module.exports = [
         ecmaVersion: 'latest',
         extraFileExtensions: ['.vue'],
         parser: {
+          cjs: 'espree',
+          cts: typescriptEslintParser,
           js: 'espree',
           jsx: 'espree',
-          cjs: 'espree',
           mjs: 'espree',
+          mts: typescriptEslintParser,
           ts: typescriptEslintParser,
           tsx: typescriptEslintParser,
-          cts: typescriptEslintParser,
-          mts: typescriptEslintParser,
         },
         project: true,
       },
