@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
+
 import StrategyConfigDetailCommon from 'monitor-pc/pages/strategy-config/strategy-config-detail/strategy-config-detail-common';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 

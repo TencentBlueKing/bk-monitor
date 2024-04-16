@@ -31,12 +31,12 @@ import { Component as tsc } from 'vue-tsx-support';
 import './group.scss';
 
 export interface IGroupData {
-  id: string | number;
+  id: number | string;
   name: TranslateResult;
   data?: IGroupData[];
   children?: IGroupData[]; // data为自定义分组数据
 }
-type themeType = 'filter' | 'bold';
+type themeType = 'bold' | 'filter';
 type titleSlotType = (item: IGroupData) => VNode;
 
 interface IGroupProps {
@@ -64,7 +64,7 @@ interface IGroupSlots {
 export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
   @Prop({ type: Array, default: () => [] }) readonly data: IGroupData[];
   @Prop({ type: String, default: '' }) readonly theme: themeType;
-  @Prop({ type: Array, default: () => [] }) readonly defaultActiveName!: (string | number)[];
+  @Prop({ type: Array, default: () => [] }) readonly defaultActiveName!: (number | string)[];
   @Prop({ type: Function, default: undefined }) readonly customTitleSlot: titleSlotType;
 
   /**
@@ -127,12 +127,12 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
         {this.data?.map?.(item => (
           <bk-collapse-item
             ext-cls={`collapse-item collapse-item-${this.theme}`}
-            hide-arrow
-            name={item.id}
             scopedSlots={{
               default: () => this.titleSlot(item),
               content: () => this.$scopedSlots?.default({ item }),
             }}
+            name={item.id}
+            hide-arrow
           ></bk-collapse-item>
         ))}
       </bk-collapse>

@@ -30,8 +30,9 @@
  */
 
 import Vue from 'vue';
-import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
+
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import { ISpaceItem } from '../../typings';
 
@@ -50,16 +51,16 @@ export interface IAppState {
 
 @Module({ name: 'app', namespaced: true })
 export default class App extends VuexModule implements IAppState {
-  public navId = 'home';
-  public userName = '';
   public bizId = '';
   public bizList = [];
-  public csrfCookieName = '';
-  public siteUrl = '/';
-  public navTitle = '';
   public bkUrl = '';
-  public navRouteList = [];
+  public csrfCookieName = '';
   public lang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn';
+  public navId = 'home';
+  public navRouteList = [];
+  public navTitle = '';
+  public siteUrl = '/';
+  public userName = '';
   @Mutation
   SET_APP_STATE(data: IAppState) {
     Object.keys(data).forEach(key => {
@@ -83,11 +84,6 @@ export default class App extends VuexModule implements IAppState {
     });
   }
   @Mutation
-  SET_NAV_TITLE(title: string) {
-    this.navTitle = title;
-  }
-
-  @Mutation
   SET_NAV_ID(navId: string) {
     this.navId = navId;
   }
@@ -95,5 +91,10 @@ export default class App extends VuexModule implements IAppState {
   @Mutation
   [SET_NAV_ROUTE_LIST](list) {
     this.navRouteList = list;
+  }
+
+  @Mutation
+  SET_NAV_TITLE(title: string) {
+    this.navTitle = title;
   }
 }

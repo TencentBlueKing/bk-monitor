@@ -57,8 +57,8 @@ export default class NoticeStatusTable extends tsc<IProps> {
     return (
       <div class='notice-status-table'>
         <bk-table
-          data={this.tableData}
           border={false}
+          data={this.tableData}
           outer-border={false}
         >
           <bk-table-column
@@ -70,8 +70,6 @@ export default class NoticeStatusTable extends tsc<IProps> {
             this.hasColumns.includes(item.prop) ? (
               <bk-table-column
                 key={i}
-                label={item.label}
-                prop={item.prop}
                 scopedSlots={{
                   default: ({ row }) =>
                     !Object.keys(this.classMap).includes(row?.[item.prop]?.label) ? (
@@ -103,10 +101,12 @@ export default class NoticeStatusTable extends tsc<IProps> {
                       />
                     ),
                 }}
-                resizable={false}
                 align='center'
+                label={item.label}
+                prop={item.prop}
+                resizable={false}
               ></bk-table-column>
-            ) : undefined,
+            ) : undefined
           )}
         </bk-table>
       </div>

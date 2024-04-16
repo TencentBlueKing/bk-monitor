@@ -25,6 +25,7 @@
  */
 import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils';
 import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -62,7 +63,7 @@ export default class LogInfo extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 当前业务id
-  @ProvideReactive('bkBizId') bkBizId: string | number = null;
+  @ProvideReactive('bkBizId') bkBizId: number | string = null;
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData: (queryData: IQueryData) => void;
 
   @Watch('show')
@@ -125,11 +126,11 @@ export default class LogInfo extends tsc<IProps> {
       >
         {this.localPanels.length ? (
           <DashboardPanel
-            panels={this.localPanels}
-            needOverviewBtn={false}
-            isSplitPanel={false}
-            isSingleChart={false}
             id={this.dashboardPanelId}
+            isSingleChart={false}
+            isSplitPanel={false}
+            needOverviewBtn={false}
+            panels={this.localPanels}
           ></DashboardPanel>
         ) : (
           ''

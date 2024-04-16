@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone, random } from 'monitor-common/utils/utils';
 import TemplateInput from 'monitor-pc/pages/strategy-config/strategy-config-set/strategy-template-input/strategy-template-input';
 import StrategyTemplatePreview from 'monitor-pc/pages/strategy-config/strategy-config-set/strategy-template-preview/strategy-template-preview';
@@ -36,7 +37,6 @@ import TipMsg from '../../../components/tip-msg';
 import CommonItem from '../components/common-item';
 import CustomTab, { IPanels } from '../components/custom-tab';
 import NoticeModeNew, { INoticeWayValue, robot } from '../components/notice-mode';
-
 import {
   defaultAddTimeRange,
   executionName,
@@ -218,7 +218,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
     if (
       !timeRangeValidate(
         this.data.alert.filter(item => item.key !== v.key).map(item => item.timeRange),
-        v.value,
+        v.value
       )
     ) {
       this.$bkMessage({
@@ -285,10 +285,10 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
         <div class='content-wrap-key1'>
           <div class='wrap-top'></div>
           <CustomTab
-            panels={this.timePanels}
             active={this.alertActive}
-            type={'period'}
             newKey={this.alertNewkey}
+            panels={this.timePanels}
+            type={'period'}
             onAdd={this.handleAddTimeRang}
             onChange={this.handleChangeTimeRang}
             onDel={this.handleDelTimeRang}
@@ -299,44 +299,44 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
               <span class='label'>{this.$t('通知间隔')}：</span>
               <span class='content'>
                 <i18n
-                  path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
                   class='content-interval'
+                  path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
                 >
                   <bk-select
                     style='margin-top: -1px; min-width: 74px;'
                     class='select select-inline'
-                    clearable={false}
-                    behavior='simplicity'
                     v-model={this.alertData.intervalNotifyMode}
+                    behavior='simplicity'
+                    clearable={false}
                     onChange={this.handleChange}
                   >
                     {intervalModeList.map(item => (
                       <bk-option
-                        key={item.id}
                         id={item.id}
+                        key={item.id}
                         name={item.name}
                       ></bk-option>
                     ))}
                   </bk-select>
                   <bk-input
-                    class='input-inline input-center'
                     style='width: 56px;'
-                    behavior='simplicity'
+                    class='input-inline input-center'
                     v-model={this.alertData.notifyInterval}
+                    behavior='simplicity'
                     type='number'
                     onInput={this.handleChange}
                   ></bk-input>
                 </i18n>
                 <span
+                  style={{ color: '#979ba5', marginTop: '-3px' }}
                   class='icon-monitor icon-hint'
                   v-bk-tooltips={{ content: intervalModeTips[this.alertData.intervalNotifyMode], allowHTML: false }}
-                  style={{ color: '#979ba5', marginTop: '-3px' }}
                 ></span>
               </span>
             </div>
             <NoticeModeNew
-              class='notice-mode'
               ref='noticeModeRef'
+              class='notice-mode'
               noticeWay={this.noticeWayList}
               notifyConfig={this.alertData.notifyConfig}
               showlevelMark={true}
@@ -347,8 +347,8 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
         <div class='content-wrap-key1'>
           <div class='wrap-top'>
             <CustomTab
-              panels={this.templateTypes}
               active={this.templateActive}
+              panels={this.templateTypes}
               type={'text'}
               onChange={this.handleChangeTemplate}
             ></CustomTab>
@@ -360,8 +360,8 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
             >
               <AutoInput
                 class='template-title'
-                tipsData={this.getMessageTemplateList}
                 v-model={this.templateData.titleTmpl}
+                tipsData={this.getMessageTemplateList}
                 onChange={this.handleChange}
               ></AutoInput>
               {/* <bk-input
@@ -371,8 +371,8 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
                 onInput={this.handleChange}></bk-input> */}
             </CommonItem>
             <div
-              class='label-wrap'
               style='margin-top: 24px;'
+              class='label-wrap'
             >
               <span class='label'>{this.$t('告警通知模板')}</span>
               <span class='content desc'>{this.$t('(变量列表及模板说明详见右侧栏)')}</span>
@@ -391,10 +391,10 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
               minWidth={200}
             >
               <TemplateInput
+                style='width: 100%; height: 100%;'
                 default-value={this.templateData.messageTmpl}
                 trigger-list={this.getMessageTemplateList}
                 onChange={this.noticeTemplateChange}
-                style='width: 100%; height: 100%;'
               ></TemplateInput>
             </ResizeContainer>
           </div>
@@ -409,20 +409,20 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
         </div>
         <div class='header-title execution'>{this.$t('执行通知')}</div>
         <TipMsg
+          style={{ marginTop: '10px' }}
           class='storm-item-msg'
           msg={`${this.$t(
-            '除了通知套餐外其他都是可以设置套餐的敏感度，通知套餐基于不同的敏感度可以配置不同的通知方式。',
+            '除了通知套餐外其他都是可以设置套餐的敏感度，通知套餐基于不同的敏感度可以配置不同的通知方式。'
           )}`}
-          style={{ marginTop: '10px' }}
         ></TipMsg>
         <div
-          class='content-wrap-key1'
           style={{ marginTop: '10px' }}
+          class='content-wrap-key1'
         >
           <div class='wrap-top'>
             <CustomTab
-              panels={this.executionTypes}
               active={this.executionActive}
+              panels={this.executionTypes}
               type={'text'}
               onChange={this.handleChangeExecution}
             ></CustomTab>

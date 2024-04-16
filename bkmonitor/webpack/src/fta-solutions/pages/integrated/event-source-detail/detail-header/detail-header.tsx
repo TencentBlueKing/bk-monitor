@@ -71,8 +71,8 @@ const HeaderFunctional = ctx => {
           {logo ? (
             <img
               class='logo'
-              src={`data:image/png;base64,${logo}`}
               alt='logo'
+              src={`data:image/png;base64,${logo}`}
             />
           ) : (
             <div class='text-logo'>{getlogoText(name)}</div>
@@ -104,15 +104,15 @@ const HeaderFunctional = ctx => {
           <tbody>
             <tr>
               <td
-                class='label'
                 style='width: 51px'
+                class='label'
               >
                 {i18n.t('类型')}
               </td>
               <td class='value'>{categoryDisplay || ''}</td>
               <td
-                class='label right'
                 style='width: 120px;'
+                class='label right'
               >
                 {i18n.t('作者')}
               </td>
@@ -125,8 +125,8 @@ const HeaderFunctional = ctx => {
             </tr>
             <tr>
               <td
-                class='label'
                 style='width: 51px'
+                class='label'
               >
                 {i18n.t('分类')}
               </td>
@@ -138,8 +138,8 @@ const HeaderFunctional = ctx => {
             </tr>
             <tr>
               <td
-                class='label'
                 style='width: 51px'
+                class='label'
               >
                 {i18n.t('方式')}
               </td>

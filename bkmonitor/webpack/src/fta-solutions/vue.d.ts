@@ -25,6 +25,7 @@
  */
 
 import { IVueI18n } from 'vue-i18n';
+
 import * as base from 'vue-tsx-support/types/base';
 import * as builtin from 'vue-tsx-support/types/builtin-components';
 
@@ -67,7 +68,7 @@ declare global {
 interface IBkInfoProps {
   title: unknown;
   subTitle: unknown;
-  width: string | number;
+  width: number | string;
   type: string;
   confirmLoading: boolean;
   subHeader?: any;
@@ -94,8 +95,8 @@ declare global {
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];
     csrf_cookie_name: string;
-    cc_biz_id: string | number;
-    bk_biz_id: string | number;
+    cc_biz_id: number | string;
+    bk_biz_id: number | string;
     bk_log_search_url: string;
     bklogsearch_host: string;
     Vue?: any;

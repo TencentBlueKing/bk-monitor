@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getActionConfigByAlerts } from 'monitor-api/modules/action';
 import { ackAlert } from 'monitor-api/modules/alert';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -132,11 +133,11 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
   render() {
     return (
       <MonitorDialog
+        width={480}
+        header-position={'left'}
+        title={this.$t('告警确认')}
         value={this.show}
         on-change={this.handleShowChange}
-        title={this.$t('告警确认')}
-        header-position={'left'}
-        width={480}
       >
         <div
           class='alarm-confirm-dialog'
@@ -150,7 +151,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
               <div>{`${this.$t('当该告警确认需要处理，并且希望该告警不再通知时，可以直接进行告警确认')}。`}</div>
               <div>
                 {`${this.$t('注意')}：${this.$t(
-                  '告警确认不会影响其他告警，只是避免当前告警的周期间隔发送和处理套餐的执行',
+                  '告警确认不会影响其他告警，只是避免当前告警的周期间隔发送和处理套餐的执行'
                 )}。`}
               </div>
             </div>
@@ -175,19 +176,19 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
               ]
             : undefined}
           <bk-input
-            v-model={this.content}
-            type='textarea'
             class='alarm-config-content'
+            v-model={this.content}
             placeholder={this.$t('填写告警确认备注信息')}
             rows={5}
+            type='textarea'
           ></bk-input>
         </div>
         <template slot='footer'>
           <bk-button
-            on-click={this.handleAlarmConfirm}
-            theme='primary'
             style='margin-right: 10px'
             disabled={this.loading}
+            theme='primary'
+            on-click={this.handleAlarmConfirm}
           >
             {this.$t('确认')}
           </bk-button>

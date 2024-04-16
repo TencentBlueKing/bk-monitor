@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
 // import { listEventLog } from 'monitor-api/modules/alert_events'
 import { listAlertLog } from 'monitor-api/modules/alert';
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 @Module({ name: 'event-detail', dynamic: true, namespaced: true, store })
 class EventDetail extends VuexModule {

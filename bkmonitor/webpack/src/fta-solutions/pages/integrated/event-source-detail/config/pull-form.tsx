@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { updateEventPluginInstance } from 'monitor-api/modules/event_plugin';
 
 import DynamicForm from '../../../setting/set-meal/set-meal-add/components/dynamic-form/dynamic-form';
@@ -33,13 +34,13 @@ import './pull-form.scss';
 
 interface IProps {
   formData?: any[];
-  instanceId?: string | number;
+  instanceId?: number | string;
 }
 
 @Component
 export default class PullForm extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) formData: any[];
-  @Prop({ type: [String, Number], default: () => ({}) }) instanceId: string | number;
+  @Prop({ type: [String, Number], default: () => ({}) }) instanceId: number | string;
   @Ref('dynamicForm') dynamicFormRef: DynamicForm;
 
   loading = false;
@@ -78,7 +79,7 @@ export default class PullForm extends tsc<IProps> {
     if (valid) {
       this.loading = true;
       const data = await updateEventPluginInstance(this.instanceId, { config_params: this.formModel }).catch(
-        () => null,
+        () => null
       );
       if (data) {
         this.$bkMessage({
@@ -101,9 +102,9 @@ export default class PullForm extends tsc<IProps> {
           formRules={this.formRules}
         ></DynamicForm>
         <bk-button
-          theme='primary'
           class='submit'
           loading={this.loading}
+          theme='primary'
           onClick={this.handleSave}
         >
           {this.$t('保存配置')}

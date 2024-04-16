@@ -32,7 +32,7 @@ import StatusTips, { MapType, StatusType } from './status-tips';
 import './content-group-item.scss';
 
 // 插件 安装、详情、启用、禁用
-export type OperateType = 'install' | 'detail' | 'enabled' | 'config';
+export type OperateType = 'config' | 'detail' | 'enabled' | 'install';
 interface IContentGroupItemProps {
   data: IGroupData;
 }
@@ -73,7 +73,7 @@ export interface IPluginDetail {
 export default class ContentGroupItem extends tsc<IContentGroupItemProps, IContentGroupItemEvents> {
   @Prop({ type: Object, default: () => ({}) }) readonly data: IGroupData;
 
-  activePanel: string | number = '';
+  activePanel: number | string = '';
 
   render() {
     return (
@@ -94,9 +94,9 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
                   item.data.map(item => this.pluginPanelRender(item))
                 ) : (
                   <bk-exception
-                    type='empty'
-                    scene='part'
                     class='empty'
+                    scene='part'
+                    type='empty'
                   >
                     {this.$t('暂无事件源')}
                   </bk-exception>
@@ -107,9 +107,9 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
         ) : (
           <div class='group-item'>
             <bk-exception
-              type='empty'
-              scene='part'
               class='empty'
+              scene='part'
+              type='empty'
             >
               {this.$t('暂无事件源')}
             </bk-exception>
@@ -127,8 +127,8 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
   pluginPanelRender(item: IPluginDetail) {
     return (
       <div
-        class='plugin-panel mb15 mr15'
         style={{ display: item.show ? 'flex' : 'none' }}
+        class='plugin-panel mb15 mr15'
         onMouseenter={() => this.handleCardMouseEnter(item)}
         onMouseleave={this.handleCardMouseLeave}
       >
@@ -138,8 +138,8 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
         <div class='plugin-panel-content'>
           {item.logo ? (
             <img
-              alt=''
               class='img-logo'
+              alt=''
               src={`data:image/png;base64,${item.logo}`}
             />
           ) : (

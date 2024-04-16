@@ -40,7 +40,7 @@ const tologSearch: LogSearchFunction = (indexSetId, bizId, params) => {
     return;
   }
   window.open(
-    `${bklogsearchHost}#/retrieve/${indexSetId}?bizId=${bizId}&retrieveParams=${encodeURI(JSON.stringify(params))}`,
+    `${bklogsearchHost}#/retrieve/${indexSetId}?bizId=${bizId}&retrieveParams=${encodeURI(JSON.stringify(params))}`
   );
 };
 
@@ -61,7 +61,7 @@ const toPerformanceDetail: PerformanceDetailFunction = (bizId, id) => {
  */
 const toStrategyConfigDetail: PerformanceDetailFunction = (bizId, id) => {
   window.open(
-    `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/strategy-config/detail/${id}`,
+    `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/strategy-config/detail/${id}`
   );
 };
 

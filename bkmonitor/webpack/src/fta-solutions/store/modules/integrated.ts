@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 import { listEventPlugin } from 'monitor-api/modules/event_plugin';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import store from '../store';
 
