@@ -116,6 +116,7 @@ jmespath==0.10.0
 typing-extensions==3.7.4.3
 pycryptodome==3.17
 python-magic==0.4.27
+rarfile==4.1
 
 # bk-dataview
 dataclasses==0.8

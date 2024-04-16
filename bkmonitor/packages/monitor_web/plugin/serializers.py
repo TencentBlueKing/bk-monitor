@@ -12,14 +12,6 @@ specific language governing permissions and limitations under the License.
 import re
 
 from django.utils.translation import ugettext as _
-from monitor_web.commons.data_access import PluginDataAccessor
-from monitor_web.models.plugin import (
-    CollectorPluginConfig,
-    CollectorPluginInfo,
-    CollectorPluginMeta,
-    OperatorSystem,
-)
-from monitor_web.plugin.constant import PARAM_MODE_CHOICES, SCRIPT_TYPE_CHOICES
 from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
@@ -29,6 +21,14 @@ from bkmonitor.utils.serializers import (
     MetricJsonSerializer,
     StrictCharField,
 )
+from monitor_web.commons.data_access import PluginDataAccessor
+from monitor_web.models.plugin import (
+    CollectorPluginConfig,
+    CollectorPluginInfo,
+    CollectorPluginMeta,
+    OperatorSystem,
+)
+from monitor_web.plugin.constant import PARAM_MODE_CHOICES, SCRIPT_TYPE_CHOICES
 
 
 class CollectorPluginMetaSerializer(serializers.ModelSerializer):
@@ -146,6 +146,9 @@ class ExporterSerializer(CollectorMetaSerializer):
     def validate_collector_json(self, value):
         operate_systems = OperatorSystem.objects.values_list("os_type")
         collector_config = {_os[0]: value[_os[0]] for _os in operate_systems if value.get(_os[0])}
+        ext = value.pop("ext")
+        if ext:
+            collector_config["ext"] = ext
         if not collector_config:
             raise serializers.ValidationError(_("collector_json不合法，至少添加一项操作系统相关内容"))
         return collector_config
