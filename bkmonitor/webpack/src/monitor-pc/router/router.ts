@@ -1,3 +1,4 @@
+/* eslint-disable perfectionist/sort-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,16 +25,19 @@
  * IN THE SOFTWARE.
  */
 
-// eslint-disable-next-line simple-import-sort/imports
 import Vue from 'vue';
+
+import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
+import { getUrlParam, random } from 'monitor-common/utils/utils';
 import VueRouter, { Route, RouteConfig } from 'vue-router';
 
-import { getUrlParam, random } from 'monitor-common/utils/utils';
 import introduce from '../common/introduce';
 import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';
 import reportLogStore from '../store/modules/report-log';
 import store from '../store/store';
+
+import dashboardRoutes from './dashboard';
 // #if APP !== 'external'
 import dataRetrievalRoutes from './data-retrieval';
 import eventRoutes from './event';
@@ -45,10 +49,9 @@ import scensesRoutes from './scenes';
 import platformSetting from './platform-setting';
 import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 // #endif
-import dashboardRoutes from './dashboard';
+
 // import spaceData from './space';
 import { isInCommonRoute, setLocalStoreRoute } from './router-config';
-import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
 
 const EmailSubscriptionsName = 'email-subscriptions';
 Vue.use(VueRouter);
@@ -128,7 +131,7 @@ router.beforeEach(async (to, from, next) => {
       return;
     }
   }
-  const { fromUrl, actionId } = to.query;
+  const { actionId, fromUrl } = to.query;
   if (['no-business', 'error-exception'].includes(to.name) && actionId) {
     let hasAuthority = false;
     if (!from.name) {
@@ -172,14 +175,14 @@ router.beforeEach(async (to, from, next) => {
     } else {
       window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false));
       next({
+        params: {
+          title: '无权限',
+        },
         path: `/exception/403/${random(10)}`,
         query: {
           actionId: authority.page || '',
           fromUrl: to.fullPath.replace(/^\//, ''),
           parentRoute: to.meta.route.parent,
-        },
-        params: {
-          title: '无权限',
         },
       });
     }
@@ -191,9 +194,9 @@ router.afterEach(to => {
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
   if (['error-exception', 'no-business'].includes(to.name)) return;
   reportLogStore.reportRouteLog({
-    route_id: to.name,
     nav_id: to.meta.navId,
     nav_name: specialReportRouteList.includes(to.meta.navId) ? to.meta?.navName || to.meta?.title : undefined,
+    route_id: to.name,
   });
 });
 
