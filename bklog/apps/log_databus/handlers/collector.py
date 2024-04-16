@@ -3784,7 +3784,7 @@ class CollectorHandler(object):
         elif space.space_type_id == SpaceTypeEnum.BKCC.value:
             # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
             bcs_projects = BcsApi.list_project({"businessID": bk_biz_id})
-            project_ids = {p["project_id"] for p in bcs_projects}
+            project_ids = {p["projectID"] for p in bcs_projects}
             project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
             namespaces = set()
             for project_id, ns_list in project_id_to_ns.items():
