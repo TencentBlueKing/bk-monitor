@@ -9,7 +9,7 @@ const simpleImportSort = require('eslint-plugin-simple-import-sort');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
 // const tencentEslintBaseRules = require('eslint-config-tencent/base').rules;
-// console.info(tencentEslintLegacyRules);
+
 // Shared importSortRules configuration
 const importSortRules = {
   'simple-import-sort/exports': 'error',
@@ -33,7 +33,6 @@ const importSortRules = {
     },
   ],
 };
-
 // Deprecate formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
 const deprecateRules = Object.fromEntries(
   [
@@ -63,6 +62,9 @@ const deprecateRules = Object.fromEntries(
   ].map(rule => [`@typescript-eslint/${rule}`, 'off']),
 );
 
+const recommendedVue2Config = eslintVuePlugin.configs['flat/vue2-recommended'].find(config => config.files);
+const jsVueFiles = ['src/monitor-pc/pages/collector-config/**/*.vue', 'src/monitor-pc/pages/plugin-manager/**/*.vue'];
+
 module.exports = [
   {
     ignores: [
@@ -83,15 +85,8 @@ module.exports = [
     plugins: { prettier },
     rules: { ...prettier.configs.recommended.rules },
   },
-  // {
-  //   files: ['src/**/*.js', 'src/**/*.ts', 'src/**/*.tsx'],
-  //   rules: {
-  //     ...tencentEslintBaseRules,
-  //     'operator-linebreak': 'off',
-  //   },
-  // },
   {
-    files: ['src/**/*.ts', 'src/**/*.tsx', 'src/**/*.js'],
+    files: ['src/**/*.ts', 'src/**/*.tsx', './**/*.js'],
     ignores: [],
     languageOptions: {
       parser: typescriptEslintParser,
@@ -144,38 +139,49 @@ module.exports = [
       ...importSortRules,
     },
   },
-  ...eslintVuePlugin.configs['flat/vue2-recommended'].map(config =>
-    config.files
-      ? {
-          ...config,
-          files: ['src/**/*.vue'],
-          languageOptions: {
-            ...config.languageOptions,
-            parser: eslintVueParser,
-            parserOptions: {
-              ...config.languageOptions.parserOptions,
-              allowAutomaticSingleRunInference: false,
-              ecmaFeatures: { jsx: true, legacyDecorators: true },
-              ecmaVersion: 'latest',
-              extraFileExtensions: ['.vue'],
-              parser: { '<template>': 'espree', ts: typescriptEslintParser },
-              project: true,
-            },
-          },
-          plugins: {
-            '@typescript-eslint': typescriptEslint,
-            vue: eslintVuePlugin,
-            'simple-import-sort': simpleImportSort,
-          },
-          rules: {
-            ...config.rules,
-            ...tencentEslintLegacyRules,
-            '@typescript-eslint/explicit-member-accessibility': 'off',
-            'comma-dangle': ['error', 'always-multiline'],
-            ...importSortRules,
-            ...deprecateRules,
-          },
-        }
-      : config,
-  ),
+  ...eslintVuePlugin.configs['flat/vue2-recommended'].filter(config => !config.files?.length),
+  {
+    ...recommendedVue2Config,
+    files: ['src/**/*.vue'],
+    ignores: jsVueFiles,
+    languageOptions: {
+      ...recommendedVue2Config.languageOptions,
+      parser: eslintVueParser,
+      parserOptions: {
+        ...recommendedVue2Config.languageOptions.parserOptions,
+        allowAutomaticSingleRunInference: false,
+        ecmaFeatures: { jsx: true, legacyDecorators: true },
+        ecmaVersion: 'latest',
+        extraFileExtensions: ['.vue'],
+        parser: {
+          js: 'espree',
+          jsx: 'espree',
+          cjs: 'espree',
+          mjs: 'espree',
+          ts: typescriptEslintParser,
+          tsx: typescriptEslintParser,
+          cts: typescriptEslintParser,
+          mts: typescriptEslintParser,
+        },
+        project: true,
+      },
+    },
+    plugins: {
+      '@typescript-eslint': typescriptEslint,
+      vue: eslintVuePlugin,
+      'simple-import-sort': simpleImportSort,
+    },
+    rules: {
+      ...recommendedVue2Config.rules,
+      ...tencentEslintLegacyRules,
+      '@typescript-eslint/explicit-member-accessibility': 'off',
+      'comma-dangle': ['error', 'always-multiline'],
+      ...importSortRules,
+      ...deprecateRules,
+    },
+  },
+  {
+    ...recommendedVue2Config,
+    files: jsVueFiles,
+  },
 ];
