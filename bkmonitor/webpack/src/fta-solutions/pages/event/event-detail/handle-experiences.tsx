@@ -37,6 +37,7 @@ import Editor from 'monitor-ui/markdown-editor/editor';
 
 import TipMsg from '../../setting/components/tip-msg';
 
+import ExperiencesSkeleton from './skeleton/experiences-skeleton';
 import Viewer from './custom-view';
 import { IDetail } from './type';
 import WhereDisplay from './where-display';
@@ -428,9 +429,10 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   render() {
     return (
       <div
-        v-bkloading={{ isLoading: this.isLoading }}
+        // v-bkloading={{ isLoading: this.isLoading }}
         class={['event-detail-handleexperiences', { displaynone: !this.show }]}
       >
+        {this.isLoading && <ExperiencesSkeleton></ExperiencesSkeleton>}
         <TipMsg msg={this.$tc('处理经验可以与指标和维度进行绑定，可以追加多种处理经验方便经验的共享。')}></TipMsg>
         {/* 添加按钮 */}
         {!this.readonly && this.mode === 'list' && (

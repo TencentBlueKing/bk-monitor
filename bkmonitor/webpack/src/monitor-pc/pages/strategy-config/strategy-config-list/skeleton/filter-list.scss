@@ -1,0 +1,26 @@
+.filter-panel-skeleton {
+  display: flex;
+  flex-direction: column;
+
+  .item-group {
+    display: flex;
+    flex-direction: column;
+
+    .item-title {
+      display: flex;
+      width: 100%;
+      height: 24px;
+      margin: 6px 0px;
+      border-radius: 2px;
+    }
+  
+    .item-content {
+      display: flex;
+      width: 100%;
+      width: calc(100% - 16px);
+      height: 20px;
+      margin: 6px 8px;
+      border-radius: 2px;
+    }
+  }
+}

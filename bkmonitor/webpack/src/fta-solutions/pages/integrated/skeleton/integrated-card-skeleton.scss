@@ -1,0 +1,16 @@
+@import '../../../static/scss/mixin.scss';
+
+.integrated-card-skeleton {
+  width: 192px;
+  height: 143px;
+  background: #f5f7fa;
+  border-radius: 2px;
+
+  @include simple-class-style('mt', 28);
+  @include simple-class-style('mt', 8);
+  @include simple-class-style('w', 48);
+  @include simple-class-style('w', 86);
+  @include simple-class-style('w', 39);
+  @include simple-class-style('h', 16);
+  @include simple-class-style('h', 48);
+}

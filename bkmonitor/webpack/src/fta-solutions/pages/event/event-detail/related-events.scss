@@ -1,6 +1,7 @@
 @import '../../../static/scss/mixin.scss';
 
 .event-detail-relatedevents {
+  position: relative;
   padding: 16px;
   margin-top: 16px;
   background-color: #fff;
@@ -11,6 +12,10 @@
 
   &.displaynone {
     display: none;
+  }
+
+  .mt-16 {
+    margin-top: 16px;
   }
 
   .events-table-container {

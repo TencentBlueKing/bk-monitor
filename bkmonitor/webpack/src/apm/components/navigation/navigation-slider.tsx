@@ -27,7 +27,6 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './navigation-slider.scss';
-
 @Component
 export default class FtaNavigationSlider extends tsc<{}> {
   render() {

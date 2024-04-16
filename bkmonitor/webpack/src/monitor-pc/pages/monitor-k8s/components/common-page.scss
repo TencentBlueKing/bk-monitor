@@ -14,9 +14,40 @@
   }
 
   &-container {
+    position: relative;
     display: flex;
     flex: 1;
     overflow: auto;
+
+    > .skeleton-base-box {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+      width: 100%;
+      height: 100%;
+      padding: 16px;
+      background-color: #f5f7fa;
+
+      .skeleton-base-comp {
+        padding: 16px;
+        background-color: #fff;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #1919290d;
+      }
+
+      .skeleton-body-wrap {
+        flex: none;
+        height: 482px;
+      }
+    }
+
+    .right-panel-wrap-skeleton {
+      width: 100%;
+      height: 100%;
+      padding: 16px;
+      background-color: #fff;
+    }
 
     .empty-status {
       display: flex;

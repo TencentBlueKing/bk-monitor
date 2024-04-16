@@ -101,6 +101,11 @@
         &:hover {
           @include item-hover();
         }
+        .count-skeleton {
+          margin-left: auto;
+          height: 16px;
+          width: 32px;
+        }
       }
 
       .set-list {
@@ -140,6 +145,11 @@
               top: 1px;
               left: 2px;
             }
+          }
+          .count-skeleton {
+            margin-left: auto;
+            height: 16px;
+            width: 32px;
           }
         }
       }

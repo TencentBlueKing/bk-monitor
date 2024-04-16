@@ -1,0 +1,31 @@
+@import '../../../static/scss/mixin.scss';
+
+.integrated-filter-skeleton {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  @include simple-class-style('h', 24);
+  @include simple-class-style('w', 89);
+  @include simple-class-style('h', 20);
+  @include simple-class-style('w', 20);
+  @include simple-class-style('ml', 21);
+  @include simple-class-style('w', 59);
+  @include simple-class-style('w', 99);
+  @include simple-class-style('mt', 16);
+
+  .w-auto {
+    width: auto;
+  }
+
+  .child {
+    margin-top: 12px;
+
+    .child-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+  }
+}

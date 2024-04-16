@@ -45,6 +45,7 @@ import { debounce } from 'throttle-debounce';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
@@ -2507,7 +2508,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     return (
       <div
         class='strategy-config'
-        v-monitor-loading={{ isLoading: this.loading }}
+        // v-monitor-loading={{ isLoading: this.loading }}
       >
         <div class='content'>
           <div
@@ -2523,6 +2524,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               data={this.filterPanelData}
               checkedData={this.header.keywordObj}
               on-change={this.handleSearchSelectChange}
+              showSkeleton={this.loading}
             ></FilterPanel>
             <div
               class={['content-left-drag', { displaynone: !this.showFilterPanel }]}
@@ -2668,23 +2670,29 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   </div>
                 </bk-popover>
               </div>
-              {this.getTableComponent()}
-              {this.table.data?.length ? (
-                <bk-pagination
-                  v-show={this.tableInstance.total}
-                  class='strategy-pagination list-pagination'
-                  align='right'
-                  size='small'
-                  pagination-able
-                  current={this.tableInstance.page}
-                  limit={this.tableInstance.pageSize}
-                  count={this.pageCount}
-                  limit-list={this.tableInstance.pageList}
-                  on-change={this.handlePageChange}
-                  on-limit-change={this.handleLimitChange}
-                  show-total-count
-                ></bk-pagination>
-              ) : undefined}
+              {this.table.loading || this.loading ? (
+                <TableSkeleton type={2}></TableSkeleton>
+              ) : (
+                [
+                  this.getTableComponent(),
+                  this.table.data?.length ? (
+                    <bk-pagination
+                      v-show={this.tableInstance.total}
+                      class='strategy-pagination list-pagination'
+                      align='right'
+                      size='small'
+                      pagination-able
+                      current={this.tableInstance.page}
+                      limit={this.tableInstance.pageSize}
+                      count={this.pageCount}
+                      limit-list={this.tableInstance.pageList}
+                      on-change={this.handlePageChange}
+                      on-limit-change={this.handleLimitChange}
+                      show-total-count
+                    ></bk-pagination>
+                  ) : undefined
+                ]
+              )}
             </div>
           </div>
         </div>

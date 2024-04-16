@@ -243,6 +243,10 @@
         }
       }
 
+      .event-detail-basic-info-skeleton {
+        margin-top: 0;
+      }
+
       .event-detail-tab {
         padding: 0 40px;
         margin-top: 0;
@@ -277,6 +281,10 @@
           .related-events-table .detail-form {
             padding-left: 38px;
           }
+        }
+
+        .event-detail-related-events-skeleton {
+          width: 100%;
         }
 
         .event-detail-performance-view,

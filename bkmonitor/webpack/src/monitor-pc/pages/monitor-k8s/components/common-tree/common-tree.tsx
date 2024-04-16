@@ -30,6 +30,7 @@ import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import SkeletonBase from '../../../../components/skeleton/skeleton-base';
 import { ITableFilterItem } from '../../typings';
 import { filterSelectorPanelSearchList, transformConditionValueParams } from '../../utils';
 import CommonStatus from '../common-status/common-status';
@@ -298,10 +299,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       )
     };
     return (
-      <div
-        class='common-tree-list'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='common-tree-list'>
         <div class='list-header'>
           {this.conditionList.length ? (
             <bk-search-select
@@ -357,6 +355,13 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
             </div>
           </bk-big-tree>
         </div>
+
+        {this.loading && (
+          <SkeletonBase
+            class='common-tree-skeleton-box'
+            children={{ row: 30, height: '20px' }}
+          />
+        )}
       </div>
     );
   }

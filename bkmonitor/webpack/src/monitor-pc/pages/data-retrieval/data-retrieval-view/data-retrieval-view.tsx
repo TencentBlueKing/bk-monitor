@@ -89,7 +89,6 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
   @Prop({ type: String, default: window.timezone }) timezone: string;
   @ProvideReactive('downSampleRange') downSampleRange = 'auto';
   @InjectReactive('onlyShowView') onlyShowView: boolean;
-  loading = false;
 
   /** 图表联动id */
   groupId = random(10);
@@ -528,10 +527,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
             )}
           </PanelHeader> */}
         </div>
-        <div
-          class={['charts-view-wrapper', { 'is-event': this.retrievalType === 'event' }]}
-          v-bkloading={{ isLoading: this.loading }}
-        >
+        <div class={['charts-view-wrapper', { 'is-event': this.retrievalType === 'event' }]}>
           {this.hasTips ? (
             <div class='total-tips'>
               <div class='tips-text'>

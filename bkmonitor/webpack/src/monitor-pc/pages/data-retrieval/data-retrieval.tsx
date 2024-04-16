@@ -61,6 +61,7 @@ import { transformValueToMonitor } from '../../components/monitor-ip-selector/ut
 import NotifyBox from '../../components/notify-box/notify-box';
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import PromqlEditor from '../../components/promql-editor/promql-editor';
+import SkeletonBase from '../../components/skeleton/skeleton-base';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import {
   DEFAULT_TIME_RANGE,
@@ -841,9 +842,7 @@ export default class DataRetrieval extends tsc<{}> {
           item.showSource = false;
           return;
         }
-        item.loading = true;
         await this.handlePromqlQuery(item, index);
-        item.loading = false;
       }
     }
   }
@@ -2454,10 +2453,7 @@ export default class DataRetrieval extends tsc<{}> {
       item.switchToUI
     )
       return;
-    item.loading = true;
-    return this.handlePromqlQuery(item, index).finally(() => {
-      this.$nextTick(() => (item.loading = false));
-    });
+    return this.handlePromqlQuery(item, index);
   }
 
   /**
@@ -2486,21 +2482,14 @@ export default class DataRetrieval extends tsc<{}> {
     if (item.sourceCodeIsNullMetric) return true;
     const queryConfigs = this.getQueryConfgs(undefined, item);
     if (!queryConfigs[0].metric) return true;
-    item.loading = true;
     const params = {
       query_config_format: 'graph',
       expression: queryConfigs[0].alias || 'a',
       query_configs: queryConfigs
     };
-    const res = await queryConfigToPromql(params)
-      .catch(err => {
-        console.error(err);
-      })
-      .finally(() => {
-        setTimeout(() => {
-          item.loading = false;
-        }, 0);
-      });
+    const res = await queryConfigToPromql(params).catch(err => {
+      console.error(err);
+    });
     if (!res) return;
     item.consistency = true;
     item.sourceCode = res.promql;
@@ -2995,7 +2984,6 @@ export default class DataRetrieval extends tsc<{}> {
               onDragover={evt => this.handleDragOver(evt)}
             >
               <bk-collapse-item
-                v-bkloading={{ isLoading: (item as DataRetrievalQueryItem).loading }}
                 class='collapse-item'
                 name={item.key}
                 scopedSlots={{
@@ -3317,34 +3305,40 @@ export default class DataRetrieval extends tsc<{}> {
                   class='data-retrieval-right'
                   style={{ flex: 1, width: `calc(100% - ${this.allLeftWidth}px)` }}
                 >
-                  <DataRetrievalView
-                    v-bkloading={{ isLoading: this.delayLoading, zIndex: 500 }}
-                    leftShow={this.isShowLeft}
-                    refleshNumber={this.refleshNumber}
-                    compareValue={this.compareValue}
-                    queryResult={this.filterQueryResult}
-                    queryTimeRange={this.queryTimeRange}
-                    canAddStrategy={this.canAddStrategy}
-                    retrievalType={this.tabActive}
-                    eventMetricParams={this.eventMetricParams}
-                    eventCount={this.eventCount}
-                    eventChartTitle={this.eventChartTitle}
-                    indexList={this.indexLists}
-                    needCompare={this.editMode !== 'PromQL'}
-                    queryLoading={this.loading}
-                    onTimeRangeChangeEvent={this.handleTimeRangeChange}
-                    onShowLeft={this.handleLeftHiddenAndShow}
-                    onCompareChange={this.handleCompareChange}
-                    onTimeRangeChange={this.handleToolsTimeRangeChange}
-                    onCompareValueChange={this.handleCompareValueChange}
-                    onSplitChange={this.handleSplitChange}
-                    eventChartInterval={this.eventInterval}
-                    onEventIntervalChange={this.handleEventIntervalChange}
-                    onAddEventStrategy={this.handleAddEventStrategy}
-                    onAddStrategy={this.handleAddStrategy}
-                    onDrillKeywordsSearch={val => (this.drillKeywords = val)}
-                    emptyStatus={this.emptyStatus}
-                  />
+                  {this.delayLoading ? (
+                    <SkeletonBase
+                      class='skeleton-base-box'
+                      children={{ row: 18, height: '20px' }}
+                    ></SkeletonBase>
+                  ) : (
+                    <DataRetrievalView
+                      leftShow={this.isShowLeft}
+                      refleshNumber={this.refleshNumber}
+                      compareValue={this.compareValue}
+                      queryResult={this.filterQueryResult}
+                      queryTimeRange={this.queryTimeRange}
+                      canAddStrategy={this.canAddStrategy}
+                      retrievalType={this.tabActive}
+                      eventMetricParams={this.eventMetricParams}
+                      eventCount={this.eventCount}
+                      eventChartTitle={this.eventChartTitle}
+                      indexList={this.indexLists}
+                      needCompare={this.editMode !== 'PromQL'}
+                      queryLoading={this.loading}
+                      onTimeRangeChangeEvent={this.handleTimeRangeChange}
+                      onShowLeft={this.handleLeftHiddenAndShow}
+                      onCompareChange={this.handleCompareChange}
+                      onTimeRangeChange={this.handleToolsTimeRangeChange}
+                      onCompareValueChange={this.handleCompareValueChange}
+                      onSplitChange={this.handleSplitChange}
+                      eventChartInterval={this.eventInterval}
+                      onEventIntervalChange={this.handleEventIntervalChange}
+                      onAddEventStrategy={this.handleAddEventStrategy}
+                      onAddStrategy={this.handleAddStrategy}
+                      onDrillKeywordsSearch={val => (this.drillKeywords = val)}
+                      emptyStatus={this.emptyStatus}
+                    />
+                  )}
                 </div>
                 {/* 指标选择器 */}
                 <MetricSelector

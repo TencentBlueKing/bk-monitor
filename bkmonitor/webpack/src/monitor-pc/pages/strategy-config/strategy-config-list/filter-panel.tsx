@@ -28,6 +28,7 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import FilterListSkeleton from './skeleton/filter-list';
 import Group, { IGroupData } from './group';
 
 import './filter-panel.scss';
@@ -50,6 +51,7 @@ type FilterPanelProps = {
   checkedData: IFilterData[];
   width?: number;
   defaultActiveName?: string[];
+  showSkeleton?: boolean;
 };
 
 // 事件
@@ -76,6 +78,8 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
   defaultActiveName!: string[];
   // 勾选节点的数据
   @Prop({ default: () => [], type: Array }) checkedData: IFilterData[];
+  /** 是否展示骨架屏 */
+  @Prop({ default: false, type: Boolean }) showSkeleton: boolean;
 
   activeName = this.defaultActiveName;
   filterData: IFilterData[] = [];
@@ -110,15 +114,19 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
             </div>
           )}
           <div class={['filter-panel-body', { 'show-scrollbar': this.isShowScrollbar }]}>
-            <Group
-              data={this.data}
-              on-clear={this.handleClear}
-              theme='filter'
-              defaultActiveName={this.defaultActiveName}
-              scopedSlots={{
-                default: ({ item }) => this.collapseItemContentSlot(item)
-              }}
-            ></Group>
+            {this.showSkeleton ? (
+              <FilterListSkeleton />
+            ) : (
+              <Group
+                data={this.data}
+                on-clear={this.handleClear}
+                theme='filter'
+                defaultActiveName={this.defaultActiveName}
+                scopedSlots={{
+                  default: ({ item }) => this.collapseItemContentSlot(item)
+                }}
+              />
+            )}
           </div>
         </section>
       </transition>

@@ -30,6 +30,7 @@ import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import SkeletonBase from '../../../../components/skeleton/skeleton-base';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryData, IQueryDataSearch } from '../../typings';
@@ -300,10 +301,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
   }
   render() {
     return (
-      <div
-        class='apm-api-panel'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='apm-api-panel'>
         <div class='list-header'>
           {!!this.conditionList.length ? (
             <bk-search-select
@@ -386,6 +384,13 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
             />
           )}
         </div>
+
+        {this.loading && (
+          <SkeletonBase
+            class='apm-api-panel-skeleton-box'
+            children={{ row: 30, height: '20px' }}
+          />
+        )}
       </div>
     );
   }

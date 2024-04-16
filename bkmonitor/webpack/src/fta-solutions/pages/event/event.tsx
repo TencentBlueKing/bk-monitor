@@ -61,6 +61,7 @@ import { setLocalStoreRoute } from 'monitor-pc/router/router-config';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import ChatGroup from '../../components/chat-group/chat-group';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import EventStoreModule from '../../store/modules/event';
 import Group, { IGroupData } from '../integrated/group';
 
@@ -70,6 +71,7 @@ import EventDetailSlider, { TType as TSliderType } from './event-detail/event-de
 import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
 import QuickShield from './event-detail/quick-shield';
+import AdvancedFilterSkeleton from './skeleton/advanced-filter-skeleton';
 import {
   AnlyzeField,
   EBatchAction,
@@ -237,6 +239,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
 
   @Ref('filterInput') filterInputRef: FilterInput;
   commonFilterData: ICommonTreeItem[] = [];
+  commonFilterLoading = false;
   /* 默认事件范围为近24小时 */
   timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
   /* 时区 */
@@ -248,6 +251,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 左侧过滤
   advancedFilterData = [];
   advancedFilterDefaultOpen = [];
+  advancedFilterLoading = false;
   condition: Record<string, string[] | string> = {};
   activeFilterName = '';
   activeFilterId = '';
@@ -1006,11 +1010,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @return {*}
    */
   async handleGetFilterData() {
+    this.commonFilterLoading = true;
     const [{ overview }, { overview: actionOverview }] = await Promise.all([
       this.handleGetSearchAlertList(true),
       this.handleGetSearchActionList(true)
     ]).catch(() => [{ overview: [] }, { overview: [] }]);
     this.commonFilterData = [overview, { ...actionOverview }];
+    this.commonFilterLoading = false;
     if (!this.activeFilterId) {
       this.activeFilterId = overview.id;
       this.activeFilterName = overview.name;
@@ -1060,6 +1066,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   async handleGetTableData(searchTypeChange = false, refleshAgg = true, needTopN = true) {
     this.tableLoading = true;
+    if (refleshAgg) this.advancedFilterLoading = true;
     // await this.handleValidateQueryString()
     if (!this.allowedBizList?.length) {
       await this.handleGetAllowedBizList();
@@ -1092,6 +1099,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     if (refleshAgg) {
       this.advancedFilterData = aggs || [];
     }
+    this.advancedFilterLoading = false;
     this.tableData =
       list.map(item => ({
         ...item,
@@ -2049,7 +2057,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         on-click={() => this.handleSelectActiveFilter(item.id as SearchType, item)}
       >
         {item.name}
-        <span class='item-count'>{item.count}</span>
+        {this.commonFilterLoading ? <div class="count-skeleton skeleton-element"></div> : <span class='item-count'>{item.count}</span>}
       </div>,
       <ul class='set-list'>
         {item?.children?.map?.(set =>
@@ -2064,7 +2072,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 style={{ color: filterIconMap[set.id].color }}
               />
               {set.name}
-              <span class='item-count'>{set.count}</span>
+              {this.commonFilterLoading ? <div class="count-skeleton skeleton-element"></div> : <span class='item-count'>{set.count}</span>}
             </li>
           ) : undefined
         ) || undefined}
@@ -2105,20 +2113,26 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             display: this.filterWidth > 200 ? 'flex' : 'none'
           }}
         >
-          <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
+          <div class='filter-list'>
+            {this.commonFilterData?.map(item => this.filterListComponent(item))}
+          </div>
           <div class='filter-search'>
             <div class='search-title'>{this.$t('高级筛选')}</div>
-            <Group
-              class='search-group'
-              data={this.advancedFilterData}
-              defaultActiveName={this.advancedFilterDefaultOpen}
-              onActiveChange={this.handleFilterActiveChange}
-              onClear={item => this.clearCheckedFilter(item)}
-              scopedSlots={{
-                default: ({ item }) => this.filterGroupSlot(item)
-              }}
-              theme='filter'
-            />
+            {this.advancedFilterLoading ? (
+              <AdvancedFilterSkeleton></AdvancedFilterSkeleton>
+            ) : (
+              <Group
+                class='search-group'
+                data={this.advancedFilterData}
+                defaultActiveName={this.advancedFilterDefaultOpen}
+                onActiveChange={this.handleFilterActiveChange}
+                onClear={item => this.clearCheckedFilter(item)}
+                scopedSlots={{
+                  default: ({ item }) => this.filterGroupSlot(item)
+                }}
+                theme='filter'
+              />
+            )}
           </div>
           <MonitorDrag
             theme={'line'}
@@ -2315,38 +2329,56 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 ))}
               </bk-tab>
               {!this.tableData.length ? (
-                <EmptyTable
-                  v-bkloading={{ isLoading: this.tableLoading, zIndex: 1000 }}
-                  emptyType={this.noDataType}
-                  onApplyAuth={this.handleCheckAllowedByIds}
-                  handleOperation={this.handleOperation}
-                >
-                  {this.noDataString && <span>{this.noDataString} </span>}
-                </EmptyTable>
+                (() => {
+                  if (this.tableLoading) {
+                    return (
+                      <div class='table-content'>
+                        <TableSkeleton type={2}></TableSkeleton>
+                      </div>
+                    );
+                  }
+                  return (
+                    <EmptyTable
+                      // v-bkloading={{ isLoading: this.tableLoading, zIndex: 1000 }}
+                      emptyType={this.noDataType}
+                      onApplyAuth={this.handleCheckAllowedByIds}
+                      handleOperation={this.handleOperation}
+                    >
+                      {this.noDataString && <span>{this.noDataString} </span>}
+                    </EmptyTable>
+                  );
+                })()
               ) : (
                 <div class='table-content'>
                   <keep-alive>
                     {this.activePanel === 'list' ? (
-                      <EventTable
-                        doLayout={this.activePanel}
-                        bizIds={this.bizIds}
-                        tableData={this.tableData}
-                        pagination={this.pagination}
-                        loading={this.tableLoading}
-                        searchType={this.searchType}
-                        selectedList={this.selectedList}
-                        onBatchSet={this.handleBatchAlert}
-                        onPageChange={this.handleTabelPageChange}
-                        onLimitChange={this.handleTableLimitChange}
-                        onShowDetail={this.handleShowDetail}
-                        onSelectChange={this.handleTableSelecChange}
-                        onAlertConfirm={this.handleAlertConfirm}
-                        onQuickShield={this.handleQuickShield}
-                        onSortChange={this.handleSortChange}
-                        onManualProcess={this.handleManualProcess}
-                        onChatGroup={this.handleChatGroup}
-                        onAlarmDispatch={this.handleAlarmDispatch}
-                      />
+                      (() => {
+                        if (this.tableLoading) {
+                          return <TableSkeleton type={2}></TableSkeleton>;
+                        }
+                        return (
+                          <EventTable
+                            doLayout={this.activePanel}
+                            bizIds={this.bizIds}
+                            tableData={this.tableData}
+                            pagination={this.pagination}
+                            loading={this.tableLoading}
+                            searchType={this.searchType}
+                            selectedList={this.selectedList}
+                            onBatchSet={this.handleBatchAlert}
+                            onPageChange={this.handleTabelPageChange}
+                            onLimitChange={this.handleTableLimitChange}
+                            onShowDetail={this.handleShowDetail}
+                            onSelectChange={this.handleTableSelecChange}
+                            onAlertConfirm={this.handleAlertConfirm}
+                            onQuickShield={this.handleQuickShield}
+                            onSortChange={this.handleSortChange}
+                            onManualProcess={this.handleManualProcess}
+                            onChatGroup={this.handleChatGroup}
+                            onAlarmDispatch={this.handleAlarmDispatch}
+                          />
+                        );
+                      })()
                     ) : (
                       <AlertAnalyze
                         bizIds={this.bizIds}

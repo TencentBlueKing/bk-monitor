@@ -1,0 +1,18 @@
+.monitor-echarts-skeleton {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  background: #fff;
+  z-index: 1;
+  overflow: hidden;
+  padding: 0 16px;
+  .w--100 {
+    width: 100%;
+  }
+  .h-20 {
+    height: 20px;
+  }
+  .mt-22 {
+    margin-top: 22px;
+  }
+}

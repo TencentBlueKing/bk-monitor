@@ -27,7 +27,6 @@
   <div>
     <div
       class="performance"
-      v-monitor-loading="{ isLoading }"
     >
       <!-- 筛选面板 -->
       <overview-panel
@@ -47,7 +46,12 @@
         @filter-update="({ search, panelKey }) => handleUpdateRouteQuery(panelKey, search)"
       />
       <!-- 表格区域 -->
+      <table-skeleton
+        class="table-skeleton-border"
+        v-if="isLoading"
+      />
       <performance-table
+        v-else
         ref="table"
         :key="tableKey"
         :columns="columns"
@@ -76,6 +80,7 @@ import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vu
 import { typeTools } from 'monitor-common/utils/utils';
 
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import TableSkeleton from '../../components/skeleton/table-skeleton.tsx';
 import commonPageSizeMixin from '../../mixins/commonPageSizeMixin';
 import PerformanceModule from '../../store/modules/performance';
 
@@ -92,7 +97,8 @@ Component.registerHooks(['beforeRouteLeave', 'beforeRouteEnter']);
   components: {
     OverviewPanel,
     PerformanceTool,
-    PerformanceTable
+    PerformanceTable,
+    TableSkeleton
   }
 })
 export default class Performance extends Mixins(commonPageSizeMixin) {
@@ -516,6 +522,11 @@ export default class Performance extends Mixins(commonPageSizeMixin) {
 
   &.performance-laoding {
     min-height: calc(100vh - 80px);
+  }
+
+  .table-skeleton-border {
+    padding: 16px;
+    border: 1px solid #dcdee5;
   }
 }
 </style>

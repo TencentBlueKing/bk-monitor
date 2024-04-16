@@ -33,6 +33,7 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import { handleGotoLink } from '../../../common/constant';
 import { EmptyStatusType } from '../../../components/empty-status/types';
+import SkeletonBase from '../../../components/skeleton/skeleton-base';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import FieldFiltering from '../event-retrieval/field-filtering';
 import HandleBtn from '../handle-btn/handle-btn';
@@ -413,6 +414,31 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     this.$emit('autoQueryChange', !!val);
   }
 
+  renderFormSkeleton() {
+    function renderFormItemSkeleton(type = 'input') {
+      return (
+        <div class='form-item-skeleton'>
+          <div class='title skeleton-element'></div>
+          <div class={['skeleton-element', type]}></div>
+        </div>
+      );
+    }
+
+    return (
+      <div class='form-skeleton-box'>
+        {renderFormItemSkeleton()}
+        {renderFormItemSkeleton()}
+        {renderFormItemSkeleton('textarea')}
+        <div class='handle-button-skeleton'>
+          <div class='skeleton-element square' />
+          <div class='skeleton-element rect' />
+          <div class='skeleton-element rect' />
+          <div class='skeleton-element square' />
+        </div>
+      </div>
+    );
+  }
+
   render() {
     // 查询语句的提示内容
     const tipsContentTpl = () => (
@@ -445,10 +471,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     );
     return (
       <div class='event-retrieval-wrapper'>
-        <div
-          class='event-retrieval-bg'
-          v-bkloading={{ isLoading: this.formLoading }}
-        >
+        <div class='event-retrieval-bg'>
           <div class='er-from-item'>
             <div class='er-from-item-label'>{this.$t('事件类型')}</div>
             <bk-select
@@ -520,15 +543,24 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
             onAddFav={this.handleAddEventFav}
             onClear={this.handleClearQuery}
           />
+
+          {this.formLoading && this.renderFormSkeleton()}
         </div>
-        <FieldFiltering
-          v-bkloading={{ isLoading: this.gourpByLoading }}
-          class='field-filtering'
-          value={this.groupByList}
-          total={this.total}
-          onChange={list => (this.groupByList = list)}
-          onAddCondition={this.handleAddFilterCondition}
-        />
+        {this.gourpByLoading ? (
+          <SkeletonBase
+            class='skeleton-box'
+            children={{ row: 12, height: '20px' }}
+          />
+        ) : (
+          <FieldFiltering
+            class='field-filtering'
+            value={this.groupByList}
+            total={this.total}
+            onChange={list => (this.groupByList = list)}
+            onAddCondition={this.handleAddFilterCondition}
+          />
+        )}
+
         {tipsContentTpl()}
       </div>
     );

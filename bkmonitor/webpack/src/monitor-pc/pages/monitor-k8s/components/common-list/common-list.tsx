@@ -32,6 +32,7 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
+import SkeletonBase from '../../../../components/skeleton/skeleton-base';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryData, IQueryDataSearch } from '../../typings';
@@ -315,10 +316,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
   }
   render() {
     return (
-      <div
-        class='common-panel-list'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='common-panel-list'>
         <div class='list-header'>
           {this.conditionList.length ? (
             <bk-search-select
@@ -408,6 +406,13 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
             />
           )}
         </div>
+
+        {this.loading && (
+          <SkeletonBase
+            class='common-list-skeleton-box'
+            children={{ row: 30, height: '20px' }}
+          />
+        )}
       </div>
     );
   }

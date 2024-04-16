@@ -1,0 +1,18 @@
+@import '../../../static/scss/mixin.scss';
+
+.advanced-filter-skeleton {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-top: 11px;
+  padding-right: 16px;
+
+  @include common-style;
+
+  .container-01 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+}

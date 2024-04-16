@@ -35,6 +35,7 @@ import { throttle } from 'throttle-debounce';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+// import MonitorSkeleton from '../../components/skeleton/skeleton';
 import NoBussiness from '../no-business/no-business.vue';
 
 import BusinessItemBigSkeleton from './skeleton/business-item-big-skeleton';
@@ -42,6 +43,7 @@ import BusinessItemBig from './business-item-big';
 import NoBusinessItem from './no-business-item';
 import OverviewContent, { IData as IDataOverviewData } from './overview-content';
 
+// import skeletonOptions from './skeleton.json';
 import './home.scss';
 
 interface IDataOverview {
