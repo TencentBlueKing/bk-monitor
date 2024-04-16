@@ -1335,3 +1335,6 @@ BASE64_ENCODE_TRIGGER_CHARS = []
 
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
+
+# API地址
+BK_MONITOR_API_HOST = os.getenv("BKAPP_BK_MONITOR_API_HOST", "http://monitor.bkmonitorv3.service.consul:10204")
