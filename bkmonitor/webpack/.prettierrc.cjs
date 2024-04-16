@@ -8,7 +8,7 @@ module.exports = {
   singleAttributePerLine: true,
   singleQuote: true,
   tabWidth: 2,
-  trailingComma: 'all',
+  trailingComma: 'es5',
   useTabs: false,
   vueIndentScriptAndStyle: false,
 };
