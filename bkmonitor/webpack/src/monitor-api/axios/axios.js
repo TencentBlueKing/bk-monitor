@@ -1,4 +1,3 @@
-/* eslint-disable no-underscore-dangle */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
+
 import axios from 'axios';
 import { getCookie } from 'monitor-common/utils/utils';
 import qs from 'qs';
@@ -34,7 +33,7 @@ import { authorityStore, bkMessage, makeMessage } from '../utils/index';
 const noMessageCode = [3314001, 3310003];
 const errorHandle = (response, config) => {
   const traceparent = config?.headers?.traceparent;
-  const resMessage = makeMessage(response.data.message || '求出错了！', traceparent, config.needTraceId);
+  const resMessage = makeMessage(response.data.message || '请求出错了！', traceparent, config.needTraceId);
   switch (response.status) {
     case 502:
       if (config.needMessage) bkMessage(resMessage);
@@ -52,7 +51,7 @@ const errorHandle = (response, config) => {
           window.location.href = `${window.bk_paas_host.replace(/\/$/g, '')}/login/`;
         };
         const { data } = response;
-        // eslint-disable-next-line camelcase
+
         if (data?.has_plain) {
           try {
             if (data.login_url) {
@@ -110,9 +109,8 @@ const instance = axios.create({
   },
   baseURL:
     (window.__BK_WEWEB_DATA__?.host || '').replace(/\/$/, '') +
-    // eslint-disable-next-line no-nested-ternary
     (process.env.NODE_ENV === 'production' ? window.site_url : process.env.APP === 'mobile' ? '/weixin' : '/'),
-  xsrfCookieName: 'X-CSRFToken'
+  xsrfCookieName: 'X-CSRFToken',
 });
 instance.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded';
 
