@@ -193,7 +193,7 @@ export default defineComponent({
         axisTop = axisTop;
       }
 
-      const { name, self, total, baseline, comparison, mark = '' } = row;
+      const { name, self, total, baseline, comparison, mark = '', diff = 0 } = row;
       const totalItem = tableData.value[0];
 
       tipDetail.value = {
@@ -205,6 +205,7 @@ export default defineComponent({
         baseline,
         comparison,
         mark,
+        diff,
         selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
         totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`
       };
@@ -239,12 +240,11 @@ export default defineComponent({
         return <span style={`color: ${row.mark === 'removed' ? '#ff5656' : '#2dcb56'}`}>{row.mark}</span>;
       }
 
-      const { baseline, comparison } = row;
-      const diffVal = (baseline - comparison) / comparison;
+      const { diff } = row;
 
-      if (diffVal === 0) return <span style='color:#dddfe3'>0%</span>;
+      if (diff === 0) return <span style='color:#dddfe3'>0%</span>;
 
-      return <span style={`color:${diffVal > 0 ? '#ff5656' : '#2dcb56'}`}>{`${(diffVal * 100).toFixed(0)}%`}</span>;
+      return <span style={`color:${diff > 0 ? '#ff5656' : '#2dcb56'}`}>{`${(diff * 100).toFixed(2)}%`}</span>;
     };
 
     return (
@@ -334,9 +334,9 @@ export default defineComponent({
                   ? [
                       <thead>
                         <th></th>
-                        <th>Baseline</th>
-                        <th>Comparison</th>
-                        <th>Diff</th>
+                        <th>{this.$t('当前')}</th>
+                        <th>{this.$t('参照')}</th>
+                        <th>{this.$t('差异')}</th>
                       </thead>
                     ]
                   : [

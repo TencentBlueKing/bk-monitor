@@ -450,6 +450,7 @@ export default defineComponent({
             title={this.t('查看大图')}
             zIndex={8004}
             fullscreen
+            dialog-type='show'
             header-align='center'
             draggable={false}
             ext-cls='full-dialog'
