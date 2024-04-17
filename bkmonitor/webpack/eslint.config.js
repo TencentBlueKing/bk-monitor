@@ -7,7 +7,7 @@ const eslintVueParser = require('vue-eslint-parser');
 const perfectionist = require('eslint-plugin-perfectionist');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
-// const tencentEslintBaseRules = require('eslint-config-tencent/base').rules;
+
 // Deprecate formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
 const deprecateRules = Object.fromEntries(
   [
@@ -36,9 +36,8 @@ const deprecateRules = Object.fromEntries(
     'no-misused-promises',
   ].map(rule => [`@typescript-eslint/${rule}`, 'off'])
 );
-
 const recommendedVue2Config = eslintVuePlugin.configs['flat/vue2-recommended'].find(config => config.files);
-// 以下是 script = js 的vue 文件
+// 以下是 script = js 的vue 文件 需要和 ts 分开检测
 const jsVueFiles = [
   'src/monitor-pc/components/editors/**/*.vue',
   'src/monitor-pc/components/history-dialog/**/*.vue',
@@ -68,6 +67,7 @@ const jsVueFiles = [
   'src/monitor-pc/pages/strategy-config/**/*.vue',
   'src/monitor-pc/pages/uptime-check/**/*.vue',
 ];
+// vue中容易冲突的规则
 const vueCommonRules = {
   'vue/html-self-closing': [
     'error',
@@ -246,7 +246,7 @@ module.exports = [
             },
           },
           'newlines-between': 'always',
-          // 'internal-pattern': ['@/components/**', '@/stores/**', '@/pages/**', '@/lib/**'],
+          'internal-pattern': ['@/*', '@router/*', '@store/*', '@page/*', '@static/*'],
         },
       ],
       // 'perfectionist/sort-intersection-types': [
@@ -315,7 +315,6 @@ module.exports = [
       ...typescriptEslint.configs.recommended.rules,
       ...tencentEslintLegacyRules,
       ...deprecateRules,
-      ...importSortRules,
     },
   },
   ...eslintVuePlugin.configs['flat/vue2-recommended'].filter(config => !config.files?.length),
@@ -354,7 +353,6 @@ module.exports = [
       ...tencentEslintLegacyRules,
       '@typescript-eslint/explicit-member-accessibility': 'off',
       'comma-dangle': ['error', 'always-multiline'],
-      ...importSortRules,
       ...deprecateRules,
       ...vueCommonRules,
     },

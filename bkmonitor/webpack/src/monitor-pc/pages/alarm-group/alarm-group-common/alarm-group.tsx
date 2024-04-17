@@ -44,9 +44,9 @@ const { i18n } = window;
 
 type TGroupType = 'fta' | 'monitor';
 interface IGroupList {
-  type: TGroupType;
-  fromRouterName: string;
-  needReflesh: boolean;
+  type?: TGroupType;
+  fromRouterName?: string;
+  needReflesh?: boolean;
 }
 
 @Component({
@@ -179,7 +179,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   searchCondition = [];
 
-  handleSearch: Function = () => {};
+  handleSearch: (() => void) | debounce<(val: string) => void> = () => {};
 
   get isMonitor(): boolean {
     return this.type === 'monitor';
