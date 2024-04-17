@@ -22,6 +22,7 @@ from django.conf import settings
 from django.utils import translation
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
+from django.utils.translation import ugettext_lazy as _lazy
 from requests.exceptions import HTTPError, ReadTimeout
 
 from bkmonitor.utils.request import get_request
@@ -221,7 +222,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         try:
             result.raise_for_status()
         except HTTPError as err:
-            logger.exception("【模块：{}】请求APIGW错误：{}，请求url: {} ".format(self.module_name, err, request_url))
+            logger.exception(_lazy("【模块：{}】请求APIGW错误：{}，请求url: {} ".format(self.module_name, err, request_url)))
             raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
 
         result_json = result.json()

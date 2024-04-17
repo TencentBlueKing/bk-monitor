@@ -84,12 +84,11 @@ class GetMsgType(CMSIBaseResource):
     action = "get_msg_type"
     method = "GET"
 
-    def perform_request(self, validated_request_data):
-        result = super(GetMsgType, self).perform_request(validated_request_data)
-        for msg_type in result:
+    def render_response_data(self, validated_request_data, response_data):
+        for msg_type in response_data:
             msg_type["channel"] = "user"
         if settings.WXWORK_BOT_WEBHOOK_URL:
-            result.append(
+            response_data.append(
                 {
                     "icon": "iVBORw0KGgoAAAANSUhEUgAAANcAAADICAMAAABMI4TJAAACvlBMVEUAAAAA//8AgP8Aqv8AgL8AmcwAqtU"
                     "Aktsgn98"
@@ -140,7 +139,7 @@ class GetMsgType(CMSIBaseResource):
                 }
             )
         if settings.BKCHAT_API_BASE_URL:
-            result.append(
+            response_data.append(
                 {
                     "icon": "iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAMAAACahl6sAAACglBMVEUAAAD///+A//+qqv+/v/+ZzP+q1f+Stv+fv/"
                     "+qxv+ZzP+iuf+qv/+dxP+kyP+qzP+fv/+qxv+hyf+mv/+ewv+ixf+myP+fyv+jwv+nxP+hxv+kyP+nwf+ixP+lxf+f"
@@ -183,7 +182,7 @@ class GetMsgType(CMSIBaseResource):
                 }
             )
 
-        return result
+        return response_data
 
 
 class SendMsg(CheckCMSIResource):
