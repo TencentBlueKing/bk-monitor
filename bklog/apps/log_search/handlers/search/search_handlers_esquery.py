@@ -235,8 +235,8 @@ class SearchHandler(object):
         # 透传size
         self.size: int = search_dict.get("size", 30)
 
-        # 透传filter
-        self.filter: list = self._init_filter()
+        # 透传filter. 初始化为None,表示filter还没有被初始化
+        self._filter = None
 
         # 构建排序list
         self.sort_list: list = self._init_sort()
@@ -1573,6 +1573,13 @@ class SearchHandler(object):
             scope=scope,
             default_sort_tag=self.search_dict.get("default_sort_tag", False),
         )
+
+    @property
+    def filter(self):
+        # 当filter被访问时，如果还没有被初始化，则调用_init_filter()进行初始化
+        if self._filter is None:
+            self._filter = self._init_filter()
+        return self._filter
 
     # 过滤filter
     def _init_filter(self):
