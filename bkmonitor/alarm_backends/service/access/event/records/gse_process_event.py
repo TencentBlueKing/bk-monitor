@@ -29,7 +29,7 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
         "data": [{
             "dimension": {
                 "bk_target_cloud_id": "0",
-                "bk_target_ip": "10.0.0.1",
+                "bk_target_ip": "127.0.0.1",
                 "process_group_id": "nodeman",
                 "process_index": "nodeman:bkmonitorbeat",
                 "process_name": "bkmonitorbeat"
@@ -38,7 +38,7 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
                 "content": "check bkmonitorbeat not running, and restart it success"
             },
             "event_name": "process_restart_success",
-            "target": "10.0.0.1|0",
+            "target": "127.0.0.1|0",
             "timestamp": 1618382611690
         }],
         "data_id": 1100008
@@ -59,7 +59,7 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
             },
             "dimensions": {
                 "bk_target_cloud_id": "0",
-                "bk_target_ip": "10.0.0.1",
+                "bk_target_ip": "127.0.0.1",
                 "process_group_id": "nodeman",
                 "process_index": "nodeman:bkmonitorbeat",
                 "process_name": "bkmonitorbeat"
@@ -113,7 +113,7 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
                     "_time_": alarm_time,
                     "_type_": "-1",
                     "_bizid_": dimension.get("_bizid_") or 0,
-                    "_cloudid_": int(dimension.get("bk_target_cloud_id")) or 0,
+                    "_cloudid_": int(dimension.get("bk_target_cloud_id") or 0),
                     "_server_": dimension.get("bk_target_ip"),
                     "_host_": dimension.get("bk_target_ip"),
                     "_agent_id_": dimension.get("bk_agent_id", ""),
