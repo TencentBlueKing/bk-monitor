@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { ObjectDirective } from 'vue';
+
 import { random } from 'monitor-common/utils/utils';
 
 let insertedEl: IDragHtmlElement = null;
@@ -40,8 +41,8 @@ interface IBindValue {
   autoHidden: boolean; // 超出最小宽度时是否自动隐藏
   isShow: boolean; // 是否展示
   theme: 'normal' | 'simple'; // 拖拽按钮主题
-  onHidden?: Function; // 隐藏回调
-  onWidthChange?: Function; // 宽度更新
+  onHidden?: () => void; // 隐藏回调
+  onWidthChange?: (w: number) => void; // 宽度更新
 }
 interface IDragHtmlElement extends HTMLElement {
   _bk_monitor_drag: {

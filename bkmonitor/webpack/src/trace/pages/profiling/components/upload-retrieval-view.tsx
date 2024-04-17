@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Exception, Select } from 'bkui-vue';
 import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
@@ -32,7 +33,6 @@ import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
 import { IQueryParams } from '../../../typings/trace';
 import { ConditionType, DataTypeItem, RetrievalFormData } from '../typings';
 import { EFileStatus, fileStatusMap } from '../typings/profiling-file';
-
 import ProfilingFileUpload from './profiling-file-upload';
 import ProfilingRetrievalView from './profiling-retrieval-view';
 
@@ -207,12 +207,12 @@ export default defineComponent({
           <div class='file-select'>
             {this.isCompare && <div class='label where'>{this.t('查询项')}</div>}
             <Select
-              modelValue={this.searchObj.selectFile}
               popoverOptions={{
                 extCls: 'upload-select-popover',
                 zIndex: 1,
               }}
               clearable={false}
+              modelValue={this.searchObj.selectFile}
               onSelect={v => this.handleSelectFile(v)}
               onToggle={v => this.handleSelectFileToggle(v)}
             >
@@ -237,8 +237,8 @@ export default defineComponent({
                     <Select.Option
                       id={item.id}
                       key={item.id}
-                      name={item.file_name || '--'}
                       disabled={item.status !== EFileStatus.storeSucceed}
+                      name={item.file_name || '--'}
                     >
                       <div class='upload-select-item'>
                         <div class='left'>
@@ -264,16 +264,16 @@ export default defineComponent({
             <div class='file-select'>
               {this.isCompare && <div class='label comparison'>{this.t('对比项')}</div>}
               <Select
-                modelValue={this.compareObj.selectFile}
                 popoverOptions={{
                   extCls: 'upload-select-popover',
                 }}
+                modelValue={this.compareObj.selectFile}
               >
                 {this.compareObj.list.map(item => (
                   <Select.Option
                     id={item.id}
-                    name={item.file_name || '--'}
                     key={item.id}
+                    name={item.file_name || '--'}
                   >
                     <div class='upload-select-item'>
                       <div class='left'>
@@ -311,19 +311,19 @@ export default defineComponent({
           ) : (
             <ProfilingRetrievalView
               dataType={this.dataType}
+              dataTypeList={this.dataTypeList}
               queryParams={this.queryParams}
               onUpdate:dataType={this.handleDataTypeChange}
-              dataTypeList={this.dataTypeList}
             ></ProfilingRetrievalView>
           )}
         </div>
 
         <ProfilingFileUpload
-          show={this.uploadDialogShow}
           appName={this.formData.server.app_name}
           isCompare={this.isCompare}
-          onShowChange={this.handleUploadShowChange}
+          show={this.uploadDialogShow}
           onRefleshFiles={this.handleRefleshFiles}
+          onShowChange={this.handleUploadShowChange}
         ></ProfilingFileUpload>
       </div>
     );

@@ -107,8 +107,8 @@ export default defineComponent({
         <div class='inquire-header-center'>
           {props.favoritesList.length ? (
             <FavoritesList
-              value={props.favoritesList}
               checkedValue={props.checkedValue}
+              value={props.favoritesList}
               onDelete={handleDeleteCollect}
               onSelect={handleSelectCollectItem}
             />
@@ -128,11 +128,11 @@ export default defineComponent({
           <span class='inquire-header-append-item'>
             <RefreshRate
               value={props.refleshInterval}
+              onImmediate={() => emit('immediateReflesh')}
               onSelect={val => {
                 emit('update:refleshInterval', val);
                 emit('refleshIntervalChange', val);
               }}
-              onImmediate={() => emit('immediateReflesh')}
             />
             <SelectMenu
               list={props.menuList}

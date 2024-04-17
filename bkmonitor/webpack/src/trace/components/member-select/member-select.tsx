@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, TransitionGroup, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Loading, Popover } from 'bkui-vue';
 import { debounce, random } from 'lodash';
 import { listUsersUser } from 'monitor-api/modules/model';
@@ -104,7 +105,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
     /** 获取用户组 */
     function getReceiverGroup() {
@@ -146,7 +147,7 @@ export default defineComponent({
         },
         {
           needCancel: true,
-        },
+        }
       )
         .then(res => {
           setUser(res.results);
@@ -195,7 +196,7 @@ export default defineComponent({
         tags.splice(0, tags.length, ...val);
         setUserMap(tags);
       },
-      { immediate: true, deep: true },
+      { immediate: true, deep: true }
     );
 
     /** 点击容器，把输入框显示在最后 */
@@ -225,8 +226,8 @@ export default defineComponent({
         return (
           <img
             class='user-logo'
-            src={tag.logo}
             alt=''
+            src={tag.logo}
           ></img>
         );
       }
@@ -327,12 +328,12 @@ export default defineComponent({
     function renderInputContent() {
       return (
         <Popover
-          trigger='click'
-          theme='light'
           extCls='member-select-popover component'
           arrow={false}
-          placement='bottom-start'
           is-show={popoverShow.value}
+          placement='bottom-start'
+          theme='light'
+          trigger='click'
           onAfterHidden={handleAfterHidden}
         >
           {{
@@ -341,8 +342,8 @@ export default defineComponent({
               <input
                 key={`${inputIndex.value}_input`}
                 ref='inputRef'
-                class='input'
                 style={{ width: `${inputWidth.value}px` }}
+                class='input'
                 value={inputValue.value}
                 onClick={e => e.stopPropagation()}
                 onInput={handleInput}
@@ -396,8 +397,8 @@ export default defineComponent({
       return (
         <Loading loading={loading.value}>
           <div
-            class='member-select-popover-wrap'
             ref='popoverWrapRef'
+            class='member-select-popover-wrap'
           >
             {selectList.value.map(item => (
               <div
@@ -476,17 +477,17 @@ export default defineComponent({
             <TransitionGroup name={this.showType === 'tag' ? 'flip-list' : ''}>
               {this.tags.map((tag, ind) => (
                 <div
-                  class='list-item'
                   key={tag.id}
+                  class='list-item'
                 >
                   {this.inputIndex === 0 && ind === 0 && this.renderInputContent()}
                   <div
                     key={`${tag.id}_value`}
                     class={['tag-item', `${this.showType}-type`]}
-                    onClick={e => this.handleTagClick(e, ind)}
                     draggable={this.showType === 'tag'}
-                    onDragstart={e => this.handleDragstart(e, ind)}
+                    onClick={e => this.handleTagClick(e, ind)}
                     onDragover={e => this.handleDragover(e)}
+                    onDragstart={e => this.handleDragstart(e, ind)}
                     onDrop={e => this.handleDrop(e, ind)}
                   >
                     {this.renderTagItemContent(tag.id, ind)}
@@ -503,8 +504,8 @@ export default defineComponent({
           )}
         </div>
         <span
-          class='text-width-test'
           ref='textTestRef'
+          class='text-width-test'
         >
           {this.inputValue}
         </span>

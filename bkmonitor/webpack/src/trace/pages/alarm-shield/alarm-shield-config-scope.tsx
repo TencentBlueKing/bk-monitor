@@ -25,11 +25,11 @@
  */
 import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Popover, Radio, Table } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 
 import CommonTip from '../../components/common-tip/common-tip';
-
 import AlarmShieldIpv6 from './components/alarm-shield-ipv6';
 import FormItem from './components/form-item';
 import { Ipv6FieldMap } from './typing';
@@ -163,7 +163,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     function handleValueChange({ value }) {
@@ -312,9 +312,9 @@ export default defineComponent({
       <div class={['alarm-shield-config-scope-component', { show: this.show }]}>
         <FormItem
           class='mt24 max-w1000'
+          errMsg={this.errMsg.target}
           label={this.t('屏蔽范围')}
           require={this.require}
-          errMsg={this.errMsg.target}
         >
           <div class='mt8'>
             {!this.isEdit && (
@@ -325,13 +325,13 @@ export default defineComponent({
                     return (
                       <Popover
                         key={item.id}
-                        placement='bottom-start'
                         width={216}
+                        extCls='alarm-shield-config-scope-pop'
                         arrow={true}
+                        isShow={this.popRefs[item.id].show}
+                        placement='bottom-start'
                         theme='light'
                         trigger='manual'
-                        isShow={this.popRefs[item.id].show}
-                        extCls='alarm-shield-config-scope-pop'
                         onClickoutside={() => this.handleClickoutside(item.id)}
                       >
                         {{
@@ -344,8 +344,8 @@ export default defineComponent({
                                 >
                                   <Radio
                                     ref='radioRef'
-                                    modelValue={this.isBiz}
                                     label={true}
+                                    modelValue={this.isBiz}
                                   >
                                     {item.name}
                                   </Radio>
@@ -355,8 +355,8 @@ export default defineComponent({
 
                             return (
                               <span
-                                class='scope-list-item'
                                 key={item.id}
+                                class='scope-list-item'
                                 onClick={() => this.handleChangeScope(item.id)}
                               >
                                 <span class='icon-monitor icon-jia'></span>
@@ -369,9 +369,9 @@ export default defineComponent({
                               <span class='msg'>{this.t('添加新的屏蔽范围将会覆盖之前的屏蔽内容，确定覆盖？')}</span>
                               <div class='operate'>
                                 <Button
+                                  class='mr-8'
                                   text={true}
                                   theme='primary'
-                                  class='mr-8'
                                   onClick={() => this.handleConfirmPop(item.id)}
                                 >
                                   {this.t('确定')}
@@ -400,10 +400,10 @@ export default defineComponent({
             )}
             {this.scopeState.bkGroup.value !== 'biz' && !this.isEdit && !!this.scopeState.inited && (
               <AlarmShieldIpv6
-                showDialog={this.scopeState.showIpv6Dialog}
-                shieldDimension={this.scopeState.bkGroup.value}
                 checkedValue={this.scopeState.ipv6Value}
                 originCheckedValue={this.scopeState.originIpv6Value}
+                shieldDimension={this.scopeState.bkGroup.value}
+                showDialog={this.scopeState.showIpv6Dialog}
                 showViewDiff={this.isClone}
                 onChange={this.handleValueChange}
                 onCloseDialog={this.handleIpv6DialogChange}
@@ -413,9 +413,6 @@ export default defineComponent({
               (this.scopeState.bkGroup.value !== 'biz' ? (
                 <div class='max-w836'>
                   <Table
-                    data={this.scopeState.tableData}
-                    maxHeight={450}
-                    border={['outer']}
                     columns={[
                       {
                         id: 'name',
@@ -423,6 +420,9 @@ export default defineComponent({
                         render: ({ row }) => row.name,
                       },
                     ]}
+                    border={['outer']}
+                    data={this.scopeState.tableData}
+                    maxHeight={450}
                   ></Table>
                 </div>
               ) : (

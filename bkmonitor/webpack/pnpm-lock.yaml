@@ -551,7 +551,7 @@ importers:
         version: 4.8.24
       '@blueking/date-picker':
         specifier: ^2.0.0-beta.10
-        version: 2.0.0-beta.10(bkui-vue@1.0.3-beta.38)(dayjs@1.11.10)(vue@3.4.21)
+        version: 2.0.0-beta.10(bkui-vue@1.0.3-beta.9)(dayjs@1.11.10)(vue@3.4.21)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -562,8 +562,8 @@ importers:
         specifier: workspace:*
         version: link:../apm
       bkui-vue:
-        specifier: 1.0.3-beta.38
-        version: 1.0.3-beta.38(highlight.js@11.5.1)(vue@3.4.21)
+        specifier: 1.0.3-beta.9
+        version: 1.0.3-beta.9(highlight.js@11.5.1)(vue@3.4.21)
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -2364,7 +2364,7 @@ packages:
   /@blueking/bkui-library@0.0.0-beta.4:
     resolution: {integrity: sha512-FjrSj+tglFjpy17NvTZidzbtgm3l7nEn5Jyi1pB7lCK6eBkXam66IF+zZYDFE1XeyEeZfTAFUHV/Kil+Q6DmLg==}
     dependencies:
-      '@vue/runtime-dom': 3.4.21
+      '@vue/runtime-dom': 3.4.23
     dev: false
 
   /@blueking/date-picker@2.0.0-beta.10(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.10)(vue@2.7.16):
@@ -2381,7 +2381,7 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/date-picker@2.0.0-beta.10(bkui-vue@1.0.3-beta.38)(dayjs@1.11.10)(vue@3.4.21):
+  /@blueking/date-picker@2.0.0-beta.10(bkui-vue@1.0.3-beta.9)(dayjs@1.11.10)(vue@3.4.21):
     resolution: {integrity: sha512-+wQC26FQTkhZrN0t1DbWWUaS6MUhQyVj/8GWUHKMmsfKa3DFNSsDBuma3m8PXDJGP9CIs8J+lf8xDRBAqygTFw==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
@@ -2390,7 +2390,7 @@ packages:
       dayjs: ^1.11.10
       vue: latest
     dependencies:
-      bkui-vue: 1.0.3-beta.38(highlight.js@11.5.1)(vue@3.4.21)
+      bkui-vue: 1.0.3-beta.9(highlight.js@11.5.1)(vue@3.4.21)
       dayjs: 1.11.10
       vue: 3.4.21(typescript@5.4.5)
     dev: false
@@ -4306,6 +4306,12 @@ packages:
       '@vue/shared': 3.4.21
     dev: false
 
+  /@vue/reactivity@3.4.23:
+    resolution: {integrity: sha512-GlXR9PL+23fQ3IqnbSQ8OQKLodjqCyoCrmdLKZk3BP7jN6prWheAfU7a3mrltewTkoBm+N7qMEb372VHIkQRMQ==}
+    dependencies:
+      '@vue/shared': 3.4.23
+    dev: false
+
   /@vue/runtime-core@3.4.21:
     resolution: {integrity: sha512-pQthsuYzE1XcGZznTKn73G0s14eCJcjaLvp3/DKeYWoFacD9glJoqlNBxt3W2c5S40t6CCcpPf+jG01N3ULyrA==}
     dependencies:
@@ -4313,11 +4319,26 @@ packages:
       '@vue/shared': 3.4.21
     dev: false
 
+  /@vue/runtime-core@3.4.23:
+    resolution: {integrity: sha512-FeQ9MZEXoFzFkFiw9MQQ/FWs3srvrP+SjDKSeRIiQHIhtkzoj0X4rWQlRNHbGuSwLra6pMyjAttwixNMjc/xLw==}
+    dependencies:
+      '@vue/reactivity': 3.4.23
+      '@vue/shared': 3.4.23
+    dev: false
+
   /@vue/runtime-dom@3.4.21:
     resolution: {integrity: sha512-gvf+C9cFpevsQxbkRBS1NpU8CqxKw0ebqMvLwcGQrNpx6gqRDodqKqA+A2VZZpQ9RpK2f9yfg8VbW/EpdFUOJw==}
     dependencies:
       '@vue/runtime-core': 3.4.21
       '@vue/shared': 3.4.21
+      csstype: 3.1.3
+    dev: false
+
+  /@vue/runtime-dom@3.4.23:
+    resolution: {integrity: sha512-RXJFwwykZWBkMiTPSLEWU3kgVLNAfActBfWFlZd0y79FTUxexogd0PLG4HH2LfOktjRxV47Nulygh0JFXe5f9A==}
+    dependencies:
+      '@vue/runtime-core': 3.4.23
+      '@vue/shared': 3.4.23
       csstype: 3.1.3
     dev: false
 
@@ -4333,6 +4354,10 @@ packages:
 
   /@vue/shared@3.4.21:
     resolution: {integrity: sha512-PuJe7vDIi6VYSinuEbUIQgMIRZGgM8e4R+G+/dQTk0X1NEdvgvvgv7m+rfmDH1gZzyA1OjjoWskvHlfRNfQf3g==}
+
+  /@vue/shared@3.4.23:
+    resolution: {integrity: sha512-wBQ0gvf+SMwsCQOyusNw/GoXPV47WGd1xB5A1Pgzy0sQ3Bi5r5xm3n+92y3gCnB3MWqnRDdvfkRGxhKtbBRNgg==}
+    dev: false
 
   /@webassemblyjs/ast@1.12.1:
     resolution: {integrity: sha512-EKfMUOPRRUTy5UII4qJDGPpqfwjOmZ5jeGFwid9mnoqIFK+e0vqoi1qH56JpmZSzEL53jKnNzScdmftJyG5xWg==}
@@ -4981,8 +5006,8 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /bkui-vue@1.0.3-beta.38(highlight.js@11.5.1)(vue@3.4.21):
-    resolution: {integrity: sha512-ZQB0hWF32LmhQezoRVLS/IRzsfdrf6596NuIKphZpwyfu8bel1dKIaNJQ1lMTfYOHncRz0lnDwg1cAuFphiVWw==}
+  /bkui-vue@1.0.3-beta.9(highlight.js@11.5.1)(vue@3.4.21):
+    resolution: {integrity: sha512-7fT8R4RI5yHi7j7uMOg5sZDRvVYXCGfQCLEp5jp61t6v2vqeZ3oL8LwkgHXHTJm46c3dXL0L5HxYh2Agq6HzvA==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0

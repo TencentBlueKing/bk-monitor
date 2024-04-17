@@ -33,7 +33,6 @@ import { curveCatmullRom, line } from 'd3-shape';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import traceIcons from '../../utls/icons';
-
 import {
   BaseDataType,
   BaseRect,
@@ -48,36 +47,181 @@ import {
 
 const usFormat = getValueFormat('µs');
 export class FlameChart<D extends BaseDataType> {
-  w = 960;
-  h = null;
   c = 16;
-  transitionDuration = 750;
-  minHeight = 200;
-  keywords?: string[] = [];
   direction?: 'ltr' | 'rtl' = 'ltr';
-
-  onDetail?: (e: MouseEvent, d: HierarchyNode<BaseDataType>, c?: IOtherData) => void;
-  onContextMenu?: (e: MouseEvent, d: HierarchyNode<BaseDataType>) => void;
-  onMouseMove?: (e: MouseEvent, c?: IOtherData) => void;
-  onMouseOut?: (e: MouseEvent) => void;
-  onMouseDown?: (e: MouseEvent) => void;
   getFillColor?: (d: BaseDataType) => string;
-  transitionEase = easeCubic; // tooltip offset
+  h = null;
   iconSize = 12;
-  zoomData: BaseRect = {};
-
-  threadPosMap: Record<string, ThreadPos> = {};
-  mainData: D = null;
-  threadsData: D[] = [];
+  keywords?: string[] = [];
   lineMap: Map<string, ILineData<D>> = new Map();
+
+  mainData: D = null;
   maxDepth = 0;
+  minHeight = 200;
+  onContextMenu?: (e: MouseEvent, d: HierarchyNode<BaseDataType>) => void;
+  onDetail?: (e: MouseEvent, d: HierarchyNode<BaseDataType>, c?: IOtherData) => void;
+  onMouseDown?: (e: MouseEvent) => void;
+  onMouseMove?: (e: MouseEvent, c?: IOtherData) => void; // tooltip offset
+  onMouseOut?: (e: MouseEvent) => void;
+  threadPosMap: Record<string, ThreadPos> = {};
+
+  threadsData: D[] = [];
+  transitionDuration = 750;
+  transitionEase = easeCubic;
+  w = 960;
+  zoomData: BaseRect = {};
   constructor(
     d: IFlameData<D>,
     options: IFlameChartOptions,
-    public chartDom: HTMLElement,
+    public chartDom: HTMLElement
   ) {
     Object.assign(this, options);
     this.render(d);
+  }
+  addRootNode(data: D[]) {
+    const root = {
+      value: 0,
+      name: 'total',
+      id: RootId,
+      start_time: 0,
+      end_time: 0,
+    };
+    data.forEach((item, index) => {
+      root.start_time = index === 0 ? item.start_time : Math.min(root.start_time, item.start_time);
+      root.end_time = Math.max(root.end_time, item.end_time);
+    });
+    root.value = root.end_time - root.start_time;
+    return {
+      ...root,
+      children: data,
+    };
+  }
+  filterGraph(keywords: string[] = []) {
+    this.zoomData = {
+      ...this.zoomData,
+      keywords: keywords.map(k => k?.toLocaleLowerCase()),
+    };
+    this.zoomGraph(this.zoomData);
+  }
+  getChildren(d: D | HierarchyNode<D> | HierarchyRectangularNode<D>) {
+    if ('data' in d) {
+      return d.data.children as D[];
+    }
+    return d.children as D[];
+  }
+  getName(d: HierarchyNode<D> | HierarchyRectangularNode<D>, type: 'all' | 'name' | 'value' = 'all') {
+    const value = this.getValue(d as HierarchyRectangularNode<D>);
+    if (type === 'name') return d.data.name;
+    const { text, suffix } = usFormat(value);
+    if (type === 'value') return `(${((value / this.getValue(this.mainData)) * 100).toFixed(2)}%, ${text}${suffix})`;
+    return `${d.data.name}(${((value / this.getValue(this.mainData)) * 100).toFixed(2)}%, ${text}${suffix})`;
+  }
+  getValue(d: D | HierarchyRectangularNode<D>) {
+    if ('data' in d) {
+      return d.data.end_time - d.data.start_time;
+    }
+    if ('end_time' in d) {
+      return d.end_time - d.start_time;
+    }
+    return d.value;
+  }
+  /**
+   *
+   * @param highlightName 高亮节点名称
+   * @description 高亮节点
+   */
+  highlightNode(highlightName: string) {
+    this.zoomData.highlightName = highlightName;
+    this.zoomGraph({
+      ...this.zoomData,
+      highlightName,
+    });
+  }
+  initData(d: IFlameData<D>) {
+    const { main, threads } = structuredClone(d);
+    // const stack: D[] = [data];
+    // let node: D = null;
+    // let children: D[] = null;
+    // let i = 0;
+    // let child: D = null;
+    // const threads: D[] = [];
+    // const startTime = data.start_time;
+    // let endTime = 0;
+    // while ((node = stack.pop())) {
+    //   children = node.children as D[];
+    //   children.sort((a, b) => a.start_time - b.start_time);
+    //   endTime = Math.max(endTime, node.end_time);
+    //   if (children && (i = children.length)) {
+    //     const spliceIndex = [];
+    //     while (i--) {
+    //       child = children[i];
+    //       endTime = Math.max(endTime, child.end_time);
+    //       if (i > 0 && child) {
+    //         const startTime = child.start_time;
+    //         const preEndTime = children[i - 1].end_time;
+    //         if (startTime < preEndTime) {
+    //           child.threadSiblingId = children[i - 1].id;
+    //           this.threadPosMap[child.threadSiblingId] = {
+    //             x: 0,
+    //             y: 0
+    //           };
+    //           threads.push(child);
+    //           spliceIndex.push(i);
+    //         }
+    //       }
+    //       stack.push(child);
+    //     }
+    //     node.children = children.filter((_, index) => !spliceIndex.includes(index));
+    //   }
+    // }
+    // data.start_time = startTime;
+    // data.end_time = endTime;
+    let maxDepth = 1;
+    let nodes = hierarchy(main, (d: D) => d.children).descendants();
+    const mergeList = [...nodes];
+    const fromSet = new Set(...nodes.filter(item => item.data.last_sibling_id).map(item => item.data.last_sibling_id));
+    const lineMap = new Map<string, ILineData<D>>();
+    maxDepth += nodes.at(-1).depth;
+    threads.forEach(thread => {
+      nodes = hierarchy(thread, (d: D) => d.children).descendants();
+      mergeList.push(...nodes);
+      nodes.forEach(item => item.data.last_sibling_id && fromSet.add(item.data.last_sibling_id));
+      maxDepth += nodes.at(-1).depth + 2;
+    });
+    fromSet.forEach(id => {
+      const node = mergeList.find(item => item.data.id === id);
+      if (node) {
+        lineMap.set(id, { x: 0, y: 0, tag: 'to', data: node.data });
+        const from = mergeList.find(item => item.data.last_sibling_id === id).data;
+        lineMap.set(from.id, { x: 0, y: 0, tag: 'from', data: from });
+      }
+    });
+    this.lineMap = lineMap;
+    return {
+      threads,
+      main,
+      maxDepth,
+    };
+  }
+  initEvent() {
+    const rect = this.chartDom.getBoundingClientRect();
+    const { startTime, endTime } = this.zoomData;
+    const x = scaleLinear([0, this.w]).domain([startTime, endTime]);
+    select(this.chartDom)
+      .select('svg')
+      .on('mousemove', (event: MouseEvent) => {
+        const left = event.clientX - rect.left - 6;
+        this.onMouseMove(event, {
+          xAxisValue: x.invert(left) - startTime,
+        });
+      })
+      .on('mouseout', (event: MouseEvent) => {
+        this.onMouseOut(event);
+      })
+      .on('mousedown', (event: MouseEvent) => {
+        event.preventDefault();
+        this.onMouseDown(event);
+      });
   }
   /**
    *
@@ -110,141 +254,27 @@ export class FlameChart<D extends BaseDataType> {
     this.renderThreads(threads, preDepth!);
     this.initEvent();
   }
-  initEvent() {
-    const rect = this.chartDom.getBoundingClientRect();
-    const { startTime, endTime } = this.zoomData;
+  /**
+   *
+   *@description 渲染x轴
+   */
+  renderAxis({ startTime = this.mainData.start_time, endTime = this.mainData.end_time }: BaseRect) {
     const x = scaleLinear([0, this.w]).domain([startTime, endTime]);
     select(this.chartDom)
       .select('svg')
-      .on('mousemove', (event: MouseEvent) => {
-        const left = event.clientX - rect.left - 6;
-        this.onMouseMove(event, {
-          xAxisValue: x.invert(left) - startTime,
-        });
-      })
-      .on('mouseout', (event: MouseEvent) => {
-        this.onMouseOut(event);
-      })
-      .on('mousedown', (event: MouseEvent) => {
-        event.preventDefault();
-        this.onMouseDown(event);
-      });
-  }
-  zoomGraph(options: BaseRect) {
-    const { startTime, endTime, clickDepth, highlightName } = options;
-    let preDepth = 1;
-    preDepth = this.updateSelection(
-      select(this.chartDom).select('g.main-thread') as Selection<BaseType, HierarchyNode<D>, null, undefined>,
-      { preDepth, startTime, endTime, clickDepth, highlightName },
-    );
-    this.threadsData.forEach(thread => {
-      const threadPreDepth = this.updateSelection(
-        select(this.chartDom).select(`g.thread-${thread.id}`) as Selection<BaseType, HierarchyNode<D>, null, undefined>,
-        { preDepth: preDepth + 1, startTime, endTime, clickDepth, highlightName },
-      );
-      if (threadPreDepth === preDepth + 1) {
-        preDepth = threadPreDepth - 1;
-      } else {
-        preDepth = threadPreDepth;
-      }
-    });
-    const x = scaleLinear([0, this.w]).domain([startTime, endTime]);
-    select(this.chartDom)
-      .select<SVGGElement>('g.x-axis')
+      .append('g')
+      .attr('class', 'x-axis')
+      .attr('width', this.w)
+      .attr('transform', `translate(0, ${this.c})`)
       .call(
         axisTop(x)
-          .ticks(10)
+          .ticks(Math.ceil(this.w / 100))
           .tickSizeOuter(0)
           .tickFormat((d: NumberValue) => {
             const { text, suffix } = usFormat(d.valueOf() - startTime);
             return text + suffix;
-          }),
+          })
       );
-    this.initEvent();
-  }
-  /**
-   *
-   * @param width 宽度
-   * @param height 高度
-   * @description 重置图表大小
-   */
-  resizeGraph(width: number, height: number) {
-    this.w = width;
-    select(this.chartDom)
-      .select('svg')
-      .attr('width', this.w)
-      .attr('height', Math.max(this.minHeight, this.c * this.maxDepth, height));
-    this.zoomGraph(this.zoomData);
-    this.initEvent();
-  }
-  scaleGraph(scale: number) {
-    const { start_time, end_time } = this.mainData;
-    const scaleX = scaleLinear([100, 1000], [start_time, end_time]);
-    const scaleValue = scaleX(scale);
-    const step = (scaleValue - start_time) / 2;
-    this.zoomData = {
-      ...this.zoomData,
-      startTime: start_time + step,
-      endTime: end_time - step,
-    };
-    this.zoomGraph(this.zoomData);
-  }
-  /**
-   *
-   * @param left
-   * @param width
-   */
-  timeZoomGraph(left: number, width: number) {
-    if (width < 1) return;
-    const { startTime, endTime } = this.zoomData;
-    const x = scaleLinear([0, this.w]).domain([startTime, endTime]);
-    this.zoomData = {
-      ...this.zoomData,
-      startTime: Math.max(x.invert(left), startTime),
-      endTime: Math.min(x.invert(left + width), endTime),
-    };
-    this.zoomGraph(this.zoomData);
-  }
-  /**
-   *
-   * @param direction left | right
-   * @description 设置文字方向
-   */
-  setTextDirection(direction: 'ltr' | 'rtl') {
-    select(this.chartDom).select('svg').attr('class', `flame-graph-svg direction-${direction}`);
-    this.zoomGraph(this.zoomData);
-  }
-  /**
-   * 重置图表
-   */
-  resetGraph() {
-    this.zoomData = {
-      ...this.zoomData,
-      startTime: this.mainData.start_time,
-      endTime: this.mainData.end_time,
-      clickDepth: 0,
-      highlightName: '',
-    };
-    this.zoomGraph(this.zoomData);
-  }
-  filterGraph(keywords: string[] = []) {
-    this.zoomData = {
-      ...this.zoomData,
-      keywords: keywords.map(k => k?.toLocaleLowerCase()),
-    };
-    this.zoomGraph(this.zoomData);
-  }
-  /**
-   *
-   * @param highlightName 高亮节点名称
-   * @description 高亮节点
-   */
-  highlightNode(highlightName: string) {
-    this.zoomData.highlightName = highlightName;
-    this.zoomGraph({
-      ...this.zoomData,
-      highlightName,
-    });
   }
   /**
    *
@@ -282,27 +312,73 @@ export class FlameChart<D extends BaseDataType> {
     });
   }
   /**
-   *
-   *@description 渲染x轴
+   * 重置图表
    */
-  renderAxis({ startTime = this.mainData.start_time, endTime = this.mainData.end_time }: BaseRect) {
-    const x = scaleLinear([0, this.w]).domain([startTime, endTime]);
+  resetGraph() {
+    this.zoomData = {
+      ...this.zoomData,
+      startTime: this.mainData.start_time,
+      endTime: this.mainData.end_time,
+      clickDepth: 0,
+      highlightName: '',
+    };
+    this.zoomGraph(this.zoomData);
+  }
+  /**
+   *
+   * @param width 宽度
+   * @param height 高度
+   * @description 重置图表大小
+   */
+  resizeGraph(width: number, height: number) {
+    this.w = width;
     select(this.chartDom)
       .select('svg')
-      .append('g')
-      .attr('class', 'x-axis')
       .attr('width', this.w)
-      .attr('transform', `translate(0, ${this.c})`)
-      .call(
-        axisTop(x)
-          .ticks(Math.ceil(this.w / 100))
-          .tickSizeOuter(0)
-          .tickFormat((d: NumberValue) => {
-            const { text, suffix } = usFormat(d.valueOf() - startTime);
-            return text + suffix;
-          }),
-      );
+      .attr('height', Math.max(this.minHeight, this.c * this.maxDepth, height));
+    this.zoomGraph(this.zoomData);
+    this.initEvent();
   }
+  scaleGraph(scale: number) {
+    const { start_time, end_time } = this.mainData;
+    const scaleX = scaleLinear([100, 1000], [start_time, end_time]);
+    const scaleValue = scaleX(scale);
+    const step = (scaleValue - start_time) / 2;
+    this.zoomData = {
+      ...this.zoomData,
+      startTime: start_time + step,
+      endTime: end_time - step,
+    };
+    this.zoomGraph(this.zoomData);
+  }
+
+  /**
+   *
+   * @param direction left | right
+   * @description 设置文字方向
+   */
+  setTextDirection(direction: 'ltr' | 'rtl') {
+    select(this.chartDom).select('svg').attr('class', `flame-graph-svg direction-${direction}`);
+    this.zoomGraph(this.zoomData);
+  }
+
+  /**
+   *
+   * @param left
+   * @param width
+   */
+  timeZoomGraph(left: number, width: number) {
+    if (width < 1) return;
+    const { startTime, endTime } = this.zoomData;
+    const x = scaleLinear([0, this.w]).domain([startTime, endTime]);
+    this.zoomData = {
+      ...this.zoomData,
+      startTime: Math.max(x.invert(left), startTime),
+      endTime: Math.min(x.invert(left + width), endTime),
+    };
+    this.zoomGraph(this.zoomData);
+  }
+
   /**
    *
    * @param selection selection
@@ -317,7 +393,7 @@ export class FlameChart<D extends BaseDataType> {
       endTime = this.mainData.end_time,
       clickDepth = 0,
       highlightName = '',
-    }: BaseRect,
+    }: BaseRect
   ) {
     // const x = scaleLinear([startTime, endTime], [0, this.w]);
     const x = scaleLinear([0, this.w]).domain([startTime, endTime]);
@@ -352,15 +428,15 @@ export class FlameChart<D extends BaseDataType> {
     selection
       .each((root: HierarchyNode<D>, index: number, groups: HTMLElement[]) => {
         const newRoot = partition<D>()(root);
-        const getLeft = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
+        const getLeft = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
           return Math.max(0, x(d.data.start_time));
         };
-        const isInView = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
+        const isInView = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
           const a = x(d.data.start_time);
           const b = x(d.data.end_time);
           return !((a <= 0 && b <= 0) || (a >= this.w && b >= this.w));
         };
-        const getTranslate = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
+        const getTranslate = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
           const xPos = getLeft(d);
           const yPos = y(d.depth + preDepth);
           if (this.lineMap.has(d.data.id)) {
@@ -369,7 +445,7 @@ export class FlameChart<D extends BaseDataType> {
           }
           return `translate(${xPos},${yPos})`;
         };
-        const getFillColor = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
+        const getFillColor = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
           const customColor = this.getFillColor(d.data);
           const defColor = customColor || ColorTypes[d.data.icon_type || 'other'];
           if (this.zoomData?.keywords?.length) {
@@ -379,16 +455,16 @@ export class FlameChart<D extends BaseDataType> {
           if (highlightName) return d.data.name === highlightName ? defColor : '#aaa';
           return d.depth < clickDepth ? '#aaa' : defColor;
         };
-        const getStrokeColor = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
+        const getStrokeColor = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
           // if (this.zoomData?.keywords?.some(k => d.data.name.toLocaleLowerCase().includes(k))) {
           //   return '#3A84FF';
           // }
           return d.data.status?.code === 2 ? '#EA3636' : '#eee';
         };
-        const getWidth = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
+        const getWidth = (d: HierarchyNode<D> | HierarchyRectangularNode<D>) => {
           const width = Math.min(
             Math.max(1, Math.min(x(d.data.end_time), this.w) - Math.max(x(d.data.start_time), 0)),
-            this.w,
+            this.w
           );
           // if (width === 1 && nodeLength < 2) return 2;
           return width;
@@ -419,7 +495,7 @@ export class FlameChart<D extends BaseDataType> {
                   x: this.w,
                   y: y(newRoot.depth + preDepth - 1 / 2),
                 },
-              ]),
+              ])
             );
         }
         let g = wrapper.selectAll('g.flame-item').data(descendants, (d: HierarchyRectangularNode<D>) => d?.data?.id);
@@ -462,7 +538,7 @@ export class FlameChart<D extends BaseDataType> {
           .selectAll('g.flame-item')
           .data(
             descendants,
-            ((d: HierarchyRectangularNode<D>) => d?.data?.id) as ValueFn<HTMLElement | BaseType, unknown, KeyType>,
+            ((d: HierarchyRectangularNode<D>) => d?.data?.id) as ValueFn<BaseType | HTMLElement, unknown, KeyType>
           );
         g.attr('height', this.c)
           .attr('class', 'flame-item')
@@ -481,7 +557,7 @@ export class FlameChart<D extends BaseDataType> {
             if (width > this.iconSize * 2) {
               select(groups[index]).attr(
                 'xlink:href',
-                () => traceIcons[w.data.status?.code === 2 ? 'error' : w.data.icon_type] || '',
+                () => traceIcons[w.data.status?.code === 2 ? 'error' : w.data.icon_type] || ''
               );
               return this.iconSize;
             }
@@ -580,113 +656,36 @@ export class FlameChart<D extends BaseDataType> {
       .remove();
     return currentDepth;
   }
-  getName(d: HierarchyNode<D> | HierarchyRectangularNode<D>, type: 'all' | 'name' | 'value' = 'all') {
-    const value = this.getValue(d as HierarchyRectangularNode<D>);
-    if (type === 'name') return d.data.name;
-    const { text, suffix } = usFormat(value);
-    if (type === 'value') return `(${((value / this.getValue(this.mainData)) * 100).toFixed(2)}%, ${text}${suffix})`;
-    return `${d.data.name}(${((value / this.getValue(this.mainData)) * 100).toFixed(2)}%, ${text}${suffix})`;
-  }
-
-  getValue(d: D | HierarchyRectangularNode<D>) {
-    if ('data' in d) {
-      return d.data.end_time - d.data.start_time;
-    }
-    if ('end_time' in d) {
-      return d.end_time - d.start_time;
-    }
-    return d.value;
-  }
-
-  getChildren(d: D | HierarchyRectangularNode<D> | HierarchyNode<D>) {
-    if ('data' in d) {
-      return d.data.children as D[];
-    }
-    return d.children as D[];
-  }
-
-  addRootNode(data: D[]) {
-    const root = {
-      value: 0,
-      name: 'total',
-      id: RootId,
-      start_time: 0,
-      end_time: 0,
-    };
-    data.forEach((item, index) => {
-      root.start_time = index === 0 ? item.start_time : Math.min(root.start_time, item.start_time);
-      root.end_time = Math.max(root.end_time, item.end_time);
-    });
-    root.value = root.end_time - root.start_time;
-    return {
-      ...root,
-      children: data,
-    };
-  }
-  initData(d: IFlameData<D>) {
-    const { main, threads } = structuredClone(d);
-    // const stack: D[] = [data];
-    // let node: D = null;
-    // let children: D[] = null;
-    // let i = 0;
-    // let child: D = null;
-    // const threads: D[] = [];
-    // const startTime = data.start_time;
-    // let endTime = 0;
-    // while ((node = stack.pop())) {
-    //   children = node.children as D[];
-    //   children.sort((a, b) => a.start_time - b.start_time);
-    //   endTime = Math.max(endTime, node.end_time);
-    //   if (children && (i = children.length)) {
-    //     const spliceIndex = [];
-    //     while (i--) {
-    //       child = children[i];
-    //       endTime = Math.max(endTime, child.end_time);
-    //       if (i > 0 && child) {
-    //         const startTime = child.start_time;
-    //         const preEndTime = children[i - 1].end_time;
-    //         if (startTime < preEndTime) {
-    //           child.threadSiblingId = children[i - 1].id;
-    //           this.threadPosMap[child.threadSiblingId] = {
-    //             x: 0,
-    //             y: 0
-    //           };
-    //           threads.push(child);
-    //           spliceIndex.push(i);
-    //         }
-    //       }
-    //       stack.push(child);
-    //     }
-    //     node.children = children.filter((_, index) => !spliceIndex.includes(index));
-    //   }
-    // }
-    // data.start_time = startTime;
-    // data.end_time = endTime;
-    let maxDepth = 1;
-    let nodes = hierarchy(main, (d: D) => d.children).descendants();
-    const mergeList = [...nodes];
-    const fromSet = new Set(...nodes.filter(item => item.data.last_sibling_id).map(item => item.data.last_sibling_id));
-    const lineMap = new Map<string, ILineData<D>>();
-    maxDepth += nodes.at(-1).depth;
-    threads.forEach(thread => {
-      nodes = hierarchy(thread, (d: D) => d.children).descendants();
-      mergeList.push(...nodes);
-      nodes.forEach(item => item.data.last_sibling_id && fromSet.add(item.data.last_sibling_id));
-      maxDepth += nodes.at(-1).depth + 2;
-    });
-    fromSet.forEach(id => {
-      const node = mergeList.find(item => item.data.id === id);
-      if (node) {
-        lineMap.set(id, { x: 0, y: 0, tag: 'to', data: node.data });
-        const from = mergeList.find(item => item.data.last_sibling_id === id).data;
-        lineMap.set(from.id, { x: 0, y: 0, tag: 'from', data: from });
+  zoomGraph(options: BaseRect) {
+    const { startTime, endTime, clickDepth, highlightName } = options;
+    let preDepth = 1;
+    preDepth = this.updateSelection(
+      select(this.chartDom).select('g.main-thread') as Selection<BaseType, HierarchyNode<D>, null, undefined>,
+      { preDepth, startTime, endTime, clickDepth, highlightName }
+    );
+    this.threadsData.forEach(thread => {
+      const threadPreDepth = this.updateSelection(
+        select(this.chartDom).select(`g.thread-${thread.id}`) as Selection<BaseType, HierarchyNode<D>, null, undefined>,
+        { preDepth: preDepth + 1, startTime, endTime, clickDepth, highlightName }
+      );
+      if (threadPreDepth === preDepth + 1) {
+        preDepth = threadPreDepth - 1;
+      } else {
+        preDepth = threadPreDepth;
       }
     });
-    this.lineMap = lineMap;
-    return {
-      threads,
-      main,
-      maxDepth,
-    };
+    const x = scaleLinear([0, this.w]).domain([startTime, endTime]);
+    select(this.chartDom)
+      .select<SVGGElement>('g.x-axis')
+      .call(
+        axisTop(x)
+          .ticks(10)
+          .tickSizeOuter(0)
+          .tickFormat((d: NumberValue) => {
+            const { text, suffix } = usFormat(d.valueOf() - startTime);
+            return text + suffix;
+          })
+      );
+    this.initEvent();
   }
 }

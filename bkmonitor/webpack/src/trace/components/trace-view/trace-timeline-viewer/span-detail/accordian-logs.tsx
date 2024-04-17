@@ -56,8 +56,8 @@ export default function AccordianLogs(props: AccordianLogsProps) {
   } = props;
   let arrow;
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  let HeaderComponent: 'span' | 'a' = 'span';
-  let headerProps: Object | null = null;
+  let HeaderComponent: 'a' | 'span' = 'span';
+  let headerProps: null | object = null;
   if (interactive) {
     arrow = isOpen
       ? // <IoIosArrowDown className="u-align-icon" />

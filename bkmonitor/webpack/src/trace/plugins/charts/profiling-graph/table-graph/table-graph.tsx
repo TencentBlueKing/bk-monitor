@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, PropType, ref, shallowRef, Teleport, watch } from 'vue';
+
 import { Exception } from 'bkui-vue';
 import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
 import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
@@ -105,13 +106,13 @@ export default defineComponent({
       {
         immediate: true,
         deep: true,
-      },
+      }
     );
     watch(
       () => props.filterKeyword,
       () => {
         getTableData();
-      },
+      }
     );
 
     function getTableData() {
@@ -266,7 +267,7 @@ export default defineComponent({
                         </div>
                       </div>
                     </th>
-                  ),
+                  )
               )}
             </tr>
           </thead>
@@ -276,15 +277,15 @@ export default defineComponent({
                 {this.tableData.map(row => (
                   <tr
                     class={row.id === this.highlightId ? 'hightlight' : ''}
+                    onClick={() => this.handleHighlightClick(row.id)}
                     onMousemove={e => this.handleRowMouseMove(e, row)}
                     onMouseout={() => this.handleRowMouseout()}
-                    onClick={() => this.handleHighlightClick(row.id)}
                   >
                     <td>
                       <div class='location-info'>
                         <span
-                          class='color-reference'
                           style={`background-color: ${!this.localIsCompared ? row.color : '#dcdee5'}`}
+                          class='color-reference'
                         ></span>
                         <span class={`text direction-${this.textDirection}`}>{row.name}</span>
                         {/* <div class='trace-mark'>Trace</div> */}
@@ -308,9 +309,9 @@ export default defineComponent({
                 <td colspan='3'>
                   <Exception
                     class='empty-table-exception'
-                    type='search-empty'
-                    scene='part'
                     description={this.$t('搜索为空')}
+                    scene='part'
+                    type='search-empty'
                   />
                 </td>
               </tr>
@@ -320,12 +321,12 @@ export default defineComponent({
 
         <Teleport to='body'>
           <div
-            class='table-graph-row-tips'
             style={{
               left: `${this.tipDetail.left || 0}px`,
               top: `${this.tipDetail.top || 0}px`,
               display: this.tipDetail.title ? 'block' : 'none',
             }}
+            class='table-graph-row-tips'
           >
             {this.tipDetail.title && [
               <div class='funtion-name'>{this.tipDetail.title}</div>,

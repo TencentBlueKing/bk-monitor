@@ -1,3 +1,4 @@
+/* eslint-disable vue/multi-word-component-names */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -37,6 +38,7 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from 'apm/pages/home/authority-map';
 import { Button, Cascader, Dialog, Input, Loading, Popover, Radio } from 'bkui-vue';
@@ -86,12 +88,11 @@ import {
   SearchType,
 } from '../../typings';
 import { monitorDrag } from '../../utils/drag-directive';
-
 import DurationFilter from './duration-filter/duration-filter';
 import HandleBtn from './handle-btn/handle-btn';
+import InquireContent from './inquire-content';
 import SearchHeader from './search-header/search-header';
 import SearchLeft, { formItem } from './search-left/search-left';
-import InquireContent from './inquire-content';
 
 import './inquire.scss';
 
@@ -152,7 +153,7 @@ export default defineComponent({
           if (
             state.cacheQueryAppName &&
             appList.value.find(
-              app => app.app_name === state.cacheQueryAppName && app.permission[authorityMap.VIEW_AUTH],
+              app => app.app_name === state.cacheQueryAppName && app.permission[authorityMap.VIEW_AUTH]
             )
           ) {
             state.app = state.cacheQueryAppName;
@@ -224,7 +225,7 @@ export default defineComponent({
     const isEmptyApp = ref<boolean>(false);
     const searchSelectData = shallowRef<ISearchSelectItem[]>([]);
     const searchSelectValue = ref<ISearchSelectValue[]>([]);
-    const durantionRange = ref<number[] | null>(null);
+    const durantionRange = ref<null | number[]>(null);
     const traceColumnFilters = ref<Record<string, string[]>>({});
     const interfaceListCanLoadMore = ref<boolean>(false);
     const serviceListCanLoadMore = ref<boolean>(false);
@@ -388,7 +389,7 @@ export default defineComponent({
       type IFilterItem = {
         key: string;
         value: Array<any>;
-        operator: 'equal' | 'between' | 'not_equal' | 'logic';
+        operator: 'between' | 'equal' | 'logic' | 'not_equal';
       };
       const filters: IFilterItem[] = [];
 
@@ -1135,8 +1136,8 @@ export default defineComponent({
           {t('可输入SQL语句进行快速查询')}
           <a
             class='link'
-            target='_blank'
             href='/'
+            target='_blank'
           >
             {t('查看语法')}
             <i class='icon-monitor icon-mc-link'></i>
@@ -1169,25 +1170,25 @@ export default defineComponent({
           (
             <VerifyInput>
               <Input
-                type='search'
-                clearable
-                show-clear-only-hover
                 ref={traceIdInput}
                 v-model={traceIDSearchValue.value}
                 placeholder={t('输入 ID 可精准查询')}
-                onEnter={handleQueryTraceId}
+                type='search'
+                clearable
+                show-clear-only-hover
                 onBlur={handleQueryIDInputBlur}
+                onEnter={handleQueryTraceId}
               />
             </VerifyInput>
-          ) as any,
+          ) as any
         )}
         <HandleBtn
           accurateQuery={true}
           autoQuery={state.autoQuery}
           canQuery={true}
-          onQuery={handleQueryTraceId}
-          onClear={() => (traceIDSearchValue.value = '')}
           onChangeAutoQuery={handleAutoQueryChange}
+          onClear={() => (traceIDSearchValue.value = '')}
+          onQuery={handleQueryTraceId}
         />
       </div>
     );
@@ -1404,7 +1405,7 @@ export default defineComponent({
     };
 
     // 上次请求的所带上的 条件 ，用作对比前后的条件是否都相等，如相等就不应该再发起请求。
-    let lastCollectConditionFilter: null | any[] = null;
+    let lastCollectConditionFilter: any[] | null = null;
     // 重新收集左侧条件列表
     const collectConditionFilter = () => {
       // 先保存一份旧的条件列表。
@@ -1450,12 +1451,12 @@ export default defineComponent({
               <span>{t('查询语句')}</span>
               <Popover
                 width='256'
-                theme='light'
-                trigger='click'
-                placement='bottom-start'
                 v-slots={{
                   content: () => tipsContentTpl(),
                 }}
+                placement='bottom-start'
+                theme='light'
+                trigger='click'
               >
                 <span class='icon-monitor icon-mc-help-fill'></span>
               </Popover>
@@ -1465,13 +1466,13 @@ export default defineComponent({
             <VerifyInput>
               <Input
                 v-model={queryString.value}
-                type='textarea'
-                rows={3}
                 placeholder={t('输入')}
+                rows={3}
+                type='textarea'
                 onBlur={handleScopeQueryChange}
               />
             </VerifyInput>
-          ) as any,
+          ) as any
         )}
         {formItem(
           (
@@ -1485,60 +1486,60 @@ export default defineComponent({
               range={durantionRange.value ?? undefined}
               onChange={handleDurationChange}
             />
-          ) as any,
+          ) as any
         )}
         {/* 这里插入 condition 组件 */}
         {conditionList.map((item, index) => (
           <Condition
-            isInclude={item.isInclude}
-            labelValue={item.labelValue}
-            labelList={item.labelList}
-            selectedCondition={item.selectedCondition}
-            conditionType={item.conditionType}
+            style='margin-bottom: 16px;'
             conditionList={item.conditionList}
+            conditionType={item.conditionType}
             conditionValueList={item.conditionValueList}
             durantionRange={item.durantionRange}
+            isInclude={item.isInclude}
+            labelList={item.labelList}
+            labelValue={item.labelValue}
+            selectedCondition={item.selectedCondition}
             selectedConditionValue={item.selectedConditionValue}
-            onItemConditionChange={v => handleItemConditionChange(index, v)}
-            onDelete={id => handleConditionDelete(index, id)}
-            onIncludeChange={() => handleIncludeChange(index)}
             onConditionChange={v => handleConditionChange(index, v)}
-            onConditionValueClear={() => handleConditionValueClear(index)}
-            onDurationRangeChange={v => handleDurationRangeChange(index, v)}
             onConditionValueChange={v => handleConditionValueChange(index, v)}
+            onConditionValueClear={() => handleConditionValueClear(index)}
+            onDelete={id => handleConditionDelete(index, id)}
+            onDurationRangeChange={v => handleDurationRangeChange(index, v)}
+            onIncludeChange={() => handleIncludeChange(index)}
+            onItemConditionChange={v => handleItemConditionChange(index, v)}
             onSelectComplete={() => handleSelectComplete(true)}
-            style='margin-bottom: 16px;'
           />
         ))}
         {/* 这里是 添加条件 按钮 */}
         <div class='inquire-cascader-container'>
           <Button
             class='add-condition'
-            theme='primary'
             loading={isAddConditionButtonLoading.value}
+            theme='primary'
           >
             <i
-              class='icon-monitor icon-plus-line'
               style='margin-right: 6px;'
+              class='icon-monitor icon-plus-line'
             ></i>
             <span>{t('添加条件')}</span>
           </Button>
 
           <Cascader
-            v-model={cascaderSelectedValue.value}
-            list={standardFieldList.value}
-            disabled={isAddConditionButtonLoading.value}
-            onChange={handleCascaderChange}
             class='inquire-cascader'
+            v-model={cascaderSelectedValue.value}
+            disabled={isAddConditionButtonLoading.value}
+            list={standardFieldList.value}
+            onChange={handleCascaderChange}
           ></Cascader>
         </div>
         <HandleBtn
           autoQuery={state.autoQuery}
           canQuery={true}
           onAdd={handleAddCollect}
-          onQuery={handleClickQuery}
-          onClear={handleClearQuery}
           onChangeAutoQuery={handleAutoQueryChange}
+          onClear={handleClearQuery}
+          onQuery={handleClickQuery}
         />
       </div>
     );
@@ -1575,95 +1576,95 @@ export default defineComponent({
                   [state.app, 'app'],
                   [state.searchType, 'searchType'],
                 ]}
-                onAppChange={handleAppSelectChange}
-                onSearchTypeChange={handleSearchTypeChange}
-                appList={appList.value}
-                showBottom={state.searchType === 'scope'}
                 v-slots={{
                   query: () => (state.searchType === 'accurate' ? accurateQueryShow() : scopeQueryShow()),
                 }}
+                appList={appList.value}
+                showBottom={state.searchType === 'scope'}
                 onAddCondition={handleAddCondition}
+                onAppChange={handleAppSelectChange}
+                onSearchTypeChange={handleSearchTypeChange}
               />
             </div>
           </div>
         </div>
         <div
-          class='inquire-right'
           style={{ flex: 1, width: `calc(100% - ${state.leftWidth}px)` }}
+          class='inquire-right'
         >
           <Loading
-            loading={isLoading.value}
             class='inquire-page-loading'
+            loading={isLoading.value}
           >
             {/* 头部工具栏 */}
             <SearchHeader
               style={{ height: `${HEADER_HEIGHT}px` }}
               class='inquire-right-header'
-              favoritesList={collectList.value}
-              checkedValue={collectCheckValue.value}
-              menuList={headerToolMenuList}
               v-models={[
                 [state.showLeft, 'showLeft'],
                 [refleshInterval.value, 'refleshInterval'],
                 [timeRange.value, 'timeRange'],
                 [timezone.value, 'timezone'],
               ]}
+              checkedValue={collectCheckValue.value}
+              favoritesList={collectList.value}
+              menuList={headerToolMenuList}
               onDeleteCollect={handleDeleteCollect}
+              onImmediateReflesh={handleImmediateReflesh}
+              onMenuSelectChange={handleMenuSelectChange}
+              onRefleshIntervalChange={handleRefleshIntervalChange}
               onSelectCollect={handleSelectCollect}
               onTimeRangeChange={handleTimeRangeChange}
               onTimezoneChange={handleTimezoneChange}
-              onRefleshIntervalChange={handleRefleshIntervalChange}
-              onImmediateReflesh={handleImmediateReflesh}
-              onMenuSelectChange={handleMenuSelectChange}
             ></SearchHeader>
             <div
               style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
               class='inquire-right-main'
             >
               <InquireContent
-                appName={state.app}
                 appList={appList.value}
-                queryType={state.searchType}
-                searchIdType={searchResultIdType.value}
-                spanDetails={spanDetails.value}
+                appName={state.app}
                 emptyApp={isEmptyApp.value}
                 isAlreadyAccurateQuery={state.isAlreadyAccurateQuery}
                 isAlreadyScopeQuery={state.isAlreadyScopeQuery}
+                queryType={state.searchType}
+                searchIdType={searchResultIdType.value}
+                spanDetails={spanDetails.value}
                 traceListTabelLoading={traceListTabelLoading.value}
                 onChangeQuery={val => handleChangeQuery(val)}
-                onTraceListScrollBottom={handleTraceListScrollBottom}
-                onTraceListStatusChange={handleTraceListStatusChange}
-                onTraceListSortChange={handleTraceListSortChange}
-                onTraceListColumuFilter={handleTraceListColumuFilter}
-                onListTypeChange={handleListTypeChange}
-                onTraceListColumnSortChange={value => handleTraceListColumnSort(value)}
-                onTraceTypeChange={handleTraceTypeChange}
-                onSpanTypeChange={handleSpanTypeChange}
                 onInterfaceStatisticsChange={handleInterfaceStatisticsChange}
+                onListTypeChange={handleListTypeChange}
                 onServiceStatisticsChange={handleServiceStatisticsChange}
+                onSpanTypeChange={handleSpanTypeChange}
+                onTraceListColumnSortChange={value => handleTraceListColumnSort(value)}
+                onTraceListColumuFilter={handleTraceListColumuFilter}
+                onTraceListScrollBottom={handleTraceListScrollBottom}
+                onTraceListSortChange={handleTraceListSortChange}
+                onTraceListStatusChange={handleTraceListStatusChange}
+                onTraceTypeChange={handleTraceTypeChange}
               />
             </div>
           </Loading>
         </div>
         <Dialog
-          isShow={collectDialog.show}
-          title={''}
           height={300}
-          footerAlign={'center'}
-          isLoading={collectDialog.loading}
-          onConfirm={() => deleteCollect()}
-          onClosed={() => {
-            collectDialog.show = false;
-          }}
           v-slots={{
             default: () => (
               <DeleteDialogContent
-                title={t('确认删除该收藏？')}
-                subtitle={t('收藏名')}
                 name={collectDialog.name}
+                subtitle={t('收藏名')}
+                title={t('确认删除该收藏？')}
               ></DeleteDialogContent>
             ),
           }}
+          footerAlign={'center'}
+          isLoading={collectDialog.loading}
+          isShow={collectDialog.show}
+          title={''}
+          onClosed={() => {
+            collectDialog.show = false;
+          }}
+          onConfirm={() => deleteCollect()}
         ></Dialog>
       </div>
     );

@@ -25,13 +25,13 @@
  */
 import { defineComponent, inject, PropType, reactive, Ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, DatePicker, Select } from 'bkui-vue';
 import { random } from 'lodash';
 
 import MemberSelect from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum, WeekDataList } from '../typings/common';
 import { validTimeOverlap } from '../utils';
-
 import CalendarSelect from './calendar-select';
 import FormItem from './form-item';
 import TimeTagPicker from './time-tag-picker';
@@ -42,11 +42,11 @@ export interface FixedDataModel {
   id?: number;
   key: number;
   type:
-    | RotationSelectTypeEnum.Weekly
-    | RotationSelectTypeEnum.Monthly
+    | RotationSelectTypeEnum.Daily
     | RotationSelectTypeEnum.DateRange
-    | RotationSelectTypeEnum.Daily;
-  workDays: (string | number)[];
+    | RotationSelectTypeEnum.Monthly
+    | RotationSelectTypeEnum.Weekly;
+  workDays: (number | string)[];
   workDateRange: [];
   workTime: string[][];
   orderIndex: number;
@@ -100,7 +100,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
     const handleDateTypeChange = (item: FixedDataModel) => {
       if (item.type !== RotationSelectTypeEnum.DateRange) {
@@ -143,8 +143,8 @@ export default defineComponent({
     return (
       <table
         class='fixed-table-wrap-content-component'
-        cellspacing='0'
         cellpadding='0'
+        cellspacing='0'
       >
         <tr class='table-header'>
           <th class='title-content'>
@@ -159,20 +159,20 @@ export default defineComponent({
 
         {this.localValue.map((item, ind) => (
           <tr
-            class='table-item'
             key={item.key}
+            class='table-item'
           >
             <td class='date-setting-content'>
               <FormItem
+                class='work-time-rang-form-item'
                 label={this.t('工作时间范围')}
                 labelWidth={92}
-                class='work-time-rang-form-item'
               >
                 <Select
-                  v-model={item.type}
                   class='date-type-select'
-                  onChange={() => this.handleDateTypeChange(item)}
+                  v-model={item.type}
                   clearable={false}
+                  onChange={() => this.handleDateTypeChange(item)}
                 >
                   {this.typeList.map(type => (
                     <Select.Option
@@ -185,9 +185,9 @@ export default defineComponent({
                   <Select
                     class='date-value-select'
                     v-model={item.workDays}
-                    onToggle={this.handleEmitData}
-                    multiple
                     clearable={false}
+                    multiple
+                    onToggle={this.handleEmitData}
                   >
                     {WeekDataList.map(week => (
                       <Select.Option
@@ -209,11 +209,11 @@ export default defineComponent({
                     class='date-value-select'
                     v-model={item.workDateRange}
                     format='yyyy-MM-dd'
-                    onChange={this.handleEmitData}
                     placeholder={`${this.t('如')}: 2019-01-30 至 2019-01-30`}
                     type='daterange'
                     append-to-body
                     clearable
+                    onChange={this.handleEmitData}
                   />
                 )}
               </FormItem>
@@ -230,17 +230,17 @@ export default defineComponent({
             </td>
             <td class='user-setting-content'>
               <MemberSelect
-                showType='avatar'
                 v-model={item.users}
-                hasDefaultGroup={true}
                 defaultGroup={this.defaultGroup}
+                hasDefaultGroup={true}
+                showType='avatar'
                 onSelectEnd={val => this.handleUserChange(val, item)}
               >
                 {{
                   prefix: () => (
                     <div
-                      class='member-select-prefix'
                       style={{ 'border-left-color': this.colorList.value[item.orderIndex] }}
+                      class='member-select-prefix'
                     ></div>
                   ),
                 }}

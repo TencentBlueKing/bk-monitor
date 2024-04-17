@@ -25,13 +25,13 @@
  */
 import { computed, defineComponent, inject, PropType, reactive, Ref, TransitionGroup, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
 
 import MemberSelect, { TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
 import { validTimeOverlap } from '../utils';
-
 import CalendarSelect from './calendar-select';
 import DataTimeSelect from './data-time-select';
 import FormItem from './form-item';
@@ -40,8 +40,8 @@ import WeekSelect from './week-select';
 
 import './replace-rotation-table-item.scss';
 
-type CustomTabType = 'duration' | 'classes';
-type WorkTimeType = 'time_range' | 'datetime_range';
+type CustomTabType = 'classes' | 'duration';
+type WorkTimeType = 'datetime_range' | 'time_range';
 export interface ReplaceRotationDateModel {
   key: number;
   workDays?: number[];
@@ -49,7 +49,7 @@ export interface ReplaceRotationDateModel {
 }
 export interface ReplaceRotationUsersModel {
   groupNumber?: number;
-  groupType: 'specified' | 'auto';
+  groupType: 'auto' | 'specified';
   value: { key: number; value: { type: 'group' | 'user'; id: string }[]; orderIndex: number }[];
 }
 
@@ -66,7 +66,7 @@ export interface ReplaceItemDataModel {
     /** 自定义轮值有效日期 */
     customWorkDays: number[];
     /** 单班时长 */
-    periodSettings: { unit: 'hour' | 'day'; duration: number };
+    periodSettings: { unit: 'day' | 'hour'; duration: number };
     value: ReplaceRotationDateModel[];
   };
   users: ReplaceRotationUsersModel;
@@ -147,7 +147,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     function createDefaultDate(type: RotationSelectTypeEnum): ReplaceRotationDateModel {
@@ -193,7 +193,7 @@ export default defineComponent({
      * @param rotationType 轮值类型
      * @returns 渲染的内容
      */
-    function weekAndMonthClasses(rotationType: RotationSelectTypeEnum.Weekly | RotationSelectTypeEnum.Monthly) {
+    function weekAndMonthClasses(rotationType: RotationSelectTypeEnum.Monthly | RotationSelectTypeEnum.Weekly) {
       const val = localValue.date.value;
 
       /**
@@ -223,9 +223,9 @@ export default defineComponent({
           ) : (
             <CalendarSelect
               class='mr8'
-              hasStart
               v-model={item.workDays}
               label={val.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
+              hasStart
               onSelectEnd={handleEmitData}
             />
           ),
@@ -241,7 +241,7 @@ export default defineComponent({
           ),
         ];
       }
-      function dataTimeSelectChange(val: string[], item: ReplaceRotationDateModel, type: 'start' | 'end') {
+      function dataTimeSelectChange(val: string[], item: ReplaceRotationDateModel, type: 'end' | 'start') {
         if (type === 'start') {
           item.workTime[0] = val;
         } else {
@@ -257,8 +257,8 @@ export default defineComponent({
       function renderDateTimeRangeItem(item: ReplaceRotationDateModel, ind: number) {
         return [
           <DataTimeSelect
-            modelValue={item.workTime[0]}
             label={val.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
+            modelValue={item.workTime[0]}
             type={rotationType === RotationSelectTypeEnum.Weekly ? 'week' : 'calendar'}
             onChange={val => dataTimeSelectChange(val, item, 'start')}
           />,
@@ -304,8 +304,8 @@ export default defineComponent({
           <div class='classes-list'>
             {val.map((item, ind) => [
               <div
-                class='classes-item'
                 key={item.key}
+                class='classes-item'
               >
                 {localValue.date.workTimeType === 'time_range'
                   ? renderTimeRangeItem(item, ind)
@@ -349,15 +349,15 @@ export default defineComponent({
 
       return [
         <FormItem
+          class='expiration-date-form-item'
           label={t('有效日期')}
           labelWidth={70}
-          class='expiration-date-form-item'
         >
           <Select
-            v-model={localValue.date.type}
             class='date-type-select'
-            onChange={handleDateTypeChange}
+            v-model={localValue.date.type}
             clearable={false}
+            onChange={handleDateTypeChange}
           >
             <Select.Option
               label={t('按周')}
@@ -404,14 +404,14 @@ export default defineComponent({
 
         localValue.date.customTab === 'duration' && (
           <FormItem
+            class='classes-duration-form-item'
             label={t('单班时长')}
             labelWidth={70}
-            class='classes-duration-form-item'
           >
             <Input
               v-model={localValue.date.periodSettings.duration}
-              type='number'
               min={1}
+              type='number'
               onChange={handleDurationChange}
             />
             <Select
@@ -437,8 +437,8 @@ export default defineComponent({
           <div class='classes-list'>
             {value.map((item, ind) => [
               <div
-                class='classes-item'
                 key={item.key}
+                class='classes-item'
               >
                 <TimeTagPicker
                   v-model={item.workTime}
@@ -579,8 +579,8 @@ export default defineComponent({
       }
       return [
         <div
-          class='auto-group-tag-color'
           style={{ 'background-color': colorList.value[getOrderIndex(index)] }}
+          class='auto-group-tag-color'
         ></div>,
         <span class='icon-monitor icon-mc-tuozhuai'></span>,
         <span class='user-name'>{data?.username}</span>,
@@ -690,9 +690,9 @@ export default defineComponent({
             >
               {this.rotationTypeList.map(item => (
                 <Select.Option
+                  id={item.value}
                   key={item.value}
                   name={item.label}
-                  id={item.value}
                 ></Select.Option>
               ))}
             </Select>
@@ -722,25 +722,25 @@ export default defineComponent({
                 <TransitionGroup name={'flip-list'}>
                   {this.localValue.users.value.map((item, ind) => (
                     <div
-                      class='specified-group-item'
                       key={item.key}
+                      class='specified-group-item'
                       draggable
-                      onDragstart={e => this.handleDragstart(e, ind)}
                       onDragover={e => this.handleDragover(e)}
+                      onDragstart={e => this.handleDragstart(e, ind)}
                       onDrop={e => this.handleDrop(e, ind)}
                     >
                       <MemberSelect
-                        showType='avatar'
                         v-model={item.value}
-                        hasDefaultGroup={true}
                         defaultGroup={this.defaultGroup}
+                        hasDefaultGroup={true}
+                        showType='avatar'
                         onSelectEnd={val => this.handMemberSelectChange(ind, val)}
                       >
                         {{
                           prefix: () => (
                             <div
-                              class='member-select-prefix'
                               style={{ 'border-left-color': this.colorList.value[this.getOrderIndex(ind)] }}
+                              class='member-select-prefix'
                             >
                               <span class='icon-monitor icon-mc-tuozhuai'></span>
                             </div>
@@ -777,13 +777,13 @@ export default defineComponent({
                   labelWidth={70}
                 >
                   <MemberSelect
-                    showType='tag'
                     v-model={this.localValue.users.value[0].value}
-                    hasDefaultGroup={true}
                     defaultGroup={this.defaultGroup}
+                    hasDefaultGroup={true}
+                    showType='tag'
                     tagTpl={this.autoGroupTagTpl}
-                    onSelectEnd={val => this.handMemberSelectChange(0, val)}
                     onDrop={this.handleAutoGroupDrop}
+                    onSelectEnd={val => this.handMemberSelectChange(0, val)}
                   />
                 </FormItem>
                 <FormItem
@@ -793,10 +793,10 @@ export default defineComponent({
                   <Input
                     style='width: 200px'
                     v-model={this.localValue.users.groupNumber}
-                    onChange={this.handleEmitData}
-                    type='number'
-                    suffix={this.t('人')}
                     min={1}
+                    suffix={this.t('人')}
+                    type='number'
+                    onChange={this.handleEmitData}
                   />
                 </FormItem>
               </div>

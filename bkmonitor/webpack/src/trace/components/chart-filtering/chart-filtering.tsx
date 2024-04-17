@@ -25,16 +25,17 @@
  */
 
 import { computed, defineComponent, ref, watch } from 'vue';
+
 import { Slider } from 'bkui-vue';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
-import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { useTraceStore } from '../../store/modules/trace';
 import { formatDuration } from '../trace-view/utils/date';
-
 import BarChart from './bar-chart';
 import { BASE_BAR_OPTIONS, DURATION_AVERAGE_COUNT, DurationDataModal } from './utils';
+
+import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './chart-filtering.scss';
 
@@ -132,7 +133,7 @@ export default defineComponent({
                 },
               },
             },
-          }),
+          })
         ) as MonitorEchartOptions;
         handleSetDurationSlider(minDuration, maxDuration, durationStep);
       } else {
@@ -208,10 +209,10 @@ export default defineComponent({
             <Slider
               class='slider-range'
               v-model={this.durationSlider.curValue}
-              range
-              minValue={this.durationSlider.min}
               maxValue={this.durationSlider.max}
+              minValue={this.durationSlider.min}
               step={this.durationSlider.step}
+              range
               onChange={this.handleDurationChange}
             />
           </div>

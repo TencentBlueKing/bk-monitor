@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, nextTick, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { bkTooltips, Exception, Input, Loading, Popover, Radio } from 'bkui-vue';
 import { getMetricListV2, getStrategyListV2 } from 'monitor-api/modules/strategies';
 import { debounce } from 'monitor-common/utils';
@@ -139,7 +140,7 @@ export default defineComponent({
       v => {
         localList.value = v;
       },
-      { immediate: true },
+      { immediate: true }
     );
 
     watch(
@@ -149,7 +150,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     init();
@@ -276,7 +277,7 @@ export default defineComponent({
               ? metricListTemp.reduce((pre, cur) => {
                   const dimensionList = pre
                     .concat(
-                      cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension),
+                      cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
                     )
                     .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
                   return dimensionList;
@@ -400,18 +401,18 @@ export default defineComponent({
     return (
       <Popover
         content={this.dimesionKey}
+        disabled={!this.dimesionKey}
         placement={'top'}
         popoverDelay={[300, 0]}
-        disabled={!this.dimesionKey}
       >
         <span class='dimension-condition-input-select-input-component'>
           <Popover
-            placement='bottom-start'
-            arrow={false}
-            theme='light'
-            trigger='click'
             ref='popoverRef'
             extCls='dimension-condition-input-select-input-component-pop'
+            arrow={false}
+            placement='bottom-start'
+            theme='light'
+            trigger='click'
             onAfterShow={this.handleAfterShow}
           >
             {{
@@ -419,8 +420,8 @@ export default defineComponent({
                 <Input
                   modelValue={this.localValue}
                   placeholder={this.t('请选择维度')}
-                  onUpdate:modelValue={v => (this.localValue = v)}
                   onInput={this.handleInput}
+                  onUpdate:modelValue={v => (this.localValue = v)}
                 ></Input>
               ),
               content: () =>
@@ -432,12 +433,12 @@ export default defineComponent({
                           <div class='active-wrap'>
                             <Input
                               ref='strategySearchRef'
-                              modelValue={this.selectData.strategySearch}
                               behavior={'simplicity'}
+                              modelValue={this.selectData.strategySearch}
                               clearable
-                              onUpdate:modelValue={v => this.debounceHandleStrategySearch(v)}
                               onBlur={this.handleSearchBlur}
                               onClear={this.handleSearchClear}
+                              onUpdate:modelValue={v => this.debounceHandleStrategySearch(v)}
                             >
                               {{
                                 prefix: () => (
@@ -471,8 +472,8 @@ export default defineComponent({
                             >
                               {[{ id: ALL, name: this.$t('全部') }, ...this.selectData.strategyList].map(item => (
                                 <Radio
-                                  label={item.id}
                                   key={item.id}
+                                  label={item.id}
                                 >
                                   {item.name}
                                 </Radio>
@@ -485,8 +486,8 @@ export default defineComponent({
                     <div class='right-wrap'>
                       <div class='search-wrap'>
                         <Input
-                          modelValue={this.selectData.optionsSearch}
                           behavior={'simplicity'}
+                          modelValue={this.selectData.optionsSearch}
                           clearable
                           onUpdate:modelValue={v => this.debounceHandleOptionSearch(v)}
                         >
@@ -511,8 +512,8 @@ export default defineComponent({
                               })
                               .map(item => (
                                 <Popover
-                                  content={item.id}
                                   key={item.id}
+                                  content={item.id}
                                   placement={'right'}
                                   popoverDelay={[300, 0]}
                                 >
@@ -527,9 +528,9 @@ export default defineComponent({
                           ) : (
                             <div class='no-data'>
                               <Exception
-                                type='empty'
-                                scene='part'
                                 description={this.$t('暂无数据')}
+                                scene='part'
+                                type='empty'
                               ></Exception>
                             </div>
                           )}
@@ -551,10 +552,10 @@ export default defineComponent({
                       <ul class='list-wrap'>
                         {this.searchList.map((item, index) => (
                           <Popover
+                            key={index}
                             content={item.id}
                             placement={'right'}
                             popoverDelay={[300, 0]}
-                            key={index}
                           >
                             <li onClick={() => this.handleSelect(item)}>{item.name}</li>
                           </Popover>

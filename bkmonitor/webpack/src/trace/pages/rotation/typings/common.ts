@@ -28,30 +28,30 @@
  * 轮值tab类型
  */
 export enum RotationTabTypeEnum {
-  /** 固定值班 */
-  REGULAR = 'regular',
   /** 交替轮值 */
   HANDOFF = 'handoff',
+  /** 固定值班 */
+  REGULAR = 'regular',
 }
 
 /**
  * 轮值下拉框类型
  */
 export enum RotationSelectTypeEnum {
-  /** 工作日 */
-  WorkDay = 'work_day',
-  /** 周末 */
-  Weekend = 'weekend',
-  /** 每天 */
-  Daily = 'daily',
-  /** 每周 */
-  Weekly = 'weekly',
-  /** 每月 */
-  Monthly = 'monthly',
   /** 自定义 */
   Custom = 'custom',
+  /** 每天 */
+  Daily = 'daily',
   /** 指定时间 */
   DateRange = 'date_range',
+  /** 每月 */
+  Monthly = 'monthly',
+  /** 周末 */
+  Weekend = 'weekend',
+  /** 每周 */
+  Weekly = 'weekly',
+  /** 工作日 */
+  WorkDay = 'work_day',
 }
 
 /**
@@ -94,10 +94,10 @@ export const WeekDataList = [
 ];
 
 export enum EStatus {
+  Deactivated = 'Deactivated', // 已停用
   Effective = 'Effective', // 生效中
   NoEffective = 'NoEffective', // 已失效
   WaitEffective = 'WaitEffective', // 待生效
-  Deactivated = 'Deactivated', // 已停用
 }
 
 export const statusMap = {

@@ -1,3 +1,4 @@
+/* eslint-disable vue/multi-word-component-names */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -25,6 +26,7 @@
  */
 import { defineComponent, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Cascader, Dropdown, Select, Switcher } from 'bkui-vue';
 
 import DurationFilter from '../../pages/main/duration-filter/duration-filter';
@@ -115,7 +117,7 @@ export default defineComponent({
           traverseIds(item, props.labelValue);
         });
       },
-      { immediate: true },
+      { immediate: true }
     );
     const hoverArea = ref([]);
 
@@ -153,13 +155,13 @@ export default defineComponent({
             {props.isInclude && (
               <Cascader
                 v-model={hoverArea}
+                clearable={false}
                 list={props.labelList}
                 trigger='hover'
-                clearable={false}
                 onChange={v => cascaderChange(v)}
-                onToggle={v => cascaderToggle(v)}
-                onMouseover={() => setLabelHoverStatus(true)}
                 onMouseout={() => setLabelHoverStatus(false)}
+                onMouseover={() => setLabelHoverStatus(true)}
+                onToggle={v => cascaderToggle(v)}
               ></Cascader>
             )}
             {/* <Select
@@ -183,9 +185,7 @@ export default defineComponent({
           </Select> */}
           </div>
           <Dropdown
-            disabled={!props.isInclude}
-            trigger='click'
-            placement='bottom-start'
+            style='flex-shrink: 0;'
             v-slots={{
               content: () => (
                 <Dropdown.DropdownMenu>
@@ -197,9 +197,11 @@ export default defineComponent({
                 </Dropdown.DropdownMenu>
               ),
             }}
-            style='flex-shrink: 0;'
-            onShow={() => (conditionTypeActiveStatus.value = true)}
+            disabled={!props.isInclude}
+            placement='bottom-start'
+            trigger='click'
             onHide={() => (conditionTypeActiveStatus.value = false)}
+            onShow={() => (conditionTypeActiveStatus.value = true)}
           >
             {/* 这里是 操作符 选择器 */}
             {props.conditionType === 'select' && (
@@ -226,9 +228,9 @@ export default defineComponent({
             onClick={() => emit('delete', props.labelValue)}
           ></i>
           <Switcher
-            value={props.isInclude}
             size='small'
             theme='primary'
+            value={props.isInclude}
             onChange={() => emit('IncludeChange')}
           ></Switcher>
         </div>
@@ -236,14 +238,14 @@ export default defineComponent({
         {/* 复选框 */}
         {props.conditionType === 'select' && (
           <Select
+            style='margin-top: 4px;'
             modelValue={props.selectedConditionValue}
             placeholder={t('请选择')}
-            multiple
             filterable
-            onChange={v => emit('conditionValueChange', v)}
+            multiple
             onBlur={() => props.isInclude && emit('selectComplete')}
+            onChange={v => emit('conditionValueChange', v)}
             onClear={() => emit('conditionValueClear')}
-            style='margin-top: 4px;'
           >
             {props.conditionValueList.map(item => (
               <Select.Option
@@ -257,9 +259,9 @@ export default defineComponent({
         {/* 区间选择 */}
         {props.conditionType === 'duration' && (
           <DurationFilter
+            style='margin-top: 4px;'
             range={props.durantionRange ?? undefined}
             onChange={(v: number[]) => emit('durationRangeChange', v)}
-            style='margin-top: 4px;'
           />
         )}
 

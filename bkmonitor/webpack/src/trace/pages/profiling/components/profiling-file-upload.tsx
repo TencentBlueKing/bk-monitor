@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import axios from 'axios';
 import { Alert, Button, Dialog, Upload } from 'bkui-vue';
 import { TextFill as UploadTextFill, Upload as UploadIcon } from 'bkui-vue/lib/icon';
@@ -202,7 +203,7 @@ export default defineComponent({
             curFileObj.progress = val;
           },
           0.99,
-          3000,
+          3000
         );
         upload(params, { cancelToken: cancelObj[file.uid].token })
           .then(data => {
@@ -252,11 +253,11 @@ export default defineComponent({
   render() {
     return (
       <Dialog
-        isShow={this.show}
-        extCls={'profiling-file-upload-component'}
-        title={this.t('上传文件')}
-        dialogType={this.isCompare ? 'operation' : 'show'}
         width={640}
+        extCls={'profiling-file-upload-component'}
+        dialogType={this.isCompare ? 'operation' : 'show'}
+        isShow={this.show}
+        title={this.t('上传文件')}
         onClosed={() => this.showChange(false)}
         onConfirm={() => this.showChange(false)}
       >
@@ -282,8 +283,8 @@ export default defineComponent({
                 }}
               >
                 <Upload
-                  size={50}
                   customRequest={this.handleUploadProgress as any}
+                  size={50}
                   // accept={FILES_TYPE.map(f => `.${f}`).join(',')}
                 >
                   {{
@@ -293,8 +294,8 @@ export default defineComponent({
                         <span class='title'>{this.t('点击上传或将文件拖到此处')}</span>
                         <span class='desc'>{this.t('支持{0}等文件格式', [FILES_TYPE_NAME])}</span>
                         <Button
-                          theme='primary'
                           class='upload-btn'
+                          theme='primary'
                         >
                           {this.t('上传')}
                         </Button>
@@ -304,16 +305,16 @@ export default defineComponent({
                 </Upload>
               </div>
               <div
-                class='upload-running-wrap'
                 style={{
                   display: !this.isRunning ? 'none' : undefined,
                 }}
+                class='upload-running-wrap'
               >
                 <div class='file-list'>
                   {this.filesStatus.map(item => (
                     <div
-                      class='file-list-item'
                       key={item.uid}
+                      class='file-list-item'
                     >
                       <div class='file-logo'>
                         <UploadTextFill
@@ -346,10 +347,10 @@ export default defineComponent({
                         </div>
                         <div class='status-progress'>
                           <div
-                            class='progress-line'
                             style={{
                               width: `${item.progress * 100}%`,
                             }}
+                            class='progress-line'
                           ></div>
                         </div>
                       </div>

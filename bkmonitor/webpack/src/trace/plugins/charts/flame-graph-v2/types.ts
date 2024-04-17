@@ -83,7 +83,7 @@ export interface BaseDataType {
   diff_info?: {
     baseline: number;
     comparison: number;
-    mark: 'added' | 'removed' | 'changed' | 'unchanged';
+    mark: 'added' | 'changed' | 'removed' | 'unchanged';
   };
 }
 export interface ILineData<D extends BaseDataType> {
@@ -145,7 +145,7 @@ export interface ITipsDetail {
   left?: number; // 提示框左边距离画布左边的距离
   top?: number; // 提示框上边距离画布上边的距离
   title?: string;
-  proportion?: string | number;
+  proportion?: number | string;
   duration?: string;
   diffDuration?: string;
   diffValue?: number | string;

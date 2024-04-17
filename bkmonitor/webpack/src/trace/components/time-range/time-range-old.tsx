@@ -25,11 +25,11 @@
  */
 
 import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
+
 import { Button, DatePicker, Input, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 
 import IconFont from '../icon-font/icon-font';
-
 import {
   DEFAULT_TIME_RANGE,
   handleTransformTime,
@@ -172,7 +172,7 @@ export default defineComponent({
         localValue.value = val;
         handleTransformTimeValue();
         timeRangeDisplayChange();
-      },
+      }
     );
 
     return {
@@ -194,21 +194,9 @@ export default defineComponent({
     return (
       <DatePicker
         class='time-range-date-picker'
-        extPopoverCls='time-range-popover'
-        type={'daterange'}
-        value={this.timestamp}
-        open={this.open}
-        appendToBody
-        onOpen-change={this.handleOpenChange}
-        onChange={this.handleDatePickerChagne}
         v-slots={{
           trigger: () => (
             <Popover
-              placement='bottom'
-              theme='light time-range-tips'
-              onAfterShow={() => {
-                this.handleTransformTimeValue();
-              }}
               v-slots={{
                 content: () => (
                   <div class='time-range-tips-content'>
@@ -218,14 +206,19 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              placement='bottom'
+              theme='light time-range-tips'
+              onAfterShow={() => {
+                this.handleTransformTimeValue();
+              }}
             >
               <span
                 class={['time-range-trigger', { active: this.open }]}
                 onClick={() => this.handleShowPanel(true)}
               >
                 <IconFont
-                  icon='icon-mc-time'
                   classes={['icon-time-range']}
+                  icon='icon-mc-time'
                 ></IconFont>
                 <span>{this.timeRangeDisplay}</span>
               </span>
@@ -243,9 +236,9 @@ export default defineComponent({
           ),
           header: () => (
             <i18n-t
+              class='time-range-custom'
               keypath='从 {0} 至 {1}'
               tag='div'
-              class='time-range-custom'
               // 20231025 禁止 MouseUp 事件冒泡是为了防止点击 header 插槽空间时导致整个弹窗关闭。（原因不明，暂时无法调试出是哪里的问题）
               onMouseup={e => e.stopPropagation()}
             >
@@ -274,6 +267,13 @@ export default defineComponent({
             </ul>
           ),
         }}
+        extPopoverCls='time-range-popover'
+        open={this.open}
+        type={'daterange'}
+        value={this.timestamp}
+        appendToBody
+        onChange={this.handleDatePickerChagne}
+        onOpen-change={this.handleOpenChange}
       ></DatePicker>
     );
   },

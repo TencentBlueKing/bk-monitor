@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Input, Popover, Radio } from 'bkui-vue';
 import { EnlargeLine, Transfer } from 'bkui-vue/lib/icon';
 
@@ -66,11 +67,11 @@ export default defineComponent({
     const searchVal = ref('');
     const filterFavoriteList = ref([]);
     const favoriteCount = computed(() =>
-      props.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0),
+      props.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0)
     );
     watch(
       () => props.favoriteList,
-      () => handleSearchFavorite(),
+      () => handleSearchFavorite()
     );
 
     // const isNewSearch = computed(() => !searchVal.value);
@@ -112,18 +113,18 @@ export default defineComponent({
           </div>
           <div class='search-tools jsac'>
             <Input
-              type='search'
               v-model={this.searchVal}
-              onEnter={this.handleSearchFavorite}
               placeholder={this.$t('搜索收藏名')}
+              type='search'
+              onEnter={this.handleSearchFavorite}
             ></Input>
             <div class='tools jsac'>
               <Popover
                 ref='popoverGroupRef'
-                trigger='click'
-                theme='light'
-                placement='bottom-start'
                 ext-cls='new-group-popover'
+                placement='bottom-start'
+                theme='light'
+                trigger='click'
               >
                 {{
                   default: () => <span class='icon-monitor icon-jia'></span>,
@@ -137,10 +138,10 @@ export default defineComponent({
               </Popover>
               <Popover
                 ref='popoverSortRef'
-                trigger='click'
-                theme='light'
-                placement='bottom-start'
                 ext-cls='sort-group-popover'
+                placement='bottom-start'
+                theme='light'
+                trigger='click'
               >
                 {{
                   default: () => (
@@ -152,8 +153,8 @@ export default defineComponent({
                     <div>
                       <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏排序')}</span>
                       <Radio.Group
-                        v-model={this.sortType}
                         class='sort-group-container'
+                        v-model={this.sortType}
                       >
                         {this.groupSortList.map(item => (
                           <Radio label={item.id}>{item.name}</Radio>

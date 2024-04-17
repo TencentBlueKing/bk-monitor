@@ -29,7 +29,6 @@ import { computed, defineComponent, PropType } from 'vue';
 import { useTraceStore } from '../../../store/modules/trace';
 import { ITraceTree } from '../../../typings';
 import { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
-
 import CanvasSpanGraph from './canvas-span-graph';
 import TickLabels from './tick-labels';
 import ViewingLayer from './viewing-layer';
@@ -75,7 +74,7 @@ export default defineComponent({
         serviceName: item.process.serviceName,
         color: item.color,
         isVirtual: item.is_virtual,
-      })),
+      }))
     );
     return {
       items,
@@ -93,20 +92,20 @@ export default defineComponent({
     return (
       <div class='span-graph'>
         <TickLabels
-          numTicks={TIMELINE_TICK_INTERVAL}
           duration={this.trace.duration || 0}
+          numTicks={TIMELINE_TICK_INTERVAL}
         />
         <div style='position:relative;'>
           <CanvasSpanGraph
-            valueWidth={this.trace.duration}
             items={this.items as ComplexMessage[]}
+            valueWidth={this.trace.duration}
           />
           <ViewingLayer
-            viewRange={viewRange}
-            numTicks={TIMELINE_TICK_INTERVAL}
             height={height || DEFAULT_HEIGHT}
-            updateViewRangeTime={updateViewRangeTime}
+            numTicks={TIMELINE_TICK_INTERVAL}
             updateNextViewRangeTime={updateNextViewRangeTime}
+            updateViewRangeTime={updateViewRangeTime}
+            viewRange={viewRange}
           />
         </div>
       </div>

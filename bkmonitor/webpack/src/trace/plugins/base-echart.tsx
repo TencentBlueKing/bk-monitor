@@ -34,6 +34,7 @@ import {
   watch,
   WatchStopHandle,
 } from 'vue';
+
 import dayjs from 'dayjs';
 import { echarts, MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -103,7 +104,7 @@ export default defineComponent({
       },
       appendToBody: true,
       formatter: (p: any) => handleSetTooltip(p),
-      position: (pos: (string | number)[], params: any, dom: any, rect: any, size: any) => {
+      position: (pos: (number | string)[], params: any, dom: any, rect: any, size: any) => {
         const { contentSize } = size;
         const chartRect = chartRef.value!.getBoundingClientRect();
         const posRect = {
@@ -146,7 +147,7 @@ export default defineComponent({
         instance.value?.resize({
           silent: true,
         });
-      },
+      }
     );
     // 宽度变化
     watch(
@@ -161,7 +162,7 @@ export default defineComponent({
         instance.value?.resize({
           silent: true,
         });
-      },
+      }
     );
 
     onMounted(initChart);
@@ -195,13 +196,13 @@ export default defineComponent({
           }))
           .sort(
             (a: { value: number }, b: { value: number }) =>
-              Math.abs(a.value - +curPoint.value.yAxis) - Math.abs(b.value - +curPoint.value.yAxis),
+              Math.abs(a.value - +curPoint.value.yAxis) - Math.abs(b.value - +curPoint.value.yAxis)
           );
         const list = params.filter((item: { seriesName: string }) => !item.seriesName.match(/-no-tips$/));
         liHtmls = list
           .sort((a: { value: number[] }, b: { value: number[] }) => b.value[1] - a.value[1])
           .map(
-            (item: { value: number[]; color: any; seriesName: any; seriesIndex: string | number; dataIndex: any }) => {
+            (item: { value: number[]; color: any; seriesName: any; seriesIndex: number | string; dataIndex: any }) => {
               let markColor = 'color: #fafbfd;';
               if (data[0].value === item.value[1]) {
                 markColor = 'color: #fff;font-weight: bold;';
@@ -231,7 +232,7 @@ export default defineComponent({
                   <span class="item-value" style="${markColor}">
                   ${valueObj.text} ${valueObj.suffix || ''}</span>
                   </li>`;
-            },
+            }
           );
         if (liHtmls?.length < 1) return '';
         // 如果超出屏幕高度，则分列展示
@@ -313,13 +314,13 @@ export default defineComponent({
                   ...(props.options || {}),
                 } as any,
               },
-              { notMerge: true, lazyUpdate: false, silent: true },
+              { notMerge: true, lazyUpdate: false, silent: true }
             );
             curChartOption = instance.value.getOption();
           }
           initChartAction();
         },
-        { deep: false },
+        { deep: false }
       );
     }
     // 初始化chart Action
@@ -396,13 +397,13 @@ export default defineComponent({
   render() {
     return (
       <div
-        class='chart-base'
         ref='chartRef'
         style={{ minHeight: `${1}px` }}
-        onMouseover={this.handleMouseover}
-        onMouseleave={this.handleMouseleave}
+        class='chart-base'
         onClick={this.handleClick}
         onDblclick={this.handleDblClick}
+        onMouseleave={this.handleMouseleave}
+        onMouseover={this.handleMouseover}
       />
     );
   },

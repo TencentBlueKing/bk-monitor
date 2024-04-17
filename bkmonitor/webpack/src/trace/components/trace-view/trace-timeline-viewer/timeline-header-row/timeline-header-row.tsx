@@ -29,7 +29,6 @@ import Ticks from '../ticks';
 import TimelineRow from '../timeline-row';
 import TimelineRowCell from '../timeline-row-cell';
 import VerticalResizer from '../vertical-resizer';
-
 import TimelineCollapser from './timeline-collapser';
 import TimelineViewingLayer from './timeline-viewing-layer';
 
@@ -67,35 +66,35 @@ const TimelineHeaderRow = (props: TimelineHeaderRowProps) => {
   return (
     <TimelineRow className='timeline-header-row'>
       <TimelineRowCell
-        className='ub-flex ub-px2'
         width={nameColumnWidth}
+        className='ub-flex ub-px2'
       >
         <h3 class='timeline-header-row-title'>
           {window.i18n.t('服务')} &amp; {window.i18n.t('操作')}
         </h3>
         <TimelineCollapser
           onCollapseAll={onCollapseAll}
-          onExpandAll={onExpandAll}
           onCollapseOne={onCollapseOne}
+          onExpandAll={onExpandAll}
           onExpandOne={onExpandOne}
         />
       </TimelineRowCell>
       <TimelineRowCell width={1 - nameColumnWidth}>
         <TimelineViewingLayer boundsInvalidator={nameColumnWidth} />
         <Ticks
+          endTime={viewEnd * duration}
           numTicks={numTicks}
           startTime={viewStart * duration}
-          endTime={viewEnd * duration}
-          showLabels
           hideLine
+          showLabels
         />
       </TimelineRowCell>
       <VerticalResizer
+        columnResizeHandleHeight={columnResizeHandleHeight}
+        max={0.85}
+        min={Math.max(minSpanNameColumnWidth, 0.25)}
         position={nameColumnWidth}
         onChange={onColummWidthChange}
-        min={Math.max(minSpanNameColumnWidth, 0.25)}
-        max={0.85}
-        columnResizeHandleHeight={columnResizeHandleHeight}
       />
     </TimelineRow>
   );
