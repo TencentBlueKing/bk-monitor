@@ -1575,7 +1575,7 @@ class SearchHandler(object):
         )
 
     @property
-    def filter(self):
+    def filter(self) -> list:
         # 当filter被访问时，如果还没有被初始化，则调用_init_filter()进行初始化
         if self._filter is None:
             self._filter = self._init_filter()
