@@ -55,7 +55,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
     key: '',
     method: '',
     value: [],
-    condition: 'and'
+    condition: 'and',
   };
   /** 当前编辑的索引 */
   currentIndex = 0;
@@ -77,7 +77,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
     const type = this.curGroupByType;
     const methodMap = {
       number: NUMBER_CONDITION_METHOD_LIST,
-      string: STRING_CONDITION_METHOD_LIST
+      string: STRING_CONDITION_METHOD_LIST,
     };
     this.conditionOption = methodMap[type] ?? [];
   }
@@ -103,8 +103,8 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
         ...this.varParams,
         field: this.currentValue.key as string,
         where: [],
-        query_string: undefined
-      }
+        query_string: undefined,
+      },
     };
   }
 
@@ -145,7 +145,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
       zIndex: 1000,
       animation: 'slide-toggle',
       followCursor: false,
-      onHidden: () => (this.curTarget = null)
+      onHidden: () => (this.curTarget = null),
     });
     this.curTarget = target;
   }
@@ -198,7 +198,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
       key: this.groupBy[0]?.id,
       method: this.conditionOption[0]?.id as string,
       value: [],
-      condition: 'and'
+      condition: 'and',
     };
   }
 
@@ -263,7 +263,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
           this.valueOption =
             res?.map(item => ({
               id: item.value,
-              name: item.label
+              name: item.label,
             })) || [];
           this.varListCache.set(key, this.valueOption);
         })

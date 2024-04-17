@@ -29,7 +29,7 @@ import { CancelToken } from 'monitor-api/index';
 import {
   getIntelligentDetectAccessStatus,
   getIntelligentModel,
-  listIntelligentModels
+  listIntelligentModels,
 } from 'monitor-api/modules/strategies';
 
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData, MetricDetail } from '../../../typings';
@@ -39,7 +39,7 @@ import {
   FormItem,
   handleCreateModelOptionsDetail,
   IFormDataItem,
-  ISelectOptionItem
+  ISelectOptionItem,
 } from '../form/utils';
 import { ITipsData } from '../intelligent-detect/intelligent-detect';
 import { IModelData } from '../time-series-forecast/time-series-forecast';
@@ -97,8 +97,8 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     config: {
       args: {},
       group: [],
-      plan_id: ''
-    }
+      plan_id: '',
+    },
   };
 
   get rules() {
@@ -115,7 +115,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
   /** 提示数据 */
   tipsData: ITipsData = {
     status: 'info',
-    message: ''
+    message: '',
   };
 
   isChangeModel = false;
@@ -131,7 +131,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
         type: 'ai-level',
         behavior: 'simplicity',
         required: true,
-        clearable: false
+        clearable: false,
       },
       {
         label: window.i18n.tc('模型名称'),
@@ -143,7 +143,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
         options: [],
         required: true,
         clearable: false,
-        placeholder: this.$tc('选择')
+        placeholder: this.$tc('选择'),
       },
       {
         label: window.i18n.tc('分组字段'),
@@ -156,8 +156,8 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
         required: false,
         clearable: false,
         valueType: EFormItemValueType.array,
-        placeholder: this.readonly ? '--' : this.$tc('选择')
-      }
+        placeholder: this.readonly ? '--' : this.$tc('选择'),
+      },
     ];
   }
 
@@ -176,9 +176,9 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     const metric = this.metricData[0];
     const dimensionsList = metric.dimensions;
     const checkedId = metric.agg_dimension;
-    // eslint-disable-next-line max-len
+
     return dimensionsList.filter(
-      item => item.is_dimension && checkedId.includes(item.id as string)
+      item => item.is_dimension && checkedId.includes(item.id as string),
     ) as ISelectOptionItem[];
   }
 
@@ -251,7 +251,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
           name: item.name,
           default: !!item.is_default,
           loading: false,
-          detail: handleCreateModelOptionsDetail(item, this.interval)
+          detail: handleCreateModelOptionsDetail(item, this.interval),
         };
       });
     }
@@ -269,11 +269,11 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     const { latest_release_id } = this.currentModelData || {};
     const params = {
       id: modelId,
-      latest_release_id: relId || latest_release_id
+      latest_release_id: relId || latest_release_id,
     };
     needLoading && (this.loading = true);
     const detailData = await getIntelligentModel(params, {
-      cancelToken: new CancelToken(c => (this.modelDetialCancelFn = c))
+      cancelToken: new CancelToken(c => (this.modelDetialCancelFn = c)),
     }).finally(() => needLoading && (this.loading = false));
 
     const valueDisplay = this.localData.config?.args || {};
@@ -282,7 +282,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     this.handleModelChange({
       name: detailData.name,
       instruction: detailData.instruction,
-      document: detailData.document
+      document: detailData.document,
     });
   }
 
@@ -316,7 +316,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     const statusMap = {
       waiting: 'info',
       running: 'success',
-      failed: 'error'
+      failed: 'error',
     };
     this.tipsData.status = statusMap[resData.status];
     this.tipsData.message =
@@ -335,7 +335,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     this.localData.level = level;
     this.localData.config = {
       ...params,
-      args: argsParams
+      args: argsParams,
     };
     this.emitLocalData();
   }

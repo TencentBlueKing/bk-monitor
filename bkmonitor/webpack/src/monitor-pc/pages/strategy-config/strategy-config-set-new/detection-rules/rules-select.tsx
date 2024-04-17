@@ -65,8 +65,8 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
       },
       {
         ai: [] as IDetectionTypeItem[],
-        convention: [] as IDetectionTypeItem[]
-      }
+        convention: [] as IDetectionTypeItem[],
+      },
     );
   }
 
@@ -123,7 +123,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
                     v-bk-tooltips={{
                       content: item.disabled ? item.disabledTip : item.tip,
                       disabled: !item.disabled,
-                      allowHTML: false
+                      allowHTML: false,
                     }}
                   >
                     <img
@@ -146,7 +146,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
                     v-bk-tooltips={{
                       content: item.disabled ? item.disabledTip : item.tip,
                       disabled: !item.disabled,
-                      allowHTML: false
+                      allowHTML: false,
                     }}
                   >
                     <img

@@ -41,7 +41,7 @@ export interface SearchState {
 
 export enum PanelType {
   Favorite = 'favorite',
-  Search = 'search'
+  Search = 'search',
 }
 
 export interface ServicesDetail {
@@ -95,5 +95,5 @@ export interface FileDetail {
 
 export enum DetailType {
   Application = 'application',
-  UploadFile = 'uploadFile'
+  UploadFile = 'uploadFile',
 }

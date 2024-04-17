@@ -122,7 +122,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
     const variablesService = new VariablesService(this.viewOptions);
     this.$api[this.apiData.apiModule]
       [this.apiData.apiFunc]({
-        ...variablesService.transformVariables(this.apiData.data, this.viewOptions.filters)
+        ...variablesService.transformVariables(this.apiData.data, this.viewOptions.filters),
       })
       .then(res => {
         this.taskData = res;
@@ -146,9 +146,8 @@ export default class TaskList extends tsc<IProps, IEvents> {
   /** 搜索操作 */
   @Debounce(300)
   handleSearch() {
-    // eslint-disable-next-line max-len
     this.localTaskData = this.taskData.filter(
-      task => task.name?.toLowerCase().indexOf(this.searchKeyword.toLowerCase()) > -1
+      task => task.name?.toLowerCase().indexOf(this.searchKeyword.toLowerCase()) > -1,
     );
   }
 
@@ -174,7 +173,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
   handleListChange(list: TaskDataItem[]) {
     return list.map(item => ({
       id: item.id || '',
-      name: item.name || ''
+      name: item.name || '',
     }));
   }
 
@@ -210,7 +209,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
                     class={[
                       'task-item',
                       { active: String(task.id) === String(this.activeTask) },
-                      { 'checked-target': this.isTargetCompare && this.compareNode.includes(task.id) }
+                      { 'checked-target': this.isTargetCompare && this.compareNode.includes(task.id) },
                     ]}
                     onClick={() => this.handleTaskChange(task)}
                   >

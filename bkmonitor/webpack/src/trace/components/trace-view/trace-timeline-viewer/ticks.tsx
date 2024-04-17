@@ -58,7 +58,7 @@ const Ticks = (props: TicksProps) => {
         class='ticks-tick'
         style={{
           left: `${portion * 100}%`,
-          'background-color': `${hideLine ? '' : '#DCDEE5'}`
+          'background-color': `${hideLine ? '' : '#DCDEE5'}`,
         }}
       >
         {labels && (
@@ -66,7 +66,7 @@ const Ticks = (props: TicksProps) => {
             {labels[i]}
           </span>
         )}
-      </div>
+      </div>,
     );
   }
   return <div class='ticks'>{ticks}</div>;
@@ -75,7 +75,7 @@ const Ticks = (props: TicksProps) => {
 Ticks.defaultProps = {
   endTime: null,
   showLabels: null,
-  startTime: null
+  startTime: null,
 };
 
 export default Ticks;

@@ -33,7 +33,7 @@ import {
   listAssignGroup,
   listAssignRule,
   listUserGroup,
-  partialUpdateAssignGroup
+  partialUpdateAssignGroup,
 } from 'monitor-api/modules/model';
 import { Debounce, random } from 'monitor-common/utils';
 
@@ -51,7 +51,7 @@ import { RuleGroupData } from './typing/index';
 import './alarm-dispatch.scss';
 
 @Component
-export default class AlarmDispatch extends tsc<{}> {
+export default class AlarmDispatch extends tsc<object> {
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Ref() addForm: any;
@@ -90,7 +90,7 @@ export default class AlarmDispatch extends tsc<{}> {
     priority: number;
   } = {
     name: '',
-    priority: 100
+    priority: 100,
   };
 
   /** 校验规则 */
@@ -99,27 +99,27 @@ export default class AlarmDispatch extends tsc<{}> {
       {
         required: true,
         message: window.i18n.t('输入规则组名'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: value =>
           !/(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(value),
         message: window.i18n.t('不能输入emoji表情'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   /** 告警组详情*/
   alarmGroupDetail: { id: number; show: boolean } = {
     id: 0,
-    show: false
+    show: false,
   };
 
   /** 套餐详情*/
   detailData = {
     id: 0,
-    isShow: false
+    isShow: false,
   };
 
   showDebug = false;
@@ -132,7 +132,7 @@ export default class AlarmDispatch extends tsc<{}> {
   } = {
     keys: [],
     valueMap: new Map(),
-    groupKeys: new Map()
+    groupKeys: new Map(),
   };
   conditiongsKey = random(8);
 
@@ -144,7 +144,7 @@ export default class AlarmDispatch extends tsc<{}> {
   handleToConfig(id: number) {
     this.$router.push({
       name: 'alarm-dispatch-config',
-      params: { id: String(id) }
+      params: { id: String(id) },
     });
   }
 
@@ -167,7 +167,7 @@ export default class AlarmDispatch extends tsc<{}> {
           }
         });
         return result;
-      }, [])
+      }, []),
     }));
   }
 
@@ -201,7 +201,7 @@ export default class AlarmDispatch extends tsc<{}> {
     this.alarmGroupList = data.map(item => ({
       id: item.id,
       name: item.name,
-      receiver: item.users?.map(rec => rec.display_name) || []
+      receiver: item.users?.map(rec => rec.display_name) || [],
     }));
 
     /** 能否查询需要依赖 getAlarmGroupList 和 getAlarmDispatchGroupData两个函数都请求完成 */
@@ -228,8 +228,8 @@ export default class AlarmDispatch extends tsc<{}> {
             priority: item.priority,
             isExpan: true,
             ruleData: [],
-            editAllowed: !!item?.edit_allowed
-          })
+            editAllowed: !!item?.edit_allowed,
+          }),
       ) || [];
     this.loading = false;
     this.getAlarmAssignGroupsRules(list?.map(item => item.id));
@@ -300,7 +300,7 @@ export default class AlarmDispatch extends tsc<{}> {
         //   message: this.$t('删除成功')
         // });
         // this.getAlarmDispatchGroupData();
-      }
+      },
     });
   }
 
@@ -323,16 +323,16 @@ export default class AlarmDispatch extends tsc<{}> {
         this.getAlarmDispatchGroupData();
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('创建成功')
+          message: this.$t('创建成功'),
         });
         this.formData = {
           name: '',
-          priority: 0
+          priority: 0,
         };
         setTimeout(() => {
           this.$router.push({
             name: 'alarm-dispatch-config',
-            params: { id: String(data.id) }
+            params: { id: String(data.id) },
           });
         });
       }
@@ -370,7 +370,7 @@ export default class AlarmDispatch extends tsc<{}> {
       },
       onHide: () => {
         document.removeEventListener('click', this.handleClickOutSide, false);
-      }
+      },
     });
     this.popoverInstance?.show(100);
   }
@@ -474,7 +474,7 @@ export default class AlarmDispatch extends tsc<{}> {
     await partialUpdateAssignGroup(this.currentId, { [this.filed]: value });
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('修改成功')
+      message: this.$t('修改成功'),
     });
     this.getAlarmDispatchGroupData();
   }
@@ -492,7 +492,7 @@ export default class AlarmDispatch extends tsc<{}> {
             item.tag.map(key => key.split(':')[0]).includes(value) ||
             item.tag.map(value => value.split(':')[1]).includes(value) ||
             reg.test(item.user_groups.map(g => g.name)) ||
-            String(item.id) === value
+            String(item.id) === value,
           // item.user_groups.map(g => String(g.id)).includes(value)
         )
         .map(item => item.id);
@@ -504,8 +504,8 @@ export default class AlarmDispatch extends tsc<{}> {
       const { groupName, groupId, ...arg } = this.$route.query;
       this.$router.replace({
         query: {
-          ...arg
-        }
+          ...arg,
+        },
       });
     }
   }
@@ -539,7 +539,7 @@ export default class AlarmDispatch extends tsc<{}> {
       },
       () => {
         this.conditiongsKey = random(8);
-      }
+      },
     );
   }
 
@@ -547,7 +547,7 @@ export default class AlarmDispatch extends tsc<{}> {
     this.alarmGroupDetail.show = false;
     this.$router.push({
       name: 'alarm-group-edit',
-      params: { id }
+      params: { id },
     });
   }
 
@@ -616,7 +616,7 @@ export default class AlarmDispatch extends tsc<{}> {
                       v-bk-tooltips={{
                         placements: ['top'],
                         content: this.$t('内置的分派规则组不允许修改'),
-                        disabled: item.editAllowed
+                        disabled: item.editAllowed,
                       }}
                       onClick={() => item.editAllowed && this.handleToConfig(item.id)}
                     >
@@ -628,7 +628,7 @@ export default class AlarmDispatch extends tsc<{}> {
                       v-bk-tooltips={{
                         placements: ['top'],
                         content: this.$t('内置的分派规则组不允许修改'),
-                        disabled: item.editAllowed
+                        disabled: item.editAllowed,
                       }}
                       onClick={e => {
                         item.editAllowed && this.handleDeleteGroup(e, item);
@@ -662,7 +662,7 @@ export default class AlarmDispatch extends tsc<{}> {
                                 </bk-tag>
                               ))}
                             </div>
-                          )
+                          ),
                         }}
                       ></bk-table-column>
                       <bk-table-column
@@ -684,7 +684,7 @@ export default class AlarmDispatch extends tsc<{}> {
                               ></CommonCondition>
                             ) : (
                               '--'
-                            )
+                            ),
                         }}
                       ></bk-table-column>
                       <bk-table-column
@@ -702,7 +702,7 @@ export default class AlarmDispatch extends tsc<{}> {
                               actions={row.actions}
                               userType={row.user_type}
                             />
-                          )
+                          ),
                         }}
                       ></bk-table-column>
                       <bk-table-column
@@ -715,7 +715,7 @@ export default class AlarmDispatch extends tsc<{}> {
                               severity={row.alert_severity}
                               tag={row.additional_tags}
                             />
-                          )
+                          ),
                         }}
                       ></bk-table-column>
                       <bk-table-column
@@ -727,7 +727,7 @@ export default class AlarmDispatch extends tsc<{}> {
                             <bk-tag class={['tag-status', row.is_enabled ? 'start' : 'stop']}>
                               {this.$t(row.is_enabled ? '启用' : '停用')}
                             </bk-tag>
-                          )
+                          ),
                         }}
                       ></bk-table-column>
                       <div
@@ -787,8 +787,8 @@ export default class AlarmDispatch extends tsc<{}> {
             {...{
               props: {
                 model: this.formData,
-                rules: this.rules
-              }
+                rules: this.rules,
+              },
             }}
           >
             <bk-form-item

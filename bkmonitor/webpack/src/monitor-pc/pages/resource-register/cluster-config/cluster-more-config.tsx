@@ -36,7 +36,7 @@ import './cluster-more-config.scss';
 const defalutTimes = [
   { id: 1, name: window.i18n.tc('1天') },
   { id: 7, name: window.i18n.tc('7天') },
-  { id: 30, name: window.i18n.tc('30天') }
+  { id: 30, name: window.i18n.tc('30天') },
 ];
 interface IProps {
   data?: any;
@@ -45,12 +45,12 @@ interface IProps {
 }
 @Component
 export default class ClusterMoreConfig extends tsc<IProps> {
-  @Prop({ type: String }) selectedType: String;
+  @Prop({ type: String }) selectedType: string;
   @Prop({ type: Object, default: () => null }) data: any;
   @Prop({ type: Array, default: () => [] }) spaceTypes: { id: string; name: string }[];
   localFormData = {
     kafka: {
-      is_register_gse: false
+      is_register_gse: false,
     },
     elasticsearch: {
       scope: EScopes.currentSpace,
@@ -58,24 +58,24 @@ export default class ClusterMoreConfig extends tsc<IProps> {
       expires: {
         // 过期时间
         default: '',
-        max: ''
+        max: '',
       },
       replica: {
         // 副本数
         default: 0,
-        max: 0
+        max: 0,
       },
       cold_warm_phase_settings: {
         hot: '',
-        cold: ''
+        cold: '',
       },
       hotDataTag: '', // 热数据标签
       coldDataTag: '', // 冷数据标签
-      capacityAssessmentValue: null // 容量评估
+      capacityAssessmentValue: null, // 容量评估
     },
     hotAndColdDataSwitcherValue: false, // 冷热数据开关值
     logArchivingSwitcherValue: false, // 日志归档开关值
-    capacityAssessmentSwitcherValue: false // 容量评估开关值
+    capacityAssessmentSwitcherValue: false, // 容量评估开关值
   };
 
   created() {

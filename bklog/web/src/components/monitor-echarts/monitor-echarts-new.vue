@@ -655,11 +655,13 @@ export default class MonitorEcharts extends Vue {
                     const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
                     this.timeRange = [timeFrom, timeTo];
                     if (this.getSeriesData) {
-                      this.chart.dispatchAction({
-                        type: 'restore'
-                      });
+                      setTimeout(() => {
+                        this.chart.dispatchAction({
+                          type: 'restore'
+                        });
+                      }, 10);
                       this.handleCloseTimer();
-                      await this.handleSeriesData(timeFrom, timeTo);
+                      this.getSeriesData(timeFrom, timeTo)
                     }
                     this.$emit('data-zoom', this.timeRange);
                   }
@@ -742,11 +744,11 @@ export default class MonitorEcharts extends Vue {
         const valueObj = unitFormater(item.value[1] === null ? 0 : item.value[1], precision);
         return `<li style="display: flex;align-items: center;">
            <span style="background-color:${item.color};margin-right: 4px;width: 6px;height: 6px; border-radius: 50%;"></span>
-           <span style="${markColor} flex: 1;">${valueObj.text} ${valueObj.suffix || ''}</span>
+           <span style="${markColor} flex: 1;color: #fff;">${valueObj.text} ${valueObj.suffix || ''}</span>
           </li>`;
-      });
+      });    
     return `<div style="z-index:12; border-radius: 6px">
-        <p style="text-align:center;margin: 0 0 5px 0;font-weight: bold;">${pointTime}</p>
+        <p style="text-align:center;margin: 0 0 5px 0;font-weight: bold;color: #fff;">${pointTime}</p>
         <ul style="padding: 0;margin: 0;">${liHtmls.join('')}</ul>
       </div>`;
   }

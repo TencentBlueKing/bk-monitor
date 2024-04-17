@@ -37,7 +37,7 @@ import './simple-condition-input.scss';
 const nullOptions = {
   // 下拉选项第一为空值
   id: '',
-  name: `- ${window.i18n.tc('空')} -`
+  name: `- ${window.i18n.tc('空')} -`,
 };
 
 interface IConditionItem {
@@ -113,7 +113,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
           item.dimensionName ||
           (item as any).dimension_name ||
           this.dimensionsList.find(dim => dim.id === item.key)?.name ||
-          ''
+          '',
       }));
     this.conditions = conditionList.length > 0 ? conditionList : ([this.handleGetDefaultCondition()] as any);
     this.conditions.forEach(({ key }) => {
@@ -133,9 +133,9 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
         key: '',
         dimensionName: '',
         value: [],
-        method: 'eq'
+        method: 'eq',
       },
-      needCondition ? { condition: 'and' } : {}
+      needCondition ? { condition: 'and' } : {},
     );
   }
 
@@ -185,7 +185,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
         ret.push({
           id: val,
           name: val,
-          show: true
+          show: true,
         });
       }
     });
@@ -269,21 +269,21 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
           field: keyId,
           metric_field: metricField,
           result_table_id: resultTableId || '',
-          where: []
+          where: [],
         },
         this.metricMeta.dataSourceLabel === 'bk_log_search'
           ? {
-              index_set_id: this.metricMeta.indexSetId
+              index_set_id: this.metricMeta.indexSetId,
             }
-          : {}
-      )
+          : {},
+      ),
     };
     await getVariableValue(params, { needRes: true })
       .then(({ data, tips }) => {
         if (tips?.length) {
           this.$bkMessage({
             theme: 'warning',
-            message: tips
+            message: tips,
           });
         }
         const result = Array.isArray(data) ? data.map(item => ({ name: item.label, id: item.value })) : [];
@@ -353,7 +353,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
               zIndex: 9999,
               disabled: !item.key,
               boundary: document.body,
-              allowHTML: false
+              allowHTML: false,
             }}
             nodataMsg={window.i18n.t('该策略无可选维度') as string}
             onChange={v => this.handleKeyChange(item, v)}
@@ -394,9 +394,9 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                   value={item.value}
                   paste-fn={v => this.handlePaste(v, item)}
                   on-change={(v: string[]) => this.handleValueChange(item, v)}
-                ></bk-tag-input>
+                ></bk-tag-input>,
               ]
-            : undefined
+            : undefined,
         ])}
         <span
           class='condition-item condition-add'

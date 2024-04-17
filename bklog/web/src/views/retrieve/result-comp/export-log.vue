@@ -23,12 +23,12 @@
 <template>
   <div>
     <!-- <div
-      :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
-      @click="exportLog"
-      data-test-id="fieldForm_div_exportData"
-      v-bk-tooltips="queueStatus ? $t('导出') : undefined">
-      <span class="icon log-icon icon-xiazai"></span>
-    </div> -->
+        :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
+        @click="exportLog"
+        data-test-id="fieldForm_div_exportData"
+        v-bk-tooltips="queueStatus ? $t('导出') : undefined">
+        <span class="icon log-icon icon-xiazai"></span>
+      </div> -->
     <div
       :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
@@ -63,7 +63,7 @@
       :title="getDialogTitle"
       :mask-close="false"
       :ok-text="$t('下载')"
-      :show-footer="!isShowAsyncDownload"
+      :show-footer="isShowFooter"
       @confirm="handleClickSubmit"
       @after-leave="closeExportDialog"
     >
@@ -128,7 +128,10 @@
           v-if="asyncExportUsable && isShowAsyncDownload"
           class="style-line"
         ></div>
-        <template v-if="!asyncExportUsable">
+        <span v-if="isUnionSearch && isShowAsyncDownload">{{
+          $t('联合查询无法进行异步下载，可直接下载前1万条数据')
+        }}</span>
+        <template v-if="!asyncExportUsable && !isUnionSearch">
           <span>{{ $t('当前因{n}导致无法进行异步下载， 可直接下载前1万条数据', { n: asyncExportUsableReason }) }}</span>
           <div class="cannot-async-btn">
             <bk-button
@@ -239,7 +242,9 @@ export default {
     ...mapGetters({
       bkBizId: 'bkBizId',
       spaceUid: 'spaceUid',
-      isShowMaskingTemplate: 'isShowMaskingTemplate'
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch'
     }),
     getAsyncText() {
       // 异步下载按钮前的文案
@@ -258,6 +263,9 @@ export default {
     isShowAsyncDownload() {
       // 是否展示异步下载
       return this.totalCount > this.exportFirstComparedSize;
+    },
+    isShowFooter() {
+      return !this.isShowAsyncDownload || this.isUnionSearch;
     },
     submitSelectFiledList() {
       // 下载时提交的字段
@@ -314,6 +322,10 @@ export default {
     openDownloadUrl() {
       const { timezone, ...rest } = this.retrieveParams;
       const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
+      if (this.isUnionSearch) {
+        // 判断是否是联合查询 如果是 则加参数
+        Object.assign(params, { index_set_ids: this.unionIndexList });
+      }
       const data = {
         ...params,
         size: this.totalCount,
@@ -389,7 +401,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-/* stylelint-disable no-descending-specificity */
 .operation-icon {
   display: flex;
   width: 32px;
@@ -495,18 +506,9 @@ export default {
 
 .async-export-dialog {
   .header {
-    display: inline-block;
-    width: 100%;
     /* stylelint-disable-next-line declaration-no-important */
     padding: 18px 0px 16px !important;
-    margin: 0;
-    overflow: hidden;
-    font-size: 24px;
-    line-height: 1.5;
-    color: #313238;
     text-align: center;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .export-container {
@@ -523,6 +525,20 @@ export default {
     color: #ff9c01;
     background-color: #ffe8c3;
     border-radius: 50%;
+  }
+
+  /* stylelint-disable-next-line no-duplicate-selectors */
+  .header {
+    display: inline-block;
+    width: 100%;
+    padding: 18px 24px 32px;
+    margin: 0;
+    overflow: hidden;
+    font-size: 24px;
+    line-height: 1.5;
+    color: #313238;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .export-type {

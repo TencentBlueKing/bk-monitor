@@ -40,8 +40,8 @@ export default [
       noNavBar: true,
       authority: {
         map: IntegratedAuth,
-        page: [IntegratedAuth.VIEW_AUTH]
-      }
-    }
-  }
+        page: [IntegratedAuth.VIEW_AUTH],
+      },
+    },
+  },
 ] as RouteConfig[];

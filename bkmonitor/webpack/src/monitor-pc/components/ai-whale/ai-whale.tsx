@@ -40,14 +40,14 @@ const fetchRangeOfStr = {
   '3h': `3${window.i18n.tc('小时')}`,
   '6h': `4${window.i18n.tc('小时')}`,
   '12h': `12${window.i18n.tc('小时')}`,
-  '1d': `1${window.i18n.tc('天')}`
+  '1d': `1${window.i18n.tc('天')}`,
 };
 
 /* 蓝 红 黄 枚举 */
 const levelOfColor = {
   1: 'red',
   2: 'yellow',
-  3: 'blue'
+  3: 'blue',
 };
 
 /* 以下路由不显示此组件 */
@@ -98,14 +98,14 @@ const robotWdith = 64;
 const tipClassName = 'ai-small-whale-tip-content';
 
 @Component
-export default class AiWhale extends tsc<{}> {
+export default class AiWhale extends tsc<object> {
   @Ref('robot') robotRef: HTMLDivElement;
 
   type: Ttype = 'blue';
   /* 机器人位置 */
   whalePostion = {
     top: 0,
-    left: 0
+    left: 0,
   };
   /* 当前是否展开 */
   isExpan = false;
@@ -234,7 +234,7 @@ export default class AiWhale extends tsc<{}> {
           arrow: true,
           placement: 'top',
           boundary: 'window',
-          hideOnClick: false
+          hideOnClick: false,
         });
         this.popoverInstance?.show?.();
       }
@@ -281,7 +281,7 @@ export default class AiWhale extends tsc<{}> {
       () => {
         this.handleGetData();
       },
-      2 * 60 * 1000
+      2 * 60 * 1000,
     );
   }
 
@@ -360,13 +360,13 @@ export default class AiWhale extends tsc<{}> {
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -438,7 +438,7 @@ export default class AiWhale extends tsc<{}> {
             ref='robot'
             style={{
               top: `${this.whalePostion.top}px`,
-              left: `${this.whalePostion.left}px`
+              left: `${this.whalePostion.left}px`,
             }}
             onMousedown={event => this.handleMousedown(event)}
             onMouseenter={event => this.handlePopoverShow(event)}
@@ -529,7 +529,7 @@ export default class AiWhale extends tsc<{}> {
                                         >
                                           {props.row.ip}
                                         </a>
-                                      )
+                                      ),
                                     }}
                                   ></bk-table-column>
                                   <bk-table-column

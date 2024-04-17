@@ -26,7 +26,6 @@
 import { Component } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { EChartOption } from 'echarts/lib/echarts';
 import { CancelToken } from 'monitor-api/index';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -62,12 +61,12 @@ const COLOR_LIST = [
   '#A3CDE2',
   '#96C6DE',
   '#96C6DE',
-  '#96C6DE'
+  '#96C6DE',
 ];
 const sensitivityRangeList: ISensitivityRangeItem[] = COLOR_LIST.map((color, index) => ({
   id: `${index}`,
   name: `${window.i18n.tc('敏感度区间')}${index}`,
-  color
+  color,
 }));
 @Component
 export default class TimeSeriesOutlier extends LineChart {
@@ -98,7 +97,7 @@ export default class TimeSeriesOutlier extends LineChart {
           sensitivityList.push({
             color: item.color,
             name: item.name,
-            show: true
+            show: true,
           });
         }
       });
@@ -153,8 +152,8 @@ export default class TimeSeriesOutlier extends LineChart {
           to,
           color: 'rgba(253, 156, 156, 0.2)',
           borderColor: 'rgba(253, 156, 156, 0.2)',
-          shadowColor: 'rgba(253, 156, 156, 0.2)'
-        }
+          shadowColor: 'rgba(253, 156, 156, 0.2)',
+        },
       ]);
     }
     return { ...alertMarkArea, z: 10 };
@@ -170,7 +169,7 @@ export default class TimeSeriesOutlier extends LineChart {
     return {
       canScale: thresholdList.length > 0 && thresholdList.every((set: number) => set > 0),
       minThreshold: Math.min(...thresholdList),
-      maxThreshold: max + max * 0.1 // 防止阈值最大值过大时title显示不全
+      maxThreshold: max + max * 0.1, // 防止阈值最大值过大时title显示不全
     };
   }
   /**
@@ -217,11 +216,11 @@ export default class TimeSeriesOutlier extends LineChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       if (this.bkBizId) {
         params = Object.assign({}, params, {
-          bk_biz_id: this.bkBizId
+          bk_biz_id: this.bkBizId,
         });
       }
       const promiseList = [];
@@ -229,12 +228,12 @@ export default class TimeSeriesOutlier extends LineChart {
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval
+        this.panel.collect_interval,
       );
 
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        interval
+        interval,
       });
       timeShiftList.forEach(time_shift => {
         const list = this.panel.targets.map(item => {
@@ -245,19 +244,19 @@ export default class TimeSeriesOutlier extends LineChart {
               ...this.viewOptions,
               ...this.viewOptions.variables,
               time_shift,
-              interval
+              interval,
             }),
             ...params,
             down_sample_range: this.downSampleRangeComputed(
               this.downSampleRange as string,
               [params.start_time, params.end_time],
-              item.apiFunc
-            )
+              item.apiFunc,
+            ),
           };
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
               cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
-              needMessage: false
+              needMessage: false,
             })
             .then(res => {
               metrics.push(...res.metrics);
@@ -265,8 +264,8 @@ export default class TimeSeriesOutlier extends LineChart {
                 ...res.series.map(set => ({
                   ...set,
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}
-                     ${this.handleSeriesName(item, set) || set.target}`
-                }))
+                     ${this.handleSeriesName(item, set) || set.target}`,
+                })),
               );
               this.clearErrorMsg();
               return true;
@@ -293,7 +292,7 @@ export default class TimeSeriesOutlier extends LineChart {
           .filter(item => ['extra_info', RESULT_SERIES_NAME].includes(item.alias))
           .map(item => ({
             ...item,
-            datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]])
+            datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
           }));
         let seriesList = this.handleTransformSeries(
           seriesResult.map((item, index) => ({
@@ -306,9 +305,9 @@ export default class TimeSeriesOutlier extends LineChart {
             metricField: item.metric_field,
             markLine: this.createMarkLine(index),
             markArea: this.createMarkArea(item),
-            z: 1
+            z: 1,
           })) as any,
-          COLOR_LIST_OUTLIER
+          COLOR_LIST_OUTLIER,
         );
         // mock 数据
         const boundarySeries = this.handleOutlierBoundaryList(series);
@@ -337,14 +336,14 @@ export default class TimeSeriesOutlier extends LineChart {
                     }
                     return {
                       ...set,
-                      value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null]
+                      value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
                     };
                   })
-                : item.data
+                : item.data,
           };
         });
         this.seriesList = Object.freeze([
-          ...seriesList.filter(item => !sensitivityRangeList.some(set => set.name === item.name))
+          ...seriesList.filter(item => !sensitivityRangeList.some(set => set.name === item.name)),
         ]) as any;
         // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
         // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
@@ -362,8 +361,8 @@ export default class TimeSeriesOutlier extends LineChart {
                     borderWidth: set.symbolSize > 6 ? 6 : 1,
                     enabled: true,
                     shadowBlur: 0,
-                    opacity: 1
-                  }
+                    opacity: 1,
+                  },
                 };
               }
               return set;
@@ -372,14 +371,14 @@ export default class TimeSeriesOutlier extends LineChart {
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
-        // eslint-disable-next-line max-len
+
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
-        // eslint-disable-next-line max-len
+
         const echartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
-          { arrayMerge: (_, newArr) => newArr }
-        ) as EChartOption<EChartOption.Series>;
+          { arrayMerge: (_, newArr) => newArr },
+        );
         this.options = Object.freeze(
           deepmerge(
             echartOptions,
@@ -388,7 +387,7 @@ export default class TimeSeriesOutlier extends LineChart {
               color: COLOR_LIST_OUTLIER,
               animationThreshold: 1,
               tooltip: {
-                formatter: p => this.handleSetTooltip(p)
+                formatter: p => this.handleSetTooltip(p),
               },
               yAxis: {
                 axisLabel: {
@@ -400,27 +399,27 @@ export default class TimeSeriesOutlier extends LineChart {
                         }
                         return v;
                       }
-                    : (v: number) => this.handleYxisLabelFormatter(v - this.minBase)
+                    : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
                 },
                 splitNumber: this.height < 120 ? 2 : 4,
                 minInterval: 1,
                 scale: this.height < 120 ? false : canScale,
                 max: v => Math.max(v.max, +maxThreshold),
-                min: v => Math.min(v.min, +minThreshold)
+                min: v => Math.min(v.min, +minThreshold),
               },
               xAxis: {
                 axisLabel: {
-                  formatter: formatterFunc || '{value}'
+                  formatter: formatterFunc || '{value}',
                 },
                 splitNumber: Math.ceil(this.width / 80),
-                min: 'dataMin'
+                min: 'dataMin',
               },
-              series: seriesList
+              series: seriesList,
             },
             {
-              arrayMerge: (_, sourceArray) => sourceArray
-            }
-          )
+              arrayMerge: (_, sourceArray) => sourceArray,
+            },
+          ),
         );
         this.metrics = metrics || [];
         this.handleDrillDownOption(this.metrics);
@@ -452,9 +451,9 @@ export default class TimeSeriesOutlier extends LineChart {
         (pre, item, index) => ({
           ...pre,
           [`${UPPER_STR}${index}`]: [],
-          [`${LOWER_STR}${index}`]: []
+          [`${LOWER_STR}${index}`]: [],
         }),
-        {}
+        {},
       );
       const bound = tartletBoundary.datapoints.reduce((result, item) => {
         const timeBound = JSON.parse(item[0]);
@@ -478,14 +477,14 @@ export default class TimeSeriesOutlier extends LineChart {
         stack: `boundary-${index}`,
         color,
         name,
-        id
+        id,
       }));
       // 上下边界处理
       if (boundaryList?.length) {
         boundaryList.forEach((item: any) => {
           const base = -item.lowBoundary.reduce(
             (min: number, val: any) => (val[0] !== null ? Math.floor(Math.min(min, val[0])) : min),
-            Infinity
+            Infinity,
           );
           this.minBase = Math.max(base, this.minBase);
         });
@@ -510,30 +509,30 @@ export default class TimeSeriesOutlier extends LineChart {
         type: 'line',
         data: item.lowBoundary.map((item: any) => [item[1], item[0] === null ? null : item[0] + base]),
         lineStyle: {
-          opacity: 0
+          opacity: 0,
         },
         stack: item.stack,
         symbol: 'none',
-        z: item.z || 4
+        z: item.z || 4,
       },
       {
         name: `${UPPER_STR}${item.name}`,
         type: 'line',
         data: item.upBoundary.map((set: any, index: number) => [
           set[1],
-          set[0] === null ? null : set[0] - item.lowBoundary[index][0]
+          set[0] === null ? null : set[0] - item.lowBoundary[index][0],
         ]),
         lineStyle: {
-          opacity: 0
+          opacity: 0,
         },
         areaStyle: {
           color: item.color || '#e6e6e6',
-          opacity: 0.6
+          opacity: 0.6,
         },
         stack: item.stack,
         symbol: 'none',
-        z: item.z || 4
-      }
+        z: item.z || 4,
+      },
     ];
   }
   handleSetTooltip(params) {
@@ -560,12 +559,12 @@ export default class TimeSeriesOutlier extends LineChart {
               ...item,
               value: [item.value[0], v],
               seriesName,
-              tooltipValues
+              tooltipValues,
             });
           }
         } else {
           list.push({
-            ...item
+            ...item,
           });
         }
       });
@@ -590,7 +589,7 @@ export default class TimeSeriesOutlier extends LineChart {
             .map((v, index) => {
               const valueObj = unitFormater(
                 index === 0 ? v - this.minBase : v + (item.tooltipValues[0] - this.minBase),
-                precision
+                precision,
               );
               return `${valueObj?.text} ${valueObj?.suffix || ''}`;
             })
@@ -625,13 +624,13 @@ export default class TimeSeriesOutlier extends LineChart {
     if (index > -1) {
       this.selectSensitivity.splice(index, 1);
       copyOptions.series = this.handleSetOnlyOneMarkArea(
-        copyOptions.series.filter(item => !item.name.includes(sensitivity.name)) as any
+        copyOptions.series.filter(item => !item.name.includes(sensitivity.name)) as any,
       );
     } else {
       this.selectSensitivity.push(sensitivity.id);
       copyOptions.series = this.handleSetOnlyOneMarkArea([
         ...copyOptions.series,
-        ...this.boundarySeries[sensitivity.id]
+        ...this.boundarySeries[sensitivity.id],
       ]);
     }
     this.options = Object.freeze({ ...copyOptions });
@@ -654,7 +653,7 @@ export default class TimeSeriesOutlier extends LineChart {
               return !ser.name.includes(item.name);
             }
             return true;
-          }) as any
+          }) as any,
         );
       } else {
         const series = this.seriesList.filter(ser => ser.name === item.name);
@@ -662,7 +661,7 @@ export default class TimeSeriesOutlier extends LineChart {
           copyOptions.series = this.handleSetOnlyOneMarkArea([...copyOptions.series, ...series]);
         } else {
           const value: any = Object.values(this.boundarySeries).find((set: any[]) =>
-            set.some(v => v.name.includes(targetLegend.name))
+            set.some(v => v.name.includes(targetLegend.name)),
           );
           copyOptions.series = this.handleSetOnlyOneMarkArea([...copyOptions.series, ...value]);
         }

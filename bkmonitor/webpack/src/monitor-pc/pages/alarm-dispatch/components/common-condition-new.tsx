@@ -41,7 +41,7 @@ import {
   KEY_TAG_MAPS,
   NOTICE_USERS_KEY,
   TGroupKeys,
-  TValueMap
+  TValueMap,
 } from '../typing/condition';
 
 import './common-condition-new.scss';
@@ -87,7 +87,7 @@ enum TypeEnum {
   value = 'value',
   method = 'method',
   condition = 'condition',
-  null = ''
+  null = '',
 }
 
 interface ITag {
@@ -107,20 +107,20 @@ const defaultCondition: ICondtionItem = {
   field: '',
   method: 'eq',
   value: [],
-  condition: 'and'
+  condition: 'and',
 };
 
 const inputTag = {
   id: '____INPUT___TAG__',
   name: '',
-  type: TypeEnum.input
+  type: TypeEnum.input,
 };
 
 const nullOption = {
   id: '',
   name: `-${window.i18n.tc('空')}-`,
   type: TypeEnum.value,
-  isCheck: false
+  isCheck: false,
 };
 
 const groupNamesMap = {
@@ -128,7 +128,7 @@ const groupNamesMap = {
   dimensions: window.i18n.t('维度'),
   set: window.i18n.t('集群属性'),
   module: window.i18n.t('模块属性'),
-  host: window.i18n.t('主机属性')
+  host: window.i18n.t('主机属性'),
 };
 
 const strategyField = 'alert.strategy_id';
@@ -276,26 +276,26 @@ export default class CommonCondition extends tsc<IProps> {
         if (!(conditionItem.id === 'and' && index === 0)) {
           tempTags.push({
             ...conditionItem,
-            type: TypeEnum.condition
+            type: TypeEnum.condition,
           });
         }
         tempTags.push({
           id: keyItem?.id || condition.field,
           name: keyItem?.name || condition.field,
           type: TypeEnum.key,
-          alias: !!keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined
+          alias: !!keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
         });
         tempTags.push({
           id: methodItem?.id || METHODS[0].id,
           name: methodItem?.name || METHODS[0].name,
-          type: TypeEnum.method
+          type: TypeEnum.method,
         });
         if (condition.value.length) {
           if (condition.value?.length === 1 && condition.value[0] === '') {
             tempTags.push({
               id: '',
               name: NULL_NAME,
-              type: TypeEnum.value
+              type: TypeEnum.value,
             });
           } else {
             /* 此数据需要去重，以免引起意料之外的bug */
@@ -312,7 +312,7 @@ export default class CommonCondition extends tsc<IProps> {
               tempTags.push({
                 id: String(valueItem?.id || vItem),
                 name: String(valueItem?.name || vItem),
-                type: TypeEnum.value
+                type: TypeEnum.value,
               });
             });
           }
@@ -320,19 +320,19 @@ export default class CommonCondition extends tsc<IProps> {
           tempTags.push({
             id: '',
             name: NULL_NAME,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         }
         tagList.push({
           condition: tempCondition,
-          tags: tempTags
+          tags: tempTags,
         });
       }
     });
     if (!this.locaLValue.length) {
       tagList.push({
         condition: null,
-        tags: []
+        tags: [],
       });
     }
     this.tagList = tagList;
@@ -407,7 +407,7 @@ export default class CommonCondition extends tsc<IProps> {
         const values = this.getCurValuesList(key);
         this.curList = values.map(item => ({
           ...item,
-          isCheck: false
+          isCheck: false,
         }));
         this.curList.unshift({ ...nullOption, isCheck: false });
         this.curIndex = [index, len - 1];
@@ -430,7 +430,7 @@ export default class CommonCondition extends tsc<IProps> {
         this.curIndex = [index, len - 1];
         this.curList = values.map(item => ({
           ...item,
-          isCheck: this.tagList[index].condition.value.includes(item.id)
+          isCheck: this.tagList[index].condition.value.includes(item.id),
         }));
         this.curList.unshift({ ...nullOption, isCheck: this.tagList[index].condition.value.includes(nullOption.id) });
         this.selectType = TypeEnum.value;
@@ -503,7 +503,7 @@ export default class CommonCondition extends tsc<IProps> {
     const values = this.getCurValuesList(key);
     this.curList = values.map(item => ({
       ...item,
-      isCheck: this.tagList[index].condition.value.includes(item.id)
+      isCheck: this.tagList[index].condition.value.includes(item.id),
     }));
     this.curList.unshift({ ...nullOption, isCheck: this.tagList[index].condition.value.includes(nullOption.id) });
     this.selectType = TypeEnum.value;
@@ -530,14 +530,14 @@ export default class CommonCondition extends tsc<IProps> {
         app_code: 'bk-magicbox',
         page: 1,
         page_size: 20,
-        fuzzy_lookups: this.searchValue
+        fuzzy_lookups: this.searchValue,
       })
         .then(data => {
           this.curList = data.results.map(item => {
             return {
               name: item.display_name,
               id: item.username,
-              isCheck: this.tagList[this.curIndex[0]].condition.value.includes(item.username)
+              isCheck: this.tagList[this.curIndex[0]].condition.value.includes(item.username),
             };
           });
         })
@@ -570,9 +570,9 @@ export default class CommonCondition extends tsc<IProps> {
       {
         id: keyItem.id,
         name: keyItem.name,
-        type: TypeEnum.key
+        type: TypeEnum.key,
       },
-      !!keyItem?.alias ? { alias: keyItem.alias } : {}
+      !!keyItem?.alias ? { alias: keyItem.alias } : {},
     );
     if (this.clickType === TypeEnum.key) {
       /* 通过点击keytag触发的 */
@@ -588,7 +588,7 @@ export default class CommonCondition extends tsc<IProps> {
     } else {
       this.tagList[this.curIndex[0]].condition = {
         ...JSON.parse(JSON.stringify(defaultCondition)),
-        field: keyItem.id
+        field: keyItem.id,
       };
     }
     this.handleChange();
@@ -604,13 +604,13 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList[this.curIndex[0]].tags[this.curIndex[1]] = {
         id: keyItem.id,
         name: keyItem.name,
-        type: TypeEnum.method
+        type: TypeEnum.method,
       };
     } else {
       this.tagList[this.curIndex[0]].tags.splice(this.curIndex[1], 0, {
         id: keyItem.id,
         name: keyItem.name,
-        type: TypeEnum.method
+        type: TypeEnum.method,
       });
     }
     this.tagList[this.curIndex[0]].condition.method = keyItem.id as TMthodType;
@@ -627,9 +627,9 @@ export default class CommonCondition extends tsc<IProps> {
         condition: {
           ...JSON.parse(JSON.stringify(defaultCondition)),
           field: '',
-          value: []
+          value: [],
         },
-        tags: [{ id: keyItem.id, name: keyItem.name, type: TypeEnum.condition }]
+        tags: [{ id: keyItem.id, name: keyItem.name, type: TypeEnum.condition }],
       });
     }
     this.handleChange();
@@ -648,7 +648,7 @@ export default class CommonCondition extends tsc<IProps> {
       newTags.splice(methodIndex + 1, 0, {
         id: nullOption.id,
         name: nullOption.name,
-        type: TypeEnum.value
+        type: TypeEnum.value,
       });
       this.tagList[this.curIndex[0]].condition.value = [''];
       this.tagList[this.curIndex[0]].tags = newTags;
@@ -673,7 +673,7 @@ export default class CommonCondition extends tsc<IProps> {
         tags.push({
           id: item.id,
           name: item.name,
-          type: TypeEnum.value
+          type: TypeEnum.value,
         });
       }
       if (item.id === nullOption.id) {
@@ -686,7 +686,7 @@ export default class CommonCondition extends tsc<IProps> {
           customTags.push({
             id: v,
             name: v,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         }
       });
@@ -728,13 +728,13 @@ export default class CommonCondition extends tsc<IProps> {
           tempPre.push({
             id: findItem.id,
             name: findItem.name,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         } else {
           tempPre.push({
             id,
             name: id,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         }
       }
@@ -751,7 +751,7 @@ export default class CommonCondition extends tsc<IProps> {
       /* 剔除空选项 空选项与其他选项互斥 */
       curTags.splice(findNullItemIndex, 1);
       this.tagList[this.curIndex[0]].condition.value = this.tagList[this.curIndex[0]].condition.value.filter(
-        item => !!item
+        item => !!item,
       );
     }
     this.handleChange();
@@ -778,7 +778,7 @@ export default class CommonCondition extends tsc<IProps> {
       if (isStrategyId) {
         return valueMap.get(key).map(item => ({
           ...item,
-          isStrategyId
+          isStrategyId,
         }));
       }
       return valueMap.get(key);
@@ -828,7 +828,7 @@ export default class CommonCondition extends tsc<IProps> {
       arrow: false,
       placement: 'bottom-start',
       boundary: 'window',
-      hideOnClick: false
+      hideOnClick: false,
     });
     this.popInstance?.show?.();
   }
@@ -856,14 +856,14 @@ export default class CommonCondition extends tsc<IProps> {
       arrow: false,
       placement: 'right-start',
       boundary: 'window',
-      hideOnClick: false
+      hideOnClick: false,
     };
     if (isGroupKey) {
       this.secondPopInstance = this.$bkPopover(event.target, {
         ...props,
         content: this.secondWrapRef,
         distance: 0,
-        theme: 'light common-monitor'
+        theme: 'light common-monitor',
       });
     } else {
       this.secondPopInstance = this.$bkPopover(event.target, {
@@ -873,7 +873,7 @@ export default class CommonCondition extends tsc<IProps> {
         arrow: true,
         duration: [0, 0],
         theme: '',
-        extCls: 'common-condition-component-second-pop-wrap-tip'
+        extCls: 'common-condition-component-second-pop-wrap-tip',
       });
     }
     this.secondPopInstance?.show?.(isGroupKey ? undefined : 300);
@@ -894,7 +894,7 @@ export default class CommonCondition extends tsc<IProps> {
       arrow: true,
       placement: 'bottom-start',
       boundary: 'window',
-      interactive: true
+      interactive: true,
     });
     this.settingsPopInstance?.show();
     this.isShowSettingPop = true;
@@ -940,7 +940,7 @@ export default class CommonCondition extends tsc<IProps> {
   handleClickSecondKey(item: IListItem) {
     this.handleSelectKey({
       ...item,
-      alias: `[${groupNamesMap[this.curGroupKey]}]${item.name}`
+      alias: `[${groupNamesMap[this.curGroupKey]}]${item.name}`,
     });
   }
 
@@ -954,15 +954,15 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.push({
         condition: {
           ...JSON.parse(JSON.stringify(defaultCondition)),
-          condition: CONDITIONS[0].id as TContionType
+          condition: CONDITIONS[0].id as TContionType,
         },
         tags: [
           {
             id: CONDITIONS[0].id,
             name: CONDITIONS[0].name,
-            type: TypeEnum.condition
-          }
-        ]
+            type: TypeEnum.condition,
+          },
+        ],
       });
       if (!this.tagList[this.tagList.length - 1].tags.some(item => item.type === TypeEnum.input)) {
         this.tagList[this.tagList.length - 1].tags.push(inputTag);
@@ -1020,11 +1020,11 @@ export default class CommonCondition extends tsc<IProps> {
       .filter(
         item =>
           !keySet.has(item.id) &&
-          (this.keyTypeTag === EKeyTags.all ? true : !!KEY_TAG_MAPS[this.keyTypeTag]?.includes(item.id))
+          (this.keyTypeTag === EKeyTags.all ? true : !!KEY_TAG_MAPS[this.keyTypeTag]?.includes(item.id)),
       )
       .map(item => ({
         ...item,
-        isGroupKey: this.groupKey.includes(item.id)
+        isGroupKey: this.groupKey.includes(item.id),
       }));
   }
 
@@ -1040,7 +1040,7 @@ export default class CommonCondition extends tsc<IProps> {
   emitValue() {
     try {
       this.locaLValue = JSON.parse(
-        JSON.stringify(this.tagList.filter(item => !!item.condition?.value?.length).map(item => item.condition))
+        JSON.stringify(this.tagList.filter(item => !!item.condition?.value?.length).map(item => item.condition)),
       );
       if (JSON.stringify(this.locaLValue) !== JSON.stringify(this.value)) {
         this.$emit('change', this.locaLValue);
@@ -1072,12 +1072,12 @@ export default class CommonCondition extends tsc<IProps> {
           if (tagIndex === 0) {
             this.tagList[index].condition = {
               ...JSON.parse(JSON.stringify(defaultCondition)),
-              field: keyItem?.id || this.inputValue
+              field: keyItem?.id || this.inputValue,
             };
             this.tagList[index].tags.push({
               id: keyItem?.id || this.inputValue,
               name: keyItem?.name || this.inputValue,
-              type: TypeEnum.key
+              type: TypeEnum.key,
             });
           } else {
             /* 多行 */
@@ -1085,7 +1085,7 @@ export default class CommonCondition extends tsc<IProps> {
             this.tagList[index].tags.splice(tagIndex, 1, {
               id: keyItem?.id || this.inputValue,
               name: keyItem?.name || this.inputValue,
-              type: TypeEnum.key
+              type: TypeEnum.key,
             });
           }
           this.curIndex = [index, 0];
@@ -1106,13 +1106,13 @@ export default class CommonCondition extends tsc<IProps> {
             this.tagList[index].tags.splice(tagIndex, 0, {
               id: valueItem?.id || this.inputValue,
               name: valueItem?.name || this.inputValue,
-              type: TypeEnum.value
+              type: TypeEnum.value,
             });
             if (this.tagList[index].condition.value.includes(nullOption.id)) {
               /* 清除空选项 */
               const delIndex = this.tagList[index].condition.value.findIndex(v => v === nullOption.id);
               const tagDelIndex = this.tagList[index].tags.findIndex(
-                t => t.type === TypeEnum.value && t.id === nullOption.id
+                t => t.type === TypeEnum.value && t.id === nullOption.id,
               );
               if (delIndex > -1) {
                 this.tagList[index].condition.value.splice(delIndex, 1);
@@ -1279,7 +1279,7 @@ export default class CommonCondition extends tsc<IProps> {
             v-bk-tooltips={{
               content: this.errorMsg,
               placements: ['top'],
-              allowHTML: false
+              allowHTML: false,
             }}
           >
             <span class='icon-monitor icon-mind-fill'></span>
@@ -1315,7 +1315,7 @@ export default class CommonCondition extends tsc<IProps> {
                           content: tag.id,
                           placements: ['top'],
                           delay: [500, 0],
-                          allowHTML: false
+                          allowHTML: false,
                         }}
                         onClick={e => this.handleClickKeyTag(e, index, tagIndex)}
                       >
@@ -1332,7 +1332,7 @@ export default class CommonCondition extends tsc<IProps> {
                           content: tag.id,
                           placements: ['top'],
                           delay: [500, 0],
-                          allowHTML: false
+                          allowHTML: false,
                         }}
                         onClick={e => this.handleClickTagMethod(e, index, tagIndex)}
                       >
@@ -1349,7 +1349,7 @@ export default class CommonCondition extends tsc<IProps> {
                           content: tag.id,
                           placements: ['top'],
                           delay: [500, 0],
-                          allowHTML: false
+                          allowHTML: false,
                         }}
                         onClick={e => this.handleClickTagValue(e, index, tagIndex)}
                       >
@@ -1475,7 +1475,7 @@ export default class CommonCondition extends tsc<IProps> {
                 /* key可选项列表 */
                 if (this.selectType === TypeEnum.key) {
                   const results = this.curList.filter(
-                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
+                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1,
                   );
                   return results.length ? (
                     results.map((item, index) => (
@@ -1509,7 +1509,7 @@ export default class CommonCondition extends tsc<IProps> {
                         content: item.id,
                         placements: ['right'],
                         delay: [300, 0],
-                        allowHTML: false
+                        allowHTML: false,
                       }}
                       onMousedown={() =>
                         this.selectType === TypeEnum.method
@@ -1526,7 +1526,7 @@ export default class CommonCondition extends tsc<IProps> {
                   if (this.tagList[this.curIndex[0]]?.condition?.field === strategyField) {
                     /* 策略的样式特殊 */
                     const results = this.curList.filter(
-                      item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
+                      item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1,
                     );
                     return results.length ? (
                       results.map((item, index) => (
@@ -1538,7 +1538,7 @@ export default class CommonCondition extends tsc<IProps> {
                             placements: ['right'],
                             delay: [300, 0],
                             disabled: !item.id,
-                            allowHTML: false
+                            allowHTML: false,
                           }}
                           onMousedown={() => this.handleSelectValue(item)}
                         >
@@ -1556,7 +1556,7 @@ export default class CommonCondition extends tsc<IProps> {
                     );
                   }
                   const results = this.curList.filter(
-                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
+                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1,
                   );
                   return results.length ? (
                     results.map((item, index) => (
@@ -1568,7 +1568,7 @@ export default class CommonCondition extends tsc<IProps> {
                           placements: ['right'],
                           delay: [300, 0],
                           disabled: !item.id,
-                          allowHTML: false
+                          allowHTML: false,
                         }}
                         onMousedown={() => this.handleSelectValue(item)}
                       >
@@ -1622,7 +1622,7 @@ export default class CommonCondition extends tsc<IProps> {
                         content: item.id,
                         placements: ['right'],
                         delay: [300, 0],
-                        allowHTML: false
+                        allowHTML: false,
                       }}
                     >
                       <span>{item.name}</span>

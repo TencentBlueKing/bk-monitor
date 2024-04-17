@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
@@ -30,10 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import authorityStore from '@store/modules/authority';
 
 Component.registerHooks(['beforeRouteEnter']);
-// eslint-disable-next-line new-cap
+
 export default (authMap: { [propsName: string]: string }) =>
   Component(
-    class authorityMixin extends tsc<{}> {
+    class authorityMixin extends tsc<object> {
       authority: Record<string, boolean>;
       __bizIdUnWatch__: any;
       constructor() {
@@ -65,7 +64,7 @@ export default (authMap: { [propsName: string]: string }) =>
         authorityMap &&
           this.handleInitPageAuthority(
             Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
-            isSpecialEvent
+            isSpecialEvent,
           );
       }
       // created() {
@@ -86,7 +85,6 @@ export default (authMap: { [propsName: string]: string }) =>
       //     const isSpecialEvent =
       //       ['event-center', 'event-center-detail'].includes(this.$route.name) &&
       //       location.search.indexOf('specEvent') > -1;
-      //     debugger;
       //     authorityMap &&
       //       this.handleInitPageAuthority(
       //         Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
@@ -104,7 +102,7 @@ export default (authMap: { [propsName: string]: string }) =>
         }[] = [];
         if (!isShareView) {
           data = await authorityStore.checkAllowedByActionIds({
-            action_ids: actionList
+            action_ids: actionList,
           });
         }
         Object.entries(authMap).forEach(entry => {
@@ -129,5 +127,5 @@ export default (authMap: { [propsName: string]: string }) =>
       public handleShowAuthorityDetail(actionId: string) {
         authorityStore.getAuthorityDetail(actionId || this.$route.meta.authority?.map?.MANAGE_AUTH);
       }
-    }
+    },
   );

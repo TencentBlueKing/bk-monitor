@@ -84,7 +84,7 @@ export interface BusinessItemEvent {
   };
 }
 @Component({
-  name: 'BusinessItem'
+  name: 'BusinessItem',
 })
 export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEvent> {
   @Prop({
@@ -95,43 +95,43 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
       eventCounts: [
         { id: 'event', name: '', count: 0, unit: '' },
         { id: 'alert', name: '', count: 0, unit: '' },
-        { id: 'action', name: '', count: 0, unit: '' }
+        { id: 'action', name: '', count: 0, unit: '' },
       ],
       seriesData: [
         { level: 2, count: 1 },
         { level: 3, count: 1 },
-        { level: 1, count: 1 }
+        { level: 1, count: 1 },
       ],
       countSum: 0,
       dataCounts: [
         { id: 'noise_reduction_ratio', name: '', count: 0, unit: '', tip: '' },
         { id: 'auto_recovery_ratio', name: '', count: 0, unit: '', tip: '' },
         { id: 'mtta', name: 'MTTA', count: 0, unit: '', tip: '' },
-        { id: 'mttr', name: 'MTTR', count: 0, unit: '', tip: '' }
+        { id: 'mttr', name: 'MTTR', count: 0, unit: '', tip: '' },
       ],
       isFavorite: false,
-      isDemo: false
-    })
+      isDemo: false,
+    }),
   })
   data: IData;
   @Prop({ default: false, type: Boolean }) isMakeTop: boolean; // 是否包含置顶操作(与收藏互斥)
   seriesDataMap = {
     1: {
       name: window.i18n.t('致命'),
-      color: '#EA3636'
+      color: '#EA3636',
     },
     2: {
       name: window.i18n.t('预警'),
-      color: '#FF9C01'
+      color: '#FF9C01',
     },
     3: {
       name: window.i18n.t('提醒'),
-      color: '#ffd695'
+      color: '#ffd695',
     },
     4: {
       name: window.i18n.t('无数据'),
-      color: '#2dcb56'
-    }
+      color: '#2dcb56',
+    },
   };
   loading = false;
   get series() {
@@ -149,7 +149,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                 name: seriesMapData.name,
                 level: item.level,
                 itemStyle: {
-                  color: seriesMapData.color
+                  color: seriesMapData.color,
                 },
                 tooltip: {
                   formatter: () => `<span style="color:${seriesMapData.color}">\u25CF</span> <b> ${
@@ -157,9 +157,9 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                   }</b>
             <br/>${this.$t('告警数量')}: <b>${item.count}</b><br/>`,
                   textStyle: {
-                    fontSize: 12
-                  }
-                }
+                    fontSize: 12,
+                  },
+                },
               };
             })
           : [
@@ -168,7 +168,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                 name: this.seriesDataMap[4].name,
                 level: 4,
                 itemStyle: {
-                  color: this.seriesDataMap[4].color
+                  color: this.seriesDataMap[4].color,
                 },
                 tooltip: {
                   formatter: () => `<span style="color:${this.seriesDataMap[4].color}">\u25CF</span> <b> ${
@@ -176,12 +176,12 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                   }</b>
             <br/>${this.$t('告警数量')}: <b>${0}</b><br/>`,
                   textStyle: {
-                    fontSize: 12
-                  }
-                }
-              }
-            ]
-      }
+                    fontSize: 12,
+                  },
+                },
+              },
+            ],
+      },
     ];
   }
 
@@ -191,7 +191,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
     const isActive = this.isMakeTop ? this.data.isSticky : this.data.isFavorite;
     const params = {
       op_type: isActive ? 'remove' : 'add',
-      bk_biz_ids: [this.data.id]
+      bk_biz_ids: [this.data.id],
     };
     const api = this.isMakeTop ? sticky : favorite;
     const res = await api(params).catch(() => false);
@@ -217,7 +217,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
   handleToEvent(activeFilterId = null) {
     return {
       activeFilterId,
-      id: this.data.id
+      id: this.data.id,
     };
   }
 
@@ -240,7 +240,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
           v-bk-tooltips={{
             content: this.$t(this.data.isSticky ? '取消置顶' : '置顶'),
             delay: 200,
-            appendTo: 'parent'
+            appendTo: 'parent',
           }}
           onClick={this.handleFavoriteClick}
         ></span>
@@ -274,7 +274,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
         class='type-tag'
         style={{
           color: tag.light.color,
-          backgroundColor: tag.light.backgroundColor
+          backgroundColor: tag.light.backgroundColor,
         }}
       >
         {tag.name}
@@ -334,8 +334,8 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                   legend: { show: false },
                   tooltip: {
                     show: true,
-                    appendToBody: true
-                  }
+                    appendToBody: true,
+                  },
                 }}
                 onClick={() => {
                   this.handleToEvent('NOT_SHIELDED_ABNORMAL');
@@ -366,12 +366,12 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
               <div id='mttaTipRef'>
                 <div>
                   {window.i18n.tc(
-                    '平均应答时间，从告警真实发生到用户响应的平均时间。平均应答时间=总持续时间/总告警数量'
+                    '平均应答时间，从告警真实发生到用户响应的平均时间。平均应答时间=总持续时间/总告警数量',
                   )}
                 </div>
                 <div>
                   {window.i18n.tc(
-                    '总持续时间：所有告警的首次异常时间到下一个状态变更的时间点，如确认/屏蔽/恢复/关闭/已解决'
+                    '总持续时间：所有告警的首次异常时间到下一个状态变更的时间点，如确认/屏蔽/恢复/关闭/已解决',
                   )}
                 </div>
               </div>
@@ -380,7 +380,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
               <div id='mttrTipRef'>
                 <div>
                   {window.i18n.tc(
-                    '平均解决时间，从告警真实发生到告警被处理的平均时间。平均解决时间=总持续时间/总告警数量'
+                    '平均解决时间，从告警真实发生到告警被处理的平均时间。平均解决时间=总持续时间/总告警数量',
                   )}
                 </div>
                 <div>{window.i18n.tc('总持续时间: 所有告警的首次异常时间到告警标记为已解决或已恢复的时间。')}</div>
@@ -398,7 +398,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                     theme: 'light',
                     placements: ['top'],
                     boundary: 'window',
-                    maxWidth: 250
+                    maxWidth: 250,
                   }}
                 >
                   <span class='panle-count'>

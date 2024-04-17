@@ -139,7 +139,6 @@ FULL_TEXT_SEARCH_FIELD_NAME = _("全文检索")
 
 DEFAULT_FIELD_OPERATOR = "~="
 FIELD_GROUP_OPERATOR = "()"
-NOT_OPERATOR = "NOT"
 PLUS_OPERATOR = "+"
 PROHIBIT_OPERATOR = "-"
 
@@ -152,6 +151,63 @@ BRACKET_DICT = {"[": "]", "(": ")", "{": "}"}
 
 # 最大语法修复次数
 MAX_RESOLVE_TIMES = 10
+
+# Lucene数值类字段操作符
+LUCENE_NUMERIC_OPERATORS = ["<", "<=", ">", ">=", "="]
+# Lucene数值类类型列表
+LUCENE_NUMERIC_TYPES = ["long", "integer", "short", "double", "float"]
+
+
+class LuceneReservedLogicOperatorEnum(ChoicesEnum):
+    """
+    Lucene保留逻辑操作符枚举
+    """
+    AND = "AND"
+    OR = "OR"
+    NOT = "NOT"
+
+    _choices_keys = (AND, OR, NOT)
+
+
+# Lucene保留字符
+LUCENE_RESERVED_CHARS = ["+", "-", "=", "&", "&&", ">", "<", "!", "(", ")", "}", "[", "]", '"', "~", "*", "?", ":", "/"]
+# 全角冒号
+FULL_WIDTH_COLON = "："
+# 全角字符转半角字符
+FULL_WIDTH_CHAR_MAP = {
+    "（": "(",
+    "）": ")",
+    "【": "[",
+    "】": "]",
+    "］": "]",
+    "［": "[",
+    "｛": "{",
+    "｝": "}",
+    "＋": "+",
+    "－": "-",
+    "＝": "=",
+    "＆": "&",
+    "＜": "<",
+    "＞": ">",
+    "！": "!",
+    "＂": '"',
+    "～": "~",
+    "＊": "*",
+    "？": "?",
+    "：": ":",
+    "／": "/",
+    "”": '"',
+    "“": '"',
+    "‘": "'",
+    "’": "'",
+    "，": ",",
+    "。": ".",
+    "、": "\\",
+    "；": ";",
+    "·": ".",
+    "《": "<",
+    "》": ">",
+}
 
 # 默认JOB执行脚本超时时间
 DEFAULT_EXECUTE_SCRIPT_TIMEOUT = 600

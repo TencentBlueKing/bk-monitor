@@ -31,7 +31,7 @@ import './alarm-shield-set.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class FtaAlarmShieldSet extends tsc<{}> {
+export default class FtaAlarmShieldSet extends tsc<object> {
   needCheck = true;
   async beforeRouteLeave(to, from, next) {
     if (!to.params.refresh) {
@@ -49,7 +49,7 @@ export default class FtaAlarmShieldSet extends tsc<{}> {
           needBack && this.$router.back();
           resolve(true);
         },
-        cancelFn: () => resolve(false)
+        cancelFn: () => resolve(false),
       });
     });
   }

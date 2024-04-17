@@ -27,7 +27,6 @@
 import { Component, Ref, Watch } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { EChartOption } from 'echarts/lib/echarts';
 import { CancelToken } from 'monitor-api/index';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -49,7 +48,7 @@ import '../time-series/time-series.scss';
 
 @Component
 export default class TimeSeriesForecast extends LineChart {
-  @Ref() baseChart: any;
+  @Ref() baseChart: InstanceType<typeof BaseEchart>;
 
   minBase = 0;
 
@@ -73,7 +72,7 @@ export default class TimeSeriesForecast extends LineChart {
       const need = includesList.includes(item.metricField);
       if (need) {
         item.alias = `${item.name === 'predict' ? '' : item.name}${this.$tc(
-          item.metricField === '_result_' ? '当前值' : '预测值'
+          item.metricField === '_result_' ? '当前值' : '预测值',
         )}`;
         total.push(item);
       }
@@ -113,7 +112,7 @@ export default class TimeSeriesForecast extends LineChart {
     return {
       canScale: thresholdList.length > 0 && thresholdList.every((set: number) => set > 0),
       minThreshold: Math.min(...thresholdList),
-      maxThreshold: max + max * 0.1 // 防止阈值最大值过大时title显示不全
+      maxThreshold: max + max * 0.1, // 防止阈值最大值过大时title显示不全
     };
   }
   /**
@@ -141,7 +140,7 @@ export default class TimeSeriesForecast extends LineChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const promiseList = [];
       const timeShiftList = ['', ...this.timeOffset];
@@ -158,20 +157,20 @@ export default class TimeSeriesForecast extends LineChart {
                   ...(this.viewOptions.filters?.current_target || {}),
                   ...this.viewOptions,
                   ...this.viewOptions.variables,
-                  time_shift
+                  time_shift,
                 }),
                 ...params,
                 ...(timeRange
                   ? {
                       start_time: timeRange[0],
-                      end_time: timeRange[1]
+                      end_time: timeRange[1],
                     }
-                  : {})
+                  : {}),
               },
               {
                 cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
-                needMessage: false
-              }
+                needMessage: false,
+              },
             )
             .then(res => {
               metrics.push(...res.metrics);
@@ -184,8 +183,8 @@ export default class TimeSeriesForecast extends LineChart {
                   ...set,
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
-                  }`
-                }))
+                  }`,
+                })),
               );
               this.clearErrorMsg();
               return true;
@@ -218,9 +217,9 @@ export default class TimeSeriesForecast extends LineChart {
           return total;
         }, []);
         const predictSeries = seriesResult.find(item => item.metric_field === 'predict');
-        // eslint-disable-next-line max-len
+
         const formatterFuncPredict = this.handleSetFormatterFunc(
-          predictSeries?.datapoints?.filter?.(item => item[0] ?? false) || []
+          predictSeries?.datapoints?.filter?.(item => item[0] ?? false) || [],
         );
         let seriesList = this.handleTransformSeries(
           seriesResult.map(item => {
@@ -245,9 +244,9 @@ export default class TimeSeriesForecast extends LineChart {
                 item.metric_field !== 'predict'
                   ? this.createMarkPointData(item, series)
                   : this.createMarkOptionPredict(item),
-              z: 1
+              z: 1,
             } as any;
-          })
+          }),
         );
         /** 处理上下边界 */
         const boundarySeries = this.handleBoundaryList(seriesResult[0], seriesResult).flat(Infinity);
@@ -260,15 +259,18 @@ export default class TimeSeriesForecast extends LineChart {
         seriesList = seriesList.map((item: any) => ({
           ...item,
           minBase: this.minBase,
+          emphasis: {
+            focus: 'none',
+          },
           data: item.data.map((set: any) => {
             if (set?.length) {
               return [set[0], set[1] !== null ? set[1] + this.minBase : null];
             }
             return {
               ...set,
-              value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null]
+              value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
             };
-          })
+          }),
         }));
         // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
         // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
@@ -285,8 +287,8 @@ export default class TimeSeriesForecast extends LineChart {
                     borderWidth: set.symbolSize > 6 ? 6 : 1,
                     enabled: true,
                     shadowBlur: 0,
-                    opacity: 1
-                  }
+                    opacity: 1,
+                  },
                 };
               }
               return set;
@@ -299,28 +301,28 @@ export default class TimeSeriesForecast extends LineChart {
             const value = Array.isArray(item) ? item : item.value;
             return value[1] ?? false;
           });
-        // eslint-disable-next-line max-len
+
         const predictStartTime = Array.isArray(predictStartFirstPoint)
           ? predictStartFirstPoint[0]
-          : predictStartFirstPoint.value[0];
+          : predictStartFirstPoint?.value[0];
         const resultEndTimePoint = findRight(
           seriesList.find(item => item.metricField === '_result_')?.data || [],
           item => {
             const value = Array.isArray(item) ? item : item.value;
             return !!value[1];
-          }
+          },
         );
         const resultEndTime = resultEndTimePoint?.value?.[0];
         // const { canScale, minThreshold } = this.handleSetThreholds();
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
-        // eslint-disable-next-line max-len
+
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
-        // eslint-disable-next-line max-len
+
         const echartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
-          { arrayMerge: (_, newArr) => newArr }
-        ) as EChartOption<EChartOption.Series>;
+          { arrayMerge: (_, newArr) => newArr },
+        );
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -336,7 +338,7 @@ export default class TimeSeriesForecast extends LineChart {
                       }
                       return v;
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase)
+                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
@@ -346,22 +348,22 @@ export default class TimeSeriesForecast extends LineChart {
               min: v => {
                 this.yAxisMin = Math.min(v.min, +minThreshold);
                 return this.yAxisMin;
-              }
+              },
             },
             xAxis: [
               {
                 type: 'time',
                 boundaryGap: false,
                 axisTick: {
-                  show: false
+                  show: false,
                 },
                 axisLine: {
                   show: false,
                   lineStyle: {
                     color: '#ccd6eb',
                     width: 1,
-                    type: 'solid'
-                  }
+                    type: 'solid',
+                  },
                 },
                 axisLabel: {
                   fontSize: 12,
@@ -372,29 +374,29 @@ export default class TimeSeriesForecast extends LineChart {
                   formatter: (v: number) => {
                     if (v > (resultEndTime || endTime * 1000)) return '';
                     return formatterFunc(v);
-                  }
+                  },
                 },
                 splitLine: {
-                  show: false
+                  show: false,
                 },
                 minInterval: 5 * 60 * 1000,
                 splitNumber: Math.ceil(this.width / 2 / 80),
-                scale: true
+                scale: true,
               },
               {
                 show: true,
                 type: 'time',
                 boundaryGap: false,
                 axisTick: {
-                  show: false
+                  show: false,
                 },
                 axisLine: {
                   show: false,
                   lineStyle: {
                     color: '#ccd6eb',
                     width: 1,
-                    type: 'solid'
-                  }
+                    type: 'solid',
+                  },
                 },
                 axisLabel: {
                   fontSize: 12,
@@ -405,31 +407,31 @@ export default class TimeSeriesForecast extends LineChart {
                   formatter: (v: number) => {
                     if (v < predictStartTime) return '';
                     return formatterFuncPredict?.(v);
-                  }
+                  },
                 },
                 splitLine: {
-                  show: false
+                  show: false,
                 },
                 minInterval: 5 * 60 * 1000,
                 splitNumber: Math.ceil(this.width / 2 / 80),
                 scale: true,
-                position: 'bottom'
-              }
+                position: 'bottom',
+              },
             ],
             markArea: {
-              z: 100
+              z: 100,
             },
             markLine: {
-              z: 100
+              z: 100,
             },
             markPoint: {
-              z: 100
+              z: 100,
             },
             tooltip: {
-              formatter: this.handleSetTooltip
+              formatter: this.handleSetTooltip,
             },
-            series: seriesList
-          })
+            series: seriesList,
+          }),
         );
         this.metrics = metrics || [];
         this.inited = true;
@@ -461,7 +463,7 @@ export default class TimeSeriesForecast extends LineChart {
         seriesIndex: -1,
         dataIndex: -1,
         xAxis: '',
-        yAxis: ''
+        yAxis: '',
       };
       return;
     }
@@ -483,7 +485,7 @@ export default class TimeSeriesForecast extends LineChart {
             seriesIndex: item.seriesIndex,
             dataIndex: item.dataIndex,
             xAxis: item.value[0],
-            yAxis: item.value[1]
+            yAxis: item.value[1],
           };
         }
         if (item.value[1] === null) return '';
@@ -527,7 +529,7 @@ export default class TimeSeriesForecast extends LineChart {
     const algorithm2Level = {
       1: 5,
       2: 4,
-      3: 3
+      3: 3,
     };
     boundaryList.push({
       upBoundary: upperBound.datapoints,
@@ -535,14 +537,14 @@ export default class TimeSeriesForecast extends LineChart {
       color: '#e6e6e6',
       type: 'line',
       stack: `boundary-${level}`,
-      z: algorithm2Level[level]
+      z: algorithm2Level[level],
     });
     // 上下边界处理
     if (boundaryList?.length) {
       boundaryList.forEach((item: any) => {
         const base = -item.lowBoundary.reduce(
           (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Infinity
+          Infinity,
         );
         this.minBase = Math.max(base, this.minBase);
       });
@@ -564,31 +566,32 @@ export default class TimeSeriesForecast extends LineChart {
         type: 'line',
         data: item.lowBoundary.map((item: any) => [item[0], item[1] === null ? null : item[1] + base]),
         lineStyle: {
-          opacity: 0
+          opacity: 0,
         },
         stack: item.stack,
         symbol: 'none',
         z: item.z || 4,
-        xAxisIndex: 1
+        xAxisIndex: 1,
       },
       {
         name: `upper-${item.stack}-no-tips`,
         type: 'line',
         data: item.upBoundary.map((set: any, index: number) => [
           set[0],
-          set[1] === null ? null : set[1] - item.lowBoundary[index][1]
+          set[1] === null ? null : set[1] - item.lowBoundary[index][1],
         ]),
         lineStyle: {
-          opacity: 0
+          opacity: 0,
         },
         areaStyle: {
-          color: '#ECF2FF'
+          color: 'blue',
+          opacity: 0.1,
         },
         stack: item.stack,
         symbol: 'none',
         z: item.z || 4,
-        xAxisIndex: 1
-      }
+        xAxisIndex: 1,
+      },
     ];
     return result;
   }
@@ -696,10 +699,10 @@ export default class TimeSeriesForecast extends LineChart {
               left: x - rectWidth,
               top: 0,
               style: {
-                image: png
-              }
-            }
-          ]
+                image: png,
+              },
+            },
+          ],
         });
       } catch (error) {
         console.error(error);
@@ -719,8 +722,8 @@ export default class TimeSeriesForecast extends LineChart {
         ...item.markPoints.map(item => ({
           xAxis: item[1],
           yAxis: item[0],
-          symbolSize: 12
-        }))
+          symbolSize: 12,
+        })),
       );
     /** 事件中心告警开始点 */
     const markPoint = {
@@ -730,11 +733,11 @@ export default class TimeSeriesForecast extends LineChart {
       symbolSize: 6,
       z: 10,
       label: {
-        show: false
+        show: false,
       },
       itemStyle: {
-        color: '#ea3636'
-      }
+        color: '#ea3636',
+      },
     };
     return markPoint;
   }
@@ -749,7 +752,7 @@ export default class TimeSeriesForecast extends LineChart {
       _result_: '#74C9A6',
       predict: '#3A84FF',
       upper_bound: '#A3C5FD',
-      lower_bound: '#A3C5FD'
+      lower_bound: '#A3C5FD',
     };
     return colorMap[key];
   }
@@ -765,12 +768,12 @@ export default class TimeSeriesForecast extends LineChart {
     targets.forEach(target => {
       target.data.query_configs =
         target?.data?.query_configs.map(queryConfig =>
-          queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars)
+          queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars),
         ) || [];
     });
     /** 判断跳转日志检索 */
     const isLog = targets.some(item =>
-      item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log')
+      item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log'),
     );
     if (isLog) {
       const { startTime, endTime } = handleTimeRange(this.timeRange);
@@ -782,7 +785,7 @@ export default class TimeSeriesForecast extends LineChart {
         addition: queryConfig.where || [],
         start_time: startTime * 1000,
         end_time: endTime * 1000,
-        time_range: 'customized'
+        time_range: 'customized',
       };
       const indexSetId = queryConfig.index_set_id;
       // eslint-disable-next-line vue/max-len
@@ -792,8 +795,8 @@ export default class TimeSeriesForecast extends LineChart {
     } else {
       window.open(
         `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(
-          JSON.stringify(targets)
-        )}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
+          JSON.stringify(targets),
+        )}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
       );
     }
   }

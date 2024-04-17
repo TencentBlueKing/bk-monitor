@@ -38,7 +38,7 @@ export const ColorTypes = {
   redis: '#ea6460',
   async_backend: '#699DF4',
   error: '#d74747',
-  network: '#59c0a3'
+  network: '#59c0a3',
 };
 
 export const RootId = '___root___';
@@ -127,18 +127,18 @@ export const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'span',
     name: window.i18n.t('Span 详情'),
-    icon: 'icon-menu-view'
+    icon: 'icon-menu-view',
   },
   {
     id: 'reset',
     name: window.i18n.t('重置图表'),
-    icon: 'icon-menu-view'
+    icon: 'icon-menu-view',
   },
   {
     id: 'highlight',
     name: window.i18n.t('高亮相似 Span'),
-    icon: 'icon-menu-view'
-  }
+    icon: 'icon-menu-view',
+  },
 ];
 // 用于标识根节点
 export interface ITipsDetail {

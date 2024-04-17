@@ -36,7 +36,7 @@ import DataRetrieval from './data-retrieval';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 const authMap = {
   ...dataRetrievalAuthMap,
-  GRAFANA_MANAGE_AUTH
+  GRAFANA_MANAGE_AUTH,
 };
 
 @Component

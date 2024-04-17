@@ -30,7 +30,7 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import { handleGotoLink } from '../../../../common/constant';
 import TimePickerMultiple, {
-  IProps as ITimeRangeMultipleProps
+  IProps as ITimeRangeMultipleProps,
 } from '../../../../components/time-picker-multiple/time-picker-multiple';
 import { IOptionsItem } from '../../../calendar/types';
 import { HANDLE_SHOW_SETTING } from '../../../nav-tools';
@@ -90,7 +90,7 @@ interface IEvent {
 }
 
 @Component({
-  name: 'JudgingCondition'
+  name: 'JudgingCondition',
 })
 export default class JudgingCondition extends tsc<Idata, IEvent> {
   @PropSync('data', {
@@ -102,27 +102,27 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         checkWindow: 0,
         checkType: 'total',
         timeRanges: DEFAULT_TIME_RANGES,
-        calendars: []
+        calendars: [],
       },
       recoveryConfig: {
         // 恢复条件
-        checkWindow: 0
+        checkWindow: 0,
       },
       noDataConfig: {
         // 无数据告警
         continuous: 0,
         isEnabled: true,
         dimensions: [],
-        level: 2
+        level: 2,
       },
       noticeTemplate: {
         anomalyTemplate: '',
         triggerList: [],
         variateList: [],
         previewTemplate: false,
-        variateListShow: false
-      }
-    })
+        variateListShow: false,
+      },
+    }),
   })
   localData: IJudgingData;
   @Prop({ type: String, default: 'os' }) scenario: string;
@@ -140,7 +140,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     triggerConfig: '',
     recoveryConfig: '',
     noDataConfig: '',
-    timeRanges: ''
+    timeRanges: '',
   };
   levelList = levelList;
 
@@ -176,7 +176,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   get dimensionsOfSeries() {
     return this.$store.state['strategy-config'].dimensionsOfSeries.map(id => ({
       id,
-      name: id
+      name: id,
     }));
   }
 
@@ -194,8 +194,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     this.aggList = [
       {
         id: 'total',
-        name: this.$t('累计')
-      }
+        name: this.$t('累计'),
+      },
     ];
   }
 
@@ -288,14 +288,14 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
       triggerConfig: '',
       recoveryConfig: '',
       noDataConfig: '',
-      timeRanges: ''
+      timeRanges: '',
     };
   }
 
   // 维度搜索可用id或者name搜索
   handleSearchDim(searchValue: string) {
     this.curDimensions = this.optionalDimensions.filter(
-      item => String(item.id).includes(searchValue) || String(item.name).includes(searchValue)
+      item => String(item.id).includes(searchValue) || String(item.name).includes(searchValue),
     );
   }
 
@@ -485,7 +485,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                   v-bk-tooltips={{
                     content: this.$t('只有监控指标及日志关键字可配置无数据'),
                     placements: ['top'],
-                    disabled: !this.isNoDataDisable
+                    disabled: !this.isNoDataDisable,
                   }}
                   disabled={this.isNoDataDisable}
                   onChange={this.emitNoDataChange}
@@ -547,7 +547,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                               trigger: 'mouseenter',
                               zIndex: 9999,
                               boundary: document.body,
-                              allowHTML: false
+                              allowHTML: false,
                             }
                       }
                       on-change={this.emitValueChange}
@@ -563,7 +563,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                             zIndex: 9999,
                             boundary: document.body,
                             appendTo: document.body,
-                            allowHTML: false
+                            allowHTML: false,
                           }}
                         ></bk-option>
                       ))}
@@ -692,7 +692,6 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   }
 
   render() {
-    // eslint-disable-next-line no-nested-ternary
     return this.isAlert
       ? this.getAlertComponent()
       : this.isDetailMode

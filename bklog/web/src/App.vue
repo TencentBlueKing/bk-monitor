@@ -561,6 +561,11 @@ export default {
 .custom-no-padding-option.bk-option > .bk-option-content {
   padding: 0;
 
+  &.is-selected {
+    color: #3a84ff;
+    background-color: #e1ecff;
+  }
+
   > .option-slot-container {
     min-height: 32px;
     padding: 9px 16px;
@@ -734,6 +739,13 @@ export default {
 .bk-dialog-type-header .header {
   /* stylelint-disable-next-line declaration-no-important */
   white-space: normal !important;
+}
+
+.bk-options .bk-option {
+  &:hover {
+    color: #63656e;
+    background-color: #f5f7fa;
+  }
 }
 
 // .bk-label {

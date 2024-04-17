@@ -44,7 +44,7 @@ interface IListItem {
 
 const groupNamesMap = {
   tags: window.i18n.t('标签'),
-  dimensions: window.i18n.t('维度')
+  dimensions: window.i18n.t('维度'),
 };
 
 enum TypeEnum {
@@ -53,7 +53,7 @@ enum TypeEnum {
   value = 'value',
   method = 'method',
   condition = 'condition',
-  null = ''
+  null = '',
 }
 
 const NULL_NAME = `-${window.i18n.t('空')}-`;
@@ -240,7 +240,7 @@ export default class CommonCondition extends tsc<IProps> {
       const valueList = this.getCurIndexOfValues(this.curIndex);
       this.curList = valueList.map(v => ({
         ...v,
-        isCheck: selectedList.includes(v.id)
+        isCheck: selectedList.includes(v.id),
       }));
     } else if (
       (lastTagItem2?.type === TypeEnum.condition || this.tagList.length === 1) &&
@@ -277,7 +277,7 @@ export default class CommonCondition extends tsc<IProps> {
       arrow: false,
       placement: 'bottom-start',
       boundary: 'window',
-      hideOnClick: false
+      hideOnClick: false,
     });
     this.popInstance?.show?.();
   }
@@ -310,7 +310,7 @@ export default class CommonCondition extends tsc<IProps> {
         const opt = {
           type: 'key',
           id: item.id,
-          name: item.name
+          name: item.name,
         };
         if (len === 1) {
           this.tagList.unshift(opt as any);
@@ -338,7 +338,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(this.curIndex, 0, {
         type: TypeEnum.method,
         name: item.name,
-        id: item.id
+        id: item.id,
       });
       const valueList = this.getCurIndexOfValues(this.curIndex);
       this.curList = [...valueList];
@@ -353,7 +353,7 @@ export default class CommonCondition extends tsc<IProps> {
       // 选择value 时可多选 弹出时 获取当前已选项
       this.curList = this.curList.map(v => ({
         ...v,
-        isCheck: item.id === v.id ? !v?.isCheck : !!v?.isCheck
+        isCheck: item.id === v.id ? !v?.isCheck : !!v?.isCheck,
       }));
       if (!this.curList.length) {
         this.isClickValueTag = true;
@@ -364,7 +364,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(this.curIndex, 0, {
         type: TypeEnum.condition,
         name: item.name,
-        id: item.id
+        id: item.id,
       });
       this.showAdd = false;
       this.showPopOfCondition = false;
@@ -376,7 +376,6 @@ export default class CommonCondition extends tsc<IProps> {
     }
     const lastTagItem = this.tagList[this.curIndex];
     const lastTagItem2 = this.tagList?.[this.curIndex - 1];
-    // debugger;
     if (!lastTagItem2) {
       selectKey();
       return;
@@ -389,7 +388,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(this.curTagIndex, 1, {
         type: TypeEnum.key,
         id: item.id,
-        name: item.name
+        name: item.name,
       });
       this.handlePopoerHidden();
       this.isClickKeyTag = false;
@@ -407,7 +406,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(this.curTagIndex, 1, {
         type,
         id: item.id,
-        name: item.name
+        name: item.name,
       });
       this.handlePopoerHidden();
       this.isClickMethodTag = false;
@@ -492,7 +491,7 @@ export default class CommonCondition extends tsc<IProps> {
           customLabels.push({
             id: o,
             name: o,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         }
       });
@@ -610,7 +609,7 @@ export default class CommonCondition extends tsc<IProps> {
     const inputItem = {
       type: TypeEnum.input,
       id: TypeEnum.key,
-      name: ''
+      name: '',
     };
     if (this.isClickKeyTag || this.isClickValueTag) {
       this.resetInputPosition();
@@ -626,7 +625,7 @@ export default class CommonCondition extends tsc<IProps> {
     this.tagList.splice(index + 1, 0, inputItem);
     this.curList = (keyList.length ? keyList : [...this.getFilterKeyList()]).map(keyItem => ({
       ...keyItem,
-      isCheck: item.id === keyItem.id
+      isCheck: item.id === keyItem.id,
     }));
     this.$nextTick(() => {
       this.handleShowPop();
@@ -683,7 +682,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(index, 1, {
         id: '',
         name: NULL_NAME,
-        type: TypeEnum.value
+        type: TypeEnum.value,
       });
     }
     if (needChange) {
@@ -705,13 +704,13 @@ export default class CommonCondition extends tsc<IProps> {
       this.isClickConditonTag = true;
       this.curList = CONDITIONS.map(c => ({
         ...c,
-        isCheck: item.id === c.id
+        isCheck: item.id === c.id,
       }));
     } else {
       this.isClickMethodTag = true;
       this.curList = METHODS.map(m => ({
         ...m,
-        isCheck: item.id === m.id
+        isCheck: item.id === m.id,
       }));
     }
     this.$nextTick(() => {
@@ -739,14 +738,14 @@ export default class CommonCondition extends tsc<IProps> {
     const valueList = this.getCurIndexOfValues(index);
     this.curList = valueList.map(vItem => ({
       ...vItem,
-      isCheck: oldValueIds.includes(vItem.id)
+      isCheck: oldValueIds.includes(vItem.id),
     }));
     this.tagList[this.tagList.length - 1].type = TypeEnum.null;
     if (!(this.tagList[index + 1].type === TypeEnum.input && this.tagList[index + 1].id === TypeEnum.value)) {
       this.tagList.splice(index + 1, 0, {
         type: TypeEnum.input,
         id: TypeEnum.value,
-        name: ''
+        name: '',
       });
     }
     if (!this.popInstance?.show) {
@@ -770,13 +769,13 @@ export default class CommonCondition extends tsc<IProps> {
             if (keyItem) {
               this.tagList.splice(index - 1, 1, {
                 ...keyItem,
-                type: TypeEnum.key
+                type: TypeEnum.key,
               });
             } else {
               this.tagList.splice(index - 1, 1, {
                 id: this.inputValue,
                 name: this.inputValue,
-                type: TypeEnum.key
+                type: TypeEnum.key,
               });
             }
             this.handlePopoerHidden();
@@ -788,7 +787,7 @@ export default class CommonCondition extends tsc<IProps> {
             const temp = {
               id: keyItem?.id || this.inputValue,
               name: this.inputValue,
-              type: TypeEnum.key
+              type: TypeEnum.key,
             };
             this.tagList.splice(index, 0, temp);
             this.inputValue = '';
@@ -803,7 +802,7 @@ export default class CommonCondition extends tsc<IProps> {
             const temp = {
               id: keyItem?.id || this.inputValue,
               name: this.inputValue,
-              type: TypeEnum.key
+              type: TypeEnum.key,
             };
             this.tagList.splice(index - 1, 1, temp);
             this.inputValue = '';
@@ -823,14 +822,14 @@ export default class CommonCondition extends tsc<IProps> {
               if (!oldIds.includes(valueItem.id)) {
                 this.tagList.splice(index, 0, {
                   ...valueItem,
-                  type: TypeEnum.value
+                  type: TypeEnum.value,
                 });
               }
             } else {
               this.tagList.splice(index, 0, {
                 id: this.inputValue,
                 name: this.inputValue,
-                type: TypeEnum.value
+                type: TypeEnum.value,
               });
             }
             const preTagItem = this.tagList[index - 1];
@@ -864,7 +863,7 @@ export default class CommonCondition extends tsc<IProps> {
       field: '',
       value: [],
       condition: '',
-      method: ''
+      method: '',
     };
     for (let i = 0; i < len; i++) {
       const tagItem = tagList[i];
@@ -926,26 +925,26 @@ export default class CommonCondition extends tsc<IProps> {
           tagList.push({
             id: conditionItem?.id || CONDITIONS[0].id,
             name: conditionItem?.name || CONDITIONS[0].name,
-            type: TypeEnum.condition
+            type: TypeEnum.condition,
           });
         }
         tagList.push({
           id: keyItem?.id || condition.field,
           name: keyItem?.name || condition.field,
           type: TypeEnum.key,
-          alias: !!keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined
+          alias: !!keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
         });
         tagList.push({
           id: methodItem?.id || METHODS[0].id,
           name: methodItem?.name || METHODS[0].name,
-          type: TypeEnum.method
+          type: TypeEnum.method,
         });
         if (condition.value.length) {
           if (condition.value?.length === 1 && condition.value[0] === '') {
             tagList.push({
               id: '',
               name: NULL_NAME,
-              type: TypeEnum.value
+              type: TypeEnum.value,
             });
           } else {
             /* 此数据需要去重，以免引起意料之外的bug */
@@ -965,7 +964,7 @@ export default class CommonCondition extends tsc<IProps> {
                 //   ? String(valueItem?.id || vItem)
                 //   : String(valueItem?.name || vItem),
                 name: String(valueItem?.name || vItem),
-                type: TypeEnum.value
+                type: TypeEnum.value,
               });
             });
           }
@@ -973,7 +972,7 @@ export default class CommonCondition extends tsc<IProps> {
           tagList.push({
             id: '',
             name: NULL_NAME,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         }
         i += 1;
@@ -983,7 +982,7 @@ export default class CommonCondition extends tsc<IProps> {
     tagList.push({
       id: '',
       name: '',
-      type: TypeEnum.input
+      type: TypeEnum.input,
     });
     this.tagList = tagList;
   }
@@ -995,7 +994,7 @@ export default class CommonCondition extends tsc<IProps> {
     const keyList = this.keyList.filter(item => !selectKeys.includes(item.id));
     const list = keyList.map(item => ({
       ...item,
-      isGroupKey: this.groupKey.includes(item.id)
+      isGroupKey: this.groupKey.includes(item.id),
     }));
     return list;
   }
@@ -1008,7 +1007,7 @@ export default class CommonCondition extends tsc<IProps> {
       if (isStrategyId) {
         return valueMap.get(key).map(item => ({
           ...item,
-          isStrategyId
+          isStrategyId,
         }));
       }
       return valueMap.get(key);
@@ -1107,7 +1106,7 @@ export default class CommonCondition extends tsc<IProps> {
       arrow: true,
       placement: 'bottom-start',
       boundary: 'window',
-      interactive: true
+      interactive: true,
     });
     this.settingsPopInstance?.show();
     this.isShowSettingPop = true;
@@ -1162,7 +1161,7 @@ export default class CommonCondition extends tsc<IProps> {
         placement: 'right-start',
         boundary: 'window',
         hideOnClick: false,
-        distance: 0
+        distance: 0,
       });
       this.secondPopInstance?.show?.();
     });
@@ -1188,7 +1187,7 @@ export default class CommonCondition extends tsc<IProps> {
       type: 'key',
       id: item.id,
       name: item.name,
-      alias: `[${groupNamesMap[this.curGroupKey]}]${item.name}`
+      alias: `[${groupNamesMap[this.curGroupKey]}]${item.name}`,
     };
     const len = this.tagList.length;
     this.curIndex = this.tagList.findIndex(t => t.type === TypeEnum.input) || len - 1;
@@ -1213,7 +1212,7 @@ export default class CommonCondition extends tsc<IProps> {
     const keyList = targetKeyList.filter(item => !selectKeys.includes(item.id));
     const list = keyList.map(item => ({
       ...item,
-      isGroupKey: this.groupKey.includes(item.id)
+      isGroupKey: this.groupKey.includes(item.id),
     }));
     return list;
   }
@@ -1287,7 +1286,7 @@ export default class CommonCondition extends tsc<IProps> {
                   v-bk-tooltips={{
                     content: item.id,
                     placements: ['top'],
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                   key={`${item.id}_${index}`}
                   onClick={e => this.handleClickKeyTag(e, item, index)}
@@ -1313,7 +1312,7 @@ export default class CommonCondition extends tsc<IProps> {
                     v-bk-tooltips={{
                       content: item.id,
                       placements: ['top'],
-                      allowHTML: false
+                      allowHTML: false,
                     }}
                     key={`${item.id}_${index}`}
                     onClick={e => this.handleClickValueTag(e, item, index)}
@@ -1382,7 +1381,7 @@ export default class CommonCondition extends tsc<IProps> {
                   .filter(item =>
                     this.isPopTypeOfValue || this.isClickValueTag
                       ? item.id.indexOf(this.valueSearch) > -1 || item.name.indexOf(this.valueSearch) > -1
-                      : true
+                      : true,
                   )
                   .map((item, index) => (
                     <div
@@ -1390,13 +1389,13 @@ export default class CommonCondition extends tsc<IProps> {
                       class={[
                         'list-item',
                         { 'is-check': !!item?.isCheck },
-                        { 'key-type': this.isClickKeyTag || this.isClickConditonTag || this.isClickMethodTag }
+                        { 'key-type': this.isClickKeyTag || this.isClickConditonTag || this.isClickMethodTag },
                       ]}
                       v-bk-tooltips={{
                         content: item.id,
                         placements: ['right'],
                         disabled: this.isAbsoluteOpts || !!item?.isGroupKey,
-                        allowHTML: false
+                        allowHTML: false,
                       }}
                       onClick={() => this.handleOptionClick(item)}
                       onMouseenter={e => this.handleOptionMouseEnter(e, item)}
@@ -1471,7 +1470,7 @@ export default class CommonCondition extends tsc<IProps> {
                     v-bk-tooltips={{
                       content: item.id,
                       placements: ['right'],
-                      allowHTML: false
+                      allowHTML: false,
                     }}
                   >
                     <span>{item.name}</span>

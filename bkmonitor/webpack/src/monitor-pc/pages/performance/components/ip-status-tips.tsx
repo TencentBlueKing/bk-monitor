@@ -43,7 +43,7 @@ interface IIpStatusTips {
 export const handleIpStatusData = (ignoreMonitoring: boolean, isShielding: boolean): { id?: string; icon?: string } => {
   const data = {
     icon: ignoreMonitoring ? 'icon-celvepingbi' : isShielding ? 'icon-menu-shield' : '',
-    id: ignoreMonitoring ? '#ignore-monitoring' : isShielding ? '#is-shielding' : ''
+    id: ignoreMonitoring ? '#ignore-monitoring' : isShielding ? '#is-shielding' : '',
   };
   return ignoreMonitoring || isShielding ? data : {};
 };

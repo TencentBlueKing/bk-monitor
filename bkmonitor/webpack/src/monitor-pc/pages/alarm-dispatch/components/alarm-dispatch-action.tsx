@@ -34,8 +34,8 @@ const AlarmDispatchAction = ctx => {
       showAlarmGroup = () => {},
       showDetail = () => {},
       processPackage = [],
-      userType = ''
-    }
+      userType = '',
+    },
   } = ctx;
   const { i18n } = window;
 
@@ -46,7 +46,7 @@ const AlarmDispatchAction = ctx => {
 
   const userTypeMap = {
     main: i18n.t('负责人'),
-    follower: i18n.t('关注人')
+    follower: i18n.t('关注人'),
   };
 
   const getAlarmGroupNames = (id: number) => alarmGroupList.find(item => item.id === id)?.name || '';

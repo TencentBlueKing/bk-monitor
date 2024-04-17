@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 import * as ruleAuth from 'fta-solutions/pages/setting/set-meal/authority-map';
 
@@ -41,14 +41,14 @@ export default [
       navId: 'set-meal',
       customContent: true,
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       authority: {
         map: ruleAuth,
-        page: ruleAuth.VIEW_AUTH
+        page: ruleAuth.VIEW_AUTH,
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/set-meal/:id',
@@ -61,24 +61,24 @@ export default [
       customContent: true,
       navId: 'set-meal',
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       authority: {
         map: ruleAuth,
-        page: ruleAuth.VIEW_AUTH
+        page: ruleAuth.VIEW_AUTH,
       },
       needCopyLink: true,
-      noNavBar: false
-    }
+      noNavBar: false,
+    },
   },
   {
     path: '/set-meal-add',
     name: 'set-meal-add',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: AddSetMeal
+      noCache: AddSetMeal,
     },
     meta: {
       title: '新建套餐',
@@ -86,59 +86,59 @@ export default [
       customContent: true,
       needBack: true,
       route: {
-        parent: 'set-meal'
+        parent: 'set-meal',
       },
       authority: {
         map: ruleAuth,
-        page: ruleAuth.MANAGE_ACTION_CONFIG
+        page: ruleAuth.MANAGE_ACTION_CONFIG,
       },
-      customPage: true // 自定义路由页面
-    }
+      customPage: true, // 自定义路由页面
+    },
   },
   {
     path: '/clone-meal/:id',
     name: 'clone-meal',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: AddSetMeal
+      noCache: AddSetMeal,
     },
     meta: {
       title: '新建套餐', // 克隆套餐
       navId: 'set-meal',
       needBack: true,
       route: {
-        parent: 'set-meal'
+        parent: 'set-meal',
       },
       authority: {
         map: ruleAuth,
-        page: ruleAuth.MANAGE_ACTION_CONFIG
+        page: ruleAuth.MANAGE_ACTION_CONFIG,
       },
-      customPage: true
-    }
+      customPage: true,
+    },
   },
   {
     path: '/set-meal-edit/:id',
     name: 'set-meal-edit',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: AddSetMeal
+      noCache: AddSetMeal,
     },
     meta: {
       title: '编辑套餐',
       navId: 'set-meal',
       needBack: true,
       route: {
-        parent: 'set-meal'
+        parent: 'set-meal',
       },
       authority: {
         map: ruleAuth,
-        page: ruleAuth.MANAGE_ACTION_CONFIG
+        page: ruleAuth.MANAGE_ACTION_CONFIG,
       },
-      customPage: true
-    }
-  }
+      customPage: true,
+    },
+  },
 ] as RouteConfig[];

@@ -39,12 +39,12 @@ export default defineComponent({
   props: {
     value: {
       type: Object as PropType<INoticeDate>,
-      default: () => null
+      default: () => null,
     },
     onChange: {
       type: Function as PropType<(v: INoticeDate) => void>,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -52,14 +52,14 @@ export default defineComponent({
       options: {
         disabledDate(date) {
           return date && (date.valueOf() < Date.now() - 8.64e7 || date.valueOf() > Date.now() + 8.64e7 * 181);
-        }
-      }
+        },
+      },
     };
     const shieldCycleList = [
       { label: t('单次'), value: 'single' },
       { label: t('每天'), value: 'day' },
       { label: t('每周'), value: 'week' },
-      { label: t('每月'), value: 'month' }
+      { label: t('每月'), value: 'month' },
     ];
     const weekList = [
       { name: t('星期一'), id: 1 },
@@ -68,7 +68,7 @@ export default defineComponent({
       { name: t('星期四'), id: 4 },
       { name: t('星期五'), id: 5 },
       { name: t('星期六'), id: 6 },
-      { name: t('星期日'), id: 7 }
+      { name: t('星期日'), id: 7 },
     ];
     /* 屏蔽时间范围 */
     const noticeDate = reactive<INoticeDate>({
@@ -76,20 +76,20 @@ export default defineComponent({
       dateRange: [],
       [EShieldCycle.single]: {
         list: [],
-        range: []
+        range: [],
       },
       [EShieldCycle.day]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
+        range: ['00:00:00', '23:59:59'],
       },
       [EShieldCycle.week]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
+        range: ['00:00:00', '23:59:59'],
       },
       [EShieldCycle.month]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
-      }
+        range: ['00:00:00', '23:59:59'],
+      },
     });
     const errMsg = reactive({
       singleRange: '',
@@ -98,7 +98,7 @@ export default defineComponent({
       weekList: '',
       weekRange: '',
       monthList: '',
-      monthRange: ''
+      monthRange: '',
     });
 
     watch(
@@ -112,8 +112,8 @@ export default defineComponent({
         });
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     function handleChangeShieldCycle(v: EShieldCycle) {
@@ -228,7 +228,7 @@ export default defineComponent({
       handleWeekRangeChange,
       handleMonthListChange,
       handleMonthRangeChange,
-      handleDateRangeChange
+      handleDateRangeChange,
     };
   },
   render() {
@@ -394,5 +394,5 @@ export default defineComponent({
         })()}
       </div>
     );
-  }
+  },
 });

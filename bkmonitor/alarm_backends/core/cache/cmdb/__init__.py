@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 from .business import BusinessManager
-from .host import HostIDManager, HostIPManager, HostManager
+from .host import HostIPManager, HostManager
 from .module import ModuleManager
 from .service_instance import ServiceInstanceManager
 from .service_template import ServiceTemplateManager
@@ -26,7 +26,6 @@ __all__ = [
     "SetManager",
     "ServiceInstanceManager",
     "TopoManager",
-    "HostIDManager",
     "ServiceTemplateManager",
     "SetTemplateManager",
     "HostIPManager",
@@ -47,7 +46,7 @@ CMDB缓存模块
 >>> BusinessManager.get(bk_biz_id=2)   # 获取单个业务
 >>> BusinessManager.all()  # 获取全部业务
 >>> BusinessManager.keys()  # 获取业务ID列表
->>> HostManager.get(ip='10.0.0.1', bk_cloud_id=0)  # 获取单个主机
+>>> HostManager.get(ip='127.0.0.1', bk_cloud_id=0)  # 获取单个主机
 >>> HostManager.all()  # 获取主机列表
 >>> ModuleManager.get(bk_module_id=1)  # 获取单个模块
 >>> ServiceInstanceManager.get(service_instance_id=1)  # 获取单个服务实例ID

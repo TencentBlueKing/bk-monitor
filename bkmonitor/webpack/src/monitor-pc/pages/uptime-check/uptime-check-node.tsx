@@ -41,7 +41,7 @@ import {
   nodesToTableData,
   nodesToTableDataInit,
   paginationUtil,
-  searchNodesData
+  searchNodesData,
 } from './uptime-check-data';
 
 import './uptime-check-node.scss';
@@ -52,7 +52,7 @@ interface IUptimeCheckNodeEvents {
   onNameChange?: (v: string) => void;
 }
 @Component({
-  name: 'UptimeCheckNode'
+  name: 'UptimeCheckNode',
 })
 export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
   @Prop({ type: String, default: '' }) refreshKey: string;
@@ -63,7 +63,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
   data: {
     nodes: INodeData[];
   } = {
-    nodes: []
+    nodes: [],
   };
 
   nodesTableData: INodesTableData = nodesToTableDataInit();
@@ -122,8 +122,8 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
           params: {
             id: String(row.id),
             bizId: String(row.bk_biz_id),
-            title: this.$tc('编辑拨测节点')
-          }
+            title: this.$tc('编辑拨测节点'),
+          },
         });
         break;
       case 'delete':
@@ -133,8 +133,8 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
           subHeader: this.$createElement(DeleteSubtitle, {
             props: {
               title: this.$tc('节点名称'),
-              name: row.name
-            }
+              name: row.name,
+            },
           }),
           maskClose: true,
           escClose: true,
@@ -148,7 +148,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
               .catch(() => {
                 this.handleLoading(false);
               });
-          }
+          },
         });
         break;
     }
@@ -161,7 +161,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     const pagination = {
       ...this.nodesTableData.pagination,
       count: this.searchData.length,
-      current: 1
+      current: 1,
     };
     this.nodesTableData.pagination = pagination;
     this.nodesTableData.data = nodesToTableData(paginationUtil(pagination, this.searchData));
@@ -170,8 +170,8 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
       name: this.$route.name,
       query: {
         ...this.$route.query,
-        queryString: v.trim?.().length ? v : undefined
-      }
+        queryString: v.trim?.().length ? v : undefined,
+      },
     };
     if (!isInit) {
       this.$router.replace(params).catch(() => {});
@@ -182,22 +182,22 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     const pagination = {
       count: this.searchData.length,
       current: v,
-      limit: this.nodesTableData.pagination.limit
+      limit: this.nodesTableData.pagination.limit,
     };
     this.nodesTableData.pagination = pagination;
     this.nodesTableData.data = nodesToTableData(
-      paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData)
+      paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData),
     );
   }
   handleLimitChange(v: number) {
     const pagination = {
       count: this.searchData.length,
       current: 1,
-      limit: v
+      limit: v,
     };
     this.nodesTableData.pagination = pagination;
     this.nodesTableData.data = nodesToTableData(
-      paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData)
+      paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData),
     );
   }
 
@@ -211,7 +211,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     switch (v) {
       case 'createNode':
         this.$router.push({
-          name: 'uptime-check-node-add'
+          name: 'uptime-check-node-add',
         });
         break;
     }
@@ -229,7 +229,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     const pagination = {
       count: this.searchData.length,
       current: 1,
-      limit: 10
+      limit: 10,
     };
     if (order) {
       switch (columnId as 'task_num_text') {
@@ -271,7 +271,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
         <div class='table-data-content'>
           <HeaderTools
             option={{
-              showNode: true
+              showNode: true,
             }}
             search={this.searchValue}
             onCreate={this.handleHeaderCreate}
@@ -299,7 +299,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
                         authority: this.authority.MANAGE_AUTH,
                         authorityDetail: this.authorityMap.MANAGE_AUTH,
                         disable: !this.canEdit(row.bk_biz_id),
-                        tip: !this.canEdit(row.bk_biz_id) ? this.$tc('非当前业务节点') : ''
+                        tip: !this.canEdit(row.bk_biz_id) ? this.$tc('非当前业务节点') : '',
                       },
                       {
                         id: 'delete',
@@ -307,9 +307,9 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
                         authority: this.authority.MANAGE_AUTH,
                         authorityDetail: this.authorityMap.MANAGE_AUTH,
                         disable: !this.canEdit(row.bk_biz_id),
-                        tip: !this.canEdit(row.bk_biz_id) ? this.$tc('非当前业务节点') : ''
-                      }
-                    ]
+                        tip: !this.canEdit(row.bk_biz_id) ? this.$tc('非当前业务节点') : '',
+                      },
+                    ],
                   }}
                   onOptionClick={(v: 'edit' | 'delete') => this.handleNodeOperate(v, row)}
                 ></OperateOptions>
@@ -327,7 +327,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
                     />
                   )}
                 </span>
-              )
+              ),
             }}
             onPageChange={this.handlePageChange}
             onLimitChange={this.handleLimitChange}

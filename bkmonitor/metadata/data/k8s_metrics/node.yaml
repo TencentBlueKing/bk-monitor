@@ -706,3 +706,319 @@
     field_name: bk_job
     type: string
     unit: ''
+- description: ''
+  field_name: node_vmstat_pgfault
+  tag_list:
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: container
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+- description: ''
+  field_name: node_vmstat_pgmajfault
+  tag_list:
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: container
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+- description: ''
+  field_name: node_vmstat_pgpgin
+  tag_list:
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: container
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+- description: ''
+  field_name: node_vmstat_pgpgout
+  tag_list:
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: container
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''

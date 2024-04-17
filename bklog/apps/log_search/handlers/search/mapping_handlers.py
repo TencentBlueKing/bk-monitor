@@ -49,7 +49,6 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import (
     FieldsDateNotExistException,
     IndexSetNotHaveConflictIndex,
-    SearchNotTimeFieldType,
 )
 from apps.log_search.models import (
     IndexSetFieldsConfig,
@@ -59,6 +58,7 @@ from apps.log_search.models import (
     UserIndexSetFieldsConfig,
 )
 from apps.utils.cache import cache_one_minute, cache_ten_minute
+from apps.utils.codecs import unicode_str_encode
 from apps.utils.local import (
     get_local_param,
     get_request_app_code,
@@ -209,6 +209,9 @@ class MappingHandlers(object):
     def get_final_fields(self):
         """获取最终字段"""
         mapping_list: list = self._get_mapping()
+        # 未获取到mapping信息 提前返回
+        if not mapping_list:
+            return []
         property_dict: dict = self.find_merged_property(mapping_list)
         fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
         built_in_fields = FieldBuiltInEnum.get_choices()
@@ -224,6 +227,8 @@ class MappingHandlers(object):
                 "is_analyzed": field.get("is_analyzed", False),
                 "field_operator": OPERATORS.get(field["field_type"], []),
                 "is_built_in": field["field_name"].lower() in built_in_fields,
+                "is_case_sensitive": field.get("is_case_sensitive", False),
+                "tokenize_on_chars": field.get("tokenize_on_chars", ""),
             }
             for field in fields_result
         ]
@@ -324,6 +329,8 @@ class MappingHandlers(object):
     ):
         """默认字段排序规则"""
         time_field = cls.get_time_field(index_set_id)
+        if not time_field:
+            return []
 
         # 先看索引集有没有配排序字段
         log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
@@ -374,7 +381,7 @@ class MappingHandlers(object):
         for time_field in time_field_list:
             if time_field:
                 return time_field
-        raise SearchNotTimeFieldType()
+        return
 
     def _get_object_field(self, final_fields_list):
         """获取对象字段"""
@@ -432,6 +439,7 @@ class MappingHandlers(object):
                 "time_zone": self.time_zone,
                 "start_time": start_time,
                 "end_time": end_time,
+                "add_settings_details": True,
             }
         )
         return latest_mapping
@@ -443,6 +451,28 @@ class MappingHandlers(object):
                 _field["is_display"] = True
                 return final_fields_list, ["log"]
         return final_fields_list, []
+
+    @classmethod
+    def is_case_sensitive(cls, field_dict: Dict[str, Any]) -> bool:
+        # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer和analyzer_details
+        if not field_dict.get("analyzer"):
+            return False
+        if not field_dict.get("analyzer_details"):
+            return False
+        return "lowercase" not in field_dict["analyzer_details"].get("filter", [])
+
+    @classmethod
+    def tokenize_on_chars(cls, field_dict: Dict[str, Any]) -> str:
+        # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer,analyzer_details,tokenizer_details
+        if not field_dict.get("analyzer"):
+            return ""
+        if not field_dict.get("analyzer_details"):
+            return ""
+        # tokenizer_details在analyzer_details中
+        if not field_dict["analyzer_details"].get("tokenizer_details", {}):
+            return ""
+        result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
+        return unicode_str_encode(result)
 
     @classmethod
     def get_all_index_fields_by_mapping(cls, properties_dict: Dict) -> List:
@@ -469,6 +499,9 @@ class MappingHandlers(object):
                 if field_type in ["text", "object"]:
                     es_doc_values = False
 
+                is_case_sensitive = cls.is_case_sensitive(properties_dict[key])
+                tokenize_on_chars = cls.tokenize_on_chars(properties_dict[key])
+
                 # @TODO tag：兼容前端代码，后面需要删除
                 tag = "metric"
                 if field_type == "date":
@@ -487,6 +520,8 @@ class MappingHandlers(object):
                         "tag": tag,
                         "is_analyzed": cls._is_analyzed(latest_field_type),
                         "latest_field_type": latest_field_type,
+                        "is_case_sensitive": is_case_sensitive,
+                        "tokenize_on_chars": tokenize_on_chars,
                     }
                 )
                 fields_result.append(data)

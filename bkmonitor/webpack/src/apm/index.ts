@@ -36,7 +36,7 @@ import 'monitor-static/svg-icons';
 
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
-import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import App from './pages/app';
@@ -62,15 +62,15 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     bizList: window.space_list,
     csrfCookieName: window.csrf_cookie_name || '',
     siteUrl: window.site_url,
-    bkUrl: window.bk_url
+    bkUrl: window.bk_url,
   });
-  // eslint-disable-next-line no-new
+
   new Vue({
     el: '#app',
     router,
     store,
     i18n,
-    render: h => h(App)
+    render: h => h(App),
   });
   Vue.prototype.$bus = new Vue();
   Vue.prototype.$api = Api;
@@ -80,7 +80,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     .enhancedContext({
       space_uid: spaceUid || undefined,
       bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
-      context_type: 'basic'
+      context_type: 'basic',
     })
     .then(data => {
       Object.keys(data).forEach(key => {
@@ -99,15 +99,15 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         bizList: window.space_list,
         csrfCookieName: window.csrf_cookie_name || '',
         siteUrl: window.site_url,
-        bkUrl: window.bk_url
+        bkUrl: window.bk_url,
       });
-      // eslint-disable-next-line no-new
+
       new Vue({
         el: '#app',
         router,
         store,
         i18n,
-        render: h => h(App)
+        render: h => h(App),
       });
       Vue.prototype.$bus = new Vue();
       Vue.prototype.$api = Api;
@@ -116,7 +116,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         .enhancedContext({
           space_uid: spaceUid || undefined,
           bk_biz_id: bizId,
-          context_type: 'extra'
+          context_type: 'extra',
         })
         .then(data => {
           Object.keys(data).forEach(key => {
@@ -126,6 +126,6 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     })
     .catch(e => console.error(e))
     .finally(() => {
-      serviceWorker.immediateRegister();
+      immediateRegister();
     });
 }

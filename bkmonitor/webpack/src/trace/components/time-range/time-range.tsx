@@ -31,7 +31,7 @@ import { updateTimezone } from '../../i18n/dayjs';
 
 import { TimeRangeType } from './utils';
 
-import '@blueking/date-picker/dist/vue3-light.css';
+import '@blueking/date-picker/vue3/vue3.css';
 
 /**
  * 图表选择时间范围组件
@@ -41,15 +41,15 @@ export default defineComponent({
   props: {
     modelValue: {
       type: Array as PropType<TimeRangeType>,
-      default: () => []
+      default: () => [],
     },
     timezone: {
-      type: String
+      type: String,
     },
     needTimezone: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   emits: ['update:timezone', 'update:modelValue'],
   setup(_, { emit }) {
@@ -62,7 +62,7 @@ export default defineComponent({
     };
     return {
       handleChange,
-      handleTimezoneChange
+      handleTimezoneChange,
     };
   },
   render() {
@@ -77,5 +77,5 @@ export default defineComponent({
         onUpdate:timezone={this.handleTimezoneChange}
       />
     );
-  }
+  },
 });

@@ -28,7 +28,7 @@
  * @LastEditTime: 2021-06-30 19:28:43
  * @Description:
  */
-/* eslint-disable camelcase */
+
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
@@ -93,14 +93,14 @@ interface IMonitorDataEvent {
   name: 'monitor-data',
   components: {
     MonitorDialog,
-    StrategyTargetTable
-  }
+    StrategyTargetTable,
+  },
 })
 export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEvent> {
   @Prop({
     default: () => [],
     type: Array,
-    required: true
+    required: true,
   })
   readonly metricData: MetricDetail[];
   @Prop({ default: '', type: String }) source: string;
@@ -132,13 +132,13 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     targetType: '',
     desc: {
       message: '',
-      subMessage: ''
-    }
+      subMessage: '',
+    },
   };
   levelList = [
     { id: 1, name: this.$t('致命'), icon: 'icon-danger' },
     { id: 2, name: this.$t('预警'), icon: 'icon-mind-fill' },
-    { id: 3, name: this.$t('提醒'), icon: 'icon-tips' }
+    { id: 3, name: this.$t('提醒'), icon: 'icon-tips' },
   ];
   metricInfoMap: Record<string, TranslateResult> = {};
   metricUrlMap: Record<string, string> = {};
@@ -197,11 +197,11 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
       content:
         this.dataMode === 'converge'
           ? this.$t(
-              '汇聚是可以基于存储落地的数据按周期、维度（group by）、条件(where) 进行汇聚计算(MAX/AVG) 得到的结果再进行各种检测算法。所以汇聚至少有1个周期的等待，及时性会慢点，但功能强大。'
+              '汇聚是可以基于存储落地的数据按周期、维度（group by）、条件(where) 进行汇聚计算(MAX/AVG) 得到的结果再进行各种检测算法。所以汇聚至少有1个周期的等待，及时性会慢点，但功能强大。',
             )
           : this.$t(
-              '实时是基于链路中的数据点（未落地时），直接进行数据的阈值比对，所以只适用于快速的单点的数据检测场景。像系统事件类就是没有落地存储直接在链路中进行检查。'
-            )
+              '实时是基于链路中的数据点（未落地时），直接进行数据的阈值比对，所以只适用于快速的单点的数据检测场景。像系统事件类就是没有落地存储直接在链路中进行检查。',
+            ),
     };
   }
 
@@ -225,7 +225,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     if (this.editMode === 'Edit') {
       return this.metricData
         .filter(item => !!item.metric_id)
-        .every(item => ['custom', 'bk_monitor'].includes(item.data_source_label));
+        .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
     return true;
   }
@@ -233,30 +233,30 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     this.modeList = [
       {
         id: 'converge',
-        name: this.$t('汇聚')
+        name: this.$t('汇聚'),
       },
       {
         id: 'realtime',
-        name: this.$t('实时')
-      }
+        name: this.$t('实时'),
+      },
     ];
     this.metricInfoMap = {
       time_series: this.$t(
-        '指标：指标数据即时序数据。数据来源有：监控采集，自定义上报，计算平台，日志平台。可以对数据进行多指标计算和相应的函数功能。'
+        '指标：指标数据即时序数据。数据来源有：监控采集，自定义上报，计算平台，日志平台。可以对数据进行多指标计算和相应的函数功能。',
       ),
       event: this.$t(
-        '事件：事件包括平台默认采集的系统事件，还有自定义上报的事件。系统事件未落存储，所以辅助视图是无数据状态。'
+        '事件：事件包括平台默认采集的系统事件，还有自定义上报的事件。系统事件未落存储，所以辅助视图是无数据状态。',
       ),
       log: this.$t(
-        '日志关键字：日志关键字能力有两种，日志平台基于ES存储判断的日志关键字和基于Agent端进行日志关键字匹配的事件。'
+        '日志关键字：日志关键字能力有两种，日志平台基于ES存储判断的日志关键字和基于Agent端进行日志关键字匹配的事件。',
       ),
-      alert: this.$t('关联告警：可以基于告警事件/策略进行与或等，判断是否要再进行告警或者进行告警处理等。')
+      alert: this.$t('关联告警：可以基于告警事件/策略进行与或等，判断是否要再进行告警或者进行告警处理等。'),
     };
     this.metricUrlMap = {
       time_series: '监控平台/产品白皮书/alarm-configurations/rules.md',
       event: '监控平台/产品白皮书/alarm-configurations/events_monitor.md',
       log: '监控平台/产品白皮书/alarm-configurations/log_monitor.md',
-      alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md'
+      alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md',
     };
     this.targetList = this.defaultCheckedTarget?.target_detail || [];
     // 初始化时监控目标显示
@@ -264,7 +264,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
       this.targetList,
       this.metricData?.[0]?.targetType,
       this.defaultCheckedTarget?.node_count || 0,
-      this.defaultCheckedTarget?.instance_count || 0
+      this.defaultCheckedTarget?.instance_count || 0,
     );
   }
   handleChangeTab(item) {
@@ -280,7 +280,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
       const error = mode === 'Edit' ? this.promqlEditorRef.getLinterStatus() : false;
       this.$emit('editModeChange', {
         mode,
-        hasError: error
+        hasError: error,
       });
     }
   }
@@ -324,7 +324,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         strList.some(str => ipMap.some(s => new RegExp(s).test(str)) && cloudIdMap.some(s => new RegExp(s).test(str)));
     } else {
       hasIpDimension = this.metricData.some(
-        item => item.agg_dimension.some(d => cloudIdMap.includes(d)) && item.agg_dimension.some(d => ipMap.includes(d))
+        item => item.agg_dimension.some(d => cloudIdMap.includes(d)) && item.agg_dimension.some(d => ipMap.includes(d)),
       );
     }
     return !hasIpDimension;
@@ -343,7 +343,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     targetList: { count: number; bk_obj_id: string; nodes_count?: number; instances_count?: number; all_host: any[] }[],
     bkTargetType: string,
     nodeCount = 0,
-    instance_count = 0
+    instance_count = 0,
   ) {
     const objectType = this.metricData?.[0]?.objectType || this.defaultCheckedTarget?.instance_type || '';
     const result = handleSetTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
@@ -471,13 +471,13 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -542,8 +542,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         'tab-item',
                         {
                           'tab-active': this.dataMode === item.id,
-                          'tab-disable': isTabDisabled(item.id)
-                        }
+                          'tab-disable': isTabDisabled(item.id),
+                        },
                       ]}
                       style={{ marginLeft: index > 0 ? '-1px' : '' }}
                       on-click={() => !this.readonly && !isTabDisabled(item.id) && this.handleChangeTab(item)}
@@ -554,16 +554,16 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                             ? (() => {
                                 if (item.id === 'converge') {
                                   return this.$t(
-                                    '汇聚是可以基于存储落地的数据按周期、维度（group by）、条件(where) 进行汇聚计算(MAX/AVG) 得到的结果再进行各种检测算法。所以汇聚至少有1个周期的等待，及时性会慢点，但功能强大。'
+                                    '汇聚是可以基于存储落地的数据按周期、维度（group by）、条件(where) 进行汇聚计算(MAX/AVG) 得到的结果再进行各种检测算法。所以汇聚至少有1个周期的等待，及时性会慢点，但功能强大。',
                                   );
                                 }
                                 return this.$t(
-                                  '实时是基于链路中的数据点（未落地时），直接进行数据的阈值比对，所以只适用于快速的单点的数据检测场景。像系统事件类就是没有落地存储直接在链路中进行检查。'
+                                  '实时是基于链路中的数据点（未落地时），直接进行数据的阈值比对，所以只适用于快速的单点的数据检测场景。像系统事件类就是没有落地存储直接在链路中进行检查。',
                                 );
                               })()
                             : tabContent(item.id),
                         disabled: isTabDisabled(item.id) ? false : this.dataMode !== item.id,
-                        allowHTML: false
+                        allowHTML: false,
                         // disabled: !this.metricData?.every(item => item.metric_field)
                         //  || !isTabDisabled(item.id)
                         //  || this.readonly
@@ -614,9 +614,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                   class={['metric-tab-right', { 'mode-disable': this.dataMode === 'realtime' || !this.canToPromql }]}
                   v-bk-tooltips={{
                     content: this.$t('目前仅支持{0}切换PromQL', [
-                      `${this.$t('监控采集指标')}、${this.$t('自定义指标')}`
+                      `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
                     ]),
-                    disabled: !(this.dataMode === 'realtime' || !this.canToPromql)
+                    disabled: !(this.dataMode === 'realtime' || !this.canToPromql),
                   }}
                   on-click={this.handleEditModeChange}
                 >
@@ -694,7 +694,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       class='icon-monitor icon-hint'
                       v-bk-tooltips={{
                         content: this.$t('数据步长'),
-                        placements: ['top']
+                        placements: ['top'],
                       }}
                     ></span>
                   </div>
@@ -718,7 +718,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     ) : (
                       <span>{this.$t('未添加监控目标')}</span>
                     ),
-                    <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>
+                    <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
                   ]
                 : [
                     <i class='icon-monitor icon-mc-tv'></i>,
@@ -751,7 +751,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                           onClick={() => (this.showTargetMessageTip = false)}
                         ></span>
                       </span>
-                    )
+                    ),
                   ]}
             </div>
           )}
@@ -779,7 +779,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                   ))}
                 </bk-radio-group>
               </div>
-            )
+            ),
         )}
       </div>
     );

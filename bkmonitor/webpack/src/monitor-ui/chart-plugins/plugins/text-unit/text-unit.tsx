@@ -60,38 +60,38 @@ export default class TextUnit extends CommonSimpleChart {
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
         end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
-        bk_biz_id: this.bkBizId || window.cc_biz_id
+        bk_biz_id: this.bkBizId || window.cc_biz_id,
       };
       const variablesService = new VariablesService({
         ...this.scopedVars,
         interval: reviewInterval(
           this.viewOptions.interval,
           params.end_time - params.start_time,
-          this.panel.collect_interval
-        )
+          this.panel.collect_interval,
+        ),
       });
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
           [item.apiFunc](
             {
               ...variablesService.transformVariables(item.data),
-              ...params
+              ...params,
             },
-            { needMessage: false }
+            { needMessage: false },
           )
           .then(({ value, unit }) => {
             // 单位转换
             const formater = getValueFormat(unit || '')(+value);
             this.series = {
               value: +formater.text || '',
-              unit: formater.suffix
+              unit: formater.suffix,
             };
             this.clearErrorMsg();
             return true;
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          })
+          }),
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {

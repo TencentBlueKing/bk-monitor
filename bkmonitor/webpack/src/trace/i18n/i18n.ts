@@ -44,8 +44,8 @@ const i18n = createI18n({
   // allowComposition: true,
   // legacy: false,
   messages: {
-    ...mergeI18nJson()
-  }
+    ...mergeI18nJson(),
+  },
 });
 window.i18n = i18n.global;
 export default i18n;

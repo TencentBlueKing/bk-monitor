@@ -51,7 +51,7 @@ enum EPanelsNames {
   hostProcess = 'hostProcess',
   traceInfo = 'traceInfo',
   logInfo = 'logInfo',
-  sceneView = 'sceneView'
+  sceneView = 'sceneView',
 }
 
 const { i18n } = window;
@@ -73,14 +73,14 @@ interface IDataZoomTimeRange {
 }
 
 @Component({
-  name: 'TabContainer'
+  name: 'TabContainer',
 })
 export default class TabContainer extends tsc<ITabContainerProps> {
   /** 时间范围 */
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   /** aiops联动抛出的缩放时间范围 */
   @ProvideReactive('dataZoomTimeRange') dataZoomTimeRange: IDataZoomTimeRange = {
-    timeRange: []
+    timeRange: [],
   };
   @Prop({ type: Boolean, default: false }) isScrollEnd: boolean;
   @Prop({ type: [Number, String], default: 0 }) alertId: number | string;
@@ -105,7 +105,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
     { name: EPanelsNames.traceInfo, label: 'Trace' },
     { name: EPanelsNames.handleExperience, label: i18n.t('处理经验') },
     { name: EPanelsNames.circulationRecord, label: i18n.t('流转记录') },
-    { name: EPanelsNames.relatedEvents, label: i18n.t('关联事件') }
+    { name: EPanelsNames.relatedEvents, label: i18n.t('关联事件') },
   ];
   public active = '';
 
@@ -115,104 +115,104 @@ export default class TabContainer extends tsc<ITabContainerProps> {
       name: i18n.t('告警产生'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'CONVERGE',
       name: i18n.t('告警收敛'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'RECOVER',
       name: i18n.t('告警恢复'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'RECOVERING',
       name: i18n.t('告警恢复中'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'CLOSE',
       name: i18n.t('告警关闭'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'DELAY_RECOVER',
       name: i18n.t('延迟恢复'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'ABORT_RECOVER',
       name: i18n.t('中断恢复'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'SYSTEM_RECOVER',
       name: i18n.t('告警恢复'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'SYSTEM_CLOSE',
       name: i18n.t('告警关闭'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'ACK',
       name: i18n.t('告警确认'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'SEVERITY_UP',
       name: i18n.t('告警级别调整'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'ACTION',
       name: i18n.t('处理动作'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'ALERT_QOS',
       name: i18n.t('告警流控'),
       checked: true,
       mockChecked: true,
-      disabled: false
+      disabled: false,
     },
     {
       id: 'EVENT_DROP',
       name: i18n.t('事件忽略'),
       checked: true,
       mockChecked: true,
-      disabled: false
-    }
+      disabled: false,
+    },
   ];
 
   public relatedEventsParams = {
     start_time: 0,
-    end_time: 0
+    end_time: 0,
   };
 
   get getConditions(): string[] {
@@ -275,7 +275,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
     }
     this.relatedEventsParams = {
       start_time: 0,
-      end_time: 0
+      end_time: 0,
     };
     this.active = v;
   }

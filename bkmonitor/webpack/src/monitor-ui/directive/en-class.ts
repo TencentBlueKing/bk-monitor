@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VueConstructor } from 'vue';
-import { DirectiveBinding } from 'vue/types/options';
+import { type VueConstructor } from 'vue';
+import { type DirectiveBinding } from 'vue/types/options';
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 
 export default class EnStyleDirective {
@@ -55,7 +55,7 @@ export default class EnStyleDirective {
             cssText += `${key}: ${options.styles[key]};`;
           });
         el.style.cssText += cssText;
-      }
+      },
     });
   }
 }

@@ -38,7 +38,7 @@ export async function getPanelData(panel: PanelModel, viewOptions: IViewOptions)
     const variablesService = new VariablesService({
       ...viewOptions,
       ...viewOptions.filters,
-      ...viewOptions.variables
+      ...viewOptions.variables,
     });
     const params = variablesService.transformVariables(item.data);
     const data = await Vue.prototype.$api[item.apiModule][item.apiFunc](params).catch(() => []);

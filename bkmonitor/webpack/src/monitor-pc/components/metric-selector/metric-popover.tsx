@@ -75,7 +75,7 @@ export default class MetricPopover extends tsc<MetricPopoverProps, MetricPopover
       onHidden: () => {
         this.destroyPopoverInstance();
         this.handleShowChange(false);
-      }
+      },
     });
     // this.curTarget = target;
   }

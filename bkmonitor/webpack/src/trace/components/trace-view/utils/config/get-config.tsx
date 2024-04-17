@@ -42,7 +42,6 @@ const getConfig = memoizeOne(() => {
   const { getJaegerUiConfig } = window;
   if (typeof getJaegerUiConfig !== 'function') {
     if (!haveWarnedFactoryFn) {
-      // eslint-disable-next-line no-console
       console.warn('Embedded config not available');
       haveWarnedFactoryFn = true;
     }

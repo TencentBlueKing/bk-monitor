@@ -27,10 +27,10 @@ import { Component, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import echarts, { EChartOption } from 'echarts';
 import { hexToRgbA } from 'monitor-common/utils/utils';
 
 import { ICurPoint } from '../typings';
+import { echarts, type MonitorEchartOptions } from '../typings/index';
 
 import BaseEchart, { IChartEvent, IChartProps } from './base-echart';
 
@@ -47,7 +47,7 @@ class MonitorBaseEchart extends BaseEchart {
   tooltipSize: number[];
   // tableToolSize
   tableToolSize = 0;
-  getMonitorEchartOptions(): EChartOption {
+  getMonitorEchartOptions(): MonitorEchartOptions {
     return Object.freeze(
       deepmerge(
         {
@@ -64,13 +64,13 @@ class MonitorBaseEchart extends BaseEchart {
                     this.curPoint.xAxis = params.value;
                     this.curPoint.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
                   }
-                }
+                },
               },
               crossStyle: {
                 color: 'transparent',
                 opacity: 0,
-                width: 0
-              }
+                width: 0,
+              },
             },
             appendToBody: true,
             formatter: p => this.handleSetTooltip(p),
@@ -79,11 +79,11 @@ class MonitorBaseEchart extends BaseEchart {
               const chartRect = this.$el.getBoundingClientRect();
               const posRect = {
                 x: chartRect.x + +pos[0],
-                y: chartRect.y + +pos[1]
+                y: chartRect.y + +pos[1],
               };
               const position = {
                 left: 0,
-                top: 0
+                top: 0,
               };
               const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
               if (canSetBootom > 0) {
@@ -99,11 +99,11 @@ class MonitorBaseEchart extends BaseEchart {
               }
               if (contentSize[0]) this.tooltipSize = contentSize;
               return position;
-            }
-          }
+            },
+          },
         },
-        this.options
-      )
+        this.options,
+      ),
     );
   }
   initChart() {
@@ -124,8 +124,10 @@ class MonitorBaseEchart extends BaseEchart {
   handleDataZoom(event) {
     const [batch] = event.batch;
     if (batch.startValue && batch.endValue) {
-      (this as any).instance.dispatchAction({
-        type: 'restore'
+      window.requestAnimationFrame(() => {
+        (this as any).instance.dispatchAction({
+          type: 'restore',
+        });
       });
       const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
       let timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
@@ -170,18 +172,19 @@ class MonitorBaseEchart extends BaseEchart {
         (this as any).instance.setOption(this.getMonitorEchartOptions(), {
           notMerge: true,
           lazyUpdate: false,
-          silent: true
+          silent: true,
         });
         (this as any).curChartOption = (this as any).instance.getOption();
+        this.initChartAction();
       },
-      { deep: false }
+      { deep: false },
     );
   }
   /**
    * @description: 设置echart的option
-   * @param {EChartOption} option
+   * @param {MonitorEchartOptions} option
    */
-  public setPartialOption(option: EChartOption) {
+  public setPartialOption(option: MonitorEchartOptions) {
     if ((this as any).instance) {
       (this as any).instance.setOption(option, { notMerge: false });
       (this as any).curChartOption = (this as any).instance.getOption();
@@ -195,9 +198,9 @@ class MonitorBaseEchart extends BaseEchart {
         series: options.series.map((item, index) => ({
           ...item,
           areaStyle: {
-            color: isArea ? hexToRgbA(options.color[index % options.color.length], 0.2) : 'transparent'
-          }
-        }))
+            color: isArea ? hexToRgbA(options.color[index % options.color.length], 0.2) : 'transparent',
+          },
+        })),
       });
     }
   }
@@ -209,8 +212,8 @@ class MonitorBaseEchart extends BaseEchart {
         ...options,
         yAxis: {
           scale: needScale,
-          min: needScale ? 'dataMin' : 0
-        }
+          min: needScale ? 'dataMin' : 0,
+        },
       });
     }
   }
@@ -224,7 +227,7 @@ class MonitorBaseEchart extends BaseEchart {
         seriesIndex: -1,
         dataIndex: -1,
         xAxis: '',
-        yAxis: ''
+        yAxis: '',
       };
       return;
     }
@@ -250,10 +253,10 @@ class MonitorBaseEchart extends BaseEchart {
               seriesIndex: item.seriesIndex,
               dataIndex: item.dataIndex,
               xAxis: item.value[0],
-              yAxis: item.value[1]
+              yAxis: item.value[1],
             };
           }
-          if (item.value[1] === null) return '';
+          if (item.value[1] === null) return undefined;
           let curSeries: any = (this as any).curChartOption.series[item.seriesIndex];
           if (curSeries?.stack?.includes('boundary-')) {
             curSeries = (this as any).curChartOption.series.find((item: any) => !item?.stack?.includes('boundary-'));
@@ -272,7 +275,7 @@ class MonitorBaseEchart extends BaseEchart {
                   ${valueObj?.text} ${valueObj?.suffix || ''}</span>
                   </li>`;
         });
-      if (liHtmls?.length < 1) return '';
+      if (liHtmls?.length < 1) return undefined;
       // 如果超出屏幕高度，则分列展示
       const maxLen = Math.ceil((window.innerHeight - 100) / 20);
       if (list.length > maxLen && this.tooltipSize) {
@@ -280,7 +283,7 @@ class MonitorBaseEchart extends BaseEchart {
         this.tableToolSize = this.tableToolSize
           ? Math.min(this.tableToolSize, this.tooltipSize[0])
           : this.tooltipSize[0];
-        ulStyle = `display:flex; flex-wrap:wrap; width: ${5 + cols * this.tableToolSize}px;`;
+        ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 1.33)}px;`;
       }
     }
     return `<div class="monitor-chart-tooltips">

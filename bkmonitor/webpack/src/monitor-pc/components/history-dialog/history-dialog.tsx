@@ -41,8 +41,8 @@ interface IHistoryDialogProps {
 
 @Component({
   components: {
-    ViewParam
-  }
+    ViewParam,
+  },
 })
 export default class HistoryDialog extends tsc<IHistoryDialogProps> {
   @Prop({ type: Function }) showCallback: () => Promise<void> | void;

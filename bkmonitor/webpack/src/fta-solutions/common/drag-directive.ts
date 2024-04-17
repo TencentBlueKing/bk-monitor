@@ -41,7 +41,6 @@ interface IBindValue {
   theme: 'normal' | 'simple'; // 拖拽按钮主题
 }
 interface IDragHtmlElement extends HTMLElement {
-  // eslint-disable-next-line camelcase
   _bk_monitor_drag: {
     el: HTMLDivElement;
     value: IBindValue;
@@ -123,7 +122,7 @@ const monitorDrag: DirectiveOptions = {
     el._bk_monitor_drag = {
       el: dragEle,
       value: bind.value,
-      dragKey: key
+      dragKey: key,
     };
   },
 
@@ -140,10 +139,10 @@ const monitorDrag: DirectiveOptions = {
     delete insertedElMap[dragKey];
 
     delete el._bk_monitor_drag;
-  }
+  },
 };
 
 export default {
   install: (Vue: VueConstructor) => Vue.directive('monitor-drag', monitorDrag),
-  directive: monitorDrag
+  directive: monitorDrag,
 };

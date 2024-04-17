@@ -27,14 +27,20 @@ import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 import { deepClone } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import PieLegend from '../../components/chart-legend/pie-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_PIE_OPTIONS } from '../../constants';
-import { IExtendMetricData, ILegendItem, IMenuItem, LegendActionType, PanelModel } from '../../typings';
+import {
+  IExtendMetricData,
+  ILegendItem,
+  IMenuItem,
+  LegendActionType,
+  MonitorEchartOptions,
+  PanelModel,
+} from '../../typings';
 import CommonSimpleChart from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
@@ -53,7 +59,7 @@ class PieChart extends CommonSimpleChart {
   metrics: IExtendMetricData[];
   emptyText = window.i18n.tc('查无数据');
   empty = true;
-  chartOption: EChartOption;
+  chartOption: MonitorEchartOptions;
   legendData = [];
   panelTitle = '';
 
@@ -75,34 +81,33 @@ class PieChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const viewOptions = {
-        ...this.viewOptions
+        ...this.viewOptions,
       };
-      const promiseList = this.panel.targets.map(
-        item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc](
-              {
-                ...item.data,
-                ...params,
-                view_options: {
-                  ...viewOptions
-                }
+      const promiseList = this.panel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc](
+            {
+              ...item.data,
+              ...params,
+              view_options: {
+                ...viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              const seriesData = res.data || [];
-              this.panelTitle = res.name;
-              this.updateChartData(seriesData);
-              this.clearErrorMsg();
-              return true;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
+            },
+            { needMessage: false },
+          )
+          .then(res => {
+            const seriesData = res.data || [];
+            this.panelTitle = res.name;
+            this.updateChartData(seriesData);
+            this.clearErrorMsg();
+            return true;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          }),
       );
       const res = await Promise.all(promiseList);
       if (res) {
@@ -139,20 +144,20 @@ class PieChart extends CommonSimpleChart {
           {
             label: {
               show: false,
-              position: 'center'
+              position: 'center',
             },
             labelLine: {
               normal: {
-                show: false
-              }
+                show: false,
+              },
             },
             radius: ['45%', '70%'],
             data: dataList,
-            type: 'pie'
-          }
-        ]
-      })
-    );
+            type: 'pie',
+          },
+        ],
+      }),
+    ) as MonitorEchartOptions;
   }
   /**
    * @description: 选中图例触发事件

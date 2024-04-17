@@ -48,7 +48,7 @@ export const defaultTextMap: IEmptyStatusTextMap = {
   empty: window.i18n.t('查无数据'),
   'search-empty': window.i18n.t('搜索结果为空'),
   500: window.i18n.t('数据获取异常'),
-  403: window.i18n.t('无业务权限')
+  403: window.i18n.t('无业务权限'),
 };
 
 @Component

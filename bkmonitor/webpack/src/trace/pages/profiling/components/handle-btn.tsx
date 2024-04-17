@@ -33,23 +33,23 @@ import './handle-btn.scss';
 const IProps = {
   loading: {
     type: Boolean,
-    default: false
+    default: false,
   },
   hasFavorite: {
     // 是否需要收藏功能
     type: Boolean,
-    default: false
+    default: false,
   },
   canQuery: {
     // 查询按钮是否可用
     type: Boolean,
-    default: false
+    default: false,
   },
   autoQuery: {
     // 是否开启自动查询
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 };
 
 export default defineComponent({
@@ -81,7 +81,7 @@ export default defineComponent({
       emit('add', {
         value: favDescInput.value,
         hideCallback: handleCancelFav,
-        favLoadingCallBack: (val: boolean) => (favLoading.value = val)
+        favLoadingCallBack: (val: boolean) => (favLoading.value = val),
       });
     };
 
@@ -113,7 +113,7 @@ export default defineComponent({
       favLoading,
       handleCancelFav,
       favDescInput,
-      handleChangeAutoQuery
+      handleChangeAutoQuery,
     };
   },
 
@@ -184,7 +184,7 @@ export default defineComponent({
                     </div>
                   </Loading>
                 </div>
-              )
+              ),
             }}
           >
             <Button>
@@ -206,5 +206,5 @@ export default defineComponent({
         </Popover>
       </div>
     );
-  }
+  },
 });

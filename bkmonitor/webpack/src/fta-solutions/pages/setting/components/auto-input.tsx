@@ -37,7 +37,7 @@ interface IAutoInputEvent {
 }
 
 @Component({
-  name: 'AutoInput'
+  name: 'AutoInput',
 })
 export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
   @Prop({ type: Array, default: () => [] }) tipsData: IAutoInput['tipsData'];
@@ -143,12 +143,12 @@ export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
         theme: 'light auto-input-component-list-warp',
         maxWidth: 520,
         duration: [200, 0],
-        offset: `${this.offsetX}, ${this.offsetY}`
+        offset: `${this.offsetX}, ${this.offsetY}`,
       });
     } else {
       // 更新提示的位置
       this.popoverInstance.set({
-        offset: `${this.offsetX}, ${this.offsetY}`
+        offset: `${this.offsetX}, ${this.offsetY}`,
       });
     }
     // 显示
@@ -196,7 +196,7 @@ export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
                 key={item.id + index}
                 style={{
                   display: !this.params || item.id.includes(this.keyword) ? 'flex' : 'none',
-                  position: 'relative'
+                  position: 'relative',
                 }}
               >
                 {item.id}

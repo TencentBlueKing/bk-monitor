@@ -87,14 +87,14 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
                       width='150'
                       scopedSlots={{
                         default: ({ row }) =>
-                          row.metric === 'metric' ? this.$t('指标（Metric）') : this.$t('维度（Dimension）')
+                          row.metric === 'metric' ? this.$t('指标（Metric）') : this.$t('维度（Dimension）'),
                       }}
                     />
                     <bk-table-column
                       label={this.$t('英文名')}
                       min-width='150'
                       scopedSlots={{
-                        default: ({ row }) => <span title={row.englishName}>{row.englishName || '--'}</span>
+                        default: ({ row }) => <span title={row.englishName}>{row.englishName || '--'}</span>,
                       }}
                     />
 
@@ -102,21 +102,21 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
                       label={this.$t('别名')}
                       min-width='150'
                       scopedSlots={{
-                        default: ({ row }) => <span title={row.aliaName}>{row.aliaName || '--'}</span>
+                        default: ({ row }) => <span title={row.aliaName}>{row.aliaName || '--'}</span>,
                       }}
                     />
                     <bk-table-column
                       label={this.$t('类型')}
                       width='80'
                       scopedSlots={{
-                        default: ({ row }) => <span title={row.type}>{row.type || '--'}</span>
+                        default: ({ row }) => <span title={row.type}>{row.type || '--'}</span>,
                       }}
                     />
                     <bk-table-column
                       label={this.$t('单位')}
                       width='100'
                       scopedSlots={{
-                        default: ({ row }) => <span title={row.unit}>{row.unit || '--'}</span>
+                        default: ({ row }) => <span title={row.unit}>{row.unit || '--'}</span>,
                       }}
                     />
                   </bk-table>

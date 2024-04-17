@@ -83,8 +83,8 @@ export default class DynamicForm extends tsc<IDynamicForm> {
           {...{
             props: {
               model: this.formModel,
-              rules: this.formRules
-            }
+              rules: this.formRules,
+            },
           }}
         >
           {this.formList.map((item, index) => (
@@ -92,7 +92,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
               class='create-form-item'
               key={index}
               {...{
-                props: { ...item.formItemProps, required: !!item.formItemProps?.required }
+                props: { ...item.formItemProps, required: !!item.formItemProps?.required },
               }}
             >
               {item.type === 'select' ? (

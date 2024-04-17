@@ -36,8 +36,8 @@ export default defineComponent({
   props: {
     active: {
       type: String,
-      required: true
-    }
+      required: true,
+    },
   },
   emits: ['tabChange'],
   setup(prop, { emit }) {
@@ -45,7 +45,7 @@ export default defineComponent({
       emit('tabChange', val);
     };
     return {
-      handleTabChange
+      handleTabChange,
     };
   },
   render() {
@@ -57,11 +57,11 @@ export default defineComponent({
         active={this.active}
         onTab-change={this.handleTabChange}
         v-slots={{
-          setting: () => this.$slots.setting?.()
+          setting: () => this.$slots.setting?.(),
         }}
       >
         {this.$slots.default?.()}
       </Tab>
     );
-  }
+  },
 });

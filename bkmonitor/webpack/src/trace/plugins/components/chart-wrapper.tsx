@@ -41,14 +41,14 @@ import './chart-wrapper.scss';
 export default defineComponent({
   name: 'ChartWrapperMigrated',
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: {
     panel: { required: true, type: Object as PropType<PanelModel> },
     /** 检测算法 */
     detectionConfig: { default: () => {}, type: Object as PropType<IDetectionConfig> },
     /* 是否可选中图表 */
-    needCheck: { type: Boolean, default: false }
+    needCheck: { type: Boolean, default: false },
   },
   emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries'],
   setup(props, { emit }) {
@@ -158,7 +158,7 @@ export default defineComponent({
       viewQueryConfig,
       handleCloseViewDetail,
       waterMaskImg,
-      errorMsg
+      errorMsg,
     };
   },
   render() {
@@ -170,7 +170,7 @@ export default defineComponent({
           'is-checked': this.panel.checked,
           'is-collapsed': this.panel.collapsed,
           'hover-style': this.needCheck && this.needHoverStryle,
-          'row-chart': this.panel.type === 'row'
+          'row-chart': this.panel.type === 'row',
         }}
         style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
         onMouseenter={() => (this.showHeaderMoreTool = true)}
@@ -194,7 +194,7 @@ export default defineComponent({
           <div
             class='wm'
             v-watermark={{
-              text: window.user_name || window.username
+              text: window.user_name || window.username,
             }}
           ></div>
         )}
@@ -204,11 +204,11 @@ export default defineComponent({
             v-bk-tooltips={{
               content: <div>{this.errorMsg}</div>,
               extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start'
+              placement: 'top-start',
             }}
           ></span>
         )}
       </div>
     );
-  }
+  },
 });

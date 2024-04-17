@@ -51,13 +51,13 @@ export default class RulesViewer extends tsc<IDataStatus> {
   sideslider = {
     isShow: false,
     data: '',
-    title: ''
+    title: '',
   };
 
   data = [
     { name: i18n.t('丢弃率'), count: 9.7, unit: '%' },
     { name: i18n.t('丢弃率'), count: 9.7, unit: '%' },
-    { name: i18n.t('丢弃率'), count: 9.7, unit: '%' }
+    { name: i18n.t('丢弃率'), count: 9.7, unit: '%' },
   ];
 
   // 数据采集表格数据
@@ -66,7 +66,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
     { label: i18n.tc('序号'), prop: 'number', key: 'number', width: 60 },
     { label: i18n.tc('原始事件'), prop: 'data', key: 'data' },
     { label: i18n.tc('采集时间'), prop: 'bkIngestTime', key: 'time', width: 150 },
-    { label: i18n.tc('操作'), prop: 'handle', key: 'handle', width: 150 }
+    { label: i18n.tc('操作'), prop: 'handle', key: 'handle', width: 150 },
   ];
 
   @Watch('pluginId', { immediate: true })
@@ -91,13 +91,13 @@ export default class RulesViewer extends tsc<IDataStatus> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -150,7 +150,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
           );
         }
         return row[column.property];
-      }
+      },
     };
     return (
       <div class='data-status-wrap'>

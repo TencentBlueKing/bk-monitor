@@ -37,7 +37,7 @@ import {
   intTimestampStr,
   shortcuts,
   shortcutsMap,
-  TimeRangeType
+  TimeRangeType,
 } from './utils';
 
 import './time-range.scss';
@@ -51,8 +51,8 @@ export default defineComponent({
   props: {
     modelValue: {
       type: Array as PropType<TimeRangeType>,
-      default: () => ['now-1h', 'now']
-    }
+      default: () => ['now-1h', 'now'],
+    },
   },
   setup(props, { emit }) {
     const { modelValue } = toRefs(props);
@@ -172,7 +172,7 @@ export default defineComponent({
         localValue.value = val;
         handleTransformTimeValue();
         timeRangeDisplayChange();
-      }
+      },
     );
 
     return {
@@ -187,7 +187,7 @@ export default defineComponent({
       handleConfirm,
       handleCustomInput,
       handleShortcutChange,
-      handleTransformTimeValue
+      handleTransformTimeValue,
     };
   },
   render() {
@@ -216,7 +216,7 @@ export default defineComponent({
                     <div>to</div>
                     <div>{this.timestamp[1]}</div>
                   </div>
-                )
+                ),
               }}
             >
               <span
@@ -272,9 +272,9 @@ export default defineComponent({
                 </li>
               ))}
             </ul>
-          )
+          ),
         }}
       ></DatePicker>
     );
-  }
+  },
 });

@@ -62,7 +62,7 @@ const textMapping = {
   运营状态: '运营状态',
   'Operation Status': '运营状态',
   所属模块: '所属模块',
-  Modules: '所属模块'
+  Modules: '所属模块',
 };
 
 @Component
@@ -116,11 +116,9 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           expand={item.isExpand}
           needCloseButton={false}
           onExpandChange={val => {
-            // eslint-disable-next-line no-param-reassign
             item.isExpand = val;
           }}
           onOverflow={val => {
-            // eslint-disable-next-line no-param-reassign
             item.isOverflow = val;
           }}
         >
@@ -133,7 +131,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                     class='list-type-item'
                   >
                     {item}
-                  </div>
+                  </div>,
                 ])
               : '--'}
           </div>
@@ -142,7 +140,6 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           <span
             class='expand-btn'
             onClick={() => {
-              // eslint-disable-next-line no-param-reassign
               item.isExpand = !item.isExpand;
             }}
           >
@@ -224,14 +221,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
     if (!item.url || this.readonly) return;
     if (item.target === 'self') {
       const route = this.$router.resolve({
-        path: item.url
+        path: item.url,
       });
       if (route.resolved.name === this.$route.name) {
         location.href = route.href;
         location.reload();
       } else {
         this.$router.push({
-          path: item.url
+          path: item.url,
         });
       }
       return;
@@ -387,7 +384,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
               v-bk-tooltips={{
                 content: this.$t('主机当前状态'),
                 delay: 200,
-                boundary: 'window'
+                boundary: 'window',
               }}
             >
               <i class={`icon-monitor ${this.maintainStatusIcon}`}></i>
@@ -399,12 +396,12 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
             <div
               class={[
                 'status-item',
-                `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`
+                `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`,
               ]}
               v-bk-tooltips={{
                 content: this.$t('采集状态'),
                 delay: 200,
-                boundary: 'window'
+                boundary: 'window',
               }}
             >
               <span class={['common-status-wrap', 'status-wrap-flex']}>
@@ -413,7 +410,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                     'status-icon',
                     `status-${
                       (this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type || 'disabled'
-                    }`
+                    }`,
                   ]}
                 ></span>
                 <span class='common-status-name'>

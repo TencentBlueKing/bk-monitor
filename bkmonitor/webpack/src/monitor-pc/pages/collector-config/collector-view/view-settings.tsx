@@ -53,7 +53,7 @@ interface IViewSettingsEvent {
 }
 
 @Component({
-  name: 'ViewSettings'
+  name: 'ViewSettings',
 })
 export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent> {
   // 排序数据
@@ -108,8 +108,8 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
       id,
       index: to,
       config: {
-        name: curItem.name
-      }
+        name: curItem.name,
+      },
     };
     saveScenePanelConfig(params).finally(() => {
       this.$emit('updateSceneList');
@@ -152,13 +152,13 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
             });
           this.$bkMessage({
             message: this.$t('删除成功'),
-            theme: 'success'
+            theme: 'success',
           });
         } catch (e) {
           console.warn(e);
           return false;
         }
-      }
+      },
     });
   }
 

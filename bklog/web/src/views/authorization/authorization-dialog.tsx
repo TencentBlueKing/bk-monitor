@@ -23,7 +23,8 @@
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Message } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import $http from '../../api';
 
 import { deepClone } from '../../common/util';
@@ -109,13 +110,14 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
 
   disabledDate(val) {
     const startDate = new Date(); // 当天
-    const endDate = moment(startDate).add(1, 'year'); // 一年
+    const endDate = dayjs(startDate).add(1, 'year'); // 一年
+    dayjs.extend(isSameOrAfter);
     // 小于当天或者大于一年的禁用
-    return moment(val).isBefore(startDate, 'day') || moment(val).isSameOrAfter(endDate, 'day');
+    return dayjs(val).isBefore(startDate, 'day') || dayjs(val).isSameOrAfter(endDate, 'day');
   }
 
   handleDateChange(val) {
-    this.formData.expire_time = moment(val).format('YYYY-MM-DD 23:59:59');
+    this.formData.expire_time = dayjs(val).format('YYYY-MM-DD 23:59:59');
   }
 
   @Emit('change')

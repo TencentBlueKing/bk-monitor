@@ -128,13 +128,13 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
     return {
       compare: {
         type: this.compareType !== 'time' ? 'none' : this.compareType,
-        value: this.compareType === 'time' ? this.timeOffset : ''
+        value: this.compareType === 'time' ? this.timeOffset : '',
       },
       tools: {
         timeRange: this.timeRange,
         refleshInterval: this.refleshInterval,
-        searchValue: []
-      }
+        searchValue: [],
+      },
     };
   }
 
@@ -181,7 +181,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   handleFullScreen(config: PanelModel, compareValue?: typeof this.compareValue) {
     this.viewQueryConfig = {
       config: JSON.parse(JSON.stringify(config)),
-      compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue }))
+      compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue })),
     };
     this.showViewDetail = true;
   }
@@ -375,7 +375,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           <AiopsDimensionLint
             panel={this.panel}
             {...{
-              props: this.$attrs
+              props: this.$attrs,
             }}
             showHeaderMoreTool={this.showHeaderMoreTool}
             onFullScreen={this.handleFullScreen}
@@ -516,12 +516,20 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           'is-checked': this.isChecked,
           'is-collapsed': this.isCollapsed,
           'hover-style': this.needCheck && this.needHoverStryle,
-          'row-chart': this.panel.type === 'row'
+          'row-chart': this.panel.type === 'row',
         }}
         style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
         onMouseenter={() => (this.showHeaderMoreTool = true)}
         onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
+        {!!window.graph_watermark && (
+          <div
+            class='wm'
+            v-watermark={{
+              text: window.user_name || window.username,
+            }}
+          ></div>
+        )}
         {this.handlePanel2Chart()}
         {this.loading ? (
           <img
@@ -544,14 +552,6 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             on-close-modal={this.handleCloseViewDetail}
           />
         )}
-        {!!window.graph_watermark && (
-          <div
-            class='wm'
-            v-watermark={{
-              text: window.user_name || window.username
-            }}
-          ></div>
-        )}
         {!!this.errorMsg && (
           <span
             class='is-error'
@@ -559,7 +559,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
               content: this.errorMsg,
               extCls: 'chart-wrapper-error-tooltip',
               placement: 'top-start',
-              allowHTML: false
+              allowHTML: false,
             }}
           ></span>
         )}

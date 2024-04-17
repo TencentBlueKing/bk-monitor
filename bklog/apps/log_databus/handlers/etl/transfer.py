@@ -26,15 +26,14 @@ from apps.decorators import user_operation_record
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.tasks.flow import update_clustering_clean
-from apps.log_databus.constants import EtlConfig
 from apps.log_databus.exceptions import CollectorActiveException
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
-from apps.log_databus.models import CleanStash
 from apps.log_search.constants import CollectorScenarioEnum
+from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_username
 
 
@@ -58,10 +57,6 @@ class TransferEtlHandler(EtlHandler):
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
-
-        # 当清洗为直接入库时，直接清理对应采集项清洗配置stash
-        if etl_config == EtlConfig.BK_LOG_TEXT:
-            CleanStash.objects.filter(collector_config_id=self.collector_config_id).delete()
 
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
@@ -124,6 +119,9 @@ class TransferEtlHandler(EtlHandler):
 
         # 2. 创建索引集
         index_set = self._update_or_create_index_set(etl_config, storage_cluster_id, view_roles, username=username)
+
+        # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
+        LogIndexSet.objects.filter(index_set_id=index_set["index_set_id"]).update(fields_snapshot={})
 
         # add user_operation_record
         operation_record = {

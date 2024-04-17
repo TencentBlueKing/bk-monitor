@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { EChartOption } from 'echarts';
 import { typeTools } from 'monitor-common/utils/utils';
+import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { TimeSeriesType } from './time-series';
 // 图例呈现模式
@@ -73,7 +73,7 @@ export interface ITimeSeriesOption {
   time_series?: {
     type?: TimeSeriesType;
     only_one_result?: boolean;
-    echart_option?: EChartOption<EChartOption.Series>;
+    echart_option?: MonitorEchartOptions;
     markLine?: Record<string, any>;
     markArea?: Record<string, any>;
     custom_timerange?: boolean;
@@ -167,11 +167,11 @@ export interface IDataQuery {
   /** 根据当前请求接口数据的映射规则生成id */
   handleCreateItemId?: (item: object, isFilterDict?: boolean, fieldsSort?: FieldsSortType) => string;
   /** 根据接口数据提取对应的filter_dict值  */
-  // eslint-disable-next-line max-len
+
   handleCreateFilterDictValue?: (
     item: object,
     isFilterDict?: boolean,
-    fieldsSort?: FieldsSortType
+    fieldsSort?: FieldsSortType,
   ) => Record<string, any>;
 }
 
@@ -249,7 +249,7 @@ export class DataQuery implements IDataQuery {
       const key = isFilterDict ? filterDictKey : itemKey;
       let value = item[key];
       value === undefined && isExist && (isExist = false);
-      // eslint-disable-next-line no-nested-ternary
+
       value = this.isMultiple ? (Array.isArray(value) ? value : [value]) : value;
       itemIds.push(item[key]);
     });
@@ -263,7 +263,7 @@ export class DataQuery implements IDataQuery {
       const [itemKey, filterDictKey] = cur;
       let value = data[isFilterDict ? filterDictKey : itemKey];
       value === undefined && isExist && (isExist = false);
-      // eslint-disable-next-line no-nested-ternary
+
       value = this.isMultiple ? (Array.isArray(value) ? value : [value]) : value;
       total[filterDictKey] = value;
       return total;
@@ -276,7 +276,6 @@ export interface IRatioRingChartOption {
   hideLabel?: boolean; // 是否隐藏圆环中间label
 }
 
-// eslint-disable-next-line max-len
 // 视图特殊配置
 export type PanelOption = { legend?: ILegendOption } & ISelectorList &
   IDashboardCommon &
@@ -364,9 +363,9 @@ export class PanelModel implements IPanelModel {
       this.options = {
         legend: {
           displayMode: 'list',
-          placement: 'bottom'
+          placement: 'bottom',
         },
-        ...this.options
+        ...this.options,
       };
     }
     this.updateGridPos(model.gridPos);
@@ -394,7 +393,7 @@ export class PanelModel implements IPanelModel {
       i: this.id,
       static: !(this.canDrag && this.canResize),
       isDraggable: this.canDrag,
-      isResizable: this.canResize
+      isResizable: this.canResize,
     };
   }
   public updateChecked(v: boolean) {
@@ -469,7 +468,7 @@ export class VariableModel implements IVariableModel {
         ? total.push(
             ...Object.keys(value)
               .sort()
-              .map(key => value[key])
+              .map(key => value[key]),
           )
         : total.push(`${value}`);
       return total;

@@ -100,7 +100,6 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-
         # index_set_id覆盖信息
         index_set_id = attrs.get("index_set_id")
 
@@ -164,6 +163,10 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                         "not contains",
                         "contains match phrase",
                         "not contains match phrase",
+                        "all contains match phrase",
+                        "all not contains match phrase",
+                        "&=~",
+                        "&!=~",
                     ]:
                         # 逗号分隔是存在问题的
                         new_value = value.split(",")
@@ -359,6 +362,8 @@ class EsQueryMappingAttrSerializer(serializers.Serializer):
     start_time = serializers.CharField(required=False, default="", allow_blank=True, allow_null=True)
     end_time = serializers.CharField(required=False, default="", allow_blank=True, allow_null=True)
     time_zone = serializers.CharField(required=False, allow_blank=True, default=None, allow_null=True)
+    # 是否添加settings详细信息, 针对自定义analysis的场景
+    add_settings_details = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

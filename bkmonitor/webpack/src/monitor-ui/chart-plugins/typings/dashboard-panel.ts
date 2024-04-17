@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { EChartOption } from 'echarts';
 import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
+import type { MonitorEchartOptions } from './index';
 import { TimeSeriesType } from './time-series';
 
 // 图例呈现模式
@@ -80,7 +79,7 @@ export interface ITimeSeriesOption {
   time_series?: {
     type?: TimeSeriesType;
     only_one_result?: boolean;
-    echart_option?: EChartOption<EChartOption.Series>;
+    echart_option?: MonitorEchartOptions;
     markLine?: Record<string, any>;
     markArea?: Record<string, any>;
     custom_timerange?: boolean;
@@ -192,11 +191,11 @@ export interface IDataQuery {
   /** 根据当前请求接口数据的映射规则生成id */
   handleCreateItemId?: (item: object, isFilterDict?: boolean, fieldsSort?: FieldsSortType) => string;
   /** 根据接口数据提取对应的filter_dict值  */
-  // eslint-disable-next-line max-len
+
   handleCreateFilterDictValue?: (
     item: object,
     isFilterDict?: boolean,
-    fieldsSort?: FieldsSortType
+    fieldsSort?: FieldsSortType,
   ) => Record<string, any>;
 }
 
@@ -373,7 +372,6 @@ export interface IRelatedLogChartoption {
   };
 }
 
-// eslint-disable-next-line max-len
 // 视图特殊配置
 export type PanelOption = {
   legend?: ILegendOption;
@@ -495,9 +493,9 @@ export class PanelModel implements IPanelModel {
       this.options = {
         legend: {
           displayMode: 'list',
-          placement: 'bottom'
+          placement: 'bottom',
         },
-        ...this.options
+        ...this.options,
       };
     }
     this.updateGridPos(model.gridPos);
@@ -525,7 +523,7 @@ export class PanelModel implements IPanelModel {
       i: this.id,
       static: !(this.canDrag && this.canResize),
       isDraggable: this.canDrag,
-      isResizable: this.canResize
+      isResizable: this.canResize,
     };
   }
   public updateChecked(v: boolean) {
@@ -603,7 +601,7 @@ export class VariableModel implements IVariableModel {
         ? total.push(
             ...Object.keys(value)
               .sort()
-              .map(key => value[key])
+              .map(key => value[key]),
           )
         : total.push(`${value}`);
       return total;

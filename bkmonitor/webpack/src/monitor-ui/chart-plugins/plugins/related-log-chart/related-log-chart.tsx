@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,7 +28,6 @@ import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 import { toPng } from 'html-to-image';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -37,7 +35,7 @@ import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { PanelModel } from '../../typings';
+import { MonitorEchartOptions, PanelModel } from '../../typings';
 import { ITableDataItem } from '../../typings/table-chart';
 import { downFile } from '../../utils';
 import { VariablesService } from '../../utils/variable';
@@ -46,12 +44,12 @@ import BaseEchart from '../monitor-base-echart';
 
 import './related-log-chart.scss';
 
-const option: EChartOption = {
+const option: MonitorEchartOptions = {
   animation: false,
   color: ['#A3C5FD'],
   xAxis: {
     show: true,
-    type: 'time'
+    type: 'time',
   },
   yAxis: {
     type: 'value',
@@ -59,11 +57,11 @@ const option: EChartOption = {
       show: true,
       lineStyle: {
         color: '#F0F1F5',
-        type: 'solid'
-      }
-    }
+        type: 'solid',
+      },
+    },
   },
-  series: []
+  series: [],
 };
 
 interface IRelationLogChartProps {
@@ -92,8 +90,8 @@ class RelatedLogChart extends CommonSimpleChart {
   /** 关联索引集列表 */
   relatedIndexSetList = [];
   /** 柱状图配置 */
-  customOptions: EChartOption = deepmerge(MONITOR_BAR_OPTIONS, option, {
-    arrayMerge: (_, srcArr) => srcArr
+  customOptions: MonitorEchartOptions = deepmerge(MONITOR_BAR_OPTIONS, option, {
+    arrayMerge: (_, srcArr) => srcArr,
   });
   /** 汇聚周期 */
   chartInterval: number | 'auto' = 'auto';
@@ -103,7 +101,7 @@ class RelatedLogChart extends CommonSimpleChart {
     { id: '1m', name: '1m' },
     { id: '5m', name: '5m' },
     { id: '1h', name: '1h' },
-    { id: '1d', name: '1d' }
+    { id: '1d', name: '1d' },
   ];
   /** 表格数据 */
   tableData: ITableDataItem[] = [];
@@ -112,7 +110,7 @@ class RelatedLogChart extends CommonSimpleChart {
   pagination = {
     offset: 0,
     count: 100,
-    limit: 30
+    limit: 30,
   };
   /** 滚动加载记录时间间隔 */
   localTimeRange: number[] = [0, 0];
@@ -133,7 +131,7 @@ class RelatedLogChart extends CommonSimpleChart {
     const predicateLogTarget = this.panel.targets.find(item => item.dataType === 'log_predicate');
     if (predicateLogTarget) {
       const variablesService = new VariablesService({
-        ...this.viewOptions
+        ...this.viewOptions,
       });
       const params = variablesService.transformVariables(predicateLogTarget.data);
       (this as any).$api[predicateLogTarget.apiModule]
@@ -148,7 +146,7 @@ class RelatedLogChart extends CommonSimpleChart {
               const payload = variablesService.transformVariables(conditionTarget.data);
               (this as any).$api[conditionTarget.apiModule]
                 [conditionTarget.apiFunc](payload, {
-                  needMessage: false
+                  needMessage: false,
                 })
                 .then(res => {
                   if (res.length) {
@@ -201,50 +199,49 @@ class RelatedLogChart extends CommonSimpleChart {
         end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
         interval: this.chartInterval,
         index_set_id: this.relatedIndexSetId,
-        keyword: this.keyword
+        keyword: this.keyword,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
       this.panel.targets
         .filter(item => item.dataType === 'time_series')
-        .map(
-          item =>
-            (this as any).$api[item.apiModule]
-              ?.[item.apiFunc](
-                {
-                  ...variablesService.transformVariables(item.data),
-                  ...params,
-                  view_options: {
-                    ...this.viewOptions
-                  }
+        .map(item =>
+          (this as any).$api[item.apiModule]
+            ?.[item.apiFunc](
+              {
+                ...variablesService.transformVariables(item.data),
+                ...params,
+                view_options: {
+                  ...this.viewOptions,
                 },
-                { needMessage: false }
-              )
-              .then(res => {
-                if (res.series?.[0].datapoints?.length) {
-                  this.customOptions.series = [];
-                  const data = {
-                    series: [
-                      {
-                        data: res.series[0].datapoints,
-                        type: 'bar',
-                        colorBy: 'data',
-                        name: 'COUNT ',
-                        zlevel: 100
-                      }
-                    ]
-                  };
-                  const updateOption = deepmerge(option, data);
-                  this.customOptions = deepmerge(this.customOptions, updateOption);
-                  this.emptyChart = false;
-                } else {
-                  this.emptyChart = true;
-                }
-              })
-              .finally(() => {
-                this.handleLoadingChange(false);
-              })
+              },
+              { needMessage: false },
+            )
+            .then(res => {
+              if (res.series?.[0].datapoints?.length) {
+                this.customOptions.series = [];
+                const data = {
+                  series: [
+                    {
+                      data: res.series[0].datapoints,
+                      type: 'bar',
+                      colorBy: 'data',
+                      name: 'COUNT ',
+                      zlevel: 100,
+                    },
+                  ],
+                };
+                const updateOption = deepmerge(option, data);
+                this.customOptions = deepmerge(this.customOptions, updateOption);
+                this.emptyChart = false;
+              } else {
+                this.emptyChart = true;
+              }
+            })
+            .finally(() => {
+              this.handleLoadingChange(false);
+            }),
         );
       this.clearErrorMsg();
     } catch (error) {
@@ -277,37 +274,36 @@ class RelatedLogChart extends CommonSimpleChart {
         keyword: this.keyword,
         limit: this.pagination.limit,
         offset: this.pagination.offset,
-        index_set_id: this.relatedIndexSetId
+        index_set_id: this.relatedIndexSetId,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
       await this.panel.targets
         .filter(item => item.dataType === 'table-chart')
-        .map(
-          item =>
-            (this as any).$api[item.apiModule]
-              ?.[item.apiFunc]({
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions
-                }
-              })
-              .then(data => {
-                if (this.isScrollLoadTableData) {
-                  this.tableData.push(...data.data);
-                } else {
-                  this.tableRenderKey = random(6);
-                  this.tableData.splice(0, this.tableData.length, ...data.data);
-                  this.columns = data.columns;
-                  this.pagination.count = data.total;
-                }
-                this.pagination.offset += data.data.length;
-              })
-              .finally(() => {
-                this.handleLoadingChange(false);
-              })
+        .map(item =>
+          (this as any).$api[item.apiModule]
+            ?.[item.apiFunc]({
+              ...variablesService.transformVariables(item.data),
+              ...params,
+              view_options: {
+                ...this.viewOptions,
+              },
+            })
+            .then(data => {
+              if (this.isScrollLoadTableData) {
+                this.tableData.push(...data.data);
+              } else {
+                this.tableRenderKey = random(6);
+                this.tableData.splice(0, this.tableData.length, ...data.data);
+                this.columns = data.columns;
+                this.pagination.count = data.total;
+              }
+              this.pagination.offset += data.data.length;
+            })
+            .finally(() => {
+              this.handleLoadingChange(false);
+            }),
         );
     } catch (e) {}
   }
@@ -386,7 +382,6 @@ class RelatedLogChart extends CommonSimpleChart {
   }
 
   get selectedOptionAlias() {
-    // eslint-disable-next-line eqeqeq
     const target = this.relatedIndexSetList.find(item => item.index_set_id == this.relatedIndexSetId);
     return target?.index_set_name ?? '';
   }
@@ -492,7 +487,7 @@ class RelatedLogChart extends CommonSimpleChart {
                       content: this.selectedOptionAlias,
                       theme: 'light',
                       placement: 'top-start',
-                      allowHTML: false
+                      allowHTML: false,
                     }}
                   >
                     {this.relatedIndexSetList.map(option => (

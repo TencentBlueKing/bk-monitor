@@ -48,7 +48,7 @@ const TickLabels = (props: ITickLabelsProps) => {
         data-test='tick'
       >
         {formatDuration(duration * portion)}
-      </div>
+      </div>,
     );
   }
 

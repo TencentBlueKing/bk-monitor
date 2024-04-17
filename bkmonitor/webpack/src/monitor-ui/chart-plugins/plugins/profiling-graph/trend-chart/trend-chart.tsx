@@ -40,10 +40,10 @@ const DEFAULT_PANEL_CONFIG = {
     x: 16,
     y: 16,
     w: 8,
-    h: 4
+    h: 4,
   },
   type: 'graph',
-  targets: []
+  targets: [],
 };
 
 interface ITrendChartProps {
@@ -75,13 +75,13 @@ export default class TrendChart extends tsc<ITrendChartProps> {
       targetApi = 'apm_profile.query';
       targetData = {
         ...this.queryParams,
-        diagram_types: ['tendency']
+        diagram_types: ['tendency'],
       };
     } else {
       type = 'bar';
       targetApi = 'apm_profile.queryProfileBarGraph';
       targetData = {
-        ...this.queryParams
+        ...this.queryParams,
       };
     }
 
@@ -94,9 +94,9 @@ export default class TrendChart extends tsc<ITrendChartProps> {
           api: targetApi,
           datasource: 'time_series',
           alias,
-          data: targetData
-        }
-      ]
+          data: targetData,
+        },
+      ],
     });
   }
 
@@ -125,7 +125,7 @@ export default class TrendChart extends tsc<ITrendChartProps> {
             ext-cls='trend-chart-collapse'
             name='trend'
             scopedSlots={{
-              content: () => <div class='trend-chart-wrap'>{this.collapse && this.panel && chartHtml}</div>
+              content: () => <div class='trend-chart-wrap'>{this.collapse && this.panel && chartHtml}</div>,
             }}
           >
             <div

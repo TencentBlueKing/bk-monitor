@@ -41,5 +41,5 @@ export default new Vuex.Store<IRootState>({
   modules: {
     // app: AppStore
   },
-  strict: process.env.NODE_ENV !== 'production'
+  strict: process.env.NODE_ENV !== 'production',
 });

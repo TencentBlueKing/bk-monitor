@@ -93,7 +93,7 @@ export interface IDutyItem {
 
 const operatorText = {
   bk_bak_operator: window.i18n.t('来自配置平台主机的备份维护人'),
-  operator: window.i18n.t('来自配置平台主机的主维护人')
+  operator: window.i18n.t('来自配置平台主机的主维护人'),
 };
 
 const daysZh = ['一', '二', '三', '四', '五', '六', '日'];
@@ -129,7 +129,7 @@ const newDateToDateStr = () => {
     timestamp: curDate.getTime(),
     value: `${year}-${month < 10 ? `0${month}` : month}-${date < 10 ? `0${date}` : date} ${
       hours < 10 ? `0${hours}` : hours
-    }:${minutes < 10 ? `0${minutes}` : minutes}`
+    }:${minutes < 10 ? `0${minutes}` : minutes}`,
   };
 };
 
@@ -143,7 +143,7 @@ const defaultDutyItem = (index: number, colorIndex: number, defalutUsers: IuserI
   handoffTime: {
     rotationType: 'daily',
     date: 1,
-    time: '00:00'
+    time: '00:00',
   },
   effectiveReadonly: false,
   effectiveTime: newDateToDateStr().value,
@@ -152,23 +152,23 @@ const defaultDutyItem = (index: number, colorIndex: number, defalutUsers: IuserI
   dutyTime: {
     workType: 'daily',
     workDays: [],
-    workTime: ['00:00', '23:59']
+    workTime: ['00:00', '23:59'],
   },
   dutyUsers: [
     {
       color: randomColor(colorIndex),
       key: random(8),
-      users: defalutUsers
-    }
+      users: defalutUsers,
+    },
   ],
   backups: [
     {
       users: [],
       beginTime: '2022-03-11 00:00:00',
       endTime: '2022-03-11 00:00:00',
-      excludeSettings: []
-    }
-  ]
+      excludeSettings: [],
+    },
+  ],
 });
 
 const weekDaysList = [
@@ -178,14 +178,14 @@ const weekDaysList = [
   { name: window.i18n.tc('星期四'), id: 4 },
   { name: window.i18n.tc('星期五'), id: 5 },
   { name: window.i18n.tc('星期六'), id: 6 },
-  { name: window.i18n.tc('星期日'), id: 7 }
+  { name: window.i18n.tc('星期日'), id: 7 },
 ];
 
 /* 轮值类型 */
 const DUTY_TYPE = [
   { id: 'daily', name: window.i18n.tc('每天') },
   { id: 'weekly', name: window.i18n.tc('每周') },
-  { id: 'monthly', name: window.i18n.tc('每月') }
+  { id: 'monthly', name: window.i18n.tc('每月') },
 ];
 /* 获取近七天的日期 */
 const getLastDays = (max: number, start = 0): { name: string; dateObj: Date; dayTimeStamp: number }[] => {
@@ -200,7 +200,7 @@ const getLastDays = (max: number, start = 0): { name: string; dateObj: Date; day
     dateArr.push({
       name: `${month}-${day}`,
       dateObj: targetDate,
-      dayTimeStamp: new Date(dateStr).getTime()
+      dayTimeStamp: new Date(dateStr).getTime(),
     });
   }
   return dateArr;
@@ -238,7 +238,7 @@ const getTargetDays = (start: string, cycle: number): { name: string; dateObj: D
     dateArr.push({
       name: `${month}-${day}`,
       dateObj,
-      dayTimeStamp: i
+      dayTimeStamp: i,
     });
   }
   return dateArr;
@@ -274,23 +274,23 @@ export const paramsTransform = (dutyArranges: IDutyItem[]) =>
     handoff_time: {
       rotation_type: item.handoffTime.rotationType,
       date: item.handoffTime.date,
-      time: item.handoffTime.time
+      time: item.handoffTime.time,
     },
     duty_time: [
       {
         work_type: item.dutyTime.workType,
         work_days: item.dutyTime.workDays,
-        work_time: item.dutyTime.workTime.join('--')
-      }
+        work_time: item.dutyTime.workTime.join('--'),
+      },
     ],
     backups: [],
     duty_users: item.dutyUsers.map(u =>
       u.users.map(user => ({
         display_name: user.name,
         type: user.type,
-        id: user.id
-      }))
-    )
+        id: user.id,
+      })),
+    ),
   }));
 /* 后台数组转为组件数据 */
 export const dutyDataTransform = (data: any[]): IDutyItem[] => {
@@ -317,13 +317,13 @@ export const dutyDataTransform = (data: any[]): IDutyItem[] => {
       subTitle: getSubtitleStr({
         workDays: item.duty_time[0].work_days,
         workType: item.duty_time[0].work_type,
-        workTime: item.duty_time[0].work_time.split('--')
+        workTime: item.duty_time[0].work_time.split('--'),
       } as any),
       needRotation: item.need_rotation,
       handoffTime: {
         rotationType: item.handoff_time.rotation_type,
         date: item.handoff_time.date,
-        time: item.handoff_time.time
+        time: item.handoff_time.time,
       },
       effectiveReadonly: effectiveTimeNum < new Date().getTime(),
       effectiveTime,
@@ -332,7 +332,7 @@ export const dutyDataTransform = (data: any[]): IDutyItem[] => {
       dutyTime: {
         workType: item.duty_time[0].work_type,
         workDays: item.duty_time[0].work_days,
-        workTime: item.duty_time[0].work_time.split('--')
+        workTime: item.duty_time[0].work_time.split('--'),
       },
       dutyUsers: item.duty_users.map((group, groupIndex) => ({
         color: (() => {
@@ -349,10 +349,10 @@ export const dutyDataTransform = (data: any[]): IDutyItem[] => {
         users: group.map(g => ({
           id: g.id,
           name: g.display_name,
-          type: g.type
-        }))
+          type: g.type,
+        })),
       })),
-      backups: []
+      backups: [],
     } as any;
   });
 };
@@ -387,7 +387,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
     dateStrArr: [],
     groups: [],
     max: 1440,
-    crossDayGroups: []
+    crossDayGroups: [],
   };
   previewKey = random(8);
 
@@ -521,7 +521,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
   handleUserListChange(v: IUserListItem[], index: number) {
     this.dutyArranges[index].dutyUsers = v.map(item => ({
       ...item,
-      users: item.userList
+      users: item.userList,
     }));
     this.resetEffective(index);
     this.setPreviewData();
@@ -661,7 +661,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       if (item?.id) {
         dutyPlansObj[item.id] = {
           targetEffectiveTime: item.effectiveTime,
-          data: []
+          data: [],
         };
       }
       item.dutyUsers.forEach(users => {
@@ -670,7 +670,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
             if (!userPreviewList.map(u => u.id).includes(user.id)) {
               userPreviewList.push({
                 id: user.id,
-                name: user.name
+                name: user.name,
               });
             }
           }
@@ -696,7 +696,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
         return n < 10 ? `0${n}` : n;
       };
       return `${`${hours(range[0])}:${minutes(range[0])}`}-${`${hours(range[1] ? range[1] - 1 : 0)}:${minutes(
-        range[1] ? range[1] - 1 : 0
+        range[1] ? range[1] - 1 : 0,
       )}`}`;
     };
     const computeTimePoint = (time: string[]) => {
@@ -708,7 +708,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
         dateObj,
         dateStr: `${Number(date.slice(5, 7))}-${Number(date.slice(8, 10))}`,
         yearNum: dateObj.getTime(), // 时间戳
-        minutesPoint
+        minutesPoint,
       };
     };
 
@@ -724,7 +724,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       /* 当前轮值组的生效时间 */
       const effective = [
         dutyPlansObj[item.duty_arrange_id].targetEffectiveTime.slice(0, 10),
-        dutyPlansObj[item.duty_arrange_id].targetEffectiveTime.slice(11, 16)
+        dutyPlansObj[item.duty_arrange_id].targetEffectiveTime.slice(11, 16),
       ];
       /* 开始时间, 结束时间 */
       const start = [item.begin_time.slice(0, 10), item.begin_time.slice(11, 16)];
@@ -779,7 +779,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
             dateObj,
             dayTimeStamp: i,
             startMintes: i === relStartObj.yearNum ? relStartObj.minutesPoint : null,
-            endMinutes: i === relEndObj.yearNum ? relEndObj.minutesPoint : null
+            endMinutes: i === relEndObj.yearNum ? relEndObj.minutesPoint : null,
           });
         }
         const dutyTime = item.duty_time[0];
@@ -798,7 +798,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
             allDutyPlansRanges[item.duty_arrange_id][dateStr] = {
               users: item.users,
               ranges,
-              year
+              year,
             };
           } else {
             allDutyPlansRanges[item.duty_arrange_id][dateStr].ranges.push(...ranges);
@@ -815,7 +815,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                 } else if (dateItem.startMintes > oneRange[0] && dateItem.startMintes <= oneRange[1]) {
                   setAllDutyRanges(dateItem.dayTimeStamp, dateItem.name, [
                     [dateItem.startMintes, oneRange[1]],
-                    twoRange
+                    twoRange,
                   ]);
                 } else if (dateItem.startMintes > oneRange[1] && dateItem.startMintes <= twoRange[0]) {
                   setAllDutyRanges(dateItem.dayTimeStamp, dateItem.name, [twoRange]);
@@ -826,7 +826,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                 if (dateItem.endMinutes > twoRange[0]) {
                   setAllDutyRanges(dateItem.dayTimeStamp, dateItem.name, [
                     oneRange,
-                    [twoRange[0], dateItem.endMinutes]
+                    [twoRange[0], dateItem.endMinutes],
                   ]);
                 } else if (dateItem.endMinutes <= twoRange[0] && dateItem.endMinutes >= oneRange[1]) {
                   setAllDutyRanges(dateItem.dayTimeStamp, dateItem.name, [oneRange]);
@@ -889,7 +889,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
     this.previewData.dateStrArr = lastDays.map(item => item.name);
     /* 生效时间转换 */
     const timeToPointObj = (
-      effectiveTime: string
+      effectiveTime: string,
     ): {
       timeStamp: number;
       num: number;
@@ -898,7 +898,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       const timeStamp = new Date(temp[0]).getTime();
       return {
         timeStamp,
-        num: timeToNum(temp[1] as string)
+        num: timeToNum(temp[1] as string),
       };
     };
     const computeRange = (startNum, range: number[]) => {
@@ -925,7 +925,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       effectiveTime: string, // 示例 2022-03-11 00:00 生效时间
       timeRange: string[], // 示例 ['00:00', '23:59'] 工作时间段
       dutyType: TWorkType, // 工作周期类型
-      days: number[] // 工作日期
+      days: number[], // 工作日期
     ): {
       dateStr: string;
       ranges: number[][];
@@ -977,7 +977,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                 }
                 return [oneRange];
               })()
-            : []
+            : [],
         }));
       }
       if (dutyType === 'weekly') {
@@ -993,7 +993,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                     ? [curComputeRange]
                     : []
                   : [[startNum, endNum + 1]]
-                : []
+                : [],
           };
         });
       }
@@ -1010,7 +1010,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                     ? [curComputeRange]
                     : []
                   : [[startNum, endNum + 1]]
-                : []
+                : [],
           };
         });
       }
@@ -1025,7 +1025,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       days: number[], // 工作日期
       rotationType: TWorkType, // 交接轮值类型,
       handoffTimeStr: string, // 交接时间,
-      handoffTimeDate: number // 交接日期
+      handoffTimeDate: number, // 交接日期
     ): {
       dateStr: string;
       range: number[];
@@ -1085,19 +1085,19 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                   }
                   return [oneRange];
                 })()
-              : []
+              : [],
           });
         } else if (dutyType === 'weekly') {
           const day = item.dateObj.getDay();
           allCycleDatesRange.push({
             dateStr: item.name,
-            ranges: days.includes(day === 0 ? 7 : day) && isHasCurDay(item) ? [[startNum, endNum + 1]] : []
+            ranges: days.includes(day === 0 ? 7 : day) && isHasCurDay(item) ? [[startNum, endNum + 1]] : [],
           });
         } else if (dutyType === 'monthly') {
           const date = item.dateObj.getDate();
           allCycleDatesRange.push({
             dateStr: item.name,
-            ranges: days.includes(date) && isHasCurDay(item) ? [[startNum, endNum + 1]] : []
+            ranges: days.includes(date) && isHasCurDay(item) ? [[startNum, endNum + 1]] : [],
           });
         }
       });
@@ -1199,8 +1199,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
             allCycleRanges[allCycleRanges.length - 1].push(
               ...oneRanges.map(range => ({
                 dateStr: item.dateStr,
-                range
-              }))
+                range,
+              })),
             );
           }
           if (twoRanges.length) {
@@ -1208,15 +1208,15 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
             allCycleRanges[allCycleRanges.length - 1].push(
               ...twoRanges.map(range => ({
                 dateStr: item.dateStr,
-                range
-              }))
+                range,
+              })),
             );
           }
         } else {
           if (!allCycleRanges?.[allCycleRanges.length - 1]) {
             allCycleRanges.push([]);
           }
-          // eslint-disable-next-line max-len
+
           allCycleRanges[allCycleRanges.length - 1]?.push(
             ...item.ranges
               .filter(range => !(effectiveDate === item.dateStr && effectiveTimeNum >= range[1]))
@@ -1230,8 +1230,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                     return range;
                   }
                   return range;
-                })()
-              }))
+                })(),
+              })),
           );
         }
       });
@@ -1253,7 +1253,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
           dutyTime.workDays,
           handoffTime.rotationType,
           handoffTime.time,
-          handoffTime.date
+          handoffTime.date,
         );
       } else {
         curDateTimeRange = dateTimeRange(effectiveTime, dutyTime.workTime, dutyTime.workType, dutyTime.workDays);
@@ -1271,13 +1271,13 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
               users: curDutyPlans.users.map(u => ({
                 id: u.id,
                 name: u.display_name,
-                type: u.type
+                type: u.type,
               })),
               color: '#ff9c00',
               range,
               time: `${date.dateObj.getFullYear()}-${
                 date.dateObj.getMonth() + 1
-              }-${date.dateObj.getDate()} ${rangeToTime(range)}`
+              }-${date.dateObj.getDate()} ${rangeToTime(range)}`,
             }));
           }
           if (needRotation) {
@@ -1289,7 +1289,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                   arr.push({
                     /* index为交接周期 */
                     cycle: index,
-                    range: d.range
+                    range: d.range,
                   });
                 }
               });
@@ -1311,12 +1311,12 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                 range: item.range,
                 time: `${date.dateObj.getFullYear()}-${
                   date.dateObj.getMonth() + 1
-                }-${date.dateObj.getDate()} ${rangeToTime(item.range)}`
+                }-${date.dateObj.getDate()} ${rangeToTime(item.range)}`,
               };
             });
             return {
               dateStr: date,
-              userGroups: [userGroups.concat(plans)]
+              userGroups: [userGroups.concat(plans)],
             };
           }
           /* 不交接 */
@@ -1328,13 +1328,13 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
               range: r,
               time: `${date.dateObj.getFullYear()}-${
                 date.dateObj.getMonth() + 1
-              }-${date.dateObj.getDate()} ${rangeToTime(r)}`
+              }-${date.dateObj.getDate()} ${rangeToTime(r)}`,
             }));
           return {
             dateStr: date,
-            userGroups: [userGroups.concat(plans)]
+            userGroups: [userGroups.concat(plans)],
           };
-        })
+        }),
       };
     });
     const allDateItemGroup: {
@@ -1389,7 +1389,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       }
       allDateItemGroup.push({
         dateStr: date,
-        ranges: gapPeriod
+        ranges: gapPeriod,
       });
     });
     const leisure = allDateItemGroup.map(item => ({
@@ -1401,10 +1401,10 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
         const dateStr = `${year}-${month < 10 ? `0${month}` : month}-${day < 10 ? `0${day}` : day}`;
         return {
           range: r,
-          time: `${dateStr} ${rangeToTime(r)}`
+          time: `${dateStr} ${rangeToTime(r)}`,
         };
       }),
-      dateStr: item.dateStr.name
+      dateStr: item.dateStr.name,
     }));
     /* 需要将跨天组连在一起显示(判断条件：连续两天的相邻组的颜色相同 */
     const crossDayGroups = [];
@@ -1430,14 +1430,14 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
             crossGroups.push({
               time,
               range: [start, end],
-              userGroup: curTargetUserGroup
+              userGroup: curTargetUserGroup,
             });
           }
         }
         tempPreDateGroup = curDayUserGroups;
       });
       crossDayGroups.push({
-        groups: crossGroups
+        groups: crossGroups,
       });
     });
     this.previewData.crossDayGroups = crossDayGroups;
@@ -1632,7 +1632,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                                   on-open-change={v => this.handleHandOffTimeOpenChange(v, index)}
                                 ></bk-time-picker>
                               </div>
-                            </div>
+                            </div>,
                           ]
                         ) : (
                           /* 不交接 */
@@ -1807,7 +1807,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                   key={`${index}${this.errKey}`}
                 >
                   {this.errMsgList[index]}
-                </div>
+                </div>,
               ])}
             </transition-group>
           </div>
@@ -1862,7 +1862,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                       )
                     ) : undefined}
                   </div>
-                )
+                ),
             )}
           </div>
         )}

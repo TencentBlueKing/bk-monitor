@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
+
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
 // import { listEventLog } from 'monitor-api/modules/alert_events'

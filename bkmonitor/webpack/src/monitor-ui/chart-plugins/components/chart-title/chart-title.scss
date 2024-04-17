@@ -165,6 +165,8 @@ $alarmColor: #dcdee5 #63656e #ea3636;
     }
 
     .sub-title {
+      position: relative;
+      z-index: 1;
       height: 18px;
       overflow: hidden;
       line-height: 18px;

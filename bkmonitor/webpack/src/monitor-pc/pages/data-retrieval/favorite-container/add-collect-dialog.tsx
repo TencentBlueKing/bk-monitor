@@ -71,16 +71,16 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     // 用户可编辑的基础数据
     name: '',
     group_id: '',
-    create_user: ''
+    create_user: '',
   };
   favoriteData: ISubmitData = {
     // 收藏数据
     name: '',
     group_id: '',
-    create_user: ''
+    create_user: '',
   };
   verifyData = {
-    groupName: ''
+    groupName: '',
   };
   positionTop = 0;
   allGroupList = [];
@@ -93,29 +93,29 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     name: [
       {
         required: true,
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkSpecification,
         message: window.i18n.t('收藏名包含了特殊符号'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkRepeatName,
         message: window.i18n.t('注意: 名字冲突'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkCannotUseName,
         message: window.i18n.t('保留名称，不可使用'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.i18n.t('注意：最大值为30个字符'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   public groupNameRules = {
@@ -123,24 +123,24 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
       {
         validator: this.checkName,
         message: window.i18n.t('组名不规范, 包含了特殊符号.'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkExistName,
         message: window.i18n.t('注意: 名字冲突'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.i18n.t('注意：最大值为30个字符'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   get isEditFavorite() {
@@ -181,7 +181,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
       .filter(pItem => pItem.code)
       .map(item => ({
         label: `${window.i18n.t('查询项')}${item.alias}:`,
-        value: item.code
+        value: item.code,
       }));
   }
 
@@ -202,14 +202,14 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     return {
       value: this.favoriteData,
       isEdit: this.isEditFavorite,
-      hideCallback: () => this.handleShowChange(false)
+      hideCallback: () => this.handleShowChange(false),
     };
   }
 
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupName.trim()
+      this.verifyData.groupName.trim(),
     );
   }
 
@@ -243,7 +243,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
       createFavoriteGroup({
         bk_biz_id: this.bizId,
         type: this.favoriteSearchType,
-        name: this.verifyData.groupName
+        name: this.verifyData.groupName,
       })
         .then(() => {
           this.getFavoriteGroupList(true, this.verifyData.groupName.trim());
@@ -305,7 +305,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
   /** 检查收藏语法是否正确 */
   checkSpecification() {
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.favoriteData.name.trim()
+      this.favoriteData.name.trim(),
     );
   }
   /** 检查是否有内置名称不能使用 */
@@ -364,8 +364,8 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
           {...{
             props: {
               model: this.favoriteData,
-              rules: this.rules
-            }
+              rules: this.rules,
+            },
           }}
         >
           <div class='edit-information'>
@@ -446,8 +446,8 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                       {...{
                         props: {
                           model: this.verifyData,
-                          rules: this.groupNameRules
-                        }
+                          rules: this.groupNameRules,
+                        },
                       }}
                     >
                       <bk-form-item property='groupName'>

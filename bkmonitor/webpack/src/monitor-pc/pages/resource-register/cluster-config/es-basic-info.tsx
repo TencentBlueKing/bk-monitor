@@ -33,7 +33,7 @@ const systems = [
   { id: 'tencentcloud', name: '腾讯云' },
   { id: 'bk_log_search', name: 'bk_log_search' },
   { id: '_default', name: '_default' },
-  { id: 'log-search-4', name: 'log-search-4' }
+  { id: 'log-search-4', name: 'log-search-4' },
 ];
 
 interface IProps {
@@ -50,14 +50,14 @@ export default class EsBasicInfo extends tsc<IProps> {
     port: '', // 端口
     schema: '', // 协议
     username: '', // 用户名
-    password: '' // 密码
+    password: '', // 密码
   };
   formErrMsg = {
     registered_system: '',
     address: '',
     port: '',
     username: '',
-    password: ''
+    password: '',
   };
 
   created() {

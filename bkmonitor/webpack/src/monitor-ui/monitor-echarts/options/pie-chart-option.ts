@@ -37,12 +37,12 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
       deepMerge(
         pieOptions,
         {
-          color: this.colors
+          color: this.colors,
         },
-        { arrayMerge: this.overwriteMerge }
+        { arrayMerge: this.overwriteMerge },
       ),
       this.chartOption,
-      { arrayMerge: this.overwriteMerge }
+      { arrayMerge: this.overwriteMerge },
     );
   }
   public getOptions(data: any, otherOptions = {}) {
@@ -61,7 +61,7 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
                 avg: 0,
                 total: 0,
                 color: this.colors[index % this.colors.length],
-                show: true
+                show: true,
               };
               if (seriesItem?.name) {
                 const curValue = +seriesItem.value;
@@ -79,23 +79,23 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
               avoidLabelOverlap: false,
               label: {
                 show: false,
-                position: 'center'
+                position: 'center',
               },
               labelLine: {
-                show: false
+                show: false,
               },
               type: this.chartType,
-              ...item
+              ...item,
             };
             return seriesItem;
           })
-        : []
+        : [],
     };
     return {
       options: deepMerge(deepMerge(this.defaultOption, otherOptions, { arrayMerge: this.overwriteMerge }), options, {
-        arrayMerge: this.overwriteMerge
+        arrayMerge: this.overwriteMerge,
       }),
-      legendData
+      legendData,
     };
   }
 }

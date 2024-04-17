@@ -46,20 +46,20 @@ interface RingRatioEvents {
 const typeModelMap = {
   [DetectionRuleTypeEnum.SimpleRingRatio]: {
     floor: '',
-    ceil: ''
+    ceil: '',
   },
   [DetectionRuleTypeEnum.AdvancedRingRatio]: {
     floor: '',
     floor_interval: '',
     ceil: '',
     ceil_interval: '',
-    fetch_type: 'avg'
+    fetch_type: 'avg',
   },
   [DetectionRuleTypeEnum.RingRatioAmplitude]: {
     ratio: 0,
     shock: 0,
-    threshold: 0
-  }
+    threshold: 0,
+  },
 };
 
 @Component({})
@@ -78,8 +78,8 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
     level: 1,
     config: {
       floor: '',
-      ceil: ''
-    }
+      ceil: '',
+    },
   };
   errorMsg = '';
 
@@ -90,19 +90,19 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
       {
         validator: this.checkConfig,
         message: this.showMsg,
-        trigger: 'change'
-      }
-    ]
+        trigger: 'change',
+      },
+    ],
   };
 
   simpleTemplate = [
     { value: 'ceil', text: this.$t('升') },
-    { value: 'floor', text: this.$t('降') }
+    { value: 'floor', text: this.$t('降') },
   ];
 
   advancedTemplate = [
     { value1: 'ceil_interval', value2: 'ceil', value3: 'fetch_type', text: window.i18n.t('升') },
-    { value1: 'floor_interval', value2: 'floor', value3: 'fetch_type', text: window.i18n.t('降') }
+    { value1: 'floor_interval', value2: 'floor', value3: 'fetch_type', text: window.i18n.t('降') },
   ];
 
   /** 已选择的算法类型和告警级别映射表 */
@@ -110,7 +110,7 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
     const map = {
       [DetectionRuleTypeEnum.SimpleRingRatio]: [],
       [DetectionRuleTypeEnum.AdvancedRingRatio]: [],
-      [DetectionRuleTypeEnum.RingRatioAmplitude]: []
+      [DetectionRuleTypeEnum.RingRatioAmplitude]: [],
     };
     this.otherSelectRuleData.forEach(item => {
       if (map[item.type]) map[item.type].push(item.level);
@@ -123,7 +123,7 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
     const list = [
       { id: 1, name: window.i18n.t('致命'), disabled: false, icon: 'icon-danger' },
       { id: 2, name: window.i18n.t('预警'), disabled: false, icon: 'icon-mind-fill' },
-      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' }
+      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' },
     ];
     list.forEach(item => {
       item.disabled = this.selectTypeOrLevelMap[this.localData.type]?.includes(item.id);
@@ -136,7 +136,7 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
     const list = [
       { id: DetectionRuleTypeEnum.SimpleRingRatio, name: window.i18n.t('简易'), disabled: false },
       { id: DetectionRuleTypeEnum.AdvancedRingRatio, name: window.i18n.t('高级'), disabled: false },
-      { id: DetectionRuleTypeEnum.RingRatioAmplitude, name: window.i18n.t('振幅'), disabled: false }
+      { id: DetectionRuleTypeEnum.RingRatioAmplitude, name: window.i18n.t('振幅'), disabled: false },
     ];
     list.forEach(item => {
       item.disabled = this.selectTypeOrLevelMap[item.id]?.includes(this.localData.level);
@@ -293,7 +293,7 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
                     disabled: !level.disabled,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>
@@ -318,10 +318,10 @@ export default class RingRatio extends tsc<RingRatioProps, RingRatioEvents> {
                   disabled={type.disabled}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', {
-                      name: this.levelList[this.localData.level - 1].name
+                      name: this.levelList[this.localData.level - 1].name,
                     }),
                     disabled: !type.disabled,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   {type.name}

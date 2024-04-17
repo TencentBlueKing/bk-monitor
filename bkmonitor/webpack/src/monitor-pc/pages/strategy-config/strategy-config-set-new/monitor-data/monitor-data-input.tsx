@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
+
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
@@ -72,7 +72,7 @@ interface IMetricDataInputEvent {
 }
 
 @Component({
-  name: 'monitor-data-input'
+  name: 'monitor-data-input',
 })
 class MericDataInput extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
@@ -111,7 +111,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
 
   get isLogSearchType() {
     return this.metricData?.every(
-      item => item.metricMetaId === 'bk_log_search|log' && item.metric_type === MetricType.LOG
+      item => item.metricMetaId === 'bk_log_search|log' && item.metric_type === MetricType.LOG,
     );
   }
 
@@ -162,11 +162,11 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
     if (['event', 'log', 'alert'].includes(type))
       return {
         type,
-        ...metricItem
+        ...metricItem,
       };
     return {
       type: MetricType.TimeSeries,
-      ...metricItem
+      ...metricItem,
     };
   }
 
@@ -236,10 +236,10 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
       conditions: [
         {
           key: 'related_id',
-          value: metric.index_set_id
-        }
+          value: metric.index_set_id,
+        },
       ],
-      data_source: [['bk_log_search', 'time_series']]
+      data_source: [['bk_log_search', 'time_series']],
     }).catch(() => []);
     metric.setLogMetricList(data?.metric_list || []);
   }
@@ -253,7 +253,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   handleGetDimensionList(item: MetricDetail) {
     const longDimension = this.metricData.reduce(
       (pre, cur) => (cur.agg_dimension?.length > pre?.length ? cur.agg_dimension : pre),
-      []
+      [],
     );
     // 监控指标 多指标下不能对cmdb节点进行聚合
     if (item.agg_dimension.length === longDimension.length || longDimension.length === 0) {
@@ -261,7 +261,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
         .filter(dim =>
           this.metricData.length > 1 && item.metricMetaId === 'bk_monitor|time_series'
             ? !['bk_inst_id', 'bk_obj_id'].includes(dim.id.toString())
-            : true
+            : true,
         )
         .map(item => ({ ...item, disabled: false }));
     }
@@ -269,7 +269,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
       .filter(dim =>
         this.metricData.length > 1 && item.metricMetaId === 'bk_monitor|time_series'
           ? !['bk_inst_id', 'bk_obj_id'].includes(dim.id.toString())
-          : true
+          : true,
       )
       .map(item => ({ ...item, disabled: !longDimension.includes(item.id) }));
   }
@@ -278,7 +278,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
     return item.rawDimensions.filter(dim =>
       this.metricData.length > 1 && item.metricMetaId === 'bk_monitor|time_series'
         ? !['bk_inst_id', 'bk_obj_id'].includes(dim.id.toString())
-        : true
+        : true,
     );
   }
 
@@ -290,7 +290,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
       placement: 'right',
       zIndex: 9999,
       boundary: document.body,
-      appendTo: document.body
+      appendTo: document.body,
     });
     this.dimensionPopInstance.show?.();
   }
@@ -331,7 +331,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             zIndex: 9999,
             offset: '0, 6',
             boundary: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {node.name}
@@ -352,7 +352,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
         placement: 'right',
         theme: 'monitor-metric-input',
         arrow: true,
-        flip: false
+        flip: false,
       });
       this.metricpopoerInstance?.show?.(100);
     }
@@ -381,8 +381,8 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             <div
               class='metric-content-item mb10'
               key={`${item.id}-${index}`}
-              on-mouseenter={() => (this.hoverDeleteItemIndex = index)}
-              on-mouseleave={() => (this.hoverDeleteItemIndex = -1)}
+              // on-mouseenter={() => (this.hoverDeleteItemIndex = index)}
+              // on-mouseleave={() => (this.hoverDeleteItemIndex = -1)}
             >
               {!this.isRealTimeModel && <span class='item-key'>{item.alias}</span>}
               <div
@@ -513,7 +513,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       content-width={getPopoverWidth(
                         nullMetricGroupByList || this.handleGetDimensionList(item),
                         20,
-                        190
+                        190,
                       )}
                       placeholder={String(this.$t('选择'))}
                       trigger='focus'
@@ -527,7 +527,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                   </div>
                 )}
                 {/* =======条件====== */}
-                {/* eslint-disable-next-line no-param-reassign */}
+                {}
                 {/* {!item.isNullMetric && <ConditionInput
                   conditionList={item.agg_condition}
                   dimensionsList={nullMetricWhere || this.handleGetConditionDimensionList(item)}
@@ -548,7 +548,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       dataTypeLabel: item.data_type_label,
                       metricField: item.metric_field,
                       resultTableId: item.result_table_id,
-                      indexSetId: item.index_set_id
+                      indexSetId: item.index_set_id,
                     }}
                     hasLeftLabel={true}
                     isHasNullOption={true}
@@ -567,8 +567,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
               <div class='item-delete'>
                 <div
                   class='item-delete-btn'
-                  // eslint-disable-next-line quotes
-                  style={{ display: this.hoverDeleteItemIndex === index ? 'flex' : 'none' }}
+                  // style={{ display: this.hoverDeleteItemIndex === index ? 'flex' : 'none' }}
                   on-click={() => this.handleDeleteMetric(item, index)}
                 >
                   <i class='icon-monitor icon-mc-delete-line'></i>
@@ -607,14 +606,14 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       ref='addMetricBtn'
                       v-bk-tooltips={{
                         content: this.$t('AIOps算法只支持单指标'),
-                        disabled: !this.hasAiOpsDetect || this.readonly
+                        disabled: !this.hasAiOpsDetect || this.readonly,
                       }}
                       on-click={this.handleAddMetricProxy}
                     >
                       <i class='bk-icon icon-plus'></i>
                       <span class='name'>{`${this.$t('添加')}${this.metricNameLabel}`}</span>
                     </button>
-                  )
+                  ),
                 ]
               : !this.readonly &&
                 this.canAddMetric && (
@@ -629,7 +628,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       <span
                         v-bk-tooltips={{
                           content: this.$t('AIOps算法只支持单指标'),
-                          disabled: !this.hasAiOpsDetect || this.readonly
+                          disabled: !this.hasAiOpsDetect || this.readonly,
                         }}
                       >
                         {this.$t('多指标计算')}
@@ -639,7 +638,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       class='expression-add-btn'
                       v-bk-tooltips={{
                         content: this.$t('AIOps算法只支持单指标'),
-                        disabled: !this.hasAiOpsDetect || this.readonly
+                        disabled: !this.hasAiOpsDetect || this.readonly,
                       }}
                       onClick={this.handleAddExpression}
                     >

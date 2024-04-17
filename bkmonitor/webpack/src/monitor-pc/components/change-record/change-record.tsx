@@ -45,7 +45,7 @@ export interface ILabelRecordMap {
   updateTime?: string | TranslateResult;
 }
 @Component({
-  name: 'ChangeRecord'
+  name: 'ChangeRecord',
 })
 export default class MyComponent extends tsc<IChangeRecordProps, { onUpdateShow: boolean }> {
   value = false;
@@ -60,7 +60,7 @@ export default class MyComponent extends tsc<IChangeRecordProps, { onUpdateShow:
   show: boolean;
 
   @Watch('show', {
-    immediate: true
+    immediate: true,
   })
   onShowChange(v) {
     this.value = v;
@@ -71,7 +71,7 @@ export default class MyComponent extends tsc<IChangeRecordProps, { onUpdateShow:
       createUser: this.$t('创建人:'),
       createTime: this.$t('创建时间'),
       updateUser: this.$t('最近更新人'),
-      updateTime: this.$t('修改时间:')
+      updateTime: this.$t('修改时间:'),
     };
   }
 

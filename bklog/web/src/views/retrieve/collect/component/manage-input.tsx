@@ -35,6 +35,12 @@ export default class ManageInput extends tsc<IProps> {
   @Ref() inputRef: any;
 
   inputStr = '';
+  isClick = false;
+
+  /** 是否展示失效 */
+  isFailFavorite(item) {
+    return item.index_set_type === 'single' ? !item.is_active : !item.is_actives.every(Boolean);
+  }
 
   @Watch('favoriteData.name', { immediate: true })
   handleWatchFavoriteName(str) {
@@ -45,7 +51,12 @@ export default class ManageInput extends tsc<IProps> {
   handleChangeFavoriteName() {
     return this.inputStr;
   }
-  isClick = false;
+
+  /** 是否是多索引集 */
+  isMultiIndex(item) {
+    return item.index_set_type === 'union';
+  }
+
   handleClickInput() {
     this.isClick = true;
     this.$nextTick(() => {

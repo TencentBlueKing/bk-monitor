@@ -28,7 +28,6 @@ import { ofType } from 'vue-tsx-support';
 import Big from 'big.js';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 import bus from 'monitor-common/utils/event-bus';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -36,7 +35,14 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import RatioLegend from '../../components/chart-legend/ratio-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_PIE_OPTIONS } from '../../constants';
-import { IExtendMetricData, ILegendItem, IMenuItem, LegendActionType, PanelModel } from '../../typings';
+import {
+  IExtendMetricData,
+  ILegendItem,
+  IMenuItem,
+  LegendActionType,
+  MonitorEchartOptions,
+  PanelModel,
+} from '../../typings';
 import { VariablesService } from '../../utils/variable';
 import CommonSimpleChart from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
@@ -61,7 +67,7 @@ class RatioRingChart extends CommonSimpleChart {
   metrics: IExtendMetricData[];
   emptyText = window.i18n.tc('查无数据');
   empty = true;
-  chartOption: EChartOption;
+  chartOption: MonitorEchartOptions;
   panelTitle = '';
   defaultColors = Object.freeze([
     '#699DF4',
@@ -73,7 +79,7 @@ class RatioRingChart extends CommonSimpleChart {
     '#FF5422',
     '#8C00A9',
     '#A91947',
-    '#FB962E'
+    '#FB962E',
   ]);
 
   // 是否在分屏展示
@@ -113,35 +119,34 @@ class RatioRingChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
-      const promiseList = this.panel.targets.map(
-        item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc](
-              {
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions
-                }
+      const promiseList = this.panel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc](
+            {
+              ...variablesService.transformVariables(item.data),
+              ...params,
+              view_options: {
+                ...this.viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              const seriesData = res.data || [];
-              this.panelTitle = res.name;
-              this.updateChartData(seriesData);
-              if (!seriesData.length) return false;
-              this.clearErrorMsg();
-              return true;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
+            },
+            { needMessage: false },
+          )
+          .then(res => {
+            const seriesData = res.data || [];
+            this.panelTitle = res.name;
+            this.updateChartData(seriesData);
+            if (!seriesData.length) return false;
+            this.clearErrorMsg();
+            return true;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          }),
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item)) {
@@ -197,8 +202,8 @@ class RatioRingChart extends CommonSimpleChart {
                 formatter: params => {
                   const ratio = this.handleDivide(+params.value, +totalValue);
                   return `${ratio}%\n${params.name}`;
-                }
-              }
+                },
+              },
             },
             label: {
               show: !this.hideLabel,
@@ -210,15 +215,15 @@ class RatioRingChart extends CommonSimpleChart {
                   return `${ratio}%\n${params.name}`;
                 }
                 return '';
-              }
+              },
             },
             radius: ['45%', '70%'],
             data: dataList,
-            type: 'pie'
-          }
-        ]
-      })
-    );
+            type: 'pie',
+          },
+        ],
+      }),
+    ) as MonitorEchartOptions;
   }
   /**
    * @description: 选中图例触发事件
@@ -255,9 +260,9 @@ class RatioRingChart extends CommonSimpleChart {
     (this.$refs.baseChart as any).instance.setOption({
       series: {
         label: {
-          show: this.hideLabel ? false : isShow
-        }
-      }
+          show: this.hideLabel ? false : isShow,
+        },
+      },
     });
   }
   handleMenuToolsSelect(menuItem: IMenuItem) {
@@ -299,7 +304,7 @@ class RatioRingChart extends CommonSimpleChart {
       if (link.target === 'event') {
         if (this.isSplitPanel) {
           const route = this.$router.resolve({
-            path: link.url
+            path: link.url,
           });
           window.open(location.href.replace(location.pathname, '/').replace(location.hash, '') + route.href);
         } else {

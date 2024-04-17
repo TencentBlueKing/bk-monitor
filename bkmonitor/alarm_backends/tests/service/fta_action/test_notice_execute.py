@@ -3731,6 +3731,7 @@ class TestActionProcessor(TransactionTestCase):
         actions0 = create_actions(1, "abnormal", alerts=[alert])
         self.assertEqual(len(actions0), 1)
         p_action = ActionInstance.objects.get(id__in=actions0)
+        # p_action.is_shielded = True
         self.assertTrue(p_action.inputs["is_alert_shielded"])
         print(p_action.get_content())
         self.assertTrue("因系统全局屏蔽配置， 默认屏蔽当前处理" in p_action.get_content()["text"])
@@ -3739,7 +3740,7 @@ class TestActionProcessor(TransactionTestCase):
         alert_log = p_action.get_content()
         print(alert_log)
         self.assertTrue("查看屏蔽策略" in alert_log["text"])
-        self.assertIsNotNone(alert_log["routerInfo"])
+        self.assertIsNotNone(alert_log["router_info"])
 
         settings.GLOBAL_SHIELD_ENABLED = False
 
@@ -3801,7 +3802,7 @@ class TestActionProcessor(TransactionTestCase):
         alert_log = p_action.get_content()
         print(alert_log)
         self.assertTrue("查看屏蔽策略" in alert_log["text"])
-        self.assertIsNotNone(alert_log["routerInfo"])
+        self.assertIsNotNone(alert_log["router_info"])
 
         settings.GLOBAL_SHIELD_ENABLED = False
 
@@ -4367,6 +4368,7 @@ class TestNoiseReduce(TestCase):
                     "id": 123,
                 }
             ),
+            "dedupe_md5": "68e9f0598d72a4b6de2675d491e5b922",
             "severity": 1,
             "begin_time": int(time.time()),
             "create_time": int(time.time()),

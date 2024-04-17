@@ -38,7 +38,7 @@ interface IEvents {
   onCreateApp: void;
 }
 interface IProps {
-  isDialogContent?: Boolean;
+  isDialogContent?: boolean;
   pluginsList: IAppSelectOptItem[]; // 插件列表
   guideUrl: IGuideLink; // 链接数据
 }
@@ -58,7 +58,7 @@ export default class GuidePage extends tsc<IProps, IEvents> {
   tipsList = [
     window.i18n.tc('通过拓扑图，可以了解服务之间调用的关系和出现问题的节点'),
     window.i18n.tc('通过调用次数、耗时、错误率等指标可以了解服务本身的运行状况'),
-    window.i18n.tc('可以添加告警即时的发现问题')
+    window.i18n.tc('可以添加告警即时的发现问题'),
   ];
   /** 业务id */
   get bizId() {
@@ -76,7 +76,7 @@ export default class GuidePage extends tsc<IProps, IEvents> {
     return [
       {
         title: window.i18n.tc('快速接入'),
-        link: 'apmAccess'
+        link: 'apmAccess',
       },
       // {
       //   title: window.i18n.tc('经典案例'),
@@ -84,12 +84,12 @@ export default class GuidePage extends tsc<IProps, IEvents> {
       // },
       {
         title: window.i18n.tc('指标说明'),
-        link: 'apmMetrics'
+        link: 'apmMetrics',
       },
       {
         title: window.i18n.tc('告警配置'),
-        link: 'alarmConfig'
-      }
+        link: 'alarmConfig',
+      },
     ];
   }
 
@@ -117,7 +117,7 @@ export default class GuidePage extends tsc<IProps, IEvents> {
         /** 切换为demo业务 */
         AppStore.handleChangeBizId({
           bizId: this.demoBiz.id,
-          ctx: this
+          ctx: this,
         });
       }
     }
@@ -162,7 +162,7 @@ export default class GuidePage extends tsc<IProps, IEvents> {
                     >
                       {item.title}
                     </span>
-                  ) : undefined
+                  ) : undefined,
                 )}
               </div>
             </div>

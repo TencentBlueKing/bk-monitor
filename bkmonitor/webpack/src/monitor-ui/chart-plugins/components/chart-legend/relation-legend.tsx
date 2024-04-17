@@ -118,7 +118,7 @@ export default class RelationLegend extends tsc<IRelationLegendProps, IEvents> {
                 style={{
                   width: `${12 + item.size}px`,
                   height: `${12 + item.size}px`,
-                  background: item.select ? '#acacac' : '#fff'
+                  background: item.select ? '#acacac' : '#fff',
                 }}
               />
               <span class='legend-name'>{item.name}</span>

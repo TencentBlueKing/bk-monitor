@@ -63,7 +63,7 @@ export default class CustomService extends tsc<IProps> {
   pagination: IPagination = {
     current: 1,
     count: 198,
-    limit: 10
+    limit: 10,
   };
 
   // 派发到子孙组件内的视图配置变量
@@ -95,7 +95,7 @@ export default class CustomService extends tsc<IProps> {
       app_name: this.appInfo.app_name,
       sort: this.sortKey,
       page: current,
-      page_size: limit
+      page_size: limit,
     };
     this.tableLoading = true;
     await customServiceList(params)
@@ -160,8 +160,8 @@ export default class CustomService extends tsc<IProps> {
       name: 'service',
       query: {
         'filter-service_name': `${type}:${serviceName}`,
-        'filter-app_name': this.appInfo.app_name
-      }
+        'filter-app_name': this.appInfo.app_name,
+      },
     });
   }
   /**
@@ -172,7 +172,7 @@ export default class CustomService extends tsc<IProps> {
       type: 'warning',
       title: this.$t('确认删除此服务吗？'),
       confirmLoading: true,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       confirmFn: async () => {
         const res = await deleteCustomSerivice({ id })
           .then(() => true)
@@ -180,11 +180,11 @@ export default class CustomService extends tsc<IProps> {
         if (res) {
           this.$bkMessage({
             message: this.$t('删除成功'),
-            theme: 'success'
+            theme: 'success',
           });
           this.getServiceList();
         }
-      }
+      },
     });
   }
 
@@ -209,8 +209,8 @@ export default class CustomService extends tsc<IProps> {
           ) : (
             '--'
           )}
-        </div>
-      ]
+        </div>,
+      ],
     };
     const operatorSlot = {
       default: props => [
@@ -229,8 +229,8 @@ export default class CustomService extends tsc<IProps> {
           onClick={() => this.handleDelete(props.row.id)}
         >
           {this.$t('删除')}
-        </bk-button>
-      ]
+        </bk-button>,
+      ],
     };
 
     return (
@@ -300,7 +300,6 @@ export default class CustomService extends tsc<IProps> {
           v-model={this.showAddDialog}
           appName={this.appInfo.app_name}
           serviceInfo={this.curServiceInfo}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
           onRefresh={() => this.getServiceList()}
         />
       </div>

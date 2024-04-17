@@ -54,7 +54,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   searchVal = ''; // 搜索
   // groupName = ''; // 新增或编辑组名
   verifyData = {
-    groupName: ''
+    groupName: '',
   };
   sharedConfig = null as IFavList.favList;
   baseSortType = 'asc'; // 排序参数
@@ -63,45 +63,45 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
     // 排序展示列表
     {
       name: window.i18n.t('按名称 A - Z 排序'),
-      id: 'asc'
+      id: 'asc',
     },
     {
       name: window.i18n.t('按名称 Z - A 排序'),
-      id: 'desc'
+      id: 'desc',
     },
     {
       name: window.i18n.t('按更新时间排序'),
-      id: 'update'
-    }
+      id: 'update',
+    },
   ];
   public rules = {
     groupName: [
       {
         validator: this.checkName,
         message: window.i18n.t('组名不规范, 包含了特殊符号.'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkExistName,
         message: window.i18n.t('注意: 名字冲突'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.i18n.t('注意：最大值为30个字符'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
   tippyOption = {
     trigger: 'click',
     interactive: true,
-    theme: 'light'
+    theme: 'light',
   };
   groupList: IFavList.groupList[] = []; // 分组列表
   filterCollectList: IFavList.favGroupList[] = []; // 搜索的收藏列表
@@ -141,7 +141,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupName.trim()
+      this.verifyData.groupName.trim(),
     );
   }
 
@@ -171,7 +171,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   initGroupList() {
     this.groupList = this.favoritesList.map(item => ({
       group_name: item.name,
-      group_id: item.id
+      group_id: item.id,
     }));
   }
 
@@ -230,8 +230,8 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
         .map(item => ({
           ...item,
           favorites: item.favorites.filter(
-            fItem => fItem.create_user.includes(this.searchVal) || fItem.name.includes(this.searchVal)
-          )
+            fItem => fItem.create_user.includes(this.searchVal) || fItem.name.includes(this.searchVal),
+          ),
         }))
         .filter(item => item.favorites.length);
       if (isRequest) this.searchLoading = false;
@@ -299,8 +299,8 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                       {...{
                         props: {
                           model: this.verifyData,
-                          rules: this.rules
-                        }
+                          rules: this.rules,
+                        },
                       }}
                     >
                       <bk-form-item property='groupName'>

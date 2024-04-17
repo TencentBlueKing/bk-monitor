@@ -69,7 +69,7 @@ export default class MoreList extends tsc<IProps> {
     const overflowTagWidth = 41;
     let totalWidth = 0;
     await this.$nextTick();
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const i in childs) {
       const item = childs[i] as HTMLDivElement;
       if (!item.className || item.className.indexOf('list-item') === -1) continue;
@@ -134,7 +134,7 @@ export default class MoreList extends tsc<IProps> {
       onHide: () => {
         this.isAdd = false;
         this.editActive = '';
-      }
+      },
     });
     this.popoverInstance?.show?.();
   }

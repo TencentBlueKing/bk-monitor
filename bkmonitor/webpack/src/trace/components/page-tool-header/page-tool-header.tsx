@@ -40,28 +40,28 @@ export default defineComponent({
   props: {
     showLeft: {
       type: Boolean,
-      default: true
+      default: true,
     },
     favoritesList: {
       type: Array as PropType<IFavoriteItem[]>,
-      default: () => []
+      default: () => [],
     },
     timeRange: {
       type: Array as PropType<TimeRangeType>,
-      default: () => ['now-1h', 'now']
+      default: () => ['now-1h', 'now'],
     },
     timezone: {
       type: String,
-      default: getDefautTimezone()
+      default: getDefautTimezone(),
     },
     menuList: {
       type: Array as PropType<ISelectMenuOption[]>,
-      default: () => []
+      default: () => [],
     },
     refreshInterval: {
       type: Number,
-      default: -1
-    }
+      default: -1,
+    },
   },
   emits: [
     'update:showLeft',
@@ -72,7 +72,7 @@ export default defineComponent({
     'timezoneChange',
     'refreshIntervalChange',
     'menuSelectChange',
-    'immediateRefresh'
+    'immediateRefresh',
   ],
   setup(props, { emit, slots }) {
     function handleTimeRangeChange(time: TimeRangeType) {
@@ -116,5 +116,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

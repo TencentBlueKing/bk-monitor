@@ -64,7 +64,7 @@ export default class RulesViewer extends tsc<IRules> {
     include: '#FF9C01',
     exclude: '#FF9C01',
     regex: '#FF9C01',
-    nregex: '#FF9C01'
+    nregex: '#FF9C01',
   };
   aggConditionFontMap = {
     '=': 'bold',
@@ -78,7 +78,7 @@ export default class RulesViewer extends tsc<IRules> {
     include: 'bold',
     exclude: 'bold',
     regex: 'bold',
-    nregex: 'bold'
+    nregex: 'bold',
   };
 
   methodMap = {
@@ -97,7 +97,7 @@ export default class RulesViewer extends tsc<IRules> {
     include: 'include',
     exclude: 'exclude',
     reg: 'regex',
-    nreg: 'nregex'
+    nreg: 'nregex',
   };
 
   localValue = [];
@@ -117,7 +117,7 @@ export default class RulesViewer extends tsc<IRules> {
             class={['tag', item.type]}
             style={{
               color: this.aggConditionColorMap[item.value],
-              'font-weight': this.aggConditionFontMap[item.value]
+              'font-weight': this.aggConditionFontMap[item.value],
             }}
           >
             {item.type === 'value' ? item.value.join(', ') : item.value}

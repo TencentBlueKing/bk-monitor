@@ -42,7 +42,7 @@ const dimensionsColumns: ITableColumn[] = [
   { id: 'id', name: window.i18n.tc('维度名'), type: 'string' },
   { id: 'name', name: window.i18n.tc('维度别名'), type: 'string' },
   { id: 'type', name: window.i18n.tc('维度类型'), type: 'string' },
-  { id: 'value', name: window.i18n.tc('维度值'), showOverflowTooltip: false, type: 'scoped_slots' }
+  { id: 'value', name: window.i18n.tc('维度值'), showOverflowTooltip: false, type: 'scoped_slots' },
 ];
 
 interface IProps {
@@ -60,7 +60,7 @@ export default class DimensionTable extends tsc<IProps> {
     current: 1,
     count: 0,
     limit: 10,
-    showTotalCount: true
+    showTotalCount: true,
   };
   search = '';
 
@@ -79,7 +79,7 @@ export default class DimensionTable extends tsc<IProps> {
     const filterDimension = this.detail.dimensions.filter(item => !!item.is_dimension);
     const dimension = this.search
       ? filterDimension.filter(
-          item => String(item.id).indexOf(this.search) > -1 || String(item.name).indexOf(this.search) > -1
+          item => String(item.id).indexOf(this.search) > -1 || String(item.name).indexOf(this.search) > -1,
         )
       : filterDimension;
     this.pagination.count = dimension.length;
@@ -118,14 +118,14 @@ export default class DimensionTable extends tsc<IProps> {
           field: id,
           metric_field: this.detail.metric_field,
           result_table_id: this.detail.result_table_id,
-          where: []
+          where: [],
         },
         this.detail.data_source_label === 'bk_log_search'
           ? {
-              index_set_id: this.detail.index_set_id
+              index_set_id: this.detail.index_set_id,
             }
-          : {}
-      )
+          : {},
+      ),
     });
     const promisFn = id =>
       new Promise((resolve, reject) => {
@@ -164,13 +164,13 @@ export default class DimensionTable extends tsc<IProps> {
           this.$createElement(
             'div',
             { class: 'content' },
-            values.map(item => this.$createElement('span', { class: 'label' }, item.label))
-          )
+            values.map(item => this.$createElement('span', { class: 'label' }, item.label)),
+          ),
         ),
-        this.$createElement('div', { class: 'bottom' }, this.$tc('当前仅展示{0}条数据', [values.length]))
+        this.$createElement('div', { class: 'bottom' }, this.$tc('当前仅展示{0}条数据', [values.length])),
       ]),
       showFooter: false,
-      width: 640
+      width: 640,
     });
   }
 
@@ -216,7 +216,7 @@ export default class DimensionTable extends tsc<IProps> {
                 ></TagList>
               ) : (
                 '--'
-              )
+              ),
           }}
         >
           <EmptyStatus

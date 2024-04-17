@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -447,5 +446,16 @@ export default {
   复制主机IP: 'Copy host IP',
   复制服务实例: 'Copy service instance',
   当前空间: 'Current space',
-  平台数据: 'Platform data'
+  平台数据: 'Platform data',
+  待审批: 'Pending',
+  审批通过: 'Approved',
+  审批驳回: 'Rejected',
+  重新发送: 'Resend',
+  发送记录: 'Send Records',
+  管理员创建的: 'Administrator Created',
+  用户订阅的: 'User Subscribed',
+  测试发送: 'Test Send',
+  跳转至场景查看: 'Jump to Scene View',
+  发送给自己: 'Send to yourself',
+  查看单据详情: 'View document details',
 };

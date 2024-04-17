@@ -50,7 +50,7 @@ const logCollectInit = (collectType: string): hideOptions => {
       viewSortHide: true,
       compareHide: true,
       searchHide: true,
-      dashboardHide: true
+      dashboardHide: true,
     };
   }
   return {
@@ -58,7 +58,7 @@ const logCollectInit = (collectType: string): hideOptions => {
     viewSortHide: false,
     compareHide: false,
     searchHide: false,
-    dashboardHide: false
+    dashboardHide: false,
   };
 };
 
@@ -113,9 +113,9 @@ const logEventRetrievalParams = (handleGroupsData, variableData, Method = 'AVG')
           group_by: timeSeriesParams[0].group_by,
           filter_dict: timeSeriesParams[0].filter_dict,
           method: Method,
-          where: timeSeriesParams[0].where
+          where: timeSeriesParams[0].where,
         },
-        variableData
+        variableData,
       );
     }
   }

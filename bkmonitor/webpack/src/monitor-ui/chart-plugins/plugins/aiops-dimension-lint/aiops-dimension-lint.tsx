@@ -45,7 +45,7 @@ import './aiops-dimension-lint.scss';
 
 enum EEvaluation {
   good = 'good',
-  bad = 'bad'
+  bad = 'bad',
 }
 
 interface IFeedback {
@@ -71,7 +71,7 @@ interface IPanelModel extends PanelModel {
 
 export enum ETabNames {
   dimension = 'dimension',
-  index = 'index'
+  index = 'index',
 }
 
 @Component
@@ -128,10 +128,9 @@ export default class AiopsDimensionLine extends LineChart {
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params: any = {
-        // eslint-disable-next-line no-nested-ternary
         start_time: start_time ? dayjs.tz(start_time).unix() : this.needLegend ? startTime : '',
-        // eslint-disable-next-line no-nested-ternary
-        end_time: end_time ? dayjs.tz(end_time).unix() : this.needLegend ? endTime : ''
+
+        end_time: end_time ? dayjs.tz(end_time).unix() : this.needLegend ? endTime : '',
       };
       const [zoomStartTime, zoomEndTime] = handleTransformToTimestamp(this.dataZoomTimeRange.timeRange);
       if (!params.start_time && zoomStartTime) {
@@ -142,7 +141,7 @@ export default class AiopsDimensionLine extends LineChart {
       if (params.start_time) {
         this.cacheTimeRang = [
           dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm'),
-          dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm')
+          dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm'),
         ];
         if (this.needLegend && !this.inited) {
           this.needLegendTimeRange = [...this.cacheTimeRang];
@@ -154,7 +153,7 @@ export default class AiopsDimensionLine extends LineChart {
       this.showRestore = this.getShowRestore() && !!params.start_time;
       if (this.bkBizId) {
         params = Object.assign({}, params, {
-          bk_biz_id: this.bkBizId
+          bk_biz_id: this.bkBizId,
         });
       }
       const enableThreshold = 'enable_threshold' in this.panel ? this.panel?.enable_threshold : true;
@@ -171,15 +170,15 @@ export default class AiopsDimensionLine extends LineChart {
                   ...(this.viewOptions.filters?.current_target || {}),
                   ...this.viewOptions,
                   ...this.viewOptions.variables,
-                  time_shift
+                  time_shift,
                 }),
                 ...(params.start_time ? params : {}),
-                bk_biz_id: params.bk_biz_id
+                bk_biz_id: params.bk_biz_id,
               },
               {
                 cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
-                needMessage: false
-              }
+                needMessage: false,
+              },
             )
             .then(res => {
               this.$emit('seriesData', res);
@@ -190,15 +189,15 @@ export default class AiopsDimensionLine extends LineChart {
                   sampling: 'lttb',
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
-                  }`
-                }))
+                  }`,
+                })),
               );
               this.clearErrorMsg();
               return true;
             })
             .catch(error => {
               this.handleErrorMsgChange(error.msg || error.message);
-            })
+            }),
         );
         promiseList.push(...list);
       });
@@ -209,7 +208,7 @@ export default class AiopsDimensionLine extends LineChart {
         if (datapoints.length && !params.startTime && this.fullScreenCustomTimeRange.length === 0) {
           this.fullScreenCustomTimeRange = [
             dayjs.tz(datapoints[0][1]).format('YYYY-MM-DD HH:mm'),
-            dayjs.tz(datapoints[datapoints.length - 1][1]).format('YYYY-MM-DD HH:mm')
+            dayjs.tz(datapoints[datapoints.length - 1][1]).format('YYYY-MM-DD HH:mm'),
           ];
         }
         const seriesList = this.handleTransformSeries(
@@ -220,8 +219,8 @@ export default class AiopsDimensionLine extends LineChart {
             stack: item.stack || random(10),
             unit: item.unit,
             markArea: this.createMarkArea(),
-            markLine: enableThreshold ? this.createdMarkLine(item.thresholds || []) : {}
-          })) as any
+            markLine: enableThreshold ? this.createdMarkLine(item.thresholds || []) : {},
+          })) as any,
         );
         /** 默认以这个宽度来进行刻度划分，主要为了解决 watch 未首次监听宽度自动计算splitNumber */
         // const widths = [1192, 586, 383];
@@ -230,7 +229,7 @@ export default class AiopsDimensionLine extends LineChart {
         const yAxis = {
           scale: this.height < 120 ? false : canScale,
           max: v => Math.max(v.max, +maxThreshold),
-          min: v => Math.min(v.min, +minThreshold)
+          min: v => Math.min(v.min, +minThreshold),
         };
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
         const echartOptions: any = MONITOR_BAR_OPTIONS;
@@ -240,7 +239,7 @@ export default class AiopsDimensionLine extends LineChart {
             animationThreshold: 1,
             grid: {
               top: 10,
-              right: 32
+              right: 32,
             },
             yAxis: {
               axisLabel: {
@@ -252,23 +251,23 @@ export default class AiopsDimensionLine extends LineChart {
                       }
                       return v;
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase)
+                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 200 ? 2 : 4,
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
               max: v => Math.max(v.max, +maxThreshold),
-              ...yAxis
+              ...yAxis,
             },
             xAxis: {
               axisLabel: {
-                formatter: formatterFunc || '{value}'
+                formatter: formatterFunc || '{value}',
               },
               splitNumber: Math.ceil((this.$el as Element).getBoundingClientRect().width / 150),
-              min: 'dataMin'
+              min: 'dataMin',
             },
-            series: seriesList
-          })
+            series: seriesList,
+          }),
         );
 
         this.metrics = metrics || [];
@@ -308,12 +307,12 @@ export default class AiopsDimensionLine extends LineChart {
       case 'fullscreen': {
         // 大图检索
         let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
-        // eslint-disable-next-line no-case-declarations
+
         const variablesService = new VariablesService({
           ...this.viewOptions.filters,
           ...(this.viewOptions.filters?.current_target || {}),
           ...this.viewOptions,
-          ...this.viewOptions.variables
+          ...this.viewOptions.variables,
         });
         copyPanel = variablesService.transformVariables(copyPanel);
         copyPanel.targets.forEach((t, tIndex) => {
@@ -324,8 +323,8 @@ export default class AiopsDimensionLine extends LineChart {
         });
         this.handleFullScreen(copyPanel as any, {
           tools: {
-            timeRange: this.fullScreenCustomTimeRange
-          }
+            timeRange: this.fullScreenCustomTimeRange,
+          },
         });
         break;
       }
@@ -337,7 +336,7 @@ export default class AiopsDimensionLine extends LineChart {
           ...this.viewOptions.filters,
           ...(this.viewOptions.filters?.current_target || {}),
           ...this.viewOptions,
-          ...this.viewOptions.variables
+          ...this.viewOptions.variables,
         });
         break;
       case 'strategy': // 新增策略
@@ -354,7 +353,7 @@ export default class AiopsDimensionLine extends LineChart {
     return {
       canScale: thresholdList.length > 0 && thresholdList.every((set: number) => set > 0),
       minThreshold: Math.min(...thresholdList),
-      maxThreshold: max + max * 0.1 // 防止阈值最大值过大时title显示不全
+      maxThreshold: max + max * 0.1, // 防止阈值最大值过大时title显示不全
     };
   }
   createMarkArea() {
@@ -373,8 +372,8 @@ export default class AiopsDimensionLine extends LineChart {
             borderColor: '#f7b1b180',
             shadowColor: '#f7b1b180',
             borderType: 'solid',
-            shadowBlur: 0
-          }
+            shadowBlur: 0,
+          },
         },
         {
           xAxis: item[1] || 'max',
@@ -385,11 +384,11 @@ export default class AiopsDimensionLine extends LineChart {
             borderColor: '#f7b1b180',
             shadowColor: '#f7b1b180',
             borderType: 'solid',
-            shadowBlur: 0
-          }
-        }
+            shadowBlur: 0,
+          },
+        },
       ]),
-      opacity: 0.1
+      opacity: 0.1,
     };
   }
   /** 阈值线 */
@@ -400,30 +399,30 @@ export default class AiopsDimensionLine extends LineChart {
         show: true,
         formatter() {
           return '';
-        }
-      }
+        },
+      },
     }));
     return {
       symbol: [],
       label: {
         show: true,
-        position: 'insideStartTop'
+        position: 'insideStartTop',
       },
       lineStyle: {
         color: '#FD9C9C',
         type: 'dashed',
         distance: 3,
-        width: 1
+        width: 1,
       },
       emphasis: {
         label: {
           show: true,
           formatter(v: any) {
             return `${v.name || ''}: ${v.value}`;
-          }
-        }
+          },
+        },
       },
-      data: thresholdLineResult
+      data: thresholdLineResult,
     };
   }
   /** 踩和赞接口更新 */
@@ -433,7 +432,7 @@ export default class AiopsDimensionLine extends LineChart {
       alert_metric_id: this.panel.recommend_info.src_metric_id,
       feedback,
       recommendation_metric_id: this.panel.id,
-      recommendation_metric_class: this.panel.recommend_info.class
+      recommendation_metric_class: this.panel.recommend_info.class,
     })
       .then(res => {
         this.panel.feedback = res?.feedback || {};
@@ -582,8 +581,8 @@ export default class AiopsDimensionLine extends LineChart {
             class='draggable-handle'
             {...{
               scopedSlots: {
-                subTitle: () => this.getSubTitle()
-              }
+                subTitle: () => this.getSubTitle(),
+              },
             }}
             customArea={this.isCorrelationMetrics}
             title={this.panel.title}

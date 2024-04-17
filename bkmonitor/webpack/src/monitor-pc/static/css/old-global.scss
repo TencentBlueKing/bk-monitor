@@ -1,0 +1,122 @@
+// 本文件定义了项目通用的一些CSS全局变量配置
+
+$primaryColor: #86b1ff;
+$successColor: #75cba8;
+$infoColor: #9e9b9c;
+$warningColor: #f7c566;
+$dangerColor: #ff6678;
+
+$primaryTextColor: #303133;
+
+$primaryHoverColor: #6f98e3;
+$deleteColor: #f66;
+$deleteHoverColor: #e75d5d;
+$saveColor: #75cba8;
+$saveHoverColor: #66b997;
+
+$alarmErrorColor: #ea3636; // 致命
+$alarmWarningColor: #ff9c01; // 警告
+$alarmInfoColor: #ffd000; // 提醒
+
+@mixin item($bgColor:#fff, $color: #999,$w: 120px,$h:40px,$hcolor: #fafafa, $f: 12px) {
+  display: inline-block;
+  width: $w;
+  height: $h;
+  padding: 0;
+  font-size: $f;
+  line-height: $h;
+  color: $color;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  background: $bgColor;
+  border: 0;
+  border-radius: 2px;
+  outline: none;
+
+  &:hover {
+    background: $hcolor;
+  }
+}
+
+@mixin rank($bgColor:#ccc) {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: $bgColor;
+  border-radius: 5px;
+}
+
+@function pxWithVw($n) {
+  @return 100vw * $n / 100;
+}
+
+.primary-text-color {
+  color: $primaryColor;
+}
+
+.success-text-color {
+  color: $successColor;
+}
+
+.info-text-color {
+  color: $infoColor;
+}
+
+.warning-text-color {
+  color: $warningColor;
+}
+
+.danger-text-color {
+  color: $dangerColor;
+}
+
+.clearfix::after {
+  display: table;
+  clear: both;
+  content: '';
+}
+
+.alarm-error-text-color {
+  color: $alarmErrorColor;
+}
+
+.alarm-warning-text-color {
+  color: $alarmWarningColor;
+}
+
+.alarm-info-text-color {
+  color: $alarmInfoColor;
+}
+
+.alarm-error-background-color {
+  background-color: $alarmErrorColor;
+}
+
+.alarm-warning-background-color {
+  background-color: $alarmWarningColor;
+}
+
+.alarm-info-background-color {
+  background-color: $alarmInfoColor;
+}
+
+$colors: #ea3636 #ff8000 #ffd000;
+$hoverBorderColos: #fd9c9c #ffb848 #ffe883;
+$defaultBorderColor: #dcdee5;
+$defaultFontColor: #63656e;
+$seriousColor: #ea3636;
+$normalColor: #ff8000;
+$slightColor: #ffd000;
+
+@mixin hover($cursor:pointer) {
+  &:hover {
+    cursor: $cursor;
+  }
+}
+
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

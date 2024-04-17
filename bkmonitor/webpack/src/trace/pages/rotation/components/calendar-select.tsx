@@ -38,13 +38,13 @@ export default defineComponent({
     labelWidth: { type: Number, default: 52 },
     modelValue: {
       type: Array as PropType<number[]>,
-      default: () => []
+      default: () => [],
     },
     /** 需要起始日功能 */
     hasStart: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['update:modelValue', 'change', 'selectEnd'],
   setup(props, { emit }) {
@@ -74,8 +74,8 @@ export default defineComponent({
         startDate.value = val[0];
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     const contentTextRef = ref();
@@ -83,7 +83,7 @@ export default defineComponent({
       () => sortLocalValue.value,
       val => {
         contentTextRef.value.innerText = val.length ? val.join('、') : t('选择');
-      }
+      },
     );
 
     function handleBlur(e: Event) {
@@ -134,7 +134,7 @@ export default defineComponent({
     /** 暂时选中的日期， 用于判断用户需要新增哪些日期 */
     const temporarySelect = reactive({
       start: undefined,
-      end: undefined
+      end: undefined,
     });
     /**
      * 点击日期事件
@@ -224,7 +224,7 @@ export default defineComponent({
       validSelected,
       handleDateClick,
       handleShowSelect,
-      handleAfterHidden
+      handleAfterHidden,
     };
   },
   render() {
@@ -265,7 +265,7 @@ export default defineComponent({
                         'item',
                         this.currentDate === item && 'current',
                         this.validSelected(item),
-                        this.startDate === item && 'start'
+                        this.startDate === item && 'start',
                       ]}
                       onClick={() => this.handleDateClick(item)}
                       onMouseenter={() => (this.hoverVal = item)}
@@ -293,11 +293,11 @@ export default defineComponent({
                   contenteditable
                   onBlur={this.handleBlur}
                 ></div>
-              )
+              ),
             }}
           </Popover>
         </div>
       </div>
     );
-  }
+  },
 });

@@ -19,14 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import List, Any
-import arrow
-from dateutil.rrule import rrule
-from dateutil.rrule import DAILY
+from typing import Any, List
 
+import arrow
+from dateutil.rrule import DAILY, rrule
 from django.conf import settings
 
-from apps.log_esquery.type_constants import type_index_set_string, type_index_set_list
+from apps.log_esquery.type_constants import type_index_set_list, type_index_set_string
 from apps.log_search.models import Scenario
 from apps.utils.local import get_local_param
 
@@ -79,7 +78,11 @@ class IndicesOptimizerContextTail(object):
     def index_time_filter_context(self, timestamp, index: str) -> type_index_set_list:
         filter_list: List[Any] = []
         now = arrow.utcnow()
-        date_timestamp = arrow.get(int(timestamp) / 1000)
+        try:
+            date_timestamp = arrow.get(int(timestamp) / 1000)
+        except Exception:  # pylint: disable=broad-except
+            # 如果不是时间戳，那有可能就是纳秒格式 2024-04-09T09:26:57.123456789Z
+            date_timestamp = arrow.get(timestamp)
         date_start, date_end = self._generate_start_end(now if date_timestamp > now else date_timestamp)
         date_day_list: List[Any] = list(rrule(DAILY, interval=1, dtstart=date_start, until=date_end))
         date_day_list.append(date_end)

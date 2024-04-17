@@ -26,23 +26,22 @@
 import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../../mixins';
-import { ICommonCharts, ILegendItem, IMenuItem, PanelModel } from '../../typings';
+import { ICommonCharts, ILegendItem, IMenuItem, MonitorEchartOptions, PanelModel } from '../../typings';
 import BaseEchart from '../monitor-base-echart';
 
 import './bar-echart.scss';
 
-const option: EChartOption = {
+const option: MonitorEchartOptions = {
   animation: false,
   color: ['#73C2A8', '#4051A3'],
   xAxis: {
-    type: 'time'
+    type: 'time',
   },
   yAxis: {
     type: 'value',
@@ -50,38 +49,37 @@ const option: EChartOption = {
       show: true,
       lineStyle: {
         color: '#F0F1F5',
-        type: 'solid'
-      }
-    }
+        type: 'solid',
+      },
+    },
   },
-  series: []
+  series: [],
 };
 
 const legendData = [
   { name: 'Limits', max: '2.7%', min: '1.1%', avg: '1.8%', total: '107.7%', color: '#73C2A8', show: true },
-  { name: 'Requests', max: '2.8%', min: '1.1%', avg: '1.8%', total: '105.6%', color: '#4051A3', show: true }
+  { name: 'Requests', max: '2.8%', min: '1.1%', avg: '1.8%', total: '105.6%', color: '#4051A3', show: true },
 ];
 
 interface ILineEchartProps {
   panel: PanelModel;
 }
 @Component
-// eslint-disable-next-line max-len
 class LineBarEChart
   extends Mixins<ResizeMixin & IntersectionMixin & ToolsMxin & LegendMixin & ChartLoadingMixin>(
     ResizeMixin,
     IntersectionMixin,
     LegendMixin,
     ToolsMxin,
-    ChartLoadingMixin
+    ChartLoadingMixin,
   )
   implements ICommonCharts
 {
   @Prop({ required: true }) panel: PanelModel;
 
   @Ref() baseChart: any;
-  customOptions: EChartOption = deepmerge(MONITOR_BAR_OPTIONS, option, {
-    arrayMerge: (_, srcArr) => srcArr
+  customOptions: MonitorEchartOptions = deepmerge(MONITOR_BAR_OPTIONS, option, {
+    arrayMerge: (_, srcArr) => srcArr,
   });
 
   legendData: ILegendItem[] = legendData;
@@ -100,11 +98,11 @@ class LineBarEChart
     return new Promise(resolve => {
       const data = [
         {
-          datapoints: []
+          datapoints: [],
         },
         {
-          datapoints: []
-        }
+          datapoints: [],
+        },
       ];
       const linePoit = data[0].datapoints;
       const barPoit = data[1].datapoints;
@@ -128,7 +126,7 @@ class LineBarEChart
     const data = {
       xAxis: {
         type: 'time',
-        data: srcData[0].datapoints.map(item => item[1])
+        data: srcData[0].datapoints.map(item => item[1]),
       },
       series: [
         {
@@ -136,7 +134,7 @@ class LineBarEChart
           type: 'bar',
           colorBy: 'data',
           name: 'Limits',
-          zlevel: 100
+          zlevel: 100,
         },
         {
           data: srcData[1].datapoints,
@@ -145,9 +143,9 @@ class LineBarEChart
           barGap: '-100%',
           barCategoryGap: '50%',
           name: 'Requests',
-          zlevel: 100
-        }
-      ]
+          zlevel: 100,
+        },
+      ],
     };
     const updateOption = deepmerge(option, data);
     this.customOptions = deepmerge(this.customOptions, updateOption);

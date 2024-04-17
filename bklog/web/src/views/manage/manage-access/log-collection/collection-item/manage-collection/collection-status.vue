@@ -362,7 +362,6 @@ export default {
           params: {
             collector_config_id: this.$route.params.collectorId
           },
-          mock: false,
           manualSchema: true
         })
         .then(res => {
