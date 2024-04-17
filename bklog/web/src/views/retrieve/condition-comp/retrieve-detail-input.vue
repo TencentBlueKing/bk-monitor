@@ -213,6 +213,7 @@
 </template>
 
 <script>
+import { debounce } from 'throttle-debounce';
 import MonacoDetailInput from '../search-comp/retrieve-detail-input-editor.tsx';
 
 export default {
@@ -336,6 +337,9 @@ export default {
       deep: true
     }
   },
+  created() {
+    this.handleRetrieve = debounce(300, false, () => this.$emit('retrieve'));
+  },
   methods: {
     handleClickDropdown(e) {
       e.stopPropagation();
@@ -379,7 +383,7 @@ export default {
         if (code === 'NumpadEnter' || code === 'Enter') {
           e.preventDefault();
           this.closeDropdown();
-          this.$emit('retrieve');
+          this.handleRetrieve();
         }
         return;
       }
@@ -467,7 +471,7 @@ export default {
           // 自动搜索时 先判断语句是否出错 如果出错 则提示出错原因 且不进行请求
           if (this.retrievedKeyword !== val.trim() || this.isKeywordsError) {
             const isCanSearch = await this.handleCheckKeywords(val.trim());
-            if (isCanSearch) this.$emit('retrieve');
+            if (isCanSearch) this.handleRetrieve();
           }
         } else {
           // 点击了下拉菜单，会再次聚焦
@@ -482,7 +486,7 @@ export default {
       this.keywordIsResolved = false;
       this.keywordErrorMessage = '';
       this.$emit('isCanSearch', true);
-      if (this.isAutoQuery) this.$emit('retrieve');
+      if (this.isAutoQuery) this.handleRetrieve();
     },
     async handleCheckKeywords(keyword) {
       // 检查检索语句是否有误
