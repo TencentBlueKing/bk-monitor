@@ -269,9 +269,10 @@ export default {
     display: inline-block;
     padding-right: 15px;
     overflow: hidden;
-    // font-family: monospace;
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
     line-height: 20px;
-    // color: #000;
+    color: var(--table-fount-color);
 
     &.is-limit {
       max-height: 96px;

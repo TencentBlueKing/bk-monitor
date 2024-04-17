@@ -748,6 +748,12 @@ export default {
   }
 }
 
+:root {
+  --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+  --table-fount-size: 13px;
+  --table-fount-color: #313238;
+}
+
 // .bk-label {
 //   .bk-label-text {
 //     font-size: 12px;
