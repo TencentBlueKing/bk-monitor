@@ -26,6 +26,7 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { resize } from '../../components/ip-selector/common/observer-directive';
@@ -189,13 +190,13 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
   render() {
     return (
       <div
-        class={['monitor-collapse-wrap', { 'is-overflow': this.isOverflow, animation: this.openAnimation }]}
         style={{ height: `${this.height}px` }}
+        class={['monitor-collapse-wrap', { 'is-overflow': this.isOverflow, animation: this.openAnimation }]}
         v-resize={this.handleResize}
       >
         <div
-          class='monitor-collapse-content'
           ref='collapseContentRef'
+          class='monitor-collapse-content'
         >
           {this.handleRenderContent()}
         </div>

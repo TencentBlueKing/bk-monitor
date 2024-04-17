@@ -30,8 +30,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './group-panel.scss';
 
 interface IGroupPanelProps {
-  title?: string | TranslateResult;
-  subtitle?: string | TranslateResult;
+  title?: TranslateResult | string;
+  subtitle?: TranslateResult | string;
   showExpand?: boolean;
   expand?: boolean;
   defaultExpand?: boolean;
@@ -76,13 +76,13 @@ export default class GroupPanel extends tsc<IGroupPanelProps, { onExpand: { expa
   render() {
     return (
       <div
-        class='group-panel'
         style={{ borderColor: this.validate ? 'transparent' : 'red' }}
+        class='group-panel'
       >
         <div class='group-panel-header'>
           <div
-            class='header-wrapper'
             style={{ cursor: this.showExpand ? 'pointer' : 'default' }}
+            class='header-wrapper'
             on-click={() => !this.isPackUp && this.handleExpandPanel()}
           >
             {this.showExpand ? (
@@ -97,8 +97,8 @@ export default class GroupPanel extends tsc<IGroupPanelProps, { onExpand: { expa
           </div>
         </div>
         <div
-          class='group-panel-content'
           style={{ display: this.localExpand ? 'block' : 'none' }}
+          class='group-panel-content'
         >
           {this.$slots?.default}
           {this.readonly && <div class='content-readonly'></div>}

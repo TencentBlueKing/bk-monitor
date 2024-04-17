@@ -26,9 +26,9 @@
 <template>
   <div class="auto-multi-wrapper">
     <div
-      class="auto-multi"
       v-for="(items, indexs) in souceDataInfo"
       :key="indexs"
+      class="auto-multi"
     >
       <div
         class="del-icon"
@@ -42,8 +42,8 @@
             v-if="
               item.auth_priv[curAuthPriv[indexs].curAuthPriv] && item.auth_priv[curAuthPriv[indexs].curAuthPriv].need
             "
-            class="param-item"
             :key="index"
+            class="param-item"
             :show-validate.sync="item.validate.isValidate"
             :validator="item.validate"
             position="right"
@@ -54,8 +54,8 @@
               :tips-data="tipsData"
               :config="item"
               :type="item.type"
-              @autoHandle="autoHandle"
               :cur-auth-priv="curAuthPriv[indexs].curAuthPriv"
+              @autoHandle="autoHandle"
             >
               <template slot="prepend">
                 <bk-popover
@@ -66,18 +66,12 @@
                     {{ item.description || item.name }}
                   </div>
                   <div
-                    class="fix-same-code"
                     slot="content"
+                    class="fix-same-code"
                   >
-                    <div class="fix-same-code">
-                      {{ $t('参数名称') }} : {{ item.name }}
-                    </div>
-                    <div class="fix-same-code">
-                      {{ $t('参数类型') }} : {{ paramType[item.mode] }}
-                    </div>
-                    <div class="fix-same-code">
-                      {{ $t('参数说明') }} : {{ item.description || '--' }}
-                    </div>
+                    <div class="fix-same-code">{{ $t('参数名称') }} : {{ item.name }}</div>
+                    <div class="fix-same-code">{{ $t('参数类型') }} : {{ paramType[item.mode] }}</div>
+                    <div class="fix-same-code">{{ $t('参数说明') }} : {{ item.description || '--' }}</div>
                   </div>
                 </bk-popover>
               </template>
@@ -86,8 +80,8 @@
         </template>
         <template v-else>
           <verify-input
-            class="param-item"
             :key="index"
+            class="param-item"
             :show-validate.sync="item.validate.isValidate"
             :validator="item.validate"
             position="right"
@@ -111,13 +105,9 @@
                     {{ item.description ? item.description : item.name }}
                   </div>
                   <div slot="content">
-                    <div class="fixed-same-code">
-                      {{ $t('参数名称') }} : {{ item.name }}
-                    </div>
+                    <div class="fixed-same-code">{{ $t('参数名称') }} : {{ item.name }}</div>
                     <div>{{ $t('参数类型') }} : {{ paramType[item.mode] }}</div>
-                    <div class="fix-same-coded">
-                      {{ $t('参数说明') }} : {{ item.description || '--' }}
-                    </div>
+                    <div class="fix-same-coded">{{ $t('参数说明') }} : {{ item.description || '--' }}</div>
                   </div>
                 </bk-popover>
               </template>
@@ -127,23 +117,22 @@
       </template>
     </div>
     <div
-      class="auto-multi"
       v-if="allowAdd"
+      class="auto-multi"
     >
       <div
         class="add-btn"
         @click="addAuth"
-      >{{ $t('新增用户配置') }}</div>
+      >
+        {{ $t('新增用户配置') }}
+      </div>
     </div>
   </div>
 </template>
 <script>
-
-
 import { deepClone } from 'monitor-common/utils/utils';
 
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
-
 import AutoCompleteInput from './auto-complete-input';
 import * as snmp from './snmp';
 
@@ -151,50 +140,50 @@ export default {
   name: 'AutoMulti',
   components: {
     AutoCompleteInput,
-    VerifyInput
+    VerifyInput,
   },
   props: {
     templateData: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     souceData: {
       type: Array,
-      default: []
+      default: [],
     },
     tipsData: {
       type: Array,
-      default: []
+      default: [],
     },
     paramType: {
       type: Object,
-      default: {}
+      default: {},
     },
     allowAdd: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   data() {
     return {
       tippyOptions: {
-        distance: 0
+        distance: 0,
       },
       curAuthPriv: [],
       souceDataInfo: [],
       templateDataInfo: [],
-      isCanSave: false
+      isCanSave: false,
     };
   },
   watch: {
     souceData: {
       handler: 'handleSouceData',
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   created() {
-    this.souceData.forEach((item) => {
-      item.forEach((value) => {
+    this.souceData.forEach(item => {
+      item.forEach(value => {
         if (value.key === 'security_level') {
           this.curAuthPriv.push({ curAuthPriv: value.default });
         }
@@ -236,15 +225,17 @@ export default {
     authValidate() {
       let result = false;
       const { excludeValidateMap } = snmp;
-      result = this.souceDataInfo.every((items, index) => items.every((item) => {
-        if (!excludeValidateMap[this.curAuthPriv[index].curAuthPriv].includes(item.key)) {
-          return item.type === 'file' ? item.default.value !== '' : item.default !== '';
-        }
-        return true;
-      }));
+      result = this.souceDataInfo.every((items, index) =>
+        items.every(item => {
+          if (!excludeValidateMap[this.curAuthPriv[index].curAuthPriv].includes(item.key)) {
+            return item.type === 'file' ? item.default.value !== '' : item.default !== '';
+          }
+          return true;
+        })
+      );
       return result;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss">

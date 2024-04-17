@@ -49,8 +49,8 @@ export default class AlarmGroupAddMonitor extends tsc<IAlarmGroupAdd> {
     return (
       <AlarmGroupAdd
         style='padding: 40px 159px 0px 48px;'
-        groupId={+this.id}
         fromRoute={this.fromRoute}
+        groupId={+this.id}
       ></AlarmGroupAdd>
     );
   }

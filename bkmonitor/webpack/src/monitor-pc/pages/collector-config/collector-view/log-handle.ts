@@ -26,7 +26,6 @@
 // 日志采集特殊处理
 import { COLLECT_CHART_TYPE } from '../../../constant/constant';
 import { IFilterCondition } from '../../data-retrieval/typings/index';
-
 import { selectAllItemKey } from './variable-settings.tsx';
 
 interface hideOptions {
@@ -115,7 +114,7 @@ const logEventRetrievalParams = (handleGroupsData, variableData, Method = 'AVG')
           method: Method,
           where: timeSeriesParams[0].where,
         },
-        variableData,
+        variableData
       );
     }
   }

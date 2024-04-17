@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { MethodType } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/http-editor/http-editor';
 import { isHttpUrl, isIpv6Url } from 'monitor-common/regex/url';
 
@@ -34,7 +35,7 @@ import HttpUrlInput from './http-url-input';
 
 import './http-target.scss';
 
-export type ProtocolType = 'http' | 'tcp' | 'udp' | 'icmp';
+export type ProtocolType = 'http' | 'icmp' | 'tcp' | 'udp';
 const methodList: MethodType[] = ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'];
 interface IHttpTargetProps {
   urls: string[];
@@ -91,15 +92,15 @@ export default class HttpTarget extends tsc<IHttpTargetProps, IHttpTargetEvents>
         <div class='http-create'>
           <bk-select
             class='http-create-method'
-            value={this.method}
             clearable={false}
             popover-width={100}
+            value={this.method}
             onChange={this.methodChange}
           >
             {methodList.map(option => (
               <bk-option
-                key={option}
                 id={option}
+                key={option}
                 name={option}
               ></bk-option>
             ))}
@@ -114,21 +115,21 @@ export default class HttpTarget extends tsc<IHttpTargetProps, IHttpTargetEvents>
             <HttpUrlInput
               key={i}
               value={url}
-              onDelete={() => this.httpUrlDelete(i)}
               onChange={v => this.httpUrlChange(v, i)}
+              onDelete={() => this.httpUrlDelete(i)}
             />
           ))}
         </div>
         <CommonAddDialog
           defaultValue={this.defaultUrl}
-          show={this.show}
-          title={this.$t('添加/编辑URL')}
           placeholder={this.$t('输入URL，可通过回车区隔多个URL')}
+          show={this.show}
           showValidateTips={this.showValidateTips}
+          title={this.$t('添加/编辑URL')}
           validateTips={this.$t('输入正确的url')}
-          onShowChange={this.handleShowChange}
           onConfirm={this.handleConfirm}
           onFocus={() => (this.showValidateTips = false)}
+          onShowChange={this.handleShowChange}
         />
       </div>
     );

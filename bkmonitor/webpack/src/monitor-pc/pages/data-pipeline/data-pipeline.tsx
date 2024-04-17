@@ -26,6 +26,7 @@
 
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import {
   checkClusterHealth,
   listDataPipeline,
@@ -39,24 +40,24 @@ import DataPipelineConfig from './data-pipeline-config';
 import './data-pipeline.scss';
 
 enum EColunm {
-  name = 'name',
-  scope = 'scope',
-  type = 'type',
-  kafka = 'Kafka',
-  transfer = 'Transfer',
   influxdbStorage = 'influxdbStorage',
-  kafkaStorage = 'kafkaStorage',
   isDefault = 'isDefault',
   isEnable = 'isEnable',
+  kafka = 'Kafka',
+  kafkaStorage = 'kafkaStorage',
+  name = 'name',
   operate = 'operate',
+  scope = 'scope',
+  transfer = 'Transfer',
+  type = 'type',
 }
 enum EChildColunm {
+  influxdbStorage = 'influxdbStorage',
+  kafkaTopic = 'kafkaTopic',
+  kafkaTopicStorage = 'kafkaTopicStorage',
   name = 'name',
   space = 'space',
   type = 'type',
-  kafkaTopic = 'kafkaTopic',
-  influxdbStorage = 'influxdbStorage',
-  kafkaTopicStorage = 'kafkaTopicStorage',
 }
 
 interface IChildTableData {
@@ -332,7 +333,7 @@ export default class DataPipeline extends tsc<object> {
           data: res.data.map(item => {
             const kafkaTopic = item?.mq_config?.storage_config?.topic;
             const influxdbDomainName = item?.result_table_list?.[0].shipper_list?.find(
-              r => r.cluster_type === 'influxdb',
+              r => r.cluster_type === 'influxdb'
             )?.cluster_config?.domain_name;
             const kafkaStorageTopic = item?.result_table_list?.[0].shipper_list?.find(r => r.cluster_type === 'kafka')
               ?.storage_config?.topic;
@@ -458,8 +459,8 @@ export default class DataPipeline extends tsc<object> {
     }
     const domList = indexs.map((item, index_) => (
       <div
-        class='count-status'
         key={index_}
+        class='count-status'
       >
         {list.slice(...item).map((status, index) => (
           <div
@@ -505,8 +506,8 @@ export default class DataPipeline extends tsc<object> {
       case EColunm.kafka: {
         return (
           <span
-            class='count-status-info'
             key={`${this.statusKey}_kafka_cluster`}
+            class='count-status-info'
           >
             <div class='name-info'>
               <span class='name'>{row.kafka_cluster_name || '--'}</span>
@@ -518,8 +519,8 @@ export default class DataPipeline extends tsc<object> {
       }
       case EColunm.influxdbStorage: {
         <span
-          class='count-status-info'
           key={`${this.statusKey}_influxdb_storage_cluste`}
+          class='count-status-info'
         >
           <div class='name-info'>
             <span class='name'>{row.influxdb_storage_cluster_name || '--'}</span>
@@ -531,8 +532,8 @@ export default class DataPipeline extends tsc<object> {
       case EColunm.kafkaStorage: {
         return (
           <span
-            class='count-status-info'
             key={`${this.statusKey}_kafka_storage_cluster`}
+            class='count-status-info'
           >
             <div class='name-info'>
               <span class='name'>{row.kafka_storage_cluster_name || '--'}</span>
@@ -549,10 +550,10 @@ export default class DataPipeline extends tsc<object> {
         return (
           <div onClick={(e: Event) => e.stopPropagation()}>
             <bk-switcher
-              theme='primary'
-              size='small'
-              value={row.is_enable}
               pre-check={() => this.handleEnable(row)}
+              size='small'
+              theme='primary'
+              value={row.is_enable}
             ></bk-switcher>
           </div>
         );
@@ -617,9 +618,9 @@ export default class DataPipeline extends tsc<object> {
         <div class='head-operate'>
           <div class='left'>
             <bk-button
+              class='mr24'
               icon='plus'
               theme='primary'
-              class='mr24'
               onClick={this.handleShowConfigAdd}
             >
               {this.$t('新增')}
@@ -644,8 +645,8 @@ export default class DataPipeline extends tsc<object> {
         >
           <bk-table
             key={this.tableKey}
-            outer-border={false}
             header-border={false}
+            outer-border={false}
             size={this.tableSize}
             {...{
               props: {
@@ -654,12 +655,11 @@ export default class DataPipeline extends tsc<object> {
                 rowKey: row => row.key,
               },
             }}
-            on-row-click={this.handleRowClick}
             on-filter-change={this.handleFilterChange}
+            on-row-click={this.handleRowClick}
           >
             {
               <bk-table-column
-                type='expand'
                 width={0}
                 scopedSlots={{
                   /* 子表 */
@@ -670,11 +670,11 @@ export default class DataPipeline extends tsc<object> {
                       // onScroll={this.throttleHandleScroll}
                     >
                       <bk-table
-                        outer-border={false}
                         header-border={false}
+                        max-height={311}
+                        outer-border={false}
                         row-class-name={'child-row'}
                         size={'medium'}
-                        max-height={311}
                         {...{
                           props: {
                             data: row.childTable.data,
@@ -688,15 +688,16 @@ export default class DataPipeline extends tsc<object> {
                         {this.childTableColumns.map(childColumn => (
                           <bk-table-column
                             key={childColumn.id}
-                            label={childColumn.name}
                             width={childColumn.width}
                             formatter={(row: any) => this.handleSetChildFormatter(childColumn.id as any, row)}
+                            label={childColumn.name}
                           ></bk-table-column>
                         ))}
                       </bk-table>
                     </div>
                   ),
                 }}
+                type='expand'
               ></bk-table-column>
             }
             {
@@ -705,10 +706,10 @@ export default class DataPipeline extends tsc<object> {
                   key={'__settings'}
                   class='event-table-setting'
                   fields={this.tableData.columns}
-                  value-key='id'
                   label-key='name'
-                  size={this.tableSize}
                   selected={this.tableData.columns.filter(item => item.checked || item.disabled)}
+                  size={this.tableSize}
+                  value-key='id'
                   on-setting-change={this.handleSettingChange}
                 />
               </bk-table-column>
@@ -720,27 +721,27 @@ export default class DataPipeline extends tsc<object> {
                 return (
                   <bk-table-column
                     key={key}
-                    prop={column.id}
-                    label={column.name}
-                    column-key={column.id}
                     width={column.width}
-                    filters={column.filters}
-                    filter-multiple={!!column.filterMultiple}
                     formatter={(row, _column, _cellValue, index) =>
                       this.handleSetFormatter(column.id as EColunm, row, index)
                     }
+                    column-key={column.id}
+                    filter-multiple={!!column.filterMultiple}
+                    filters={column.filters}
+                    label={column.name}
+                    prop={column.id}
                   ></bk-table-column>
                 );
               })}
           </bk-table>
         </div>
         <DataPipelineConfig
-          show={this.configData.show}
           data={this.configData.data as any}
           piplineList={this.piplineList}
-          onSuccess={this.handleSuccess}
-          onShowChange={this.handleShowChange}
+          show={this.configData.show}
           onEdit={this.handleEditPipline}
+          onShowChange={this.handleShowChange}
+          onSuccess={this.handleSuccess}
         ></DataPipelineConfig>
       </div>
     );

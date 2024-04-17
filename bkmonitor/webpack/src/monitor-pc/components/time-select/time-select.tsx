@@ -87,14 +87,14 @@ export default class TimeSelect extends tsc<ITimeSelectProps, IITimeSelectEvent>
     return (
       <div class='time-select'>
         <bk-select
-          value={this.value}
           clearable={false}
+          value={this.value}
           onSelected={this.handleChange}
         >
           {this.list.map(item => (
             <bk-option
-              key={item.id}
               id={item.id}
+              key={item.id}
               name={item.name}
             >
               {item.name}
@@ -104,16 +104,16 @@ export default class TimeSelect extends tsc<ITimeSelectProps, IITimeSelectEvent>
             {this.showCustomTime ? (
               <span class='time-input-wrap'>
                 <bk-input
-                  size='small'
                   v-model={this.customTimeVal}
+                  size='small'
                   onKeydown={this.handleKeyDown}
                 />
                 <span
+                  class='help-icon icon-monitor icon-mc-help-fill'
                   v-bk-tooltips={{
                     allowHTML: false,
                     content: this.tip || this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年'),
                   }}
-                  class='help-icon icon-monitor icon-mc-help-fill'
                 />
               </span>
             ) : (

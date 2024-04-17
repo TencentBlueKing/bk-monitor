@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers as m } from 'vue-tsx-support';
+
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -136,7 +137,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
   }
   /** 初始化展开的节点 */
   get defaultExpandedId() {
-    const fn = (list: string | any[], targetName: string): any => {
+    const fn = (list: any[] | string, targetName: string): any => {
       if (list?.length) {
         for (const item of list) {
           const sourceId = item.id;
@@ -283,8 +284,8 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
           onClick={m.stop(() => this.handleClickItemProxy(data))}
         >
           <span
-            class='node-content'
             style='padding-right: 5px;'
+            class='node-content'
           >
             {!!data.status?.type && (
               <CommonStatus
@@ -305,18 +306,18 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
         <div class='list-header'>
           {this.conditionList.length ? (
             <bk-search-select
-              placeholder={this.$t('搜索')}
               vModel={this.searchCondition}
-              show-condition={false}
               data={this.currentConditionList}
+              placeholder={this.$t('搜索')}
+              show-condition={false}
               show-popover-tag-change={false}
               onChange={this.handleSearch}
             />
           ) : (
             <bk-input
               v-model={this.searchKeyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
@@ -329,30 +330,30 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
         </div>
         <StatusTab
           class='status-tab'
-          disabledClickZero={false}
           v-model={this.currentStatus}
+          disabledClickZero={false}
           statusList={this.statusList}
           onChange={this.handleStatusChange}
         />
         <div class='list-wrapper'>
           <bk-big-tree
-            class={['big-tree', { 'clear-selected': !this.activeId }]}
             ref='bigTreeRef'
-            expand-on-click={false}
             height={this.treeHeight}
-            selectable={true}
-            filter-method={this.filterMethod}
-            default-expanded-nodes={this.defaultExpandedId}
+            class={['big-tree', { 'clear-selected': !this.activeId }]}
             data={this.treeData}
+            default-expanded-nodes={this.defaultExpandedId}
+            expand-on-click={false}
+            filter-method={this.filterMethod}
             scopedSlots={scopedSlots}
+            selectable={true}
           >
             <div
-              slot='empty'
               class='search-empty-wrap'
+              slot='empty'
             >
               <bk-exception
-                type='search-empty'
                 scene='part'
+                type='search-empty'
               />
             </div>
           </bk-big-tree>

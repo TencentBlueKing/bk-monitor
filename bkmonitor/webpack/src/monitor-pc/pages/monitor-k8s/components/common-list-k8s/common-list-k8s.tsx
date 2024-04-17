@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -137,7 +138,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
     return this.list.filter(
       item =>
         (item.name.includes(this.keyword) || item.id.toString().includes(this.keyword)) &&
-        (this.currentStatus === 'all' ? true : item.status.type === this.currentStatus),
+        (this.currentStatus === 'all' ? true : item.status.type === this.currentStatus)
     );
   }
 
@@ -205,7 +206,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
               name: set.name || id,
             };
           });
-        }),
+        })
     );
     const [data] = await Promise.all(promiseList).catch(() => [[]]);
     this.list = data;
@@ -299,18 +300,18 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
           <div class='list-header'>
             {this.conditionList.length ? (
               <bk-search-select
-                placeholder={this.$t('搜索')}
                 vModel={this.searchCondition}
-                show-condition={false}
                 data={this.currentConditionList}
+                placeholder={this.$t('搜索')}
+                show-condition={false}
                 show-popover-tag-change={false}
                 onChange={this.handleSearch}
               />
             ) : (
               <bk-input
                 v-model={this.keyword}
-                right-icon='bk-icon icon-search'
                 placeholder={this.$t('搜索')}
+                right-icon='bk-icon icon-search'
                 onInput={this.handleLocalSearch}
               ></bk-input>
             )}
@@ -322,10 +323,10 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
             </bk-button>
           </div>
           <StatusTab
-            v-model={this.currentStatus}
-            disabledClickZero
             class='status-tab'
+            v-model={this.currentStatus}
             statusList={this.statusList}
+            disabledClickZero
             onChange={this.handleStatusChange}
           ></StatusTab>
           <div
@@ -339,19 +340,18 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
             {this.localList?.length ? (
               <bk-virtual-scroll
                 ref='virtualInstance'
-                item-height={32}
                 scopedSlots={{
                   default: ({ data }) => {
                     const itemId = this.panel.targets[0]?.handleCreateItemId(data);
                     return (
                       <div
-                        onClick={() => this.handleSelect(data)}
                         class={[
                           `list-wrapper-item ${data.id === this.activeId ? 'item-active' : ''}`,
                           {
                             'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
                           },
                         ]}
+                        onClick={() => this.handleSelect(data)}
                       >
                         <span class='status-tag-wrap'>
                           <CommonStatus type={data.status.type}></CommonStatus>
@@ -375,12 +375,13 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
                     );
                   },
                 }}
+                item-height={32}
               ></bk-virtual-scroll>
             ) : (
               <bk-exception
                 class='exception-part'
-                type='search-empty'
                 scene='part'
+                type='search-empty'
               />
             )}
           </div>

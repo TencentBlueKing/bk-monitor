@@ -25,6 +25,7 @@
  */
 
 import { RouteConfig } from 'vue-router';
+
 import * as ruleAuth from 'fta-solutions/pages/setting/set-meal/authority-map';
 
 const SetMeal = () => import(/* webpackChunkName: "SetMeal" */ 'fta-solutions/pages/setting/set-meal/set-meal');

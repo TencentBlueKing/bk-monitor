@@ -27,8 +27,8 @@
   <div class="step-set-done">
     <div class="step-set-done-body">
       <div
-        class="done-loading"
         v-if="loading"
+        class="done-loading"
       >
         <svg
           class="loading-svg"
@@ -60,12 +60,12 @@
         </div>
       </div>
       <div
-        class="done-result"
         v-else
+        class="done-result"
       >
         <div
-          class="result-success"
           v-if="status"
+          class="result-success"
         >
           <svg
             class="success-svg"
@@ -96,8 +96,8 @@
           </div>
         </div>
         <div
-          class="result-fail"
           v-else
+          class="result-fail"
         >
           <svg
             viewBox="0 0 64 64"
@@ -124,8 +124,8 @@
       </div>
     </div>
     <div
-      class="step-set-done-footer"
       v-if="!loading"
+      class="step-set-done-footer"
     >
       <bk-button
         class="mr10"
@@ -134,15 +134,17 @@
         {{ $t('button-关闭') }}
       </bk-button>
       <bk-button
+        v-if="needUpdataPlugin"
         class="mr10"
         theme="primary"
-        v-if="needUpdataPlugin"
         @click="goToCollectConfig"
-      >{{ $t('前往采集配置升级插件') }}</bk-button>
+        >{{ $t('前往采集配置升级插件') }}</bk-button
+      >
       <bk-button
         theme="primary"
         @click="goToCollectConfigAdd"
-      >{{ $t('新建采集配置') }}</bk-button>
+        >{{ $t('新建采集配置') }}</bk-button
+      >
     </div>
   </div>
 </template>
@@ -152,21 +154,21 @@ import { releaseCollectorPlugin } from 'monitor-api/modules/model';
 
 export default {
   name: 'StepSetDone',
+  inject: ['authority', 'handleShowAuthorityDetail', 'pluginManageAuth'],
   props: {
     data: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     fromRoute: {
-      type: String
-    }
+      type: String,
+    },
   },
-  inject: ['authority', 'handleShowAuthorityDetail', 'pluginManageAuth'],
   data() {
     return {
       loading: true,
       status: true,
-      error: ''
+      error: '',
     };
   },
   computed: {
@@ -174,16 +176,16 @@ export default {
       const {
         config_version: configVersion,
         config_version_old: configVersionOld,
-        related_conf_count: relatedConfCount
+        related_conf_count: relatedConfCount,
       } = this.data;
       // 配置版本更新 并且 有关联配置的显示去更新插件按钮
       return (
-        configVersionOld
-        && configVersion !== configVersionOld
-        && configVersion > configVersionOld
-        && relatedConfCount > 0
+        configVersionOld &&
+        configVersion !== configVersionOld &&
+        configVersion > configVersionOld &&
+        relatedConfCount > 0
       );
-    }
+    },
   },
   async activated() {
     this.loading = true;
@@ -213,8 +215,8 @@ export default {
         name: 'collect-config',
         params: {
           searchType: 'upgrade',
-          pluginId: this.data.plugin_id
-        }
+          pluginId: this.data.plugin_id,
+        },
       });
     },
     goToCollectConfigAdd() {
@@ -223,8 +225,8 @@ export default {
         params: {
           objectId: this.data.label,
           pluginType: this.data.plugin_type,
-          pluginId: this.data.plugin_id
-        }
+          pluginId: this.data.plugin_id,
+        },
       });
     },
     close() {
@@ -235,12 +237,12 @@ export default {
           params: {
             objectId: this.data.label,
             pluginType: this.data.plugin_type,
-            pluginId: this.data.plugin_id
-          }
+            pluginId: this.data.plugin_id,
+          },
         });
       } else {
         this.$router.push({
-          name: 'plugin-manager'
+          name: 'plugin-manager',
         });
       }
     },
@@ -248,13 +250,13 @@ export default {
       releaseCollectorPlugin(params.plugin_id, {
         config_version: params.config_version,
         info_version: params.info_version,
-        token: params.token
+        token: params.token,
       })
         .then(() => {
           this.status = true;
           this.saveData('success');
         })
-        .catch((err) => {
+        .catch(err => {
           this.status = false;
           this.saveData('fail', err.message);
         })
@@ -280,8 +282,8 @@ export default {
         return !this.authority.COLLECTION_VIEW_AUTH;
       }
       return !this.authority.COLLECTION_MANAGE_AUTH;
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -335,7 +337,7 @@ export default {
         g {
           @for $i from 1 through 8 {
             :nth-child(#{$i}) {
-              opacity: #{$i * .125};
+              opacity: #{$i * 0.125};
               fill: $primaryFontColor;
             }
           }

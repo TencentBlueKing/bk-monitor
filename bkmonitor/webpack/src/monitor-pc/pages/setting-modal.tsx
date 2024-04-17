@@ -25,12 +25,12 @@
  */
 import { Component, Emit, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import NoPermission from '../components/no-permission/no-permission';
 import authorityMixinCreate from '../mixins/authorityMixin';
 import { IMenuItem } from '../types';
-
 import * as ruleAuth from './authority-map';
 
 import './setting-modal.scss';
@@ -132,10 +132,10 @@ class SettingModal extends Mixins(authorityMixinCreate(ruleAuth, 'created')) {
     return (
       <MonitorDialog
         class='setting-modal'
-        value={this.show}
         fullScreen={true}
         needFooter={false}
         needHeader={false}
+        value={this.show}
         zIndex={this.zIndex}
         onChange={this.handleShow}
       >
@@ -149,13 +149,13 @@ class SettingModal extends Mixins(authorityMixinCreate(ruleAuth, 'created')) {
         <div class='setting-modal-body'>
           <div class='panel-wrapper'>
             <div
-              class='left-panel'
               style={{ display: this.menuList?.length ? 'flex' : 'none' }}
+              class='left-panel'
             >
               {this.menuList.map(item => (
                 <div
-                  class={`menu-item ${this.activeMenu === item.id ? 'active-menu' : ''}`}
                   key={item.id}
+                  class={`menu-item ${this.activeMenu === item.id ? 'active-menu' : ''}`}
                   onClick={() => this.activeMenu !== item.id && this.$emit('menuChange', item)}
                 >
                   {this.$t(item.name)}

@@ -25,6 +25,7 @@
  */
 
 import VueI18n, { TranslateResult } from 'vue-i18n';
+
 import * as base from 'vue-tsx-support/types/base';
 import * as builtin from 'vue-tsx-support/types/builtin-components';
 
@@ -33,7 +34,7 @@ import { IBizItem, ISpaceItem } from './types';
 interface IBkInfoProps {
   title: unknown;
   zIndex: number;
-  width: string | number;
+  width: number | string;
   type: string;
   maskClose: boolean;
   confirmLoading: boolean;
@@ -42,7 +43,7 @@ interface IBkInfoProps {
   escClose?: any;
   showFooter?: boolean;
   extCls?: string;
-  okText?: string | TranslateResult;
+  okText?: TranslateResult | string;
   cancelText?: string;
   confirmFn: (v: unknown) => void;
   cancelFn: (v: unknown) => void;
@@ -70,8 +71,8 @@ declare global {
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];
     csrf_cookie_name: string;
-    cc_biz_id: string | number;
-    bk_biz_id: string | number;
+    cc_biz_id: number | string;
+    bk_biz_id: number | string;
     space_uid: string;
     Vue?: any;
     i18n: VueI18n;

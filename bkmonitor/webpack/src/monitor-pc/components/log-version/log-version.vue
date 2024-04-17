@@ -35,16 +35,16 @@
   >
     <template>
       <div
-        class="log-version"
         v-bkloading="{ isLoading: loading }"
+        class="log-version"
       >
         <div class="log-version-left">
           <ul class="left-list">
             <li
-              class="left-list-item"
-              :class="{ 'item-active': index === active }"
               v-for="(item, index) in logList"
               :key="index"
+              class="left-list-item"
+              :class="{ 'item-active': index === active }"
               @click="handleItemClick(index)"
             >
               <span class="item-title">{{ item.title }}</span>
@@ -52,7 +52,9 @@
               <span
                 v-if="index === current"
                 class="item-current"
-              > {{ $t('当前版本') }} </span>
+              >
+                {{ $t('当前版本') }}
+              </span>
             </li>
           </ul>
         </div>
@@ -74,7 +76,7 @@ export default {
   name: 'LogVersion',
   props: {
     // 是否显示
-    dialogShow: Boolean
+    dialogShow: Boolean,
   },
   data() {
     return {
@@ -82,13 +84,13 @@ export default {
       current: 0,
       active: 0,
       logList: [],
-      loading: false
+      loading: false,
     };
   },
   computed: {
     currentLog() {
       return this.logList[this.active] || {};
-    }
+    },
   },
   watch: {
     dialogShow: {
@@ -103,8 +105,8 @@ export default {
           this.loading = false;
         }
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   beforeDestroy() {
     this.show = false;
@@ -133,7 +135,7 @@ export default {
           process.env.NODE_ENV === 'development' || !window.version_log_url
             ? `${window.site_url}version_log/`
             : `/${window.version_log_url}`
-        }version_logs_list/`
+        }version_logs_list/`,
       }).catch(() => ({ data: [] }));
       return data.map(item => ({ title: item[0], date: item[1], detail: '' }));
     },
@@ -147,12 +149,12 @@ export default {
             : window.version_log_url
         }version_log_detail/`,
         params: {
-          log_version: this.currentLog.title
-        }
+          log_version: this.currentLog.title,
+        },
       }).catch(() => ({ data: '' }));
       return data;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

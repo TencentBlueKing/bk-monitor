@@ -29,9 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { FavoriteIndexType, IFavList } from '../typings';
-
-import SharedDialog from './component/shared-dialog';
 import CollectContainer from './collect-container';
+import SharedDialog from './component/shared-dialog';
 import ManageGroupDialog from './manage-group-dialog';
 
 import './collect-index.scss';
@@ -141,7 +140,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupName.trim(),
+      this.verifyData.groupName.trim()
     );
   }
 
@@ -230,7 +229,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
         .map(item => ({
           ...item,
           favorites: item.favorites.filter(
-            fItem => fItem.create_user.includes(this.searchVal) || fItem.name.includes(this.searchVal),
+            fItem => fItem.create_user.includes(this.searchVal) || fItem.name.includes(this.searchVal)
           ),
         }))
         .filter(item => item.favorites.length);
@@ -254,12 +253,12 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
     return (
       <div class='retrieve-collect-index'>
         <CollectContainer
+          collectLoading={this.searchLoading || this.favoriteLoading}
           dataList={this.filterCollectList}
-          groupList={this.groupList}
           emptyStatusType={this.emptyStatusType}
           favCheckedValue={this.favCheckedValue}
+          groupList={this.groupList}
           isSearchFilter={this.isSearchFilter}
-          collectLoading={this.searchLoading || this.favoriteLoading}
           onChange={this.handleUserOperate}
           onHandleOperation={this.handleEmptyOperation}
         >
@@ -276,26 +275,26 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
             </div>
             <div class='search-box fl-jcsb'>
               <bk-input
-                right-icon='bk-icon icon-search'
                 vModel={this.searchVal}
+                placeholder={this.$t('搜索收藏名')}
+                right-icon='bk-icon icon-search'
                 onEnter={this.handleSearchFavorite}
                 onKeyup={this.handleInputSearchFavorite}
                 onRightIconClick={this.handleSearchFavorite}
-                placeholder={this.$t('搜索收藏名')}
               ></bk-input>
               <div class='fl-jcsb operate-box'>
                 <bk-popover
                   ref='popoverGroup'
-                  tippy-options={this.tippyOption}
-                  placement='bottom-start'
                   ext-cls='new-group-popover'
+                  placement='bottom-start'
+                  tippy-options={this.tippyOption}
                 >
                   <span class='bk-icon icon-plus-circle'></span>
                   <div slot='content'>
                     <bk-form
-                      labelWidth={0}
-                      style={{ width: '100%' }}
                       ref='checkInputForm'
+                      style={{ width: '100%' }}
+                      labelWidth={0}
                       {...{
                         props: {
                           model: this.verifyData,
@@ -305,11 +304,11 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                     >
                       <bk-form-item property='groupName'>
                         <bk-input
-                          clearable
-                          placeholder={this.$t('输入组名,30个字符')}
                           vModel={this.verifyData.groupName}
-                          onKeydown={this.handleGroupKeyDown}
+                          placeholder={this.$t('输入组名,30个字符')}
+                          clearable
                           onEnter={() => this.handleClickGroupBtn('add')}
+                          onKeydown={this.handleGroupKeyDown}
                         ></bk-input>
                       </bk-form-item>
                     </bk-form>
@@ -326,9 +325,9 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                 </bk-popover>
                 <bk-popover
                   ref='popoverSort'
-                  tippy-options={this.tippyOption}
-                  placement='bottom-start'
                   ext-cls='sort-group-popover'
+                  placement='bottom-start'
+                  tippy-options={this.tippyOption}
                 >
                   <div class='icon-box'>
                     <span class='bk-icon icon-sort'></span>
@@ -336,8 +335,8 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                   <div slot='content'>
                     <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏排序')}</span>
                     <bk-radio-group
-                      vModel={this.sortType}
                       class='sort-group-container'
+                      vModel={this.sortType}
                     >
                       {this.groupSortList.map(item => (
                         <bk-radio value={item.id}>{item.name}</bk-radio>

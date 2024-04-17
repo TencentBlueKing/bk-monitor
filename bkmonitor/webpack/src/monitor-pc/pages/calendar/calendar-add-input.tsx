@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { saveCalendar } from 'monitor-api/modules/calendar';
 
 import './calendar-add-input.scss';
@@ -131,23 +132,23 @@ export default class CalendarAddInput extends tsc<{}, IEvents> {
         {this.isShowInput && (
           <div class='calendar-input-content'>
             <bk-input
+              ref='inputRef'
               class='calendar-input'
               v-model={this.inputText}
-              ref='inputRef'
               placeholder={this.$t('输入日历名称')}
             ></bk-input>
             <bk-button
               class='btn'
-              text
               theme='primary'
+              text
               onClick={this.handleAddCalendar}
             >
               {this.$t('确认')}
             </bk-button>
             <bk-button
               class='btn cancel'
-              text
               theme='default'
+              text
               onClick={this.handleCancel}
             >
               {this.$t('取消')}

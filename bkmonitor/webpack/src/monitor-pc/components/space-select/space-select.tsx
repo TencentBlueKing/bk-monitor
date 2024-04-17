@@ -25,13 +25,13 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { bizWithAlertStatistics } from 'monitor-api/modules/home';
 import { Debounce } from 'monitor-common/utils';
 
 import { ISpaceItem } from '../../types';
 import { getEventPaths } from '../../utils';
 import { ETagsType } from '../biz-select/list';
-
 import { SPACE_TYPE_MAP } from './utils';
 
 import './space-select.scss';
@@ -242,7 +242,7 @@ export default class SpaceSelect extends tsc<
   async setAlllowed() {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { business_list, business_with_alert, business_with_permission } = await bizWithAlertStatistics().catch(
-      () => ({}),
+      () => ({})
     );
     const allBizList = business_list.map(item => ({
       id: item.bk_biz_id,
@@ -320,7 +320,7 @@ export default class SpaceSelect extends tsc<
         this.pagination.current += 1;
         const temp = showData.slice(
           (this.pagination.current - 1) * this.pagination.limit,
-          this.pagination.current * this.pagination.limit,
+          this.pagination.current * this.pagination.limit
         );
         this.pagination.data.push(...temp);
       }
@@ -582,7 +582,7 @@ export default class SpaceSelect extends tsc<
     }
   }
   @Emit('applyAuth')
-  async handleApplyAuth(bizId: string | number) {
+  async handleApplyAuth(bizId: number | string) {
     this.handlePopoverHidden();
     return [bizId];
   }
@@ -608,7 +608,7 @@ export default class SpaceSelect extends tsc<
    * @description 左右切换type栏
    * @param type
    */
-  handleTypeWrapScrollChange(type: 'pre' | 'next') {
+  handleTypeWrapScrollChange(type: 'next' | 'pre') {
     const smoothScrollTo = (element: HTMLDivElement, targetPosition: number, duration: number, callback) => {
       const startPosition = element.scrollLeft;
       const distance = targetPosition - startPosition;
@@ -661,8 +661,8 @@ export default class SpaceSelect extends tsc<
             {this.isCommonStyle
               ? this.valueStrList.map((item, index) => (
                   <span
-                    class='selected-text-item'
                     key={index}
+                    class='selected-text-item'
                   >
                     {index !== 0 ? `   , ${item.name}` : item.name}
                     {!!item.id && <span class='selected-text-id'>({item.id})</span>}
@@ -680,25 +680,26 @@ export default class SpaceSelect extends tsc<
         </div>
         <div style={{ display: 'none' }}>
           <div
-            class={componentClassNames.pop}
             ref='wrap'
+            class={componentClassNames.pop}
           >
             <div class='search-input'>
               <bk-input
-                placeholder={this.$t('请输入关键字或标签')}
                 v-model={this.searchValue}
-                left-icon='bk-icon icon-search'
                 behavior={'simplicity'}
+                left-icon='bk-icon icon-search'
+                placeholder={this.$t('请输入关键字或标签')}
                 onChange={this.handleSearchChange}
               ></bk-input>
             </div>
             <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }]}>
               <ul
-                class={'space-type-list'}
                 ref='typeList'
+                class={'space-type-list'}
               >
                 {this.spaceTypeIdList.map(item => (
                   <li
+                    key={item.id}
                     class={[
                       'space-type-item',
                       item.id,
@@ -706,7 +707,6 @@ export default class SpaceSelect extends tsc<
                       { selected: item.id === this.searchTypeId },
                       item.id,
                     ]}
-                    key={item.id}
                     onClick={() => this.handleSearchType(item.id)}
                   >
                     {item.name}
@@ -732,6 +732,7 @@ export default class SpaceSelect extends tsc<
             >
               {this.pagination.data.map(item => (
                 <div
+                  key={item.id}
                   class={[
                     'space-list-item',
                     { active: !this.multiple && item.isCheck },
@@ -743,7 +744,6 @@ export default class SpaceSelect extends tsc<
                         (!!item.noAuth && !item.hasData),
                     },
                   ]}
-                  key={item.id}
                   onClick={() => this.handleSelectOption(item)}
                 >
                   {this.multiple && (
@@ -785,8 +785,8 @@ export default class SpaceSelect extends tsc<
                       <bk-button
                         class='auth-button'
                         size='small'
-                        text
                         theme='primary'
+                        text
                         onClick={() => this.handleApplyAuth(item.id)}
                       >
                         {this.$t('申请权限')}
@@ -794,8 +794,8 @@ export default class SpaceSelect extends tsc<
                     ) : (
                       item.tags?.map?.(tag => (
                         <span
-                          class='space-tags-item'
                           style={{ ...(SPACE_TYPE_MAP[tag.id] || SPACE_TYPE_MAP.default) }}
+                          class='space-tags-item'
                         >
                           {SPACE_TYPE_MAP[tag.id]?.name || this.$t('未知')}
                         </span>
@@ -807,8 +807,8 @@ export default class SpaceSelect extends tsc<
                       <bk-button
                         class='auth-button'
                         size='small'
-                        text
                         theme='primary'
+                        text
                         onClick={e => {
                           e.stopPropagation();
                           this.handleSetCurBiz(item);

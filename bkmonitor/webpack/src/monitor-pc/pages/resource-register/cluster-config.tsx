@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { checkClusterHealth, registerCluster, updateRegisteredCluster } from 'monitor-api/modules/commons';
 import { random } from 'monitor-common/utils';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
-
 import ClusterMoreConfig from './cluster-config/cluster-more-config';
 import FormItem from './cluster-config/components/form-item';
 // import InfluxdbGroup from './cluster-config/influxdb-group';
@@ -116,14 +116,14 @@ const formData = {
 // 连通性测试状态
 enum ConnectionStatus {
   default = '',
-  success = 'success',
   fail = 'fail',
+  success = 'success',
 }
 
 enum OperationType {
-  edit = '编辑',
-  clone = '克隆',
   add = '新增',
+  clone = '克隆',
+  edit = '编辑',
 }
 
 const labelList = [
@@ -297,7 +297,7 @@ export default class ClusterConfig extends tsc<object> {
       return;
     }
     const { elasticsearch } = this.formData.moreConfig;
-    const spaceParams = (space: (string | number)[], scope: EScopes) => {
+    const spaceParams = (space: (number | string)[], scope: EScopes) => {
       if (scope === EScopes.allSpace) {
         return [];
       }
@@ -474,35 +474,35 @@ export default class ClusterConfig extends tsc<object> {
   render() {
     return (
       <bk-sideslider
+        width={640}
+        ext-cls='cluster-config-wrapper-component'
         isShow={this.show}
         quick-close={true}
-        width={640}
         transfer={true}
-        ext-cls='cluster-config-wrapper-component'
         on={{ 'update:isShow': this.emitShowChange }}
         on-hidden={this.handleSliderHidden}
       >
         <div
-          slot='header'
           class='cluster-config-title'
+          slot='header'
         >
           {(this.rowConfig.operationType === 'add' ? this.$t('新增集群') : this.$t('编辑集群')) || '加载中...'}
         </div>
         <div
-          slot='content'
           class='cluster-config-content'
+          slot='content'
         >
           <div class='cluster-resource-type'>
             <div class='resource-type-title'>{this.$t('资源类别')}</div>
             <div class='type-selector'>
               {this.resourceList.map(item => (
                 <div
+                  key={item.id + item.name}
                   class={[
                     'resource-type-card',
                     this.selectedType === item.id && 'selected-card',
                     item.disabled && 'disabled-card',
                   ]}
-                  key={item.id + item.name}
                   onClick={() => this.handleSelectChange(item)}
                 >
                   <div
@@ -522,20 +522,20 @@ export default class ClusterConfig extends tsc<object> {
           <div class='cluster-basic-info'>
             <div class='info-title'>{this.$t('基础信息')}</div>
             <FormItem
-              title={this.$t('集群名称')}
-              require={true}
               errMsg={this.formErrMsg.clusterName}
+              require={true}
+              title={this.$t('集群名称')}
             >
               <bk-input
                 v-model={this.formData.clusterName}
-                onFocus={() => this.clearError()}
                 onChange={() => (this.formErrMsg.clusterName = '')}
+                onFocus={() => this.clearError()}
               ></bk-input>
             </FormItem>
             <FormItem
-              title={this.$t('用途')}
-              require={true}
               errMsg={this.formErrMsg.label}
+              require={true}
+              title={this.$t('用途')}
             >
               <bk-checkbox-group
                 class='usage-checkbox'
@@ -544,8 +544,8 @@ export default class ClusterConfig extends tsc<object> {
               >
                 {labelList.map(option => (
                   <bk-checkbox
-                    class='usage-checkbox-item'
                     key={option.id}
+                    class='usage-checkbox-item'
                     value={option.id}
                   >
                     {option.label}
@@ -574,8 +574,8 @@ export default class ClusterConfig extends tsc<object> {
                 case EClusterType.ES:
                   return (
                     <EsBasicInfo
-                      data={this.formData[this.selectedType]}
                       ref='elasticsearchBasicInfo'
+                      data={this.formData[this.selectedType]}
                       onChange={this.handleEsInfoChange}
                     />
                   );
@@ -583,9 +583,9 @@ export default class ClusterConfig extends tsc<object> {
             })()}
             <div class='connection-test'>
               <bk-button
-                theme='primary'
                 loading={this.connectTestButtonLoading}
                 outline={this.connectionStatus === ConnectionStatus.success}
+                theme='primary'
                 onClick={this.handleConnectTest}
               >
                 {this.$t('连通性测试')}
@@ -622,9 +622,9 @@ export default class ClusterConfig extends tsc<object> {
               />
             )}
             <FormItem
+              errMsg={this.formErrMsg.operator}
               title={this.$tc('负责人')}
               require
-              errMsg={this.formErrMsg.operator}
             >
               <UserSelector
                 kye={this.userSelectorKey}
@@ -634,24 +634,24 @@ export default class ClusterConfig extends tsc<object> {
             </FormItem>
             <FormItem title={this.$tc('描述')}>
               <bk-input
-                type='textarea'
                 v-model={this.formData.description}
-                show-word-limit
                 maxlength={100}
+                type='textarea'
+                show-word-limit
               ></bk-input>
             </FormItem>
           </MoreConfig>
         </div>
         <div
-          slot='footer'
           class='footer-operation-wrapper'
+          slot='footer'
         >
           <div class='button-wrapper'>
             <bk-button
-              theme='primary'
               class='footer-button'
               disabled={this.connectionStatus !== ConnectionStatus.success}
               loading={this.submitButtonLoading}
+              theme='primary'
               onClick={() => this.handleSubmit()}
             >
               {this.$t('提交')}

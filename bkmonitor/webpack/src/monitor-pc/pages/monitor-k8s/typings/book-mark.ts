@@ -25,7 +25,6 @@
  * IN THE SOFTWARE.
  */
 
-import type { TranslateResult } from 'vue-i18n';
 import { random } from 'monitor-common/utils/utils';
 import {
   IPanelModel,
@@ -34,9 +33,10 @@ import {
   VariableModel,
 } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
+import { IMenuItem } from '.';
 import { type SceneType } from '../components/common-page-new';
 
-import { IMenuItem } from '.';
+import type { TranslateResult } from 'vue-i18n';
 
 // 视图模式 auto：平铺模式 custom：自定义模式
 export type BookMarkMode = 'auto' | 'custom';
@@ -121,8 +121,8 @@ export interface ICurVarItem {
 
 /** 可选值 */
 export interface IOption {
-  id: string | number;
-  name: string | TranslateResult;
+  id: number | string;
+  name: TranslateResult | string;
 }
 
 /** 条件 */
@@ -134,49 +134,49 @@ export interface IWhere {
 }
 
 export class BookMarkModel implements IBookMark {
+  // 主机 详情
+  aiPanel: PanelModel;
+  // 策略、告警数据
+  alarmPanel?: PanelModel;
+  // 详情栏配置
+  detailPanel?: PanelModel;
+  // 动态获取panels 类似service_monitor的动态视图能力
+  fetchPanel?: PanelModel;
+  // group panel 配置
+  groupPanel: PanelModel;
   // 页签id
   id: string;
-  // 页签名称
-  name: string;
+  // 是否需要精准过滤
+  isShowPreciseFilter = false;
   // 链接
   link?: string;
-  // 是否展示数字
-  needCount?: boolean;
-  // 变量设置
-  variables?: IVariableModel[] = [];
-  // 视图配置
-  panels: IPanelModel[];
-  // 宽窄表overview模式视图
-  overview_panels: IPanelModel[];
   // 列表视图配置
   list: IPanelModel[] = [];
+  // 视图模式 auto：平铺模式 custom：自定义模式
+  mode: BookMarkMode = 'auto';
+  // 页签名称
+  name: string;
+  // 是否展示数字
+  needCount?: boolean;
   // 页签配置
   options?: IBookMarkOptions;
   // 平铺模式 特有的图表配置顺序
   order?: IPanelModel[];
-  // 详情栏配置
-  detailPanel?: PanelModel;
+  // 宽窄表overview模式视图
+  overview_panels: IPanelModel[];
   // 概览详情栏配置
   overviewDetailPanel?: PanelModel;
-  // 左侧选择栏配置
-  selectorPanel?: PanelModel;
-  // 动态获取panels 类似service_monitor的动态视图能力
-  fetchPanel?: PanelModel;
-  // 策略、告警数据
-  alarmPanel?: PanelModel;
-  // 主机 详情
-  aiPanel: PanelModel;
-  // group panel 配置
-  groupPanel: PanelModel;
-  // 视图模式 auto：平铺模式 custom：自定义模式
-  mode: BookMarkMode = 'auto';
-  // 是否展示页签图表统计数据
-  show_panel_count = false;
+  overviewPanelCount = 0;
   // 页签图表统计数据
   panelCount = 0;
-  overviewPanelCount = 0;
-  // 是否需要精准过滤
-  isShowPreciseFilter = false;
+  // 视图配置
+  panels: IPanelModel[];
+  // 左侧选择栏配置
+  selectorPanel?: PanelModel;
+  // 是否展示页签图表统计数据
+  show_panel_count = false;
+  // 变量设置
+  variables?: IVariableModel[] = [];
   constructor(public bookmark: IBookMark) {
     Object.keys(bookmark).forEach(key => {
       this[key] = bookmark[key];
@@ -211,21 +211,61 @@ export class BookMarkModel implements IBookMark {
       this.variables = bookmark.variables.map(item => new VariableModel(item));
     }
   }
-  // 是否可配置页签
-  get viewEditable() {
-    return !!this.options?.view_editable;
+  // 所有视图ID
+  get allPanelId() {
+    const tempSet = new Set();
+    this.panels.forEach(panel => {
+      if (panel.type === 'row') {
+        panel?.panels?.forEach(p => {
+          tempSet.add(p.id);
+        });
+      } else {
+        tempSet.add(panel.id);
+      }
+    });
+    return Array.from(tempSet) as string[];
   }
-  // 是否可配置变量
-  get variableEditable() {
-    return !!this.options?.variable_editable;
+  // dashbord tool menu list
+  get dasbordToolMenuList(): IMenuItem[] {
+    return [
+      { id: 'edit-tab', name: window.i18n.tc('编辑页签'), show: this.viewEditable },
+      { id: 'edit-variate', name: window.i18n.tc('编辑变量'), show: this.variableEditable },
+      { id: 'edit-dashboard', name: window.i18n.tc('编辑视图'), show: this.orderEditable },
+      {
+        id: 'view-demo',
+        name: window.i18n.tc('DEMO'),
+        show: window.space_list.some(item => item.is_demo),
+      },
+    ].filter(item => item.show);
   }
-  // 是否可配置视图
-  get orderEditable() {
-    return this.mode === 'auto' && !!this.order?.length;
+  // 左侧选择栏默认宽度
+  get defaultSelectorPanelWidth() {
+    return this.selectorPanel.options?.selector_list?.status_filter ?? false ? 400 : 240;
   }
   // 是否可配置group
   get enableGroup() {
     return !!this.options?.enable_group;
+  }
+  // 是否需要分组
+  get hasGroup() {
+    // return !!this.panels?.some(item => item.type === 'row' && item.id !== '__UNGROUP__');
+    return !!this.panels?.some(item => item.type === 'row');
+  }
+  // 是否有列表模式
+  get hasListPanels() {
+    return this.list?.length > 0;
+  }
+  // 是否存在必选得变量
+  get hasRequiredVariable() {
+    return !!this.variables?.some(item => !!item.options?.variables?.required);
+  }
+  // 是否显示状态统计组件
+  get isStatusFilter() {
+    return this.selectorPanel?.options?.[this.selectorPanel.type]?.show_status_bar || false;
+  }
+  // 是否可配置视图
+  get orderEditable() {
+    return this.mode === 'auto' && !!this.order?.length;
   }
   // 搜索列表
   get searchData() {
@@ -241,7 +281,7 @@ export class BookMarkModel implements IBookMark {
               .map(set => ({
                 id: set.id.toString(),
                 name: set.title.toString(),
-              })),
+              }))
           );
         } else {
           list.push({
@@ -278,7 +318,7 @@ export class BookMarkModel implements IBookMark {
           ...item.panels.map(set => ({
             id: set.id.toString(),
             name: set.title.toString(),
-          })),
+          }))
         );
       } else
         list.push({
@@ -288,14 +328,6 @@ export class BookMarkModel implements IBookMark {
     });
     return list;
   }
-  // 是否显示info
-  get showInfoPanel() {
-    return !!this.detailPanel;
-  }
-  // 是否先做出selector panel
-  get showSelectPanel() {
-    return !!this.selectorPanel;
-  }
   // 设置视图的menu列表
   get settingMenuList(): IMenuItem[] {
     return [
@@ -304,61 +336,29 @@ export class BookMarkModel implements IBookMark {
       { id: 'edit-dashboard', name: '视图设置', show: this.orderEditable },
     ].filter(item => item.show);
   }
-  // dashbord tool menu list
-  get dasbordToolMenuList(): IMenuItem[] {
-    return [
-      { id: 'edit-tab', name: window.i18n.tc('编辑页签'), show: this.viewEditable },
-      { id: 'edit-variate', name: window.i18n.tc('编辑变量'), show: this.variableEditable },
-      { id: 'edit-dashboard', name: window.i18n.tc('编辑视图'), show: this.orderEditable },
-      {
-        id: 'view-demo',
-        name: window.i18n.tc('DEMO'),
-        show: window.space_list.some(item => item.is_demo),
-      },
-    ].filter(item => item.show);
-  }
-  // 是否显示状态统计组件
-  get isStatusFilter() {
-    return this.selectorPanel?.options?.[this.selectorPanel.type]?.show_status_bar || false;
-  }
-  // 状态映射
-  get statusMapping() {
-    return this.selectorPanel?.options?.[this.selectorPanel.type]?.status_mapping || [];
-  }
-  // 是否有列表模式
-  get hasListPanels() {
-    return this.list?.length > 0;
+  // 是否显示info
+  get showInfoPanel() {
+    return !!this.detailPanel;
   }
   // 是否显示数据总览
   get showOverview() {
     return this.selectorPanel?.options?.[this.selectorPanel.type]?.show_overview || false;
   }
-  // 是否需要分组
-  get hasGroup() {
-    // return !!this.panels?.some(item => item.type === 'row' && item.id !== '__UNGROUP__');
-    return !!this.panels?.some(item => item.type === 'row');
+  // 是否先做出selector panel
+  get showSelectPanel() {
+    return !!this.selectorPanel;
   }
-  // 是否存在必选得变量
-  get hasRequiredVariable() {
-    return !!this.variables?.some(item => !!item.options?.variables?.required);
+  // 状态映射
+  get statusMapping() {
+    return this.selectorPanel?.options?.[this.selectorPanel.type]?.status_mapping || [];
   }
-  // 左侧选择栏默认宽度
-  get defaultSelectorPanelWidth() {
-    return this.selectorPanel.options?.selector_list?.status_filter ?? false ? 400 : 240;
+  // 是否可配置变量
+  get variableEditable() {
+    return !!this.options?.variable_editable;
   }
-  // 所有视图ID
-  get allPanelId() {
-    const tempSet = new Set();
-    this.panels.forEach(panel => {
-      if (panel.type === 'row') {
-        panel?.panels?.forEach(p => {
-          tempSet.add(p.id);
-        });
-      } else {
-        tempSet.add(panel.id);
-      }
-    });
-    return Array.from(tempSet) as string[];
+  // 是否可配置页签
+  get viewEditable() {
+    return !!this.options?.view_editable;
   }
   // 设置 和 判断是否有对应字段
   hasPanelFileds(name: string, fieldName: string, panels: IPanelModel[]) {
@@ -430,7 +430,7 @@ export interface IViewOptions {
   // 汇聚方法
   method?: string;
   // 汇聚周期
-  interval?: string | number | 'auto';
+  interval?: 'auto' | number | string;
   // 数据组 维度 指标组
   groups?: string[];
   // 特殊数据组  主机监控使用 主机ip 云区域id
@@ -446,4 +446,4 @@ export interface IViewOptions {
 }
 
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式
-export type DashboardMode = 'list' | 'chart';
+export type DashboardMode = 'chart' | 'list';

@@ -26,17 +26,16 @@
 <template>
   <section class="today-alarm">
     <div
-      class="today-alarm__chart"
       ref="todayAlarm"
+      class="today-alarm__chart"
     >
       <span
-        v-if="!seriesData.length || !seriesData.some((item) => item.count > 0)"
+        v-if="!seriesData.length || !seriesData.some(item => item.count > 0)"
         class="alarm-title"
-      >{{
-        $t('未恢复告警分布')
-      }}</span>
+        >{{ $t('未恢复告警分布') }}</span
+      >
       <monitor-pie-echart
-        v-if="seriesData.length && seriesData.some((item) => item.count > 0)"
+        v-if="seriesData.length && seriesData.some(item => item.count > 0)"
         :series="series"
         :title="$t('未恢复告警分布')"
         chart-type="pie"
@@ -44,15 +43,15 @@
           legend: { show: false },
           tool: {
             show: true,
-            moreShow: false
-          }
+            moreShow: false,
+          },
         }"
-        @chart-click="handlePieItemClick"
         height="320"
+        @chart-click="handlePieItemClick"
       >
         <div
-          class="slot-center"
           slot="chartCenter"
+          class="slot-center"
           @click="unrecoveredClickHandle"
         >
           <bk-popover :content="$t('查看告警列表')">
@@ -77,7 +76,7 @@
         @click="itemClickHandle(1)"
       >
         <h3 class="serious">
-          {{ seriesData.length ? seriesData.find((item) => item.level === 1).count : 0 }}
+          {{ seriesData.length ? seriesData.find(item => item.level === 1).count : 0 }}
         </h3>
         <div>{{ $t('致命') }}</div>
       </div>
@@ -86,7 +85,7 @@
         @click="itemClickHandle(2)"
       >
         <h3 class="normal">
-          {{ seriesData.length ? seriesData.find((item) => item.level === 2).count : 0 }}
+          {{ seriesData.length ? seriesData.find(item => item.level === 2).count : 0 }}
         </h3>
         <div>{{ $t('预警') }}</div>
       </div>
@@ -95,7 +94,7 @@
         @click="itemClickHandle(3)"
       >
         <h3 class="slight">
-          {{ seriesData.length ? seriesData.find((item) => item.level === 3).count : 0 }}
+          {{ seriesData.length ? seriesData.find(item => item.level === 3).count : 0 }}
         </h3>
         <div>{{ $t('提醒') }}</div>
       </div>
@@ -111,35 +110,35 @@ import { gotoPageMixin } from '../../../common/mixins';
 export default {
   name: 'TodayAlarmPie',
   components: {
-    MonitorPieEchart
+    MonitorPieEchart,
   },
   mixins: [gotoPageMixin],
   props: {
     seriesData: {
       type: Array,
-      required: true
+      required: true,
     },
     unrecoveredCount: {
       type: [String, Number],
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
       seriesDataMap: {
         1: {
           name: this.$t('致命'),
-          color: '#EA3636'
+          color: '#EA3636',
         },
         2: {
           name: this.$t('预警'),
-          color: '#FF9C01'
+          color: '#FF9C01',
         },
         3: {
           name: this.$t('提醒'),
-          color: '#FFD000'
-        }
-      }
+          color: '#FFD000',
+        },
+      },
     };
   },
   computed: {
@@ -148,27 +147,27 @@ export default {
         {
           label: { show: false },
           cursor: 'pointer',
-          data: this.seriesData.map((item) => {
+          data: this.seriesData.map(item => {
             const seriesMapData = this.seriesDataMap[item.level];
             return {
               value: item.count,
               name: seriesMapData.name,
               level: item.level,
               itemStyle: {
-                color: seriesMapData.color
+                color: seriesMapData.color,
               },
               tooltip: {
                 formatter: () => `<span style="color:${seriesMapData.color}">\u25CF</span> <b> ${seriesMapData.name}</b>
               <br/>${this.$t('告警数量')}: <b>${item.count}</b><br/>`,
                 textStyle: {
-                  fontSize: 12
-                }
-              }
+                  fontSize: 12,
+                },
+              },
             };
-          })
-        }
+          }),
+        },
       ];
-    }
+    },
   },
   methods: {
     handlePieItemClick(params) {
@@ -180,9 +179,9 @@ export default {
         query: {
           data: JSON.stringify({
             condition: { severity: [level] },
-            activeFilterId: 'NOT_SHIELDED_ABNORMAL'
-          })
-        }
+            activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+          }),
+        },
       });
     },
     unrecoveredClickHandle() {
@@ -190,12 +189,12 @@ export default {
         name: 'event-center',
         query: {
           data: JSON.stringify({
-            activeFilterId: 'NOT_SHIELDED_ABNORMAL'
-          })
-        }
+            activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+          }),
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
 

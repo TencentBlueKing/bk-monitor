@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { parser } from '@prometheus-io/lezer-promql';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { throttle } from 'throttle-debounce';
@@ -122,10 +123,10 @@ const defalutOptions = {
 export interface IPromqlMonacoEditorProps {
   width?: string;
   height?: string;
-  value?: string | null;
+  value?: null | string;
   defaultValue?: string;
   language?: string;
-  theme?: string | null;
+  theme?: null | string;
   options?: object;
   overrideServices?: object;
   // editorWillMount?: Function;
@@ -133,7 +134,7 @@ export interface IPromqlMonacoEditorProps {
   editorWillUnmount?: Function;
   onChange?: Function;
   executeQuery?: Function;
-  className?: string | null;
+  className?: null | string;
   uri?: Function;
   readonly?: boolean;
   minHeight?: number;
@@ -146,13 +147,13 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Ref('containerElement') readonly containerElement?: HTMLDivElement;
   @Prop({ default: 68 }) readonly minHeight: number;
   @Prop({ default: false }) readonly isError: boolean;
-  @Prop({ default: null }) readonly value: string | null;
+  @Prop({ default: null }) readonly value: null | string;
   @Prop({ default: '' }) readonly defaultValue?: string;
   @Prop({ default: 'promql' }) readonly language?: string;
-  @Prop({ default: null }) readonly theme?: string | null;
+  @Prop({ default: null }) readonly theme?: null | string;
   @Prop({ default: () => defalutOptions }) readonly options: object;
   @Prop({ default: () => ({}) }) readonly overrideServices?: object;
-  @Prop({ default: null }) readonly className?: string | null;
+  @Prop({ default: null }) readonly className?: null | string;
   @Prop({ default: () => null }) readonly executeQuery: Function;
   @Prop() readonly uri?: Function;
   @Prop({ default: false }) readonly: boolean;
@@ -232,7 +233,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       keybindings: [monaco.KeyCode.Enter],
       id: 'enter',
       label: 'enter',
-      run: (editor: monaco.editor.ICodeEditor): void | Promise<void> => {
+      run: (editor: monaco.editor.ICodeEditor): Promise<void> | void => {
         const suggestController = editor.getContribution('editor.contrib.suggestController') as any;
         const suggestCount = suggestController.widget.value._state || 0;
         if (suggestCount <= 0) {
@@ -278,7 +279,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           ...(this.theme ? { theme: this.theme } : {}),
           readOnly: this.readonly,
         },
-        this.overrideServices,
+        this.overrideServices
       );
       this.handleEditorDidMount();
     }
@@ -316,7 +317,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
             text: this.value,
           },
         ],
-        undefined,
+        undefined
       );
       this.editor.pushUndoStop();
       this.preventTriggerChangeEvent = false;
@@ -384,15 +385,15 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   render() {
     return (
       <div
-        class={['promql-editor-component', { 'is-error': this.isError }]}
         style={{
           minHeight: `${this.minHeight}px`,
           height: `${this.wrapHeight <= 0 ? this.minHeight : this.wrapHeight}px`,
         }}
+        class={['promql-editor-component', { 'is-error': this.isError }]}
       >
         <div
-          class='promql-editor'
           ref='containerElement'
+          class='promql-editor'
         />
         <div
           class='resize-vertical-drop'

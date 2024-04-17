@@ -25,11 +25,11 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
 
 import { DASHBOARD_ID_KEY } from '../../constant/constant';
-
 import { getDashboardCache } from './utils';
 
 import './grafana.scss';
@@ -86,7 +86,7 @@ export default class MyComponent extends tsc<object> {
           route: url.pathname.replace('/grafana', ''),
           search: url.search,
         },
-        '*',
+        '*'
       );
     }
   }
@@ -173,7 +173,7 @@ export default class MyComponent extends tsc<object> {
   }
   isAllowedUrl(url: string) {
     // 验证URL格式是否合法
-    let parsedUrl: string | URL;
+    let parsedUrl: URL | string;
     try {
       parsedUrl = new URL(url);
     } catch (e) {
@@ -240,11 +240,11 @@ export default class MyComponent extends tsc<object> {
         v-monitor-loading={{ isLoading: this.loading }}
       >
         <iframe
-          onLoad={this.handleLoad}
           ref='iframe'
           class='grafana-wrap-frame'
           allow='fullscreen'
           src={this.grafanaUrl}
+          onLoad={this.handleLoad}
         />
       </div>
     );

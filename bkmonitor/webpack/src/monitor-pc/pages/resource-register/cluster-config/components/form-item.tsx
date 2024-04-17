@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './form-item.scss';
 
 interface IProps {
-  title?: string | any;
+  title?: any | string;
   errMsg?: string;
   require?: boolean;
   width?: number;
@@ -46,8 +46,8 @@ export default class FormItem extends tsc<IProps> {
   render() {
     return (
       <div
-        class='cluster-config-form-item'
         style={{ width: !!this.width ? `${this.width}px` : undefined }}
+        class='cluster-config-form-item'
       >
         <div class='form-item-title'>
           <span class={{ require: this.require }}>{this.$slots?.title || this.title}</span>

@@ -27,6 +27,7 @@
  */
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
 import { fetchItemStatus, getUnitInfo } from 'monitor-api/modules/strategies';
@@ -36,7 +37,6 @@ import Viewer from 'monitor-ui/markdown-editor/viewer';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import MonitorDivider from '../../../../components/divider/divider.vue';
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';
@@ -55,15 +55,16 @@ import {
   MetricDetail,
   MetricType,
 } from '../../strategy-config-set-new/typings/index';
-
-import StrategyChart from './strategy-chart/strategy-chart';
 import { allDescription } from './description';
 import NumberSelect from './number-select';
+import StrategyChart from './strategy-chart/strategy-chart';
 import StrategyViewAlarm from './strategy-view-alarm.vue';
 import StrategyViewLog from './strategy-view-log.vue';
 import StrategyViewTool from './strategy-view-tool.vue';
 // import StrategyViewDimensions from './strategy-view-dimensions.vue';
 import ViewDimensions from './view-dimensions';
+
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
 import './strategy-view.scss';
 
@@ -249,7 +250,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     return (
       this.isAlertStrategy ||
       this.metricData.some(
-        item => item.data_type_label === 'log' || ['bk_fta|event', 'custom|event'].includes(item.metricMetaId),
+        item => item.data_type_label === 'log' || ['bk_fta|event', 'custom|event'].includes(item.metricMetaId)
       )
     );
   }
@@ -272,7 +273,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.metricQueryData.length > 1 && this.expression.trim().length) {
       const title = this.metricQueryData.reduce(
         (pre, cur) => pre.replace(new RegExp(cur.alias, 'gm'), cur.metric_field_name),
-        this.expression,
+        this.expression
       );
       if (this.expression === title) {
         return this.metricQueryData.map(item => item.metric_field_name).join(',');
@@ -375,7 +376,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         keywords_query_string,
         index_set_id,
         functions,
-      }),
+      })
     );
   }
   handleToolPanelChange({ tools, type }) {
@@ -532,7 +533,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               item =>
                 item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
                 item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-                item.alias === 'upper_bound',
+                item.alias === 'upper_bound'
             )
             ?.datapoints?.map(item => [item[1], item[0]]) || [];
         const lowBoundary =
@@ -541,7 +542,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               item =>
                 item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
                 item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-                item.alias === 'lower_bound',
+                item.alias === 'lower_bound'
             )
             ?.datapoints.map(item => [item[1], item[0]]) || [];
         boundaryList.push({
@@ -555,7 +556,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
           item =>
             item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
             item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-            item.alias === 'is_anomaly',
+            item.alias === 'is_anomaly'
         )?.datapoints;
         if (coverData?.length) {
           coverList.push({
@@ -578,7 +579,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     ];
   }
   // 获取图表查询参数设置
-  getQueryParams(startTime: string | number, endTime: string | number, hasIntelligentDetect = false) {
+  getQueryParams(startTime: number | string, endTime: number | string, hasIntelligentDetect = false) {
     const timePrams = {
       start_time:
         typeof startTime === 'string' || String(startTime).length > 10 ? dayjs.tz(startTime).unix() : startTime,
@@ -681,7 +682,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             ...logParam,
           };
           return params;
-        },
+        }
       ),
     };
     return params;
@@ -843,7 +844,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         time_range: 'customized',
       };
       const indexSetId = this.metricQueryData[0]?.index_set_id;
-      // eslint-disable-next-line vue/max-len
+
       const queryStr = transformLogUrlQuery(retrieveParams);
       const url = `${this.$store.getters.bkLogSearchUrl}#/retrieve/${indexSetId}${queryStr}`;
       window.open(url);
@@ -875,8 +876,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       ];
       window.open(
         `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(
-          JSON.stringify(targets),
-        )}`,
+          JSON.stringify(targets)
+        )}`
       );
     }
   }
@@ -933,17 +934,17 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               this.editMode === 'Source' ? (
                 [
                   <StrategyChart
-                    metricData={this.metricQueryData}
-                    dimensions={this.editMode === 'Edit' ? this.dimensions : {}}
-                    chartType={this.chartType}
                     aiopsChartType={this.aiopsChartType}
+                    chartType={this.chartType}
                     detectionConfig={this.detectionConfig}
-                    expression={this.expression}
-                    expFunctions={this.expFunctions}
+                    dimensions={this.editMode === 'Edit' ? this.dimensions : {}}
                     editMode={this.editMode}
-                    sourceData={this.sourceData}
+                    expFunctions={this.expFunctions}
+                    expression={this.expression}
                     isNear={this.isNear}
+                    metricData={this.metricQueryData}
                     nearNum={this.nearNum}
+                    sourceData={this.sourceData}
                     strategyTarget={this.strategyTarget}
                     onLogQuery={this.handleLogQuery}
                   ></StrategyChart>,
@@ -955,8 +956,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                           <bk-radio value={sh.id}>
                             {sh.id === 'NEAR' ? (
                               <i18n
-                                path='查看{0}条数据'
                                 class='flex-center'
+                                path='查看{0}条数据'
                               >
                                 <NumberSelect
                                   value={this.nearNum}
@@ -988,10 +989,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   // </strategy-view-dimensions> : undefined,
                   this.editMode === 'Edit' && (this.shortcutsType !== 'NEAR' || this.hasTimeSeriesForecast) ? (
                     <ViewDimensions
+                      key={this.dimensionsPanelKey}
                       class='strategy-view-dimensions'
                       dimensionData={this.dimensionData as any}
                       value={this.dimensions}
-                      key={this.dimensionsPanelKey}
                       onChange={this.handleDimensionsChange}
                     ></ViewDimensions>
                   ) : undefined,
@@ -1006,14 +1007,14 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               {this.showLogContent && (
                 <div class='strategy-view-log'>
                   <bk-alert
-                    type='info'
-                    title={this.$t('默认展示最近20条')}
                     class='mb10'
+                    title={this.$t('默认展示最近20条')}
+                    type='info'
                   ></bk-alert>
                   <strategy-view-log
+                    v-bkloading={{ isLoading: this.isLoading }}
                     data={this.logData}
                     is-last={this.isLast}
-                    v-bkloading={{ isLoading: this.isLoading }}
                     on-load-more={this.handleLoadMore}
                   ></strategy-view-log>
                 </div>
@@ -1025,17 +1026,17 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 <div class='desc-content'>
                   {this.aiopsModelMdList.map((model, index) => (
                     <GroupPanel
-                      title={`[${this.$tc('算法说明')}]${model.name}`}
-                      show-expand={true}
-                      expand={index === this.activeModelMd}
                       defaultExpand={false}
+                      expand={index === this.activeModelMd}
+                      show-expand={true}
+                      title={`[${this.$tc('算法说明')}]${model.name}`}
                     >
                       {model.instruction && (
                         <div class='desc-content-doc'>
                           <div class='desc-content-doc-title'>{this.$t('方案描述')}</div>
                           <Viewer
-                            value={model.instruction}
                             class='strategy-view-desc'
+                            value={model.instruction}
                           />
                         </div>
                       )}
@@ -1043,8 +1044,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                         <div class='desc-content-doc'>
                           <div class='desc-content-doc-title'>{this.$t('使用说明')}</div>
                           <Viewer
-                            value={model.document}
                             class='strategy-view-desc'
+                            value={model.document}
                           />
                         </div>
                       )}
@@ -1058,21 +1059,21 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                             <div class='desc-name'>{item.metric_field_name}：</div>
                             {item.remarks.map((content, index) => (
                               <div
-                                class='desc-content'
                                 key={index}
+                                class='desc-content'
                               >
                                 {index + 1}. {content}
                               </div>
                             ))}
                           </div>
-                        ),
+                        )
                     )}
                 </div>
               </div>
             ),
             <collect-chart
-              show={this.collect.show}
               collect-list={this.collect.list}
+              show={this.collect.show}
               total-count={this.collect.count}
               is-single
               on-close={this.handleCloseCollect}
@@ -1097,8 +1098,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   {!!metricUrlMap[item.type] && (
                     <a
                       class='info-url'
-                      target='blank'
                       href={`${window.bk_docs_site_url}markdown/${metricUrlMap[item.type]}`}
+                      target='blank'
                     >
                       {this.$t('相关文档查看')}
                     </a>

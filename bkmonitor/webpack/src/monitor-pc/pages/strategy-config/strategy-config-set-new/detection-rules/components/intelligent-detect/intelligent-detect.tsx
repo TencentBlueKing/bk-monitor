@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { CancelToken } from 'monitor-api/index';
 import {
   getIntelligentDetectAccessStatus,
@@ -43,11 +44,11 @@ const MODEL_FIELD = 'plan_id'; // 模型类型id字段
 const LEVEL_FIELD = 'level'; /** 告警级别key */
 
 // 图表显示类型: none-无, boundary-上下界, score-异常分值, forecasting-预测
-export type ChartType = 'none' | 'boundary' | 'score' | 'forecasting';
+export type ChartType = 'boundary' | 'forecasting' | 'none' | 'score';
 interface IAiOpsValue {
   [MODEL_FIELD]: string;
   visual_type: ChartType;
-  args: { [key in string]: string | number };
+  args: { [key in string]: number | string };
 }
 
 interface IntelligentDetectProps {
@@ -65,7 +66,7 @@ interface IntelligentDetectEvents {
 }
 
 export interface ITipsData {
-  status: 'info' | 'success' | 'error';
+  status: 'error' | 'info' | 'success';
   message: string;
 }
 @Component({})
@@ -325,16 +326,16 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
   render() {
     return (
       <div
-        class='intelligent-detect-wrap'
-        v-bkloading={{ isLoading: this.loading }}
         style={{
           'margin-left': this.readonly ? '-28px' : '0px',
         }}
+        class='intelligent-detect-wrap'
+        v-bkloading={{ isLoading: this.loading }}
       >
         {this.tipsData.message && !this.isChangeModel && (
           <bk-alert
-            type={this.tipsData.status}
             class='alert-message'
+            type={this.tipsData.status}
           >
             <div
               class='ai-ops-tips'
@@ -345,12 +346,12 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
         )}
         <Form
           ref='formRef'
-          rules={this.rules}
-          readonly={this.readonly}
+          class='time-serise-forecast-wrap'
           formItemList={this.formItemList}
           label-width={126}
+          readonly={this.readonly}
+          rules={this.rules}
           onChange={this.handleValueChange}
-          class='time-serise-forecast-wrap'
         ></Form>
       </div>
     );

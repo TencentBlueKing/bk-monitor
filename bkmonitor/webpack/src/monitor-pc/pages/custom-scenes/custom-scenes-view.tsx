@@ -38,9 +38,9 @@ import './custom-scenes-view.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 enum ESceneType {
-  plugin = 'plugin',
-  customMetric = 'custom_metric',
   customEvent = 'custom_event',
+  customMetric = 'custom_metric',
+  plugin = 'plugin',
 }
 @Component
 export default class CustomScenesView extends tsc<object> {
@@ -143,22 +143,22 @@ export default class CustomScenesView extends tsc<object> {
       <div class='custom-scenes-view-page'>
         {this.sceneId && (
           <CommonPage
+            defaultViewOptions={this.viewOptions}
+            isMergeMenuList={true}
+            menuList={this.menuList}
             sceneId={this.sceneId}
             sceneType={'detail'}
-            menuList={this.menuList}
-            isMergeMenuList={true}
             title={this.$tc('自定义场景')}
-            defaultViewOptions={this.viewOptions}
+            onMenuSelect={this.handleMenuSelect}
             // onPageTitleChange={this.handlePageTitleChange}
             onTitleChange={this.headerTitleChange}
-            onMenuSelect={this.handleMenuSelect}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             ></CommonNavBar>
           </CommonPage>
         )}

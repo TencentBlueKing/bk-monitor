@@ -63,7 +63,7 @@ export function compareJson(
   a: Record<string, string>,
   b: Record<string, string>,
   needLogChange = false,
-  needAddLable = false,
+  needAddLable = false
 ) {
   Object.keys(a).forEach(key => {
     if (!b[key]) {

@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
+
 import { getApplyRecords, getReport } from '@api/modules/new_report';
 import dayjs from 'dayjs';
 
@@ -32,7 +33,6 @@ import QueryTypeRadio from '../my-subscription/components/query-type-radio';
 import { ApplyStatus } from '../my-subscription/mapping';
 import { MyApplicationQueryType } from '../my-subscription/types';
 import { getDefaultReportData } from '../my-subscription/utils';
-
 import ReportDetail from './components/report-detail';
 
 import './my-apply.scss';
@@ -103,32 +103,31 @@ class MyApply extends tsc<object> {
             ></QueryTypeRadio>
 
             <bk-input
+              style='width: 320px;'
               v-model={this.searchValue}
               placeholder={this.$t('搜索')}
               right-icon='bk-icon icon-search'
-              style='width: 320px;'
             ></bk-input>
           </div>
 
           <bk-table
-            data={this.computedTableData}
+            style='margin-top: 24px;'
             v-bkloading={{
               isLoading: this.isTableLoading,
             }}
-            style='margin-top: 24px;'
+            data={this.computedTableData}
           >
             <bk-table-column
-              label={this.$t('单号')}
-              prop='approval_sn'
               scopedSlots={{
                 default: ({ row }) => {
                   return <div v-bk-overflow-tips>{row.approval_sn}</div>;
                 },
               }}
+              label={this.$t('单号')}
+              prop='approval_sn'
             ></bk-table-column>
 
             <bk-table-column
-              label={this.$t('邮件标题')}
               scopedSlots={{
                 default: ({ row }) => {
                   return (
@@ -137,12 +136,12 @@ class MyApply extends tsc<object> {
                       v-bk-overflow-tips
                     >
                       <bk-button
-                        text
+                        style='height: auto;'
                         theme='primary'
+                        text
                         onClick={() => {
                           this.handleGetSubscriptionID(row.report_id);
                         }}
-                        style='height: auto;'
                       >
                         {row.content_title}
                       </bk-button>
@@ -150,29 +149,29 @@ class MyApply extends tsc<object> {
                   );
                 },
               }}
+              label={this.$t('邮件标题')}
             ></bk-table-column>
 
             {/* 这个要重新取值，具体看接口返回直取 */}
             <bk-table-column
-              label={this.$t('当前步骤')}
               scopedSlots={{
                 default: ({ row }) => {
                   return <div v-bk-overflow-tips>{row.approval_step?.[0]?.name || '--'}</div>;
                 },
               }}
+              label={this.$t('当前步骤')}
             ></bk-table-column>
 
             <bk-table-column
-              label={this.$t('当前处理人')}
               scopedSlots={{
                 default: ({ row }) => {
                   return <div v-bk-overflow-tips>{row.approvers?.toString?.()}</div>;
                 },
               }}
+              label={this.$t('当前处理人')}
             ></bk-table-column>
 
             <bk-table-column
-              label={this.$t('单据状态')}
               scopedSlots={{
                 default: ({ row }) => {
                   return (
@@ -186,54 +185,55 @@ class MyApply extends tsc<object> {
                   );
                 },
               }}
+              label={this.$t('单据状态')}
             ></bk-table-column>
 
             <bk-table-column
-              label={this.$t('提单时间')}
-              prop='create_time'
               scopedSlots={{
                 default: ({ row }) => {
                   return <div v-bk-overflow-tips>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
                 },
               }}
+              label={this.$t('提单时间')}
+              prop='create_time'
             ></bk-table-column>
 
             <bk-table-column
-              label={this.$t('操作')}
               scopedSlots={{
                 default: ({ row }) => {
                   return (
                     <div style='padding: 14px 0;'>
                       <bk-button
+                        style='height: auto;'
                         text
                         onClick={() => {
                           window.open(row.approval_url, '_blank');
                         }}
-                        style='height: auto;'
                       >
                         {this.$t('查看单据详情')}
                         <i
-                          class='icon-monitor icon-mc-link'
                           style='margin-left: 5px;'
+                          class='icon-monitor icon-mc-link'
                         ></i>
                       </bk-button>
                     </div>
                   );
                 },
               }}
+              label={this.$t('操作')}
             ></bk-table-column>
           </bk-table>
         </div>
 
         <bk-sideslider
-          is-show={this.isShowSideslider}
           width='640'
           ext-cls='my-apply-slider'
-          transfer
-          quick-close
           before-close={() => {
             this.isShowSideslider = false;
           }}
+          is-show={this.isShowSideslider}
+          quick-close
+          transfer
         >
           <div
             class='title-container'

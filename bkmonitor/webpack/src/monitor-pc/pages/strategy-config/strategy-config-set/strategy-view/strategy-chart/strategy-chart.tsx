@@ -27,6 +27,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, random, typeTools } from 'monitor-common/utils/utils';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -48,7 +49,7 @@ interface IProps {
   dimensions?: Record<string, any>;
   aiopsChartType?: ChartType;
   needConnect?: boolean;
-  chartType?: 'line' | 'bar';
+  chartType?: 'bar' | 'line';
   expFunctions: IFunctionsValue[];
   editMode?: EditModeType;
   sourceData?: ISourceData;
@@ -79,7 +80,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   /** 是否需要图表联动 */
   @Prop({ default: true, type: Boolean }) needConnect: boolean;
   /** 图表类型 */
-  @Prop({ default: 'line', type: String }) chartType: 'line' | 'bar';
+  @Prop({ default: 'line', type: String }) chartType: 'bar' | 'line';
   /** 表达式函数 */
   @Prop({ default: () => [], type: Array }) expFunctions: IFunctionsValue[];
   @Prop({ default: () => [], type: Array }) strategyTarget: any[];
@@ -159,7 +160,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     return (
       this.isAlertStrategy ||
       this.metricData.some(
-        item => item.data_type_label === 'log' || ['bk_fta|event', 'custom|event'].includes(item.metricMetaId),
+        item => item.data_type_label === 'log' || ['bk_fta|event', 'custom|event'].includes(item.metricMetaId)
       )
     );
   }
@@ -306,7 +307,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
 
     const thresholdOptions = await handleThreshold(
       isMetric ? this.detectionConfig : this.scoreThreshold,
-      this.yAxisNeedUnitGetter,
+      this.yAxisNeedUnitGetter
     );
     const data = {
       id: this.dashboardId,
@@ -480,7 +481,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                   result.where = agg_condition;
                 }
                 return result;
-              },
+              }
             ),
     };
     return params;
@@ -511,8 +512,8 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       <div class={['aiops-chart-strategy-wrap', { 'time-series-forecast': this.hasTimeSeriesForecast }]}>
         {!!this.panel && (
           <ChartWrapper
-            panel={this.panel}
             needHoverStryle={false}
+            panel={this.panel}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
           ></ChartWrapper>
         )}

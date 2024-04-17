@@ -26,6 +26,7 @@
 
 import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
 import { addCustomMetric } from 'monitor-api/modules/custom_report';
 import { getMetricListV2, updateMetricListByBiz } from 'monitor-api/modules/strategies';
@@ -40,7 +41,6 @@ import HorizontalScrollContainer from '../../pages/strategy-config/strategy-conf
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import EmptyStatus from '../empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../empty-status/types';
-
 import CheckedboxList from './checkedbox-list';
 import MetricPopover from './metric-popover';
 import { CheckedboxListVlaue, MetricSelectorEvents, MetricSelectorProps } from './typings';
@@ -196,7 +196,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         children:
           this.dataSourceCheckedList[this.type]?.map(item => {
             const target = this.dataSourceList.find(
-              set => set.data_type_label === this.currentDataTypeLabel && set.data_source_label === item.id,
+              set => set.data_type_label === this.currentDataTypeLabel && set.data_source_label === item.id
             );
             item.count = (() => {
               if (this.isPromql) {
@@ -775,7 +775,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     }
   }
 
-  handleEmptyOperation(type: EmptyStatusOperationType | 'create-custom-metric') {
+  handleEmptyOperation(type: 'create-custom-metric' | EmptyStatusOperationType) {
     if (type === 'refresh') {
       this.getMetricList();
       return;
@@ -845,10 +845,10 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   render() {
     return (
       <MetricPopover
+        width={this.type === MetricType.TimeSeries ? 718 : 558}
         show={this.show}
         targetId={this.targetId}
         onShowChange={this.handleShowChange}
-        width={this.type === MetricType.TimeSeries ? 718 : 558}
       >
         <div class='metric-selector-main'>
           <div class={['metric-selector-header', { 'no-border': this.type === MetricType.TimeSeries }]}>
@@ -861,9 +861,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             ></bk-input>
             <bk-button
               class='refresh-btn'
-              text
-              icon={this.refreshLoading ? 'loading' : 'refresh'}
               disabled={this.refreshLoading}
+              icon={this.refreshLoading ? 'loading' : 'refresh'}
+              text
               onClick={this.handleRefreshClick}
             ></bk-button>
           </div>
@@ -877,8 +877,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   <div class='built-in'>
                     {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(item => (
                       <div
-                        class={['built-in-item', { active: this.tag.value === item.id }]}
                         key={item.id}
+                        class={['built-in-item', { active: this.tag.value === item.id }]}
                         on-click={() => this.handleTagClick(item.id)}
                       >
                         {item.name}
@@ -890,10 +890,10 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             ) : undefined}
             <div class={['metric-selector-content', this.type, { 'has-tag': this.type === MetricType.TimeSeries }]}>
               <div
-                class='content-main'
                 ref='metricScrollWrap'
-                onScroll={this.handleScrollContent}
+                class='content-main'
                 onMousemove={this.handleMousemove}
+                onScroll={this.handleScrollContent}
               >
                 {!!this.selectedMetric && (
                   <div
@@ -921,6 +921,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   [
                     this.metricList.map((item, index) => (
                       <div
+                        id={`_metric_id_${item.metric_field}_${index}`.replace(/\./g, '_')}
                         class={[
                           'metric-item',
                           {
@@ -929,7 +930,6 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                             'common-type': this.type === MetricType.TimeSeries,
                           },
                         ]}
-                        id={`_metric_id_${item.metric_field}_${index}`.replace(/\./g, '_')}
                         onClick={() => this.handleSelectMetric(item)}
                         onMouseenter={() => this.handleHoverItem(index)}
                       >
@@ -950,9 +950,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                       <div class='search-empty-msg'>
                         <p class='tip-text'>{this.$t('你可以将该搜索内容直接自定义为指标选项')}</p>
                         <bk-button
-                          text
-                          title='primary'
                           class='create-custom-metric'
+                          title='primary'
+                          text
                           onClick={() => this.handleEmptyOperation('create-custom-metric')}
                         >
                           {this.$t('生成自定义指标')}
@@ -964,8 +964,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               </div>
               <div class='content-aside'>
                 <CheckedboxList
-                  value={this.checkededValue}
                   list={this.checkedboxList}
+                  value={this.checkededValue}
                   onChange={this.handleCheckedboxListChange}
                 />
               </div>

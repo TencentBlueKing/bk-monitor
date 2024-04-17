@@ -27,6 +27,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
 import CycleInput from '../../../../components/cycle-input/cycle-input';
@@ -36,7 +37,6 @@ import { getPopoverWidth } from '../../../../utils';
 import SimpleConditionInput from '../../../alarm-shield/components/simple-condition-input';
 // import IntervalSelect from '../../../../components/cycle-input/interval-select'
 import { MetricDetail, MetricType } from '../typings/index';
-
 import FunctionSelect, { IFunctionsValue } from './function-select';
 import LogMetricInfo from './log-metric-info';
 
@@ -53,7 +53,7 @@ const expressPlaceholders = (type: string) => {
 };
 interface IMericDataInputProps {
   metricData: MetricDetail[];
-  metricNameLabel: string | TranslateResult;
+  metricNameLabel: TranslateResult | string;
   expression: string;
   isRealTimeModel?: boolean;
   readonly: boolean;
@@ -79,7 +79,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   // 是否是实时模式
   @Prop({ type: Boolean, default: false }) isRealTimeModel: boolean;
   @Prop({ default: false, type: Boolean }) readonly: boolean;
-  @Prop({ type: String, default: '' }) metricNameLabel: string | TranslateResult;
+  @Prop({ type: String, default: '' }) metricNameLabel: TranslateResult | string;
   @Prop({ type: String, default: '' }) expression: string;
   @Prop({ default: false, type: Boolean }) hasAIntelligentDetect: boolean; // 存在一个智能检测算法
   @Prop({ default: () => [], type: Array }) expFunctions: IFunctionsValue[]; /** 表达式函数 */
@@ -111,7 +111,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
 
   get isLogSearchType() {
     return this.metricData?.every(
-      item => item.metricMetaId === 'bk_log_search|log' && item.metric_type === MetricType.LOG,
+      item => item.metricMetaId === 'bk_log_search|log' && item.metric_type === MetricType.LOG
     );
   }
 
@@ -253,7 +253,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   handleGetDimensionList(item: MetricDetail) {
     const longDimension = this.metricData.reduce(
       (pre, cur) => (cur.agg_dimension?.length > pre?.length ? cur.agg_dimension : pre),
-      [],
+      []
     );
     // 监控指标 多指标下不能对cmdb节点进行聚合
     if (item.agg_dimension.length === longDimension.length || longDimension.length === 0) {
@@ -261,7 +261,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
         .filter(dim =>
           this.metricData.length > 1 && item.metricMetaId === 'bk_monitor|time_series'
             ? !['bk_inst_id', 'bk_obj_id'].includes(dim.id.toString())
-            : true,
+            : true
         )
         .map(item => ({ ...item, disabled: false }));
     }
@@ -269,7 +269,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
       .filter(dim =>
         this.metricData.length > 1 && item.metricMetaId === 'bk_monitor|time_series'
           ? !['bk_inst_id', 'bk_obj_id'].includes(dim.id.toString())
-          : true,
+          : true
       )
       .map(item => ({ ...item, disabled: !longDimension.includes(item.id) }));
   }
@@ -278,7 +278,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
     return item.rawDimensions.filter(dim =>
       this.metricData.length > 1 && item.metricMetaId === 'bk_monitor|time_series'
         ? !['bk_inst_id', 'bk_obj_id'].includes(dim.id.toString())
-        : true,
+        : true
     );
   }
 
@@ -379,8 +379,8 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             : null;
           return (
             <div
-              class='metric-content-item mb10'
               key={`${item.id}-${index}`}
+              class='metric-content-item mb10'
               // on-mouseenter={() => (this.hoverDeleteItemIndex = index)}
               // on-mouseleave={() => (this.hoverDeleteItemIndex = -1)}
             >
@@ -393,21 +393,21 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                 {
                   <div class='form metric-name'>
                     <span
-                      class='form-label'
                       style='border-left: 1px solid #dcdee5'
+                      class='form-label'
                     >
                       {this.metricNameLabel || this.$t('指标')}
                     </span>
                     <div
                       class='form-content monitor-input metric-wrap'
+                      on-click={() => !this.readonly && this.handleAddMetric(item)}
                       onMouseenter={e => this.handleMetricMouseenter(e, item)}
                       onMouseleave={this.handleMetricMouseleave}
-                      on-click={() => !this.readonly && this.handleAddMetric(item)}
                     >
                       <div
-                        class='metric-input'
                         id={`set-panel-item-${this.dataTypeLabel}${item.key || ''}`}
                         style='display: flex;align-items: flex-end;'
+                        class='metric-input'
                       >
                         {item.metric_field_name || item.metric_id || <span class='placeholder'>{this.$t('添加')}</span>}
                       </div>
@@ -422,15 +422,15 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       <LogMetricInfo />
                     </span>
                     <div
-                      class='form-content content-wrap'
                       style='min-width: 200px'
+                      class='form-content content-wrap'
                     >
                       <span class='input-content'>{item.localQueryString}</span>
                       <input
                         key='queryString'
                         class='monitor-input input-set'
-                        placeholder={String(this.$t('输入'))}
                         v-model={item.localQueryString}
+                        placeholder={String(this.$t('输入'))}
                         onBlur={(e: Event) => this.handleQueryStringChange(e, item)}
                       />
                     </div>
@@ -442,15 +442,15 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                     <span class='form-label'>{this.$t('汇聚')}</span>
                     <bk-select
                       class='select-small'
-                      clearable={false}
                       v-model={item.agg_method}
+                      clearable={false}
                       popover-width={getPopoverWidth(item?.aggMethodList || [])}
                       onSelected={v => this.emitMethodChange(item, v)}
                     >
                       {item?.aggMethodList.map(option => (
                         <bk-option
-                          key={option.id}
                           id={option.id}
+                          key={option.id}
                           name={option.name}
                         ></bk-option>
                       ))}
@@ -463,15 +463,15 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                     <span class='form-label'>{this.$t('指标')}</span>
                     <bk-select
                       class='select-small'
+                      v-model={item.metric_id}
                       clearable={false}
                       popover-min-width=''
-                      v-model={item.metric_id}
                       popover-width={getPopoverWidth(item?.logMetricList || [])}
                     >
                       {item.logMetricList?.map(option => (
                         <bk-option
-                          key={option.metric_id}
                           id={option.metric_id}
+                          key={option.metric_id}
                           name={option.metric_field_name}
                         ></bk-option>
                       ))}
@@ -509,20 +509,20 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                     <bk-tag-input
                       class='form-content monitor-input monitor-dimension'
                       v-model={item.agg_dimension}
-                      list={nullMetricGroupByList || this.handleGetDimensionList(item)}
                       content-width={getPopoverWidth(
                         nullMetricGroupByList || this.handleGetDimensionList(item),
                         20,
-                        190,
+                        190
                       )}
-                      placeholder={String(this.$t('选择'))}
-                      trigger='focus'
-                      has-delete-icon
-                      allow-create
                       allow-next-focus={false}
+                      list={nullMetricGroupByList || this.handleGetDimensionList(item)}
+                      placeholder={String(this.$t('选择'))}
                       search-key={['name', 'id']}
                       tag-tpl={this.handleRenderDimensionTag}
                       tpl={this.handleRenderDimensionList}
+                      trigger='focus'
+                      allow-create
+                      has-delete-icon
                     ></bk-tag-input>
                   </div>
                 )}
@@ -541,8 +541,6 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                   key-loading={v => this.contentLoading = v }/>} */}
                 {!item.isNullMetric && (
                   <SimpleConditionInput
-                    conditionList={item.agg_condition}
-                    dimensionsList={nullMetricWhere || this.handleGetConditionDimensionList(item)}
                     metricMeta={{
                       dataSourceLabel: item.data_source_label,
                       dataTypeLabel: item.data_type_label,
@@ -550,6 +548,8 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       resultTableId: item.result_table_id,
                       indexSetId: item.index_set_id,
                     }}
+                    conditionList={item.agg_condition}
+                    dimensionsList={nullMetricWhere || this.handleGetConditionDimensionList(item)}
                     hasLeftLabel={true}
                     isHasNullOption={true}
                     on-change={v => this.handleConditionChange(item, v)}
@@ -589,21 +589,21 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                     <input
                       class='form-content monitor-input'
                       placeholder={expressPlaceholders(this.metricData[0].data_type_label || this.dataTypeLabel)}
-                      onInput={this.handleExpressionChange}
-                      onBlur={this.handleExpressionBlur}
                       value={this.expression}
+                      onBlur={this.handleExpressionBlur}
+                      onInput={this.handleExpressionChange}
                     />
                     <FunctionSelect
                       class='query-func-selector'
-                      isExpSupport
                       value={this.expFunctions}
+                      isExpSupport
                       onValueChange={this.handleFunctionsChange}
                     />
                   </div>,
                   !this.readonly && this.canAddMetric && (
                     <button
-                      class='expression-right'
                       ref='addMetricBtn'
+                      class='expression-right'
                       v-bk-tooltips={{
                         content: this.$t('AIOps算法只支持单指标'),
                         disabled: !this.hasAiOpsDetect || this.readonly,
