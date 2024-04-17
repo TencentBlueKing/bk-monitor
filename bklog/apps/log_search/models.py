@@ -371,7 +371,7 @@ class LogIndexSet(SoftDeleteModel):
 
     # 上下文、实时日志 定位字段 排序字段
     target_fields = models.JSONField(_("定位字段"), null=True, default=list)
-    sort_fields = models.JSONField(_("排序字段"),  null=True, default=list)
+    sort_fields = models.JSONField(_("排序字段"), null=True, default=list)
 
     def get_name(self):
         return self.index_set_name
@@ -515,7 +515,7 @@ class LogIndexSet(SoftDeleteModel):
             "time_field_unit",
             "tag_ids",
             "target_fields",
-            "sort_fields"
+            "sort_fields",
         )
 
         # 获取接入场景
@@ -704,6 +704,7 @@ class UserIndexSetSearchHistory(SoftDeleteModel):
     class Meta:
         verbose_name = _("索引集用户检索记录")
         verbose_name_plural = _("32_搜索-索引集用户检索记录")
+        indexes = [models.Index(fields=["created_by"])]
 
 
 class ResourceChange(OperateRecordModel):
