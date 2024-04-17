@@ -154,11 +154,12 @@ export default {
     background-color: #fafbfd;
 
     :deep(.vjs-tree) {
-      // font-family: monospace;
+      font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
       /* stylelint-disable-next-line declaration-no-important */
-      font-size: 12px !important;
+      font-size: 13px !important;
 
-      .vjs-value__string {
+      .vjs-value__string,
+      .vjs-value__number {
         line-height: 24px;
         white-space: pre-wrap;
         tab-size: 3;

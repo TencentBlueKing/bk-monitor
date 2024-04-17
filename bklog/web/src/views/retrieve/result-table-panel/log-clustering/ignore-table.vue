@@ -269,9 +269,10 @@ export default {
     display: inline-block;
     padding-right: 15px;
     overflow: hidden;
-    // font-family: monospace;
+    font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+    font-size: 13px;
     line-height: 20px;
-    // color: #000;
+    color: #313238;
 
     &.is-limit {
       max-height: 96px;

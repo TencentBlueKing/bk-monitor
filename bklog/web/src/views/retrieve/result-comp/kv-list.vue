@@ -398,8 +398,9 @@ export default {
     }
 
     .field-value {
-      // font-family: monospace;
-      // color: #000;
+      font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+      font-size: 13px;
+      color: #313238;
       word-break: break-all;
     }
 

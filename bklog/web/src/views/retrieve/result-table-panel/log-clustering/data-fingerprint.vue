@@ -1129,7 +1129,7 @@ export default {
     display: -webkit-box;
     height: auto; /* 设置元素高度为自动 */
     min-height: 20px; /* 根据需要设置最小高度 */
-    padding: 2px;
+    padding: 0 2px;
     overflow: hidden;
     text-overflow: ellipsis;
     /* stylelint-disable-next-line property-no-vendor-prefix */
@@ -1236,7 +1236,7 @@ export default {
       overflow: hidden;
 
       &.is-limit {
-        max-height: 96px;
+        max-height: 114px;
       }
     }
 
@@ -1257,7 +1257,7 @@ export default {
 
     .show-whole-btn {
       position: absolute;
-      top: 80px;
+      top: 100px;
       width: 100%;
       height: 24px;
       font-size: 12px;
@@ -1274,10 +1274,12 @@ export default {
       cursor: pointer;
     }
 
-    // .monospace-text {
-    //   font-family: monospace;
-    //   color: #000;
-    // }
+    .monospace-text {
+      font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+      font-size: 13px;
+      line-height: 20px;
+      color: #313238;
+    }
   }
 }
 
