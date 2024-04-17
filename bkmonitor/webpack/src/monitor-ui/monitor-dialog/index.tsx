@@ -31,7 +31,7 @@ import './monitor-dialog.scss';
 interface IMonitorDialogProps {
   value: boolean;
   title?: string;
-  width?: string | number;
+  width?: number | string;
   appendToBody?: boolean;
   maskClose?: boolean;
   zIndex?: number;
@@ -72,7 +72,7 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
     type: [String, Number],
     default: 400,
   })
-  width: string | number;
+  width: number | string;
 
   // 是否插入到body下
   @Prop({
@@ -147,7 +147,7 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
   }
 
   destroyed() {
-    if (this.appendToBody && this.$el && this.$el.parentNode) {
+    if (this.appendToBody && this.$el?.parentNode) {
       this.$el.parentNode.removeChild(this.$el);
     }
   }
@@ -202,12 +202,12 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
     return (
       <div
         ref='monitor-dialog'
+        style={{
+          width: `${this.width}px`,
+        }}
         class={{
           'full-screen': this.fullScreen,
           'monitor-dialog': true,
-        }}
-        style={{
-          width: `${this.width}px`,
         }}
         onClick={(e: Event) => {
           e.stopPropagation();
@@ -226,9 +226,9 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
           <div class='monitor-dialog-footer'>
             {this.$slots.footer || [
               <bk-button
+                style={{ display: this.showConfirmBtn ? 'flex' : 'none' }}
                 class='footer-btn'
                 theme='primary'
-                style={{ display: this.showConfirmBtn ? 'flex' : 'none' }}
                 onClick={this.handleClickConfirm}
               >
                 {window.i18n.tc('确定')}
@@ -253,8 +253,8 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
         on-after-leave={this.afterLeave}
       >
         <div
-          class='monitor-dialog-mask'
           style={{ zIndex: this.zIndex, display: this.value ? 'flex' : 'none' }}
+          class='monitor-dialog-mask'
           onClick={this.handleMaskClick}
         >
           {this.renderContent()}

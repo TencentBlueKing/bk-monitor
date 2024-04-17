@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, InjectReactive, Vue } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
@@ -62,28 +63,69 @@ export default class ToolsMixin extends Vue {
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly toolTimeRange!: TimeRangeType;
   /**
-   * @description: 下载图表为png图片
-   * @param {string} title 图片标题
-   * @param {HTMLElement} targetEl 截图目标元素 默认组件$el
-   * @param {*} customSave 自定义保存图片
+   * @description: 跳转到策略
+   * @param {PanelModel} panel
+   * @param {IExtendMetricData} metric
+   * @param {IViewOptions} viewOptions
+   * @param {*} isAll
+   * @return {*}
    */
-  handleStoreImage(title: string, targetEl?: HTMLElement, customSave = false) {
-    const el = targetEl || (this.$el as HTMLElement);
-    return toPng(el)
-      .then(dataUrl => {
-        if (customSave) return dataUrl;
-        downFile(dataUrl, `${title}.png`);
-      })
-      .catch(() => {});
+  handleAddStrategy(
+    panel: PanelModel,
+    metric: IExtendMetricData,
+    scopedVars: IViewOptions & Record<string, any>,
+    isAll = false
+  ) {
+    try {
+      let result: any = null;
+      const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
+      const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
+      const interval = reviewInterval(
+        scopedVars.interval,
+        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+        panel.collect_interval
+      );
+      const variablesService = new VariablesService({ ...scopedVars, interval });
+      if (isAll) {
+        result = {
+          expression: '',
+          query_configs: [],
+        };
+        targets.forEach(target => {
+          target.data?.query_configs?.forEach(queryConfig => {
+            const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
+            if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
+              let config = deepClone(queryConfig);
+              config = variablesService.transformVariables(config);
+              result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
+            }
+          });
+        });
+      } else {
+        targets.forEach(target => {
+          target.data?.query_configs?.forEach(queryConfig => {
+            if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
+              let config = deepClone(queryConfig);
+              config = variablesService.transformVariables(config);
+              result = {
+                ...target.data,
+                query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
+              };
+            }
+          });
+        });
+      }
+      const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
+        panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
+      }#/strategy-config/add/?data=${JSON.stringify(result)}&from=${this.toolTimeRange[0]}&to=${
+        this.toolTimeRange[1]
+      }&timezone=${(this as any).timezone || window.timezone}`;
+      window.open(url);
+    } catch (e) {
+      console.info(e);
+    }
   }
 
-  /**
-   * @description: 查看大图
-   * @param {PanelModel} panel 图表配置信息
-   */
-  handleFullScreen(panel: PanelModel, compareValue?: any) {
-    this.$emit('fullScreen', panel, compareValue);
-  }
   /**
    * @description: 保存到仪表盘
    * @param {*}
@@ -92,7 +134,6 @@ export default class ToolsMixin extends Vue {
   handleCollectChart() {
     this.$emit('collectChart');
   }
-
   /**
    * @description: 跳转到检索
    * @param {PanelModel} panel 图表数据
@@ -138,12 +179,12 @@ export default class ToolsMixin extends Vue {
     targets.forEach(target => {
       target.data.query_configs =
         target?.data?.query_configs.map(queryConfig =>
-          queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars),
+          queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars)
         ) || [];
     });
     /** 判断跳转日志检索 */
     const isLog = targets.some(item =>
-      item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log'),
+      item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log')
     );
     if (!autoNavTo) return targets;
     if (isLog) {
@@ -159,7 +200,7 @@ export default class ToolsMixin extends Vue {
         time_range: 'customized',
       };
       const indexSetId = queryConfig.index_set_id;
-      // eslint-disable-next-line vue/max-len
+
       const queryStr = transformLogUrlQuery(retrieveParams);
       const url = `${this.$store.getters.bkLogSearchUrl}#/retrieve/${indexSetId}${queryStr}`;
       window.open(url);
@@ -174,66 +215,26 @@ export default class ToolsMixin extends Vue {
   }
 
   /**
-   * @description: 跳转到策略
-   * @param {PanelModel} panel
-   * @param {IExtendMetricData} metric
-   * @param {IViewOptions} viewOptions
-   * @param {*} isAll
-   * @return {*}
+   * @description: 查看大图
+   * @param {PanelModel} panel 图表配置信息
    */
-  handleAddStrategy(
-    panel: PanelModel,
-    metric: IExtendMetricData,
-    scopedVars: IViewOptions & Record<string, any>,
-    isAll = false,
-  ) {
-    try {
-      let result: any = null;
-      const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
-      const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
-      const interval = reviewInterval(
-        scopedVars.interval,
-        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-        panel.collect_interval,
-      );
-      const variablesService = new VariablesService({ ...scopedVars, interval });
-      if (isAll) {
-        result = {
-          expression: '',
-          query_configs: [],
-        };
-        targets.forEach(target => {
-          target.data?.query_configs?.forEach(queryConfig => {
-            const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
-            if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
-              let config = deepClone(queryConfig);
-              config = variablesService.transformVariables(config);
-              result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
-            }
-          });
-        });
-      } else {
-        targets.forEach(target => {
-          target.data?.query_configs?.forEach(queryConfig => {
-            if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
-              let config = deepClone(queryConfig);
-              config = variablesService.transformVariables(config);
-              result = {
-                ...target.data,
-                query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
-              };
-            }
-          });
-        });
-      }
-      const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
-        panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
-      }#/strategy-config/add/?data=${JSON.stringify(result)}&from=${this.toolTimeRange[0]}&to=${
-        this.toolTimeRange[1]
-      }&timezone=${(this as any).timezone || window.timezone}`;
-      window.open(url);
-    } catch (e) {
-      console.info(e);
-    }
+  handleFullScreen(panel: PanelModel, compareValue?: any) {
+    this.$emit('fullScreen', panel, compareValue);
+  }
+
+  /**
+   * @description: 下载图表为png图片
+   * @param {string} title 图片标题
+   * @param {HTMLElement} targetEl 截图目标元素 默认组件$el
+   * @param {*} customSave 自定义保存图片
+   */
+  handleStoreImage(title: string, targetEl?: HTMLElement, customSave = false) {
+    const el = targetEl || (this.$el as HTMLElement);
+    return toPng(el)
+      .then(dataUrl => {
+        if (customSave) return dataUrl;
+        downFile(dataUrl, `${title}.png`);
+      })
+      .catch(() => {});
   }
 }

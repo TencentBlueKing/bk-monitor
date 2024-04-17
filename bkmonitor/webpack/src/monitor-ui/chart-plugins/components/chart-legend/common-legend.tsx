@@ -78,19 +78,19 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
           if (legend.hidden) return undefined;
           return (
             <div
-              class='common-legend-item'
               key={index}
+              class='common-legend-item'
               onClick={e => this.handleLegendEvent(e, 'click', legend)}
               onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
               onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}
             >
               <span
-                class='legend-icon'
                 style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
+                class='legend-icon'
               ></span>
               <div
-                class='legend-name'
                 style={{ color: legend.show ? '#63656e' : '#ccc' }}
+                class='legend-name'
               >
                 {legend.alias || legend.name}
               </div>
@@ -99,8 +99,8 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
         })}
         {this.$slots.expand && (
           <div
-            class='common-legend-item'
             style='position: relative'
+            class='common-legend-item'
           >
             {this.$slots.expand}
           </div>

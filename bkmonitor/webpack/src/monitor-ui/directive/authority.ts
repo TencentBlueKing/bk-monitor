@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type VueConstructor } from 'vue';
+
 import { type DirectiveBinding } from 'vue/types/options';
 
 interface IElement extends HTMLElement {

@@ -50,13 +50,14 @@
  */
 
 import VueI18n from 'vue-i18n';
+
 import * as base from 'vue-tsx-support/types/base';
 import * as builtin from 'vue-tsx-support/types/builtin-components';
 
 interface IBkInfoProps {
   title: unknown;
   zIndex: number;
-  width: string | number;
+  width: number | string;
   type: string;
   maskClose: boolean;
   confirmLoading: boolean;
@@ -84,8 +85,8 @@ declare global {
     username: string;
     uin: string;
     csrf_cookie_name: string;
-    cc_biz_id: string | number;
-    bk_biz_id: string | number;
+    cc_biz_id: number | string;
+    bk_biz_id: number | string;
     Vue?: any;
     i18n: VueI18n;
     enable_aiops: boolean;

@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
@@ -47,8 +48,8 @@ interface IApdexChartTipItem {
   tips: string;
 }
 export enum APDEX_CHART_TYPE {
-  EVENT = 'event',
   APDEX = 'apdex',
+  EVENT = 'event',
 }
 interface IApdexChartProps {
   panel: PanelModel;
@@ -106,9 +107,9 @@ export class ApdexChart extends LineChart {
                 ...params,
               },
               {
-                cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
+                cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
                 needMessage: false,
-              },
+              }
             )
             .then(res => {
               metrics.push(...res.metrics);
@@ -118,14 +119,14 @@ export class ApdexChart extends LineChart {
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
                   }`,
-                })),
+                }))
               );
               this.clearErrorMsg();
               return true;
             })
             .catch(error => {
               this.handleErrorMsgChange(error.msg || error.message);
-            }),
+            })
         );
         promiseList.push(...list);
       });
@@ -139,7 +140,7 @@ export class ApdexChart extends LineChart {
             stack: item.stack || random(10),
             unit: item.unit,
             z: 1,
-          })) as any,
+          })) as any
         );
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data, !!this.splitNumber);
         const echartOptions: any = MONITOR_BAR_OPTIONS;
@@ -162,7 +163,7 @@ export class ApdexChart extends LineChart {
               splitNumber: this.splitNumber ? seriesList[0].data?.length || 2 : 0,
             },
             series: seriesList,
-          }),
+          })
         );
         this.metrics = metrics || [];
         this.inited = true;
@@ -292,30 +293,30 @@ export class ApdexChart extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            title={this.panel.title}
-            showMore={false}
-            showAddMetric={false}
-            draging={this.panel.draging}
-            metrics={this.metrics}
-            subtitle={this.panel.subTitle || ''}
             descrition={this.panel.descrition}
+            draging={this.panel.draging}
             isInstant={this.panel.instant}
+            metrics={this.metrics}
+            showAddMetric={false}
+            showMore={false}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onUpdateDragging={() => this.panel.updateDraging(false)}
           />
         )}
         {!this.empty ? (
           <div class={`apdex-chart-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChart'
-                  height={this.height}
                   width={this.width}
-                  options={this.options}
+                  height={this.height}
                   groupId={this.panel.dashboardId}
+                  options={this.options}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                 />

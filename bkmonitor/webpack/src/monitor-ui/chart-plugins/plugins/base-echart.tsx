@@ -141,7 +141,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
         (this as any).instance.setOption(v, { notMerge: true, lazyUpdate: false, silent: true });
         (this as any).curChartOption = (this as any).instance.getOption();
       },
-      { deep: false },
+      { deep: false }
     );
   }
   // 初始化chart Action
@@ -185,13 +185,13 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   render() {
     return (
       <div
-        class='chart-base'
         ref='chartInstance'
         style={{ minHeight: `${1}px` }}
-        onMouseover={this.handleMouseover}
-        onMouseleave={this.handleMouseleave}
+        class='chart-base'
         onClick={this.handleClick}
         onDblclick={this.handleDblClick}
+        onMouseleave={this.handleMouseleave}
+        onMouseover={this.handleMouseover}
       />
     );
   }

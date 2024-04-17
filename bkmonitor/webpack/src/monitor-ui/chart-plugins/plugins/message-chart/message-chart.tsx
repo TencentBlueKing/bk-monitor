@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -69,7 +70,7 @@ export default class MessageChart extends CommonSimpleChart {
         interval: reviewInterval(
           this.viewOptions.interval,
           params.end_time - params.start_time,
-          this.panel.collect_interval,
+          this.panel.collect_interval
         ),
       });
       const promiseList = this.panel.targets.map(item =>
@@ -81,7 +82,7 @@ export default class MessageChart extends CommonSimpleChart {
               page: this.pagination.current,
               page_size: this.pagination.limit,
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(res => {
             this.series = (res.data || []).map(item => ({
@@ -95,7 +96,7 @@ export default class MessageChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
@@ -118,7 +119,7 @@ export default class MessageChart extends CommonSimpleChart {
     this.pagination.current = 1;
     this.getPanelData();
   }
-  handlePageChange(type: 'up' | 'down' | 'last') {
+  handlePageChange(type: 'down' | 'last' | 'up') {
     if (type === 'last') {
       this.pagination.current = Math.ceil(this.pagination.count / this.pagination.limit);
     } else {
@@ -157,14 +158,14 @@ export default class MessageChart extends CommonSimpleChart {
               </span>
               <div class='pagination-btn'>
                 <bk-button
-                  onClick={() => this.handlePageChange('up')}
                   disabled={this.pagination.current === 1}
+                  onClick={() => this.handlePageChange('up')}
                 >
                   {this.$t('上一页')}
                 </bk-button>
                 <bk-button
-                  onClick={() => this.handlePageChange('down')}
                   disabled={this.pagination.current === Math.ceil(this.pagination.count / this.pagination.limit)}
+                  onClick={() => this.handlePageChange('down')}
                 >
                   {this.$t('下一页')}
                 </bk-button>
@@ -184,10 +185,10 @@ export default class MessageChart extends CommonSimpleChart {
               >
                 {this.series.map(item => (
                   <bk-collapse-item
-                    hide-arrow={true}
-                    name={item.id}
                     key={item.id}
                     class='collapse-item'
+                    hide-arrow={true}
+                    name={item.id}
                   >
                     <span
                       class={`icon-monitor icon-mc-triangle-down collapse-item-icon ${
@@ -199,8 +200,8 @@ export default class MessageChart extends CommonSimpleChart {
                       <div class='item-subtitle'>{item.subtitle}</div>
                     </div>
                     <div
-                      slot='content'
                       class='collapse-item-content'
+                      slot='content'
                     >
                       {item.content.slice(0, item.showAll ? item.content.length - 1 : 4).map(text => (
                         <pre class='content-item'>{text}</pre>

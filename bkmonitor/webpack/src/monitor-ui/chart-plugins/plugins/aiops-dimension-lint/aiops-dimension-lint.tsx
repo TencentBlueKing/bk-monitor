@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
@@ -36,7 +37,7 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { IMenuItem, PanelModel } from '../../typings';
+import { IMenuItem, MonitorEchartOptions, PanelModel } from '../../typings';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import { LineChart } from '../time-series/time-series';
@@ -44,8 +45,8 @@ import { LineChart } from '../time-series/time-series';
 import './aiops-dimension-lint.scss';
 
 enum EEvaluation {
-  good = 'good',
   bad = 'bad',
+  good = 'good',
 }
 
 interface IFeedback {
@@ -81,7 +82,7 @@ export default class AiopsDimensionLine extends LineChart {
   @InjectReactive('layoutActive') layoutActive: number;
   @InjectReactive('selectActive') selectActive: string;
   @InjectReactive('dataZoomTimeRange') dataZoomTimeRange: any;
-  @Inject('reportEventLog') reportEventLog: Function;
+  @Inject('reportEventLog') reportEventLog: (event: string) => void;
 
   @Prop({ required: true }) declare panel: IPanelModel;
   @Prop({ default: false }) declare needLegend: boolean;
@@ -176,9 +177,9 @@ export default class AiopsDimensionLine extends LineChart {
                 bk_biz_id: params.bk_biz_id,
               },
               {
-                cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
+                cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
                 needMessage: false,
-              },
+              }
             )
             .then(res => {
               this.$emit('seriesData', res);
@@ -190,14 +191,14 @@ export default class AiopsDimensionLine extends LineChart {
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
                   }`,
-                })),
+                }))
               );
               this.clearErrorMsg();
               return true;
             })
             .catch(error => {
               this.handleErrorMsgChange(error.msg || error.message);
-            }),
+            })
         );
         promiseList.push(...list);
       });
@@ -220,7 +221,7 @@ export default class AiopsDimensionLine extends LineChart {
             unit: item.unit,
             markArea: this.createMarkArea(),
             markLine: enableThreshold ? this.createdMarkLine(item.thresholds || []) : {},
-          })) as any,
+          })) as any
         );
         /** 默认以这个宽度来进行刻度划分，主要为了解决 watch 未首次监听宽度自动计算splitNumber */
         // const widths = [1192, 586, 383];
@@ -267,8 +268,8 @@ export default class AiopsDimensionLine extends LineChart {
               min: 'dataMin',
             },
             series: seriesList,
-          }),
-        );
+          })
+        ) as MonitorEchartOptions;
 
         this.metrics = metrics || [];
         this.inited = true;
@@ -454,8 +455,8 @@ export default class AiopsDimensionLine extends LineChart {
       <span class='aiops-correlation-reason'>
         {this.reasons.map(reasons => (
           <span
-            v-bk-overflow-tips
             class={[reasons.indexOf('异常') > -1 ? 'err-reason' : '']}
+            v-bk-overflow-tips
           >
             {reasons}
           </span>
@@ -585,42 +586,42 @@ export default class AiopsDimensionLine extends LineChart {
               },
             }}
             customArea={this.isCorrelationMetrics}
-            title={this.panel.title}
-            showTitleIcon={false}
-            showMore={this.showHeaderMoreTool}
-            draging={this.panel.draging}
-            metrics={this.metrics}
-            menuList={['screenshot', 'fullscreen', 'explore', 'strategy']}
-            subtitle={this.panel.subTitle || ''}
             descrition={this.panel.descrition}
+            draging={this.panel.draging}
             isInstant={this.panel.instant}
+            menuList={['screenshot', 'fullscreen', 'explore', 'strategy']}
+            metrics={this.metrics}
             showAddMetric={false}
             showMenuAddMetric={true}
+            showMore={this.showHeaderMoreTool}
+            showTitleIcon={false}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
-            onMenuClick={this.handleMenuToolsSelect}
-            onSelectChild={this.handleSelectChildMenu}
-            onMetricClick={this.handleMetricClick}
             onAllMetricClick={this.handleAllMetricClick}
+            onMenuClick={this.handleMenuToolsSelect}
+            onMetricClick={this.handleMetricClick}
+            onSelectChild={this.handleSelectChildMenu}
             onUpdateDragging={() => this.panel.updateDraging(false)}
           />
         )}
         {!this.empty ? (
           <div class={`aiops-dimension-lint-content time-series-content`}>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChart'
-                  height={this.height}
                   width={this.width}
-                  showRestore={this.showRestore}
-                  options={this.options}
+                  height={this.height}
                   groupId={this.panel.dashboardId}
-                  onMouseover={this.handleMouseover}
+                  options={this.options}
+                  showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
+                  onMouseover={this.handleMouseover}
                 />
               )}
             </div>
@@ -628,13 +629,13 @@ export default class AiopsDimensionLine extends LineChart {
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
                 {legend?.displayMode === 'table' ? (
                   <TableLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 ) : (
                   <ListLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 )}
               </div>

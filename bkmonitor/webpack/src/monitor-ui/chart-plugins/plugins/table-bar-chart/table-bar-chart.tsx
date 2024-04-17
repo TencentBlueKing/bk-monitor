@@ -25,6 +25,7 @@
  */
 import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import deepmerge from 'deepmerge';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { IMenuItem, ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -279,15 +280,15 @@ class TableBarChart extends Mixins<
       >
         <ChartHeader
           class='draggable-handle'
-          title={'这是一个标题'}
-          subtitle={'这是一个副标题'}
           isInstant={this.panel.instant}
           showMore={this.showHeaderMoreTool}
+          subtitle={'这是一个副标题'}
+          title={'这是一个标题'}
           onMenuClick={this.handleMenuToolsSelect}
         />
         <div
-          class='table-bar-chart-contain'
           ref='scrollRef'
+          class='table-bar-chart-contain'
         >
           <div
             class={[
@@ -297,14 +298,14 @@ class TableBarChart extends Mixins<
             ]}
           >
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               <BaseEchart
                 ref='baseChartRef'
-                class='base-chart'
-                height={this.height}
                 width={this.width}
+                height={this.height}
+                class='base-chart'
                 options={this.customOptions}
               />
             </div>
@@ -326,11 +327,11 @@ class TableBarChart extends Mixins<
           </div>
           <CommonTable
             checkable={false}
-            data={this.tableData}
             columns={this.columns}
+            data={this.tableData}
             defaultSize='small'
-            paginationType='simple'
             pagination={this.pagination}
+            paginationType='simple'
             onPageChange={this.handlePageChange}
           ></CommonTable>
         </div>
