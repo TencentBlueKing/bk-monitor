@@ -37,6 +37,6 @@ export function useDocumentLink() {
   }
 
   return {
-    handleGotoLink
+    handleGotoLink,
   };
 }

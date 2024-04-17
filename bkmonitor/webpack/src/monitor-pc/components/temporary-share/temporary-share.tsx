@@ -94,12 +94,12 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       name: window.i18n.t('变量选择'),
       canChange: true,
       timeRange: [],
-      timezone: window.timezone
-    }
+      timezone: window.timezone,
+    },
   ];
   /* 管理历史分享 */
   historyData = {
-    show: false
+    show: false,
   };
   /* 分享有效期的校验 */
   validityPeriodErr = false;
@@ -118,16 +118,16 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
     this.validityList = [
       {
         id: '1d',
-        name: this.$tc('1 天')
+        name: this.$tc('1 天'),
       },
       {
         id: '1w',
-        name: this.$tc('1 周')
+        name: this.$tc('1 周'),
       },
       {
         id: '1M',
-        name: this.$tc('1 月')
-      }
+        name: this.$tc('1 月'),
+      },
     ];
   }
   setDefaultSettings() {
@@ -138,8 +138,8 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
         name: window.i18n.t('变量选择'),
         canChange: true,
         timeRange: [from || 'now-7d', to || 'now'],
-        timezone: timezone || window.timezone
-      }
+        timezone: timezone || window.timezone,
+      },
     ];
   }
   // 通用api查询参数
@@ -170,22 +170,22 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
           {},
           {
             ...this.$route.query,
-            timezone
+            timezone,
           },
           !canChange
             ? {
                 from: timeRange[0],
-                to: timeRange[1]
+                to: timeRange[1],
               }
-            : {}
+            : {},
         ),
         name: this.$route.name,
         params: this.$route.params,
         path: this.$route.path,
         navList: this.navList,
         weWebData,
-        ...(this.customData || {})
-      }
+        ...(this.customData || {}),
+      },
     };
   }
   // 创建token
@@ -197,7 +197,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   async updateShareToken() {
     const data = await updateShareToken({
       ...this.getShareTokenParams(),
-      token: this.token
+      token: this.token,
     }).catch(() => ({ token: this.token }));
     this.token = data.token || this.token;
   }
@@ -295,7 +295,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
     copyText(typeof url === 'string' ? url : this.shareUrl, (errMsg: string) => {
       this.$bkMessage({
         message: errMsg,
-        theme: 'error'
+        theme: 'error',
       });
       hasErr = !!errMsg;
     });
@@ -321,17 +321,17 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       subTitle: this.$t('所有的历史分享链接都将失效'),
       confirmFn: async () =>
         deleteShareToken({
-          type: this.getShareTokenParams().type
+          type: this.getShareTokenParams().type,
         })
           .then(() => {
             this.$bkMessage({
               theme: 'success',
-              message: this.$t('回收成功')
+              message: this.$t('回收成功'),
             });
             this.show = false;
             return true;
           })
-          .catch(() => false)
+          .catch(() => false),
     });
   }
   /**
@@ -461,7 +461,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       delay: 200,
       boundary: 'window',
       placement: 'right',
-      disabled: this.readonly || this.onlyDisplay
+      disabled: this.readonly || this.onlyDisplay,
     };
     return (
       <div class='temporary-share'>
@@ -488,7 +488,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                   'icon-monitor',
                   'copy-text-button',
                   this.onlyCopy ? 'icon-copy-link' : 'temporary-share-icon',
-                  'icon-mc-share'
+                  'icon-mc-share',
                 ]}
                 style='font-size: 12px; margin: 0px; color: #3A84FF'
               />
@@ -534,7 +534,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                     <bk-table-column
                       label={this.$t('变量名称')}
                       scopedSlots={{
-                        default: () => <span>{this.$t('时间选择')}</span>
+                        default: () => <span>{this.$t('时间选择')}</span>,
                       }}
                     ></bk-table-column>
                     <bk-table-column
@@ -546,7 +546,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                             theme='primary'
                             onChange={v => this.handleCanChange(v, row)}
                           ></bk-switcher>
-                        )
+                        ),
                       }}
                     ></bk-table-column>
                     <bk-table-column
@@ -563,11 +563,11 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                               onChange={v => this.handleTableTimeRangeChange(v, row)}
                             ></TimeRangeComponent>
                           </div>
-                        )
+                        ),
                       }}
                     ></bk-table-column>
                   </bk-table>
-                )
+                ),
               )}
             </div>
             {/* {

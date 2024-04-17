@@ -85,13 +85,13 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
     copyText(url, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -143,7 +143,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           ></i>
           {this.newPageBtn('action-detail')}
         </div>
-      )
+      ),
     };
     return tplMap[this.type]();
   }
@@ -166,7 +166,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           id={this.eventId}
           bizId={this.bizId}
         ></ActionDetail>
-      )
+      ),
     };
     return tplMap[this.type]();
   }

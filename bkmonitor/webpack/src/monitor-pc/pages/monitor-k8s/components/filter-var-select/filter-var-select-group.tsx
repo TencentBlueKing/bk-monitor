@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /*
  * Tencent is pleased to support the open source community by making
@@ -132,7 +131,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
     const otherParams = {
       scene_id: this.scencId,
       type: this.sceneType,
-      id: this.pageId
+      id: this.pageId,
       // view_options: viewOptions
     };
     return otherParams;
@@ -177,7 +176,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
         const { fieldsKey, fieldsSort } = item;
         /** 变量接口的请求状态，引用类型来关联同一个变量的key */
         const apiStatus = {
-          isReady: false
+          isReady: false,
         };
         fieldsSort.forEach(fielsItem => {
           /** 提取变量引用关系 */
@@ -189,7 +188,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
             fieldKey: item.fieldsKey,
             reference, // 变量存在的引用
             apiStatus, // 是否再等待接口返回
-            component: this.$refs[fieldsKey] as FilterVarSelect // 对应的变量组件
+            component: this.$refs[fieldsKey] as FilterVarSelect, // 对应的变量组件
           };
         });
       }
@@ -213,7 +212,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
           // eslint-disable-next-line @typescript-eslint/prefer-for-of
           for (let i = 0; i < list.length; i++) {
             const data = list[i];
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
             const [_, item] = data;
             /** 应用变量的数据请求状态 true则全部请求完毕 */
             const refVarIsReady = this.handleCheckStatus(item.reference);
@@ -345,7 +344,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
                 onChange={val => this.handleVarSelectChange(item, val)}
                 onDefaultValue={val => this.handleSetDefaultValue(item, val)}
               />
-            ) : undefined
+            ) : undefined,
           )}
           {!this.readonly && this.needAddBtn && (
             <span

@@ -23,9 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
-/* eslint-disable no-param-reassign */
-
 // eslint-disable-next-line simple-import-sort/imports
 import './public-path';
 import 'monitor-common/polyfill';
@@ -40,7 +37,7 @@ import 'monitor-static/svg-icons';
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
 import { setVue } from 'monitor-api/utils/index';
-import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import App from './pages/app';
@@ -84,7 +81,7 @@ if (hasRouteHash) {
       .enhancedContext({
         space_uid: spaceUid || undefined,
         bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
-        context_type: 'basic'
+        context_type: 'basic',
       })
       .then(data => {
         Object.keys(data).forEach(key => {
@@ -98,6 +95,7 @@ if (hasRouteHash) {
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
+        document.title = window.page_title;
         store.commit('app/SET_APP_STATE', {
           userName: window.user_name,
           isSuperUser: window.is_superuser,
@@ -112,15 +110,14 @@ if (hasRouteHash) {
           bkNodemanHost: window.bk_nodeman_host,
           enable_cmdb_level: !!window.enable_cmdb_level,
           bkPaasHost: window.bk_paas_host,
-          jobUrl: window.bk_job_url
+          jobUrl: window.bk_job_url,
         });
-        // eslint-disable-next-line no-new
         new Vue({
           el: '#app',
           router,
           store,
           i18n,
-          render: h => h(App)
+          render: h => h(App),
         });
         Vue.prototype.$bus = new Vue();
         Vue.prototype.$platform = window.platform;
@@ -132,20 +129,20 @@ if (hasRouteHash) {
           .enhancedContext({
             space_uid: spaceUid || undefined,
             bk_biz_id: bizId,
-            context_type: 'extra'
+            context_type: 'extra',
           })
           .then(data => {
             Object.keys(data).forEach(key => {
               window[key.toLocaleLowerCase()] = data[key];
             });
             store.commit('app/SET_APP_STATE', {
-              collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE
+              collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE,
             });
           });
       })
       .catch(e => console.error(e))
       .finally(() => {
-        serviceWorker.immediateRegister();
+        immediateRegister();
       });
   }
 }

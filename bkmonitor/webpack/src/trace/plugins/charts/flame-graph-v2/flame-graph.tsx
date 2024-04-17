@@ -46,7 +46,7 @@ import {
   IOtherData,
   ITipsDetail,
   IZoomRect,
-  RootId
+  RootId,
 } from './types';
 import { FlameChart } from './use-flame';
 
@@ -64,28 +64,28 @@ export default defineComponent({
   props: {
     traceId: {
       type: String,
-      required: true
+      required: true,
     },
     appName: {
       type: String,
-      required: true
+      required: true,
     },
     diffTraceId: {
       type: String,
-      default: ''
+      default: '',
     },
     filterKeywords: {
       type: Array as () => string[],
-      default: () => [] as string[]
+      default: () => [] as string[],
     },
     textDirection: {
       type: String as () => 'ltr' | 'rtl',
-      default: 'ltr'
+      default: 'ltr',
     },
     filters: {
       type: Array,
-      required: false
-    }
+      required: false,
+    },
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess'],
   setup(props, { emit }) {
@@ -98,7 +98,7 @@ export default defineComponent({
       left: 0,
       top: 0,
       spanId: '',
-      spanName: ''
+      spanName: '',
     });
     const axisRect = shallowRef<IAxisRect>({ left: 0, bottom: 0, title: '', visibility: 'hidden' });
     const zoomRect = ref<IZoomRect>({ left: 0, width: 0 });
@@ -115,7 +115,7 @@ export default defineComponent({
       () => props.textDirection,
       () => {
         graphInstance?.setTextDirection(props.textDirection);
-      }
+      },
     );
     watch(
       [() => props.traceId, () => props.appName, () => props.diffTraceId, () => props.filters],
@@ -132,11 +132,11 @@ export default defineComponent({
               diagram_type: 'flamegraph',
               show_attrs: 0,
               diff_trace_id: props.diffTraceId,
-              displays: props.filters.filter(item => item !== 'duration')
+              displays: props.filters.filter(item => item !== 'duration'),
             },
             {
-              needCancel: true
-            }
+              needCancel: true,
+            },
           ).catch(() => false);
           if (data?.diagram_data?.flame_data?.length) {
             if (props.diffTraceId) {
@@ -202,7 +202,7 @@ export default defineComponent({
                     duration: text + suffix,
                     diffDuration,
                     diffValue,
-                    mark: d.data.diff_info?.mark
+                    mark: d.data.diff_info?.mark,
                   };
                 },
                 onContextMenu: (e: MouseEvent, d: HierarchyNode<BaseDataType>) => {
@@ -224,7 +224,7 @@ export default defineComponent({
                     top: svgRect.top - paddingLeft,
                     bottom: svgRect.bottom + paddingLeft,
                     title: text + suffix,
-                    visibility: axisLeft < svgRect.x || axisLeft > svgRect.width + svgRect.x ? 'hidden' : 'visible'
+                    visibility: axisLeft < svgRect.x || axisLeft > svgRect.width + svgRect.x ? 'hidden' : 'visible',
                   };
                 },
                 onMouseOut: () => {
@@ -237,12 +237,12 @@ export default defineComponent({
                     if (width > 0) {
                       zoomRect.value = {
                         left: Math.min(event.pageX - svgRect.x, svgRect.width) + paddingLeft,
-                        width: Math.min(width, svgRect.width - event.pageX + svgRect.x)
+                        width: Math.min(width, svgRect.width - event.pageX + svgRect.x),
                       };
                     } else {
                       zoomRect.value = {
                         left: Math.max(e.pageX - svgRect.x, 0) + paddingLeft,
-                        width: Math.min(Math.abs(width), event.pageX - svgRect.x)
+                        width: Math.min(Math.abs(width), event.pageX - svgRect.x),
                       };
                     }
                   }
@@ -253,14 +253,14 @@ export default defineComponent({
                     document.removeEventListener('mouseup', mouseup);
                     zoomRect.value = {
                       left: 0,
-                      width: 0
+                      width: 0,
                     };
                   }
                   document.addEventListener('mousemove', mousemove);
                   document.addEventListener('mouseup', mouseup);
-                }
+                },
               },
-              chartRef.value
+              chartRef.value,
             );
             setTimeout(() => {
               setSvgRect();
@@ -281,13 +281,13 @@ export default defineComponent({
           showException.value = true;
         }
       }),
-      { immediate: true }
+      { immediate: true },
     );
     watch(
       () => props.filterKeywords,
       () => {
         graphInstance?.filterGraph(props.filterKeywords);
-      }
+      },
     );
     onBeforeUnmount(() => {
       wrapperRef.value && removeListener(wrapperRef.value!, handleResize);
@@ -311,11 +311,11 @@ export default defineComponent({
         name: 'total',
         id: RootId,
         start_time: minStartTime,
-        end_time: minEndTime
+        end_time: minEndTime,
       };
       return {
         ...root,
-        children: data
+        children: data,
       };
     }
     /**
@@ -327,12 +327,12 @@ export default defineComponent({
     function initGraphData(data: BaseDataType[], traceInfo: IBaseTraceInfo) {
       const main = addRootNode(
         data.filter(item => !item.last_sibling_id),
-        traceInfo
+        traceInfo,
       );
       const threads = data.filter(item => item.last_sibling_id);
       return {
         main,
-        threads
+        threads,
       };
     }
     /**
@@ -341,7 +341,7 @@ export default defineComponent({
     function setSvgRect() {
       svgRect = chartRef.value.querySelector('svg').getBoundingClientRect();
       graphToolsRect.value = {
-        left: svgRect.x + 4
+        left: svgRect.x + 4,
       };
     }
     /**
@@ -474,7 +474,7 @@ export default defineComponent({
       handlesSaleValueChange,
       flameToolsPopoverContent,
       showLegend,
-      handleShowLegend
+      handleShowLegend,
     };
   },
   render() {
@@ -511,7 +511,7 @@ export default defineComponent({
                   style={{
                     left: `${this.tipDetail.left}px`,
                     top: `${this.tipDetail.top + 16}px`,
-                    display: this.tipDetail.title ? 'block' : 'none'
+                    display: this.tipDetail.title ? 'block' : 'none',
                   }}
                 >
                   {this.tipDetail.title && [
@@ -543,7 +543,7 @@ export default defineComponent({
                                 ) : (
                                   `${this.tipDetail.diffValue}%`
                                 )}
-                              </td>
+                              </td>,
                             ]}
                         </tr>
                       </tbody>
@@ -551,7 +551,7 @@ export default defineComponent({
                     <div class='tips-info'>
                       <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
                       {this.$t('鼠标右键有更多菜单')}
-                    </div>
+                    </div>,
                   ]}
                 </div>
               </Teleport>
@@ -560,7 +560,7 @@ export default defineComponent({
                 style={{
                   left: `${this.contextMenuRect.left}px`,
                   top: `${this.contextMenuRect.top}px`,
-                  visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden'
+                  visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
                 }}
               >
                 {CommonMenuList.map(item => (
@@ -581,7 +581,7 @@ export default defineComponent({
                     left: `${this.axisRect.left || 0}px`,
                     top: `${this.axisRect.top || 0}px`,
                     bottom: `${this.axisRect.bottom || 0}px`,
-                    visibility: this.axisRect.visibility
+                    visibility: this.axisRect.visibility,
                   }}
                 >
                   <span class='axis-label'>{this.axisRect.title}</span>
@@ -591,7 +591,7 @@ export default defineComponent({
                 class='flame-graph-zoom'
                 style={{
                   left: `${this.zoomRect?.left || 0}px`,
-                  width: `${this.zoomRect?.width || 0}px`
+                  width: `${this.zoomRect?.width || 0}px`,
                 }}
               ></div>
               {/* <GraphTools
@@ -627,7 +627,7 @@ export default defineComponent({
                     <GraphTools
                       style={{
                         left: `${this.graphToolsRect.left}px`,
-                        display: this.graphToolsRect.left > 0 ? 'flex' : 'none'
+                        display: this.graphToolsRect.left > 0 ? 'flex' : 'none',
                       }}
                       class='topo-graph-tools'
                       scaleValue={this.scaleValue}
@@ -648,7 +648,7 @@ export default defineComponent({
                     >
                       <ViewLegend />
                     </div>
-                  )
+                  ),
                 }}
               </Popover>
             </div>
@@ -660,9 +660,9 @@ export default defineComponent({
               maxHeight={this.filterMaxHeight}
               class='flame-graph-aside'
             />
-          )
+          ),
         }}
       </ResizeLayout>
     );
-  }
+  },
 });

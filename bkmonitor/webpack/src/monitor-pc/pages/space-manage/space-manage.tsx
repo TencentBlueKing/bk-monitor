@@ -46,15 +46,15 @@ export const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST';
 const SPACE_FEATURE_LIST = [
   {
     id: 'APM',
-    name: 'APM'
+    name: 'APM',
   },
   {
     id: 'CUSTOM_REPORT',
-    name: window.i18n.tc('自定义上报')
+    name: window.i18n.tc('自定义上报'),
   },
   {
     id: 'HOST_COLLECT',
-    name: window.i18n.tc('插件采集')
+    name: window.i18n.tc('插件采集'),
   },
   // {
   //   id: 'CONTAINER_COLLECT',
@@ -62,16 +62,16 @@ const SPACE_FEATURE_LIST = [
   // },
   {
     id: 'HOST_PROCESS',
-    name: window.i18n.tc('主机/进程')
+    name: window.i18n.tc('主机/进程'),
   },
   {
     id: 'UPTIMECHECK',
-    name: window.i18n.tc('自建拨测')
+    name: window.i18n.tc('自建拨测'),
   },
   {
     id: 'K8S',
-    name: window.i18n.tc('Kubernetes')
-  }
+    name: window.i18n.tc('Kubernetes'),
+  },
   // {
   //   id: 'CI_BUILDER',
   //   name: window.i18n.tc('CI构建机')
@@ -83,17 +83,17 @@ const SPACE_FEATURE_LIST = [
 ];
 enum SpaceType {
   mine /** 我的空间 */,
-  all /** 全部空间 */
+  all /** 全部空间 */,
 }
 /** 空间状态 */
 enum SpaceStatus {
   normal = 'success' /** 正常 */,
-  stoped = 'failed' /** 被停用 */
+  stoped = 'failed' /** 被停用 */,
 }
 /** 功能状态 */
 enum FuncType {
   normal = 'normal' /** 正常的 */,
-  stop = 'stoped' /** 停用的 */
+  stop = 'stoped' /** 停用的 */,
 }
 interface ITableItem {
   name: string;
@@ -116,7 +116,7 @@ interface IFuncItem {
  * 空间管理页面
  */
 @Component
-export default class SpaceManage extends tsc<{}> {
+export default class SpaceManage extends tsc<object> {
   @Ref() tableRef: any;
   loading = false;
   /** 选中的空间类型tab */
@@ -126,7 +126,6 @@ export default class SpaceManage extends tsc<{}> {
   showAdd = false;
 
   keyword = '';
-
   /** 刷选数据 */
   filtersData: Record<string, string[]> = {};
 
@@ -136,7 +135,7 @@ export default class SpaceManage extends tsc<{}> {
   pagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   /** 置顶空间数据 */
   stickyList: string[] = [];
@@ -191,7 +190,7 @@ export default class SpaceManage extends tsc<{}> {
       if (!map.get(item.status)) {
         total.push({
           text: item.statusText,
-          value: item.status
+          value: item.status,
         });
         map.set(item.status, true);
       }
@@ -206,7 +205,7 @@ export default class SpaceManage extends tsc<{}> {
         if (!map.get(type.id)) {
           total.push({
             text: type.name,
-            value: type.id
+            value: type.id,
           });
           map.set(type.id, true);
         }
@@ -252,12 +251,12 @@ export default class SpaceManage extends tsc<{}> {
     mergeSpaceList(spaceList);
     this.$store.commit('app/SET_APP_STATE', {
       bizList: window.space_list,
-      bizId: this.$store.getters.bizId
+      bizId: this.$store.getters.bizId,
     });
     window.bk_biz_list = window.space_list.map(({ id, is_demo, text }) => ({
       id,
       is_demo,
-      text
+      text,
     })) as any;
   }
   /**
@@ -265,7 +264,7 @@ export default class SpaceManage extends tsc<{}> {
    */
   async handleFetchStickyList() {
     const params = {
-      username: this.$store.getters.userName
+      username: this.$store.getters.userName,
     };
     const res = await listStickySpaces(params).catch(() => []);
     this.stickyList = res;
@@ -283,7 +282,7 @@ export default class SpaceManage extends tsc<{}> {
       if (item.space_type_id === ETagsType.BKCI && item.space_code) {
         types.push({
           id: 'bcs',
-          name: this.$t('容器项目')
+          name: this.$t('容器项目'),
         });
       }
       return {
@@ -296,7 +295,7 @@ export default class SpaceManage extends tsc<{}> {
         function: item.func_info,
         uid: item.space_uid,
         bizId: item.bk_biz_id,
-        hasAuth: this.getHasAuthority(item.space_uid)
+        hasAuth: this.getHasAuthority(item.space_uid),
       };
     });
   }
@@ -321,7 +320,7 @@ export default class SpaceManage extends tsc<{}> {
     const params = {
       username: this.$store.getters.userName,
       space_uid: row.uid,
-      action: row.collected ? 'off' : 'on'
+      action: row.collected ? 'off' : 'on',
     };
     const res = await stickSpace(params).catch(() => false);
     if (res) {
@@ -364,7 +363,7 @@ export default class SpaceManage extends tsc<{}> {
    * @param _val
    * @param val 参与筛选的值
    */
-  handleFilterChange(_val, val: Object = {}) {
+  handleFilterChange(_val, val: object = {}) {
     const { columns } = this.tableRef;
     this.filtersData = Object.entries(val).reduce((total, item) => {
       const column = columns.find(col => col.id === item[0]);
@@ -390,7 +389,7 @@ export default class SpaceManage extends tsc<{}> {
   async handleApplyAuth(item: ITableItem) {
     const url = await getAuthorityDetail({
       action_ids: ['view_business_v2'],
-      bk_biz_id: item.bizId
+      bk_biz_id: item.bizId,
     })
       .then(res => res.apply_url)
       .catch(() => false);

@@ -42,12 +42,12 @@ export default defineComponent({
     labelWidth: { type: Number, default: 52 },
     modelValue: {
       type: Array as PropType<string[]>,
-      default: () => []
+      default: () => [],
     },
     type: {
       type: String as PropType<ShowType>,
-      default: 'week'
-    }
+      default: 'week',
+    },
   },
   emits: ['update:modelValue', 'change'],
   setup(props, { emit }) {
@@ -75,8 +75,8 @@ export default defineComponent({
         localValue.value = [...val];
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     // ---------popover弹窗控制------------
@@ -100,7 +100,7 @@ export default defineComponent({
       const val = ind + 1;
       return {
         label: val,
-        value: val < 10 ? `0${val}` : String(val)
+        value: val < 10 ? `0${val}` : String(val),
       };
     });
     const timeList = generateTimeSlots();
@@ -111,7 +111,7 @@ export default defineComponent({
       { id: '04', label: t('周四') },
       { id: '05', label: t('周五') },
       { id: '06', label: t('周六') },
-      { id: '07', label: t('周日') }
+      { id: '07', label: t('周日') },
     ];
     /** 当前日期 */
     const currentDate = new Date().getDate();
@@ -141,7 +141,7 @@ export default defineComponent({
       currentDate,
       timeList,
       weekList,
-      handleSelect
+      handleSelect,
     };
   },
   render() {
@@ -189,7 +189,7 @@ export default defineComponent({
                             class={[
                               'list-item',
                               this.currentDate === Number(item.value) && 'current',
-                              item.value === this.localValue[0] && 'selected'
+                              item.value === this.localValue[0] && 'selected',
                             ]}
                             onClick={() => this.handleSelect(item.value, 'date')}
                           >
@@ -218,11 +218,11 @@ export default defineComponent({
                 <div class={['content-wrapper', !this.localText && 'placeholder']}>
                   {this.localText || this.t('选择')}
                 </div>
-              )
+              ),
             }}
           </Popover>
         </div>
       </div>
     );
-  }
+  },
 });

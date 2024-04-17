@@ -53,7 +53,7 @@ interface IViewSettingsSideEvent {
 }
 
 @Component({
-  name: 'ViewSettingsSide'
+  name: 'ViewSettingsSide',
 })
 export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettingsSideEvent> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -140,8 +140,8 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
         variables: this.isEdit
           ? this.viewSettingParams.variableResult.map(item => ({ id: item.key, name: item.name }))
           : this.dimensions.slice(0, 3).map(item => ({ id: item.englishName, name: item.englishName })),
-        order: arr
-      }
+        order: arr,
+      },
     };
     if (this.isEdit) {
       params.name = this.sceneName;
@@ -155,7 +155,7 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
             `${this.id}`,
             this.labelName,
             Object.keys(tempVariables).map(key => ({ id: key, value: tempVariables[key] })),
-            this.routeType
+            this.routeType,
           );
           this.editChange(params.config);
         } else {

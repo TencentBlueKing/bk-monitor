@@ -57,7 +57,7 @@ interface ITableColumnsItem {
   prop: string;
   key?: string;
   width?: number;
-  formatter?: Function;
+  formatter?: (row: any) => any;
 }
 /**
  * 事件源详情配置页
@@ -88,17 +88,17 @@ export default class Config extends tsc<IConfig> {
       prop: 'display_name',
       key: 'field',
       width: 180,
-      formatter: row => (row.field ? `${row.display_name} (${row.field})` : row.display_name)
+      formatter: row => (row.field ? `${row.display_name} (${row.field})` : row.display_name),
     },
     { label: i18n.tc('类型'), prop: 'type', key: 'type', width: 120 },
     { label: i18n.tc('说明'), prop: 'description', key: 'desc', formatter: row => row.description || '--' },
-    { label: i18n.tc('源映字段规则'), prop: 'expr', key: 'rules', formatter: row => row.expr || '--' }
+    { label: i18n.tc('源映字段规则'), prop: 'expr', key: 'rules', formatter: row => row.expr || '--' },
   ];
   // 告警名称列表
   noticeNameTableColumnlist: ITableColumnsItem[] = [
     { label: i18n.tc('告警名称'), prop: 'name', key: 'name', width: 200 },
     // { label: '', prop: 'type', key: 'type', width: 100 },
-    { label: i18n.tc('匹配内容'), prop: 'rules', key: 'content' }
+    { label: i18n.tc('匹配内容'), prop: 'rules', key: 'content' },
     // { label: i18n.tc('匹配模式'), prop: 'match', key: 'match' }
   ];
 
@@ -122,13 +122,13 @@ export default class Config extends tsc<IConfig> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -147,10 +147,10 @@ export default class Config extends tsc<IConfig> {
       default: ({ row }) => {
         if (!row.type) return undefined;
         return <span class='type-label'>{row.type}</span>;
-      }
+      },
     };
     const rulesColumnScopedSlots = {
-      default: ({ row: { rules } }) => <RulesViewer value={rules}></RulesViewer>
+      default: ({ row: { rules } }) => <RulesViewer value={rules}></RulesViewer>,
     };
     const scopedSlots = key => {
       if (key === 'type') return typeColumnScopedSlots;
@@ -221,7 +221,6 @@ export default class Config extends tsc<IConfig> {
                       {!this.isHidePushKey && this.pushKey}
                     </span>
                     {this.isHidePushKey && this.isInstalled && (
-                      // eslint-disable-next-line @typescript-eslint/no-misused-promises
                       <span
                         class={['btn', { 'btn-loading': this.pushKeyLoading }]}
                         onClick={this.getSecureKey}

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
+
 import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
@@ -59,7 +59,7 @@ interface IRowData {
 }
 Component.registerHooks(['beforeRouteLeave']);
 @Component({
-  name: 'set-meal'
+  name: 'set-meal',
 })
 class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   @Provide('authority') authority;
@@ -71,12 +71,12 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   private detailData: ISetMealDetail = {
     id: 0,
     isShow: false,
-    width: 610
+    width: 610,
   };
   private pagination = {
     current: 1,
     count: 1,
-    limit: 10
+    limit: 10,
     // 'limit-list': [1, 2, 5, 10]
   };
   private loading = false;
@@ -90,7 +90,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
         item =>
           String(item.name).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()) ||
           String(item.plugin_name).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()) ||
-          String(item.update_user).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase())
+          String(item.update_user).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()),
       )
       .slice(this.pagination.limit * (this.pagination.current - 1), this.pagination.limit * this.pagination.current);
   }
@@ -191,27 +191,27 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
       subHeader: h(DeleteSubtitle, {
         props: {
           title: this.$tc('套餐名称'),
-          name: row.name
-        }
+          name: row.name,
+        },
       }),
       confirmLoading: true,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       confirmFn: async () => {
         const ret = await destroyActionConfig(row.id)
           .then(() => true)
           .catch(() => false);
         if (ret) this.getListActionConfig();
-      }
+      },
     });
   }
   handleSwichChange({ id, is_enabled: isEnabled }) {
     return new Promise((resolve, reject) => {
       this.$bkInfo({
         title: this.$t('确定{status}此套餐吗？', { status: !isEnabled ? this.$t('启用') : this.$t('停用') }),
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         confirmFn: async () => {
           const result = await partialUpdateActionConfig(id, {
-            is_enabled: !isEnabled
+            is_enabled: !isEnabled,
           })
             .then(() => true)
             .catch(() => false);
@@ -220,7 +220,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
           }
           result ? resolve(true) : reject();
         },
-        cancelFn: reject
+        cancelFn: reject,
       });
     });
   }
@@ -247,8 +247,8 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     this.$router.push({
       name: 'strategy-config',
       params: {
-        actionName: row.name
-      }
+        actionName: row.name,
+      },
     });
   }
 
@@ -259,7 +259,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   } {
     return {
       authority: bkBizId === 0 ? this.authority.MANAGE_PUBLIC_ACTION_CONFIG : this.authority.MANAGE_ACTION_CONFIG,
-      authorityType: bkBizId === 0 ? ruleAuth.MANAGE_PUBLIC_ACTION_CONFIG : ruleAuth.MANAGE_ACTION_CONFIG
+      authorityType: bkBizId === 0 ? ruleAuth.MANAGE_PUBLIC_ACTION_CONFIG : ruleAuth.MANAGE_ACTION_CONFIG,
     };
   }
   handleToEventCenter(id) {
@@ -270,8 +270,8 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
         activeFilterId: 'action',
         from: 'now-7d',
         to: 'now',
-        queryString: isZh() ? `套餐ID: ${id}` : `action_config_id: ${id}`
-      }
+        queryString: isZh() ? `套餐ID: ${id}` : `action_config_id: ${id}`,
+      },
     });
   }
 
@@ -308,7 +308,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
               : this.handleShowAuthorityDetail(this.isAuth(parseInt(row.bk_biz_id)).authorityType)
           }
         />
-      )
+      ),
     };
     const oprateScopedSlots = {
       default: ({ row }) => (
@@ -351,15 +351,15 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
                     id: 'clone',
                     name: window.i18n.t('克隆'),
                     authority: this.isAuth(parseInt(row.bk_biz_id)).authority,
-                    authorityDetail: this.isAuth(parseInt(row.bk_biz_id)).authorityType
-                  }
-                ]
+                    authorityDetail: this.isAuth(parseInt(row.bk_biz_id)).authorityType,
+                  },
+                ],
               } as any
             }
             onOptionClick={type => this.handleOperate(type, row.id)}
           ></OperateOptions>
         </div>
-      )
+      ),
     };
     return (
       <div
@@ -410,7 +410,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
                       </span>
                     )}
                   </div>
-                )
+                ),
               }}
             />
             <bk-table-column
@@ -432,7 +432,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
                   >
                     {row.strategy_count || '--'}
                   </bk-button>
-                )
+                ),
               }}
             />
             <bk-table-column
@@ -448,7 +448,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
                   >
                     {row.execute_count || '--'}
                   </bk-button>
-                )
+                ),
               }}
             />
             <bk-table-column

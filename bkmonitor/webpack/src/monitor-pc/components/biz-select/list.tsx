@@ -60,7 +60,7 @@ export enum ETagsType {
   BCS = 'bcs' /** 容器项目 */,
   BKCI = 'bkci' /** 蓝盾项目 */,
   BKSAAS = 'bksaas' /** 蓝鲸应用 */,
-  MONITOR = 'monitor' /** 监控空间 */
+  MONITOR = 'monitor' /** 监控空间 */,
 }
 @Component
 export default class List extends tsc<IProps, IEvents> {
@@ -72,7 +72,7 @@ export default class List extends tsc<IProps, IEvents> {
   @Prop({
     default: 'light',
     type: String,
-    validator: val => ['dark', 'light'].includes(val)
+    validator: val => ['dark', 'light'].includes(val),
   })
   theme: ThemeType;
 

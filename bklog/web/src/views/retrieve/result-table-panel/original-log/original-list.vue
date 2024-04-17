@@ -75,6 +75,7 @@
                 :is-wrap="isWrap"
                 :visible-fields="getShowTableVisibleFields"
                 :origin-json="row"
+                :operator-config="operatorConfig"
                 @menuClick="({ option, isLink }) => handleMenuClick(option, isLink)"
               />
               <p
@@ -107,8 +108,8 @@
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
           <operator-tools
-            :index="$index"
             log-type="origin"
+            :index="$index"
             :row-data="row"
             :operator-config="operatorConfig"
             :handle-click="event => handleClickTools(event, row, operatorConfig)"
@@ -163,6 +164,10 @@ export default {
     scrollContent() {
       return document.querySelector('.result-scroll-container');
     }
+  },
+  activated() {
+    // keep-alive之后再进入到原始日志时需要重新布局表格
+    this.$refs.resultTable.doLayout();
   }
 };
 </script>

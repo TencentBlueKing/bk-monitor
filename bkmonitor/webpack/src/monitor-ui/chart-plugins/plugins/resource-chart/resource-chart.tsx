@@ -38,7 +38,7 @@ import {
   IMenuItem,
   IResourceData,
   ITitleAlarm,
-  PanelModel
+  PanelModel,
 } from '../../typings';
 import { handleRelateAlert } from '../../utils/menu';
 import { VariablesService } from '../../utils/variable';
@@ -79,31 +79,30 @@ class ResourceChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
-      const promiseList = this.panel.targets.map(
-        item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc](
-              {
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions
-                }
+      const promiseList = this.panel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc](
+            {
+              ...variablesService.transformVariables(item.data),
+              ...params,
+              view_options: {
+                ...this.viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              this.clearErrorMsg();
-              return res;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
+            },
+            { needMessage: false },
+          )
+          .then(res => {
+            this.clearErrorMsg();
+            return res;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          }),
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item?.length)) {
@@ -138,7 +137,7 @@ class ResourceChart extends CommonSimpleChart {
           ...this.viewOptions.filters,
           ...(this.viewOptions.filters?.current_target || {}),
           ...this.viewOptions,
-          ...this.viewOptions.variables
+          ...this.viewOptions.variables,
         });
         break;
       case 'relate-alert': // 查看相关告警
@@ -167,7 +166,7 @@ class ResourceChart extends CommonSimpleChart {
       ...this.viewOptions.filters,
       ...(this.viewOptions.filters?.current_target || {}),
       ...this.viewOptions,
-      ...this.viewOptions.variables
+      ...this.viewOptions.variables,
     });
     const {
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -175,25 +174,25 @@ class ResourceChart extends CommonSimpleChart {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       data_type_label,
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      bcs_cluster_id
+      bcs_cluster_id,
     } = variablesService.transformVariables(alertFilterable.data);
     const res = await getDataSourceConfig({
       data_source_label,
-      data_type_label
+      data_type_label,
     });
     // 集群ID 换 数据ID
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const result_table_id = res.find(item => item.name.includes(bcs_cluster_id))?.id;
     const query =
       alertFilterable.event_center?.query_string.map(
-        item => `指标ID : ${data_source_label}.${data_type_label}.${result_table_id}.${item.metric}`
+        item => `指标ID : ${data_source_label}.${data_type_label}.${result_table_id}.${item.metric}`,
       ) || [];
     query.length &&
       window.open(
         location.href.replace(
           location.hash,
-          `#/event-center?queryString=${query.join(' or ')}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-        )
+          `#/event-center?queryString=${query.join(' or ')}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
+        ),
       );
   }
 
@@ -231,20 +230,18 @@ class ResourceChart extends CommonSimpleChart {
         this.handleAddStrategy(this.panel, null, this.viewOptions, true);
         break;
       case 1:
-        // eslint-disable-next-line max-len
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
         break;
       case 2:
-        // eslint-disable-next-line no-case-declarations
         const eventTargetStr = alarmStatus.targetStr;
-        // eslint-disable-next-line max-len
+
         window.open(
           location.href.replace(
             location.hash,
             `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
               eventTargetStr ? ` AND ${eventTargetStr}` : ''
-            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-          )
+            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
+          ),
         );
         break;
     }
@@ -272,7 +269,7 @@ class ResourceChart extends CommonSimpleChart {
                     showOnInit: false,
                     trigger: 'mouseenter',
                     placements: ['top'],
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 />
               )}

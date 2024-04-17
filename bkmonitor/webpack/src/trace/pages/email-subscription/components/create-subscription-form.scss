@@ -1,0 +1,62 @@
+.create-subscription-form-container {
+  .card-container {
+    padding: 16px 24px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    &:nth-of-type(n+2) {
+      margin-top: 16px;
+    }
+
+    .title {
+      margin-bottom: 22px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #63656e;
+    }
+
+    .slider-container {
+      display: flex;
+
+      .slider {
+        width: 180px;
+        margin: 0 10px;
+      }
+    }
+  }
+
+  .bk-form-item.is-error {
+    // 该自定义属性是用来避免正确的输入框显示警告颜色
+    [data-is-show-error-msg='true'] {
+      .member-select-component {
+        border-color: #ea3636;
+        transition: all .15s;
+      }
+    }
+
+    [data-is-show-error-msg='false'] {
+      .bk-input {
+        border-color: #c4c6cc;
+      }
+
+      .bk-input.is-focused:not(.is-readonly) {
+        border-color: #3a84ff;
+      }
+    }
+
+    .is-disabled.bk-input {
+      border-color: #dcdee5;
+    }
+  }
+
+  .effective-end {
+    ::placeholder {
+      color: #63656e;
+    }
+  }
+
+  .bk-radio-label {
+    font-size: 12px;
+  }
+}

@@ -1,5 +1,3 @@
-/* eslint-disable prefer-destructuring */
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -31,7 +29,6 @@ import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
 import { IOption } from '../pages/monitor-k8s/typings';
-import store from '../store/store';
 /**
  * 生成一个随机字符串ID
  * @param len 随机ID的长度 默认8位字符
@@ -91,7 +88,7 @@ export const handleTimeRange = (timeRange: number | string | string[]): { startT
   }
   return {
     startTime,
-    endTime
+    endTime,
   };
 };
 /**
@@ -120,8 +117,7 @@ export const ftaUrl = (hash: string): string => {
   if (isDev) {
     url = `${protocol}//${hostname}:7002/${search}${hash}`;
   } else {
-    const { bkPaasHost, siteUrl, bizId } = store.getters.app;
-    const host = `${bkPaasHost}${siteUrl}fta/?bizId=${bizId}`;
+    const host = `${window.bk_paas_host}${window.site_url}fta/?bizId=${window.bk_biz_id}`;
     url = `${host}${hash}`;
   }
   return url;
@@ -133,12 +129,11 @@ export const ftaUrl = (hash: string): string => {
  * @return {string} 转换后的字符串
  */
 export const transformJobUrl = (str: string): string => {
-  const jobUrl = store.getters.jobUrl as string;
   let newStr = '';
   try {
     newStr = str.replace(/<a.*?href="(.*?)".*?>(.*?)<\/a>/g, (...args) => {
       const { 0: aStr, 1: url } = args;
-      const newUrl = /^http/.test(url) ? url : jobUrl + url;
+      const newUrl = /^http/.test(url) ? url : window.bk_job_url + url;
       return aStr.replace(url, newUrl);
     });
   } catch (error) {
@@ -189,13 +184,13 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
       addition?.map(set => ({
         field: set.key,
         operator: set.method,
-        value: (set.value || []).join(',')
+        value: (set.value || []).join(','),
       })) || [],
-    // eslint-disable-next-line camelcase
+
     start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    // eslint-disable-next-line camelcase
+
     end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    time_range
+    time_range,
   };
   queryStr = Object.keys(queryObj).reduce((str, key, i) => {
     const itemVal = queryObj[key];
@@ -233,7 +228,7 @@ export class Storage implements IStorage {
     const data: ILocalStroageItem = {
       value,
       updateTime: Date.now(),
-      express
+      express,
     };
     localStorage.setItem(key, JSON.stringify(data));
   }

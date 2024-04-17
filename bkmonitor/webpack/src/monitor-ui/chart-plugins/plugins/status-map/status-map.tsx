@@ -26,16 +26,14 @@
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-import { EChartOption } from 'echarts';
 import { deepClone } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import 'echarts/map/js/china.js';
-
+// import 'echarts/map/js/china.js';
 import Mpalegend from '../../components/chart-legend/map-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { CHINA_MAP_OPTIONS } from '../../constants';
-import { ICommonCharts, IExtendDataItem, PanelModel } from '../../typings';
+import { ICommonCharts, IExtendDataItem, MonitorEchartOptions, PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import MonitorBaseEchart from '../base-echart';
@@ -49,7 +47,7 @@ interface IStatusMapProps {
 
 @Component
 class StatusMap extends CommonSimpleChart implements ICommonCharts {
-  chartOption: EChartOption;
+  chartOption: MonitorEchartOptions;
   inited = false;
   metrics = [];
   legendData = [];
@@ -61,7 +59,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
     'rgba(45, 203, 86, 0.2)',
     'rgba(255, 235, 0, 0.2)',
     'rgba(255, 156, 1, 0.2)',
-    'rgba(234, 54, 54, 0.2)'
+    'rgba(234, 54, 54, 0.2)',
   ];
 
   getStatusColor(status: string) {
@@ -72,14 +70,14 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
     const seriesData = data.map(data => ({
       ...data,
       itemStyle: {
-        areaColor: this.areaColorList[data.status - 1]
+        areaColor: this.areaColorList[data.status - 1],
       },
       emphasis: {
         itemStyle: {
           areaColor: this.areaColorList[data.status - 1],
-          borderColor: this.colorList[data.status - 1]
-        }
-      }
+          borderColor: this.colorList[data.status - 1],
+        },
+      },
     }));
 
     this.chartOption = deepClone(CHINA_MAP_OPTIONS);
@@ -90,8 +88,8 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
         formatter(params: any) {
           if (isNaN(params.value)) return '';
           return `${params.name}<br />${params.value}${params.data?.unit}`;
-        } // 数据格式化
-      }
+        }, // 数据格式化
+      },
     };
   }
 
@@ -115,16 +113,16 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval
+        this.panel.collect_interval,
       );
       const variablesService = new VariablesService({
         ...this.scopedVars,
-        interval
+        interval,
       });
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
@@ -133,11 +131,11 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
               ...variablesService.transformVariables(item.data, {
                 ...this.viewOptions.filters,
                 ...this.viewOptions,
-                interval
+                interval,
               }),
-              ...params
+              ...params,
             },
-            { needMessage: false }
+            { needMessage: false },
           )
           .then(res => {
             series = res.series || [];
@@ -147,7 +145,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          })
+          }),
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res && series.length) {
@@ -155,7 +153,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
         this.extendData = extendData;
         this.legendData = legend.map(item => ({
           ...item,
-          color: this.colorList[item.status - 1]
+          color: this.colorList[item.status - 1],
         }));
         this.inited = true;
         this.empty = false;

@@ -52,7 +52,7 @@ interface ILocalListItem extends IItem {
 const INPUT_ITEM = {
   type: 'input',
   id: '___input___',
-  name: '___input___'
+  name: '___input___',
 };
 
 const numClassName = 'num-overflow-item';
@@ -98,7 +98,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
     current: 1,
     count: 0,
     limit: 20,
-    data: []
+    data: [],
   };
   /* 监听容器宽度的变化(节流) */
   throttleOverflow = () => {};
@@ -184,7 +184,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
     const overflowTagWidth = 35;
     let totalWidth = 0;
     await this.$nextTick();
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const i in childs) {
       const item = childs[i] as HTMLDivElement;
       if (!item.className || item.className.indexOf('list-item') === -1) continue;
@@ -259,7 +259,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
         ...item,
         isCheck: isHas,
         show: isSearch,
-        lightContent: this.highLightContent(this.inputValue, item.name)
+        lightContent: this.highLightContent(this.inputValue, item.name),
       };
     });
     this.setPaginationData(true);
@@ -275,7 +275,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
         this.pagination.current += 1;
         const temp = showData.slice(
           (this.pagination.current - 1) * this.pagination.limit,
-          this.pagination.current * this.pagination.limit
+          this.pagination.current * this.pagination.limit,
         );
         this.pagination.data.push(...temp);
       }
@@ -302,7 +302,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
       if (index !== indexRanges.length - 1) {
         return [
           <span>{content.slice(range[0], range[1])}</span>,
-          <span class='light'>{content.slice(range[1], indexRanges[index + 1][0])}</span>
+          <span class='light'>{content.slice(range[1], indexRanges[index + 1][0])}</span>,
         ];
       }
       return <span>{content.slice(range[0], range[1])}</span>;
@@ -350,7 +350,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
       arrow: false,
       placement: 'bottom-start',
       boundary: 'window',
-      hideOnClick: false
+      hideOnClick: false,
     });
     this.popoverInstance?.show?.();
   }
@@ -514,7 +514,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
                   onClick={(event: Event) => this.handleDelete(event, index)}
                 ></span>
               </li>
-            )
+            ),
           )}
         </ul>
         {!!this.localValue.filter(item => item?.type !== 'input').length && (
@@ -532,7 +532,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
           <div
             class={[
               'target-compare-select-component-list-wrap',
-              { 'no-data': !this.pagination.data.filter(item => !!item.show).length }
+              { 'no-data': !this.pagination.data.filter(item => !!item.show).length },
             ]}
             ref='options'
             onScroll={this.handleScroll}

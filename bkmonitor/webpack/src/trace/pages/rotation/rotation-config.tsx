@@ -38,7 +38,7 @@ import {
   getAutoOrderList,
   getPreviewParams,
   noOrderDutyData,
-  setPreviewDataOfServer
+  setPreviewDataOfServer,
 } from './components/calendar-preview';
 import FixedRotationTab, { FixedDataModel } from './components/fixed-rotation-tab';
 import FormItem from './components/form-item';
@@ -50,7 +50,7 @@ import {
   fixedRotationTransform,
   replaceRotationTransform,
   validFixedRotationData,
-  validReplaceRotationData
+  validReplaceRotationData,
 } from './utils';
 
 import './rotation-config.scss';
@@ -77,8 +77,8 @@ export default defineComponent({
       enabled: true,
       effective: {
         startTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-        endTime: ''
-      }
+        endTime: '',
+      },
     });
     const previewData = ref([]);
     const loading = ref(false);
@@ -88,7 +88,7 @@ export default defineComponent({
     const errMsg = reactive({
       name: '',
       effective: '',
-      rotationType: ''
+      rotationType: '',
     });
 
     /* 关联告警组数量 */
@@ -127,7 +127,7 @@ export default defineComponent({
       value: createColorList(),
       setValue: (val: string[]) => {
         colorList.value = val;
-      }
+      },
     });
     provide('colorList', colorList);
 
@@ -216,7 +216,7 @@ export default defineComponent({
     function createDefaultRotation(): RotationTypeData {
       return {
         regular: [],
-        handoff: []
+        handoff: [],
       };
     }
 
@@ -305,7 +305,7 @@ export default defineComponent({
         enabled,
         duty_arranges: dutyArranges,
         effective_time: effective.startTime,
-        end_time: effective.endTime
+        end_time: effective.endTime,
       };
       return params;
     }
@@ -383,7 +383,7 @@ export default defineComponent({
         const params = {
           ...getPreviewParams(formData.effective.startTime),
           source_type: 'DB',
-          id: id.value
+          id: id.value,
         };
         const data = await previewDutyRulePlan(params).catch(() => []);
         const dutyParams = getParams();
@@ -391,21 +391,21 @@ export default defineComponent({
         previewData.value = setPreviewDataOfServer(
           dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
           autoOrders,
-          getPreviewColorList()
+          getPreviewColorList(),
         );
       } else {
         const dutyParams = getParams();
         const params = {
           ...getPreviewParams(formData.effective.startTime),
           source_type: 'API',
-          config: dutyParams
+          config: dutyParams,
         };
         const data = await previewDutyRulePlan(params, { needCancel: true }).catch(() => []);
         const autoOrders = getAutoOrderList(dutyParams);
         previewData.value = setPreviewDataOfServer(
           dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
           autoOrders,
-          getPreviewColorList()
+          getPreviewColorList(),
         );
       }
     }
@@ -417,7 +417,7 @@ export default defineComponent({
 
     function handleBack() {
       router.push({
-        name: 'rotation'
+        name: 'rotation',
       });
     }
 
@@ -448,7 +448,7 @@ export default defineComponent({
       handleSubmit,
       handleBack,
       handleBackPage,
-      disabledDateFn
+      disabledDateFn,
     };
   },
   render() {
@@ -503,7 +503,7 @@ export default defineComponent({
                       disabled={this.enabledDisabled}
                     ></Switcher>
                   ),
-                  content: () => <span>{this.t('存在关联的告警组')}</span>
+                  content: () => <span>{this.t('存在关联的告警组')}</span>,
                 }}
               </Popover>
             </div>
@@ -604,5 +604,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

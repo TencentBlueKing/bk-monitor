@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VueConstructor } from 'vue';
+import { type VueConstructor } from 'vue';
 
 interface WatermarkOptions {
   text: string; // 文本
@@ -40,7 +40,7 @@ export default class WatermarkDirective {
         const defaults: WatermarkOptions = {
           text: '',
           font: '14px Arial',
-          textColor: '#f1f1f1'
+          textColor: '#f1f1f1',
         };
         const options: WatermarkOptions = { ...defaults, ...binding.value };
         const canvas: HTMLCanvasElement = document.createElement('canvas');
@@ -62,7 +62,7 @@ export default class WatermarkDirective {
           ctx.fillText(options.text, 0, 120 / 2 + 5);
         }
         el.style.backgroundImage = `url(${canvas.toDataURL('image/png')})`;
-      }
+      },
     });
   }
 }

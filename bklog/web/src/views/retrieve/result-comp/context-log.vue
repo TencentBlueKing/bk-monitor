@@ -60,7 +60,7 @@
     </div>
 
     <div class="dialog-bars">
-      <log-filter
+      <data-filter
         :is-screen-full="isScreenFull"
         @handle-filter="handleFilter"
       />
@@ -118,14 +118,14 @@
 <script>
 import logView from '@/components/log-view';
 import FieldsConfig from '@/components/common/fields-config';
-import LogFilter from '../condition-comp/log-filter';
+import DataFilter from '../condition-comp/data-filter.vue';
 
 export default {
   name: 'ContextLog',
   components: {
     logView,
     FieldsConfig,
-    LogFilter
+    DataFilter
   },
   props: {
     retrieveParams: {
@@ -568,11 +568,10 @@ export default {
 }
 
 .log-full-dialog-wrapper {
-  height: calc(100% - 72px);
-  margin-top: 10px;
+  height: 100%;
 
   .dialog-log-markdown {
-    height: calc(100% - 76px);
+    height: calc(100% - 132px);
   }
 
   .dialog-label {

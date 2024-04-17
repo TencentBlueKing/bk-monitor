@@ -68,51 +68,51 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
       key: 'metricName',
       label: window.i18n.tc('指标'),
       enabled: true,
-      value: ''
+      value: '',
     },
     {
       key: 'localQueryString',
       label: window.i18n.tc('检索语句'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'method',
       label: window.i18n.tc('汇聚'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'logMetricName',
       label: window.i18n.tc('指标'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'interval',
       label: window.i18n.tc('周期'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'groupBy',
       label: window.i18n.tc('维度'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'where',
       label: window.i18n.tc('条件'),
       enabled: true,
       value: '',
-      format: null
+      format: null,
     },
     {
       key: 'function',
       label: window.i18n.tc('函数'),
       enabled: false,
-      value: ''
-    }
+      value: '',
+    },
   ];
 
   get currentConfigsList() {
@@ -166,12 +166,11 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
             item.value = metric.agg_method;
             break;
           case 'interval':
-            // eslint-disable-next-line no-case-declarations
             const unitMap = {
               m: 'min',
-              s: 's'
+              s: 's',
             };
-            // eslint-disable-next-line no-case-declarations
+
             const interalObj = secToString({ value: metric.agg_interval, unit: '' });
             item.value = `${interalObj?.value} ${unitMap[interalObj?.unit]}`;
             break;
@@ -204,7 +203,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
         placement: 'right',
         theme: 'monitor-metric-popover',
         arrow: true,
-        flip: false
+        flip: false,
       });
       this.popoverInstance?.show?.(100);
     }
@@ -253,7 +252,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
                 zIndex: 9999,
                 offset: '0, 6',
                 boundary: document.body,
-                allowHTML: false
+                allowHTML: false,
               }}
             >
               {name}

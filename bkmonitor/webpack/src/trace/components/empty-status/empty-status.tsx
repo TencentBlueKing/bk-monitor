@@ -40,7 +40,7 @@ const defaultTextMap: IEmptyStatusTextMap = {
   empty: window.i18n.t('暂无数据'),
   'search-empty': window.i18n.t('无数据'),
   500: window.i18n.t('数据获取异常'),
-  403: window.i18n.t('无业务权限')
+  403: window.i18n.t('无业务权限'),
 };
 
 export default defineComponent({
@@ -48,20 +48,20 @@ export default defineComponent({
   props: {
     type: {
       type: String as PropType<EmptyStatusType>,
-      default: 'empty'
+      default: 'empty',
     },
     scene: {
       type: String as PropType<EmptyStatusScene>,
-      default: 'empty'
+      default: 'empty',
     },
     showOperation: {
       type: Boolean,
-      default: true
+      default: true,
     },
     textMap: {
       type: Object as PropType<IEmptyStatusTextMap>,
-      default: defaultTextMap
-    }
+      default: defaultTextMap,
+    },
   },
   emits: ['operation'],
   setup(props, { emit }) {
@@ -73,7 +73,7 @@ export default defineComponent({
 
     return {
       typeText,
-      handleOperation
+      handleOperation,
     };
   },
   render() {
@@ -122,5 +122,5 @@ export default defineComponent({
         </Exception>
       </div>
     );
-  }
+  },
 });

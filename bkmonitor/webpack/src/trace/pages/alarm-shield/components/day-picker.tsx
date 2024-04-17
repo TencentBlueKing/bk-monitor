@@ -34,12 +34,12 @@ export default defineComponent({
   props: {
     value: {
       type: Array as PropType<(string | number)[]>,
-      default: () => []
+      default: () => [],
     },
     onChange: {
       type: Function as PropType<(v: number[]) => void>,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -57,8 +57,8 @@ export default defineComponent({
         localValue.value = v;
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     function handleShow() {
@@ -105,16 +105,16 @@ export default defineComponent({
                   </div>
                 ))}
               </div>
-            )
+            ),
           }}
         </Popover>
       );
     }
     return {
-      renderFn
+      renderFn,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

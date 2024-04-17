@@ -34,7 +34,7 @@ import AlarmGroupList from './alarm-group-common/alarm-group';
 
 Component.registerHooks(['beforeRouteEnter']);
 @Component({
-  name: 'AlarmGroupListMonitor'
+  name: 'AlarmGroupListMonitor',
 })
 export default class AlarmGroupListMonitor extends Mixins(authorityMixinCreate(authorityMap)) {
   @ProvideReactive('authority') authority: Record<string, boolean> = {};

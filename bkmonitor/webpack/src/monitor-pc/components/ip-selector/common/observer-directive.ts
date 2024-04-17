@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-underscore-dangle */
+
 import { DirectiveOptions } from 'vue';
 import { DirectiveBinding } from 'vue/types/options';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
@@ -42,16 +42,16 @@ export const mutation: DirectiveOptions = {
     const options: MutationObserverInit = {
       attributes: true,
       childList: true,
-      subtree: true
+      subtree: true,
     };
     const observer = new MutationObserver(binding.value);
     observer.observe(el, options);
-    // eslint-disable-next-line no-param-reassign
+
     el.__mutation__ = observer;
   },
   unbind: (el: ICustomElements) => {
     el.__mutation__?.disconnect();
-  }
+  },
 };
 
 /**
@@ -69,7 +69,7 @@ export const resize: DirectiveOptions = {
   unbind: (el: HTMLElement, binding: DirectiveBinding) => {
     const { handler, disabled } = parseBindingValue(binding);
     if (!disabled) removeListener(el, handler);
-  }
+  },
 };
 
 export const parseBindingValue = (binding: DirectiveBinding): IResizeOptions => {
@@ -79,11 +79,11 @@ export const parseBindingValue = (binding: DirectiveBinding): IResizeOptions => 
   const disabled = isFunction ? false : binding.value.disabled;
   return {
     disabled,
-    handler: func
+    handler: func,
   };
 };
 
 export default {
   mutation,
-  resize
+  resize,
 };

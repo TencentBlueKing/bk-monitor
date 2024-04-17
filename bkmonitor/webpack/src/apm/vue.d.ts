@@ -23,12 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/*
- * @Date: 2021-06-13 20:42:22
- * @LastEditTime: 2021-07-03 09:58:54
- * @Description:
- */
-/* eslint-disable camelcase */
 import { IVueI18n } from 'vue-i18n';
 import * as base from 'vue-tsx-support/types/base';
 import * as builtin from 'vue-tsx-support/types/builtin-components';
@@ -51,7 +45,7 @@ interface IBkInfoProps {
 declare module 'vue/types/vue' {
   interface Vue {
     $bkInfo?: (p: Partial<IBkInfoProps>) => void;
-    $bkMessage?: (p: Partial<{}>) => void;
+    $bkMessage?: (p: Partial<object>) => void;
     $bkPopover?: (...Object) => void;
   }
 }
@@ -74,10 +68,11 @@ declare global {
     Vue?: any;
     i18n: IVueI18n;
     bk_url: string;
-    source_app: 'apm';
+    source_app: string;
     __BK_WEWEB_DATA__?: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: string;
     bk_docs_site_url: string;
+    docUrlMap: Record<string, string>;
   }
 }
 
@@ -91,10 +86,10 @@ declare global {
           base.PropsOf<V>,
           base.PrefixedEventsOf<V>,
           base.OnOf<V>,
-          V extends { $scopedSlots: infer X } ? X : {},
+          V extends { $scopedSlots: infer X } ? X : object,
           base.IsPropsObjectAllowed<V>
         > &
-          (V extends { _tsxattrs: infer T } ? T : {})
+          (V extends { _tsxattrs: infer T } ? T : object)
       : P;
 
     interface IntrinsicElements extends base.IntrinsicElements {
@@ -102,9 +97,16 @@ declare global {
       [name: string]: any;
 
       // builtin components
-      transition: base.CombinedTsxComponentAttrs<builtin.TransitionProps, {}, {}, {}, {}, true>;
-      'transition-group': base.CombinedTsxComponentAttrs<builtin.TransitionGroupProps, {}, {}, {}, {}, true>;
-      'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, {}, {}, {}, {}, true>;
+      transition: base.CombinedTsxComponentAttrs<builtin.TransitionProps, object, object, object, object, true>;
+      'transition-group': base.CombinedTsxComponentAttrs<
+        builtin.TransitionGroupProps,
+        object,
+        object,
+        object,
+        object,
+        true
+      >;
+      'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, object, object, object, object, true>;
     }
   }
 }

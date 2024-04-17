@@ -61,8 +61,8 @@ interface IEvent {
 @Component({
   name: 'MultiLabelSelect',
   components: {
-    LabelTree
-  }
+    LabelTree,
+  },
 })
 export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
   @Prop({ default: 'create', type: String }) private mode: TMode;
@@ -86,7 +86,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
     width: 470,
     height: 357,
     startClientX: 0,
-    startClientY: 0
+    startClientY: 0,
   };
 
   private dropDownInstance: any = null;
@@ -99,7 +99,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
   private handleOverflowDebounce: Function = null;
 
   private tippyOptions: any = {
-    onHidden: null
+    onHidden: null,
   };
 
   get filterSearchData() {
@@ -112,7 +112,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
             children: item.children.filter(key => {
               const isSame = key?.toUpperCase().indexOf(value.toUpperCase()) > -1;
               return isSame && !this.localCheckNode.includes(`/${key}/`);
-            })
+            }),
           };
           return obj;
         })
@@ -201,7 +201,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
   getLabelListApi() {
     const params = {
       bk_biz_id: this.mode === 'select' ? this.$store.getters.bizId : 0,
-      strategy_id: 0
+      strategy_id: 0,
     };
     this.emitLoading(true);
     strategyLabelList(params)
@@ -211,25 +211,25 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
         const data = transformDataKey(res);
         const globalData = [
           ...data.global,
-          ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName }))
+          ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName })),
         ];
         // 标签选择模式
         if (this.mode === 'select') {
           customData = [
             ...data.custom,
-            ...data.customParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName }))
+            ...data.customParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName })),
           ];
           list = [
             {
               group: 'global',
               groupName: this.$t('全局标签'),
-              children: labelListToTreeData(globalData)
+              children: labelListToTreeData(globalData),
             },
             {
               group: 'custom',
               groupName: this.$t('自定义标签'),
-              children: labelListToTreeData(customData)
-            }
+              children: labelListToTreeData(customData),
+            },
           ];
         } else {
           // 标签创建模式列表
@@ -270,7 +270,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
     const res = list.map(item => ({
       group: item.group,
       groupName: item.groupName,
-      children: this.getSearchData(item.children)
+      children: this.getSearchData(item.children),
     }));
     this.localSearchData = res;
   }
@@ -336,7 +336,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
       key: '',
       name: '',
       parent: null,
-      isCreate: true
+      isCreate: true,
     });
     this.$nextTick(() => {
       this.createLabelTreeRef.inputFocus();
@@ -380,7 +380,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
     const listWidth = list.offsetWidth;
     let totalWidth = 0;
     await this.$nextTick();
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const i in childs) {
       const item = childs[i];
       if (!item.className || item.className.indexOf('key-node') === -1) continue;
@@ -445,7 +445,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
           const index = this.localCheckNode.length - 1;
           index >= 0 && this.handleRemoveTag(index);
         }
-      }
+      },
     };
     keyFn[key]?.();
   }
@@ -487,7 +487,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
       } else {
         this.$bkMessage({
           message: this.$t('注意: 名字冲突'),
-          theme: 'error'
+          theme: 'error',
         });
       }
     } else {
@@ -571,7 +571,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
       <div
         class={[
           'multi-label-select',
-          { 'simplicit-theme': this.behavior === 'simplicity', 'is-readonly': this.readonly }
+          { 'simplicit-theme': this.behavior === 'simplicity', 'is-readonly': this.readonly },
         ]}
         ref='wrapper'
       >
@@ -731,7 +731,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                               onCheckedChange={this.handleNodeChecked}
                             />
                           </div>
-                        ) : undefined
+                        ) : undefined,
                       )}
                     </div>
                   )

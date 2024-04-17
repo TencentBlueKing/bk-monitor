@@ -66,7 +66,7 @@ export default class AlertTopic extends tsc<IProps> {
     if (!!this.stage && !!this.id) {
       alertStatus({
         collect_config_id: this.id,
-        stage: this.stage
+        stage: this.stage,
       }).then(data => {
         if (data?.has_strategies === false) {
           return;
@@ -89,7 +89,7 @@ export default class AlertTopic extends tsc<IProps> {
     const timeRange = 'from=now-30d&to=now';
     // window.open(`${location.origin}${location.pathname}${location.search}#/event-center?${query}&${timeRange}`);
     window.open(
-      `${location.origin}${location.pathname}${location.search}#/event-center?queryString=${this.alertQuery}&${timeRange}`
+      `${location.origin}${location.pathname}${location.search}#/event-center?queryString=${this.alertQuery}&${timeRange}`,
     );
   }
 
@@ -98,7 +98,7 @@ export default class AlertTopic extends tsc<IProps> {
     updateAlertUserGroups({
       collect_config_id: this.id,
       stage: this.stage,
-      notice_group_list: value
+      notice_group_list: value,
     });
   }
 
@@ -115,7 +115,7 @@ export default class AlertTopic extends tsc<IProps> {
                 ? [<span class='icon-monitor icon-danger'></span>, <span class='ml-8'>{this.$t('当前有告警')}</span>]
                 : [
                     <span class='icon-monitor icon-mc-check-fill'></span>,
-                    <span class='ml-8'>{this.$t('当前暂无告警')}</span>
+                    <span class='ml-8'>{this.$t('当前暂无告警')}</span>,
                   ]}
             </span>
             <span class='split-line'></span>

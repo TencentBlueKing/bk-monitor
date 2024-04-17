@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,7 +27,6 @@ import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-prop
 import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import type { EChartOption } from 'echarts';
 import { CancelToken } from 'monitor-api/index';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -37,7 +35,7 @@ import {
   downCsvFile,
   IUnifyQuerySeriesItem,
   transformSrcData,
-  transformTableDataToCsvStr
+  transformTableDataToCsvStr,
 } from 'monitor-pc/pages/view-detail/utils';
 import { handleTimeRange } from 'monitor-pc/utils';
 
@@ -53,7 +51,7 @@ import {
   IntersectionMixin,
   LegendMixin,
   ResizeMixin,
-  ToolsMxin
+  ToolsMxin,
 } from '../../mixins';
 import {
   ChartTitleMenuType,
@@ -69,7 +67,8 @@ import {
   ITitleAlarm,
   IViewOptions,
   LegendActionType,
-  PanelModel
+  MonitorEchartOptions,
+  PanelModel,
 } from '../../typings';
 import { isShadowEqual, reviewInterval } from '../../utils';
 import { handleRelateAlert } from '../../utils/menu';
@@ -103,7 +102,7 @@ export class LineChart
     ToolsMxin,
     ChartLoadingMixin,
     LegendMixin,
-    ErrorMsgMixins
+    ErrorMsgMixins,
   )
   implements ICommonCharts
 {
@@ -144,7 +143,7 @@ export class LineChart
   height = 100;
   width = 300;
   legendData: ILegendItem[] = [];
-  options: EChartOption = null;
+  options: MonitorEchartOptions = null;
   inited = false;
   refleshIntervalInstance = null;
   metrics: IExtendMetricData[];
@@ -241,7 +240,7 @@ export class LineChart
       const { startTime, endTime } = handleTimeRange(this.timeRange);
       this.getPanelData(
         dayjs(startTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ss')
+        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
       );
     } else {
       this.getPanelData(val[0], val[1]);
@@ -273,7 +272,7 @@ export class LineChart
         ? this.handleTimeOffset(set.time_offset)
         : Object.values({
             ...dimensions,
-            ...dimensions_translation
+            ...dimensions_translation,
           }).join('|');
     const aliasFix = Object.values(dimensions).join('|');
     if (!aliasFix.length) return item.alias;
@@ -288,7 +287,7 @@ export class LineChart
         d: this.$t('{n} 天前', { n: num }),
         w: this.$t('{n} 周前', { n: num }),
         M: this.$t('{n} 月前', { n: num }),
-        current: this.$t('当前')
+        current: this.$t('当前'),
       };
       return map[type || target];
     }
@@ -333,11 +332,11 @@ export class LineChart
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
         start_time: start_time ? dayjs(start_time).unix() : startTime,
-        end_time: end_time ? dayjs(end_time).unix() : endTime
+        end_time: end_time ? dayjs(end_time).unix() : endTime,
       };
       if (this.bkBizId) {
         params = Object.assign({}, params, {
-          bk_biz_id: this.bkBizId
+          bk_biz_id: this.bkBizId,
         });
       }
       const promiseList = [];
@@ -345,11 +344,11 @@ export class LineChart
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval
+        this.panel.collect_interval,
       );
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        interval
+        interval,
       });
       timeShiftList.forEach(time_shift => {
         const noTransformVariables = !!this.panel?.options?.time_series?.noTransformVariables;
@@ -363,28 +362,28 @@ export class LineChart
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
                 time_shift,
-                interval
+                interval,
               },
-              noTransformVariables
+              noTransformVariables,
             ),
             ...params,
             down_sample_range: this.downSampleRangeComputed(
               this.downSampleRange as string,
               [params.start_time, params.end_time],
-              item.apiFunc
-            )
+              item.apiFunc,
+            ),
           };
           // 主机监控ipv6特殊逻辑 用于去除不必要的group_by字段
           if (item.ignore_group_by?.length && newPrarams.query_configs.some(set => set.group_by?.length)) {
             newPrarams.query_configs = newPrarams.query_configs.map(config => ({
               ...config,
-              group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key))
+              group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
           }
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
               cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
-              needMessage: false
+              needMessage: false,
             })
             .then(res => {
               this.$emit('seriesData', res);
@@ -394,8 +393,8 @@ export class LineChart
                   ...set,
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
-                  }`
-                }))
+                  }`,
+                })),
               );
               this.clearErrorMsg();
               return true;
@@ -426,7 +425,7 @@ export class LineChart
           .filter(item => ['extra_info', '_result_'].includes(item.alias))
           .map(item => ({
             ...item,
-            datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]])
+            datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
           }));
         let seriesList = this.handleTransformSeries(
           seriesResult.map((item, index) => ({
@@ -439,8 +438,8 @@ export class LineChart
             markLine: this.createMarkLine(index),
             markArea: this.createMarkArea(item, index),
             z: 1,
-            traceData: item.trace_data ?? ''
-          })) as any
+            traceData: item.trace_data ?? '',
+          })) as any,
         );
         const boundarySeries = seriesResult.map(item => this.handleBoundaryList(item, series)).flat(Infinity);
         if (!!boundarySeries) {
@@ -455,9 +454,9 @@ export class LineChart
             }
             return {
               ...set,
-              value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null]
+              value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
             };
-          })
+          }),
         }));
         this.seriesList = Object.freeze(seriesList) as any;
         // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
@@ -475,8 +474,8 @@ export class LineChart
                     borderWidth: set.symbolSize > 6 ? 6 : 1,
                     enabled: true,
                     shadowBlur: 0,
-                    opacity: 1
-                  }
+                    opacity: 1,
+                  },
                 };
               }
               return set;
@@ -485,14 +484,14 @@ export class LineChart
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
-        // eslint-disable-next-line max-len
+
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
-        // eslint-disable-next-line max-len
+
         const echartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
-          { arrayMerge: (_, newArr) => newArr }
-        ) as EChartOption<EChartOption.Series>;
+          { arrayMerge: (_, newArr) => newArr },
+        );
         const isBar = this.panel.options?.time_series?.type === 'bar';
         this.options = Object.freeze(
           deepmerge(echartOptions, {
@@ -509,7 +508,7 @@ export class LineChart
                       }
                       return v;
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase)
+                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
@@ -520,18 +519,18 @@ export class LineChart
                 // 柱状图y轴不能以最小值作为起始点
                 if (isBar) min = min <= 10 ? 0 : min - 10;
                 return min;
-              }
+              },
             },
             xAxis: {
               axisLabel: {
-                formatter: formatterFunc || '{value}'
+                formatter: formatterFunc || '{value}',
               },
               splitNumber: Math.ceil(this.width / 80),
-              min: 'dataMin'
+              min: 'dataMin',
             },
             series: seriesList,
-            tooltip: this.handleSetTooltip()
-          })
+            tooltip: this.handleSetTooltip(),
+          }),
         );
         this.metrics = metrics || [];
         this.handleDrillDownOption(this.metrics);
@@ -571,7 +570,7 @@ export class LineChart
       if (item.is_dimension ?? true) {
         total.push({
           id: item.id,
-          name: item.name
+          name: item.name,
         });
       }
       return total;
@@ -585,7 +584,7 @@ export class LineChart
     return {
       canScale: thresholdList.length > 0 && thresholdList.every((set: number) => set > 0),
       minThreshold: Math.min(...thresholdList),
-      maxThreshold: max + max * 0.1 // 防止阈值最大值过大时title显示不全
+      maxThreshold: max + max * 0.1, // 防止阈值最大值过大时title显示不全
     };
   }
 
@@ -602,7 +601,7 @@ export class LineChart
     const algorithm2Level = {
       1: 5,
       2: 4,
-      3: 3
+      3: 3,
     };
     boundaryList.push({
       upBoundary: upperBound.datapoints,
@@ -610,14 +609,14 @@ export class LineChart
       color: '#e6e6e6',
       type: 'line',
       stack: `boundary-${level}`,
-      z: algorithm2Level[level]
+      z: algorithm2Level[level],
     });
     // 上下边界处理
     if (boundaryList?.length) {
       boundaryList.forEach((item: any) => {
         const base = -item.lowBoundary.reduce(
           (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Infinity
+          Infinity,
         );
         this.minBase = Math.max(base, this.minBase);
       });
@@ -633,29 +632,29 @@ export class LineChart
         type: 'line',
         data: item.lowBoundary.map((item: any) => [item[1], item[0] === null ? null : item[0] + base]),
         lineStyle: {
-          opacity: 0
+          opacity: 0,
         },
         stack: item.stack,
         symbol: 'none',
-        z: item.z || 4
+        z: item.z || 4,
       },
       {
         name: `upper-${item.stack}-no-tips`,
         type: 'line',
         data: item.upBoundary.map((set: any, index: number) => [
           set[1],
-          set[0] === null ? null : set[0] - item.lowBoundary[index][0]
+          set[0] === null ? null : set[0] - item.lowBoundary[index][0],
         ]),
         lineStyle: {
-          opacity: 0
+          opacity: 0,
         },
         areaStyle: {
-          color: item.color || '#e6e6e6'
+          color: item.color || '#e6e6e6',
         },
         stack: item.stack,
         symbol: 'none',
-        z: item.z || 4
-      }
+        z: item.z || 4,
+      },
     ];
   }
 
@@ -687,7 +686,7 @@ export class LineChart
     const getDimStr = dim => `${dim.bk_target_ip}-${dim.bk_target_cloud_id}`;
     const currentDimStr = getDimStr(currentDimensions);
     const currentIsAanomalyData = series.find(
-      item => item.alias === 'is_anomaly' && currentDimStr === getDimStr(item.dimensions)
+      item => item.alias === 'is_anomaly' && currentDimStr === getDimStr(item.dimensions),
     );
     let markPointData = [];
     if (!!currentIsAanomalyData) {
@@ -706,10 +705,10 @@ export class LineChart
     /** 红色告警点 */
     data = markPointData.map(item => ({
       itemStyle: {
-        color: '#EA3636'
+        color: '#EA3636',
       },
       xAxis: item[0],
-      yAxis: item[1]
+      yAxis: item[1],
     }));
 
     !!item.markPoints?.length &&
@@ -717,8 +716,8 @@ export class LineChart
         ...item.markPoints.map(item => ({
           xAxis: item[1],
           yAxis: item[0],
-          symbolSize: 12
-        }))
+          symbolSize: 12,
+        })),
       );
     /** 事件中心告警开始点 */
     const markPoint = {
@@ -728,8 +727,8 @@ export class LineChart
       symbolSize: 6,
       z: 10,
       label: {
-        show: false
-      }
+        show: false,
+      },
     };
     return markPoint;
   }
@@ -779,7 +778,7 @@ export class LineChart
       { value: 1e9, symbol: 'G' },
       { value: 1e12, symbol: 'T' },
       { value: 1e15, symbol: 'P' },
-      { value: 1e18, symbol: 'E' }
+      { value: 1e18, symbol: 'E' },
     ];
     const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
     let i;
@@ -815,7 +814,7 @@ export class LineChart
         avgSource: 0,
         totalSource: 0,
         metricField: item.metricField,
-        dimensions: item.dimensions as unknown as Record<string, string>
+        dimensions: item.dimensions,
       };
       // 动态单位转换
       const unitFormatter =
@@ -849,9 +848,9 @@ export class LineChart
               borderWidth: hasNoBrother ? 10 : 6,
               enabled: true,
               shadowBlur: 0,
-              opacity: 1
+              opacity: 1,
             },
-            traceData
+            traceData,
           } as any;
         }
         return seriesItem;
@@ -863,7 +862,7 @@ export class LineChart
       const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
         unitFormatter,
-        item.unit
+        item.unit,
       );
       if (item.name) {
         Object.keys(legendItem).forEach(key => {
@@ -888,8 +887,8 @@ export class LineChart
         unitFormatter,
         precision,
         lineStyle: {
-          width: 1
-        }
+          width: 1,
+        },
       };
     });
     this.legendData = legendData;
@@ -911,8 +910,8 @@ export class LineChart
             borderColor: item.borderColor || '#FFE9D5',
             shadowColor: item.shadowColor || '#FFF5EC',
             borderType: item.borderType || 'solid',
-            shadowBlur: 0
-          }
+            shadowBlur: 0,
+          },
         },
         {
           xAxis: item.to || 'max',
@@ -923,11 +922,11 @@ export class LineChart
             borderColor: item.borderColor || '#FFE9D5',
             shadowColor: item.shadowColor || '#FFF5EC',
             borderType: item.borderType || 'solid',
-            shadowBlur: 0
-          }
-        }
+            shadowBlur: 0,
+          },
+        },
       ]),
-      opacity: 0.1
+      opacity: 0.1,
     };
   }
 
@@ -940,8 +939,8 @@ export class LineChart
       symbolSize: 6,
       z: 10,
       label: {
-        show: false
-      }
+        show: false,
+      },
     };
     return markPoint;
   }
@@ -965,7 +964,7 @@ export class LineChart
         // 大图检索
         let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
         const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-        // eslint-disable-next-line no-case-declarations
+
         const variablesService = new VariablesService({
           ...this.viewOptions.filters,
           ...(this.viewOptions.filters?.current_target || {}),
@@ -974,8 +973,8 @@ export class LineChart
           interval: reviewInterval(
             this.viewOptions.interval,
             dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-            this.panel.collect_interval
-          )
+            this.panel.collect_interval,
+          ),
         });
         copyPanel = variablesService.transformVariables(copyPanel);
         copyPanel.targets.forEach((t, tIndex) => {
@@ -987,7 +986,7 @@ export class LineChart
         this.handleFullScreen(copyPanel as any);
         break;
       }
-      // eslint-disable-next-line no-case-declarations
+
       case 'area': // 面积图
         (this.$refs.baseChart as any)?.handleTransformArea(menuItem.checked);
         break;
@@ -999,7 +998,7 @@ export class LineChart
           ...this.viewOptions.filters,
           ...(this.viewOptions.filters?.current_target || {}),
           ...this.viewOptions,
-          ...this.viewOptions.variables
+          ...this.viewOptions.variables,
         });
         break;
       case 'strategy': // 新增策略
@@ -1058,9 +1057,9 @@ export class LineChart
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
         ...this.viewOptions,
-        ...this.viewOptions.variables
+        ...this.viewOptions.variables,
       },
-      false
+      false,
     );
     const result = targets.map(item => {
       item.data.query_configs = item.data.query_configs.map(query => {
@@ -1086,20 +1085,18 @@ export class LineChart
         this.handleAddStrategy(this.panel, null, this.viewOptions, true);
         break;
       case 1:
-        // eslint-disable-next-line max-len
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
         break;
       case 2:
-        // eslint-disable-next-line no-case-declarations
         const eventTargetStr = alarmStatus.targetStr;
-        // eslint-disable-next-line max-len
+
         window.open(
           location.href.replace(
             location.hash,
             `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
               eventTargetStr ? ` AND ${eventTargetStr}` : ''
-            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-          )
+            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
+          ),
         );
         break;
     }
@@ -1161,7 +1158,6 @@ export class LineChart
     sampling.push(data[len - 1]);
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
-      // eslint-disable-next-line no-loop-func
       const samp = sampling.reduce((pre, cur) => {
         pre[formattter(cur, precision).text] = 1;
         return pre;

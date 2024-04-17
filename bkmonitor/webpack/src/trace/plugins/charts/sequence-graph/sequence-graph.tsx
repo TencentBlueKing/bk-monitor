@@ -51,16 +51,16 @@ export default defineComponent({
   props: {
     traceId: {
       type: String,
-      required: true
+      required: true,
     },
     appName: {
       type: String,
-      required: true
+      required: true,
     },
     filters: {
       type: Array,
-      required: false
-    }
+      required: false,
+    },
   },
   emits: ['update:loading', 'spanListChange', 'showSpanDetail'],
   setup(props, { emit }) {
@@ -84,7 +84,7 @@ export default defineComponent({
       width: 0,
       height: 0,
       left: 0,
-      top: 0
+      top: 0,
     });
     const graphScale = ref(100); // 缩放比例
     const rawSvgRect = ref({ width: 0, height: 0 }); // 原始svg尺寸
@@ -123,21 +123,21 @@ export default defineComponent({
         } else {
           if (!boxParticipantsMap[item.name]) {
             boxParticipantsMap[item.name] = {
-              [item.component_name]: true
+              [item.component_name]: true,
             };
             boxParticipants[item.component_name] = [
               ...(boxParticipants[item.component_name] || []),
-              `participant ${item.name} as ${item.display_name} is ${item.id}\n`
+              `participant ${item.name} as ${item.display_name} is ${item.id}\n`,
             ];
           } else {
             if (!boxParticipantsMap[item.name][item.component_name]) {
               boxParticipantsMap[item.name] = {
                 ...boxParticipantsMap[item.name],
-                [item.component_name]: `${item.name} as ${item.display_name} is ${item.id}`
+                [item.component_name]: `${item.name} as ${item.display_name} is ${item.id}`,
               };
               boxParticipants[item.component_name] = [
                 ...(boxParticipants[item.component_name] || []),
-                `participant ${boxParticipantsMap[item.name][item.component_name]}\n`
+                `participant ${boxParticipantsMap[item.name][item.component_name]}\n`,
               ];
             }
           }
@@ -190,8 +190,10 @@ export default defineComponent({
             const collapseCount = item.group_info.members.filter(spanId =>
               connections.some(
                 connection =>
-                  connection.original.span_id === spanId && !connection.parallel_id && !connection.parallel_path?.length
-              )
+                  connection.original.span_id === spanId &&
+                  !connection.parallel_id &&
+                  !connection.parallel_path?.length,
+              ),
             ).length;
             collapseCountMsg = collapseCount > 1 ? ` x${collapseCount} ` : '';
           }
@@ -257,11 +259,11 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
               diagram_type: 'sequence',
               with_original: true,
               show_attrs: 0,
-              displays: props.filters
+              displays: props.filters,
             },
             {
-              needCancel: true
-            }
+              needCancel: true,
+            },
           ).catch(() => false);
           if (!data.diagram_data) {
             showException.value = true;
@@ -287,7 +289,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
               svgDom.style.height = `${height * (graphScale.value / 100)}px`;
               rawSvgRect.value = {
                 width,
-                height
+                height,
               };
             }
             emit('update:loading', false);
@@ -299,7 +301,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
           emit('update:loading', false);
         }
       }),
-      { immediate: true }
+      { immediate: true },
     );
     /**
      *
@@ -358,7 +360,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                 item =>
                   item.span_id &&
                   participant.component_name === item.component_name &&
-                  (!participant.span_id || participant.display_name === item.display_name)
+                  (!participant.span_id || participant.display_name === item.display_name),
               )
               .map(item => item.span_id);
             spanIdList = excludeList;
@@ -467,7 +469,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
         mainDom.scrollTo({
           top: Math.floor(boundTop * yMultiple),
           left: Math.floor(boundLeft * xMultiple),
-          behavior: 'auto'
+          behavior: 'auto',
         });
       }
       function handleMouseUp() {
@@ -485,17 +487,17 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       showThumbnail.value = false;
       thumbnailSvgRect.value = {
         width: 0,
-        height: 0
+        height: 0,
       };
       thumbnailRect.value = {
         width: 0,
-        height: 0
+        height: 0,
       };
       thumbnailViewRect.value = {
         width: 0,
         height: 0,
         top: 0,
-        left: 0
+        left: 0,
       };
     }
     /**
@@ -513,9 +515,9 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       const xMultiple = mainDom.scrollWidth / mainWidth;
       const yMultiple = mainDom.scrollHeight / mainHeight;
       const useWidthScale = xMultiple > 1 || yMultiple > 1 ? xMultiple > yMultiple : mainWidth > mainHeight;
-      // eslint-disable-next-line max-len
+
       let thumbnailWidth = useWidthScale ? MaxImgWidth : mainDom.scrollWidth / (mainDom.scrollHeight / MaxImgHeight);
-      // eslint-disable-next-line max-len
+
       let thumbnailHeight = useWidthScale ? mainDom.scrollHeight / (mainDom.scrollWidth / MaxImgWidth) : MaxImgHeight;
       if (thumbnailWidth > MaxImgWidth) {
         thumbnailWidth = MaxImgWidth;
@@ -527,17 +529,17 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       const thumbnailSvgHeight = thumbnailHeight * (svgRect.height / mainDom.scrollHeight);
       thumbnailSvgRect.value = {
         width: +thumbnailSvgWidth,
-        height: +thumbnailSvgHeight
+        height: +thumbnailSvgHeight,
       };
       thumbnailRect.value = {
         width: +thumbnailWidth,
-        height: +thumbnailHeight
+        height: +thumbnailHeight,
       };
       thumbnailViewRect.value = {
         left: thumbnailViewRect.value.left,
         top: thumbnailViewRect.value.top,
         width: +thumbnailViewWidth,
-        height: +thumbnailViewHeight
+        height: +thumbnailViewHeight,
       };
       if (showThumbnail.value) {
         // hasDraw = false;
@@ -586,7 +588,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
         showThumbnail.value = false;
         thumbnailRect.value = {
           width: 120,
-          height: 300
+          height: 300,
         };
       }
     }
@@ -617,7 +619,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       downloadSvgAsImage,
       handleScaleChange,
       handleThumbnailViewMouseDown,
-      handleShowLegend
+      handleShowLegend,
     };
   },
   render() {
@@ -690,7 +692,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                           left: `${this.thumbnailViewRect.left}px`,
                           top: `${this.thumbnailViewRect.top}px`,
                           width: `${this.thumbnailViewRect.width}px`,
-                          height: `${this.thumbnailViewRect.height}px`
+                          height: `${this.thumbnailViewRect.height}px`,
                         }}
                         onMousedown={this.handleThumbnailViewMouseDown}
                         class='sequence-thumbnail-view'
@@ -699,20 +701,20 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                         width={this.thumbnailRect.width * window.devicePixelRatio}
                         height={this.thumbnailRect.height * window.devicePixelRatio}
                         style={{
-                          transform: `scale(${1 / window.devicePixelRatio})`
+                          transform: `scale(${1 / window.devicePixelRatio})`,
                         }}
                         id='thumbnail-canvas'
                         ref='thumbnailRef'
                         class='sequence-thumbnail-canvas'
                       ></canvas>
                     </div>
-                  )
-                ]
+                  ),
+                ],
               }}
             </Popover>
           }
         </div>
       </div>
     );
-  }
+  },
 });

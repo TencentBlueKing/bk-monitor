@@ -55,7 +55,7 @@ interface ICustomTabEvent {
 }
 
 @Component({
-  name: 'CustomTab'
+  name: 'CustomTab',
 })
 export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
   @Prop({ type: Array, default: () => [] }) panels: IPanels[];
@@ -74,7 +74,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
     return this.type === 'period'
       ? !!defaultAddTimeRange(
           this.panels.map(item => item.timeValue),
-          this.minIsMinute
+          this.minIsMinute,
         ).length
       : false;
   }
@@ -147,7 +147,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
           }
         }
         this.handleDel(key);
-      }
+      },
     });
   }
   // time弹出
@@ -166,7 +166,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
         class={[
           timeClass[this.timeStyleType],
           this.curActive === key ? 'active' : 'noactive',
-          { 'border-active': item.key === this.newKey && this.newItemActive }
+          { 'border-active': item.key === this.newKey && this.newItemActive },
         ]}
       >
         {this.curPanels.length > 1 ? (
@@ -219,7 +219,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
                 <span
                   v-bk-tooltips={{
                     content: this.$t('已配置全天24小时生效时段，无需额外添加生效时段'),
-                    disabled: this.isCanAdd
+                    disabled: this.isCanAdd,
                   }}
                 >
                   {this.$t('生效时段')}

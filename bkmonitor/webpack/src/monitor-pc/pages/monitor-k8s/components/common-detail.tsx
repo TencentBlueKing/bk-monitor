@@ -38,7 +38,7 @@ import { resize } from '../../../components/ip-selector/common/observer-directiv
 import MonitorResizeLayout, {
   ASIDE_COLLAPSE_HEIGHT,
   ASIDE_DEFAULT_HEIGHT,
-  IUpdateHeight
+  IUpdateHeight,
 } from '../../../components/resize-layout/resize-layout';
 import { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
@@ -111,8 +111,8 @@ interface IScopeSlots {
 
 @Component({
   directives: {
-    resize
-  }
+    resize,
+  },
 })
 export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailEvent, IScopeSlots> {
   @Prop({ default: '', type: String }) readonly title: string;
@@ -203,7 +203,6 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   get maxWidthVal() {
     if (this.refleshMaxWidthKey) {
       if (!this.maxWidth) {
-        // eslint-disable-next-line no-nested-ternary
         return (
           window.innerWidth -
           (window.source_app === 'monitor' || window.__POWERED_BY_BK_WEWEB__ ? (this.toggleSet ? 260 : 60) : 0) -
@@ -300,7 +299,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         ...this.viewOptions.filters,
         ...this.viewOptions.variables,
         start_time,
-        end_time
+        end_time,
       });
       const params: any = variablesService.transformVariables(item.data);
       // magic code
@@ -319,7 +318,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
       this.oldParams = { ...params };
       const data = await (this as any).$api[item.apiModule]
         [item.apiFunc](params, {
-          cancelToken: new CancelToken((cb: Function) => (this.cancelToken = cb))
+          cancelToken: new CancelToken((cb: Function) => (this.cancelToken = cb)),
         })
         .catch(() => []);
       this.data =
@@ -495,7 +494,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     this.storage.set(INDEX_LIST_DEFAULT_CONFIG_KEY, {
       height: asideHeight,
       placement: this.indexListPlacement,
-      expand: this.expandIndexList
+      expand: this.expandIndexList,
     });
   }
   /**
@@ -593,8 +592,8 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
           'common-detail',
           {
             'with-animate': this.showAminate,
-            'hide-aside': this.showMode === 'list' || !this.indexList.length
-          }
+            'hide-aside': this.showMode === 'list' || !this.indexList.length,
+          },
         ]}
         style={{ width: this.isShow ? `${this.width}px` : 0, ...styles }}
         v-bkloading={{ isLoading: this.isShow && this.loading }}
@@ -661,7 +660,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                 <div
                   class='index-tree-main'
                   style={{
-                    height: `${this.indexListHeight - 40}px`
+                    height: `${this.indexListHeight - 40}px`,
                   }}
                 >
                   {this.indexList.length ? (

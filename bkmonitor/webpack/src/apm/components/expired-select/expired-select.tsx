@@ -48,20 +48,20 @@ interface IEvents {
 const DEFAULT_OPTIONS: IOptionsItem[] = [
   {
     id: 1,
-    name: window.i18n.t(' {n} 天', { n: 1 })
+    name: window.i18n.t(' {n} 天', { n: 1 }),
   },
   {
     id: 3,
-    name: window.i18n.t(' {n} 天', { n: 3 })
+    name: window.i18n.t(' {n} 天', { n: 3 }),
   },
   {
     id: 7,
-    name: window.i18n.t(' {n} 天', { n: 7 })
+    name: window.i18n.t(' {n} 天', { n: 7 }),
   },
   {
     id: 14,
-    name: window.i18n.t(' {n} 天', { n: 14 })
-  }
+    name: window.i18n.t(' {n} 天', { n: 14 }),
+  },
 ];
 
 @Component
@@ -138,7 +138,7 @@ export default class ExpiredSelect extends tsc<IProps, IEvents> {
   addCustomOptions(val: IProps['value']) {
     this.customOptions.push({
       id: val,
-      name: `${val}${this.unit}`
+      name: `${val}${this.unit}`,
     });
   }
 

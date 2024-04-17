@@ -84,13 +84,13 @@ export default class PerformanceView extends tsc<IProps> {
     this.loading = true;
     const currentTarget: Record<string, any> = {
       bk_target_ip: '0.0.0.0',
-      bk_target_cloud_id: '0'
+      bk_target_cloud_id: '0',
     };
     const variables: Record<string, any> = {
       bk_target_ip: '0.0.0.0',
       bk_target_cloud_id: '0',
       ip: '0.0.0.0',
-      bk_cloud_id: '0'
+      bk_cloud_id: '0',
     };
     this.bkBizId = this.detail.bk_biz_id;
     this.detail.tags?.forEach(item => {
@@ -123,7 +123,7 @@ export default class PerformanceView extends tsc<IProps> {
       variables,
       interval,
       group_by: [],
-      current_target: currentTarget
+      current_target: currentTarget,
     };
     const data: IBookMark = await getSceneView(
       this.isProcess
@@ -131,14 +131,14 @@ export default class PerformanceView extends tsc<IProps> {
             bk_biz_id: this.detail.bk_biz_id,
             scene_id: 'host',
             type: 'detail',
-            id: 'process'
+            id: 'process',
           }
         : {
             bk_biz_id: this.detail.bk_biz_id,
             scene_id: 'host',
             type: 'detail',
-            id: 'host'
-          }
+            id: 'host',
+          },
     ).catch(() => ({ id: '', panels: [], name: '' }));
     this.sceneData = new BookMarkModel(data || { id: '', panels: [], name: '' });
     this.localPanels = setBizIdToPanel(this.handleGetLocalPanels(this.sceneData.panels), this.detail.bk_biz_id);
@@ -170,7 +170,7 @@ export default class PerformanceView extends tsc<IProps> {
   handleToPerformance() {
     const detailId = this.bkHostId ? this.bkHostId : `${this.ip}-${this.cloudId}`;
     window.open(
-      `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/performance/detail/${detailId}`
+      `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/performance/detail/${detailId}`,
     );
   }
 
@@ -200,7 +200,7 @@ export default class PerformanceView extends tsc<IProps> {
         ) : (
           <div class='no-data'>
             {/* 无数据情况暂且不做 */}
-            {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
+            {}
             {/* <img class="no-data-img" src={require('../../../static/img/empty.svg')}></img>
           <div class="no-data-msg">
             {(() => {

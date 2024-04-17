@@ -36,6 +36,7 @@ from constants.apm import FlowType, OtlpKey, SpanKind
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
+from core.errors.api import BKAPIError
 from metadata import models as metadata_models
 
 from .doris import BkDataDorisProvider
@@ -950,6 +951,17 @@ class TraceDataSource(ApmDataSourceConfigBase):
             return
         for v in mappings.values():
             cls._mappings_properties(v, properties)
+
+    @classmethod
+    def stop(cls, bk_biz_id, app_name):
+        super(TraceDataSource, cls).stop(bk_biz_id, app_name)
+        # 删除关联的索引集
+        ins = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        try:
+            api.log_search.delete_index_set(index_set_id=ins.index_set_id)
+            logger.info(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} of ({bk_biz_id}){app_name}")
+        except BKAPIError as e:
+            logger.error(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} failed, error: {e}")
 
 
 class ProfileDataSource(ApmDataSourceConfigBase):

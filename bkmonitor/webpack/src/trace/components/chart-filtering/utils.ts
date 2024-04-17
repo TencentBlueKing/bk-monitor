@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { EChartOption } from 'echarts';
+import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { useTraceStore } from '../../store/modules/trace';
 import { ISpanListItem, ITraceListItem } from '../../typings';
@@ -77,7 +77,7 @@ export class DurationDataModal {
       curVal = end;
       this.chartData.push({
         xAxis: [start, end].join('-'),
-        yAxis: rangeData
+        yAxis: rangeData,
       });
     }
 
@@ -96,21 +96,21 @@ export class DurationDataModal {
   }
 }
 
-export const BASE_BAR_OPTIONS: EChartOption = {
+export const BASE_BAR_OPTIONS: MonitorEchartOptions = {
   grid: {
     left: 0,
-    right: 0
+    right: 0,
   },
   xAxis: {
     show: false,
-    data: []
+    data: [],
   },
   yAxis: {
     type: 'value',
-    show: false
+    show: false,
   },
   tooltip: {
-    show: true
+    show: true,
   },
-  series: []
+  series: [],
 };

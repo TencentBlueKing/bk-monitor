@@ -32,11 +32,10 @@ import {
   ref,
   shallowRef,
   watch,
-  WatchStopHandle
+  WatchStopHandle,
 } from 'vue';
 import dayjs from 'dayjs';
-import type { EChartOption, ECharts } from 'echarts';
-import * as echarts from 'echarts';
+import { echarts, MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './base-echart.scss';
 
@@ -45,20 +44,20 @@ export const BaseChartProps = {
   // 视图高度
   height: {
     type: Number,
-    required: true
+    required: true,
   },
   // 视图宽度 默认撑满父级
   width: Number,
   // echart 配置
   options: {
-    type: Object as PropType<EChartOption>,
-    required: true
+    type: Object as () => PropType<MonitorEchartOptions>,
+    required: true,
   },
   // echarts图表实例分组id
   groupId: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 };
 export default defineComponent({
   name: 'BaseEchart',
@@ -67,9 +66,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const chartRef = ref<HTMLDivElement>();
     // 当前图表配置
-    let curChartOption: EChartOption | null = null;
+    let curChartOption: MonitorEchartOptions | null = null;
     // echarts 实例
-    const instance = shallowRef<ECharts>();
+    const instance = shallowRef<echarts.ECharts>();
     // 当前图表配置取消监听函数
     let unwatchOptions: WatchStopHandle | null = null;
     // dblclick模拟 间隔
@@ -94,13 +93,13 @@ export default defineComponent({
               curPoint.value.xAxis = params.value;
               curPoint.value.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
             }
-          }
+          },
         },
         crossStyle: {
           color: 'transparent',
           opacity: 0,
-          width: 0
-        }
+          width: 0,
+        },
       },
       appendToBody: true,
       formatter: (p: any) => handleSetTooltip(p),
@@ -109,11 +108,11 @@ export default defineComponent({
         const chartRect = chartRef.value!.getBoundingClientRect();
         const posRect = {
           x: chartRect.x + +pos[0],
-          y: chartRect.y + +pos[1]
+          y: chartRect.y + +pos[1],
         };
         const position = {
           left: 0,
-          top: 0
+          top: 0,
         };
         const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
         if (canSetBootom > 0) {
@@ -130,7 +129,7 @@ export default defineComponent({
         if (contentSize[0]) tooltipSize = contentSize;
         return position;
       },
-      ...(props.options?.tooltip || {})
+      ...(props.options?.tooltip || {}),
     };
     // 高度变化
     watch(
@@ -140,14 +139,14 @@ export default defineComponent({
           instance.value?.setOption({
             yAxis: {
               splitNumber: 2,
-              scale: false
-            }
+              scale: false,
+            },
           });
         }
         instance.value?.resize({
-          silent: true
+          silent: true,
         });
-      }
+      },
     );
     // 宽度变化
     watch(
@@ -156,13 +155,13 @@ export default defineComponent({
         instance.value?.setOption({
           xAxis: {
             splitNumber: Math.ceil(Number(width) / 150),
-            min: 'dataMin'
-          }
+            min: 'dataMin',
+          },
         });
         instance.value?.resize({
-          silent: true
+          silent: true,
         });
-      }
+      },
     );
 
     onMounted(initChart);
@@ -178,7 +177,7 @@ export default defineComponent({
           seriesIndex: -1,
           dataIndex: -1,
           xAxis: '',
-          yAxis: ''
+          yAxis: '',
         };
         return;
       }
@@ -192,11 +191,11 @@ export default defineComponent({
           .map((item: { color: any; seriesName: any; value: any[] }) => ({
             color: item.color,
             seriesName: item.seriesName,
-            value: item.value[1]
+            value: item.value[1],
           }))
           .sort(
             (a: { value: number }, b: { value: number }) =>
-              Math.abs(a.value - +curPoint.value.yAxis) - Math.abs(b.value - +curPoint.value.yAxis)
+              Math.abs(a.value - +curPoint.value.yAxis) - Math.abs(b.value - +curPoint.value.yAxis),
           );
         const list = params.filter((item: { seriesName: string }) => !item.seriesName.match(/-no-tips$/));
         liHtmls = list
@@ -212,7 +211,7 @@ export default defineComponent({
                   seriesIndex: +item.seriesIndex,
                   dataIndex: item.dataIndex,
                   xAxis: item.value[0] as any,
-                  yAxis: item.value[1] as any
+                  yAxis: item.value[1] as any,
                 };
               }
               if (item.value[1] === null) return '';
@@ -232,7 +231,7 @@ export default defineComponent({
                   <span class="item-value" style="${markColor}">
                   ${valueObj.text} ${valueObj.suffix || ''}</span>
                   </li>`;
-            }
+            },
           );
         if (liHtmls?.length < 1) return '';
         // 如果超出屏幕高度，则分列展示
@@ -259,7 +258,7 @@ export default defineComponent({
       isMouseOver.value = false;
     }
     // resize
-    function resize(options?: echarts.EChartOption) {
+    function resize(options?: MonitorEchartOptions) {
       chartRef.value && delegateMethod('resize', options);
     }
     // 初始化echart
@@ -270,8 +269,8 @@ export default defineComponent({
           ...props.options,
           tooltip: {
             ...tooltip,
-            ...props.options
-          } as any
+            ...props.options,
+          } as any,
         });
         initPropsWatcher();
         initChartEvent();
@@ -286,7 +285,7 @@ export default defineComponent({
         const [batch] = event.batch;
         if (instance.value && batch.startValue && batch.endValue) {
           instance.value.dispatchAction({
-            type: 'restore'
+            type: 'restore',
           });
           const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
           const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
@@ -294,7 +293,7 @@ export default defineComponent({
         }
       } else {
         instance.value?.dispatchAction({
-          type: 'restore'
+          type: 'restore',
         });
       }
     }
@@ -311,15 +310,16 @@ export default defineComponent({
                 ...(props.options || {}),
                 tooltip: {
                   ...tooltip,
-                  ...(props.options || {})
-                } as any
+                  ...(props.options || {}),
+                } as any,
               },
-              { notMerge: true, lazyUpdate: false, silent: true }
+              { notMerge: true, lazyUpdate: false, silent: true },
             );
             curChartOption = instance.value.getOption();
           }
+          initChartAction();
         },
-        { deep: false }
+        { deep: false },
       );
     }
     // 初始化chart Action
@@ -327,7 +327,7 @@ export default defineComponent({
       dispatchAction({
         type: 'takeGlobalCursor',
         key: 'dataZoomSelect',
-        dataZoomSelectActive: true
+        dataZoomSelectActive: true,
       });
     }
     // 初始化chart 事件
@@ -390,7 +390,7 @@ export default defineComponent({
       handleClick,
       handleMouseover,
       handleMouseleave,
-      handleDataZoom
+      handleDataZoom,
     };
   },
   render() {
@@ -405,5 +405,5 @@ export default defineComponent({
         onDblclick={this.handleDblClick}
       />
     );
-  }
+  },
 });

@@ -26,11 +26,11 @@
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import NoticeModeNew, {
-  INoticeWayValue
+  INoticeWayValue,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
 import {
   executionNotifyConfigChange,
-  getNotifyConfig
+  getNotifyConfig,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import { listDutyRule, retrieveUserGroup } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
@@ -81,7 +81,7 @@ interface INotice {
 
 const noticeTypeMap = {
   weekly: window.i18n.t('每周'),
-  monthly: window.i18n.t('每月')
+  monthly: window.i18n.t('每月'),
 };
 
 @Component
@@ -96,7 +96,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
     createUser: '',
     createTime: '',
     updateUser: '',
-    updateTime: ''
+    updateTime: '',
   };
   formData: IFormData = {
     channels: ['user'],
@@ -105,7 +105,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
     desc: '',
     users: [],
     needDuty: false,
-    mention_list: []
+    mention_list: [],
   };
   channels: string[] = ['user'];
   bkchatList = [];
@@ -117,7 +117,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
     alertData: {},
     actionData: {},
     alertActive: '',
-    actionActive: ''
+    actionActive: '',
   };
   noticeWayList = [];
 
@@ -127,7 +127,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   dutyArrangesKey = random(8);
   refreshKey = {
     alertKey: false,
-    actionKey: false
+    actionKey: false,
   };
 
   /* 是否可编辑 */
@@ -148,13 +148,13 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
       days: 7,
       type: 'weekly',
       date: 1,
-      time: '00:00'
+      time: '00:00',
     },
     personal_notice: {
       enabled: false,
       hours_ago: 0,
-      duty_rules: []
-    }
+      duty_rules: [],
+    },
   };
 
   get title() {
@@ -177,7 +177,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
       { label: this.$t('创建人'), value: this.detailData.createUser || '--' },
       { label: this.$t('创建时间'), value: this.detailData.createTime || '--' },
       { label: this.$t('最近更新人'), value: this.detailData.updateUser || '--' },
-      { label: this.$t('修改时间'), value: this.detailData.updateTime || '--' }
+      { label: this.$t('修改时间'), value: this.detailData.updateTime || '--' },
     ];
   }
 
@@ -210,7 +210,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
           need_duty: needDuty,
           edit_allowed: editAllowed,
           // 群提醒人 列表
-          mention_list: mentionList
+          mention_list: mentionList,
         } = data;
         this.formData.name = name;
         this.formData.desc = desc;
@@ -279,7 +279,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
       source_type: 'DB',
       id: this.id,
       days: 7,
-      begin_time: beginTime
+      begin_time: beginTime,
       // config: {
       //   duty_rules: list
       // }
@@ -292,7 +292,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
       source_type: 'DB',
       id: this.id,
       days: 7,
-      begin_time: startTime
+      begin_time: startTime,
       // config: {
       //   duty_rules: this.dutyList.map(d => d.id)
       // }
@@ -315,7 +315,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
       alertData: {},
       actionData: {},
       alertActive: '',
-      actionActive: ''
+      actionActive: '',
     };
     const { action_notice: actionNotice, alert_notice: alertNotice } = data;
     if (actionNotice?.length) {
@@ -326,7 +326,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
           .map(time => time.slice(0, 5))
           .join('--'),
         notify_config: getNotifyConfig(item.notify_config),
-        key: random(10)
+        key: random(10),
       }));
       this.notice.actionActive = this.notice[ACTION_NOTICE][0].key;
       [this.notice.actionData] = this.notice[ACTION_NOTICE];
@@ -339,7 +339,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
           .map(time => time.slice(0, 5))
           .join('--'),
         notify_config: getNotifyConfig(item.notify_config),
-        key: random(10)
+        key: random(10),
       }));
       this.notice.alertActive = this.notice[ALERT_NOTICE][0].key;
       [this.notice.alertData] = this.notice[ALERT_NOTICE];
@@ -355,7 +355,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
       label: item.label,
       icon: item.icon,
       tip: item.type === 'wxwork-bot' ? window.i18n.t('获取群ID方法', { name: item.name }) : undefined,
-      channel: item.channel
+      channel: item.channel,
     }));
     if (this.noticeWayList.find(item => item.channel === 'bkchat')) {
       await this.getBkchatList(); // 查询bkchat下拉选项
@@ -400,8 +400,8 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
     this.$router.push({
       name: 'alarm-group-edit',
       params: {
-        id: `${this.id}`
-      }
+        id: `${this.id}`,
+      },
     });
   }
 
@@ -412,7 +412,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
    */
   getMappingDisplayName(display_name) {
     const mapping = {
-      all: this.$t('内部通知人')
+      all: this.$t('内部通知人'),
     };
     return mapping[display_name] || display_name;
   }
@@ -568,7 +568,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                           ) : undefined,
                           !item.logo && item.type === 'user' ? (
                             <i class='icon-monitor icon-mc-user-one no-img' />
-                          ) : undefined
+                          ) : undefined,
                         ]}
                       </div>
                       <span class='person-name'>
@@ -613,7 +613,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                         ) : undefined,
                         !item.logo && item.type === 'user' ? (
                           <i class='icon-monitor icon-mc-user-one no-img' />
-                        ) : undefined
+                        ) : undefined,
                       ]}
                     </div>
                     <span class='person-name'>
@@ -647,7 +647,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                   >
                     {this.notice[ALERT_NOTICE].map(item => ({
                       key: item.key,
-                      label: item.time_range.replace('--', '-')
+                      label: item.time_range.replace('--', '-'),
                     })).map(item => (
                       <bk-tab-panel
                         key={item.key}
@@ -686,7 +686,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                   >
                     {this.notice[ACTION_NOTICE].map(item => ({
                       key: item.key,
-                      label: item.time_range.replace('--', '-')
+                      label: item.time_range.replace('--', '-'),
                     })).map(item => (
                       <bk-tab-panel
                         key={item.key}

@@ -92,7 +92,7 @@ const deleteRetrieveFavorite = {
   method: 'delete'
 };
 const postFieldsConfig = {
-  url: '/search/index_set/:index_set_id/config/',
+  url: '/search/index_set/config/',
   method: 'post'
 };
 const getWebConsoleUrl = {
@@ -108,19 +108,19 @@ const getExportHistoryList = {
   method: 'get'
 };
 const getFieldsListConfig = {
-  url: '/search/index_set/:index_set_id/list_config/?scope=:scope',
-  method: 'get'
+  url: '/search/index_set/list_config/',
+  method: 'post'
 };
 const createFieldsConfig = {
-  url: '/search/index_set/:index_set_id/create_config/',
+  url: '/search/index_set/create_config/',
   method: 'post'
 };
 const updateFieldsConfig = {
-  url: '/search/index_set/:index_set_id/update_config/',
+  url: '/search/index_set/update_config/',
   method: 'post'
 };
 const deleteFieldsConfig = {
-  url: '/search/index_set/:index_set_id/delete_config/',
+  url: '/search/index_set/delete_config/',
   method: 'post'
 };
 const getFieldsConfigByContextLog = {

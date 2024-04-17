@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,7 +25,7 @@
  */
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import echarts from 'echarts';
+import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
@@ -110,7 +109,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   }
   @Watch('column')
   handleColumnChange() {
-    echarts.disConnect(this.id.toString());
+    disconnect(this.id.toString());
     this.handleInitPanelsGridpos((this as any).localPanels);
     this.handleConentEcharts();
   }
@@ -122,7 +121,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
     bus.$on('switch_to_overview', this.handleToSceneOverview);
   }
   beforeDestroy() {
-    echarts.disConnect(this.id.toString());
+    disconnect(this.id.toString());
   }
   destroyed() {
     bus.$off(UPDATE_SCENES_TAB_DATA);
@@ -132,7 +131,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   handleConentEcharts() {
     setTimeout(() => {
       if ((this as any).localPanels?.length < 300) {
-        echarts.connect(this.id.toString());
+        connect(this.id.toString());
       }
     }, 3000);
   }
@@ -168,8 +167,8 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
             ...item.options,
             legend: {
               displayMode: this.column === 1 ? 'table' : 'list',
-              placement: this.column === 1 ? 'right' : 'bottom'
-            }
+              placement: this.column === 1 ? 'right' : 'bottom',
+            },
           } as any;
         }
       });
@@ -182,7 +181,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
         x: 0,
         y,
         w: 24,
-        h: 1
+        h: 1,
       },
       id: random(10),
       options: {},
@@ -191,14 +190,14 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
       title: '',
       type: 'row',
       collapsed: true,
-      subTitle: ''
+      subTitle: '',
     };
   }
   getTransformPanel(panel: IPanelModel) {
     const item = new PanelModel({
       ...panel,
       dashboardId: this.id,
-      panelIds: panel?.panels?.map(item => item.id) || []
+      panelIds: panel?.panels?.map(item => item.id) || [],
     });
     return item;
   }
@@ -235,8 +234,8 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
             this.getTransformPanel({
               ...item,
               show: !!panel.collapsed,
-              groupId: rowPanel.id
-            })
+              groupId: rowPanel.id,
+            }),
           );
           list.push(...childList);
         }
@@ -381,7 +380,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
                     display: this.getPanelDisplay(panel),
                     height: this.customHeightFn
                       ? this.customHeightFn(this.column)
-                      : panel.realHeight || (this.column === 1 ? '182px' : '256px')
+                      : panel.realHeight || (this.column === 1 ? '182px' : '256px'),
                   }}
                   key={`${panel.id}__key__`}
                   id={`${panel.id}__key__`}
@@ -409,7 +408,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
                 onCheckClose={() => this.handleCheckAll(false)}
                 onShowCollect={(v: boolean) => this.handleShowCollect(v)}
               ></ChartCollect>
-            ) : undefined
+            ) : undefined,
           ]
         )}
       </div>

@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VueConstructor } from 'vue';
-import { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
+import { type VueConstructor } from 'vue';
+import { type DirectiveBinding, type DirectiveOptions } from 'vue/types/options';
 
 import { random } from '../utils/utils';
 
@@ -44,11 +43,10 @@ interface IBindValue {
   isShow: boolean; // 是否展示
   theme: 'normal' | 'simple' | 'dotted'; // 拖拽按钮主题
   placement: 'left' | 'right'; // 拖拽侧栏的位置 默认left
-  onHidden?: Function; // 隐藏回调
-  onWidthChange?: Function; // 宽度更新
+  onHidden?: () => void; // 隐藏回调
+  onWidthChange?: (width: number) => void; // 宽度更新
 }
 interface IDragHtmlElement extends HTMLElement {
-  // eslint-disable-next-line camelcase
   _bk_monitor_drag: {
     el: HTMLDivElement;
     value: IBindValue;
@@ -63,14 +61,14 @@ const getBindValue = (data: IBindValue): IBindValue => {
     ...data,
     style,
     theme,
-    placement
+    placement,
   };
 };
 
 const handleMouseMove = (event: MouseEvent) => {
   if (!insertedEl) return;
   const { maxWidth, minWidth, autoHidden, onHidden, onWidthChange, placement } = getBindValue(
-    insertedEl._bk_monitor_drag.value as IBindValue
+    insertedEl._bk_monitor_drag.value as IBindValue,
   );
   const rect = insertedEl.getBoundingClientRect();
   let width = placement === 'left' ? event.clientX - rect.left : rect.right - event.clientX;
@@ -162,7 +160,7 @@ export const monitorDrag: DirectiveOptions = {
     el._bk_monitor_drag = {
       el: dragEle,
       value: bind.value,
-      dragKey: key
+      dragKey: key,
     };
   },
 
@@ -192,10 +190,10 @@ export const monitorDrag: DirectiveOptions = {
     delete insertedElMap[dragKey];
 
     delete el._bk_monitor_drag;
-  }
+  },
 };
 
 export default {
   install: (Vue: VueConstructor) => Vue.directive('monitor-drag', monitorDrag),
-  directive: monitorDrag
+  directive: monitorDrag,
 };

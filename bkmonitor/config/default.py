@@ -347,6 +347,7 @@ ACTIVE_VIEWS = {
         "share": "monitor_web.share.views",
         "promql_import": "monitor_web.promql_import.views",
         "datalink": "monitor_web.datalink.views",
+        "new_report": "monitor_web.new_report.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -1328,3 +1329,9 @@ BKCI_SPACE_ACCESS_PLUGIN_LIST = []
 
 # 禁用告警CMDB缓存刷新
 DISABLE_ALARM_CMDB_CACHE_REFRESH = []
+
+# 需要base64编码的特殊字符
+BASE64_ENCODE_TRIGGER_CHARS = []
+
+# 邮件订阅审批服务ID
+REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))

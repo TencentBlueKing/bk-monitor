@@ -244,7 +244,7 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
             {this.$t('安装')}
           </span>
         </span>
-      )
+      ),
     };
 
     if (item.is_installed)
@@ -279,7 +279,7 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
   pluginOperate(item: IPluginDetail, type: OperateType) {
     return {
       item,
-      type
+      type,
     };
   }
 

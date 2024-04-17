@@ -69,7 +69,7 @@ export default class FtaAlarmDispatchConfig extends Mixins(authorityMixinCreate(
         },
         cancelFn: () => {
           resolve(false);
-        }
+        },
       });
     });
   }

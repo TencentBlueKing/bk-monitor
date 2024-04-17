@@ -85,8 +85,8 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         job: i18n.t('作业平台'),
         sops: i18n.t('标准运维'),
         itsm: i18n.t('流程服务'),
-        common: i18n.t('通用插件')
-      }
+        common: i18n.t('通用插件'),
+      },
     },
     { label: '策略名称', key: 'strategy_name', value: '' },
     {
@@ -94,7 +94,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
       key: 'alert_level',
       value: '',
       display: '',
-      valueDisplayMap: { 1: i18n.t('致命'), 2: i18n.t('轻微'), 3: i18n.t('预警') }
+      valueDisplayMap: { 1: i18n.t('致命'), 2: i18n.t('轻微'), 3: i18n.t('预警') },
     },
     {
       label: '触发信号',
@@ -105,8 +105,8 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         manual: i18n.t('手动'),
         abnormal: i18n.t('告警产生时'),
         recovered: i18n.t('告警恢复时'),
-        closed: i18n.t('告警关闭时')
-      }
+        closed: i18n.t('告警关闭时'),
+      },
     },
     { label: '操作人', key: 'operator', value: '' },
     { label: '告警列表', key: 'alert_names', value: '' },
@@ -125,10 +125,10 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         failure: i18n.t('失败'),
         running: i18n.t('执行中'),
         shield: i18n.t('已屏蔽'),
-        skipped: i18n.t('已收敛')
-      }
+        skipped: i18n.t('已收敛'),
+      },
     },
-    { label: '执行内容', key: 'content', value: '' }
+    { label: '执行内容', key: 'content', value: '' },
     // { label: '作业平台', key: '', value: '' },
     // { label: '标准运维', key: '', value: '' }
   ];
@@ -181,7 +181,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
             if (url) {
               str = str.replace(
                 /([\s\S]?)\$([\s\S]*)\$([\s\S]?)/,
-                `$1<a class="link" href="${url}" target="_blank">$2</a>$3`
+                `$1<a class="link" href="${url}" target="_blank">$2</a>$3`,
               );
             }
             item.value = str;
@@ -200,27 +200,27 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
     const timeMap = [
       {
         value: 24 * 60 * 60 * 1000,
-        unit: this.$t('天')
+        unit: this.$t('天'),
       },
       {
         value: 60 * 60 * 1000,
-        unit: this.$t('小时')
+        unit: this.$t('小时'),
       },
       {
         value: 60 * 1000,
-        unit: this.$t('分钟')
+        unit: this.$t('分钟'),
       },
       {
         value: 1000,
-        unit: this.$t('秒')
-      }
+        unit: this.$t('秒'),
+      },
     ];
     const resArr = [];
     timeMap.reduce((total, item) => {
       const count = Math.floor(total / item.value);
       resArr.push({
         value: count,
-        unit: item.unit
+        unit: item.unit,
       });
       return total % item.value;
     }, duration);
@@ -245,13 +245,13 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
     copyText(url, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -267,7 +267,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           ></i>
         </div>
       ),
-      handleDetail: () => <div class='title-wrap'>{this.$t('处理记录详情')}</div>
+      handleDetail: () => <div class='title-wrap'>{this.$t('处理记录详情')}</div>,
     };
     return tplMap[this.type]();
   }
@@ -284,7 +284,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         ></EventDetail>
       ),
       // handleDetail: this.tplHandleDetailConent
-      handleDetail: () => <ActionDetail id={this.eventId}></ActionDetail>
+      handleDetail: () => <ActionDetail id={this.eventId}></ActionDetail>,
     };
     return tplMap[this.type]();
   }

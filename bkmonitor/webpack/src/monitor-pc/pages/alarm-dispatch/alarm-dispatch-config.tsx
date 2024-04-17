@@ -48,7 +48,7 @@ import {
   setDimensionsOfStrategy,
   statisticsSameConditions,
   TGroupKeys,
-  TValueMap
+  TValueMap,
 } from './typing/condition';
 import { ActionType, deepCompare, EColumn, ICondtionItem, LEVELLIST, RuleData } from './typing';
 
@@ -64,10 +64,10 @@ const processList = [
     text: window.i18n.tc('如何执行分派'),
     bg: '#E1E9FB',
     arrow: '#CADCFA',
-    merge: 'noticeProgress'
+    merge: 'noticeProgress',
   },
   { index: 4, colspan: 2, text: window.i18n.tc('修改原告警内容'), bg: '#F0F5FF', arrow: '#D7E6FE', merge: 'levelTag' },
-  { colspan: 2, bg: '#F6FAFF', arrow: '#E7EEFD' }
+  { colspan: 2, bg: '#F6FAFF', arrow: '#E7EEFD' },
 ];
 
 /* 包含批量操作的列 */
@@ -78,7 +78,7 @@ const hasBatchColumn = [
   EColumn.upgradeConfig,
   EColumn.alertSeverity,
   EColumn.additionalTags,
-  EColumn.isEnabled
+  EColumn.isEnabled,
 ];
 
 interface ITableColumn {
@@ -93,7 +93,7 @@ type FiledType = EColumn | 'priority' | 'name' | 'notice' | 'alertSeveritySingle
 type MergeColumn = 'noticeProgress' | 'levelTag';
 
 @Component
-export default class AlarmDispatchConfig extends tsc<{}> {
+export default class AlarmDispatchConfig extends tsc<object> {
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
 
@@ -109,7 +109,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
     priority: 0,
     bk_biz_id: 0,
     id: 0,
-    settings: {}
+    settings: {},
   };
 
   /* 全选/半选 */
@@ -140,7 +140,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
   /** 告警组信息弹窗 */
   alarmGroupDetail = {
     id: 0,
-    show: false
+    show: false,
   };
 
   /** 告警组 */
@@ -163,7 +163,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
     keys: [],
     valueMap: new Map(),
     groupKeys: new Map(),
-    specialOptions: {}
+    specialOptions: {},
   };
 
   /* 调试数据，此数据传与后台用于调试与保存 */
@@ -175,7 +175,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
     targetConditions: [], // 统一设置面板的编辑数据
     popInstance: null,
     conditionsSelectorKey: random(8),
-    isConditionChange: false // 弹出层是否有condition变更触发
+    isConditionChange: false, // 弹出层是否有condition变更触发
   };
 
   conditionsLoading = false;
@@ -186,7 +186,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
   /* 列合并配置 */
   mergeConfig = {
     noticeProgress: false, // 通知流程是否合并
-    levelTag: false // 等级追加标签是否合并
+    levelTag: false, // 等级追加标签是否合并
   };
 
   /* 批量删除、撤回tips disabled */
@@ -321,7 +321,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
     if (!list.length) {
       this.mergeConfig = {
         noticeProgress: true,
-        levelTag: true
+        levelTag: true,
       };
       this.$set(this.processList[2], 'colspan', 1);
       this.$set(this.processList[3], 'colspan', 1);
@@ -363,7 +363,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
     this.alarmGroupList = data.map(item => ({
       id: item.id,
       name: item.name,
-      receiver: item.users?.map(rec => rec.display_name) || []
+      receiver: item.users?.map(rec => rec.display_name) || [],
     }));
   }
 
@@ -425,45 +425,45 @@ export default class AlarmDispatchConfig extends tsc<{}> {
         content: noticeProgress,
         class: 'notice-config-th',
         width: 120,
-        show: this.mergeConfig.noticeProgress
+        show: this.mergeConfig.noticeProgress,
       },
       {
         id: EColumn.upgradeConfig,
         content: noticeDom,
         class: 'notice-config-th',
         width: 180,
-        show: !this.mergeConfig.noticeProgress
+        show: !this.mergeConfig.noticeProgress,
       },
       {
         id: EColumn.actionId,
         content: actionConfigDom,
         class: 'progress-action-th',
         width: 120,
-        show: !this.mergeConfig.noticeProgress
+        show: !this.mergeConfig.noticeProgress,
       },
       {
         id: EColumn.levelTag,
         content: levelTag,
         class: 'notice-config-th',
         width: 130,
-        show: this.mergeConfig.levelTag
+        show: this.mergeConfig.levelTag,
       },
       {
         id: EColumn.alertSeverity,
         content: levelDom,
         class: 'select-level-th',
         width: 88,
-        show: !this.mergeConfig.levelTag
+        show: !this.mergeConfig.levelTag,
       },
       {
         id: EColumn.additionalTags,
         content: tagDom,
         class: 'additional-tag-th',
         width: 200,
-        show: !this.mergeConfig.levelTag
+        show: !this.mergeConfig.levelTag,
       },
       { id: EColumn.isEnabled, content: enableDom, class: 'enable-th', width: 64, show: true },
-      { id: EColumn.operate, content: operateDom, class: 'operate-th', width: 144, show: true }
+      { id: EColumn.operate, content: operateDom, class: 'operate-th', width: 144, show: true },
     ];
   }
 
@@ -521,8 +521,8 @@ export default class AlarmDispatchConfig extends tsc<{}> {
           new RuleData({
             addId: random(8),
             conditions: deepClone(this.unifiedSettings.conditions),
-            isEnabled: true
-          })
+            isEnabled: true,
+          }),
         );
         break;
       case 'delete':
@@ -586,7 +586,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
       },
       onHide: () => {
         document.removeEventListener('click', this.handleClickOutSide, false);
-      }
+      },
     });
     this.popoverInstance?.show(100);
   }
@@ -731,7 +731,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
       : {
           isEnabled: false,
           userGroups: [],
-          upgradeInterval: 30
+          upgradeInterval: 30,
         };
     this.currentIndex = index;
     // 升级的告警组应不允许和原告警组相同
@@ -757,7 +757,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
           }
         });
         this.conditionsLoading = false;
-      }
+      },
     );
   }
   handleConditionChange(v, index: number) {
@@ -807,7 +807,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
           }
           this.kvOptionsData.groupKeys.set(
             'dimensions',
-            [...keySet].map(k => ({ id: k, name: k }))
+            [...keySet].map(k => ({ id: k, name: k })),
           );
         });
       }
@@ -830,9 +830,9 @@ export default class AlarmDispatchConfig extends tsc<{}> {
         group_name: this.ruleGroupData.name,
         rules: this.tableData.filter(item => !item.isNullData).map(item => item.getSubmitParams()),
         settings: {
-          public_conditions: !!this.unifiedSettings.conditions?.length
-        }
-      }
+          public_conditions: !!this.unifiedSettings.conditions?.length,
+        },
+      },
     ];
     this.showSideliner = true;
   }
@@ -855,7 +855,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
       window.i18n.tc('流程'),
       window.i18n.tc('等级调整'),
       window.i18n.tc('追加标签'),
-      window.i18n.tc('状态')
+      window.i18n.tc('状态'),
     ];
     const tdArr = [];
     this.tableData.forEach(item => {
@@ -869,14 +869,14 @@ export default class AlarmDispatchConfig extends tsc<{}> {
           upgrade_config: {
             is_enabled: item.upgradeConfig.isEnabled,
             user_groups: item.upgradeConfig.userGroups,
-            upgrade_interval: item.upgradeConfig.upgradeInterval
-          }
+            upgrade_interval: item.upgradeConfig.upgradeInterval,
+          },
         }).replace(/,/g, '，'),
         item.actionId || '',
         item.alertSeverity,
         // 补充 规则 通知
         item.additionalTags.map(tag => `${tag.key}:${tag.value}`).join(';'),
-        item.isEnabled
+        item.isEnabled,
       ];
       tdArr.push(row);
     });
@@ -897,7 +897,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
       window.i18n.tc('流程'),
       window.i18n.tc('等级调整'),
       window.i18n.tc('追加标签'),
-      window.i18n.tc('状态')
+      window.i18n.tc('状态'),
     ];
     if (header.toString() !== thArr.toString()) {
       return;
@@ -914,23 +914,23 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                 actions: [
                   {
                     action_type: 'notice',
-                    ...JSON.parse(item[2].replace(/，/g, ','))
+                    ...JSON.parse(item[2].replace(/，/g, ',')),
                   },
                   {
                     action_type: 'itsm',
-                    action_id: Number(item[3])
-                  }
+                    action_id: Number(item[3]),
+                  },
                 ],
                 alert_severity: Number(item[4]),
                 // actionId: Number(item[4]),
                 additional_tags: item[5]
                   .split(';')
                   .map(item => ({ key: item.split(':')[0], value: item.split(':')[1] })),
-                is_enabled: item[6] === 'true'
+                is_enabled: item[6] === 'true',
               },
-              false
-            )
-          )
+              false,
+            ),
+          ),
       );
       // new RuleData({ ...transformDataKey(item, false) }))
       this.tableData = [...this.tableData, ...targetImportData];
@@ -1008,7 +1008,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
           placement: 'bottom-start',
           boundary: 'window',
           hideOnClick: false,
-          zIndex: 2000
+          zIndex: 2000,
         });
         this.unifiedSettings.popInstance?.show?.();
       });
@@ -1199,7 +1199,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
 
     // 告警组不能和通知升级里的告警组有交集
     const intersectionSet = [...new Set(row.userGroups)].filter(item =>
-      new Set(row.upgradeConfig.userGroups).has(item)
+      new Set(row.upgradeConfig.userGroups).has(item),
     );
 
     if (intersectionSet.length && row.upgradeConfig.noticeIsEnabled && row.upgradeConfig.isEnabled) {
@@ -1308,20 +1308,20 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                   <td
                     colspan={item.colspan}
                     style={{
-                      'border-color': item.bg
+                      'border-color': item.bg,
                     }}
                   >
                     <div
                       class='process-list-item'
                       style={{
-                        background: item.bg
+                        background: item.bg,
                       }}
                     >
                       {!!item.arrow && (
                         <div
                           class='process-arrow'
                           style={{
-                            'border-color': item.arrow
+                            'border-color': item.arrow,
                           }}
                         ></div>
                       )}
@@ -1330,7 +1330,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                         <div
                           class={[
                             'text',
-                            { 'text-en': getCookie('blueking_language') === 'en' && this.mergeConfig[item.merge] }
+                            { 'text-en': getCookie('blueking_language') === 'en' && this.mergeConfig[item.merge] },
                           ]}
                           v-bk-overflow-tips
                         >
@@ -1341,7 +1341,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                         <div
                           class={['merge', this.mergeConfig[item.merge] ? 'icon-expand' : 'icon-reduce']}
                           v-bk-tooltips={{
-                            content: this.$t(this.mergeConfig[item.merge] ? '展开' : '收起')
+                            content: this.$t(this.mergeConfig[item.merge] ? '展开' : '收起'),
                           }}
                           onClick={() => {
                             this.handleColumnsMerge(item.merge as MergeColumn, index);
@@ -1390,7 +1390,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                               tippy-options={{
                                 onHide: () => {
                                   this.batchTipsDisabled = false;
-                                }
+                                },
                               }}
                               trigger='click'
                             >
@@ -1408,7 +1408,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                               tippy-options={{
                                 onHide: () => {
                                   this.batchTipsDisabled = false;
-                                }
+                                },
                               }}
                               trigger='click'
                             >
@@ -1445,7 +1445,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                           this.getRuleItemType(row, column),
                           { 'is-active': !['select', 'operate'].includes(column.id) },
                           { 'condition-wrap': column.id === EColumn.conditions },
-                          { 'alarm-group-wrap': column.id === EColumn.userGroups }
+                          { 'alarm-group-wrap': column.id === EColumn.userGroups },
                         ]}
                       >
                         {this.getRowContent(row, column.id, index)}
@@ -1463,7 +1463,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               v-bk-tooltips={{
                 placements: ['top'],
                 content: this.$t('内置的分派规则组不允许修改'),
-                disabled: this.editAllowed
+                disabled: this.editAllowed,
               }}
             >
               <bk-button
@@ -1498,7 +1498,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               keyList: this.kvOptionsData.keys,
               valueMap: this.kvOptionsData.valueMap,
               groupKey: GROUP_KEYS,
-              groupKeys: this.kvOptionsData.groupKeys
+              groupKeys: this.kvOptionsData.groupKeys,
             }}
             canDebug={this.canDebug}
             addProcess={this.handleAddProcess}
@@ -1520,7 +1520,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               keys: this.kvOptionsData.keys,
               valueMap: this.kvOptionsData.valueMap,
               groupKey: GROUP_KEYS,
-              groupKeys: this.kvOptionsData.groupKeys
+              groupKeys: this.kvOptionsData.groupKeys,
             }}
             onShowChange={this.handleShowChange}
             onSaveSuccess={this.handleSaveSuccess}
@@ -1542,7 +1542,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                   v-bk-tooltips={{
                     content: this.$t('添加统一设置后，所有规则会默认添加上所设置的条件'),
                     placements: ['top'],
-                    delay: [100, 0]
+                    delay: [100, 0],
                   }}
                 ></span>
               </div>
@@ -1625,7 +1625,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               'table-data-row-item',
               'alarm-gourp-contaier',
               { 'is-change': row.config[id] },
-              { 'is-err': row.verificatory[id] }
+              { 'is-err': row.verificatory[id] },
             ]}
           >
             <AlarmGroupSelect
@@ -1645,7 +1645,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               v-bk-tooltips={{
                 content: row.validateTips[id],
                 placements: ['top'],
-                allowHTML: false
+                allowHTML: false,
               }}
             ></i>
           </div>
@@ -1658,7 +1658,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               'table-data-row-item',
               'alarm-group-select-wrap',
               'action-id-wrap',
-              { 'is-change': row.config[id] }
+              { 'is-change': row.config[id] },
             ]}
           >
             <bk-select
@@ -1779,7 +1779,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               'table-data-row-item',
               'alarm-group-select-wrap',
               'additional-tags',
-              { 'is-change': row.config[id] }
+              { 'is-change': row.config[id] },
             ]}
           >
             <bk-tag-input
@@ -1804,7 +1804,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                 class='icon-monitor icon-mind-fill'
                 v-bk-tooltips={{
                   content: row.validateTips[id],
-                  allowHTML: false
+                  allowHTML: false,
                 }}
               ></i>
             )}
@@ -1834,7 +1834,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
               tippy-options={{
                 onHide: () => {
                   row.setTooltipsDisabled(false);
-                }
+                },
               }}
               trigger='click'
             >
@@ -1853,7 +1853,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                 tippy-options={{
                   onHide: () => {
                     row.setTooltipsDisabled(false);
-                  }
+                  },
                 }}
                 trigger='click'
               >
@@ -1862,7 +1862,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                   onClick={() => row.setTooltipsDisabled(true)}
                   v-bk-tooltips={{
                     content: this.$t('撤销回上一次生效的配置'),
-                    disabled: row.tooltipsDisabled
+                    disabled: row.tooltipsDisabled,
                   }}
                 />
               </bk-popconfirm>
@@ -1872,7 +1872,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
                 v-bk-tooltips={{
                   content:
                     row.addId || row.copyId ? this.$t('新建规则不能撤回, 可以删除') : this.$t('未编辑, 不需要撤销'),
-                  disabled: row.tooltipsDisabled
+                  disabled: row.tooltipsDisabled,
                 }}
               />
             )}

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 import { applyGuidePage } from '../../common';
@@ -47,10 +47,10 @@ export default applyGuidePage([
     path: '/uptime-check/task-detail/:taskId',
     name: 'uptime-check-task-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: UptimeCheckDetail
+      noCache: UptimeCheckDetail,
     },
     meta: {
       needBack: true,
@@ -59,21 +59,21 @@ export default applyGuidePage([
       navId: 'uptime-check',
       authority: {
         map: uptimeAuth,
-        page: [uptimeAuth.VIEW_AUTH]
+        page: [uptimeAuth.VIEW_AUTH],
       },
       route: {
-        parent: 'uptime-check'
-      }
-    }
+        parent: 'uptime-check',
+      },
+    },
   },
   {
     path: '/uptime-check/group-detail/:groupId/:taskId',
     name: 'uptime-check-group-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: UptimeCheckDetail
+      noCache: UptimeCheckDetail,
     },
     meta: {
       needBack: true,
@@ -82,19 +82,19 @@ export default applyGuidePage([
       navId: 'uptime-check',
       authority: {
         map: uptimeAuth,
-        page: [uptimeAuth.VIEW_AUTH]
+        page: [uptimeAuth.VIEW_AUTH],
       },
       route: {
-        parent: 'uptime-check'
-      }
-    }
+        parent: 'uptime-check',
+      },
+    },
   },
   {
     path: '/uptime-check/task-add',
     name: 'uptime-check-task-add',
     // 组件指向 name 为 noCache 的 router-view 。
     components: {
-      noCache: UptimeCheckForm
+      noCache: UptimeCheckForm,
     },
     meta: {
       needBack: true,
@@ -104,23 +104,23 @@ export default applyGuidePage([
       noSpaceCheck: true,
       authority: {
         map: uptimeAuth,
-        page: [uptimeAuth.MANAGE_AUTH]
+        page: [uptimeAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'uptime-check'
-      }
-    }
+        parent: 'uptime-check',
+      },
+    },
   },
   {
     path: '/uptime-check/task-edit/:id',
     name: 'uptime-check-task-edit',
     // 将 url 中的 params 传入到 noCache 组件里（特指 UptimeCheckForm）
     props: {
-      noCache: true
+      noCache: true,
     },
     // 组件指向 name 为 noCache 的 router-view 。
     components: {
-      noCache: UptimeCheckForm
+      noCache: UptimeCheckForm,
     },
     meta: {
       needBack: true,
@@ -131,18 +131,18 @@ export default applyGuidePage([
       noSpaceCheck: true,
       authority: {
         map: uptimeAuth,
-        page: [uptimeAuth.VIEW_AUTH]
+        page: [uptimeAuth.VIEW_AUTH],
       },
       route: {
-        parent: 'uptime-check'
-      }
-    }
+        parent: 'uptime-check',
+      },
+    },
   },
   {
     path: '/uptime-check/node-add',
     name: 'uptime-check-node-add',
     components: {
-      noCache: UptimeCheckNodeEdit
+      noCache: UptimeCheckNodeEdit,
     },
     meta: {
       needBack: true,
@@ -151,21 +151,21 @@ export default applyGuidePage([
       noSpaceCheck: true,
       authority: {
         map: uptimeAuth,
-        page: [uptimeAuth.MANAGE_AUTH]
+        page: [uptimeAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'uptime-check'
-      }
-    }
+        parent: 'uptime-check',
+      },
+    },
   },
   {
     path: '/uptime-check/node-edit/:id',
     name: 'uptime-check-node-edit',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: UptimeCheckNodeEdit
+      noCache: UptimeCheckNodeEdit,
     },
     meta: {
       noSpaceCheck: true,
@@ -175,12 +175,12 @@ export default applyGuidePage([
       navId: 'uptime-check',
       authority: {
         map: uptimeAuth,
-        page: [uptimeAuth.MANAGE_AUTH]
+        page: [uptimeAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'uptime-check'
-      }
-    }
+        parent: 'uptime-check',
+      },
+    },
   },
   {
     path: '/uptime-check',
@@ -193,12 +193,12 @@ export default applyGuidePage([
       navClass: 'uptime-check-nav',
       authority: {
         map: uptimeAuth,
-        page: [uptimeAuth.VIEW_AUTH]
+        page: [uptimeAuth.VIEW_AUTH],
       },
       noNavBar: true,
       route: {
-        parent: 'scenes'
-      }
-    }
-  }
+        parent: 'scenes',
+      },
+    },
+  },
 ] as RouteConfig[]);

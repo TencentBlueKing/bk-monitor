@@ -37,7 +37,7 @@ interface IHandleExperienceProps {
 }
 
 @Component({
-  name: 'HandleExperience'
+  name: 'HandleExperience',
 })
 export default class HandleExperience extends tsc<IHandleExperienceProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -57,7 +57,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   async getData() {
     this.isLoading = true;
     const data = await getExperience({ alert_id: this.alertId, bk_biz_id: this.bkBizId }).finally(
-      () => (this.isLoading = false)
+      () => (this.isLoading = false),
     );
     this.text = data.description;
   }
@@ -66,7 +66,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     const params = {
       bk_biz_id: this.bkBizId,
       alert_id: this.alertId,
-      description: this.text
+      description: this.text,
     };
     const data = await saveExperience(params).finally(() => (this.isLoading = false));
     this.text = data.description;

@@ -23,9 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable no-nested-ternary */
+
 /**
  * 获取Cookie
  * @param {String} name
@@ -146,7 +144,7 @@ export const typeTools = {
   isFunction: obj => Object.prototype.toString.call(obj) === '[object Function]',
   isBoolean: obj => Object.prototype.toString.call(obj) === '[object Boolean]',
   isNull: obj => obj === null || obj === '' || obj === undefined,
-  isNotNull: obj => !this.isNull(obj)
+  isNotNull: obj => !this.isNull(obj),
 };
 
 /**
@@ -162,7 +160,7 @@ export const formatDatetime = (time, fmt) => {
     'm+': time.getMinutes(), // 分
     's+': time.getSeconds(), // 秒
     'q+': Math.floor((time.getMonth() + 3) / 3), // 季度
-    S: time.getMilliseconds() // 毫秒
+    S: time.getMilliseconds(), // 毫秒
   };
   if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, `${time.getFullYear()}`.substr(4 - RegExp.$1.length));
   for (const key in obj) {
@@ -194,7 +192,7 @@ export const transfromNum = (num, digits = 0) => {
     { value: 1e9, symbol: 'G' },
     { value: 1e12, symbol: 'T' },
     { value: 1e15, symbol: 'P' },
-    { value: 1e18, symbol: 'E' }
+    { value: 1e18, symbol: 'E' },
   ];
   const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
   let i;
@@ -215,7 +213,7 @@ export const Debounce = function (delay = 200, timeoutPropertyName = 'debounceFn
     const timerKey = `${key}_${timeoutPropertyName}`;
     Object.defineProperty(target, timerKey, {
       value: 0,
-      writable: true
+      writable: true,
     });
     const originalMethod = descriptor.value;
 
@@ -306,10 +304,10 @@ export const docCookies = {
       decodeURIComponent(
         document.cookie.replace(
           new RegExp(
-            `(?:(?:^|.*;)\\s*${encodeURIComponent(sKey).replace(/[-.+*]/g, '\\$&')}\\s*\\=\\s*([^;]*).*$)|^.*$`
+            `(?:(?:^|.*;)\\s*${encodeURIComponent(sKey).replace(/[-.+*]/g, '\\$&')}\\s*\\=\\s*([^;]*).*$)|^.*$`,
           ),
-          '$1'
-        )
+          '$1',
+        ),
       ) || null
     );
   },
@@ -356,7 +354,7 @@ export const docCookies = {
       aKeys[nIdx] = decodeURIComponent(aKeys[nIdx]);
     }
     return aKeys;
-  }
+  },
 };
 /**
  * @desc 字节单位转换
@@ -373,7 +371,7 @@ export const byteConvert = bytes => {
     exp = 0;
   }
   const i = Math.floor(exp / 10);
-  // eslint-disable-next-line no-restricted-properties
+
   bytes = bytes / Math.pow(2, 10 * i);
 
   if (bytes.toString().length > bytes.toFixed(2).toString().length) {
@@ -392,7 +390,7 @@ export const debounce = function (func, wait, immediate = true) {
   return function () {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const context = this;
-    // eslint-disable-next-line prefer-rest-params
+
     const args = [...arguments];
     if (timeout) clearTimeout(timeout);
     if (immediate) {

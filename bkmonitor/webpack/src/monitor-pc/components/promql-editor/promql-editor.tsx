@@ -68,7 +68,7 @@ class PlaceholderWidget {
   }
   getPosition() {
     return {
-      preference: monaco.editor.OverlayWidgetPositionPreference.TOP_CENTER
+      preference: monaco.editor.OverlayWidgetPositionPreference.TOP_CENTER,
     };
   }
   update() {
@@ -85,7 +85,7 @@ const defalutOptions = {
   glyphMargin: false,
   folding: false,
   minimap: {
-    enabled: false
+    enabled: false,
   },
   fontSize: 14,
   fontFamily: 'Menlo, Monaco, "Courier New", monospace',
@@ -103,21 +103,21 @@ const defalutOptions = {
     verticalScrollbarSize: 0,
     horizontal: 'hidden',
     horizontalScrollbarSize: 0,
-    alwaysConsumeMouseWheel: false
+    alwaysConsumeMouseWheel: false,
   },
   padding: {
     top: 4,
     bottom: 8,
     right: 0,
-    left: 0
+    left: 0,
   },
   suggest: () => ({
-    showWords: false
+    showWords: false,
   }),
   lineHeight: 19,
   suggestFontSize: 12,
   suggestLineHeight: 19,
-  cursorStyle: 'line-thin'
+  cursorStyle: 'line-thin',
 };
 export interface IPromqlMonacoEditorProps {
   width?: string;
@@ -168,7 +168,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   throttleUpdateLayout = () => {};
 
   created() {
-    this.throttleUpdateLayout = throttle(300, false, this.updateLayout);
+    this.throttleUpdateLayout = throttle(300, this.updateLayout);
   }
 
   mounted() {
@@ -218,7 +218,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           error ? `Error parsing "${error}"` : 'Parse error'
         }. The query appears to be incorrect and could fail to be executed.`,
         severity: monaco.MarkerSeverity.Error,
-        ...boundary
+        ...boundary,
       }));
       monaco.editor.setModelMarkers(model, this.language, markers);
     });
@@ -240,7 +240,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         } else {
           editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
         }
-      }
+      },
     });
     setTimeout(() => {
       this.updateLayout();
@@ -276,9 +276,9 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           ...(this.className ? { extraEditorClassName: this.className } : {}),
           ...finalOptions,
           ...(this.theme ? { theme: this.theme } : {}),
-          readOnly: this.readonly
+          readOnly: this.readonly,
         },
-        this.overrideServices
+        this.overrideServices,
       );
       this.handleEditorDidMount();
     }
@@ -313,10 +313,10 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         [
           {
             range: model.getFullModelRange(),
-            text: this.value
-          }
+            text: this.value,
+          },
         ],
-        undefined
+        undefined,
       );
       this.editor.pushUndoStop();
       this.preventTriggerChangeEvent = false;
@@ -336,7 +336,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       const { model, ...optionsWithoutModel } = this.options as any;
       this.editor.updateOptions({
         ...(this.className ? { extraEditorClassName: this.className } : {}),
-        ...optionsWithoutModel
+        ...optionsWithoutModel,
       });
     }
   }
@@ -346,7 +346,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       const { model, ...optionsWithoutModel } = this.options as any;
       this.editor.updateOptions({
         ...(this.className ? { extraEditorClassName: this.className } : {}),
-        ...optionsWithoutModel
+        ...optionsWithoutModel,
       });
     }
   }
@@ -387,7 +387,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         class={['promql-editor-component', { 'is-error': this.isError }]}
         style={{
           minHeight: `${this.minHeight}px`,
-          height: `${this.wrapHeight <= 0 ? this.minHeight : this.wrapHeight}px`
+          height: `${this.wrapHeight <= 0 ? this.minHeight : this.wrapHeight}px`,
         }}
       >
         <div

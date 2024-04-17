@@ -40,7 +40,7 @@ import {
   IOtherData,
   ITipsDetail,
   IZoomRect,
-  RootId
+  RootId,
 } from '../../../typings';
 
 import { FlameChart } from './use-flame';
@@ -100,7 +100,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     left: 0,
     top: 0,
     spanId: '',
-    spanName: ''
+    spanName: '',
   };
 
   axisRect: IAxisRect = { left: 0, bottom: 0, title: '', visibility: 'hidden' };
@@ -206,7 +206,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 duration: text + suffix,
                 diffDuration,
                 diffValue,
-                mark: d.data.diff_info?.mark
+                mark: d.data.diff_info?.mark,
               };
             },
             onContextMenu: (e: MouseEvent, d: HierarchyNode<BaseDataType>) => {
@@ -229,16 +229,16 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 bottom: this.svgRect.bottom + paddingLeft,
                 title: text + suffix,
                 visibility:
-                  axisLeft < this.svgRect.x || axisLeft > this.svgRect.width + this.svgRect.x ? 'hidden' : 'visible'
+                  axisLeft < this.svgRect.x || axisLeft > this.svgRect.width + this.svgRect.x ? 'hidden' : 'visible',
               };
             },
             onMouseOut: () => {
               this.axisRect = { left: 0, title: '', visibility: 'hidden' };
               this.tipDetail = {};
             },
-            onMouseDown: () => {}
+            onMouseDown: () => {},
           },
-          this.chartRef
+          this.chartRef,
         );
         setTimeout(() => {
           this.setSvgRect();
@@ -285,7 +285,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     const threads = [];
     return {
       main,
-      threads
+      threads,
     };
   }
   /**
@@ -294,7 +294,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   setSvgRect() {
     this.svgRect = this.chartRef.querySelector('svg').getBoundingClientRect();
     this.graphToolsRect = {
-      left: this.svgRect.x + 4
+      left: this.svgRect.x + 4,
     };
   }
   /**
@@ -455,7 +455,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               style={{
                 left: `${this.tipDetail.left}px`,
                 top: `${this.tipDetail.top + 16}px`,
-                display: this.tipDetail.title ? 'block' : 'none'
+                display: this.tipDetail.title ? 'block' : 'none',
               }}
             >
               {this.tipDetail.title && [
@@ -467,7 +467,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                       <th>{window.i18n.t('当前')}</th>
                       {this.tipDetail.id !== RootId && [
                         <th>{window.i18n.t('参照')}</th>,
-                        <th>{window.i18n.t('差异')}</th>
+                        <th>{window.i18n.t('差异')}</th>,
                       ]}
                     </thead>
                   )}
@@ -490,7 +490,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                             ) : (
                               `${this.tipDetail.diffValue}%`
                             )}
-                          </td>
+                          </td>,
                         ]}
                     </tr>
                   </tbody>
@@ -498,7 +498,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 <div class='tips-info'>
                   <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
                   {window.i18n.t('鼠标右键有更多菜单')}
-                </div>
+                </div>,
               ]}
             </div>
             <ul
@@ -506,7 +506,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               style={{
                 left: `${this.contextMenuRect.left}px`,
                 top: `${this.contextMenuRect.top}px`,
-                visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden'
+                visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
               }}
             >
               {CommonMenuList.map(item => (
@@ -526,7 +526,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 left: `${this.axisRect.left || 0}px`,
                 top: `${this.axisRect.top || 0}px`,
                 bottom: `${this.axisRect.bottom || 0}px`,
-                visibility: this.axisRect.visibility
+                visibility: this.axisRect.visibility,
               }}
             >
               <span class='axis-label'>{this.axisRect.title}</span>
@@ -535,7 +535,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               class='flame-graph-zoom'
               style={{
                 left: `${this.zoomRect?.left || 0}px`,
-                width: `${this.zoomRect?.width || 0}px`
+                width: `${this.zoomRect?.width || 0}px`,
               }}
             ></div>
           </div>

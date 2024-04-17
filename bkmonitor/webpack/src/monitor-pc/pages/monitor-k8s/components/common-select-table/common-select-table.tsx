@@ -39,7 +39,7 @@ import {
   filterSelectorPanelSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../utils';
 import { type ShowModeType } from '../common-page-new';
 import CommonTable from '../common-table';
@@ -163,7 +163,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
   pagination: IPagination = {
     current: 1,
     count: 0,
-    limit: 50
+    limit: 50,
   };
 
   // scoped 变量
@@ -171,7 +171,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   // active id
@@ -262,7 +262,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       'show-header': this.showHeader && this.overviewData,
       'hide-overview': this.showHeader && !this.overviewData,
       'select-overview': this.isOverview,
-      'scroll-body': this.isOverflowTable
+      'scroll-body': this.isOverflowTable,
     };
   }
   /** 获取表格数据 */
@@ -281,11 +281,11 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       page: current,
       page_size: limit,
       status: this.currentStatus,
-      filter_dict: this.filterDict
+      filter_dict: this.filterDict,
     };
     if (Object.keys(this.filterFields).length) {
       params = Object.assign({}, params, {
-        filter_fields: this.filterFields
+        filter_fields: this.filterFields,
       });
     }
     const variablesService = new VariablesService(this.scopedVars);
@@ -293,7 +293,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       (this as any).$api[item.apiModule]
         [item.apiFunc]({
           ...variablesService.transformVariables(item.data),
-          ...params
+          ...params,
         })
         .then(data => {
           const list = data.data || [];
@@ -312,7 +312,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
           if (Object.keys(this.filterDict).length) {
             const newColumns = this.columns.map(col => ({
               ...col,
-              filter_value: this.filterDict[col.id] ? this.filterDict[col.id] : []
+              filter_value: this.filterDict[col.id] ? this.filterDict[col.id] : [],
             }));
             this.columns = [...newColumns];
           }
@@ -321,10 +321,10 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
             return {
               ...set,
               id,
-              name: set.name || id
+              name: set.name || id,
             };
           });
-        })
+        }),
     );
     const [data] = await Promise.all(promiseList).catch(() => [[]]);
 
@@ -395,7 +395,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
   /** Input 搜索 */
@@ -409,7 +409,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       this.handleLocalSearch(v);
       this.handleUpdateQueryData({
         ...this.queryData,
-        keyword: v
+        keyword: v,
       });
     }
   }
@@ -423,7 +423,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     this.handleResetTable();
     this.handleUpdateQueryData({
       ...this.queryData,
-      filter: v
+      filter: v,
     });
   }
   /** 表格排序 */
@@ -433,7 +433,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     this.handleResetTable();
     this.handleUpdateQueryData({
       ...this.queryData,
-      sort: sortKey
+      sort: sortKey,
     });
   }
   /** 选中概览 */
@@ -447,7 +447,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       const value = this.panel.targets[0].handleCreateFilterDictValue(data, true);
       viewOptions.filters = { ...(value || {}) };
       viewOptions.compares = {
-        targets: []
+        targets: [],
       };
       this.handleTitleChange(typeof data.name === 'object' ? data.name.value : data.name);
       this.$emit('change', viewOptions);
@@ -483,7 +483,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     this.handleResetTable();
     this.handleUpdateQueryData({
       ...this.queryData,
-      filterDict: filters
+      filterDict: filters,
     });
   }
   /** 动态计算赋值表格第一列的宽度 */

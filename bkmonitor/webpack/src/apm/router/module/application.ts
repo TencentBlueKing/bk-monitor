@@ -37,10 +37,10 @@ export default [
     path: '/application',
     name: 'application',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: Application
+      noCache: Application,
     },
     meta: {
       title: 'APM',
@@ -48,22 +48,22 @@ export default [
       customTitle: true,
       noNavBar: true,
       route: {
-        parent: 'application'
-      }
+        parent: 'application',
+      },
       // authority: {
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // }
-    }
+    },
   },
   {
     path: '/application/detail',
     name: 'application-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: ApplicationDetail
+      noCache: ApplicationDetail,
     },
     meta: {
       title: '应用详情',
@@ -71,53 +71,53 @@ export default [
       customTitle: true,
       noNavBar: true,
       route: {
-        parent: 'application'
-      }
+        parent: 'application',
+      },
       // authority: {
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // }
-    }
+    },
   },
   {
     path: '/application/add',
     name: 'application-add',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: AppAdd
+      noCache: AppAdd,
     },
     meta: {
       title: '新建应用',
       navId: 'application',
       needBack: true,
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/application/config/:id',
     name: 'application-config',
     props: true,
     components: {
-      noCache: AppConfig
+      noCache: AppConfig,
     },
     meta: {
       title: '应用配置',
       navId: 'application',
-      noNavBar: true
+      noNavBar: true,
       // authority: {
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // }
-    }
+    },
   },
   {
     path: '/application/empty',
     name: 'application-empty',
     props: true,
     components: {
-      noCache: NoDataGuide
+      noCache: NoDataGuide,
     },
     meta: {
       title: '无数据指引',
@@ -127,7 +127,7 @@ export default [
       //   page: [HomeAuth.VIEW_AUTH]
       // },
       needBack: true,
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

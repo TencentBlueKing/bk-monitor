@@ -64,6 +64,6 @@ export function useChartIntersection(el: Ref<HTMLDivElement>, getPanelData: (...
     isInViewPort,
     registerObserver,
     unregisterOberver,
-    intersectionObserver
+    intersectionObserver,
   };
 }

@@ -23,7 +23,7 @@ from django.http import Http404
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.generic import APIViewSet
+from apps.generic import APIViewSet, ModelViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_search.exceptions import (
     FavoriteGroupNotExistException,
@@ -32,20 +32,24 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.favorite_handlers import (
     FavoriteGroupHandler,
     FavoriteHandler,
+    FavoriteUnionSearchHandler,
 )
-from apps.log_search.models import Favorite, FavoriteGroup
+from apps.log_search.models import Favorite, FavoriteGroup, FavoriteUnionSearch
 from apps.log_search.serializers import (
     BatchDeleteFavoriteSerializer,
     BatchUpdateFavoriteSerializer,
     CreateFavoriteGroupSerializer,
     CreateFavoriteSerializer,
+    CreateFavoriteUnionSearchSerializer,
     FavoriteGroupListSerializer,
     FavoriteListSerializer,
+    FavoriteUnionSearchListSerializer,
     GenerateQuerySerializer,
     GetSearchFieldsSerializer,
     InspectSerializer,
     UpdateFavoriteGroupSerializer,
     UpdateFavoriteSerializer,
+    UpdateFavoriteUnionSearchSerializer,
 )
 from apps.utils.drf import list_route
 
@@ -141,11 +145,7 @@ class FavoriteViewSet(APIViewSet):
         }
         """
         data = self.params_valid(FavoriteListSerializer)
-        return Response(
-            FavoriteHandler(space_uid=data.get("space_uid")).list_favorites(
-                order_type=data["order_type"], index_set_type=data["index_set_type"]
-            )
-        )
+        return Response(FavoriteHandler(space_uid=data.get("space_uid")).list_favorites(order_type=data["order_type"]))
 
     @list_route(methods=["GET"])
     def list_by_group(self, request, *args, **kwargs):
@@ -200,9 +200,7 @@ class FavoriteViewSet(APIViewSet):
         """
         data = self.params_valid(FavoriteListSerializer)
         return Response(
-            FavoriteHandler(space_uid=data.get("space_uid")).list_group_favorites(
-                order_type=data["order_type"], index_set_type=data["index_set_type"]
-            )
+            FavoriteHandler(space_uid=data.get("space_uid")).list_group_favorites(order_type=data["order_type"])
         )
 
     def create(self, request, *args, **kwargs):
@@ -575,7 +573,7 @@ class FavoriteViewSet(APIViewSet):
         }
         """
         data = self.params_valid(InspectSerializer)
-        return Response(FavoriteHandler().inspect(keyword=data["keyword"]))
+        return Response(FavoriteHandler().inspect(keyword=data["keyword"], fields=data["fields"]))
 
 
 class FavoriteGroupViewSet(APIViewSet):
@@ -713,3 +711,172 @@ class FavoriteGroupViewSet(APIViewSet):
         except Http404:
             raise FavoriteGroupNotExistException
         return Response()
+
+
+class FavoriteUnionSearchViewSet(ModelViewSet):
+    """
+    联合检索搜索组合收藏
+    """
+
+    lookup_field = "id"
+    serializer_class = serializers.Serializer
+    model = FavoriteUnionSearch
+    queryset = FavoriteUnionSearch.objects.all()
+    permission_classes = (ViewBusinessPermission,)
+
+    def list(self, request, *args, **kwargs):
+        """
+        @api {get} /search/favorite_union/?space_uid=$space_uid 03_联合检索搜索组合收藏-列表
+        @apiDescription 联合检索搜索组合收藏列表
+        @apiName favorite_union
+        @apiGroup 21_Favorite
+        @apiParam {String} space_uid 空间唯一标识
+        @apiSuccessExample {json} 成功返回：
+        {
+            "result": true,
+            "data": [
+                {
+                    "id": 1,
+                    "created_at": "2023-12-01T07:51:57.414110Z",
+                    "created_by": "admin",
+                    "updated_at": "2023-12-01T07:52:07.787344Z",
+                    "updated_by": "admin",
+                    "space_uid": "bkcc__2",
+                    "username": "admin",
+                    "name": "测试组合收藏更新",
+                    "index_set_ids": [1,2,3,4,5]
+                },
+                {
+                    "id": 2,
+                    "created_at": "2023-12-01T07:50:26.630412Z",
+                    "created_by": "admin",
+                    "updated_at": "2023-12-01T07:50:26.630412Z",
+                    "updated_by": "admin",
+                    "space_uid": "bkcc__2",
+                    "username": "admin",
+                    "name": "测试组合收藏",
+                    "index_set_ids": [1,2,3]
+                }
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(FavoriteUnionSearchListSerializer)
+        return Response(FavoriteUnionSearchHandler(space_uid=data["space_uid"]).list())
+
+    def create(self, request, *args, **kwargs):
+        """
+        @api {post} /search/favorite_union/ 03_联合检索搜索组合收藏-创建
+        @apiDescription 创建联合检索搜索组合收藏
+        @apiName create_favorite_union
+        @apiGroup 21_Favorite
+        @apiParam {String} space_uid 空间唯一标识
+        @apiParam {String} name 收藏组名
+        @apiParam {Array} index_set_ids 索引集列表
+        @apiParamExample {json} 请求参数
+        {
+            "space_uid": "bkcc__2",
+            "name": "测试组合收藏"
+            "index_set_ids": [1,2,3]
+        }
+        @apiSuccessExample {json} 成功返回：
+        {
+            "result": true,
+            "data": {
+                "id": 2,
+                "created_at": "2023-12-01T07:40:28.187703Z",
+                "created_by": "admin",
+                "updated_at": "2023-12-01T07:40:28.187703Z",
+                "updated_by": "admin",
+                "space_uid": "bkcc__2",
+                "username": "admin",
+                "name": "测试组合收藏",
+                "index_set_ids": [1,2,3]
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(CreateFavoriteUnionSearchSerializer)
+        favorite_union = FavoriteUnionSearchHandler(space_uid=data["space_uid"]).create_or_update(data=data)
+        return Response(favorite_union)
+
+    def update(self, request, *args, **kwargs):
+        """
+        @api {put} /search/favorite_union/${favorite_union_id}/ 03_联合检索搜索组合收藏-更新
+        @apiDescription 更新联合检索搜索组合收藏
+        @apiName update_favorite_union
+        @apiGroup 21_Favorite
+        @apiParam {String} name 收藏组名
+        @apiParam {Array} index_set_ids 索引集列表
+        @apiParamExample {json} 请求参数
+        {
+            "name": "测试组合收藏更新",
+            "index_set_ids": [1,2,3,4,5]
+        }
+        @apiSuccessExample {json} 成功返回：
+        {
+            "result": true,
+            "data": {
+                "id": 2,
+                "created_at": "2023-12-01T07:40:28.187703Z",
+                "created_by": "admin",
+                "updated_at": "2023-12-01T07:41:53.962473Z",
+                "updated_by": "admin",
+                "space_uid": "bkcc__2",
+                "username": "admin",
+                "name": "测试组合收藏更新",
+                "index_set_ids": [1,2,3,4,5]
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(UpdateFavoriteUnionSearchSerializer)
+        favorite_union = FavoriteUnionSearchHandler(favorite_union_id=int(kwargs["id"])).create_or_update(data=data)
+        return Response(favorite_union)
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        @api {get} /search/favorite_union/${favorite_union_id}/ 03_联合检索搜索组合收藏-详情
+        @apiDescription 删除联合检索搜索组合收藏
+        @apiName delete_favorite_union
+        @apiGroup 21_Favorite
+        @apiParam {Int} favorite_union_id
+        @apiSuccessExample {json} 成功返回：
+        {
+            "result": true,
+            "data": {
+                "id": 2,
+                "created_at": "2023-12-01T07:40:28.187703Z",
+                "created_by": "admin",
+                "updated_at": "2023-12-01T07:41:53.962473Z",
+                "updated_by": "admin",
+                "space_uid": "bkcc__2",
+                "username": "admin",
+                "name": "测试组合收藏更新",
+                "index_set_ids": [1,2,3,4,5]
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        return Response(FavoriteUnionSearchHandler(favorite_union_id=int(kwargs["id"])).retrieve())
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        @api {delete} /search/favorite_union/${favorite_union_id}/ 03_联合检索搜索组合收藏-删除
+        @apiDescription 删除联合检索搜索组合收藏
+        @apiName delete_favorite_union
+        @apiGroup 21_Favorite
+        @apiParam {Int} favorite_union_id
+        @apiSuccessExample {json} 成功返回：
+        {
+            "message": "",
+            "code": 0,
+            "data": "",
+            "result": true
+        }
+        """
+        return Response(FavoriteUnionSearchHandler(favorite_union_id=int(kwargs["id"])).destroy())

@@ -30,7 +30,7 @@ import AutoInput from 'fta-solutions/pages/setting/set-meal/set-meal-add/compone
 import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import {
   DEFAULT_MESSAGE_TMPL,
-  DEFAULT_TITLE_TMPL
+  DEFAULT_TITLE_TMPL,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import { getConvergeFunction, getVariables } from 'monitor-api/modules/action';
 import { listActionConfig, listUserGroup } from 'monitor-api/modules/model';
@@ -42,7 +42,7 @@ import TemplateInput from '../strategy-config-set/strategy-template-input/strate
 import {
   actionConfigGroupList,
   IAllDefense,
-  IValue as IAlarmItem
+  IValue as IAlarmItem,
 } from '../strategy-config-set-new/alarm-handling/alarm-handling';
 import AlarmHandlingList from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
 import AlarmGroup from '../strategy-config-set-new/components/alarm-group';
@@ -58,73 +58,73 @@ import './strategy-config-dialog.scss';
 const TYPE_MAP = {
   1: {
     title: window.i18n.tc('修改触发条件'),
-    width: 480
+    width: 480,
   },
   3: {
     title: window.i18n.tc('修改无数据告警'),
-    width: 480
+    width: 480,
   },
   5: {
     title: window.i18n.tc('修改恢复条件'),
-    width: 400
+    width: 400,
   },
   6: {
     title: window.i18n.tc('启/停策略'),
-    width: 400
+    width: 400,
   },
   7: {
     title: window.i18n.tc('删除策略'),
-    width: 400
+    width: 400,
   },
   8: {
     title: window.i18n.tc('增删目标'),
-    width: 480
+    width: 480,
   },
   10: {
     title: window.i18n.tc('修改标签'),
-    width: 480
+    width: 480,
   },
   12: {
     title: window.i18n.tc('修改生效时间段'),
-    width: 480
+    width: 480,
   },
   13: {
     title: window.i18n.tc('修改处理套餐'),
-    width: 640
+    width: 640,
   },
   14: {
     title: window.i18n.tc('修改告警组'),
-    width: 480
+    width: 480,
   },
   15: {
     title: window.i18n.tc('修改通知场景'),
-    width: 640
+    width: 640,
   },
   16: {
     title: window.i18n.tc('修改通知间隔'),
-    width: 640
+    width: 640,
   },
   17: {
     title: window.i18n.tc('修改通知模板'),
-    width: 640
+    width: 640,
   },
   18: {
     title: window.i18n.tc('修改告警风暴开关'),
-    width: 480
-  }
+    width: 480,
+  },
 };
 
 // 通知间隔类型
 const intervalModeTips = {
   standard: window.i18n.t('固定N分钟间隔进行通知'),
-  increasing: window.i18n.t('按通知次数的指数递增，依次按N，2N，4N，8N,...依次类推执行，最大24小时')
+  increasing: window.i18n.t('按通知次数的指数递增，依次按N，2N，4N，8N,...依次类推执行，最大24小时'),
 };
 
 // 模板数据类型
 const templateList = [
   { key: 'abnormal', label: window.i18n.tc('告警触发时') },
   { key: 'recovered', label: window.i18n.tc('告警恢复时') },
-  { key: 'closed', label: window.i18n.tc('告警关闭时') }
+  { key: 'closed', label: window.i18n.tc('告警关闭时') },
 ];
 
 interface IAlarmGroupList {
@@ -170,16 +170,16 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       cycleOne: 5,
       count: 4,
       cycleTwo: 5,
-      type: 1
+      type: 1,
     },
     recover: {
-      val: 5
+      val: 5,
     },
     notice: {
-      val: 120
+      val: 120,
     },
     noDataAlarm: {
-      cycle: 5
+      cycle: 5,
     },
     openAlarmNoData: true,
     alarmNotice: true,
@@ -198,23 +198,23 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     noticeInterval: {
       // 通知间隔
       interval_notify_mode: 'standard',
-      notify_interval: 120
+      notify_interval: 120,
     },
     noticeIntervalError: false,
     template: [
       // 模板数据
       { signal: 'abnormal', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
       { signal: 'recovered', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
-      { signal: 'closed', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL }
+      { signal: 'closed', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
     ],
     templateActive: 'abnormal', // 当前模板类型
     templateData: { signal: 'abnormal', message_tmpl: '', title_tmpl: '' }, // 当前模板数据
     templateError: '',
-    needBizConverge: true
+    needBizConverge: true,
   };
   triggerTypeList = [{ id: 1, name: window.i18n.tc('累计') }];
   numbersScope = {
-    countMax: 5
+    countMax: 5,
   };
   allAction: IGroupItem[] = []; // 套餐列表
   defenseList: IAllDefense[] = []; // 防御列表
@@ -286,7 +286,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     this.alarmGroupList = data.map(item => ({
       id: item.id,
       name: item.name,
-      receiver: item.users?.map(rec => rec.display_name) || []
+      receiver: item.users?.map(rec => rec.display_name) || [],
     }));
   }
   // 获取自动填充列表
@@ -300,7 +300,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       .map(item => ({
         id: item.name,
         name: item.desc,
-        example: item.example
+        example: item.example,
       }));
     this.messageTemplateList = list;
   }
@@ -343,8 +343,8 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           : {
               trigger_config: {
                 count: parseInt(String(this.data.triggerCondition.count), 10),
-                check_window: parseInt(String(this.data.triggerCondition.cycleOne) as unknown as string, 10)
-              }
+                check_window: parseInt(String(this.data.triggerCondition.cycleOne) as unknown as string, 10),
+              },
             },
       2: () =>
         this.validateRecoveAlarmCondition() ? false : { alarm_interval: parseInt(String(this.data.notice.val), 10) },
@@ -356,8 +356,8 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           ? {
               no_data_config: {
                 continuous: parseInt(String(this.data.noDataAlarm.cycle), 10),
-                is_enabled: this.data.openAlarmNoData
-              }
+                is_enabled: this.data.openAlarmNoData,
+              },
             }
           : { no_data_config: { is_enabled: this.data.openAlarmNoData } };
       },
@@ -375,10 +375,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             uptime: {
               time_ranges: this.data.timeRange.map(range => ({
                 start: range[0],
-                end: range[1]
-              }))
-            }
-          }
+                end: range[1],
+              })),
+            },
+          },
         };
       },
       /* 修改处理套餐 */
@@ -391,10 +391,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               options: {
                 converge_config: {
                   ...item.options.converge_config,
-                  timedelta: item.options.converge_config.timedelta * 60
-                }
-              }
-            }))
+                  timedelta: item.options.converge_config.timedelta * 60,
+                },
+              },
+            })),
           };
         }
         return false;
@@ -404,8 +404,8 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         if (this.data.userGroups.length) {
           return {
             notice: {
-              user_groups: this.data.userGroups
-            }
+              user_groups: this.data.userGroups,
+            },
           };
         }
         this.data.userGroupsErr = true;
@@ -417,8 +417,8 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         if (this.data.noticeInterval.notify_interval) {
           return {
             notice: {
-              config: { ...this.data.noticeInterval, notify_interval: this.data.noticeInterval.notify_interval * 60 }
-            }
+              config: { ...this.data.noticeInterval, notify_interval: this.data.noticeInterval.notify_interval * 60 },
+            },
           };
         }
         this.data.noticeIntervalError = true;
@@ -438,7 +438,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         }
       },
       /* 修改告警风暴开关 */
-      18: () => ({ notice: { options: { converge_config: { need_biz_converge: this.data.needBizConverge } } } })
+      18: () => ({ notice: { options: { converge_config: { need_biz_converge: this.data.needBizConverge } } } }),
     };
     return setTypeMap[this.setType]?.() || {};
   }
@@ -625,7 +625,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           </div>,
           this.data.noDataCycleError ? (
             <span class='no-data-error-msg error-msg-font'> {this.$t('仅支持整数')} </span>
-          ) : undefined
+          ) : undefined,
         ];
       case 5 /* 修改恢复条件 */:
         return [
@@ -644,7 +644,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           </div>,
           this.data.recoverCycleError ? (
             <span class='recover-cycle-error-msg error-msg-font'>{this.$t('仅支持整数')}</span>
-          ) : undefined
+          ) : undefined,
         ];
       case 6 /* 启停策略 */:
         return (

@@ -49,8 +49,8 @@ interface IPushUrlItem {
 }
 @Component({
   components: {
-    svgIcon
-  }
+    svgIcon,
+  },
 })
 export default class NoDataGuide extends tsc<IProps> {
   @Prop({ type: String, default: 'noData' }) type: IProps['type'];
@@ -70,11 +70,11 @@ export default class NoDataGuide extends tsc<IProps> {
   /** 无数据指引提示 */
   stepTipsList = [
     {
-      message: window.i18n.t('当前页面暂无数据显示，你可以跟随安装指引将应用安装至你的网站。')
+      message: window.i18n.t('当前页面暂无数据显示，你可以跟随安装指引将应用安装至你的网站。'),
     },
     {
-      message: window.i18n.t('假如数据一直未能显示，请联系平台管理员。')
-    }
+      message: window.i18n.t('假如数据一直未能显示，请联系平台管理员。'),
+    },
   ];
 
   /** md文档说明 */
@@ -152,13 +152,13 @@ export default class NoDataGuide extends tsc<IProps> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -210,7 +210,7 @@ export default class NoDataGuide extends tsc<IProps> {
               descData={cardItem.descData}
               onClick={() => this.handleCheckedCardItem(cardItem, row, !cardItem.checked)}
             />
-          )
+          ),
       );
     return (
       <div
@@ -296,12 +296,12 @@ export default class NoDataGuide extends tsc<IProps> {
                   <span class='config-value'>
                     {this.pushUrl.map(item => (
                       <span>{`${this.$t('管控区域')} ${item.bk_cloud_id} ${item.push_url} [${item.tags.join(
-                        ','
+                        ',',
                       )}]`}</span>
                     ))}
                   </span>
                 </div>
-              </div>
+              </div>,
             )}
             {rowContent(
               this.$tc('配置选择'),
@@ -331,14 +331,14 @@ export default class NoDataGuide extends tsc<IProps> {
                                     </div>
                                   </div>
                                 </div>
-                              ) : undefined
+                              ) : undefined,
                             )}
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              )
+              ),
             )}
             {rowContent(
               this.$tc('流程指引'),
@@ -357,7 +357,7 @@ export default class NoDataGuide extends tsc<IProps> {
                     {this.$t('选择语言和环境')}
                   </bk-exception>
                 )}
-              </div>
+              </div>,
             )}
           </div>
         </div>

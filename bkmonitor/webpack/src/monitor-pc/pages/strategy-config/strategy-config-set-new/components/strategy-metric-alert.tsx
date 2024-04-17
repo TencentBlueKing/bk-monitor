@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
+
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
@@ -82,7 +82,7 @@ interface ICache {
   [propName: string]: { page?: number; list?: any[]; count?: number; scrollTop?: number; scenarioCounts?: any[] };
 }
 @Component({
-  name: 'StrategyMetricAlert'
+  name: 'StrategyMetricAlert',
 })
 export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, IStrategyMetricAlertEvent> {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
@@ -104,7 +104,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
   searchObj: ISearchObj = {
     // 键值对搜索数据
     keyWord: [],
-    data: []
+    data: [],
   };
   pageSize = 20;
   cache: ICache = {};
@@ -209,7 +209,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
         dataTypeLabel: 'alert',
         sourceType: 'bk_monitor_alert',
         sourceName: `${this.$t('告警策略')}`,
-        list: []
+        list: [],
       },
       bk_fta_alert: {
         count: 0,
@@ -217,8 +217,8 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
         dataTypeLabel: 'alert',
         sourceType: 'bk_fta_alert',
         sourceName: `${this.$t('第三方告警')}`,
-        list: []
-      }
+        list: [],
+      },
     };
     this.oldDataSourec = deepClone(this.dataSource);
     if (isClearChecked) {
@@ -240,8 +240,8 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       bk_fta_alert: [{ id: 'alert_name', name: this.$t('指标名'), children: [] }],
       bk_monitor_alert: [
         { id: 'strategy_name', name: this.$t('策略名称'), children: [] },
-        { id: 'strategy_id', name: this.$t('策略ID'), children: [] }
-      ]
+        { id: 'strategy_id', name: this.$t('策略ID'), children: [] },
+      ],
     };
     return searchObj[this.sourceType];
   }
@@ -262,7 +262,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       ...staticParams,
       conditions: this.seachParams,
       page_size: this.pageSize,
-      page: this.cache?.[cacheKey]?.page ? this.cache[cacheKey].page : 1
+      page: this.cache?.[cacheKey]?.page ? this.cache[cacheKey].page : 1,
     };
     await getMetricListV2(params)
       .then(data => {
@@ -302,7 +302,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       bk_biz_id: this.$store.getters.bizId,
       data_source_label: Array.isArray(dataSource) ? dataSource : [dataSource],
       data_type_label: dataTypeLabel || this.curTableData.dataTypeLabel,
-      result_table_label: this.scenarioType
+      result_table_label: this.scenarioType,
     };
   }
 
@@ -493,7 +493,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
             on-change={v => this.handleCheck(v, row)}
           ></bk-checkbox>
         );
-      }
+      },
     };
     const seeCheckedSlot = {
       default: ({ row }) => (
@@ -501,7 +501,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           checked={true}
           on-change={() => this.handleDeleteCheckedMetric(row)}
         ></bk-checkbox>
-      )
+      ),
     };
     const renderHeader = () => {
       const checkedMetricIdList = this.checkData.map((item: any) => item.metric_id);
@@ -543,7 +543,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           label={this.$t('策略名称')}
           prop='metric_field_name'
           show-overflow-tooltip
-        ></bk-table-column>
+        ></bk-table-column>,
       ],
       bk_fta_alert: () => [
         checkBox,
@@ -551,7 +551,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           label={this.$t('告警名称')}
           prop='metric_field_name'
           show-overflow-tooltip
-        ></bk-table-column>
+        ></bk-table-column>,
       ],
       seeChecked: () => [
         <bk-table-column
@@ -564,16 +564,16 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           label={`${this.$t('策略名称')}/${this.$t('告警名称')}`}
           prop='metric_field_name'
           show-overflow-tooltip
-        ></bk-table-column>
-      ]
+        ></bk-table-column>,
+      ],
     };
     return (
       <div class='metric-alert-table'>
         <bk-table
           {...{
             props: {
-              data: this.isSeeSelected ? this.checkData : this.curTableData.list
-            }
+              data: this.isSeeSelected ? this.checkData : this.curTableData.list,
+            },
           }}
           ref='alertTable'
           height={397}
@@ -671,7 +671,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
             v-bk-tooltips={{
               content: this.$t('关联告警需选择多个'),
               disabled: this.isCanAdd,
-              allowHTML: false
+              allowHTML: false,
             }}
           >
             <bk-button

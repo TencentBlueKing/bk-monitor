@@ -28,28 +28,28 @@ export const GLOAB_FEATURE_LIST = [
   {
     id: 'global-config',
     name: '全局设置',
-    icon: 'icon-monitor icon-menu-setting'
+    icon: 'icon-monitor icon-menu-setting',
   },
   {
     id: 'healthz',
     name: '自监控',
-    icon: 'icon-monitor icon-menu-self'
+    icon: 'icon-monitor icon-menu-self',
   },
   {
     id: 'migrate-dashboard',
     name: '迁移工具',
-    icon: 'icon-monitor icon-mc-migrate-tool'
+    icon: 'icon-monitor icon-mc-migrate-tool',
   },
   {
     id: 'calendar',
     name: '日历服务',
-    icon: 'icon-monitor icon-mc-calendar-service'
+    icon: 'icon-monitor icon-mc-calendar-service',
   },
   {
     id: 'space-manage',
     name: '空间管理',
-    icon: 'icon-monitor icon-mc-migrate-tool'
-  }
+    icon: 'icon-monitor icon-mc-migrate-tool',
+  },
   // {
   //   id: 'resource-register',
   //   name: '资源注册',
@@ -88,12 +88,12 @@ export const getRouteConfig = () => {
     {
       id: 'home',
       name: '首页',
-      route: 'home'
+      route: 'home',
     },
     {
       id: 'dashboard',
       name: '仪表盘',
-      route: 'grafana'
+      route: 'grafana',
     },
     {
       id: 'data',
@@ -107,7 +107,7 @@ export const getRouteConfig = () => {
           id: 'data-retrieval',
           path: '/data-retrieval',
           href: '#/data-retrieval',
-          canStore: true
+          canStore: true,
         },
         {
           name: '日志检索',
@@ -116,7 +116,7 @@ export const getRouteConfig = () => {
           id: 'log-retrieval',
           path: '/log-retrieval',
           href: '#/log-retrieval',
-          canStore: true
+          canStore: true,
         },
         {
           name: '事件检索',
@@ -125,7 +125,7 @@ export const getRouteConfig = () => {
           id: 'event-retrieval',
           path: '/event-retrieval',
           href: '#/event-retrieval',
-          canStore: true
+          canStore: true,
         },
         {
           name: 'Tracing 检索',
@@ -136,7 +136,7 @@ export const getRouteConfig = () => {
           href: '#/trace/home',
           usePath: true,
           // isBeta: window.platform?.te === false,
-          canStore: true
+          canStore: true,
         },
         {
           name: 'Profiling 检索',
@@ -147,15 +147,15 @@ export const getRouteConfig = () => {
           href: '#/trace/profiling',
           usePath: true,
           // isBeta: window.platform?.te === false,
-          canStore: true
-        }
-      ]
+          canStore: true,
+        },
+      ],
     },
     {
       id: 'event',
       name: '告警事件',
       route: 'event-center',
-      canStore: true
+      canStore: true,
     },
     {
       id: 'scenes',
@@ -174,7 +174,7 @@ export const getRouteConfig = () => {
               id: 'uptime-check',
               path: '/uptime-check',
               href: '#/uptime-check',
-              canStore: true
+              canStore: true,
             },
             {
               name: 'APM',
@@ -185,9 +185,9 @@ export const getRouteConfig = () => {
               href: '#/apm/home',
               hidden: !window.enable_apm,
               // isBeta: window.platform?.te === false,
-              canStore: true
-            }
-          ]
+              canStore: true,
+            },
+          ],
         },
         {
           name: '主机&云平台',
@@ -201,7 +201,7 @@ export const getRouteConfig = () => {
               path: '/k8s',
               href: '#/k8s',
               // isBeta: window.platform?.te === false,
-              canStore: true
+              canStore: true,
             },
             {
               name: '主机监控',
@@ -209,9 +209,9 @@ export const getRouteConfig = () => {
               id: 'performance',
               path: '/performance',
               href: '#/performance',
-              canStore: true
-            }
-          ]
+              canStore: true,
+            },
+          ],
         },
         {
           name: '其他',
@@ -224,11 +224,11 @@ export const getRouteConfig = () => {
               id: 'custom-scenes',
               path: '/custom-scenes',
               href: '#/custom-scenes',
-              canStore: true
-            }
-          ]
-        }
-      ]
+              canStore: true,
+            },
+          ],
+        },
+      ],
     },
     {
       id: 'manager',
@@ -246,7 +246,7 @@ export const getRouteConfig = () => {
               id: 'strategy-config',
               path: '/strategy-config',
               href: '#/strategy-config',
-              canStore: true
+              canStore: true,
             },
             {
               name: '告警分派',
@@ -254,7 +254,7 @@ export const getRouteConfig = () => {
               id: 'alarm-dispatch',
               path: '/alarm-dispatch',
               href: '#/alarm-dispatch',
-              canStore: true
+              canStore: true,
             },
             {
               name: '告警组',
@@ -262,7 +262,7 @@ export const getRouteConfig = () => {
               id: 'alarm-group',
               path: '/alarm-group',
               canStore: true,
-              href: '#/alarm-group'
+              href: '#/alarm-group',
             },
             {
               name: '轮值',
@@ -270,7 +270,7 @@ export const getRouteConfig = () => {
               id: 'rotation',
               path: '/trace/rotation',
               canStore: true,
-              href: '#/trace/rotation'
+              href: '#/trace/rotation',
             },
             {
               name: '指标管理',
@@ -279,9 +279,9 @@ export const getRouteConfig = () => {
               path: '/metrics-manager',
               href: '#/metrics-manager',
               canStore: true,
-              hidden: true
-            }
-          ]
+              hidden: true,
+            },
+          ],
         },
         {
           name: '告警处理',
@@ -294,7 +294,7 @@ export const getRouteConfig = () => {
               id: 'alarm-shield',
               path: '/trace/alarm-shield',
               href: '#/trace/alarm-shield',
-              canStore: true
+              canStore: true,
             },
             {
               name: '处理套餐',
@@ -302,10 +302,25 @@ export const getRouteConfig = () => {
               id: 'set-meal',
               path: '/set-meal',
               href: '#/set-meal',
-              canStore: true
-            }
-          ]
+              canStore: true,
+            },
+          ],
         },
+        // {
+        //   name: '订阅管理',
+        //   shortName: '管理',
+        //   id: 'report-management',
+        //   children: [
+        //     {
+        //       name: '订阅配置',
+        //       icon: 'icon-monitor icon-mc-youjian menu-icon',
+        //       id: 'report',
+        //       path: '/trace/report',
+        //       href: '#/trace/report',
+        //       canStore: true
+        //     }
+        //   ]
+        // },
         window.enable_aiops
           ? {
               name: '智能设置',
@@ -318,12 +333,12 @@ export const getRouteConfig = () => {
                   id: 'ai-settings',
                   path: '/ai-settings',
                   href: '#/ai-settings',
-                  canStore: true
-                }
-              ]
+                  canStore: true,
+                },
+              ],
             }
-          : undefined
-      ].filter(Boolean)
+          : undefined,
+      ].filter(Boolean),
     },
     {
       id: 'integrated',
@@ -341,7 +356,7 @@ export const getRouteConfig = () => {
               id: 'plugin-manager',
               path: '/plugin-manager',
               href: '#/plugin-manager',
-              canStore: true
+              canStore: true,
             },
             {
               name: '告警源',
@@ -350,9 +365,9 @@ export const getRouteConfig = () => {
               path: '/fta/intergrations',
               href: '#/fta/intergrations',
               usePath: true,
-              canStore: true
-            }
-          ]
+              canStore: true,
+            },
+          ],
         },
         {
           name: '数据采集',
@@ -365,7 +380,7 @@ export const getRouteConfig = () => {
               id: 'collect-config',
               path: '/collect-config',
               href: '#/collect-config',
-              canStore: true
+              canStore: true,
             },
             {
               name: '自定义指标',
@@ -374,7 +389,7 @@ export const getRouteConfig = () => {
               path: '/custom-metric',
               href: '#/custom-metric',
               hidden: false,
-              canStore: true
+              canStore: true,
             },
             {
               name: '自定义事件',
@@ -382,9 +397,9 @@ export const getRouteConfig = () => {
               id: 'custom-event',
               path: '/custom-event',
               href: '#/custom-event',
-              canStore: true
-            }
-          ]
+              canStore: true,
+            },
+          ],
         },
         {
           name: '共享',
@@ -397,12 +412,12 @@ export const getRouteConfig = () => {
               id: 'export-import',
               path: '/export-import',
               href: '#/export-import',
-              canStore: true
-            }
-          ]
-        }
-      ]
-    }
+              canStore: true,
+            },
+          ],
+        },
+      ],
+    },
   ].filter(item => (process.env.APP === 'external' ? item.id === 'dashboard' : true));
   return routeConfig;
 };
@@ -443,7 +458,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             id: 'event-center',
             path: '/event-center',
             icon: 'icon-monitor icon-mc-alert',
-            name: '所有告警'
+            name: '所有告警',
           },
           {
             id: 'event-action',
@@ -451,11 +466,11 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             icon: 'icon-monitor icon-mc-event',
             query: {
               searchType: 'action',
-              activeFilterId: 'action'
+              activeFilterId: 'action',
             },
-            name: '处理记录'
-          }
-        ]
+            name: '处理记录',
+          },
+        ],
       };
     }
     if (item.id === 'dashboard') {
@@ -468,7 +483,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             id: 'grafana-home',
             path: '/grafana',
             href: '#/grafana',
-            canStore: true
+            canStore: true,
           },
           {
             name: '数据源管理',
@@ -476,7 +491,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             id: 'grafana-datasource',
             path: '/grafana/datasources',
             href: '#/grafana/datasources',
-            canStore: true
+            canStore: true,
           },
           {
             name: '邮件订阅',
@@ -485,7 +500,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             path: '/email-subscriptions',
             href: '#/email-subscriptions',
             hidden: false,
-            canStore: true
+            canStore: true,
           },
           {
             name: '发送历史',
@@ -494,9 +509,9 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             path: '/email-subscriptions/history',
             href: '#/email-subscriptions/history',
             hidden: false,
-            canStore: true
-          }
-        ]
+            canStore: true,
+          },
+        ],
       };
     }
     if (item.children?.length) {
@@ -504,8 +519,8 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
         ...item,
         children: item.children.reduce(
           (pre, cur) => (cur.children?.length ? [...pre, ...cur.children.filter(set => set.canStore)] : [...pre, cur]),
-          []
-        )
+          [],
+        ),
       };
     }
     return item;
@@ -513,7 +528,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
 COMMON_ROUTE_LIST.push({
   id: 'global-feature',
   name: '平台设置',
-  children: [...GLOAB_FEATURE_LIST]
+  children: [...GLOAB_FEATURE_LIST],
 });
 
 // 路由id是否存在于常用路由列表

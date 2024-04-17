@@ -38,7 +38,7 @@ import {
   IOtherData,
   ITipsDetail,
   IZoomRect,
-  RootId
+  RootId,
 } from 'monitor-ui/chart-plugins/typings/flame-graph';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
@@ -62,56 +62,56 @@ export default defineComponent({
   props: {
     data: {
       type: Object as () => BaseDataType,
-      default: () => {}
+      default: () => {},
     },
     appName: {
       type: String,
-      default: ''
+      default: '',
     },
     serviceName: {
       type: String,
-      default: ''
+      default: '',
     },
     diffTraceId: {
       type: String,
-      default: ''
+      default: '',
     },
     filterKeywords: {
       type: Array as () => string[],
-      default: () => [] as string[]
+      default: () => [] as string[],
     },
     textDirection: {
       type: String as () => 'ltr' | 'rtl',
-      default: 'ltr'
+      default: 'ltr',
     },
     profileId: {
       type: String,
-      default: ''
+      default: '',
     },
     start: {
       type: Number,
-      default: 0
+      default: 0,
     },
     end: {
       type: Number,
-      default: 0
+      default: 0,
     },
     bizId: {
       type: [Number, String],
-      default: ''
+      default: '',
     },
     showGraphTools: {
       type: Boolean,
-      default: true
+      default: true,
     },
     highlightId: {
       type: Number,
-      default: -1
+      default: -1,
     },
     isCompared: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
   setup(props, { emit, expose }) {
@@ -124,7 +124,7 @@ export default defineComponent({
       left: 0,
       top: 0,
       spanId: '',
-      spanName: ''
+      spanName: '',
     });
     const axisRect = shallowRef<IAxisRect>({ left: 0, bottom: 0, title: '', visibility: 'hidden' });
     const zoomRect = ref<IZoomRect>({ left: 0, width: 0 });
@@ -143,7 +143,7 @@ export default defineComponent({
       () => props.textDirection,
       () => {
         graphInstance?.setTextDirection(props.textDirection);
-      }
+      },
     );
     watch(
       [() => props.data, props.appName],
@@ -164,11 +164,11 @@ export default defineComponent({
                     start,
                     end,
                     profile_id: profileId,
-                    diagram_types: ['flamegraph']
+                    diagram_types: ['flamegraph'],
                   },
                   {
-                    needCancel: true
-                  }
+                    needCancel: true,
+                  },
                 ).catch(() => false)
               )?.diagrams?.flame_data ?? false;
 
@@ -234,7 +234,7 @@ export default defineComponent({
                     duration: text + suffix,
                     diffDuration,
                     diffValue,
-                    mark: d.data.diff_info?.mark
+                    mark: d.data.diff_info?.mark,
                   };
                 },
                 onContextMenu: (e: MouseEvent, d: HierarchyNode<BaseDataType>) => {
@@ -256,7 +256,7 @@ export default defineComponent({
                     top: svgRect.top - paddingLeft,
                     bottom: svgRect.bottom + paddingLeft,
                     title: text + suffix,
-                    visibility: axisLeft < svgRect.x || axisLeft > svgRect.width + svgRect.x ? 'hidden' : 'visible'
+                    visibility: axisLeft < svgRect.x || axisLeft > svgRect.width + svgRect.x ? 'hidden' : 'visible',
                   };
                 },
                 onMouseOut: () => {
@@ -290,9 +290,9 @@ export default defineComponent({
                   // }
                   // document.addEventListener('mousemove', mousemove);
                   // document.addEventListener('mouseup', mouseup);
-                }
+                },
               },
-              chartRef.value
+              chartRef.value,
             );
             setTimeout(() => {
               setSvgRect();
@@ -312,19 +312,19 @@ export default defineComponent({
           showException.value = true;
         }
       }),
-      { immediate: true, deep: true }
+      { immediate: true, deep: true },
     );
     watch(
       () => props.filterKeywords,
       () => {
         graphInstance?.filterGraph(props.filterKeywords);
-      }
+      },
     );
     watch(
       () => props.highlightId,
       () => {
         graphInstance?.highlightNodeId(props.highlightId);
-      }
+      },
     );
 
     onBeforeUnmount(() => {
@@ -342,7 +342,7 @@ export default defineComponent({
       const threads = [];
       return {
         main,
-        threads
+        threads,
       };
     }
     /**
@@ -351,7 +351,7 @@ export default defineComponent({
     function setSvgRect() {
       svgRect = chartRef.value.querySelector('svg').getBoundingClientRect();
       graphToolsRect.value = {
-        left: svgRect.x + 4
+        left: svgRect.x + 4,
       };
     }
     /**
@@ -469,7 +469,7 @@ export default defineComponent({
     };
 
     expose({
-      handleStoreImg
+      handleStoreImg,
     });
 
     return {
@@ -490,7 +490,7 @@ export default defineComponent({
       showLegend,
       handleShowLegend,
       diffPercentList,
-      localIsCompared
+      localIsCompared,
     };
   },
   render() {
@@ -538,7 +538,7 @@ export default defineComponent({
                   style={{
                     left: `${this.tipDetail.left}px`,
                     top: `${this.tipDetail.top + 16}px`,
-                    display: this.tipDetail.title ? 'block' : 'none'
+                    display: this.tipDetail.title ? 'block' : 'none',
                   }}
                 >
                   {this.tipDetail.title && [
@@ -550,7 +550,7 @@ export default defineComponent({
                           <th>{window.i18n.t('当前')}</th>
                           {this.tipDetail.id !== RootId && [
                             <th>{window.i18n.t('参照')}</th>,
-                            <th>{window.i18n.t('差异')}</th>
+                            <th>{window.i18n.t('差异')}</th>,
                           ]}
                         </thead>
                       )}
@@ -573,7 +573,7 @@ export default defineComponent({
                                 ) : (
                                   `${this.tipDetail.diffValue}%`
                                 )}
-                              </td>
+                              </td>,
                             ]}
                         </tr>
                       </tbody>
@@ -581,7 +581,7 @@ export default defineComponent({
                     <div class='tips-info'>
                       <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
                       {window.i18n.t('鼠标右键有更多菜单')}
-                    </div>
+                    </div>,
                   ]}
                 </div>
               </Teleport>
@@ -590,7 +590,7 @@ export default defineComponent({
                 style={{
                   left: `${this.contextMenuRect.left}px`,
                   top: `${this.contextMenuRect.top}px`,
-                  visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden'
+                  visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
                 }}
               >
                 {CommonMenuList.map(item => (
@@ -611,7 +611,7 @@ export default defineComponent({
                     left: `${this.axisRect.left || 0}px`,
                     top: `${this.axisRect.top || 0}px`,
                     bottom: `${this.axisRect.bottom || 0}px`,
-                    visibility: this.axisRect.visibility
+                    visibility: this.axisRect.visibility,
                   }}
                 >
                   <span class='axis-label'>{this.axisRect.title}</span>
@@ -621,7 +621,7 @@ export default defineComponent({
                 class='flame-graph-zoom'
                 style={{
                   left: `${this.zoomRect?.left || 0}px`,
-                  width: `${this.zoomRect?.width || 0}px`
+                  width: `${this.zoomRect?.width || 0}px`,
                 }}
               ></div>
               {/* <GraphTools
@@ -658,7 +658,7 @@ export default defineComponent({
                       <GraphTools
                         style={{
                           left: `${this.graphToolsRect.left}px`,
-                          display: this.graphToolsRect.left > 0 ? 'flex' : 'none'
+                          display: this.graphToolsRect.left > 0 ? 'flex' : 'none',
                         }}
                         class='topo-graph-tools'
                         scaleValue={this.scaleValue}
@@ -680,16 +680,16 @@ export default defineComponent({
                       >
                         <ViewLegend />
                       </div>
-                    )
+                    ),
                   }}
                 </Popover>
               ) : (
                 ''
               )}
-            </div>
-          ]
+            </div>,
+          ],
         }}
       </ResizeLayout>
     );
-  }
+  },
 });

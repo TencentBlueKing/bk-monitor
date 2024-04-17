@@ -152,20 +152,36 @@ class CacheCronJobCheck(CheckStep):
     def check(self):
         cache = Cache("cache")
         p_list = []
-        ttl = None
         # 1. cmdb
-        for k in cache.keys(f"{cache_key.KEY_PREFIX}.cache.cmdb*"):
-            ttl = cache.ttl(k)
-            if ttl and ttl < CMDBCacheManager.CACHE_TIMEOUT - 60 * 30:
-                # 30分钟未刷新
-                p = CMDBCacheCronError(f"key: {k}在30分钟内未刷新", self.story)
+        cmdb_cache_types = [
+            "host",
+            "service_instance",
+            "agent_id",
+            "host_ip",
+            "service_template",
+            "business",
+            "set_template",
+            "set",
+            "module",
+            "topo",
+            "host_to_service_instance_id",
+        ]
+        for cmdb_cache_type in cmdb_cache_types:
+            key = f"{cache_key.KEY_PREFIX}.cache.cmdb.{cmdb_cache_type}"
+            ttl = cache.ttl(key)
+
+            if not ttl:
+                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}未正常运行, key: {key}", self.story)
                 p_list.append(p)
-                break
-        if ttl is None:
-            p = CMDBCacheCronError("cmdb缓存任务未正常运行", self.story)
-            p_list.append(p)
-        else:
-            self.story.info("cmdb cron job executed {}s ago!".format(CMDBCacheManager.CACHE_TIMEOUT - ttl))
+                continue
+
+            last_cache_duration = CMDBCacheManager.CACHE_TIMEOUT - ttl
+            if last_cache_duration > 7200:
+                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}在2小时内未刷新, key: {key}", self.story)
+                p_list.append(p)
+                continue
+
+            self.story.info(f"cmdb cron job {cmdb_cache_type} executed {last_cache_duration}s ago!")
 
         # 2. strategy
         # 随机抽取一条策略缓存

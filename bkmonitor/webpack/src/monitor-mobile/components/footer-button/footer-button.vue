@@ -39,19 +39,18 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 import { Button } from 'vant';
-
 @Component({
   name: 'footer-button',
   components: {
-    [Button.name]: Button
-  }
+    [Button.name]: Button,
+  },
 })
 export default class AlarmFooterBtn extends Vue {
-  @Prop({ default: 'info' }) private type: string;
+  @Prop({ default: 'info' }) type: string;
 
-  @Prop({ default: false }) private disabled: boolean;
+  @Prop({ default: false }) disabled: boolean;
 
-  @Prop({ default: false }) private loading: boolean;
+  @Prop({ default: false }) loading: boolean;
 
   @Emit('click')
   handleAlarmCheck(e: Event) {
@@ -70,7 +69,7 @@ export default class AlarmFooterBtn extends Vue {
 
   :deep(button[disabled]) {
     background-color: #c4c6cc;
-    box-shadow: 0px 3px 6px 0px rgba(152, 154, 157, .3);
+    box-shadow: 0px 3px 6px 0px rgba(152, 154, 157, 0.3);
     opacity: 1;
   }
 
@@ -81,7 +80,7 @@ export default class AlarmFooterBtn extends Vue {
     width: calc(100vw - 32px);
     border: 0;
     border-radius: 4px;
-    box-shadow: 0px 2px 6px 0px rgba(96, 89, 79, .3);
+    box-shadow: 0px 2px 6px 0px rgba(96, 89, 79, 0.3);
   }
 }
 </style>

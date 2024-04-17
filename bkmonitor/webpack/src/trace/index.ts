@@ -32,7 +32,7 @@ import { createApp } from 'vue';
 import { Message } from 'bkui-vue';
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
-import * as serviceWorker from 'monitor-common/service-worker/service-wroker';
+import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import directives from './directive/index';
@@ -56,14 +56,14 @@ if (window.__POWERED_BY_BK_WEWEB__) {
   app.config.globalProperties = {
     $api: Api,
     $Message: Message,
-    $authorityStore: useAuthorityStore()
+    $authorityStore: useAuthorityStore(),
   } as any;
 } else {
   Api.model
     .enhancedContext({
       space_uid: spaceUid || undefined,
       bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
-      context_type: 'basic'
+      context_type: 'basic',
     })
     .then(data => {
       Object.keys(data).forEach(key => {
@@ -81,13 +81,13 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       app.config.globalProperties = {
         $api: Api,
         $Message: Message,
-        $authorityStore: useAuthorityStore()
+        $authorityStore: useAuthorityStore(),
       } as any;
       Api.model
         .enhancedContext({
           space_uid: spaceUid || undefined,
           bk_biz_id: window.bk_biz_id,
-          context_type: 'extra'
+          context_type: 'extra',
         })
         .then(data => {
           Object.keys(data).forEach(key => {
@@ -97,6 +97,6 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     })
     .catch(e => console.error(e))
     .finally(() => {
-      serviceWorker.immediateRegister();
+      immediateRegister();
     });
 }

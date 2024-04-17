@@ -24,8 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-nested-ternary */
-/* eslint-disable camelcase */
+
 import { TranslateResult } from 'vue-i18n';
 import { random } from 'monitor-common/utils/utils';
 
@@ -104,7 +103,7 @@ export enum MetricType {
   LOG = 'log',
   EVENT = 'event',
   ALERT = 'alert',
-  MultivariateAnomalyDetection = 'MultivariateAnomalyDetection'
+  MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
 }
 export class MetricDetail {
   alias?: string = '';
@@ -225,7 +224,7 @@ export class MetricDetail {
       const hasbizId = this.agg_dimension.includes('bk_biz_id');
       this.dimensions = metricDetail.dimensions.filter(
         item =>
-          (needBizId || hasbizId || item.id !== 'bk_biz_id') && (item.is_dimension || item.is_dimension === undefined)
+          (needBizId || hasbizId || item.id !== 'bk_biz_id') && (item.is_dimension || item.is_dimension === undefined),
       );
       this.rawDimensions = metricDetail.dimensions.filter(item => needBizId || hasbizId || item.id !== 'bk_biz_id');
     }
@@ -267,7 +266,7 @@ export class MetricDetail {
               ...condition,
               value: condition.value.map(num => {
                 return isNaN(num) || num === '' ? num : Number(num);
-              })
+              }),
             };
           }
           return condition;
@@ -458,7 +457,7 @@ export enum DetectionRuleTypeEnum {
   /** 部分节点数 */
   PartialNodes = 'PartialNodes',
   /** 同比区间 */
-  YearRoundRange = 'YearRoundRange'
+  YearRoundRange = 'YearRoundRange',
 }
 
 export interface IDetectionType {

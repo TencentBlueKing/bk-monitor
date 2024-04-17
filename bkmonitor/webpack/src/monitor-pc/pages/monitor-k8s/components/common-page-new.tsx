@@ -1,6 +1,3 @@
-/* eslint-disable max-len */
-/* eslint-disable no-nested-ternary */
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
@@ -67,7 +64,7 @@ import {
   PanelToolsType,
   SearchType,
   SPLIT_MAX_WIDTH,
-  SPLIT_MIN_WIDTH
+  SPLIT_MIN_WIDTH,
 } from '../typings';
 import { SETTINGS_POP_ZINDEX } from '../utils';
 
@@ -101,7 +98,7 @@ const DEFAULT_QUERY_DATA = {
   checkboxs: [], // 复选框过滤
   filter: '',
   sort: '',
-  filterDict: {}
+  filterDict: {},
 };
 
 interface ICommonPageProps {
@@ -136,8 +133,8 @@ export type ShowModeType = 'list' | 'dashboard' | 'default';
 @Component({
   components: {
     /** 视图设置异步组件 */
-    SettingsWrapper: () => import(/* webpackChunkName: "k8s-settings-wrapper" */ '../settings/settings')
-  }
+    SettingsWrapper: () => import(/* webpackChunkName: "k8s-settings-wrapper" */ '../settings/settings'),
+  },
 })
 export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEvent> {
   // 场景id
@@ -270,7 +267,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
   // 是否选中的是主机或者是服务实例
   get isCheckedHost() {
-    // eslint-disable-next-line max-len
     return !!this.localViewOptions.filters?.bk_target_ip || this.isCheckInstance;
   }
   /** 对比工具的可选项 */
@@ -300,7 +296,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
   /* 是否选中了服务实例 */
   get isCheckInstance() {
-    // eslint-disable-next-line max-len
     return (
       !!this.localViewOptions.filters?.[this.targetFields?.id] ||
       !!this.localViewOptions.filters?.bk_target_service_instance_id
@@ -332,7 +327,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       variables: this.variables,
       method: this.method,
       interval: this.interval,
-      compares: this.compares
+      compares: this.compares,
     };
   }
 
@@ -373,8 +368,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             name: row.title,
             children: row.panels?.map?.(panel => ({
               id: panel.id,
-              name: panel.title
-            }))
+              name: panel.title,
+            })),
           };
           total.push(item);
         } else if (mode === 'custom') {
@@ -384,14 +379,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             const item = {
               id: row.id,
               name: row.title,
-              children: []
+              children: [],
             };
             total.push(item);
           } else if (!!row.title) {
             const curGroup = total.find(group => group.id === curTagChartId);
             const child = {
               id: row.id,
-              name: row.title
+              name: row.title,
             };
             if (curGroup?.children) {
               curGroup.children.push(child);
@@ -429,7 +424,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         const { type, dimensions } = item;
         if (type === 'row') {
           /** 分组 */
-          // eslint-disable-next-line no-param-reassign
+
           item.panels = fn(item.panels);
           total.push(item);
         } else {
@@ -600,7 +595,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         if (typeof val === 'string' && /^-?[1-9]?[0-9]*[1-9]+$/.test(val)) {
           this[key] = +val;
         } else if (['from', 'to'].includes(key)) {
-          // eslint-disable-next-line no-nested-ternary
           // this[key] = Array.isArray(val) ? val : isNaN(+val) ? val : +val;
           key === 'from' && (this.timeRange[0] = val as string);
           key === 'to' && (this.timeRange[1] = val as string);
@@ -615,7 +609,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               sort = '',
               checkboxs = [],
               selectorSearch = [],
-              filterDict = {}
+              filterDict = {},
             } = JSON.parse(decodeURIComponent(val as string));
             this.queryData = {
               page,
@@ -626,7 +620,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               keyword,
               checkboxs,
               sort,
-              filterDict
+              filterDict,
             };
           } catch (error) {
             console.log(error);
@@ -670,12 +664,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   async getTabList(isInit?: boolean) {
     const params = {
       scene_id: this.sceneId,
-      type: this.localSceneType
+      type: this.localSceneType,
     };
     if (this.sceneId === 'apm_service') {
       // APM 服务视图需要增加参数区分类型 参数为 【filter-变量】
       const apmServiceParams = Object.keys(this.filters).reduce((pre, key) => {
-        // eslint-disable-next-line no-param-reassign
         pre[`apm_${key}`] = this.filters[key];
         return pre;
       }, {});
@@ -731,7 +724,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     let params = {
       scene_id: this.sceneId,
       type: this.localSceneType,
-      id: this.dashboardId
+      id: this.dashboardId,
     };
 
     /** 注入侧栏的变量 或 apm自定义服务变量 */
@@ -739,7 +732,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       const variablesService = new VariablesService(this.filters);
       params = {
         ...params,
-        ...variablesService.transformVariables(this.currentTabData?.params || {})
+        ...variablesService.transformVariables(this.currentTabData?.params || {}),
       };
     }
     const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
@@ -783,7 +776,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         indexStorage.set(INDEX_LIST_DEFAULT_CONFIG_KEY, {
           height: ASIDE_COLLAPSE_HEIGHT,
           placement: defaultIndexData?.placement || 'bottom',
-          expand: false
+          expand: false,
         });
       }
     }
@@ -880,7 +873,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         /** 切换为demo业务 */
         this.$store.commit('app/handleChangeBizId', {
           bizId: demo.id,
-          ctx: this
+          ctx: this,
         });
       }
     }
@@ -916,7 +909,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           zIndex: SETTINGS_POP_ZINDEX,
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => resolve(true),
-          cancelFn: () => reject(false)
+          cancelFn: () => reject(false),
         });
       });
       return !!res;
@@ -948,7 +941,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           panels.length &&
             list.push({
               ...panel,
-              panels
+              panels,
             });
         }
       });
@@ -965,7 +958,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     const mergeSearch = v.reduce((pre, cur) => {
       const item = pre[cur.id];
       if (!item) {
-        // eslint-disable-next-line no-param-reassign
         pre[cur.id] = deepClone(cur);
       } else {
         item.values = [...item.values, ...cur.values.filter(set => !item.values.some(child => child.id === set.id))];
@@ -986,13 +978,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               set =>
                 set.title?.includes?.(item.id) ||
                 set.subTitle?.includes(item.id) ||
-                set.id.toString()?.includes(item.id)
+                set.id.toString()?.includes(item.id),
             );
             const listPanels = listPanel?.panels || [];
             panels.length &&
               list.push({
                 ...panel,
-                panels: [...listPanels, ...panels.filter(item => !listPanels.some(set => set.id === item.id))]
+                panels: [...listPanels, ...panels.filter(item => !listPanels.some(set => set.id === item.id))],
               });
           }
           return false;
@@ -1012,9 +1004,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                 val =>
                   set.title?.includes?.(val.id) ||
                   set.subTitle?.includes?.(val.id) ||
-                  set.id.toString().includes(val.id)
-              )
-            )
+                  set.id.toString().includes(val.id),
+              ),
+            ),
           });
           return true;
         }
@@ -1099,10 +1091,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     return list.reduce((pre, cur) => {
       const temp = Object.entries(cur).reduce((total, curItem) => {
         const value = curItem[1];
-        // eslint-disable-next-line max-len
+
         return {
           ...total,
-          [curItem[0]]: (Array.isArray(value) ? !!value.length : !!String(value)) ? curItem[1] : undefined
+          [curItem[0]]: (Array.isArray(value) ? !!value.length : !!String(value)) ? curItem[1] : undefined,
         };
       }, {});
       return { ...pre, ...temp };
@@ -1118,7 +1110,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleFilterVarDataReady(list: FilterDictType[]) {
     /** 统计filter参与过滤的数量 */
     this.filterCount = list.reduce((len, cur) => {
-      // eslint-disable-next-line no-param-reassign
       Object.entries(cur).every(item => (Array.isArray(item[1]) ? !!item[1].length : item[1] !== '')) && (len += 1);
       return len;
     }, 0);
@@ -1133,7 +1124,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     const hasTarget = this.localViewOptions.compares?.targets?.length;
     /** 开启了groups筛选 | 含有目标对比 需要groug_by参数  目标对比时候 需要将group_by进行合集去重操作 */
     if (this.sceneData?.enableGroup || hasTarget) {
-      // eslint-disable-next-line max-len
       const targetGroupBy = hasTarget
         ? Object.keys(this.localViewOptions.compares?.targets?.[0] || {}).map(key => key)
         : [];
@@ -1149,31 +1139,30 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     let compareTargets = this.compareType === 'target' ? targets : [];
     const selectortTarget = this.sceneData?.selectorPanel?.targets?.[0];
     if (!!selectortTarget?.compareFieldsSort?.length) {
-      // eslint-disable-next-line max-len
       currentTarget = selectortTarget?.handleCreateFilterDictValue(
         this.filters,
         true,
-        selectortTarget.compareFieldsSort
+        selectortTarget.compareFieldsSort,
       );
-      // eslint-disable-next-line max-len
-      compareTargets = targets?.map(
-        item => selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
+
+      compareTargets = targets?.map(item =>
+        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort),
       );
     }
     const variables: Record<string, any> = {
       ...this.filters,
       ...this.variables,
       compare_targets: compareTargets?.map(item => this.resetHostFields(item)),
-      current_target: this.resetHostFields(currentTarget)
+      current_target: this.resetHostFields(currentTarget),
     };
     this.viewOptions = {
       // filter_dict: filterDict,
       ...variables,
       method: this.isEnableMethodSelect ? this.method : 'AVG',
-      // eslint-disable-next-line no-nested-ternary
+
       interval: this.interval || 'auto',
       group_by: this.group_by ? [...this.group_by] : [],
-      filters: this.filters
+      filters: this.filters,
     };
     this.handleResetRouteQuery();
   }
@@ -1233,8 +1222,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         timeOffset:
           this.compareType === 'time' && !!this.timeOffset.length
             ? encodeURIComponent(JSON.stringify(this.timeOffset))
-            : undefined /** 时间对比 */
-      }
+            : undefined /** 时间对比 */,
+      },
     });
   }
   /** 更新viewOptions的值 */
@@ -1339,7 +1328,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /** 处理跳转视图详情 */
   handleLinkToDetail(data: ITableItem<'link'>) {
     this.$router.replace({
-      path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${data.url}`.replace(/\/\//g, '/')
+      path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${data.url}`.replace(/\/\//g, '/'),
     });
     this.handleSetDefaultParams();
     this.handleTabChange(this.dashboardId);
@@ -1366,7 +1355,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       const [key, value] = item;
       if (this.toggleTabSearchFilterKeys.includes(key)) {
         total.push({
-          [key]: value
+          [key]: value,
         });
       }
       return total;
@@ -1398,7 +1387,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       keyword: '', // 清空搜索输入框
       filter: '', // 清空状态过滤
       sort: '', // 清空置顶排序
-      filterDict: {} // 清空表格表头过滤
+      filterDict: {}, // 清空表格表头过滤
     };
     if (this.localSceneType === 'overview') {
       if (item.id === 'cluster') {
@@ -1411,12 +1400,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     if (item.show_panel_count) {
       const data = await getSceneViewList({
         scene_id: this.sceneId,
-        type: this.localSceneType
+        type: this.localSceneType,
       }).catch(() => []);
       this.tabList.forEach(tab => {
         if (!!tab.panel_count) {
           const count = data.find(d => d.id === tab.id)?.panel_count || 0;
-          // eslint-disable-next-line no-param-reassign
+
           tab.panel_count = count;
         }
       });
@@ -1668,7 +1657,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                         {/* 主机树形组件 */}
                         {this.handleGetSelectPanel(contentHeight, width)}
                       </div>
-                    )
+                    ),
                   }}
                 ></CommonDetail>
               )}
@@ -1803,7 +1792,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   class='split-panel-wrapper'
                   style={{
                     width: `${this.splitPanelWidth}px`,
-                    display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none'
+                    display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
                   }}
                 >
                   {this.isSplitPanel ? (
@@ -1817,7 +1806,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                       onDragMove={this.handleDragMove}
                     />
                   ) : undefined}
-                </div>
+                </div>,
               ]}
             <keep-alive>
               {this.enableDetail && (
@@ -1863,7 +1852,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                 />
               )}
             </SettingModal>
-          ) : undefined
+          ) : undefined,
         ]}
       </div>
     );

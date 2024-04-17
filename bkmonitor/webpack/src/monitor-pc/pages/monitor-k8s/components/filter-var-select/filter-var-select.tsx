@@ -69,7 +69,7 @@ export interface IEvents {
 type LocalValue<T extends boolean> = T extends true ? Array<string | number> : string | number;
 
 @Component({
-  name: 'FilterVarSelect'
+  name: 'FilterVarSelect',
 })
 export default class FilterVarSelect extends tsc<IProps, IEvents> {
   /** 图表接口数据 */
@@ -251,7 +251,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.viewOptions.variables,
-        ...selectedVar
+        ...selectedVar,
       });
       let temp = variablesService.transformVariables(params);
       if (!!temp.where) {
@@ -266,7 +266,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       });
       return this.$api[item.apiModule]
         [item.apiFunc]({
-          ...temp
+          ...temp,
         })
         .then(res => res?.data || res || []);
     });
@@ -280,7 +280,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
               return {
                 ...item,
                 id,
-                name: item.name || item.ip || item.id
+                name: item.name || item.ip || item.id,
               };
             });
           if (!this.editable) {
@@ -342,7 +342,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
               content: this.panel.fieldsKey,
               zIndex: 9999,
               boundary: document.body,
-              allowHTML: false
+              allowHTML: false,
             }}
           >
             {this.label}

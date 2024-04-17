@@ -63,7 +63,7 @@ export default class SideSlider extends tsc<IEvent> {
   handleWidthChange(val: number) {
     const emitValue: IWidthValue = {
       val,
-      animation: this.enableAnimation
+      animation: this.enableAnimation,
     };
     return emitValue;
   }

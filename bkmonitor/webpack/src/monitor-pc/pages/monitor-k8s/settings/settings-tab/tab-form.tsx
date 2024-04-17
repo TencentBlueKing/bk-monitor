@@ -31,7 +31,7 @@ import { IBookMark, SettingsTabType } from '../../typings';
 import './tab-form.scss';
 
 interface ITabFormProps {
-  canAddTab: Boolean;
+  canAddTab: boolean;
   formData: SettingsTabType.ITabForm;
   bookMarkData: IBookMark[];
 }
@@ -59,7 +59,7 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
     id: '',
     name: '',
     // link: '',
-    show_panel_count: true
+    show_panel_count: true,
   };
 
   formRules = {};
@@ -72,7 +72,7 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
         {
           required: true,
           message: this.$t('输入页签名称'),
-          trigger: 'blur'
+          trigger: 'blur',
         },
         {
           validator: () => {
@@ -90,9 +90,9 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
             return false;
           },
           message: this.$t('注意: 名字冲突'),
-          trigger: 'blur'
-        }
-      ]
+          trigger: 'blur',
+        },
+      ],
     };
   }
 
@@ -136,8 +136,8 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
           {...{
             props: {
               model: this.localForm,
-              rules: this.formRules
-            }
+              rules: this.formRules,
+            },
           }}
         >
           <bk-form-item

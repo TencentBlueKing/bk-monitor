@@ -30,7 +30,7 @@ import {
   editCalendar,
   getParentItemList,
   getTimeZone,
-  listCalendar
+  listCalendar,
 } from 'monitor-api/modules/calendar';
 
 import CustomSelect from '../../components/custom-select/custom-select';
@@ -52,7 +52,7 @@ interface ITabListItem {
  * 日历服务
  */
 @Component
-export default class Calendar extends tsc<{}> {
+export default class Calendar extends tsc<object> {
   @Ref() calendarListRef: CalendarList;
   @Ref() calendarAddInputRef: CalendarAddInput;
   loading = false;
@@ -61,24 +61,24 @@ export default class Calendar extends tsc<{}> {
   tabList: ITabListItem[] = [
     {
       id: 'preview',
-      name: window.i18n.t('预览').toString()
+      name: window.i18n.t('预览').toString(),
     },
     {
       id: 'list',
-      name: window.i18n.t('事项列表').toString()
-    }
+      name: window.i18n.t('事项列表').toString(),
+    },
   ];
 
   /** 策兰日历列表渲染数据 */
   calendarList: ICalendarTypeListItem[] = [
     {
       title: window.i18n.t('日历列表').toString(),
-      list: []
+      list: [],
     },
     {
       title: window.i18n.t('内置日历').toString(),
-      list: []
-    }
+      list: [],
+    },
   ];
 
   /** 时区可选项数据 */
@@ -99,7 +99,7 @@ export default class Calendar extends tsc<{}> {
     show: false,
     id: null /** 日历id */,
     scheduleCount: 0 /** 日程数 */,
-    selectedId: null /** 选中的日历 */
+    selectedId: null /** 选中的日历 */,
   };
 
   /** 是否需要合并日历 */
@@ -145,7 +145,7 @@ export default class Calendar extends tsc<{}> {
     const data = await getTimeZone().catch(() => []);
     this.timeZoneOptions = data.map(item => ({
       id: item.time_zone,
-      name: item.name
+      name: item.name,
     }));
     return data;
   }
@@ -156,7 +156,7 @@ export default class Calendar extends tsc<{}> {
   async getCalendarList() {
     const params = {
       page: 1,
-      page_size: 1000
+      page_size: 1000,
     };
     const data = await listCalendar(params).catch(() => null);
     if (data) {
@@ -168,14 +168,14 @@ export default class Calendar extends tsc<{}> {
             id: item.id,
             name: item.name,
             checked: true,
-            color: item.deep_color
+            color: item.deep_color,
           });
         } else {
           defaultList.push({
             id: item.id,
             name: item.name,
             checked: true,
-            color: item.deep_color
+            color: item.deep_color,
           });
         }
       });
@@ -183,7 +183,7 @@ export default class Calendar extends tsc<{}> {
       this.calendarList[1].list = defaultList;
       this.calendarListTotal = [...customList].map(item => ({
         id: item.id,
-        name: item.name
+        name: item.name,
       }));
     }
   }

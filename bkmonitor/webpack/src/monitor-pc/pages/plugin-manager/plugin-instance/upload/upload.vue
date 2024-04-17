@@ -56,13 +56,13 @@
             <span class="name">{{ fileName }}</span>
             <div class="icon-wrapper">
               <span
-                v-show="progress === 100 || isEdit"
+                v-show="progress === 100"
                 @click="handleClearMainFile"
                 :class="['bk-icon', monitorIcon]"
               />
             </div>
             <div
-              v-show="fileName && progress !== 100 && !isEdit"
+              v-show="fileName && progress !== 100"
               class="progress-wrap"
             >
               <div :style="{ width: `${progress}%` }" />
@@ -94,7 +94,7 @@
           <input
             v-show="!item.fileName && !dependFileDisabled"
             type="file"
-            accept=".zip,.rar,.tar,.tgz,.tar.gz"
+            accept=".zip,.rar,.tar,.tgz"
             @change="e => handleDependSelectFile(e, item)"
           >
         </div>
@@ -116,7 +116,7 @@
                 <span
                   v-show="item.progress === 100"
                   v-bk-tooltips.top="item.toolTipsConf"
-                  @click="handelClearDependFile(ind)"
+                  @click="handelClearDependFile(item)"
                   :class="['bk-icon', dependFileIcon[ind]]"
                 />
               </div>
@@ -141,9 +141,9 @@
         width="280"
         theme="light"
         trigger="click"
-        :disabled="!fileTree.length"
+        :disabled="!treeData.length"
       >
-        <span :class="{ 'preview-btn': true, 'disabled': !fileTree.length }">{{ $t('预览') }}</span>
+        <span :class="{ 'preview-btn': true, 'disabled': !treeData.length }">{{ $t('预览') }}</span>
         <div
           style="background-color: #f5f7fa"
           slot="content"
@@ -193,6 +193,8 @@ export default {
     return {
       fileName: '',
       fileDesc: null,
+      /** 主文件 */
+      fileTree: null,
       showClearIcon: false,
       progress: 0,
       toolTipsConf: {
@@ -200,8 +202,7 @@ export default {
         disable: true
       },
       dependFileDisabled: true,
-      dependFile: [],
-      fileTree: []
+      dependFile: []
     };
   },
   computed: {
@@ -215,10 +216,10 @@ export default {
       if (this.toolTipsConf.content) {
         return 'icon-close error-icon';
       }
-      if ((this.progress === 100 || this.isEdit) && !this.showClearIcon) {
+      if (this.progress === 100 && !this.showClearIcon) {
         return 'check-icon';
       }
-      if ((this.progress === 100 || this.isEdit) && this.showClearIcon) {
+      if (this.progress === 100 && this.showClearIcon) {
         return 'icon-close-circle-shape clear-icon';
       }
       return '';
@@ -228,10 +229,10 @@ export default {
         if (item.toolTipsConf.content) {
           return 'icon-close error-icon';
         }
-        if ((item.progress === 100 || this.isEdit) && !item.showClearIcon) {
+        if (item.progress === 100 && !item.showClearIcon) {
           return 'check-icon';
         }
-        if ((item.progress === 100 || this.isEdit) && item.showClearIcon) {
+        if (item.progress === 100 && item.showClearIcon) {
           return 'icon-close-circle-shape clear-icon';
         }
         return '';
@@ -250,7 +251,8 @@ export default {
           return res;
         });
       }
-      return setId(this.fileTree);;
+
+      return setId([this.fileTree, ...this.dependFile.map(item => item.fileTree)].filter(item => item));
     }
   },
   watch: {
@@ -280,6 +282,7 @@ export default {
         progress: data ? 100 : 0,
         fileDesc: data || null,
         showClearIcon: false,
+        fileTree: data?.fileTree || null,
         toolTipsConf: {
           content: '',
           disable: true
@@ -291,20 +294,20 @@ export default {
     handleClearMainFile() {
       this.fileName = '';
       this.fileDesc = null;
+      this.fileTree = null;
       this.progress = 0;
       this.toolTipsConf.content = '';
       this.toolTipsConf.disable = true;
       this.dependFileDisabled = true;
-      this.fileTree = [];
       this.handelClearDependFile();
     },
 
     /** 清除依赖文件 */
-    handelClearDependFile(ind) {
-      if (ind === undefined) {
+    handelClearDependFile(item) {
+      if (!item) {
         this.dependFile = [this.initDependFileData()];
       } else {
-        this.fileTree = this.fileTree.filter(item => item.name !== this.dependFile[ind].fileName);
+        const ind = this.dependFile.findIndex(dep => dep === item);
         this.dependFile.splice(ind, 1);
       }
     },
@@ -312,10 +315,12 @@ export default {
     setFileData(v) {
       // eslint-disable-next-line camelcase
       if (v?.file_name) {
-        this.fileDesc = v;
-        this.fileName = v.file_name;
+        const { dependFile, ...info } = v;
+        this.fileDesc = info;
+        this.fileName = info.file_name;
+        this.progress = 100;
         this.dependFileDisabled = false;
-        v.dependFile.length && (this.dependFile = v.dependFile.map(item => this.initDependFileData(item)));
+        dependFile.length && (this.dependFile = dependFile.map(item => this.initDependFileData(item)));
       }
     },
     handleMouseOver(type, ind) {
@@ -353,6 +358,7 @@ export default {
       }, t);
     },
 
+    /** 主文件上传 */
     handleSelectFile(e) {
       if (!e.target.files.length) return;
       const file = e.target.files[0];
@@ -373,6 +379,7 @@ export default {
       } else {
         params.plugin_type = 'Exporter';
       }
+      // 开始计算主文件进度条
       this.handleProgress('main');
       ajax(params)
         .then((data) => {
@@ -385,7 +392,7 @@ export default {
             this.fileDesc.datadog_check_name = data.datadog_check_name;
           }
           if (data.file_tree) {
-            this.fileTree = [data.file_tree];
+            this.fileTree = data.file_tree;
           }
           this.$emit('change', data.datadog_check_name || '');
           this.$emit('yaml', data.config_yaml || '', this.system);
@@ -416,6 +423,13 @@ export default {
       if (this.dependFile.every(item => item.fileName)) {
         this.dependFile.push(this.initDependFileData());
       }
+      if (this.dependFile.some(dep => dep.fileName === item.fileName && dep !== item)) {
+        item.progress = 100;
+        item.toolTipsConf.content = this.$t('文件名重复不能上传');
+        item.toolTipsConf.disable = false;
+        e.target.value = '';
+        return;
+      }
       this.handleProgress('depend', item);
       const params = {
         file_data: file,
@@ -434,7 +448,7 @@ export default {
             file_id: data.file_id,
             md5: data.file_md5 || data.md5
           };
-          data.file_tree && this.fileTree.push(data.file_tree);
+          item.fileTree = data.file_tree || null;
           const timer = setTimeout(() => {
             item.progress = 100;
             setTimeout(timer);

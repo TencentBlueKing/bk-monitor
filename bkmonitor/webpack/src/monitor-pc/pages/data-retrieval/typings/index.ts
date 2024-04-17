@@ -429,7 +429,7 @@ export declare namespace FieldFilteringType {
     string = 'string',
     number = 'number',
     text = 'text',
-    date = 'date'
+    date = 'date',
   }
   interface IFieldValue {
     id: string;
@@ -477,7 +477,7 @@ export class FieldValue {
     this.dimensions = data.dimensions?.map(item => ({
       id: item.value,
       count: item.number,
-      percent: item.percentage
+      percent: item.percentage,
     }));
   }
 }

@@ -58,15 +58,17 @@ interface INavToolsEvents {
   // #if APP !== 'external'
   components: {
     GlobalConfig: () => import(/* webpackChunkName: "global-config" */ '../pages/global-config') as any,
-    HealthZ: () => import(/* webpackChunkName: "healthz" */ '../pages/healthz/healthz.vue') as any,
+    HealthZ: () => import(/* webpackChunkName: "healthz" */ '../pages/healthz-new/healthz-alarm') as any,
     MigrateDashboard: () =>
       import(/* webpackChunkName: 'MigrateDashboard' */ '../pages/migrate-dashboard/migrate-dashboard.vue') as any,
     ResourceRegister: () =>
       import(/* webpackChunkName: 'ResourceRegister' */ '../pages/resource-register/resource-register') as any,
     DataPipeline: () => import(/* webpackChunkName: 'DataPipeline' */ '../pages/data-pipeline/data-pipeline') as any,
     SpaceManage: () => import(/* webpackChunkName: 'SpaceManage' */ './space-manage/space-manage') as any,
-    GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any
-  }
+    GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any,
+    MyApply: () => import(/* webpackChunkName: 'MyApply' */ './my-apply/my-apply') as any,
+    MySubscription: () => import(/* webpackChunkName: 'MySubscription' */ './my-subscription/my-subscription') as any,
+  },
   // #endif
 } as any)
 class NavTools extends DocumentLinkMixin {
@@ -81,12 +83,26 @@ class NavTools extends DocumentLinkMixin {
   settingTitle = '';
   defauleSearchPlaceholder = `${this.$t('全站搜索')} Ctrl + k`;
   globalSearchPlaceholder = this.defauleSearchPlaceholder;
+  isShowMyApplyModal = false;
+  isShowMyReportModal = false;
 
   // 全局弹窗在路由变化时需要退出
   @Watch('$route.name')
   async handler() {
     this.$emit('change', false);
     this.globalSearchShow = false;
+    this.isShowMyReportModal = false;
+    this.isShowMyApplyModal = false;
+  }
+
+  /** 20231226 暂不使用 */
+  /** vue-router 加载时间过长，导致没法直接在 mounted 中判断，故通过监听的方式去控制 我的订阅 弹窗是否打开 */
+  @Watch('$route.query')
+  handleQueryChange() {
+    // 从 日志平台 跳转过来时会通过 url 参数开启 我的订阅 弹窗。
+    if (this.$route.query.isShowMyReport) {
+      this.isShowMyReportModal = this.$route.query.isShowMyReport === 'true';
+    }
   }
 
   created() {
@@ -94,31 +110,31 @@ class NavTools extends DocumentLinkMixin {
       {
         id: 'DOCS',
         name: this.$t('产品文档').toString(),
-        href: ''
+        href: '',
       },
       {
         id: 'VERSION',
-        name: this.$t('版本日志').toString()
+        name: this.$t('版本日志').toString(),
       },
       {
         id: 'FAQ',
         name: this.$t('问题反馈').toString(),
-        href: window.ce_url
-      }
+        href: window.ce_url,
+      },
     ];
     this.setList = GLOAB_FEATURE_LIST.map(({ name, ...args }) => ({
       name: `route-${name}`,
-      ...args
+      ...args,
     }));
     this.languageList = [
       {
         id: 'zh-cn',
-        name: '中文'
+        name: '中文',
       },
       {
         id: 'en',
-        name: 'English'
-      }
+        name: 'English',
+      },
     ];
   }
   mounted() {
@@ -216,16 +232,16 @@ class NavTools extends DocumentLinkMixin {
       item.id,
       undefined,
       '/',
-      `${window.bk_domain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, '')}`
+      `${window.bk_domain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, '')}`,
     );
     if (window.bk_component_api_url) {
       useJSONP(
         `${window.bk_component_api_url}/api/c/compapi/v2/usermanage/fe_update_user_language`.replace(/\/\//, '/'),
         {
           data: {
-            language: item.id
-          }
-        }
+            language: item.id,
+          },
+        },
       ).finally(() => {
         location.reload();
       });
@@ -303,7 +319,7 @@ class NavTools extends DocumentLinkMixin {
             offset='-10, 4'
             placement='bottom-start'
             tippy-options={{
-              trigger: 'click'
+              trigger: 'click',
             }}
           >
             <div class='header-help'>
@@ -332,7 +348,7 @@ class NavTools extends DocumentLinkMixin {
           offset='-10, 4'
           placement='bottom-start'
           tippy-options={{
-            trigger: 'click'
+            trigger: 'click',
           }}
         >
           <div class='header-language'>
@@ -378,7 +394,7 @@ class NavTools extends DocumentLinkMixin {
             offset='-10, 4'
             placement='bottom-start'
             tippy-options={{
-              trigger: 'click'
+              trigger: 'click',
             }}
           >
             <div class='header-help'>
@@ -403,7 +419,7 @@ class NavTools extends DocumentLinkMixin {
         <div
           class={{
             'header-user is-left': true,
-            'is-external': process.env.APP === 'external'
+            'is-external': process.env.APP === 'external',
           }}
         >
           <bk-popover
@@ -414,7 +430,7 @@ class NavTools extends DocumentLinkMixin {
             placement='bottom'
             disabled={process.env.APP === 'external'}
             tippy-options={{
-              trigger: 'click'
+              trigger: 'click',
             }}
           >
             <span class='header-user-text'>{window.user_name || window.username}</span>
@@ -422,6 +438,30 @@ class NavTools extends DocumentLinkMixin {
             <div slot='content'>
               {process.env.APP !== 'external' && (
                 <ul class='monitor-navigation-help'>
+                  {/* <li
+                    class='nav-item'
+                    onClick={() => {
+                      this.isShowMyReportModal = false;
+                      this.isShowMyApplyModal = true;
+                      this.$nextTick(() => {
+                        (this.$refs.popoveruser as any)?.hideHandler?.();
+                      });
+                    }}
+                  >
+                    {this.$t('我申请的')}
+                  </li>
+                  <li
+                    class='nav-item'
+                    onClick={() => {
+                      this.isShowMyApplyModal = false;
+                      this.isShowMyReportModal = true;
+                      this.$nextTick(() => {
+                        (this.$refs.popoveruser as any)?.hideHandler?.();
+                      });
+                    }}
+                  >
+                    {this.$t('我的订阅')}
+                  </li> */}
                   <li
                     class='nav-item'
                     onClick={this.handleQuit}
@@ -459,10 +499,36 @@ class NavTools extends DocumentLinkMixin {
                   onChange={this.handleGlobalSearchShowChange}
                 ></GlobalSearchModal>
               )}
-            </keep-alive>
+            </keep-alive>,
           ]
           // #endif
         }
+
+        {this.isShowMyApplyModal && (
+          <SettingModal
+            title={this.$t('我申请的').toString()}
+            show={this.isShowMyApplyModal}
+            zIndex={2000}
+            onChange={v => {
+              this.isShowMyApplyModal = v;
+            }}
+          >
+            <my-apply />
+          </SettingModal>
+        )}
+
+        {this.isShowMyReportModal && (
+          <SettingModal
+            title={this.$t('我的订阅').toString()}
+            show={this.isShowMyReportModal}
+            zIndex={2000}
+            onChange={v => {
+              this.isShowMyReportModal = v;
+            }}
+          >
+            <my-subscription />
+          </SettingModal>
+        )}
       </div>
     );
   }
