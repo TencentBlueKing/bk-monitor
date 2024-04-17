@@ -1120,6 +1120,17 @@ export default {
 .finger-container {
   position: relative;
 
+  .monospace-text,
+  %monospace-text {
+    font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  .monospace-text {
+    color: #313238;
+  }
+
   .auto-height-container {
     padding: 6px 0 6px;
   }
@@ -1194,6 +1205,8 @@ export default {
         line-height: 24px;
         text-overflow: ellipsis;
         white-space: nowrap;
+
+        @extend %monospace-text;
       }
     }
 
@@ -1273,13 +1286,6 @@ export default {
       color: #3a84ff;
       cursor: pointer;
     }
-
-    .monospace-text {
-      font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
-      font-size: 13px;
-      line-height: 20px;
-      color: #313238;
-    }
   }
 }
 
@@ -1323,6 +1329,8 @@ export default {
 .link-color {
   color: #3a84ff;
   cursor: pointer;
+
+  @extend %monospace-text;
 }
 
 .icon-arrows-down {

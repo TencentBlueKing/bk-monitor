@@ -338,13 +338,13 @@ export default {
       }
 
       .origin-str {
-        line-height: 22px;
+        line-height: 20px;
         color: #313238;
       }
 
       .show-whole-btn {
         position: absolute;
-        top: 88px;
+        top: 84px;
         width: 100%;
         height: 24px;
         font-size: 12px;
@@ -386,7 +386,7 @@ export default {
       }
 
       &.is-wrap .cell {
-        padding: 10px 14px;
+        padding: 10px 14px 8px;
       }
     }
 
