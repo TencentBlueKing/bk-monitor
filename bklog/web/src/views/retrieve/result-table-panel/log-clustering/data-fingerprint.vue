@@ -1122,8 +1122,8 @@ export default {
 
   .monospace-text,
   %monospace-text {
-    font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
-    font-size: 13px;
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
     line-height: 20px;
   }
 
@@ -1236,10 +1236,10 @@ export default {
       }
     }
 
-    .pattern {
-      display: flex;
-      align-items: center;
-    }
+    // .pattern {
+    // display: flex;
+    // align-items: center;
+    // }
 
     .pattern-content {
       position: relative;

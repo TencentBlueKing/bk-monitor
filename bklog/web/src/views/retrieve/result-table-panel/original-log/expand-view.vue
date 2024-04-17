@@ -154,9 +154,9 @@ export default {
     background-color: #fafbfd;
 
     :deep(.vjs-tree) {
-      font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+      font-family: var(--table-fount-family);
       /* stylelint-disable-next-line declaration-no-important */
-      font-size: 13px !important;
+      font-size: var(--table-fount-size) !important;
 
       .vjs-value__string,
       .vjs-value__number {

@@ -398,9 +398,9 @@ export default {
     }
 
     .field-value {
-      font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
-      font-size: 13px;
-      color: #313238;
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
+      color: var(--table-fount-color);
       word-break: break-all;
     }
 
