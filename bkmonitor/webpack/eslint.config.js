@@ -5,33 +5,9 @@ const typescriptEslintParser = require('@typescript-eslint/parser');
 const codecc = require('eslint-plugin-codecc');
 const eslintVueParser = require('vue-eslint-parser');
 const perfectionist = require('eslint-plugin-perfectionist');
-const simpleImportSort = require('eslint-plugin-simple-import-sort');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
 // const tencentEslintBaseRules = require('eslint-config-tencent/base').rules;
-const importSortRules = {
-  // 'simple-import-sort/exports': 'error',
-  // 'simple-import-sort/imports': [
-  //   'error',
-  //   {
-  //     groups: [
-  //       // System packages
-  //       [
-  //         '^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib|freelist|v8|process|async_hooks|http2|perf_hooks)(/.*|$)',
-  //       ],
-  //       // Vue & external packages
-  //       ['^vue', '^@?\\w'],
-  //       // Internal packages
-  //       ['^(@|@company|@ui|components|utils|config|vendored-lib)(/.*|$)'],
-  //       ['^\\u0000'], // Side effect imports
-  //       ['^\\.\\.(?!/?$)', '^\\.\\./?$'], // Parent imports
-  //       ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'], // Other relative imports
-  //       ['^.+\\.s?css$'], // Style imports
-  //     ],
-  //   },
-  // ],
-};
-
 // Deprecate formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
 const deprecateRules = Object.fromEntries(
   [
@@ -303,7 +279,6 @@ module.exports = [
     plugins: {
       '@typescript-eslint': typescriptEslint,
       codecc,
-      'simple-import-sort': simpleImportSort,
     },
     rules: {
       'codecc/license': [
@@ -373,7 +348,6 @@ module.exports = [
     plugins: {
       '@typescript-eslint': typescriptEslint,
       vue: eslintVuePlugin,
-      'simple-import-sort': simpleImportSort,
     },
     rules: {
       ...recommendedVue2Config.rules,

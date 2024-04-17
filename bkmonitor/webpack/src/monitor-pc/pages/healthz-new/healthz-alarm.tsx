@@ -141,8 +141,7 @@ export default class HealthzAlarm extends tsc<object> {
             </bk-checkbox-group>
           </bk-form-item>
           <bk-form-item
-            class='member-item'
-            class='healthz-alarm-role'
+            class='member-item healthz-alarm-role'
             error-display-type='normal'
             label={this.$t('通知人员')}
             property='alarm_role'
