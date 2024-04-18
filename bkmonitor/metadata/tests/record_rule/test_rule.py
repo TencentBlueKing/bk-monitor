@@ -47,3 +47,18 @@ def test_get_src_table_ids(create_and_delete_record, mocker):
     mocker.patch("metadata.models.record_rule.rules.get_space_table_id_data_id", return_value={TABLE_ID: 1})
     vm_rts = RecordRule.get_src_table_ids(space_type=SPACE_TYPE, space_id=SPACE_ID, metrics=[TABLE_FIELD_NAME])
     assert {TABLE_ID} == set(vm_rts)
+
+
+@pytest.mark.parametrize(
+    "table_id, dst_table_id",
+    [
+        ("test", "0_test"),
+        ("test.demo", "0_test_demo"),
+        (
+            "test111111111111111111111111111111111111111111111111111111111111.demo",
+            "0_11111111111111111111111111111111111_demo",
+        ),
+    ],
+)
+def test_get_dst_table_id(table_id, dst_table_id):
+    assert RecordRule.get_dst_table_id(table_id) == dst_table_id

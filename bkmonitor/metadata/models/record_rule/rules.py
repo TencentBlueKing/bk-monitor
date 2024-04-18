@@ -159,7 +159,7 @@ class ResultTableFlow(BaseModelWithTime):
         except RecordRule.DoesNotExist:
             logger.error("table_id: %s not found record rule", table_id)
             return {}
-        dedicated_config = {"sql_list": [rule_record.bk_sql_config]}
+        dedicated_config = {"sql_list": rule_record.bk_sql_config}
         name = utils.compose_rule_table_id(table_id)
         return {
             "id": len(from_result_table_ids) + 1,

@@ -45,7 +45,18 @@ def create_and_delete_record():
         bk_base_data_id=1,
         vm_result_table_id=TABLE_ID,
     )
+    models.RecordRule.objects.create(
+        space_type=SPACE_TYPE,
+        space_id=SPACE_ID,
+        table_id=TABLE_ID,
+        record_name="test_demo",
+        rule_config="",
+        bk_sql_config=[],
+        vm_cluster_id=1,
+        dst_vm_table_id="2_test_demo",
+    )
     yield
+    models.RecordRule.objects.filter(space_type=SPACE_TYPE, space_id=SPACE_ID, table_id=TABLE_ID).delete()
     models.AccessVMRecord.objects.filter(result_table_id=TABLE_ID).delete()
     models.ResultTableField.objects.filter(table_id=TABLE_ID).delete()
     models.ResultTable.objects.filter(table_id=TABLE_ID).delete()
