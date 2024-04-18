@@ -13,9 +13,15 @@ from enum import Enum
 
 # 默认的间隔, 默认为60秒
 DEFAULT_EVALUATION_INTERVAL = "60s"
+DEFAULT_RULE_TYPE = "prometheus"
 
-# 请求计算平台指标名的后缀
-DEFAULT_METRIC_NAME_SUFFIX = "_value"
+
+class RecordRuleStatus(Enum):
+    """预计算状态"""
+
+    CREATED = "created"
+    RUNNING = "running"
+    DELETED = "deleted"
 
 
 class BkDataFlowStatus(Enum):

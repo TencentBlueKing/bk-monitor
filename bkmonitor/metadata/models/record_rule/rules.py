@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 import re
 from typing import Dict, List, Set, Union
@@ -19,22 +20,33 @@ from django.db import models
 
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.time_format import parse_duration
+from core.drf_resource import api
+from core.errors.api import BKAPIError
 from metadata.models.common import BaseModelWithTime
 from metadata.models.record_rule import utils
 from metadata.models.record_rule.constants import (
     DEFAULT_EVALUATION_INTERVAL,
+    DEFAULT_RULE_TYPE,
     BkDataFlowStatus,
 )
+from metadata.models.space.ds_rt import get_space_table_id_data_id
 
 logger = logging.getLogger("metadata")
 
 
 class RecordRule(BaseModelWithTime):
+    space_type = models.CharField("空间类型", max_length=64)
+    space_id = models.CharField("空间ID", max_length=128)
     table_id = models.CharField("结果表名", max_length=128)
     record_name = models.CharField("预计算名称", max_length=128)
-    rule_type = models.CharField("规则类型", max_length=32, default="prometheus")
+    rule_type = models.CharField("规则类型", max_length=32, default=DEFAULT_RULE_TYPE)
     rule_config = JsonField("原始规则配置", null=True, blank=True)
     bk_sql_config = JsonField("转换后的SQL配置", null=True, blank=True)
+    rule_metrics = JsonField("转换后的指标信息", default=[])
+    src_vm_table_ids = JsonField("源数据VM结果表列表", default=[])
+    vm_cluster_id = models.IntegerField("集群ID", null=True, blank=True)
+    dst_vm_table_id = models.CharField("VM 结果表rt", max_length=64, help_text="VM 结果表rt")
+    status = models.CharField("状态", max_length=32, default="created")
 
     class Meta:
         verbose_name = "预计算规则"
@@ -51,8 +63,8 @@ class RecordRule(BaseModelWithTime):
         # 获取所有的record
         all_rule_record = [rule["record"] for rule in rules]
         # 如果没有设置interval，则使用默认值
-        interval = rules.get("interval") or DEFAULT_EVALUATION_INTERVAL
-        bksql_list, metrics = [], set()
+        interval = rule_dict.get("interval") or DEFAULT_EVALUATION_INTERVAL
+        bksql_list, metrics, rule_metrics = [], set(), set()
         for rule in rules:
             expr = rule.get("expr")
             if not expr:
@@ -60,34 +72,30 @@ class RecordRule(BaseModelWithTime):
 
             _expr = re.sub(r"#.*", "", expr)
             sql_and_metrics = utils.refine_bk_sql_and_metrics(_expr, all_rule_record)
+            rule_metric = utils.transform_record_to_metric_name(rule["record"])
+            rule_metrics.add(rule_metric)
             bksql_list.append(
                 {
                     "count_freq": parse_duration(interval),
-                    "sql": sql_and_metrics["bksql"],
-                    "metric_name": utils.transform_record_to_metric_name(rule["record"]),
+                    "sql": sql_and_metrics["promql"],
+                    "metric_name": rule_metric,
                 }
             )
             metrics.update(sql_and_metrics["metrics"])
-        return {"bksql": bksql_list, "metrics": metrics}
+        return {"bksql": bksql_list, "metrics": metrics, "rule_metrics": rule_metrics}
 
     @classmethod
     def get_src_table_ids(cls, space_type: str, space_id: str, metrics: Union[List, Set]) -> List:
         """获取源结果表列表"""
         # 通过指标和所属空间，查询需要预计算的结果表
         # 获取空间所在记录的ID
-        from metadata.models import AccessVMRecord, ResultTable, ResultTableField, Space
+        from metadata.models import AccessVMRecord, ResultTableField
 
-        id = Space.objects.get_biz_id_by_space(space_type, space_id)
-        # 获取空间下的结果表列表
-        table_ids = list(
-            ResultTable.objects.filter(
-                bk_biz_id=id, default_storage_type="influxdb", is_enable=True, is_deleted=False
-            ).values_list("table_id", flat=True)
-        )
+        tid_data_ids = get_space_table_id_data_id(space_type=space_type, space_id=space_id)
         # 过滤指标
         # 项目下可用结果表不会太多
         table_ids = list(
-            ResultTableField.objects.filter(table_id__in=table_ids, field_name__in=metrics).values_list(
+            ResultTableField.objects.filter(table_id__in=list(tid_data_ids.keys()), field_name__in=metrics).values_list(
                 "table_id", flat=True
             )
         )
@@ -97,9 +105,9 @@ class RecordRule(BaseModelWithTime):
         )
 
     @classmethod
-    def get_dst_table_id(cls) -> str:
+    def get_dst_table_id(cls, table_id: str) -> str:
         """获取要写入的结果表"""
-        pass
+        return f"{settings.DEFAULT_BKDATA_BIZ_ID}_{utils.compose_rule_table_id(table_id)}"
 
 
 class ResultTableFlow(BaseModelWithTime):
@@ -117,10 +125,10 @@ class ResultTableFlow(BaseModelWithTime):
     @classmethod
     def compose_flow_name(cls, table_id: str) -> str:
         """组装计算流程名称"""
-        pass
+        return utils.compose_rule_table_id(table_id)
 
     @classmethod
-    def compose_source_node(cls, table_id: str, vm_table_ids: List) -> Dict:
+    def compose_source_node(cls, vm_table_ids: List) -> List:
         """组装计算配置"""
         nodes = []
         # 组装源节点
@@ -129,10 +137,109 @@ class ResultTableFlow(BaseModelWithTime):
                 {
                     "id": index + 1,
                     "node_type": "stream_source",
-                    "bk_biz_name": "2005000727",
+                    "bk_biz_name": f"{settings.DEFAULT_BKDATA_BIZ_ID}",
                     "bk_biz_id": settings.BK_DATA_BK_BIZ_ID,
                     "result_table_id": tid,
                     "name": tid,
                     "from_result_table_ids": [tid],
                 }
             )
+        return nodes
+
+    @classmethod
+    def compose_process_node(cls, table_id: str, vm_table_ids: List) -> Dict:
+        """组装计算配置"""
+        from_result_table_ids, from_nodes = [], []
+        for index, tid in enumerate(vm_table_ids):
+            from_result_table_ids.append(tid)
+            from_nodes.append({"id": index + 1, "from_result_table_ids": [tid]})
+        # 获取bksql计算配置
+        try:
+            rule_record = RecordRule.objects.get(table_id=table_id)
+        except RecordRule.DoesNotExist:
+            logger.error("table_id: %s not found record rule", table_id)
+            return {}
+        dedicated_config = {"sql_list": [rule_record.bk_sql_config]}
+        name = utils.compose_rule_table_id(table_id)
+        return {
+            "id": len(from_result_table_ids) + 1,
+            "name": name,
+            "node_type": "promql_v2",
+            "outputs": [
+                {"bk_biz_id": settings.DEFAULT_BKDATA_BIZ_ID, "fields": [], "output_name": name, "table_name": name}
+            ],
+            "from_result_table_ids": from_result_table_ids,
+            "dedicated_config": dedicated_config,
+            "from_nodes": from_nodes,
+            "serving_mode": "realtime",
+        }
+
+    @classmethod
+    def compose_vm_storage(cls, table_id: str, process_id: int) -> Dict:
+        """组装存储配置"""
+        from metadata.models.vm import utils as vm_utils
+
+        rt_name = RecordRule.get_dst_table_id(table_id)
+        rt_obj = RecordRule.objects.get(table_id=table_id)
+        vm_info = vm_utils.get_vm_cluster_id_name(space_type=rt_obj.space_type, space_id=rt_obj.space_id)
+        return {
+            "id": process_id + 1,
+            "node_type": "vm_storage",
+            "result_table_ids": [rt_name],
+            "name": "vm",
+            "bk_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,
+            "cluster": vm_info["cluster_name"],
+            "from_result_table_ids": [rt_name],
+            "from_nodes": [{"id": process_id, "from_result_table_ids": [rt_name]}],
+        }
+
+    @classmethod
+    def create_flow(cls, table_id: str) -> bool:
+        """创建 flow"""
+        # 组装参数
+        req_data = {
+            "project_id": settings.BK_DATA_RECORD_RULE_PROJECT_ID,
+            "flow_name": cls.compose_flow_name(table_id),
+        }
+        # 获取预计算结果表数据
+        try:
+            rule_obj = RecordRule.objects.get(table_id=table_id)
+        except RecordRule.DoesNotExist:
+            logger.error("table_id: %s not found record rule", table_id)
+            return False
+        nodes = cls.compose_source_node(rule_obj.vm_table_ids)
+        # 添加预计算节点
+        nodes.append(cls.compose_process_node(table_id, rule_obj.vm_table_ids))
+        node_len = len(nodes)
+        # 添加存储节点
+        nodes.append(cls.compose_vm_storage(table_id, node_len))
+        req_data["nodes"] = nodes
+        # 调用接口，然后保存数据
+        try:
+            data = api.bkdata.apply_data_flow(req_data)
+        except BKAPIError as e:
+            logger.error("create data flow error: %s", e)
+            return False
+        flow_id = data.get("flow_id")
+        if not flow_id:
+            logger.error("create data flow error, response not found flow id: %s", json.dumps(data))
+            return False
+        # 保存记录
+        cls.objects.create(table_id=table_id, flow_id=flow_id, config=req_data, status=BkDataFlowStatus.NO_START.value)
+        return True
+
+    @classmethod
+    def start_flow(self, flow_id: int) -> bool:
+        """启动 flow"""
+        # 组装请求参数
+        req_data = {
+            "consuming_mode": "continue",
+            "resource_sets": {"stream": "default_inland_stream"},
+            "flow_id": flow_id,
+        }
+        try:
+            api.bkdata.start_data_flow(req_data)
+            return True
+        except BKAPIError as e:
+            logger.error("start data flow error: %s", e)
+            return False

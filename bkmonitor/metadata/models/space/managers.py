@@ -156,13 +156,13 @@ class SpaceManager(models.Manager):
     def get_biz_id_by_space(self, space_type: str, space_id: str) -> Optional[int]:
         """通过空间类型和空间ID获取业务ID"""
         try:
-            id = self.get(space_type_id=space_type, space_id=space_id)
+            obj = self.get(space_type_id=space_type, space_id=space_id)
         except self.model.DoesNotExist:
             return None
         if space_type == constants.SpaceTypes.BKCC.value:
-            return id
+            return obj.space_id
         # 非bkcc空间类型，返回负值
-        return -id
+        return -obj.id
 
 
 class SpaceResourceManager(models.Manager):

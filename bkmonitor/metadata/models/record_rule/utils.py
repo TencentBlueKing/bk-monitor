@@ -14,7 +14,6 @@ from typing import Dict, List
 
 from core.drf_resource import api
 from core.errors.api import BKAPIError
-from metadata.models.record_rule.constants import DEFAULT_METRIC_NAME_SUFFIX
 
 logger = logging.getLogger("metadata")
 
@@ -54,12 +53,11 @@ def refine_bk_sql_and_metrics(promql: str, all_rule_record: List[str]) -> Dict:
         logger.error("transform promql to struct failed, promql: %s, error: %s", _promql, e)
         raise
 
-    # 获取已有的指标，并且针对指标添加value
+    # 获取已有的指标，
     metrics = set()
     rule_data = rule_dict["data"]
     for item in rule_data["query_list"]:
         metrics.add(item["field_name"])
-        item["field_name"] = f"{item['field_name']}{DEFAULT_METRIC_NAME_SUFFIX}"
     # 在转换为promql
     try:
         sql = api.unify_query.struct_to_promql(rule_data)
@@ -68,3 +66,12 @@ def refine_bk_sql_and_metrics(promql: str, all_rule_record: List[str]) -> Dict:
         raise
     # 去掉`bkmonitor:`
     return {"promql": sql["promql"].replace("bkmonitor:", ""), "metrics": metrics}
+
+
+def compose_rule_table_id(table_id: str) -> str:
+    """生成规则表的名称"""
+    if table_id.endswith("__default__"):
+        table_id = table_id.split(".__default__")[0]
+    name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
+    # NOTE: 清洗结果表不能出现双下划线
+    return name.strip("_")
