@@ -33,6 +33,7 @@ import {
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { getConvergeFunction } from 'monitor-api/modules/action';
+import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { strategySnapshot } from 'monitor-api/modules/alert';
 import { listCalendar } from 'monitor-api/modules/calendar';
 import { getFunctions } from 'monitor-api/modules/grafana';
@@ -376,8 +377,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 场景智能检测视图参数 */
   multivariateAnomalyDetectionParams = {
     metrics: [],
-    refleshKey: ''
+    refleshKey: '',
   };
+  /* 是否开启场景智能检测功能 */
+  showMultivariateAnomalyDetection = false;
 
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
@@ -930,6 +933,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (!this.scenarioList?.length) {
       promiseList.push(this.getScenarioList());
     }
+    promiseList.push(this.getShowMultivariateAnomalyDetection());
     promiseList.push(this.getDefenseList());
     promiseList.push(this.getAlarmGroupList());
     promiseList.push(this.getActionConfigList());
@@ -995,6 +999,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       with_advance_fields: 'no',
     }).catch(() => []);
     this.actionConfigList = data;
+  }
+
+  // 获取是否展示是否开启场景智能检测功能数据
+  async getShowMultivariateAnomalyDetection() {
+    const data = await fetchAiSetting().catch(() => null);
+    this.showMultivariateAnomalyDetection = !!data?.multivariate_anomaly_detection?.host?.is_enabled;
   }
 
   // 获取告警组数据
@@ -2576,7 +2586,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               {!this.metricData.length && !this.sourceData.sourceCode
                 ? !this.loading && (
                     <MonitorDataEmpty
-                      on-add-metric={this.handleShowMetric}
+                      showMultivariateAnomalyDetection={this.showMultivariateAnomalyDetection}
+                      onAddMetric={this.handleShowMetric}
                       onHoverType={this.handleEmptyHoverType}
                     />
                   )
