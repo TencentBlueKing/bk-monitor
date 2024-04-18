@@ -315,7 +315,10 @@ export default {
     }
 
     .time-field {
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
       font-weight: 700;
+      color: var(--table-fount-color);
       white-space: nowrap;
     }
 
@@ -363,7 +366,7 @@ export default {
     }
 
     .original-time {
-      padding-top: 13px;
+      padding-top: 12px;
 
       .cell {
         padding-left: 2px;
@@ -437,7 +440,7 @@ export default {
     }
 
     &.original-table .bk-table-column-expand .bk-icon {
-      top: 20px;
+      top: 19px;
     }
   }
 
