@@ -22,13 +22,18 @@ class Command(BaseCommand):
         gateway_name = "bk-monitor"
 
         # 待同步网关、资源定义文件，需调整为实际的配置文件地址
-        definition_path = "support-files/definition.yaml"
-        resources_path = "support-files/resources.yaml"
+        definition_path = f"{settings.BASE_DIR}/support-files/apigw/definition.yaml"
+        resources_path = f"{settings.BASE_DIR}/support-files/apigw/resources.yaml"
 
         call_command("sync_apigw_config", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("sync_apigw_stage", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("sync_apigw_resources", f"--gateway-name={gateway_name}", "--delete", f"--file={resources_path}")
-        call_command("sync_resource_docs_by_archive", f"--gateway-name={gateway_name}", f"--file={definition_path}")
+        call_command(
+            "sync_resource_docs_by_archive",
+            f"--gateway-name={gateway_name}",
+            f"--file={definition_path}",
+            "--safe-mode",
+        )
         call_command("create_version_and_release_apigw", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("grant_apigw_permissions", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("fetch_apigw_public_key", f"--gateway-name={gateway_name}")

@@ -57,6 +57,7 @@ INSTALLED_APPS = (
     "django.contrib.staticfiles",
     # account app
     "blueapps.account",
+    "apigw_manager.apigw",
 )
 
 # 这里是默认的中间件，大部分情况下，不需要改动
@@ -1338,3 +1339,6 @@ REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0
 
 # API地址
 BK_MONITOR_API_HOST = os.getenv("BKAPP_BK_MONITOR_API_HOST", "http://monitor.bkmonitorv3.service.consul:10204")
+
+# 网关管理员
+APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split(","))}]'
