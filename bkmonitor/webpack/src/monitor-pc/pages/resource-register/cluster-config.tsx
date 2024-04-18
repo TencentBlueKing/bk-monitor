@@ -50,7 +50,7 @@ interface IResourceListItem {
   optionTitle: string;
   label?: Array<any>;
   disabled: boolean;
-  data: Object;
+  data: object;
 }
 
 const formData = {
@@ -62,14 +62,14 @@ const formData = {
     port: '', // 端口
     schema: '', // 协议
     username: '', // 用户名
-    password: '' // 密码
+    password: '', // 密码
   },
   // Transfer: {},
   influxdb: {
     domain: '', // Proxy集群域名
     port: '', // 端口
     username: '', // 用户名
-    password: '' // 密码
+    password: '', // 密码
   },
   elasticsearch: {
     registered_system: '', // 来源
@@ -77,14 +77,14 @@ const formData = {
     port: '', // 端口
     schema: '', // 协议
     username: '', // 用户名
-    password: '' // 密码
+    password: '', // 密码
   },
   operator: '', // 负责人
   description: '', // 描述
   moreConfig: {
     // 更多配置
     kafka: {
-      is_register_gse: false
+      is_register_gse: false,
     },
     elasticsearch: {
       scope: EScopes.currentSpace,
@@ -92,48 +92,48 @@ const formData = {
       expires: {
         // 过期时间
         default: '',
-        max: ''
+        max: '',
       },
       replica: {
         // 副本数
         default: null,
-        max: null
+        max: null,
       },
       cold_warm_phase_settings: {
         hot: '',
-        cold: ''
+        cold: '',
       },
       hotDataTag: '', // 热数据标签
       coldDataTag: '', // 冷数据标签
       capacityAssessmentValue: null, // 容量评估
       hotAndColdDataSwitcherValue: false, // 冷热数据开关值
       logArchivingSwitcherValue: false, // 日志归档开关值
-      capacityAssessmentSwitcherValue: false // 容量评估开关值
-    }
-  }
+      capacityAssessmentSwitcherValue: false, // 容量评估开关值
+    },
+  },
 };
 
 // 连通性测试状态
 enum ConnectionStatus {
   default = '',
   success = 'success',
-  fail = 'fail'
+  fail = 'fail',
 }
 
 enum OperationType {
   edit = '编辑',
   clone = '克隆',
-  add = '新增'
+  add = '新增',
 }
 
 const labelList = [
   { id: window.i18n.tc('标签'), label: window.i18n.tc('标签') },
   { id: window.i18n.tc('消息队列'), label: window.i18n.tc('消息队列') },
-  { id: window.i18n.tc('数据投递'), label: window.i18n.tc('数据投递') }
+  { id: window.i18n.tc('数据投递'), label: window.i18n.tc('数据投递') },
 ];
 
 @Component
-export default class ClusterConfig extends tsc<{}> {
+export default class ClusterConfig extends tsc<object> {
   @Prop({ type: Boolean, default: false }) show: boolean; // 控制侧栏显示变量
   @Prop({ type: Object, default: () => ({}) }) rowConfig: ITableRowConfig;
   @Ref() clusterOperationForm: any;
@@ -150,7 +150,7 @@ export default class ClusterConfig extends tsc<{}> {
       name: 'Kafka',
       optionTitle: '更多配置',
       disabled: false,
-      data: {}
+      data: {},
     },
     {
       id: EClusterType.Influxdb,
@@ -158,7 +158,7 @@ export default class ClusterConfig extends tsc<{}> {
       name: 'Influxdb cluster',
       optionTitle: '更多配置',
       disabled: false,
-      data: {}
+      data: {},
     },
     {
       id: EClusterType.ES,
@@ -166,8 +166,8 @@ export default class ClusterConfig extends tsc<{}> {
       name: 'ES',
       optionTitle: 'ES集群管理',
       disabled: false,
-      data: {}
-    }
+      data: {},
+    },
   ];
   // 当前选择的资源类别
   selectedType: EClusterType = EClusterType.Kafka;
@@ -184,7 +184,7 @@ export default class ClusterConfig extends tsc<{}> {
   formErrMsg = {
     clusterName: '',
     label: '',
-    operator: ''
+    operator: '',
   };
   /* 是否为编辑状态 */
   isEdit = false;
@@ -214,14 +214,14 @@ export default class ClusterConfig extends tsc<{}> {
           port: data.port || '', // 端口
           schema: data.schema || '', // 协议
           username: data.username || '', // 用户名
-          password: data.password || '' // 密码
+          password: data.password || '', // 密码
         };
       } else if (type === EClusterType.Influxdb) {
         this.formData.influxdb = {
           domain: data.domain_name || '', // Proxy集群域名
           port: data.port || '', // 端口
           username: data.username || '', // 用户名
-          password: data.password || '' // 密码
+          password: data.password || '', // 密码
         };
       } else if (type === EClusterType.ES) {
         this.formData.elasticsearch = {
@@ -230,7 +230,7 @@ export default class ClusterConfig extends tsc<{}> {
           port: data.port || '', // 端口
           schema: data.schema || '', // 协议
           username: data.username || '', // 用户名
-          password: data.password || '' // 密码
+          password: data.password || '', // 密码
         };
       }
       this.resourceList.forEach(resource => {
@@ -258,7 +258,7 @@ export default class ClusterConfig extends tsc<{}> {
     });
     this.spaceTypes = Object.keys(spaceTypeMap).map(key => ({
       id: key,
-      name: SPACE_TYPE_MAP[key]?.name || this.$t('未知')
+      name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
     }));
   }
 
@@ -275,17 +275,17 @@ export default class ClusterConfig extends tsc<{}> {
   getInfoParams() {
     if (this.selectedType === EClusterType.Kafka) {
       return {
-        ...this.formData.kafka
+        ...this.formData.kafka,
       };
     }
     if (this.selectedType === EClusterType.Influxdb) {
       return {
-        ...this.formData.influxdb
+        ...this.formData.influxdb,
       };
     }
     if (this.selectedType === EClusterType.ES) {
       return {
-        ...this.formData.elasticsearch
+        ...this.formData.elasticsearch,
       };
     }
     return {};
@@ -307,8 +307,8 @@ export default class ClusterConfig extends tsc<{}> {
         return [
           {
             space_type: currentInfo.space_type_id,
-            space_id: currentInfo.space_id
-          }
+            space_id: currentInfo.space_id,
+          },
         ];
       }
       if (scope === EScopes.multiSpace) {
@@ -317,7 +317,7 @@ export default class ClusterConfig extends tsc<{}> {
           if (space.includes(item.id)) {
             temp.push({
               space_type: item.space_type_id,
-              space_id: item.space_id
+              space_id: item.space_id,
             });
           }
         });
@@ -325,7 +325,7 @@ export default class ClusterConfig extends tsc<{}> {
       }
       if (scope === EScopes.spaceType) {
         return space.map(item => ({
-          space_type: item
+          space_type: item,
         }));
       }
     };
@@ -342,13 +342,12 @@ export default class ClusterConfig extends tsc<{}> {
           scope: elasticsearch.scope,
           expires: elasticsearch.expires,
           replica: elasticsearch.replica,
-          cold_warm_phase_settings: elasticsearch.cold_warm_phase_settings
-        }
+          cold_warm_phase_settings: elasticsearch.cold_warm_phase_settings,
+        },
       },
-      ...this.getInfoParams()
+      ...this.getInfoParams(),
     };
     if (this.isEdit) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       params = Object.assign(params, { cluster_id: this.rowConfig.rowData.cluster_id });
     }
     this.submitButtonLoading = true;
@@ -358,7 +357,7 @@ export default class ClusterConfig extends tsc<{}> {
     if (!!res) {
       this.$bkMessage({
         theme: 'success',
-        message: this.isEdit ? this.$t('修改成功') : this.$t('创建成功')
+        message: this.isEdit ? this.$t('修改成功') : this.$t('创建成功'),
       });
       this.emitShowChange(false);
     }
@@ -432,7 +431,7 @@ export default class ClusterConfig extends tsc<{}> {
     const res = await checkClusterHealth({
       cluster_id: this.rowConfig?.rowData?.cluster_id || 0,
       cluster_type: this.selectedType,
-      ...params
+      ...params,
     }).catch(() => false);
     this.connectTestButtonLoading = false;
     this.connectionStatus = !!res ? ConnectionStatus.success : ConnectionStatus.fail;
@@ -501,7 +500,7 @@ export default class ClusterConfig extends tsc<{}> {
                   class={[
                     'resource-type-card',
                     this.selectedType === item.id && 'selected-card',
-                    item.disabled && 'disabled-card'
+                    item.disabled && 'disabled-card',
                   ]}
                   key={item.id + item.name}
                   onClick={() => this.handleSelectChange(item)}
@@ -510,7 +509,7 @@ export default class ClusterConfig extends tsc<{}> {
                     class={[
                       'resource-name',
                       this.selectedType === item.id && 'selected-name',
-                      item.disabled && 'disabled'
+                      item.disabled && 'disabled',
                     ]}
                   >
                     {item.name}

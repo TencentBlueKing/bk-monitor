@@ -37,7 +37,7 @@ import {
   filterSelectorPanelSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
@@ -110,7 +110,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   // active id
@@ -126,12 +126,12 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     const localList = this.list.filter(item =>
       (item.name.includes(this.keyword) || item.id.toString().includes(this.keyword)) && this.currentStatus === 'all'
         ? true
-        : item.status?.type === this.currentStatus
+        : item.status?.type === this.currentStatus,
     );
     if (localList.some(item => item.metric?.[this.activeTab]?.percent)) {
       return localList.sort(
         (a, b) =>
-          +b.metric[this.activeTab].percent.replace('%', '') - +a.metric[this.activeTab].percent.replace('%', '')
+          +b.metric[this.activeTab].percent.replace('%', '') - +a.metric[this.activeTab].percent.replace('%', ''),
       );
     }
     return localList;
@@ -187,7 +187,6 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     const variablesService = new VariablesService(this.scopedVars);
     const checkFilters =
       this.checkboxDict?.reduce((pre, cur) => {
-        // eslint-disable-next-line no-param-reassign
         pre[cur] = true;
         return pre;
       }, {}) || undefined;
@@ -200,7 +199,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
           keyword: this.keyword,
           start_time: startTime,
           end_time: endTime,
-          ...checkFilters
+          ...checkFilters,
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
@@ -216,10 +215,10 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
             return {
               ...set,
               id,
-              name: set.name || id
+              name: set.name || id,
             };
           });
-        })
+        }),
     );
     const [data] = await Promise.all(promiseList).catch(() => [[]]);
     this.list = data;
@@ -243,7 +242,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     if (this.needQueryUpdateUrl) {
       this.handleUpdateQueryData({
         ...this.queryData,
-        selectorSearch
+        selectorSearch,
       });
     }
   }
@@ -254,7 +253,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     if (this.needQueryUpdateUrl) {
       this.handleUpdateQueryData({
         ...this.queryData,
-        keyword: v
+        keyword: v,
       });
     }
   }
@@ -267,7 +266,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     const value = this.panel.targets[0].handleCreateFilterDictValue(data);
     viewOptions.filters = { ...(value || {}) };
     viewOptions.compares = {
-      targets: []
+      targets: [],
     };
     this.handleTitleChange(data.name);
     this.$emit('change', viewOptions);
@@ -375,7 +374,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
                     <span class='item-name'>{data.name || '--'}</span>
                     <span class='item-count'>{this.formaterCount(data)}</span>
                   </div>
-                )
+                ),
               }}
             ></bk-virtual-scroll>
           ) : (

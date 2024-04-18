@@ -67,10 +67,10 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
       [
         {
           method: 'gte',
-          threshold: 0
-        }
-      ]
-    ]
+          threshold: 0,
+        },
+      ],
+    ],
   };
 
   rules = {
@@ -79,9 +79,9 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
       {
         validator: this.checkConfig,
         message: this.$t('检测算法填写不完整，请完善后添加'),
-        trigger: 'change'
-      }
-    ]
+        trigger: 'change',
+      },
+    ],
   };
 
   get otherSelectLevel() {
@@ -96,7 +96,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
     const list = [
       { id: 1, name: window.i18n.t('致命'), disabled: false, icon: 'icon-danger' },
       { id: 2, name: window.i18n.t('预警'), disabled: false, icon: 'icon-mind-fill' },
-      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' }
+      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' },
     ];
     list.forEach(item => {
       item.disabled = this.otherSelectLevel.includes(item.id);
@@ -176,7 +176,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
                     disabled: !level.disabled,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>

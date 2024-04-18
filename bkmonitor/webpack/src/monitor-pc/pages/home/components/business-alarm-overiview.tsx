@@ -57,7 +57,7 @@ interface IBusinessAlarmProps {
 }
 
 @Component({
-  name: 'BusinessAlarmOverview'
+  name: 'BusinessAlarmOverview',
 })
 export default class BusinessAlarmOverview extends tsc<IBusinessAlarmProps> {
   @Prop({ type: Array, default: () => [] }) businessAlarm: IBusinessAlarm[];
@@ -69,34 +69,34 @@ export default class BusinessAlarmOverview extends tsc<IBusinessAlarmProps> {
     uptimecheck: 'uptimecheck',
     service: 'service',
     process: 'process',
-    os: 'os'
+    os: 'os',
   };
   titleMap = {
     uptimecheck: {
       serious: window.i18n.tc('拨测监控异常报告'),
       slight: window.i18n.tc('拨测监控异常报告'),
       normal: window.i18n.tc('拨测监控很健康'),
-      unset: window.i18n.tc('综合拨测 - 未配置')
+      unset: window.i18n.tc('综合拨测 - 未配置'),
     },
     service: {
       serious: window.i18n.tc('服务监控异常报告'),
       slight: window.i18n.tc('服务监控异常报告'),
       normal: window.i18n.tc('服务监控很健康'),
-      unset: window.i18n.tc('服务监控 - 未配置')
+      unset: window.i18n.tc('服务监控 - 未配置'),
     },
 
     process: {
       serious: window.i18n.tc('进程监控异常报告'),
       slight: window.i18n.tc('进程监控异常报告'),
       normal: window.i18n.tc('进程监控很健康'),
-      unset: window.i18n.tc('进程监控 - 未配置')
+      unset: window.i18n.tc('进程监控 - 未配置'),
     },
     os: {
       serious: window.i18n.tc('主机监控异常报告'),
       slight: window.i18n.tc('主机监控异常报告'),
       normal: window.i18n.tc('主机监控很健康'),
-      unset: window.i18n.tc('主机监控 - 未配置')
-    }
+      unset: window.i18n.tc('主机监控 - 未配置'),
+    },
   };
 
   get selectAlarm(): any {
@@ -124,7 +124,7 @@ export default class BusinessAlarmOverview extends tsc<IBusinessAlarmProps> {
     alarmDetailChartData({
       alarm_id: 5838598, // 告警实例ID
       monitor_id: 364, // 监控项ID
-      chart_type: 'main' // 固定值
+      chart_type: 'main', // 固定值
     });
   }
   findIndexByStatus(status) {

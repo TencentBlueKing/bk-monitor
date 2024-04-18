@@ -45,34 +45,34 @@ export default defineComponent({
   props: {
     textDirection: {
       type: String as PropType<DirectionType>,
-      default: 'ltr'
+      default: 'ltr',
     },
     unit: {
       type: String,
-      default: ''
+      default: '',
     },
     data: {
       type: Array as PropType<ProfilingTableItem[]>,
-      default: () => []
+      default: () => [],
     },
     highlightId: {
       type: Number,
-      default: -1
+      default: -1,
     },
     filterKeyword: {
       type: String,
-      default: ''
+      default: '',
     },
     // 对比模式
     isCompared: {
       type: Boolean,
-      default: false
+      default: false,
     },
     // 数据类型
     dataType: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   emits: ['updateHighlightId', 'sortChange'],
   setup(props, { emit }) {
@@ -84,11 +84,11 @@ export default defineComponent({
       { id: 'Total', name: 'Total', mode: 'normal', sort: '' },
       { id: 'baseline', name: window.i18n.t('查询项'), mode: 'diff', sort: '' },
       { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
-      { id: 'diff', name: 'Diff', mode: 'diff', sort: '' }
+      { id: 'diff', name: 'Diff', mode: 'diff', sort: '' },
     ]);
     const maxItem = ref<{ self: number; total: number }>({
       self: 0,
-      total: 0
+      total: 0,
     });
     const tipDetail = shallowRef<ITableTipsDetail>({});
     const localIsCompared = ref(false);
@@ -98,20 +98,20 @@ export default defineComponent({
       (val: ProfilingTableItem[]) => {
         maxItem.value = {
           self: Math.max(...val.map(item => item.self)),
-          total: Math.max(...val.map(item => item.total))
+          total: Math.max(...val.map(item => item.total)),
         };
         getTableData();
       },
       {
         immediate: true,
-        deep: true
-      }
+        deep: true,
+      },
     );
     watch(
       () => props.filterKeyword,
       () => {
         getTableData();
-      }
+      },
     );
 
     function getTableData() {
@@ -123,7 +123,7 @@ export default defineComponent({
           const color = palette[colorIndex];
           return {
             ...item,
-            color
+            color,
           };
         });
       localIsCompared.value = props.isCompared;
@@ -152,7 +152,7 @@ export default defineComponent({
       return {
         'background-image': `linear-gradient(${color}, ${color})`,
         'background-position': `-${xPosition}px 0px`,
-        'background-repeat': 'no-repeat'
+        'background-repeat': 'no-repeat',
       };
     }
     /** 列字段排序 */
@@ -175,7 +175,7 @@ export default defineComponent({
       tableColumns.value = tableColumns.value.map(item => {
         return {
           ...item,
-          sort: col.id === item.id ? col.sort : ''
+          sort: col.id === item.id ? col.sort : '',
         };
       });
     }
@@ -206,7 +206,7 @@ export default defineComponent({
         comparison,
         mark,
         selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
-        totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`
+        totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`,
       };
     }
     function handleRowMouseout() {
@@ -230,7 +230,7 @@ export default defineComponent({
       formatColValue,
       handleRowMouseMove,
       handleRowMouseout,
-      handleHighlightClick
+      handleHighlightClick,
     };
   },
   render() {
@@ -266,7 +266,7 @@ export default defineComponent({
                         </div>
                       </div>
                     </th>
-                  )
+                  ),
               )}
             </tr>
           </thead>
@@ -294,11 +294,11 @@ export default defineComponent({
                       ? [
                           <td>{this.formatColValue(row.baseline)}</td>,
                           <td>{this.formatColValue(row.comparison)}</td>,
-                          <td>{getDiffTpl(row)}</td>
+                          <td>{getDiffTpl(row)}</td>,
                         ]
                       : [
                           <td style={this.getColStyle(row, 'self')}>{this.formatColValue(row.self)}</td>,
-                          <td style={this.getColStyle(row, 'total')}>{this.formatColValue(row.total)}</td>
+                          <td style={this.getColStyle(row, 'total')}>{this.formatColValue(row.total)}</td>,
                         ]}
                   </tr>
                 ))}
@@ -324,7 +324,7 @@ export default defineComponent({
             style={{
               left: `${this.tipDetail.left || 0}px`,
               top: `${this.tipDetail.top || 0}px`,
-              display: this.tipDetail.title ? 'block' : 'none'
+              display: this.tipDetail.title ? 'block' : 'none',
             }}
           >
             {this.tipDetail.title && [
@@ -337,14 +337,14 @@ export default defineComponent({
                         <th>Baseline</th>
                         <th>Comparison</th>
                         <th>Diff</th>
-                      </thead>
+                      </thead>,
                     ]
                   : [
                       <thead>
                         <th></th>
                         <th>Self (% of total)</th>
                         <th>Total (% of total)</th>
-                      </thead>
+                      </thead>,
                     ]}
                 {this.localIsCompared ? (
                   <tbody>
@@ -364,11 +364,11 @@ export default defineComponent({
                     </tr>
                   </tbody>
                 )}
-              </table>
+              </table>,
             ]}
           </div>
         </Teleport>
       </div>
     );
-  }
+  },
 });

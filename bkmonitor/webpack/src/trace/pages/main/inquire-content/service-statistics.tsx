@@ -42,16 +42,16 @@ export default defineComponent({
   props: {
     interfaceTypeList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     sourceTypeList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     filterList: {
       type: Object as PropType<TraceListType>,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   setup(props) {
     const route = useRoute();
@@ -74,9 +74,9 @@ export default defineComponent({
         field: 'service_name',
         filter: {
           list: props.filterList['resource.service.name'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: string }) => (
           <div>
             <span
@@ -86,7 +86,7 @@ export default defineComponent({
               {cell}
             </span>
           </div>
-        )
+        ),
       },
       // {
       //   label: () => (
@@ -120,14 +120,14 @@ export default defineComponent({
         field: 'kind',
         filter: {
           list: props.filterList.kind,
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: string }) => (
           <div>
             <span title={SPAN_KIND_MAPS[cell]}>{SPAN_KIND_MAPS[cell]}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -144,8 +144,8 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
-        }
+          value: '',
+        },
       },
       {
         label: () => (
@@ -162,8 +162,8 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
-        }
+          value: '',
+        },
       },
       {
         label: () => (
@@ -179,8 +179,8 @@ export default defineComponent({
         field: 'error_rate',
         sort: {
           sortScope: 'all',
-          value: ''
-        }
+          value: '',
+        },
       },
       {
         label: () => (
@@ -197,13 +197,13 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
+          value: '',
         },
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -219,13 +219,13 @@ export default defineComponent({
         field: 'p90_duration',
         width: 120,
         sort: {
-          sortFn: () => false
+          sortFn: () => false,
         },
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -242,13 +242,13 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
+          value: '',
         },
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: t('操作'),
@@ -283,8 +283,8 @@ export default defineComponent({
               <i class='icon-monitor icon-fenxiang'></i>
             </div>
           </div>
-        )
-      }
+        ),
+      },
     ];
 
     // const filteredTableColumn = computed(() => {
@@ -305,7 +305,7 @@ export default defineComponent({
     };
     /** 跳转接口 */
     // const handleToEndpoint = (serviceName: string, endpointName: string) => {
-    // eslint-disable-next-line max-len
+
     //   const hash = `#/apm/service?filter-app_name=${route.query.app_name}&filter-span_name=${endpointName}&filter-service_name=${serviceName}&sceneType=detail&sceneId=apm_service&dashboardId=service-default-endpoint`;
     //   const url = location.href.replace(location.hash, hash);
     //   window.open(url, '_blank');
@@ -319,17 +319,17 @@ export default defineComponent({
           selectedCondition: { label: '=', value: 'equal' },
           isInclude: true,
           //   读 data
-          selectedConditionValue: [data.kind]
+          selectedConditionValue: [data.kind],
         },
         'resource.service.name': {
           // 固定写死
           selectedCondition: { label: '=', value: 'equal' },
           isInclude: true,
           //   读 data
-          selectedConditionValue: [data.service_name]
-        }
+          selectedConditionValue: [data.service_name],
+        },
       };
-      // eslint-disable-next-line no-useless-escape
+
       const hash = `#/trace/home??app_name=${
         route.query.app_name
       }&search_type=scope&listType=serviceStatistics&conditionList=${JSON.stringify(conditionList)}`;
@@ -363,10 +363,10 @@ export default defineComponent({
     );
     return {
       tableContent,
-      store
+      store,
     };
   },
   render() {
     return this.tableContent();
-  }
+  },
 });

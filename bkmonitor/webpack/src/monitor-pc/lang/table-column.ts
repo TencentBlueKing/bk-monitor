@@ -144,5 +144,5 @@ export default {
   通知渠道: 'Notification Channel',
   接收人: 'Recipient',
   变量说明: 'Variable Description',
-  任务有效期: 'Task validity period'
+  任务有效期: 'Task validity period',
 };

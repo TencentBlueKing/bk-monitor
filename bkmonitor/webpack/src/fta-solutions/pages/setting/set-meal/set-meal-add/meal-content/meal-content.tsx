@@ -40,7 +40,7 @@ import {
   IPeripheral,
   IWebhook,
   mealDataInit,
-  transformMealContentParams
+  transformMealContentParams,
 } from './meal-content-data';
 import PeripheralSystem from './peripheral-system';
 import { setVariableToString } from './utils';
@@ -82,11 +82,11 @@ type PageType = 'add' | 'edit';
 
 const mealType = {
   notice: 'notice',
-  callback: 'webhook'
+  callback: 'webhook',
 };
 
 @Component({
-  name: 'MealContentNew'
+  name: 'MealContentNew',
 })
 export default class MealContentNew extends tsc<IMealContentNewProps, IMealContentNewEvent> {
   @Prop({ type: Object, default: () => ({}) }) mealData: IMealData;
@@ -106,7 +106,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   debugData: { type: string; webhook: IWebhook; peripheral: IPeripheral } = {
     type: '',
     webhook: {},
-    peripheral: {}
+    peripheral: {},
   };
   // 调试状态数据
   debugStatusData: {
@@ -175,10 +175,10 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         this.data.peripheral = {
           data: {
             formTemplateId: '',
-            templateDetail: {}
+            templateDetail: {},
           },
           riskLevel: 2,
-          timeout: 10
+          timeout: 10,
         };
       }
       this.peripheralSystemRef.formTemplateId = '';
@@ -313,7 +313,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         value: v,
         lable: item.formItemProps.label,
         placeholder: item?.formChildProps?.placeholder || '',
-        subTitle
+        subTitle,
       };
       variableList.push(obj);
     });
@@ -350,9 +350,9 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         executeConfigData = transformDataKey(
           transformMealContentParams({
             pluginType: 'webhook',
-            webhook: this.debugData.webhook as any
+            webhook: this.debugData.webhook as any,
           }),
-          true
+          true,
         );
         break;
       case 'peripheral':
@@ -364,7 +364,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       execute_config: executeConfigData,
       plugin_id: this.data.id,
       creator: 'username',
-      name: this.name || undefined
+      name: this.name || undefined,
     })
       .then(data => data.action_id)
       .catch(() => 0);
@@ -385,9 +385,9 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
     executeConfigData = transformDataKey(
       transformMealContentParams({
         pluginType: 'peripheral',
-        peripheral: this.debugData.peripheral
+        peripheral: this.debugData.peripheral,
       }),
-      true
+      true,
     );
     executeConfigData.template_detail = templateDetail;
     return executeConfigData;
@@ -396,7 +396,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   // 轮询调试状态
   getDebugStatus() {
     let timer = null;
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     return new Promise(async resolve => {
       if (!this.isQueryStatus) {
         resolve({});
@@ -604,7 +604,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         <div class='failure'>
           <span class='icon-monitor icon-mc-close'></span>
         </div>
-      )
+      ),
     };
     return statusMap[this.debugStatusData?.status];
   }
@@ -614,7 +614,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       received: `${this.$t('调试中...')}...`,
       running: `${this.$t('调试中...')}...`,
       success: this.$t('调试成功'),
-      failure: this.$t('调试失败')
+      failure: this.$t('调试失败'),
     };
     return statusMap[this.debugStatusData?.status];
   }
@@ -636,7 +636,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             {this.$t('再次调试')}
           </bk-button>
         </div>
-      )
+      ),
     };
     return statusMap[this.debugStatusData?.status];
   }
@@ -697,7 +697,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
           <div class='status-text'>{this.debugStatusText(this.debugStatusData?.content)}</div>
           {this.debugStatusOperate()}
         </div>
-      </bk-dialog>
+      </bk-dialog>,
     ];
   }
 }

@@ -46,7 +46,7 @@ interface IBasicInfo {
 }
 
 @Component({
-  name: 'MealBasicInfo'
+  name: 'MealBasicInfo',
 })
 export default class MealBasicInfo extends tsc<IMealBasicInfo> {
   @Prop() public basicInfo: IBasicInfo;
@@ -58,7 +58,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
   };
 
   errorMsg = {
-    name: ''
+    name: '',
   };
 
   private rules = {
@@ -66,9 +66,9 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
       {
         required: true,
         message: i18n.t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   get bizList() {
@@ -83,7 +83,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
       },
       () => {
         this.$refs.mealNameRef.focus();
-      }
+      },
     );
   }
 
@@ -104,8 +104,8 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
     this.$router.push({
       name: 'strategy-config',
       params: {
-        actionName: this.basicInfo.name
-      }
+        actionName: this.basicInfo.name,
+      },
     });
   }
 
@@ -117,8 +117,8 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
             props: {
               labelWidth: 0,
               model: this.basicInfo,
-              rules: this.rules
-            }
+              rules: this.rules,
+            },
           }}
           ref='basicInfoRef'
         >

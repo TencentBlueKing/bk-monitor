@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/member-ordering */
 
 import { deepClone } from 'monitor-common/utils/utils';

@@ -593,12 +593,12 @@ export default class MaskingSetting extends tsc<IProps> {
 
     const matchExpressionSlot = {
       default: ({ row }) => (
-        <span
+        <div
           class='title-overflow'
           v-bk-overflow-tips
         >
-          {row.matchPattern || '-'}
-        </span>
+          <span>{row.matchPattern || '-'}</span>
+        </div>
       )
     };
 

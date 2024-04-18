@@ -33,7 +33,7 @@ import './research-form.scss';
 
 enum ResearchStatus {
   edit /** 编辑 */,
-  add /** 新建 */
+  add /** 新建 */,
 }
 interface IFormValue {
   project?: string; // 蓝盾项目
@@ -57,22 +57,21 @@ interface ISpaceItem {
 const normalRule = {
   required: true,
   message: window.i18n.tc('必填项'),
-  trigger: 'blur'
+  trigger: 'blur',
 };
 const englishNameRule = {
   validator(val) {
-    // eslint-disable-next-line no-useless-escape
     return /^[a-z][a-z0-9\-]{1,31}$/.test(val);
   },
   message: window.i18n.t('英文缩写必须由小写字母+数字+中划线组成，以小写字母开头，长度限制32字符！'),
-  trigger: 'blur'
+  trigger: 'blur',
 };
 const spaceNameRule = {
   validator(val) {
     return val.length >= 2 && val.length <= 32;
   },
   message: window.i18n.t('长度限制2-32字符'),
-  trigger: 'blur'
+  trigger: 'blur',
 };
 /* 重复校验 */
 const deduplicationRule = (list: string[], type: 'spaceId' | 'spaceName') => {
@@ -82,7 +81,7 @@ const deduplicationRule = (list: string[], type: 'spaceId' | 'spaceName') => {
         return !list.includes(val);
       },
       message: `${window.i18n.t('注意: 名字冲突')}。`,
-      trigger: 'blur'
+      trigger: 'blur',
     };
   }
   if (type === 'spaceId') {
@@ -91,7 +90,7 @@ const deduplicationRule = (list: string[], type: 'spaceId' | 'spaceName') => {
         return !list.includes(val.toLocaleLowerCase());
       },
       message: `${window.i18n.t('注意: 名字冲突')}。`,
-      trigger: 'blur'
+      trigger: 'blur',
     };
   }
   return undefined;
@@ -102,7 +101,7 @@ const projectTypeList = [
   { id: 1, name: window.i18n.tc('端游') },
   { id: 2, name: window.i18n.tc('页游') },
   { id: 3, name: window.i18n.tc('平台产品') },
-  { id: 4, name: window.i18n.tc('支撑产品') }
+  { id: 4, name: window.i18n.tc('支撑产品') },
 ];
 
 interface IProps {
@@ -136,7 +135,7 @@ export default class ResearchForm extends tsc<IProps> {
     dept_id: '',
     center_id: '',
     desc: '',
-    project_type: ''
+    project_type: '',
   };
   /** 新建表单数据 */
   addValue: IFormValue = {
@@ -144,13 +143,13 @@ export default class ResearchForm extends tsc<IProps> {
     spaceId: '',
     desc: '',
     organization: [],
-    project_type: ''
+    project_type: '',
   };
   addValueRules = {
     spaceName: [normalRule, spaceNameRule],
     spaceId: [normalRule, englishNameRule],
     project_type: [normalRule],
-    desc: [normalRule]
+    desc: [normalRule],
   };
 
   /* 用于重复校验 */
@@ -193,7 +192,7 @@ export default class ResearchForm extends tsc<IProps> {
         dept_id: this.editValue.dept_id, // 部门 id
         center_id: this.editValue.center_id, // 中心id
         space_type_id: 'bkci', // 空间类型，填bkci
-        is_exist: true // 是否为已有项目
+        is_exist: true, // 是否为已有项目
       };
     } else {
       params = {
@@ -205,7 +204,7 @@ export default class ResearchForm extends tsc<IProps> {
         dept_id: this.addValue.organization[1], // 部门 id
         center_id: this.addValue.organization[2], // 中心id
         space_type_id: 'bkci', // 空间类型，填bkci
-        is_exist: false // 是否为已有项目
+        is_exist: false, // 是否为已有项目
       };
     }
     createSpace(params)
@@ -213,7 +212,7 @@ export default class ResearchForm extends tsc<IProps> {
         this.$emit('success');
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('保存成功')
+          message: this.$t('保存成功'),
         });
         this.loading = false;
       })
@@ -237,7 +236,7 @@ export default class ResearchForm extends tsc<IProps> {
           },
           () => {
             resolve(false);
-          }
+          },
         );
       }
     });
@@ -255,7 +254,7 @@ export default class ResearchForm extends tsc<IProps> {
         dept_id: data.dept_id,
         center_id: data.center_id,
         desc: data.description,
-        project_type: data.project_type
+        project_type: data.project_type,
       };
     }
   }
@@ -330,8 +329,8 @@ export default class ResearchForm extends tsc<IProps> {
                 {...{
                   props: {
                     model: this.addValue,
-                    rules: this.addValueRules
-                  }
+                    rules: this.addValueRules,
+                  },
                 }}
               >
                 <bk-form-item

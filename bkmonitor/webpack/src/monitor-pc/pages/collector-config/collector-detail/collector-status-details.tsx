@@ -32,7 +32,7 @@ import {
   getCollectLogDetail,
   isTaskReady,
   retryTargetNodes,
-  revokeTargetNodes
+  revokeTargetNodes,
 } from 'monitor-api/modules/collecting';
 import { copyText } from 'monitor-common/utils/utils.js';
 
@@ -45,7 +45,7 @@ import {
   IContentsItem,
   labelMap,
   STATUS_LIST,
-  statusMap
+  statusMap,
 } from '../collector-host-detail/utils';
 
 import AlertHistogram from './components/alert-histogram';
@@ -58,7 +58,7 @@ enum EColumn {
   version = 'version',
   detail = 'detail',
   operate = 'operate',
-  alert = 'alert'
+  alert = 'alert',
 }
 
 interface IProps {
@@ -88,14 +88,14 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     { id: EColumn.status, name: window.i18n.t('状态'), width: 165 },
     { id: EColumn.version, name: window.i18n.t('版本'), width: 228 },
     { id: EColumn.detail, name: window.i18n.t('详情') },
-    { id: EColumn.operate, name: '', width: 200 }
+    { id: EColumn.operate, name: '', width: 200 },
   ];
   /* 详情侧栏 */
   side = {
     show: false,
     title: '',
     detail: '',
-    loading: false
+    loading: false,
   };
 
   config = null;
@@ -110,8 +110,8 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       successNum: 0,
       failedNum: 0,
       pendingNum: 0,
-      total: 0
-    }
+      total: 0,
+    },
   };
 
   disBatch = false;
@@ -137,7 +137,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       const sumData = {
         pending: {},
         success: {},
-        failed: {}
+        failed: {},
       };
       this.config = this.data.config_info;
       this.targetNodeType = this.data.config_info?.target_node_type || '';
@@ -146,7 +146,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         const nums = {
           failedNum: 0,
           pendingNum: 0,
-          successNum: 0
+          successNum: 0,
         };
         let showAlertHistogram = true;
         item.child.forEach(set => {
@@ -161,7 +161,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           ) {
             table.push({
               ...set,
-              alertHistogram
+              alertHistogram,
             });
           }
           // 数量及状态
@@ -181,7 +181,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           ...nums,
           table,
           showAlertHistogram,
-          isExpan: true
+          isExpan: true,
         };
       });
       const headerData: any = {};
@@ -197,7 +197,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.$bkMessage({
       theme,
       message,
-      ellipsisLine: 0
+      ellipsisLine: 0,
     });
   }
 
@@ -215,9 +215,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         {
           instance_id: data.instance_id,
           task_id: data.task_id,
-          id: this.config.id
+          id: this.config.id,
         },
-        { needMessage: false }
+        { needMessage: false },
       )
         .then(data => {
           this.side.detail = data.log_detail;
@@ -247,7 +247,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           showAlertHistogram = !!set?.alert_histogram;
           table.push({
             ...set,
-            alertHistogram
+            alertHistogram,
           });
         }
       });
@@ -269,7 +269,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.contents.forEach(content => {
       if (content.child?.length) {
         const setData = content.child.find(
-          set => set.instance_id === data.instance_id && set.status === EStatus.FAILED
+          set => set.instance_id === data.instance_id && set.status === EStatus.FAILED,
         );
         if (setData) {
           setData.status = 'PENDING';
@@ -284,7 +284,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.handlePolling(false);
     retryTargetNodes({
       id: this.config.id,
-      instance_id: data.instance_id
+      instance_id: data.instance_id,
     })
       .then(async () => {
         const isReady = await this.taskReadyStatus(this.config.id).catch(() => false);
@@ -311,7 +311,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   handleRevoke(data, table) {
     revokeTargetNodes({
       id: this.config.id,
-      instance_ids: [data.instance_id]
+      instance_ids: [data.instance_id],
     }).finally(() => {
       data.status = 'FAILED';
       table.pendingNum -= 1;
@@ -332,7 +332,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   async taskReadyStatus(id) {
     let timer = null;
     clearTimeout(timer);
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     return new Promise(async resolve => {
       const isShow = await isTaskReady({ collect_config_id: id }).catch(() => false);
       if (isShow) {
@@ -424,13 +424,13 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     copyText(copyStr, msg => {
       this.$bkMessage({
         theme: 'error',
-        message: msg
+        message: msg,
       });
       return;
     });
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('复制成功')
+      message: this.$t('复制成功'),
     });
   }
 
@@ -545,7 +545,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                     <span
                       class='pre-panel-name fix-same-code'
                       style={{
-                        backgroundColor: labelMap[content.label_name].color
+                        backgroundColor: labelMap[content.label_name].color,
                       }}
                     >
                       {labelMap[content.label_name].name}
@@ -553,7 +553,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                     <span
                       class='pre-panel-mark fix-same-code'
                       style={{
-                        borderColor: labelMap[content.label_name].color
+                        borderColor: labelMap[content.label_name].color,
                       }}
                     ></span>
                   </span>
@@ -572,7 +572,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                             content.pendingNum
                               ? ','
                               : undefined}
-                          </span>
+                          </span>,
                         );
                       }
                       if (content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) {
@@ -582,7 +582,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                               <span style={{ color: '#ea3636' }}>{content.failedNum}</span>
                             </i18n>
                             {content.pendingNum ? ',' : undefined}
-                          </span>
+                          </span>,
                         );
                       }
                       if (content.pendingNum) {
@@ -591,7 +591,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                             <i18n path='{0}个执行中'>
                               <span style={{ color: '#3a84ff' }}>{content.failedNum}</span>
                             </i18n>
-                          </span>
+                          </span>,
                         );
                       }
                       if (!content.child.length) {
@@ -631,8 +631,8 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                   <bk-table
                     {...{
                       props: {
-                        data: content.table
-                      }
+                        data: content.table,
+                      },
                     }}
                   >
                     {this.tableColumns
@@ -666,7 +666,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                         ) : undefined,
                                         this.isRunning &&
                                         [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
-                                          row.status
+                                          row.status,
                                         ) ? (
                                           <span
                                             class='point mr-3'
@@ -682,7 +682,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                           <span class='content-panel-span'>{statusMap[row.status].name}</span>
                                         ) : (
                                           <span>--</span>
-                                        )
+                                        ),
                                       ]}
                                     </span>
                                   );
@@ -729,7 +729,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                       >
                                         {this.$t('终止')}
                                       </div>
-                                    ) : undefined
+                                    ) : undefined,
                                   ];
                                 }
                                 default: {
@@ -761,7 +761,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             <pre
               class='side-detail-code fix-same-code'
               domProps={{
-                innerHTML: transformJobUrl(this.side.detail)
+                innerHTML: transformJobUrl(this.side.detail),
               }}
             ></pre>
           </div>

@@ -90,12 +90,12 @@ export default class TreeMenu extends tsc<IProps, IEvents> {
         {
           ...item,
           expend: !this.inited ? this.defaultExpend : this.localData?.find(set => set.id === item.id)?.expend ?? false,
-          level
+          level,
         },
         {
           expendIcon: this.expendIcon,
-          closeIcon: this.closeIcon
-        }
+          closeIcon: this.closeIcon,
+        },
       );
       return newItem;
     });

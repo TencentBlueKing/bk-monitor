@@ -37,7 +37,7 @@ const targetResult = {
   message: '',
   messageCount: 0,
   subMessage: '',
-  subMessageCount: 0
+  subMessageCount: 0,
 };
 interface NotificationProps {
   isEdit: boolean;
@@ -57,7 +57,7 @@ export default class Notification extends tsc<NotificationProps> {
   targetList: any = [];
   checkedData: CheckedData = {
     type: 'TOPO',
-    data: []
+    data: [],
   };
 
   @Emit('change')
@@ -69,7 +69,7 @@ export default class Notification extends tsc<NotificationProps> {
   handleValueChange(data: [HostValueItem[]]) {
     if (data?.[0]?.length) {
       this.checkedData.type = Object.keys(targetFieldMap).find(
-        key => targetFieldMap[key] === data?.[0]?.[0]?.field
+        key => targetFieldMap[key] === data?.[0]?.[0]?.field,
       ) as NotificationType;
       this.checkedData.data = data?.[0]?.[0]?.value || [];
       // this.hostInfo = handleSetTargetDesc(this.checkedData.data, this.checkedData.type);
@@ -103,11 +103,11 @@ export default class Notification extends tsc<NotificationProps> {
         ? this.checkedData.data.map(item => ({
             ip: item.ip,
             bk_cloud_id: item.bk_cloud_id,
-            bk_supplier_id: item.bk_supplier_id
+            bk_supplier_id: item.bk_supplier_id,
           }))
         : this.checkedData.data.map(item => ({
             bk_inst_id: item.bk_inst_id,
-            bk_obj_id: item.bk_obj_id
+            bk_obj_id: item.bk_obj_id,
           }));
     // 监控目标格式转换
     const targets: [HostValueItem[]] = [
@@ -115,9 +115,9 @@ export default class Notification extends tsc<NotificationProps> {
         {
           field: targetFieldMap[this.checkedData.type],
           method: 'eq',
-          value
-        }
-      ]
+          value,
+        },
+      ],
     ];
 
     this.valueChange(targets);
@@ -146,38 +146,35 @@ export default class Notification extends tsc<NotificationProps> {
 
     return (
       <span class='ai-settings-notification-component'>
-        {
-          // eslint-disable-next-line no-nested-ternary
-          this.value?.[0]?.[0]?.value?.length > 0 ? (
-            <span
-              class={['target-overview', { overview: !this.isEdit }]}
-              onClick={this.handleShowTargetDetail}
-            >
-              <i class='icon-monitor icon-mc-tv notification-tv'></i>
-              {this.renderHostInfo(messageCount, message) || '--'}
-              {subMessageCount > 0 ? <span>({this.renderHostInfo(subMessageCount, subMessage)})</span> : null}
-              {this.isEdit && (
-                <i
-                  class='icon-monitor icon-mc-edit mc-edit'
-                  onClick={this.handleShowSelect}
-                />
-              )}
-            </span>
-          ) : this.isEdit ? (
-            <span
-              class='add-tag'
-              onClick={this.handleShowSelect}
-            >
-              <span class='icon-monitor icon-mc-add'></span>
-              <span class='add-tag-text'>{this.$t('关闭对象')}</span>
-            </span>
-          ) : (
-            <span class='target-overview no-target'>
-              <i class='icon-monitor icon-mc-tv notification-tv'></i>
-              <span>--</span>
-            </span>
-          )
-        }
+        {this.value?.[0]?.[0]?.value?.length > 0 ? (
+          <span
+            class={['target-overview', { overview: !this.isEdit }]}
+            onClick={this.handleShowTargetDetail}
+          >
+            <i class='icon-monitor icon-mc-tv notification-tv'></i>
+            {this.renderHostInfo(messageCount, message) || '--'}
+            {subMessageCount > 0 ? <span>({this.renderHostInfo(subMessageCount, subMessage)})</span> : null}
+            {this.isEdit && (
+              <i
+                class='icon-monitor icon-mc-edit mc-edit'
+                onClick={this.handleShowSelect}
+              />
+            )}
+          </span>
+        ) : this.isEdit ? (
+          <span
+            class='add-tag'
+            onClick={this.handleShowSelect}
+          >
+            <span class='icon-monitor icon-mc-add'></span>
+            <span class='add-tag-text'>{this.$t('关闭对象')}</span>
+          </span>
+        ) : (
+          <span class='target-overview no-target'>
+            <i class='icon-monitor icon-mc-tv notification-tv'></i>
+            <span>--</span>
+          </span>
+        )}
         <bk-dialog
           width={1000}
           class='ai-settings-notification-component-dialog'

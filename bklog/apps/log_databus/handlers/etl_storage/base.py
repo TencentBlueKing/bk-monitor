@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 import copy
 import hashlib
-from typing import Union, Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from django.conf import settings
 from django.core.cache import cache
@@ -43,9 +43,13 @@ from apps.log_databus.exceptions import (
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.log_databus.utils.es_config import get_es_config
-from apps.log_search.constants import FieldBuiltInEnum, FieldDataTypeEnum
+from apps.log_search.constants import (
+    FieldBuiltInEnum,
+    FieldDataTypeEnum,
+    FieldDateFormatEnum,
+)
 from apps.utils import is_match_variate
-from apps.utils.log import logger
+from apps.utils.db import array_group
 
 
 class EtlStorage(object):
@@ -109,12 +113,7 @@ class EtlStorage(object):
 
     @staticmethod
     def generate_hash_str(
-            type: str,
-            field_name: str,
-            field_alias: str,
-            is_case_sensitive: bool,
-            tokenize_on_chars: str,
-            length: int = 8
+        type: str, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str, length: int = 8
     ) -> str:
         """
         根据字段的配置生成简化的hash值
@@ -135,7 +134,7 @@ class EtlStorage(object):
         return f"{type}_{hash_str}"
 
     def generate_field_analyzer_name(
-            self, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str
+        self, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str
     ) -> str:
         """
         生成analyzer名称
@@ -168,13 +167,13 @@ class EtlStorage(object):
                 field_name="log",
                 field_alias="data",
                 is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
-                tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
+                tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", ""),
             )
             if analyzer_name:
                 tokenizer_name = self.generate_field_tokenizer_name(
                     field_name="log",
                     field_alias="data",
-                    tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
+                    tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", ""),
                 )
                 result["analyzer"][analyzer_name] = {
                     "type": "custom",
@@ -200,14 +199,14 @@ class EtlStorage(object):
                 field_name=field.get("field_name", ""),
                 field_alias=field.get("alias_name", ""),
                 is_case_sensitive=field.get("is_case_sensitive", False),
-                tokenize_on_chars=field.get("tokenize_on_chars", "")
+                tokenize_on_chars=field.get("tokenize_on_chars", ""),
             )
             if not analyzer_name:
                 continue
             tokenizer_name = self.generate_field_tokenizer_name(
                 field_name=field.get("field_name", ""),
                 field_alias=field.get("alias_name", ""),
-                tokenize_on_chars=field.get("tokenize_on_chars", "")
+                tokenize_on_chars=field.get("tokenize_on_chars", ""),
             )
             result["analyzer"][analyzer_name] = {
                 "type": "custom",
@@ -220,7 +219,8 @@ class EtlStorage(object):
                 result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
                 result["tokenizer"][tokenizer_name] = {
                     "type": "char_group",
-                    "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")]}
+                    "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")],
+                }
             else:
                 result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         return result
@@ -240,7 +240,7 @@ class EtlStorage(object):
                 field_name="log",
                 field_alias="data",
                 is_case_sensitive=etl_params.get("original_text_is_case_sensitive", False),
-                tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", "")
+                tokenize_on_chars=etl_params.get("original_text_tokenize_on_chars", ""),
             )
             original_text_field = {
                 "field_name": "log",
@@ -248,14 +248,9 @@ class EtlStorage(object):
                 "tag": "metric",
                 "alias_name": "data",
                 "description": "original_text",
-                "option": {
-                    "es_type": "text",
-                    "es_include_in_all": True
-                }
+                "option": {"es_type": "text", "es_include_in_all": True}
                 if es_version.startswith("5.")
-                else {
-                    "es_type": "text"
-                },
+                else {"es_type": "text"},
             }
             if es_analyzer:
                 original_text_field["option"]["es_analyzer"] = es_analyzer
@@ -331,7 +326,7 @@ class EtlStorage(object):
                         field_name=field["field_name"],
                         field_alias=field.get("alias_name", ""),
                         is_case_sensitive=field.get("is_case_sensitive", False),
-                        tokenize_on_chars=field.get("tokenize_on_chars", "")
+                        tokenize_on_chars=field.get("tokenize_on_chars", ""),
                     )
                     if analyzer_name:
                         field_option["es_analyzer"] = analyzer_name
@@ -355,6 +350,17 @@ class EtlStorage(object):
                 time_field["option"]["time_zone"] = field["option"]["time_zone"]
                 time_field["option"]["time_format"] = field["option"]["time_format"]
                 time_field["option"]["field_index"] = field_option["field_index"]
+
+                # 时间精度设置
+                time_fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
+                time_fmt = time_fmts.get(field["option"]["time_format"], {})
+                time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
+                time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
+                time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
+
+                # 注入默认值
+                time_field["option"]["default_function"] = "fn:timestamp_from_utctime"
+
                 # 删除原时间字段配置
                 field_option["es_doc_values"] = False
 
@@ -373,19 +379,19 @@ class EtlStorage(object):
         return {"fields": field_list, "time_field": time_field}
 
     def update_or_create_result_table(
-            self,
-            instance: Union[CollectorConfig, CollectorPlugin],
-            table_id: str,
-            storage_cluster_id: int,
-            retention: int,
-            allocation_min_days: int,
-            storage_replies: int,
-            fields: list = None,
-            etl_params: dict = None,
-            es_version: str = "5.X",
-            hot_warm_config: dict = None,
-            es_shards: int = settings.ES_SHARDS,
-            index_settings: dict = None,
+        self,
+        instance: Union[CollectorConfig, CollectorPlugin],
+        table_id: str,
+        storage_cluster_id: int,
+        retention: int,
+        allocation_min_days: int,
+        storage_replies: int,
+        fields: list = None,
+        etl_params: dict = None,
+        es_version: str = "5.X",
+        hot_warm_config: dict = None,
+        es_shards: int = settings.ES_SHARDS,
+        index_settings: dict = None,
     ):
         """
         创建或更新结果表
@@ -461,7 +467,7 @@ class EtlStorage(object):
                 "index_settings": {
                     "number_of_shards": instance.storage_shards_nums,
                     "number_of_replicas": instance.storage_replies,
-                    "analysis": analysis
+                    "analysis": analysis,
                 },
             },
             "is_time_field_only": True,

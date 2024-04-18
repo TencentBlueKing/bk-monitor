@@ -32,7 +32,7 @@ import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from 'moni
 import {
   type ICommonItem,
   type IWhereItem,
-  type MetricDetail
+  type MetricDetail,
 } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './where-display.scss';
@@ -42,32 +42,32 @@ export default defineComponent({
   props: {
     value: {
       type: Array as PropType<IWhereItem[]>,
-      default: () => []
+      default: () => [],
     },
     groupByList: {
       type: Array as PropType<ICommonItem[]>,
-      default: () => []
+      default: () => [],
     },
     metric: {
       type: Object as PropType<MetricDetail>,
-      default: () => null
+      default: () => null,
     },
     allWhereValueMap: {
       type: Map as PropType<Map<string, ICommonItem[]>>,
-      default: () => new Map()
+      default: () => new Map(),
     },
     readonly: {
       type: Boolean,
-      default: false
+      default: false,
     },
     allNames: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     onValueMapChange: {
       type: Function as PropType<(_v: Map<string, ICommonItem[]>) => void>,
-      default: _v => {}
-    }
+      default: _v => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -78,7 +78,7 @@ export default defineComponent({
     }>({
       whereNameMap: new Map(),
       methodNameMap: new Map(),
-      whereValueMap: new Map()
+      whereValueMap: new Map(),
     });
     const valueKey = ref(random(8));
 
@@ -111,9 +111,9 @@ export default defineComponent({
             data_type_label,
             metric_field,
             result_table_id,
-            where: []
+            where: [],
           },
-          type: 'dimension'
+          type: 'dimension',
         };
         if (props.allWhereValueMap.get(item.key)) {
           maps.whereValueMap.set(item.key, props.allWhereValueMap.get(item.key));
@@ -122,13 +122,13 @@ export default defineComponent({
         return getVariableValue(params).then(res => {
           maps.whereValueMap.set(
             item.key,
-            res.map(set => ({ id: set.label, name: set.value }))
+            res.map(set => ({ id: set.label, name: set.value })),
           );
           /* 将变量保存在父组件 */
           const valueMap = new Map(props.allWhereValueMap);
           valueMap.set(
             item.key,
-            res.map(set => ({ id: set.label, name: set.value }))
+            res.map(set => ({ id: set.label, name: set.value })),
           );
           handleValueMap(valueMap);
         });
@@ -187,10 +187,10 @@ export default defineComponent({
 
     return {
       renderFn,
-      maps
+      maps,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

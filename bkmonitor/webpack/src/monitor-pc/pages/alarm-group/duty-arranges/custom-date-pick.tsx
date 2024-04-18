@@ -111,7 +111,7 @@ export default class CustomDatePick extends tsc<IProps, IEvents> {
           transfer={true}
           type={'date'}
           options={{
-            disabledDate: this.disabledDateFn
+            disabledDate: this.disabledDateFn,
           }}
           format={this.dateFormat()}
           clearable={false}

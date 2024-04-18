@@ -33,7 +33,7 @@ import {
   provide,
   reactive,
   ref,
-  shallowRef
+  shallowRef,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -50,7 +50,7 @@ import {
   listTrace,
   spanDetail,
   traceDetail,
-  traceOptions
+  traceOptions,
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
 import { debounce, deepClone, random } from 'monitor-common/utils/utils';
@@ -70,7 +70,7 @@ import {
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
   TIMEZONE_KEY,
-  VIEWOPTIONS_KEY
+  VIEWOPTIONS_KEY,
 } from '../../plugins/hooks';
 import { IViewOptions } from '../../plugins/typings';
 import { DEFAULT_TRACE_DATA } from '../../store/constant';
@@ -83,7 +83,7 @@ import {
   ISearchSelectItem,
   ISearchSelectValue,
   ITraceData,
-  SearchType
+  SearchType,
 } from '../../typings';
 import { monitorDrag } from '../../utils/drag-directive';
 
@@ -109,7 +109,6 @@ interface IState {
 /** 头部工具栏高度 */
 const HEADER_HEIGHT = 48;
 export default defineComponent({
-  // eslint-disable-next-line vue/multi-word-component-names
   name: 'Inquire',
   directives: { monitorDrag },
   setup(props, { expose }) {
@@ -132,7 +131,7 @@ export default defineComponent({
       isAlreadyAccurateQuery: false,
       isAlreadyScopeQuery: false,
       /** 最近一次检索的应用 */
-      cacheQueryAppName: localStorage.getItem('trace_query_app') || ''
+      cacheQueryAppName: localStorage.getItem('trace_query_app') || '',
     });
     // 自定义筛选列表
     const conditionFilter = [];
@@ -146,15 +145,14 @@ export default defineComponent({
       const listData = await listApplicationInfo().catch(() => []);
       appList.value = listData;
       isEmptyApp.value = !listData.length;
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       setTimeout(async () => {
         // 初始赋值自定义回显内容 组件需做优化处理 暂时使用 setTimeout 定时器
         if (appList.value.length && state.app === '') {
-          // eslint-disable-next-line max-len
           if (
             state.cacheQueryAppName &&
             appList.value.find(
-              app => app.app_name === state.cacheQueryAppName && app.permission[authorityMap.VIEW_AUTH]
+              app => app.app_name === state.cacheQueryAppName && app.permission[authorityMap.VIEW_AUTH],
             )
           ) {
             state.app = state.cacheQueryAppName;
@@ -183,7 +181,7 @@ export default defineComponent({
       { label: t('字段名模糊匹配:'), value: ['vers\\*on:(quick brown)'] },
       { label: t('通配符匹配:'), value: ['qu?ck bro*'] },
       { label: t('正则匹配:'), value: ['name:/joh?n(ath[oa]n/'] },
-      { label: t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] }
+      { label: t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] },
     ];
     const headerToolMenuList: ISelectMenuOption[] = [{ id: 'config', name: t('应用设置') }];
 
@@ -205,7 +203,7 @@ export default defineComponent({
     /* trace_list 分页 */
     const traceListPagination = reactive({
       offset: 0,
-      limit: 30
+      limit: 30,
     });
     /* trace_list 下拉加载loading */
     const traceListTabelLoading = ref(false);
@@ -221,7 +219,7 @@ export default defineComponent({
       show: false,
       loading: false,
       name: '',
-      id: 0
+      id: 0,
     });
     const isEmptyApp = ref<boolean>(false);
     const searchSelectData = shallowRef<ISearchSelectItem[]>([]);
@@ -253,7 +251,7 @@ export default defineComponent({
           if (selectedType.length || selectedInterfaceType.length)
             store.setServiceStatisticsType({
               contain: selectedType,
-              interfaceType: selectedInterfaceType
+              interfaceType: selectedInterfaceType,
             });
           break;
       }
@@ -321,7 +319,7 @@ export default defineComponent({
                 searchSelectValue.value.push({
                   id: key,
                   name: curOptions.name,
-                  values: curOptions.children.filter(val => queryOptionValue[key].includes(val.id))
+                  values: curOptions.children.filter(val => queryOptionValue[key].includes(val.id)),
                 });
               }
             }
@@ -347,8 +345,8 @@ export default defineComponent({
           app_name: state.app,
           search_type: state.searchType,
           search_id: searchIdType.value,
-          trace_id: traceIDSearchValue.value
-        }
+          trace_id: traceIDSearchValue.value,
+        },
       });
       store.setPageLoaidng(true);
       /** 记录当前搜索的应用 */
@@ -359,7 +357,7 @@ export default defineComponent({
       const params = {
         bk_biz_id: window.bk_biz_id,
         app_name: state.app,
-        [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value
+        [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value,
       };
       const resultData = await requestFn(params).catch(() => null);
       searchResultIdType.value = searchIdType.value;
@@ -401,7 +399,7 @@ export default defineComponent({
         filters.push({
           key: isOriginStatusCodeFilter ? 'status_code' : key,
           operator: isOriginStatusCodeFilter ? 'logic' : 'equal',
-          value: traceColumnFilters.value?.[key]
+          value: traceColumnFilters.value?.[key],
         });
       });
       // 收集 耗时 区间信息
@@ -409,7 +407,7 @@ export default defineComponent({
         filters.push({
           key: 'duration',
           value: durantionRange?.value,
-          operator: 'between'
+          operator: 'between',
         });
       }
       // 收集 侧边栏：服务
@@ -418,7 +416,7 @@ export default defineComponent({
           filters.push({
             key: scopeSelects.value[key].trace_key,
             value: scopeSelects.value[key].value,
-            operator: 'equal'
+            operator: 'equal',
           });
         }
       });
@@ -429,7 +427,7 @@ export default defineComponent({
           filters.push({
             key: scopeSelects.value[item.id].trace_key,
             value: item.values.map(value => value.id),
-            operator: 'equal'
+            operator: 'equal',
           });
         }
       });
@@ -444,8 +442,8 @@ export default defineComponent({
           error: {
             key: 'error',
             operator: 'logic',
-            value: []
-          }
+            value: [],
+          },
         };
         store.traceType.forEach(item => filters.push(filterTypeMapping[item]));
       }
@@ -455,7 +453,7 @@ export default defineComponent({
         const filterMapSpanType = {
           root_span: { key: 'parent_span_id', operator: 'equal', value: [''] },
           entry_span: { key: 'kind', operator: 'equal', value: ['2', '5'] },
-          error: { key: 'status.code', operator: 'equal', value: ['2'] }
+          error: { key: 'status.code', operator: 'equal', value: ['2'] },
         };
         const result = store.spanType.map(item => filterMapSpanType[item]);
         filters.push(...result);
@@ -465,7 +463,7 @@ export default defineComponent({
         const filterMapSpanType = {
           root_span: { key: 'root_span', operator: 'logic', value: [] },
           root_service_span: { key: 'root_service_span', operator: 'logic', value: [] },
-          'status.code': { key: 'status.code', operator: 'equal', value: ['2'] }
+          'status.code': { key: 'status.code', operator: 'equal', value: ['2'] },
         };
         const result = store.interfaceStatisticsType.map(item => filterMapSpanType[item]);
         filters.push(...result);
@@ -480,28 +478,28 @@ export default defineComponent({
           error: {
             key: 'status.code',
             operator: 'equal',
-            value: ['2']
+            value: ['2'],
           },
           sync: {
             key: 'kind',
             operator: 'equal',
-            value: ['2', '3']
+            value: ['2', '3'],
           },
           async: {
             key: 'kind',
             operator: 'equal',
-            value: ['4', '5']
+            value: ['4', '5'],
           },
           internal: {
             key: 'kind',
             operator: 'equal',
-            value: ['1']
+            value: ['1'],
           },
           unknown: {
             key: 'kind',
             operator: 'equal',
-            value: ['0']
-          }
+            value: ['0'],
+          },
         };
         store.serviceStatisticsType.contain.forEach(item => filters.push(filterTypeMapping[item]));
         store.serviceStatisticsType.interfaceType.forEach(item => filters.push(filterTypeMapping[item]));
@@ -525,7 +523,7 @@ export default defineComponent({
         // sort: traceSortKey.value,
         sort: sortList,
         // 去掉，统一合并到 filter 上。
-        duration: durantionRange?.value ?? undefined
+        duration: durantionRange?.value ?? undefined,
         // 合并到 filters
         // trace_filter: traceColumnFilters?.value
       };
@@ -650,7 +648,7 @@ export default defineComponent({
         search_id: searchIdType.value,
         start_tiem: timeRange.value[0],
         end_tiem: timeRange.value[1],
-        refleshInterval: refleshInterval.value
+        refleshInterval: refleshInterval.value,
       };
 
       Object.keys(scopeSelects.value).forEach(key => {
@@ -685,7 +683,7 @@ export default defineComponent({
             filterConditionList[item.labelValue] = {
               selectedCondition: item.selectedCondition,
               isInclude: item.isInclude,
-              selectedConditionValue: item.selectedConditionValue
+              selectedConditionValue: item.selectedConditionValue,
             };
           }
         });
@@ -718,7 +716,7 @@ export default defineComponent({
 
       router.replace({
         name: route.name || 'home',
-        query
+        query,
       });
     };
     const handleQueryScopeDebounce = debounce(handleQueryScope, 300, false);
@@ -755,11 +753,11 @@ export default defineComponent({
       }
     }
     /* 收藏  */
-    // eslint-disable-next-line max-len
+
     async function handleAddCollect({
       value,
       hideCallback,
-      favLoadingCallBack
+      favLoadingCallBack,
     }: {
       value: string;
       hideCallback: () => void;
@@ -779,9 +777,9 @@ export default defineComponent({
           componentData: {
             scopeSelects: scopeSelects.value,
             queryString: queryString.value,
-            app: state.app
-          }
-        }
+            app: state.app,
+          },
+        },
       };
       favLoadingCallBack(true);
       await createQueryHistory(params)
@@ -822,7 +820,7 @@ export default defineComponent({
             historySearchSelectValue.push({
               id: key,
               name: curOptions.name,
-              values: optionValue
+              values: optionValue,
             });
           }
         }
@@ -836,7 +834,7 @@ export default defineComponent({
     /* 收藏列表 */
     async function getCollectList() {
       collectList.value = await listQueryHistory({
-        type: 'trace'
+        type: 'trace',
       }).catch(() => []);
     }
     /* 点击查询 */
@@ -873,7 +871,6 @@ export default defineComponent({
       durantionRange.value = null;
       // 清空条件列表
       conditionList.forEach(item => {
-        // eslint-disable-next-line no-param-reassign
         item.selectedConditionValue.length = 0;
       });
       handleScopeQueryChange();
@@ -955,14 +952,13 @@ export default defineComponent({
         start_time: time[0],
         end_time: time[1],
         bk_biz_id: window.bk_biz_id,
-        fields
+        fields,
       };
       if (!fields.length) return;
       // 在查询前，把 候选项 和 选中项 先清空
       conditionList.forEach((item: any) => {
-        // eslint-disable-next-line no-param-reassign
         item.conditionValueList.length = 0;
-        // eslint-disable-next-line no-param-reassign
+
         item.selectedConditionValue.length = 0;
       });
       const result = await getFieldOptionValues(params)
@@ -970,7 +966,6 @@ export default defineComponent({
         .finally(() => (isAddConditionButtonLoading.value = false));
       // 请求成功后，将 候选项 补上。
       conditionList.forEach((item: any) => {
-        // eslint-disable-next-line no-param-reassign
         item.conditionValueList = result[item.labelValue];
       });
     }
@@ -1045,7 +1040,7 @@ export default defineComponent({
           query: keyword,
           duration,
           listType,
-          conditionList: conditionListStringify
+          conditionList: conditionListStringify,
         } = route.query;
         state.app = appName as string;
         if (startTiem && endTiem) {
@@ -1075,7 +1070,7 @@ export default defineComponent({
               conditionFilter.push({
                 key,
                 operator: result[key].selectedCondition.value,
-                value: result[key].selectedConditionValue
+                value: result[key].selectedConditionValue,
               });
             }
           });
@@ -1184,7 +1179,7 @@ export default defineComponent({
                 onBlur={handleQueryIDInputBlur}
               />
             </VerifyInput>
-          ) as any
+          ) as any,
         )}
         <HandleBtn
           accurateQuery={true}
@@ -1223,7 +1218,7 @@ export default defineComponent({
         start_time: time[0],
         end_time: time[1],
         bk_biz_id: window.bk_biz_id,
-        fields: [LAST_ELEMENT]
+        fields: [LAST_ELEMENT],
       };
       conditionList[index].conditionValueList.length = 0;
       isAddConditionButtonLoading.value = true;
@@ -1269,7 +1264,7 @@ export default defineComponent({
     const standardFieldList = ref([]);
     const getStandardFields = async () => {
       const result = await listStandardFilterFields().catch(() => {});
-      // eslint-disable-next-line no-param-reassign
+
       result.map(item => (item.disabled = false));
       standardFieldList.value = result;
       setDefaultConditionList();
@@ -1312,7 +1307,6 @@ export default defineComponent({
     // 递归遍历置灰
     const traverseIds = (obj: any, targetID: string, disableType: boolean) => {
       if (obj.id === targetID) {
-        // eslint-disable-next-line no-param-reassign
         obj.disabled = disableType;
       }
       if (obj.children) {
@@ -1338,7 +1332,7 @@ export default defineComponent({
         start_time: time[0],
         end_time: time[1],
         bk_biz_id: window.bk_biz_id,
-        fields: selectedConditions.value
+        fields: selectedConditions.value,
       };
       // 没有选择或配置正确的筛选项就不应该发生请求。
       if (params.fields.length === 0) return;
@@ -1353,7 +1347,7 @@ export default defineComponent({
         const singleCondition = {
           selectedCondition: {
             label: '=',
-            value: 'equal'
+            value: 'equal',
           },
           isInclude: true,
           labelValue: key,
@@ -1362,23 +1356,23 @@ export default defineComponent({
           conditionList: [
             {
               label: '=',
-              value: 'equal'
+              value: 'equal',
             },
             {
               label: '!=',
-              value: 'not_equal'
+              value: 'not_equal',
             },
             {
               label: 'exists',
-              value: 'exists'
+              value: 'exists',
             },
             {
               label: 'not exists',
-              value: 'not exists'
-            }
+              value: 'not exists',
+            },
           ],
           selectedConditionValue: [],
-          conditionValueList: result[key]
+          conditionValueList: result[key],
         };
         if (conditionListInQuery[key]) Object.assign(singleCondition, conditionListInQuery[key]);
         conditionList.push(singleCondition);
@@ -1424,7 +1418,7 @@ export default defineComponent({
           conditionFilter.push({
             key: item.labelValue,
             operator: item.selectedCondition?.value,
-            value: item.selectedConditionValue
+            value: item.selectedConditionValue,
           });
         }
       });
@@ -1460,7 +1454,7 @@ export default defineComponent({
                 trigger='click'
                 placement='bottom-start'
                 v-slots={{
-                  content: () => tipsContentTpl()
+                  content: () => tipsContentTpl(),
                 }}
               >
                 <span class='icon-monitor icon-mc-help-fill'></span>
@@ -1477,7 +1471,7 @@ export default defineComponent({
                 onBlur={handleScopeQueryChange}
               />
             </VerifyInput>
-          ) as any
+          ) as any,
         )}
         {formItem(
           (
@@ -1491,7 +1485,7 @@ export default defineComponent({
               range={durantionRange.value ?? undefined}
               onChange={handleDurationChange}
             />
-          ) as any
+          ) as any,
         )}
         {/* 这里插入 condition 组件 */}
         {conditionList.map((item, index) => (
@@ -1561,7 +1555,7 @@ export default defineComponent({
             autoHidden: true,
             isShow: state.showLeft,
             onHidden: () => handleLeftHiddenAndShow(false),
-            onWidthChange: (width: number) => (state.leftWidth = width)
+            onWidthChange: (width: number) => (state.leftWidth = width),
           }}
         >
           <div class={['inquire-left-main', { 'scope-inquire': state.searchType === 'scope' }]}>
@@ -1579,14 +1573,14 @@ export default defineComponent({
               <SearchLeft
                 v-models={[
                   [state.app, 'app'],
-                  [state.searchType, 'searchType']
+                  [state.searchType, 'searchType'],
                 ]}
                 onAppChange={handleAppSelectChange}
                 onSearchTypeChange={handleSearchTypeChange}
                 appList={appList.value}
                 showBottom={state.searchType === 'scope'}
                 v-slots={{
-                  query: () => (state.searchType === 'accurate' ? accurateQueryShow() : scopeQueryShow())
+                  query: () => (state.searchType === 'accurate' ? accurateQueryShow() : scopeQueryShow()),
                 }}
                 onAddCondition={handleAddCondition}
               />
@@ -1612,7 +1606,7 @@ export default defineComponent({
                 [state.showLeft, 'showLeft'],
                 [refleshInterval.value, 'refleshInterval'],
                 [timeRange.value, 'timeRange'],
-                [timezone.value, 'timezone']
+                [timezone.value, 'timezone'],
               ]}
               onDeleteCollect={handleDeleteCollect}
               onSelectCollect={handleSelectCollect}
@@ -1668,7 +1662,7 @@ export default defineComponent({
                 subtitle={t('收藏名')}
                 name={collectDialog.name}
               ></DeleteDialogContent>
-            )
+            ),
           }}
         ></Dialog>
       </div>
@@ -1678,10 +1672,10 @@ export default defineComponent({
       renderFn,
       selectedConditions,
       standardFieldList,
-      conditionList
+      conditionList,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

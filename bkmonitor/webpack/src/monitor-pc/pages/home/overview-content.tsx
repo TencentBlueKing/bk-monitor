@@ -45,7 +45,7 @@ interface IOverviewContentProps {
 }
 
 @Component({
-  name: 'OverviewContent'
+  name: 'OverviewContent',
 })
 export default class OverviewContent extends tsc<IOverviewContentProps> {
   @Prop({ type: Array, default: () => [] }) data: IData[];
@@ -69,7 +69,7 @@ export default class OverviewContent extends tsc<IOverviewContentProps> {
               theme: 'light',
               placements: ['top'],
               boundary: 'window',
-              maxWidth: 250
+              maxWidth: 250,
             }}
           >
             <span class='item-top'>
@@ -90,7 +90,7 @@ export default class OverviewContent extends tsc<IOverviewContentProps> {
             <div>{window.i18n.tc('MTTA指平均应答时间 = 所有告警的总持续时间 / 总告警数量')}</div>
             <div>
               {window.i18n.tc(
-                '其中持续时间指告警的首次异常时间到状态变更的时间段，状态变更如确认/屏蔽/恢复/关闭/已解决等'
+                '其中持续时间指告警的首次异常时间到状态变更的时间段，状态变更如确认/屏蔽/恢复/关闭/已解决等',
               )}
             </div>
           </div>

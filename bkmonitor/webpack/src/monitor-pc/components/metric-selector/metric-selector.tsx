@@ -59,7 +59,7 @@ const { i18n } = window;
 const promqlParams = [
   ['custom', 'time_series'],
   ['bk_monitor', 'time_series'],
-  ['bk_data', 'time_series']
+  ['bk_data', 'time_series'],
 ];
 
 /**
@@ -108,7 +108,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   pagination = {
     page: 1,
     pageSize: 20,
-    total: 0
+    total: 0,
   };
 
   search = '';
@@ -117,7 +117,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   tag = {
     list: [],
     value: '',
-    activeItem: null
+    activeItem: null,
   };
 
   lang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
@@ -141,7 +141,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     [MetricType.TimeSeries]: 'time_series',
     [MetricType.EVENT]: 'event',
     [MetricType.LOG]: 'log',
-    [MetricType.ALERT]: 'alert'
+    [MetricType.ALERT]: 'alert',
   };
 
   /** 采集来源数据 */
@@ -152,25 +152,25 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       { id: 'bk_data', name: i18n.t('计算平台指标'), count: 0 },
       { id: 'custom', name: i18n.t('自定义指标'), count: 0 },
       { id: 'bk_log_search', name: i18n.t('日志平台指标'), count: 0 },
-      { id: 'bk_apm', name: 'APM', count: 0 }
+      { id: 'bk_apm', name: 'APM', count: 0 },
     ],
     // 事件数据
     [MetricType.EVENT]: [
       { id: 'bk_monitor', name: i18n.t('系统事件'), count: 0 },
       { id: 'custom', name: i18n.t('自定义事件'), count: 0 },
-      { id: 'bk_fta', name: i18n.t('第三方告警'), count: 0 }
+      { id: 'bk_fta', name: i18n.t('第三方告警'), count: 0 },
     ],
     // 日志数据
     [MetricType.LOG]: [
       { id: 'bk_monitor', name: i18n.t('监控采集'), count: 0 },
       { id: 'bk_log_search', name: i18n.t('日志平台'), count: 0 },
-      { id: 'bk_apm', name: i18n.t('应用监控'), count: 0 }
+      { id: 'bk_apm', name: i18n.t('应用监控'), count: 0 },
     ],
     // 关联告警
     [MetricType.ALERT]: [
       { id: 'bk_monitor', name: i18n.t('告警策略'), count: 0 },
-      { id: 'bk_fta', name: i18n.t('第三方告警'), count: 0 }
-    ]
+      { id: 'bk_fta', name: i18n.t('第三方告警'), count: 0 },
+    ],
   };
 
   /* 是否点击了刷新并且执行了初始化操作 无需清空搜索 */
@@ -201,9 +201,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         name: i18n.tc(this.type === MetricType.ALERT ? '告警类型' : '数据来源'),
         children:
           this.dataSourceCheckedList[this.type]?.map(item => {
-            // eslint-disable-next-line max-len
             const target = this.dataSourceList.find(
-              set => set.data_type_label === this.currentDataTypeLabel && set.data_source_label === item.id
+              set => set.data_type_label === this.currentDataTypeLabel && set.data_source_label === item.id,
             );
             item.count = (() => {
               if (this.isPromql) {
@@ -212,7 +211,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               return target?.count || 0;
             })();
             return item;
-          }) || []
+          }) || [],
       },
       {
         id: 'result_table_label',
@@ -220,8 +219,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         children: this.scenarioList.map(item => {
           this.$set(item, 'count', scenarioCountMap[item.id] || 0);
           return item;
-        })
-      }
+        }),
+      },
     ];
   }
 
@@ -230,8 +229,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     return [
       {
         key: 'query',
-        value: this.search.trim()
-      }
+        value: this.search.trim(),
+      },
     ];
   }
 
@@ -273,7 +272,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   initData() {
     if (!!this.defaultScenario) {
       this.checkededValue = {
-        result_table_label: [this.defaultScenario]
+        result_table_label: [this.defaultScenario],
       };
     } else {
       this.checkededValue = {};
@@ -316,7 +315,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       result_table_label: this.checkededValue.result_table_label,
       tag: this.tag.value,
       page,
-      page_size: pageSize
+      page_size: pageSize,
     };
     return params;
   }
@@ -432,7 +431,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       if (index !== indexRanges.length - 1) {
         return [
           <span>{content.slice(range[0], range[1])}</span>,
-          <span class='light'>{content.slice(range[1], indexRanges[index + 1][0])}</span>
+          <span class='light'>{content.slice(range[1], indexRanges[index + 1][0])}</span>,
         ];
       }
       return <span>{content.slice(range[0], range[1])}</span>;
@@ -446,7 +445,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     copyText(copyStr, errMsg => {
       this.$bkMessage({
         message: errMsg,
-        theme: 'error'
+        theme: 'error',
       });
       hasErr = !!errMsg;
     });
@@ -470,7 +469,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         arrow: true,
         placement: 'right',
         boundary: 'window',
-        allowHTML: true
+        allowHTML: true,
       });
       this.popoverInstance?.show();
     }, 1000);
@@ -614,7 +613,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             is_completed: true,
             state: 'FAILURE',
             data: err.data,
-            message: err.message
+            message: err.message,
           };
           cb(result);
         });
@@ -634,7 +633,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             this.refreshLoading = false;
             this.$bkMessage({
               message: data.message,
-              theme: 'error'
+              theme: 'error',
             });
           }
         });
@@ -654,7 +653,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     return {
       ...metric,
       dimensions: metric.rawDimensions || [],
-      key: this.metricKey
+      key: this.metricKey,
     };
   }
 
@@ -706,16 +705,16 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     const data = [
       {
         label: this.$tc('事件名称'),
-        value: item.metric_field_name
+        value: item.metric_field_name,
       },
       {
         label: this.$tc('数据ID'),
-        value: item.metric_field
+        value: item.metric_field,
       },
       {
         label: this.$tc('数据名称'),
-        value: item.metric_field_name
-      }
+        value: item.metric_field_name,
+      },
     ];
     return (
       <div
@@ -726,7 +725,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           boundary: 'window',
           disabled: this.isScrolling,
           content: this.getMetricTipsTpl(data),
-          allowHTML: true
+          allowHTML: true,
         }}
       >
         <span>{item.metric_field_name}</span>
@@ -740,26 +739,26 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         ? [
             {
               label: this.$tc('应用名称'),
-              value: item.metric_field_name
+              value: item.metric_field_name,
             },
             {
               label: this.$tc('结果表'),
-              value: item.result_table_id
-            }
+              value: item.result_table_id,
+            },
           ]
         : [
             {
               label: this.$tc('索引集'),
-              value: item.index_set_name
+              value: item.index_set_name,
             },
             {
               label: this.$tc('索引'),
-              value: item.index_set_id
+              value: item.index_set_id,
             },
             {
               label: this.$tc('数据源'),
-              value: item.data_source_label
-            }
+              value: item.data_source_label,
+            },
           ];
     return (
       <div
@@ -770,7 +769,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           boundary: 'window',
           disabled: this.isScrolling,
           content: this.getMetricTipsTpl(data),
-          allowHTML: true
+          allowHTML: true,
         }}
       >
         <div class='log-name'>{item.metric_field_name}</div>
@@ -791,7 +790,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   metricItemCommon(item: MetricDetail) {
     const obj = {
       id: item.readable_name,
-      alias: ''
+      alias: '',
     };
     // 英文
     if (this.lang !== 'en') {
@@ -828,7 +827,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             class='icon-monitor icon-mc-copy'
             v-bk-tooltips={{
               content: window.i18n.t('复制指标名'),
-              placements: ['top']
+              placements: ['top'],
             }}
             onClick={e => {
               e.stopPropagation();
@@ -873,14 +872,14 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         this.$bkMessage({
           theme: 'error',
           message: this.$t('格式错误'),
-          delay: 2000
+          delay: 2000,
         });
         return;
       }
 
       addCustomMetric({
         result_table_id: resultTableId,
-        metric_field: metricField
+        metric_field: metricField,
       }).then(res => {
         this.handleSelectMetric(res[0]);
       });
@@ -909,16 +908,16 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         conditions: [
           {
             key: 'metric_id',
-            value: this.metricId
-          }
+            value: this.metricId,
+          },
         ],
         page: 1,
         tag: '',
         result_table_label: [],
-        data_source: undefined
+        data_source: undefined,
       };
       const data = await getMetricListV2(params).catch(() => ({
-        metric_list: []
+        metric_list: [],
       }));
       data?.metric_list?.forEach(item => {
         if (item.metric_id === this.metricId) {
@@ -990,8 +989,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                       'metric-item',
                       'pin-top-top',
                       {
-                        'common-type': this.type === MetricType.TimeSeries
-                      }
+                        'common-type': this.type === MetricType.TimeSeries,
+                      },
                     ]}
                   >
                     <div class='selected-label'>
@@ -1015,8 +1014,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                           {
                             selected: this.currentIndex === index && !this.isHoverItem,
                             checked: this.metricId === item.metric_id,
-                            'common-type': this.type === MetricType.TimeSeries
-                          }
+                            'common-type': this.type === MetricType.TimeSeries,
+                          },
                         ]}
                         id={`_metric_id_${item.metric_field}_${index}`.replace(/\./g, '_')}
                         onClick={() => this.handleSelectMetric(item)}
@@ -1028,7 +1027,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                     <div class='metric-next-page-tips'>
                       {this.nextPageLoading && <span class='loading-icon'></span>}
                       <span class='loading-text'>{this.$tc(this.isLoadAll ? '已加载全部数据' : '加载中...')}</span>
-                    </div>
+                    </div>,
                   ]
                 ) : (
                   <EmptyStatus

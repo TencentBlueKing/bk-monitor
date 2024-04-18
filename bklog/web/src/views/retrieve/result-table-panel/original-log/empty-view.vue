@@ -140,7 +140,7 @@ export default {
         },
         {
           key: this.$t('正则匹配'),
-          value: 'name:/joh?n(ath[oa]n/'
+          value: 'name:/joh?n(ath[oa]n)/'
         },
         {
           key: this.$t('组合检索注意大写'),
@@ -186,6 +186,10 @@ export default {
       },
       immediate: true
     }
+  },
+  mounted() {
+    const el = document.querySelector('.bk-table-empty-block');
+    if (el) el.classList.add('empty-clear-width');
   },
   methods: {
     handleBtnClick(clickType) {
@@ -300,5 +304,12 @@ export default {
   :deep(.exception-image) {
     height: 180px;
   }
+}
+</style>
+
+<style>
+.empty-clear-width {
+  /* stylelint-disable-next-line declaration-no-important */
+  width: auto !important;
 }
 </style>

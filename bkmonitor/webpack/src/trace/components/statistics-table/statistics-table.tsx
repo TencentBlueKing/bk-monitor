@@ -1,6 +1,5 @@
-/* eslint-disable codecc/comment-ratio */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable codecc/comment-ratio */
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -44,16 +43,16 @@ import './statistics-table.scss';
 const IProps = {
   appName: {
     type: String,
-    default: true
+    default: true,
   },
   traceId: {
     type: String,
-    default: true
+    default: true,
   },
   compareTraceID: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 };
 
 export interface IFilterItem {
@@ -140,9 +139,9 @@ export default defineComponent({
           list: endpointNameFilterList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field]) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
             class='link-column'
@@ -157,7 +156,7 @@ export default defineComponent({
             </Popover>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         isUseShow: true,
@@ -167,9 +166,9 @@ export default defineComponent({
           list: serviceNameFilterList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field].value) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
             class='link-column classify-column'
@@ -188,15 +187,15 @@ export default defineComponent({
             </Popover>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         isUseShow: true,
         label: t('数据来源'),
         field: 'resource.sdk.name',
         filter: {
-          list: sourceList
-        }
+          list: sourceList,
+        },
       },
       {
         isUseShow: true,
@@ -206,9 +205,9 @@ export default defineComponent({
           list: categoryList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field].value) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div class='classify-column'>
             <img
@@ -217,42 +216,42 @@ export default defineComponent({
             />
             <span class='link-text'>{row.kind?.text}</span>
           </div>
-        )
+        ),
       },
       {
         label: `${t('最大时间')}（μs）`,
         field: 'max_duration',
         sort: true,
-        width: 140
+        width: 140,
       },
       {
         label: `${t('最小时间')}（μs）`,
         field: 'min_duration',
         sort: true,
-        width: 140
+        width: 140,
       },
       {
         label: `${t('总时间')}（μs）`,
         field: 'sum_duration',
         sort: true,
-        width: 140
+        width: 140,
       },
       {
         label: 'CP95（μs）',
         field: 'P95',
         sort: true,
-        width: 140
+        width: 140,
       },
       {
         label: t('数量'),
         field: 'count',
         sort: true,
-        width: 90
+        width: 90,
       },
       {
         label: t('操作'),
         width: 160,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div style='display: flex;'>
             {/* TODO: 这里需要带什么参数去跳转页面 */}
@@ -282,14 +281,14 @@ export default defineComponent({
                 style={{
                   marginLeft: '10px',
                   color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                  cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
+                  cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
                 }}
               >
                 <span
                   class='link-text'
                   style={{
                     color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                    cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
+                    cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
                   }}
                 >
                   {t('观测')}
@@ -298,8 +297,8 @@ export default defineComponent({
               </div>
             </Popover>
           </div>
-        )
-      }
+        ),
+      },
     ];
     /** 表格列配置 */
     const tempDiffTableColumns = [
@@ -311,9 +310,9 @@ export default defineComponent({
           list: endpointNameFilterList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field]) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
             class='link-column'
@@ -328,7 +327,7 @@ export default defineComponent({
             </Popover>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         isUseShow: true,
@@ -338,9 +337,9 @@ export default defineComponent({
           list: serviceNameFilterList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field].value) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
             class='link-column classify-column'
@@ -359,15 +358,15 @@ export default defineComponent({
             </Popover>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         isUseShow: true,
         label: t('数据来源'),
         field: 'resource.sdk.name',
         filter: {
-          list: sourceList
-        }
+          list: sourceList,
+        },
       },
       {
         isUseShow: true,
@@ -377,9 +376,9 @@ export default defineComponent({
           list: categoryList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field].value) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div class='classify-column'>
             <img
@@ -388,7 +387,7 @@ export default defineComponent({
             />
             <span class='link-text'>{row.kind?.text}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -499,7 +498,7 @@ export default defineComponent({
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.max_duration))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'max_duration')}</div>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -610,7 +609,7 @@ export default defineComponent({
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.min_duration))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'min_duration')}</div>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -721,7 +720,7 @@ export default defineComponent({
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.sum_duration))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'sum_duration')}</div>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -832,7 +831,7 @@ export default defineComponent({
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.P95))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'P95')}</div>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -943,11 +942,11 @@ export default defineComponent({
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.count))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'count')}</div>
           </div>
-        )
+        ),
       },
       {
         label: t('操作'),
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div style='display: flex;'>
             {/* TODO: 这里需要带什么参数去跳转页面 */}
@@ -977,14 +976,14 @@ export default defineComponent({
                 style={{
                   marginLeft: '10px',
                   color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                  cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
+                  cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
                 }}
               >
                 <span
                   class='link-text'
                   style={{
                     color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                    cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
+                    cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
                   }}
                 >
                   {t('观测')}
@@ -995,8 +994,8 @@ export default defineComponent({
           </div>
         ),
         fixed: 'right',
-        width: 151
-      }
+        width: 151,
+      },
     ];
     /** 默认表格列配置 */
     const tableColumns = ref([]);
@@ -1011,7 +1010,7 @@ export default defineComponent({
     const handleCustomHeaderSort = (
       sortField: CustomSortField,
       sortChildField: CustomSortChildField,
-      sortType?: SortType
+      sortType?: SortType,
     ) => {
       if (sortField === selectedField.value && sortChildField === selectedChildField.value) {
         const currentIndex = mapOfSortType.findIndex(type => type === selectedSortType.value);
@@ -1050,10 +1049,9 @@ export default defineComponent({
               nextVal = next.comparison[selectedField.value];
               break;
             case 'difference':
-              // eslint-disable-next-line max-len
               preVal =
                 (pre[selectedField.value] - pre.comparison[selectedField.value]) / pre.comparison[selectedField.value];
-              // eslint-disable-next-line max-len
+
               nextVal =
                 (next[selectedField.value] - next.comparison[selectedField.value]) /
                 next.comparison[selectedField.value];
@@ -1090,7 +1088,7 @@ export default defineComponent({
       () => props.traceId,
       () => {
         getTableData();
-      }
+      },
     );
     /** 获取分组参数 */
     const getGroupFields = () => {
@@ -1098,7 +1096,7 @@ export default defineComponent({
         endpoint: 'span_name',
         service: 'resource.service.name',
         source: 'resource.sdk.name',
-        spanKind: 'kind'
+        spanKind: 'kind',
       };
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const group_fields = store.traceViewFilters.map(key => keyMap[key]);
@@ -1127,7 +1125,7 @@ export default defineComponent({
         Message({
           theme: 'error',
           message: `${t('请至少选择一项分组')}`,
-          getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : ''
+          getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : '',
         });
         return;
       }
@@ -1135,7 +1133,7 @@ export default defineComponent({
         app_name: appName,
         trace_id: traceId,
         filter,
-        group_fields
+        group_fields,
       };
       emit('update:loading', true);
       await traceStatistics(params)
@@ -1165,7 +1163,7 @@ export default defineComponent({
             getTableData();
           }
         }
-      }
+      },
     );
 
     // 收集 table filter 并对其内容去重。
@@ -1178,22 +1176,22 @@ export default defineComponent({
         item.span_name &&
           endpointNameFilterList.value.push({
             text: item.span_name,
-            value: item.span_name
+            value: item.span_name,
           });
         item?.['resource.service.name'] &&
           serviceNameFilterList.value.push({
             text: item?.['resource.service.name'].value,
-            value: item?.['resource.service.name'].value
+            value: item?.['resource.service.name'].value,
           });
         item?.['resource.sdk.name'] &&
           sourceList.value.push({
             text: item?.['resource.sdk.name'],
-            value: item?.['resource.sdk.name']
+            value: item?.['resource.sdk.name'],
           });
         item?.kind &&
           categoryList.value.push({
             text: item?.kind.value,
-            value: item?.kind.value
+            value: item?.kind.value,
           });
       });
       endpointNameFilterList.value = deduplicate(endpointNameFilterList.value);
@@ -1254,7 +1252,7 @@ export default defineComponent({
           Message({
             theme: 'error',
             message: `${t('请至少选择一项分组')}`,
-            getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : ''
+            getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : '',
           });
           return;
         }
@@ -1265,7 +1263,7 @@ export default defineComponent({
           diff_trace_id: traceID,
           diagram_type: 'statistics',
           group_fields,
-          filter
+          filter,
         };
         emit('update:loading', true);
         await traceDiagram(params)
@@ -1336,13 +1334,13 @@ export default defineComponent({
       if (store.traceViewFilters.includes('endpoint')) {
         query.push({
           key: 'span_name',
-          value: row.span_name
+          value: row.span_name,
         });
       }
       if (store.traceViewFilters.includes('service')) {
         query.push({
           key: 'resource.service.name',
-          value: row?.['resource.service.name']?.value
+          value: row?.['resource.service.name']?.value,
         });
       }
       if (store.traceViewFilters.includes('source')) {
@@ -1350,14 +1348,14 @@ export default defineComponent({
         if ((row?.['resource.sdk.name'] as string).toLowerCase() !== 'opentelemetry') {
           query.push({
             key: 'resource.sdk.name',
-            value: row?.['resource.sdk.name']
+            value: row?.['resource.sdk.name'],
           });
         }
       }
       if (store.traceViewFilters.includes('spanKind')) {
         query.push({
           key: 'kind',
-          value: row?.kind?.value
+          value: row?.kind?.value,
         });
       }
       let queryString = '';
@@ -1365,7 +1363,7 @@ export default defineComponent({
         queryString += `${item.key}: "${item.value}"`;
         if (index < query.length - 1) queryString += ' AND ';
       });
-      // eslint-disable-next-line no-useless-escape
+
       const hash = `#/trace/home?app_name=${props.appName}&search_type=scope&listType=span&trace_id=${props.traceId}&query=${queryString}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
@@ -1408,7 +1406,7 @@ export default defineComponent({
 
     expose({
       handleKeywordFliter,
-      viewCompare
+      viewCompare,
     });
 
     return {
@@ -1421,7 +1419,7 @@ export default defineComponent({
       diffTableSettings,
       reactiveFilter,
       isCompareView,
-      handleColumnSort
+      handleColumnSort,
     };
   },
 
@@ -1464,7 +1462,7 @@ export default defineComponent({
             data={this.tableData}
             v-slots={{ empty: () => emptyContent() }}
             thead={{
-              height: 84
+              height: 84,
             }}
             border={['row', 'col']}
             cell-class={(option: any) => option.field}
@@ -1472,5 +1470,5 @@ export default defineComponent({
         )}
       </Loading>
     );
-  }
+  },
 });

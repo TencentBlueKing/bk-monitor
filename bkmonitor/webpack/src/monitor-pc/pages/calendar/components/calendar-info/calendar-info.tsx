@@ -66,7 +66,7 @@ export default class CalendarInfo extends tsc<IProps, IEvents> {
     return (
       <bk-dialog
         {...{
-          props: this.$props
+          props: this.$props,
         }}
         width='450px'
         value={this.value}
@@ -91,7 +91,7 @@ export default class CalendarInfo extends tsc<IProps, IEvents> {
               >
                 {this.okText}
               </bk-button>,
-              !!this.cancelText && <bk-button onClick={this.handleCancel}>{this.cancelText}</bk-button>
+              !!this.cancelText && <bk-button onClick={this.handleCancel}>{this.cancelText}</bk-button>,
             ]}
           </div>
         </div>

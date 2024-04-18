@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -79,7 +78,7 @@ const ColorTypes = {
   message: '#4e92f9',
   elasticsearch: '#fee174',
   redis: '#ea6460',
-  async_backend: '#699DF4'
+  async_backend: '#699DF4',
 };
 const defaultHeight = 30;
 const height = ref(100);
@@ -92,18 +91,18 @@ const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'span',
     name: window.i18n.t('Span 详情'),
-    icon: 'icon-menu-view'
+    icon: 'icon-menu-view',
   },
   {
     id: 'reset',
     name: window.i18n.t('重置图表'),
-    icon: 'icon-menu-view'
+    icon: 'icon-menu-view',
   },
   {
     id: 'highlight',
     name: window.i18n.t('高亮相似 Span'),
-    icon: 'icon-menu-view'
-  }
+    icon: 'icon-menu-view',
+  },
 ];
 // const width = ref(300);
 export default defineComponent({
@@ -111,20 +110,20 @@ export default defineComponent({
   props: {
     traceId: {
       type: String,
-      required: true
+      required: true,
     },
     appName: {
       type: String,
-      required: true
+      required: true,
     },
     diffTraceId: {
       type: String,
-      default: 'f5d9eb1e258bc1343bf49aec8fa60c0c'
+      default: 'f5d9eb1e258bc1343bf49aec8fa60c0c',
     },
     filters: {
       type: Array,
-      required: false
-    }
+      required: false,
+    },
   },
   emits: ['update:loading', 'showSpanDetail'],
   setup(props, { emit, expose }) {
@@ -159,7 +158,7 @@ export default defineComponent({
     // 缩放区域 对于 start end
     const dataZoom = ref({
       startTime: 0,
-      endTime: 0
+      endTime: 0,
     });
     // 放大系数
     const scaleValue = ref(100);
@@ -195,7 +194,7 @@ export default defineComponent({
           ...item,
           start_time: item.start_time < startTime ? startTime : item.start_time,
           end_time: item.end_time > endTime ? endTime : item.end_time,
-          children: item.children?.map(set => reduce(set)).filter(Boolean)
+          children: item.children?.map(set => reduce(set)).filter(Boolean),
         };
       };
       return reduce(json);
@@ -229,12 +228,12 @@ export default defineComponent({
             {
               status: item.original?.status,
               span_id: item.original?.span_id,
-              kind: item.original?.kind
-            }
+              kind: item.original?.kind,
+            },
           ],
           itemStyle: {
-            color: ColorTypes[item.icon_type || 'other']
-          }
+            color: ColorTypes[item.icon_type || 'other'],
+          },
         };
         data.push(temp);
         item.children.sort((a, b) => a.start_time - b.start_time);
@@ -291,22 +290,22 @@ export default defineComponent({
           y,
           width,
           height: Math.min(height, defaultHeight),
-          r: 0
+          r: 0,
         },
         style: {
           fill: grayFill ? '#aaa' : api.visual('color'),
           stroke: status?.code === 2 ? '#EA3636' : '#2b2b2d',
-          lineWidth: status?.code === 2 ? 1 : isMinWidth ? 0 : 0.5
+          lineWidth: status?.code === 2 ? 1 : isMinWidth ? 0 : 0.5,
         },
         emphasis: {
           style: {
             stroke: status?.code === 2 ? '#EA3636' : '#2b2b2d',
-            fill: grayFill ? '#aaa' : lightenDarkenColor(api.visual('color'), 60)
-          }
+            fill: grayFill ? '#aaa' : lightenDarkenColor(api.visual('color'), 60),
+          },
         },
         textConfig: {
           position: needIcon ? [24, 9] : 'insideLeft',
-          inside: true
+          inside: true,
         },
         textContent: {
           type: 'text',
@@ -317,9 +316,9 @@ export default defineComponent({
             width: textWidth,
             overflow: 'truncate',
             ellipsis: '..',
-            truncateMinChar: 1
-          }
-        }
+            truncateMinChar: 1,
+          },
+        },
       };
       if (needIcon)
         return {
@@ -333,13 +332,13 @@ export default defineComponent({
               style: {
                 image: status?.code === 2 ? traceIcons.error : traceIcons[api.value(5)],
                 width: 16,
-                height: 16
-              }
+                height: 16,
+              },
             },
             {
-              ...rect
-            }
-          ]
+              ...rect,
+            },
+          ],
         };
       return rect;
     }
@@ -349,7 +348,7 @@ export default defineComponent({
           left: 8,
           top: 20,
           bottom: 2,
-          right: 2
+          right: 2,
         },
         backgroundColor: '#F5F6F9',
         tooltip: {
@@ -359,7 +358,7 @@ export default defineComponent({
           appendToBody: !isFullscreen,
           trigger: 'item',
           axisPointer: {
-            snap: false
+            snap: false,
           },
           formatter: (params: any) => {
             const { text, suffix } = usFormat(params.value[6]);
@@ -384,10 +383,10 @@ export default defineComponent({
             </div>
           </div>`;
             return html;
-          }
+          },
         },
         title: {
-          show: false
+          show: false,
         },
         toolbox: {
           showTitle: false,
@@ -396,15 +395,15 @@ export default defineComponent({
             dataZoom: {
               icon: {
                 zoom: 'path://',
-                back: 'path://'
+                back: 'path://',
               },
               show: true,
               yAxisIndex: false,
               iconStyle: {
-                opacity: 0
-              }
-            }
-          }
+                opacity: 0,
+              },
+            },
+          },
         },
         // dataZoom: [
         //   {
@@ -444,16 +443,16 @@ export default defineComponent({
           position: 'top',
           axisLine: {
             show: true,
-            color: '#ddd'
+            color: '#ddd',
           },
           splitLine: {
-            show: true
+            show: true,
           },
           splitArea: {
-            show: false
+            show: false,
           },
           axisTick: {
-            inside: false
+            inside: false,
           },
           axisLabel: {
             overflow: 'truncate',
@@ -463,13 +462,13 @@ export default defineComponent({
               if (!value) return 0;
               const { text, suffix } = usFormat(value);
               return (text.replace(/\.[0]+$/g, '') || 0) + suffix;
-            }
-          }
+            },
+          },
         },
         yAxis: {
           inverse: true,
           show: false,
-          max: maxLevel.value + 2
+          max: maxLevel.value + 2,
         },
         // animation: false,
         series: [
@@ -478,11 +477,11 @@ export default defineComponent({
             renderItem: (_: any, api: any) => renderItem(_, api, data),
             encode: {
               x: [1, 2],
-              y: 0
+              y: 0,
             },
-            data
-          }
-        ]
+            data,
+          },
+        ],
       };
     }
 
@@ -493,7 +492,7 @@ export default defineComponent({
         id: RootSpanId,
         start_time: 0,
         end_time: 0,
-        rawValue: 0
+        rawValue: 0,
       };
       data.forEach((item, index) => {
         root.start_time = index === 0 ? item.start_time : Math.min(root.start_time, item.start_time);
@@ -503,14 +502,14 @@ export default defineComponent({
       return {
         ...root,
         rawValue: root.value,
-        children: data
+        children: data,
       };
     }
     function activeDataZoom(active = true) {
       chartInstance.dispatchAction({
         type: 'takeGlobalCursor',
         key: 'dataZoomSelect',
-        dataZoomSelectActive: active
+        dataZoomSelectActive: active,
       });
     }
     watch(
@@ -525,12 +524,12 @@ export default defineComponent({
               app_name: props.appName,
               diagram_type: 'flamegraph',
               show_attrs: 0,
-              displays: props.filters.filter(item => item !== 'duration')
+              displays: props.filters.filter(item => item !== 'duration'),
               // diff_trace_id: props.diffTraceId
             },
             {
-              needCancel: true
-            }
+              needCancel: true,
+            },
           ).catch(() => false);
           if (data.diagram_data) {
             emit('update:loading', true);
@@ -617,7 +616,7 @@ export default defineComponent({
                       chartInstance.setOption(
                         getEchartsOptions(recursionJson(chartData, clickSpanId.value || undefined)),
                         true,
-                        false
+                        false,
                       );
                       activeDataZoom();
                     }
@@ -668,7 +667,7 @@ export default defineComponent({
           showException.value = true;
         }
       }),
-      { immediate: true }
+      { immediate: true },
     );
     onMounted(() => {
       addListener(chartWrapRef.value!, handleResize);
@@ -748,13 +747,13 @@ export default defineComponent({
         }
 
         dataZoom.value.startTime = startTime + changeValue / 2;
-        // eslint-disable-next-line max-len
+
         dataZoom.value.endTime =
           startTime + (TotalStep - (v - MinScale) / scaleStep) * scaleStepValue.value - changeValue / 2;
         chartInstance.setOption(
           getEchartsOptions(recursionJson(chartData, clickSpanId.value || undefined)),
           true,
-          false
+          false,
         );
         activeDataZoom();
       }
@@ -795,7 +794,7 @@ export default defineComponent({
       handleContextMenuClick,
       handleGraphWarpBlur,
       handlesSaleValueChange,
-      handleStoreImg
+      handleStoreImg,
     };
   },
   render() {
@@ -832,7 +831,7 @@ export default defineComponent({
             class='flame-graph-axis'
             style={{
               left: `${this.axisLeft}px`,
-              visibility: this.axisLeft < 14 || this.axisLeft > this.wrapRefWidth + 14 ? 'hidden' : 'visible'
+              visibility: this.axisLeft < 14 || this.axisLeft > this.wrapRefWidth + 14 ? 'hidden' : 'visible',
             }}
           >
             <span class='axis-label'>{this.axisLabelValue}</span>
@@ -842,7 +841,7 @@ export default defineComponent({
             style={{
               left: `${this.contextMenuRect.left}px`,
               top: `${this.contextMenuRect.top}px`,
-              visibility: this.showContextMenu ? 'visible' : 'hidden'
+              visibility: this.showContextMenu ? 'visible' : 'hidden',
             }}
           >
             {CommonMenuList.map(item => (
@@ -868,5 +867,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

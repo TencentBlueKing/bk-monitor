@@ -120,7 +120,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
     { label: $i18n.t('时间'), prop: 'time', formatter: row => formatTime(+row.time) },
     { label: $i18n.t('事件名'), prop: 'event_name' },
     { label: $i18n.t('内容'), prop: 'event.content', formatter: row => row['event.content'] },
-    { label: $i18n.t('目标'), prop: 'target' }
+    { label: $i18n.t('目标'), prop: 'target' },
   ];
 
   chartMenu = [
@@ -128,14 +128,14 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
       name: this.$t('检索'),
       id: 'explore',
       icon: 'mc-retrieval',
-      hasLink: true
+      hasLink: true,
     },
     {
       name: this.$t('添加策略'),
       id: 'strategy',
       icon: 'menu-strategy',
-      hasLink: true
-    }
+      hasLink: true,
+    },
   ];
 
   get bizId() {
@@ -147,7 +147,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
     const [start_time, end_time] = handleTransformToTimestamp(timeRange || this.compareValue.tools.timeRange);
     return {
       start_time,
-      end_time
+      end_time,
     };
   }
 
@@ -204,7 +204,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
       group_by: groupBy,
       filter_dict: filterDict,
       method,
-      query_string
+      query_string,
     } = this.eventMetricParams;
     const timeRange = startTime && endTime ? [startTime, endTime] : undefined;
     this.isNoMoreData = false;
@@ -227,14 +227,13 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
           table: result_table_id,
           metrics: [
             {
-              // eslint-disable-next-line camelcase
               field: metric_field || 'event.count',
               method: method || 'COUNT',
-              alias: 'a'
-            }
-          ]
-        }
-      ]
+              alias: 'a',
+            },
+          ],
+        },
+      ],
     };
     const start = +new Date();
     return graphUnifyQuery(params).then(res => {
@@ -255,20 +254,20 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
       where,
       group_by,
       result_table_id,
-      query_string
+      query_string,
     } = this.eventMetricParams;
     const params = {
       ...this.timeRange(timeRange),
       data_source_label,
       data_type_label,
       where: where || [],
-      // eslint-disable-next-line camelcase
+
       group_by,
       result_table_id,
       query_string,
       filter_dict: filterDict || {},
       limit: this.pageSize,
-      offset: this.page * this.pageSize
+      offset: this.page * this.pageSize,
     };
     !!this.page ? (this.loading = true) : (this.tableLoading = true);
     return logQuery(params, { needRes: true })
@@ -330,10 +329,9 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: 操作图表切换时间范围 timeRange ["2021-09-04 14:49", "2021-09-04 15:18"]
    */
   @Emit('timeRangeChange')
-  // eslint-disable-next-line camelcase
   handleTimeRangeChange(timeRange: [string, string] | { start_time: number; end_time: number }) {
     let time = null;
-    // eslint-disable-next-line camelcase
+
     const temp = timeRange as { start_time: number; end_time: number };
     if (timeRange && Array.isArray(timeRange)) {
       // time = handleTimeRange(timeRange);
@@ -378,18 +376,18 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
                   data_source_label,
                   data_type_label,
                   functions: [],
-                  // eslint-disable-next-line camelcase
+
                   group_by: group_by || [],
                   interval: typeof this.chartInterval === 'string' ? 60 : this.chartInterval,
                   metrics: [{ alias: 'a', field: metric_field_cache, method: method || 'SUM' }],
                   table: result_table_id,
-                  where
-                }
-              ]
-            }
-          }
-        ]
-      }
+                  where,
+                },
+              ],
+            },
+          },
+        ],
+      },
     ];
     this.collectShow = true;
   }
@@ -424,7 +422,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
     const typeMap = {
       screenshot: this.handleSavePng,
       explore: this.handleToRetrieval,
-      strategy: this.handleAddStrategy
+      strategy: this.handleAddStrategy,
     };
     typeMap[type]?.();
   }
@@ -529,7 +527,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
             <bk-table-column
               type='expand'
               scopedSlots={{
-                default: expandScopedSlots
+                default: expandScopedSlots,
               }}
             />
             <div slot='empty'>
@@ -544,7 +542,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
             {this.tableColumnList.map(column => (
               <bk-table-column
                 {...{
-                  props: column
+                  props: column,
                 }}
               />
             ))}

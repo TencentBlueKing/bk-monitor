@@ -32,7 +32,7 @@ import {
   conditionsDeduplication,
   conditionsInclues,
   mergeConditions,
-  topNDataStrTransform
+  topNDataStrTransform,
 } from './condition';
 
 export type ActionType = 'copy' | 'add' | 'delete' | 'reset' | 'batchDelete' | 'batchReset';
@@ -42,7 +42,7 @@ export type RuleStatusType = 'initial' | 'common' | 'change' | 'add' | 'verifica
 
 export const CONDITIONS = [
   { id: 'and', name: 'AND' },
-  { id: 'or', name: 'OR' }
+  { id: 'or', name: 'OR' },
 ];
 
 export const METHODS = [
@@ -51,32 +51,32 @@ export const METHODS = [
   { id: 'include', name: 'include' },
   { id: 'exclude', name: 'exclude' },
   { id: 'reg', name: 'regex' },
-  { id: 'nreg', name: 'nregex' }
+  { id: 'nreg', name: 'nregex' },
 ];
 
 export const LEVELLIST: LevelItem[] = [
   {
     value: 0,
-    name: window.i18n.t('保持原样')
+    name: window.i18n.t('保持原样'),
   },
   {
     value: 1,
     name: window.i18n.t('致命'),
     icon: 'icon-monitor icon-mc-chart-alert',
-    color: '#EA3636'
+    color: '#EA3636',
   },
   {
     value: 2,
     name: window.i18n.t('预警'),
     icon: 'icon-monitor icon-mind-fill',
-    color: '#FFB848'
+    color: '#FFB848',
   },
   {
     value: 3,
     name: window.i18n.t('提醒'),
     icon: 'icon-monitor icon-mind-fill',
-    color: '#3A84FF'
-  }
+    color: '#3A84FF',
+  },
 ];
 
 // interface IAlarmGroup {
@@ -125,7 +125,7 @@ export interface IRuleGroup {
 }
 
 export interface LevelItem {
-  value: Number;
+  value: number;
   name: string | TranslateResult;
   icon?: string;
   color?: string;
@@ -143,7 +143,7 @@ export enum EColumn {
   isEnabled = 'isEnabled',
   operate = 'operate',
   noticeProgress = 'noticeProgress',
-  levelTag = 'levelTag'
+  levelTag = 'levelTag',
 }
 
 export class RuleGroupData {
@@ -170,8 +170,8 @@ export class RuleGroupData {
       ...item,
       conditions: item.conditions.map(c => ({
         ...c,
-        value: c.value.map(v => topNDataStrTransform(String(v)))
-      }))
+        value: c.value.map(v => topNDataStrTransform(String(v))),
+      })),
     }));
   }
 }
@@ -190,16 +190,16 @@ export class RuleData {
       upgradeConfig: {
         isEnabled: false,
         userGroups: [],
-        upgradeInterval: 0
-      }
-    }
+        upgradeInterval: 0,
+      },
+    },
   ];
   upgradeConfig = {
     // 通知
     noticeIsEnabled: true, // 关闭通知开关
     isEnabled: false, // 通知升级开关
     userGroups: [], // 通知升级告警组
-    upgradeInterval: undefined // 时长
+    upgradeInterval: undefined, // 时长
   };
   actionId = undefined; // 套餐id
   alertSeverity = 0; // 等级调整
@@ -216,7 +216,7 @@ export class RuleData {
     conditions: false,
     actionId: false,
     additionalTags: false,
-    alertSeverity: false
+    alertSeverity: false,
   };
   verificatory = {
     userGroups: false,
@@ -225,11 +225,11 @@ export class RuleData {
     conditions: false,
     actionId: false,
     additionalTags: false,
-    alertSeverity: false
+    alertSeverity: false,
   };
   validateTips = {
     userGroups: '',
-    additionalTags: ''
+    additionalTags: '',
   };
   conditionsRepeat = false; // 条件是否重复
   replaceData = [];
@@ -259,8 +259,8 @@ export class RuleData {
             // }
             ({
               ...c,
-              value: c.value.map(v => topNDataStrTransform(String(v)))
-            })
+              value: c.value.map(v => topNDataStrTransform(String(v))),
+            }),
           );
         } else {
           this[key] = data[key];
@@ -313,9 +313,9 @@ export class RuleData {
             upgradeConfig: {
               isEnabled: value.isEnabled,
               userGroups: value.userGroups,
-              upgradeInterval: value.upgradeInterval
+              upgradeInterval: value.upgradeInterval,
             },
-            isEnabled: value.noticeIsEnabled
+            isEnabled: value.noticeIsEnabled,
           })
         : this.actions.push({
             actionType: 'notice',
@@ -323,8 +323,8 @@ export class RuleData {
             upgradeConfig: {
               isEnabled: value.isEnabled,
               userGroups: value.userGroups,
-              upgradeInterval: value.upgradeInterval
-            }
+              upgradeInterval: value.upgradeInterval,
+            },
           });
       this.upgradeConfig = value;
     }
@@ -335,7 +335,7 @@ export class RuleData {
         ? (this.actions[index] = { actionType: 'itsm', actionId: value })
         : this.actions.push({
             actionType: 'itsm',
-            actionId: value
+            actionId: value,
           });
     }
   }
@@ -346,12 +346,12 @@ export class RuleData {
       if (item.indexOf('=') > -1) {
         return {
           key: item.split('=')[0],
-          value: item.split('=')[1]
+          value: item.split('=')[1],
         };
       }
       return {
         key: item.split(':')[0],
-        value: item.split(':')[1]
+        value: item.split(':')[1],
       };
     });
   }
@@ -375,19 +375,19 @@ export class RuleData {
               upgrade_config: {
                 is_enabled: !!a.upgradeConfig?.isEnabled,
                 user_groups: a.upgradeConfig?.userGroups || [],
-                upgrade_interval: +(a.upgradeConfig?.upgradeInterval || 0)
-              }
+                upgrade_interval: +(a.upgradeConfig?.upgradeInterval || 0),
+              },
             };
           }
           return {
             action_type: a.actionType,
-            action_id: a.actionId
+            action_id: a.actionId,
           };
         })
         .filter(item => !(item.action_type === 'itsm' && !item.action_id)),
       alert_severity: this.alertSeverity,
       additional_tags: this.additionalTags.map(item => ({ key: item.key, value: item.value })),
-      is_enabled: this.isEnabled
+      is_enabled: this.isEnabled,
     };
   }
   /* 匹配规则查找替换 */
@@ -411,9 +411,8 @@ export class RuleData {
     if (findData.length) {
       // 判断finddata 是否完整无差异包含在this.condition
       if (findData.every(item => conditionsInclues(item, curConditions))) {
-        // eslint-disable-next-line max-len
         this.conditions = conditionsDeduplication(
-          mergeConditions(conditionFindReplace(this.conditions, findData, replaceData, true))
+          mergeConditions(conditionFindReplace(this.conditions, findData, replaceData, true)),
         );
       } else {
         // 如果有差异就执行合并处理
@@ -503,6 +502,6 @@ export function deepCompare(a: any, b: any) {
   }
 
   // 遍历对象属性是否相同
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   return Object.keys(a).every(key => deepCompare(a[key], b[key]));
 }

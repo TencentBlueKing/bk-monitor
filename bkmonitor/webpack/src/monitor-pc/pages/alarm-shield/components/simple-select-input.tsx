@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -64,7 +63,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
     if (this.value) {
       const isCheck = this.list.some(item => item.name === this.value || item.id === this.value) && this.isSelected;
       return this.list.filter(
-        item => item.name.indexOf(this.value) > -1 || item.id.indexOf(this.value) > -1 || isCheck
+        item => item.name.indexOf(this.value) > -1 || item.id.indexOf(this.value) > -1 || isCheck,
       );
     }
     return this.list;
@@ -89,7 +88,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
           setTimeout(() => {
             this.isSelected = true;
           }, 50);
-        }
+        },
       });
     }
     this.isShowPop = true;
@@ -148,7 +147,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
                       zIndex: 9999,
                       boundary: document.body,
                       appendTo: document.body,
-                      allowHTML: false
+                      allowHTML: false,
                     }}
                     onClick={() => this.handleCommit(item)}
                   >

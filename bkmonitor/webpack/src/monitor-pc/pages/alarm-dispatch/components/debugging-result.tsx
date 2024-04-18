@@ -103,14 +103,13 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
     this.loading = true;
     let params = null;
     if (this.ruleGroupsData.length) {
-      // eslint-disable-next-line prefer-destructuring
       params = this.ruleGroupsData[0];
       this.curGroupId = params.assign_group_id;
     } else {
       params = {};
       if (this.excludeGroups.length) {
         params = {
-          exclude_groups: this.excludeGroups
+          exclude_groups: this.excludeGroups,
         };
       }
     }
@@ -118,12 +117,12 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
     const res = await matchDebug({
       ...params,
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     }).catch(() => []);
     this.resultsGroup = res.map(item => ({
       ...item,
       key: random(8),
-      isExpand: this.curGroupId === item.group_id
+      isExpand: this.curGroupId === item.group_id,
     }));
     this.loading = false;
   }
@@ -158,7 +157,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
       if (is) {
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('删除成功')
+          message: this.$t('删除成功'),
         });
         this.$emit('delSuccess');
       }
@@ -170,7 +169,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
     if (res) {
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('保存成功')
+        message: this.$t('保存成功'),
       });
       this.emitIsShow(false);
       this.$emit('saveSuccess');
@@ -256,15 +255,15 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                           'is-light':
                             !!config?.is_changed &&
                             !!config.alerts.length &&
-                            String(item.group_id) === String(this.curGroupId)
+                            String(item.group_id) === String(this.curGroupId),
                         },
                         {
                           'mt-1':
                             !!item.rules?.[num - 1]?.is_changed &&
                             !!item.rules?.[num - 1].alerts.length &&
-                            !!config.alerts.length
+                            !!config.alerts.length,
                         },
-                        { mb1: !config.alerts.length }
+                        { mb1: !config.alerts.length },
                       ]}
                       key={num}
                     >
@@ -324,7 +323,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                 >
                                   {row.id}
                                 </span>
-                              )
+                              ),
                             }}
                           ></bk-table-column>
                           <bk-table-column
@@ -346,7 +345,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                       v-bk-tooltips={{
                                         content: row.metrics.map(m => m.id).join(','),
                                         placements: ['top'],
-                                        allowHTML: false
+                                        allowHTML: false,
                                       }}
                                     >
                                       {row.metrics.map(metric => (
@@ -360,7 +359,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                     </div>
                                   </div>
                                 );
-                              }
+                              },
                             }}
                           ></bk-table-column>
                           <bk-table-column

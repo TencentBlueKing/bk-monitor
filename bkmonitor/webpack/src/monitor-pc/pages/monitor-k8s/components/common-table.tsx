@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -42,7 +41,7 @@ import {
   ITablePagination,
   TablePaginationType,
   TableRow,
-  TableSizeType
+  TableSizeType,
 } from '../typings';
 
 import CommonStatus from './common-status/common-status';
@@ -124,7 +123,7 @@ interface ICommonTableEvent {
 export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEvent> {
   @Inject({
     from: 'handleShowAuthorityDetail',
-    default: null
+    default: null,
   })
   handleShowAuthorityDetail;
   @Ref('table') tableRef: any;
@@ -150,8 +149,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       current: 1,
       count: 100,
       limit: 10,
-      showTotalCount: true
-    })
+      showTotalCount: true,
+    }),
   })
   pagination: ITablePagination | null;
   // 表格尺寸设置 small medium large
@@ -207,7 +206,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             ? columnKeysCaches.includes(item.id)
             : item.checked
           : true,
-      disabled: !!item.disabled
+      disabled: !!item.disabled,
     }));
   }
   /** 表格类名 */
@@ -270,7 +269,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         v-bk-overflow-tips={{
           content: element,
           allowHTML: true,
-          theme: 'light common-table'
+          theme: 'light common-table',
         }}
       >
         {val.map((item, index) => (
@@ -307,7 +306,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         v-bk-overflow-tips={{
           content: element,
           allowHTML: true,
-          theme: 'light common-table'
+          theme: 'light common-table',
         }}
       >
         {val?.length
@@ -337,7 +336,6 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   }
   // link格式化
   linkFormatter(column: ITableColumn, val: ITableItem<'link'>, row: TableRow) {
-    // eslint-disable-next-line no-nested-ternary
     if (typeof val !== 'number' && !val) return '--';
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
@@ -366,7 +364,6 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   }
   // link格式化
   statckLinkFormatter(column: ITableColumn, val: ITableItem<'stack_link'>, row: TableRow) {
-    // eslint-disable-next-line no-nested-ternary
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
       <div class='stack-link-col'>
@@ -456,13 +453,13 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (item.target === 'self') {
       if (this.isSplitPanel) {
         const route = this.$router.resolve({
-          path: urlStr
+          path: urlStr,
         });
         const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + route.href;
         window.open(url);
       } else {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/')
+          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/'),
         });
       }
       return;
@@ -705,7 +702,6 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             prop={column.id}
             show-overflow-tooltip={showOverflowTooltip}
             formatter={(row: TableRow) => this.handleSetFormatter(column.id, row)}
-            // eslint-disable-next-line max-len
             render-header={
               (this.hasOverviewData || !!headerPreIcon) && column.checked
                 ? () => this.renderColumnsHeader(column)
@@ -724,9 +720,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   resizable: typeof column.resizable === 'boolean' ? column.resizable : true,
                   width: column.max_width ? this.calcColumnWidth(column.max_width) : column.width,
                   minWidth: column.min_width,
-                  columnKey: column.id
-                }
-              }
+                  columnKey: column.id,
+                },
+              },
             }}
           />
         );
@@ -738,7 +734,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           width='50'
           minWidth='50'
           fixed='left'
-        />
+        />,
       );
     }
     return columList;
@@ -785,7 +781,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             size: 'mini',
             theme: 'info',
             icon: 'circle-2-1',
-            placement: 'right'
+            placement: 'right',
           }}
           on-sort-change={this.handleSortChange}
           on-page-change={this.handlePageChange}
@@ -823,7 +819,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   onClick={this.handleClearSelected}
                 >
                   {this.$t('取消')}
-                </bk-button>
+                </bk-button>,
               ]}
             </div>
           ) : undefined}

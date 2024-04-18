@@ -36,18 +36,18 @@ export interface ISelectMenuOption {
 const IProps = {
   value: {
     type: [Number, String],
-    default: ''
+    default: '',
   },
   list: {
     type: Array as PropType<ISelectMenuOption[]>,
-    default: () => []
+    default: () => [],
   },
   onSelect: {
-    type: Function as PropType<(item: ISelectMenuOption) => void>
+    type: Function as PropType<(item: ISelectMenuOption) => void>,
   },
   onShowChange: {
-    type: Function as PropType<(val: boolean) => void>
-  }
+    type: Function as PropType<(val: boolean) => void>,
+  },
 };
 export default defineComponent({
   name: 'SelectMenu',
@@ -64,7 +64,7 @@ export default defineComponent({
       val => {
         localValue.value = val;
       },
-      { immediate: true }
+      { immediate: true },
     );
 
     /** 当前选中的项 */
@@ -89,7 +89,7 @@ export default defineComponent({
       localValue,
       currentItem,
       showChange,
-      handleSelect
+      handleSelect,
     };
   },
   render() {
@@ -100,7 +100,7 @@ export default defineComponent({
           onShow={() => this.showChange(true)}
           onHide={() => this.showChange(false)}
           popoverOptions={{
-            zIndex: 8003
+            zIndex: 8003,
           }}
           v-slots={{
             content: () => (
@@ -109,12 +109,12 @@ export default defineComponent({
                   <Dropdown.DropdownItem onClick={() => this.handleSelect(opt)}>{opt.name}</Dropdown.DropdownItem>
                 ))}
               </Dropdown.DropdownMenu>
-            )
+            ),
           }}
         >
           {this.$slots.default?.(this.currentItem)}
         </Dropdown>
       </span>
     );
-  }
+  },
 });

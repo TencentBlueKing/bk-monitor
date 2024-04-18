@@ -47,7 +47,7 @@ export const useAppStore = defineStore('app', {
     csrfCookieName: window.csrf_cookie_name || '',
     siteUrl: window.site_url,
     bkUrl: window.bk_url,
-    extraDocLinkMap: {}
+    extraDocLinkMap: {},
   }),
   actions: {
     /**
@@ -56,6 +56,6 @@ export const useAppStore = defineStore('app', {
      */
     updateExtraDocLinkMap(data: Record<string, IDocLinkData>) {
       this.extraDocLinkMap = data;
-    }
-  }
+    },
+  },
 });

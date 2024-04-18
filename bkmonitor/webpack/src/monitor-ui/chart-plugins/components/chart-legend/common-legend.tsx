@@ -46,7 +46,7 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
 
   mouseEvent = {
     isMouseDown: false,
-    isMouseMove: false
+    isMouseMove: false,
   };
 
   @Emit('selectLegend')

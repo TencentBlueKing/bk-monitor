@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
+
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
@@ -61,7 +61,7 @@ interface IDataZoomTimeRange {
   timeRange: TimeRangeType | [];
 }
 @Component({
-  name: 'ViewInfo'
+  name: 'ViewInfo',
 })
 export default class ViewInfo extends tsc<IViewInfoProp> {
   @InjectReactive('dataZoomTimeRange') dataZoomTimeRange: IDataZoomTimeRange;
@@ -90,7 +90,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
     emptyText: i18n.t('暂无数据'),
     title: '',
     subtitle: '',
-    chartType: 'line'
+    chartType: 'line',
   };
   public hasTraceSeries = false;
   /** 是否是自身缩放，解决自身缩放触发2次刷新，因为监听了aiops dataZoomTimeRange*/
@@ -110,7 +110,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       { sourceLabel: 'bk_log_search', typeLabel: 'time_series' },
       { sourceLabel: 'custom', typeLabel: 'event' },
       { sourceLabel: 'bk_log_search', typeLabel: 'log' },
-      { sourceLabel: 'bk_monitor', typeLabel: 'log' }
+      { sourceLabel: 'bk_monitor', typeLabel: 'log' },
     ];
     if (this.detail.extra_info?.strategy) {
       const { strategy } = this.detail.extra_info;
@@ -124,11 +124,11 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   get chartOption() {
     if (this.chart.chartType === 'bar') {
       return {
-        tool: { list: ['screenshot', 'set'] }
+        tool: { list: ['screenshot', 'set'] },
       };
     }
     return {
-      tool: { list: ['screenshot', 'set', 'area', 'explore'] }
+      tool: { list: ['screenshot', 'set', 'area', 'explore'] },
     };
   }
   /** 检测算法数据 */
@@ -142,7 +142,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       unitList: [],
       connector: strategy.detects?.[0]?.connector,
       data: algorithms.map(({ unit_prefix, ...item }) => this.displayDetectionRulesConfig(item)),
-      query_configs: strategy?.items?.[0]?.query_configs
+      query_configs: strategy?.items?.[0]?.query_configs,
     };
     return result;
   }
@@ -239,7 +239,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       result_table_id: extend_info?.result_table_id || undefined,
       where: this.detail?.graph_panel?.targets?.[0]?.data?.query_configs?.[0]?.where || [],
       filter_dict: {},
-      bk_biz_id: this.detail.bk_biz_id
+      bk_biz_id: this.detail.bk_biz_id,
     };
     const data = await logQuery(params).finally(() => (this.showLoadingBox = false));
     this.logData.push(...data);
@@ -277,7 +277,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
             /\$time_offset/g,
             hasMatch
               ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-              : val.replace('current', this.$t('当前'))
+              : val.replace('current', this.$t('当前')),
           );
         }
       } else if (typeof val === 'object') {
@@ -301,7 +301,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
     const { graph_panel } = this.detail;
     const params: any = {
       bk_biz_id: this.detail.bk_biz_id,
-      id: this.detail.id
+      id: this.detail.id,
     };
     if (range && startTime && endTime) {
       params.start_time = dayjs.tz(startTime).unix();
@@ -319,7 +319,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       this.errorMsg = '';
       const res = await alertGraphQuery(
         { ...chartQueryConfig, ...params },
-        { needRes: true, needMessage: false }
+        { needRes: true, needMessage: false },
       ).catch(err => {
         if (err && this.noGraphCode.includes(err.code)) {
           this.chart.selectForFetch = false;
@@ -341,10 +341,10 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       this.hasTraceSeries = !!traceSeries.length && this.chart.chartType === 'line';
       // const algorithmValue = algorithmList?.find(item => item?.level === level)?.algorithmConfig?.sensitivityValue
       // 异常检测图表转换
-      // eslint-disable-next-line camelcase
+
       if (chartQueryConfig?.extend_fields?.intelligent_detect?.result_table_id && series.length) {
         const chartSeries = series.find(
-          item => item?.metric?.metric_field === 'value' && item?.time_offset === 'current'
+          item => item?.metric?.metric_field === 'value' && item?.time_offset === 'current',
         );
         if (!chartSeries) return [];
         // 智能异常检测算法 边界画图设置
@@ -353,7 +353,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
         const algorithm2Level = {
           1: 15,
           2: 14,
-          3: 13
+          3: 13,
         };
         const upBoundary =
           series
@@ -361,7 +361,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
               item =>
                 item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
                 item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-                item.metric.metric_field === 'upper_bound'
+                item.metric.metric_field === 'upper_bound',
             )
             ?.datapoints?.map(item => [item[1], item[0]]) || [];
         const lowBoundary =
@@ -370,24 +370,24 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
               item =>
                 item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
                 item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-                item.metric.metric_field === 'lower_bound'
+                item.metric.metric_field === 'lower_bound',
             )
             ?.datapoints.map(item => [item[1], item[0]]) || [];
         const coverData = series?.find(
           item =>
             item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
             item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-            item.metric.metric_field === 'is_anomaly'
+            item.metric.metric_field === 'is_anomaly',
         )?.datapoints;
         if (coverData?.length) {
           coverList.push({
             data: coverData.map((item, index) => [
               chartSeries?.datapoints[index][1],
-              item[0] > 0 ? chartSeries?.datapoints[index][0] : null
+              item[0] > 0 ? chartSeries?.datapoints[index][0] : null,
             ]),
             color: '#ea3636',
             z: algorithm2Level[severity] + 10,
-            name: `${severity}-cover`
+            name: `${severity}-cover`,
           });
         }
         const allData = series
@@ -402,8 +402,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
                   tag: setData.dimensions,
                   metric: setData.metric,
                   // formula: params.method,
-                  ...params
-                }) || target
+                  ...params,
+                }) || target,
             };
             if (setData.time_offset === 'current') {
               return {
@@ -414,10 +414,10 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
                     lowBoundary,
                     color: '#e6e6e6',
                     stack: `${severity}-boundary-${item.target}`,
-                    z: algorithm2Level[severity]
-                  }
+                    z: algorithm2Level[severity],
+                  },
                 ],
-                coverSeries: coverList.map(set => ({ ...set, name: `${set.name}-${item.target}` }))
+                coverSeries: coverList.map(set => ({ ...set, name: `${set.name}-${item.target}` })),
               };
             }
             return item;
@@ -434,15 +434,15 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
             tag: setData.dimensions,
             metric: setData.metric,
             // formula: params.method,
-            ...params
-          }) || target
+            ...params,
+          }) || target,
       }));
       if (this.hasTraceSeries) {
         const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
         const { startTime, endTime } = createAutoTimerange(this.detail.begin_time, this.detail.end_time, interval);
         this.traceInfoTimeRange = {
           start_time: dayjs.tz(startTime).unix(),
-          end_time: dayjs.tz(endTime).unix()
+          end_time: dayjs.tz(endTime).unix(),
         };
         /* 需要降低trace散点图的密度 */
         const allMaxMinTimeStamp = [];
@@ -493,14 +493,14 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
           const timeIndex = item.columns.findIndex(name => name === 'bk_trace_timestamp');
           /* 过滤时间戳与值为空的数据 */
           const dataPointsFilter = item.data_points.filter(
-            item => !!item[timeIndex] && typeof item[valueIndex] === 'number'
+            item => !!item[timeIndex] && typeof item[valueIndex] === 'number',
           );
           const datapoints = traceReduceDensityFn(dataPointsFilter, timeIndex, valueIndex);
           result.push({
             ...item,
             data_points: datapoints,
             datapoints: datapoints.map(d => [d[valueIndex], d[timeIndex]]),
-            type: 'scatter'
+            type: 'scatter',
           });
         });
       }
@@ -571,10 +571,10 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   // 源日志
   getSourceLogComponent() {
     const contentSlots = {
-      default: props => props.row?.content || props.row?.['event.content'] || ''
+      default: props => props.row?.content || props.row?.['event.content'] || '',
     };
     const timeSlots = {
-      default: props => dayjs.tz(props.row.time * 1000).format('YYYY-MM-DD HH:mm:ss')
+      default: props => dayjs.tz(props.row.time * 1000).format('YYYY-MM-DD HH:mm:ss'),
     };
     return (
       <div class='source-log'>

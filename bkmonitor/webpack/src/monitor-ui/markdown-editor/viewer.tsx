@@ -69,7 +69,7 @@ export default class MarkdowViewer extends tsc<IMarkdowViewerProps> {
       events: eventOption,
       initialValue: this.value,
       height: this.height,
-      viewer: true
+      viewer: true,
       // plugins: [codeSyntaxHighlight]
     });
   }

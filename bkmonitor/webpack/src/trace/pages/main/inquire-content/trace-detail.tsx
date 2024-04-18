@@ -33,7 +33,7 @@ import {
   reactive,
   ref,
   toRefs,
-  watch
+  watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab } from 'bkui-vue';
@@ -67,16 +67,16 @@ const { TabPanel } = Tab;
 const TraceDetailProps = {
   isInTable: {
     type: Boolean,
-    default: false
+    default: false,
   },
   appName: {
     type: String,
-    default: true
+    default: true,
   },
   traceID: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 };
 
 type IPanelEnum = 'timeline' | 'topo' | 'statistics' | 'flame' | 'sequence';
@@ -119,7 +119,7 @@ export default defineComponent({
     const cacheFilterToolsValues = {
       waterFallAndTopo: ['duration'],
       sequenceAndFlame: [''],
-      statistics: ['endpoint', 'service']
+      statistics: ['endpoint', 'service'],
     };
     let resizeObserver: any = null;
     const state = reactive<IState>({
@@ -139,7 +139,7 @@ export default defineComponent({
         { id: 'topo', name: t('节点拓扑'), icon: 'Component' },
         { id: 'statistics', name: t('表格统计'), icon: 'table' },
         { id: 'sequence', name: t('时序图'), icon: 'Sequence' },
-        { id: 'flame', name: t('火焰图'), icon: 'Flame' }
+        { id: 'flame', name: t('火焰图'), icon: 'Flame' },
       ],
       isClassifyFilter: false,
       filterSpanIds: [],
@@ -147,7 +147,7 @@ export default defineComponent({
       isCollapsefilter: false,
       isCompareView: false,
       compareTraceID: '',
-      compareSpanList: []
+      compareSpanList: [],
     });
     const traceView = ref(null);
     const traceDetailElem = ref(null);
@@ -196,21 +196,21 @@ export default defineComponent({
       traceData.value.span_classify.reduce((pre, cur) => {
         if (cur.type === 'service') pre += 1;
         return pre;
-      }, 0)
+      }, 0),
     );
     // 层级数
-    // eslint-disable-next-line prefer-spread
+
     const spanDepth = computed<number>(
       () =>
         Math.max.apply(
           Math,
-          traceTree.value.spans.map(item => item.depth)
-        ) + 1
+          traceTree.value.spans.map(item => item.depth),
+        ) + 1,
     );
     /** 工具栏过滤选项 */
-    // eslint-disable-next-line max-len
+
     const filterToolList = computed(() =>
-      TRACE_INFO_TOOL_FILTERS.filter(item => item.show && item.effect.includes(state.activePanel))
+      TRACE_INFO_TOOL_FILTERS.filter(item => item.show && item.effect.includes(state.activePanel)),
     );
     /** 是否展示 span list */
     const showSpanList = computed(() => ['sequence', 'topo'].includes(state.activePanel));
@@ -232,16 +232,16 @@ export default defineComponent({
         (msg: string) => {
           Message({
             message: msg,
-            theme: 'error'
+            theme: 'error',
           });
           return;
         },
-        props.isInTable ? '.trace-content-table-wrap' : ''
+        props.isInTable ? '.trace-content-table-wrap' : '',
       );
       Message({
         message: t('复制成功'),
         theme: 'success',
-        width: 200
+        width: 200,
       });
     };
     /**
@@ -338,7 +338,7 @@ export default defineComponent({
         // 统计过滤参数
         const filterDict: IFilterItem = {
           type: classify.type,
-          value: classify.type === 'service' ? classify.filter_value : ''
+          value: classify.type === 'service' ? classify.filter_value : '',
         };
         (statisticsElem.value as any).handleKeywordFliter(filterDict);
       } else if (['timeline', 'topo'].includes(state.activePanel)) {
@@ -442,12 +442,11 @@ export default defineComponent({
           comps?.handleKeywordFliter(val);
           break;
         case 'statistics':
-          // eslint-disable-next-line no-case-declarations
           let filterDict: IFilterItem | null = null; // 统计内容搜索参数
           if (val.length) {
             filterDict = {
               type: 'keyword',
-              value: val.toString()
+              value: val.toString(),
             };
           }
           comps?.handleKeywordFliter(filterDict);
@@ -528,11 +527,11 @@ export default defineComponent({
           bk_biz_id: window.bk_biz_id,
           app_name: props.appName,
           trace_id: traceId,
-          displays
+          displays,
         };
 
         await traceDetail(params, {
-          cancelToken: new CancelToken((c: any) => (searchCancelFn = c))
+          cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
         }).then(async data => {
           await store.setTraceData({ ...data, appName: props.appName, trace_id: traceId });
           contentLoading.value = false;
@@ -542,7 +541,7 @@ export default defineComponent({
           // 由于 瀑布图/拓扑图 和 时序图/火焰图 的选项有重叠部分 需要做差异同步
           cacheFilterToolsValues.waterFallAndTopo = [
             ...cacheFilterToolsValues.waterFallAndTopo.filter(item => item === 'duration'),
-            ...val
+            ...val,
           ];
         } else cacheFilterToolsValues.waterFallAndTopo = val;
       }
@@ -600,7 +599,7 @@ export default defineComponent({
       () => props.traceID,
       () => {
         clearCompareParams();
-      }
+      },
     );
     watch(
       () => traceData.value,
@@ -612,7 +611,7 @@ export default defineComponent({
         nextTick(() => handleResize());
         compareSelect.value?.handleCancelCompare();
       },
-      { deep: true }
+      { deep: true },
     );
 
     onMounted(() => {
@@ -641,7 +640,7 @@ export default defineComponent({
         Message({
           message: t('对比的TraceID相同'),
           theme: 'warning',
-          width: 200
+          width: 200,
         });
         return;
       }
@@ -732,7 +731,7 @@ export default defineComponent({
       compareSelect,
       handleCompareSpanListChange,
       filterKeywords,
-      updateCompareStatus
+      updateCompareStatus,
     };
   },
 
@@ -828,10 +827,9 @@ export default defineComponent({
                     this.selectClassifyFilters[card.filter_key] === card.filter_value &&
                     (this.selectClassifyFilters.app_name
                       ? this.selectClassifyFilters.app_name === card.app_name
-                      : !card.app_name)
-                }
+                      : !card.app_name),
+                },
               ]}
-              // eslint-disable-next-line @typescript-eslint/no-misused-promises
               onClick={() => this.handleSelectFilters(card)}
             >
               {card.type === 'service' && (
@@ -840,7 +838,7 @@ export default defineComponent({
                   style={`background:${card.color}`}
                 />
               )}
-              {/* eslint-disable-next-line no-nested-ternary */}
+              {}
               {card.type === 'service' ? (
                 card.icon ? (
                   <img
@@ -924,7 +922,7 @@ export default defineComponent({
                   </div>
                 ) : (
                   ''
-                )
+                ),
             }}
           >
             {this.tabPanels.map(item => (
@@ -938,7 +936,7 @@ export default defineComponent({
                       <i class={`icon-monitor icon-${item.icon}`}></i>
                       {item.name}
                     </span>
-                  )
+                  ),
                 }}
               />
             ))}
@@ -1094,7 +1092,7 @@ export default defineComponent({
                       isCompare={this.isCompareView}
                       compareSpanList={this.compareSpanList}
                     />
-                  )
+                  ),
                 }}
               </ResizeLayout>
             </div>
@@ -1116,5 +1114,5 @@ export default defineComponent({
         />
       </Loading>
     );
-  }
+  },
 });

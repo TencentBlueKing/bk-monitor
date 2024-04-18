@@ -44,7 +44,7 @@ const GraphTicks = (props: GraphTicksProps) => {
         x2={x}
         y2='100%'
         key={i / numTicks}
-      />
+      />,
     );
   }
 

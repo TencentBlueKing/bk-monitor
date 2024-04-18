@@ -154,23 +154,6 @@ class UnifyQuery:
         if self.data_sources[0].id not in UnifyQueryDataSources + GrayUnifyQueryDataSources:
             return False
 
-        # 灰度切换unify-query判定， 不灰度就全量放开
-        if self.data_sources[0].id in GrayUnifyQueryDataSources:
-            # 先排除特殊查询： aiops策略定义的特殊查询, 搜索关键字： !!! 特殊逻辑 重要提示 !!!
-            # init_by_query_config 逻辑中，metrics列表 正常只有指标(field_name)或者日志关键字(_index)
-            # 当 metrics 有多个时，表示特殊逻辑
-            if len(self.data_sources[0].metrics) > 1:
-                return False
-
-            # 灰度状态： 灰度业务列表不包含0业务
-            grayscale = 0 not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
-
-            if grayscale:
-                # 灰度数据源基于业务进行灰度
-                return self.bk_biz_id in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
-            # 非灰度状态下，使用unify-query
-            return True
-
         # 如果是多指标，必然会走统一查询模块
         if len(self.data_sources) > 1:
             return True
@@ -178,6 +161,16 @@ class UnifyQuery:
         # 如果使用了查询函数，比如会走统一查询模块
         if self.data_sources[0].functions:
             return True
+
+        # 灰度切换unify-query判定， 不灰度就全量放开
+        if self.data_sources[0].id in GrayUnifyQueryDataSources:
+            # 先排除特殊查询： aiops策略定义的特殊查询, 搜索关键字： !!! 特殊逻辑 重要提示 !!!
+            # init_by_query_config 逻辑中，metrics列表 正常只有指标(field_name)或者日志关键字(_index)
+            # 当 metrics 有多个时，表示特殊逻辑
+            if len(self.data_sources[0].metrics) > 1:
+                return False
+            # 只有开启灰度的数据源需要定义 using_unify_query 判断
+            return self.data_sources[0].using_unify_query(self.bk_biz_id)
 
         # 使用特殊函数必须走统一查询模块
         for metric in self.data_sources[0].metrics:

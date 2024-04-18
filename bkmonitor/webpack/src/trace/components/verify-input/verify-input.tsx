@@ -32,8 +32,8 @@ export default defineComponent({
   props: {
     errMsg: {
       type: String,
-      defalut: ''
-    }
+      defalut: '',
+    },
   },
   setup(props, { slots }) {
     const renderDom = () => (
@@ -43,10 +43,10 @@ export default defineComponent({
       </div>
     );
     return {
-      renderDom
+      renderDom,
     };
   },
   render() {
     return this.renderDom();
-  }
+  },
 });

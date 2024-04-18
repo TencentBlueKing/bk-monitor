@@ -77,7 +77,7 @@ export default class AppSelect extends tsc<IProps, IEvents> {
         /** 切换为demo业务 */
         AppStore.handleChangeBizId({
           bizId: this.demoBiz.id,
-          ctx: this
+          ctx: this,
         });
       }
     }
@@ -94,7 +94,7 @@ export default class AppSelect extends tsc<IProps, IEvents> {
         animation='slide-toggle'
         tippy-options={{
           arrow: false,
-          trigger: 'click'
+          trigger: 'click',
         }}
       >
         {this.$slots.default ?? <bk-button theme='primary'>{this.$t('新建应用')}</bk-button>}

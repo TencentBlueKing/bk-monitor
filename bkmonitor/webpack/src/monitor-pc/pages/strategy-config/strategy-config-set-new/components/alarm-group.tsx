@@ -64,7 +64,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
   @Prop({ default: false, type: Boolean }) readonly isRefresh: boolean;
   @Prop({ default: false, type: Boolean }) readonly loading: boolean;
   @Prop({ default: '', type: [Number, String] }) readonly strategyId: string | number;
-  @Prop({ default: true, type: Boolean }) showAddTip: Boolean;
+  @Prop({ default: true, type: Boolean }) showAddTip: boolean;
   @Prop({ default: false, type: Boolean }) isSimple: boolean; // 简洁模式（无预览，无回填）
   @Prop({ default: null, type: Function }) tagClick: (id: number, e: Event) => void;
   @Prop({ default: false, type: Boolean }) isOpenNewPage: boolean; // 点击创建按钮新开页
@@ -81,7 +81,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
 
   detail: IAlarmGroupDeatail = {
     id: 0,
-    show: false
+    show: false,
   };
 
   @Watch('value', { immediate: true, deep: true })
@@ -164,8 +164,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
       name: 'alarm-group-edit',
       params: {
         id,
-        strategyId: `${this.strategyId}`
-      }
+        strategyId: `${this.strategyId}`,
+      },
     });
   }
 
@@ -183,8 +183,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
     this.$router.push({
       name: 'alarm-group-add',
       params: {
-        strategyId: !this.isSimple ? `${this.strategyId}` : undefined
-      }
+        strategyId: !this.isSimple ? `${this.strategyId}` : undefined,
+      },
     });
   }
 
@@ -233,7 +233,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 popover-width={380}
                 popover-options={{
                   boundary: 'window',
-                  flipOnUpdate: true
+                  flipOnUpdate: true,
                 }}
                 searchable
                 multiple
@@ -284,13 +284,13 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                       class='add-text'
                       v-bk-tooltips={{
                         content: this.$t('进入新增页，新增完可直接返回不会丢失数据'),
-                        disabled: this.showAddTip || this.isOpenNewPage
+                        disabled: this.showAddTip || this.isOpenNewPage,
                       }}
                     >
                       {this.$t('新增告警组')}
                       {!this.isSimple && !this.isOpenNewPage && (
                         <span style={{ marginLeft: '10px', color: '#ea3636' }}>{`(${this.$t(
-                          '新增后会进行回填'
+                          '新增后会进行回填',
                         )})`}</span>
                       )}
                     </span>

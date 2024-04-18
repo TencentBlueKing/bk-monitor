@@ -51,11 +51,12 @@
       </template>
     </bk-table-column>
     <!-- 显示字段 -->
-    <template v-for="(field, index) in getShowTableVisibleFields">
+    <template>
       <bk-table-column
+        v-for="(field, index) in getShowTableVisibleFields"
         :key="field.field_name"
         align="left"
-        :sortable="field.es_doc_values"
+        :sortable="field.es_doc_values && field.tag !== 'union-source'"
         :column-key="field.field_name"
         :min-width="field.minWidth"
         :render-header="renderHeaderAliasName"
@@ -72,7 +73,7 @@
             >
               <table-column
                 :is-wrap="isWrap"
-                :content="tableRowDeepView(row, field.field_name, field.field_type)"
+                :content="getTableColumnContent(row, field)"
                 :field="field"
                 @iconClick="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
                 @computedHeight="handleOverColumn(field.field_name)"

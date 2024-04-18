@@ -42,49 +42,48 @@ interface IConditionValueList {
 }
 
 export default defineComponent({
-  // eslint-disable-next-line vue/multi-word-component-names
   name: 'Condition',
   props: {
     isInclude: {
       type: Boolean,
-      default: true
+      default: true,
     },
     labelValue: {
       type: String,
-      default: ''
+      default: '',
     },
     labelList: {
       type: Array as () => Array<{ label: string; value: string }>,
-      default: () => []
+      default: () => [],
     },
     selectedCondition: {
       type: Object,
       default: () => ({
         label: '',
-        value: ''
-      })
+        value: '',
+      }),
     },
     // 用作控制显示哪一种类型的 输入框 。（复选，区间，或特殊框）
     conditionType: {
       type: String,
-      default: ''
+      default: '',
     },
     conditionList: {
       type: Array as PropType<Array<IConditionList>>,
-      default: () => []
+      default: () => [],
     },
     conditionValueList: {
       type: Array as PropType<Array<IConditionValueList>>,
-      default: () => []
+      default: () => [],
     },
     durantionRange: {
       type: Array as PropType<Array<number>>,
-      default: () => []
+      default: () => [],
     },
     selectedConditionValue: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: [
     'IncludeChange',
@@ -94,7 +93,7 @@ export default defineComponent({
     'conditionChange',
     'durationRangeChange',
     'itemConditionChange',
-    'conditionValueClear'
+    'conditionValueClear',
   ],
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -116,7 +115,7 @@ export default defineComponent({
           traverseIds(item, props.labelValue);
         });
       },
-      { immediate: true }
+      { immediate: true },
     );
     const hoverArea = ref([]);
 
@@ -146,7 +145,7 @@ export default defineComponent({
                 label: true,
                 'label-hover': labelHoverStatus.value,
                 'label-active': labelActiveStatus.value,
-                'label-disabled': !props.isInclude
+                'label-disabled': !props.isInclude,
               }}
             >
               {label.value}
@@ -196,7 +195,7 @@ export default defineComponent({
                     </Dropdown.DropdownItem>
                   ))}
                 </Dropdown.DropdownMenu>
-              )
+              ),
             }}
             style='flex-shrink: 0;'
             onShow={() => (conditionTypeActiveStatus.value = true)}
@@ -209,7 +208,7 @@ export default defineComponent({
                   'condition-type': true,
                   'condition-type-selected': !!props.selectedCondition.value,
                   'condition-type-active': conditionTypeActiveStatus.value,
-                  'condition-type-disabled': !props.isInclude
+                  'condition-type-disabled': !props.isInclude,
                 }}
               >
                 {props.selectedCondition.label}
@@ -270,10 +269,10 @@ export default defineComponent({
     );
 
     return {
-      renderDom
+      renderDom,
     };
   },
   render() {
     return this.renderDom();
-  }
+  },
 });

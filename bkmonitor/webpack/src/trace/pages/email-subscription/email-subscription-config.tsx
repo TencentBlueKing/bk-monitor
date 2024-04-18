@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -40,11 +39,10 @@ import {
   Sideslider,
   Switcher,
   Table,
-  TagInput
+  TagInput,
 } from 'bkui-vue';
 import { Column } from 'bkui-vue/lib/table/props';
 import dayjs from 'dayjs';
-
 import {
   createOrUpdateReport,
   deleteReport,
@@ -52,10 +50,11 @@ import {
   getReport,
   getReportList,
   getSendRecords,
-  sendReport
-} from '../../../monitor-api/modules/new_report';
-import { deepClone, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
-import { docCookies } from '../../../monitor-common/utils/utils';
+  sendReport,
+} from 'monitor-api/modules/new_report';
+import { deepClone, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { docCookies } from 'monitor-common/utils/utils';
+
 import NavBar from '../../components/nav-bar/nav-bar';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
@@ -106,14 +105,14 @@ export default defineComponent({
     const navList = ref([
       {
         id: 'report',
-        name: t('订阅配置')
-      }
+        name: t('订阅配置'),
+      },
     ]);
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const ApplyStatus = {
       RUNNING: t('未审批'),
       FAILED: t('未通过'),
-      SUCCESS: t('已通过')
+      SUCCESS: t('已通过'),
     };
     const isSelfMode = ref(false);
     const isTableLoading = ref(false);
@@ -138,7 +137,7 @@ export default defineComponent({
                   {t(`${data.name}`)}
                 </Button>
               );
-            }
+            },
           },
           {
             label: `${t('通知渠道')}`,
@@ -154,19 +153,19 @@ export default defineComponent({
                   placement='top'
                   popoverDelay={[300, 0]}
                   v-slots={{
-                    content
+                    content,
                   }}
                 >
                   <div
                     class={{
-                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                     }}
                   >
                     {content}
                   </div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('订阅场景')}`,
@@ -175,13 +174,13 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   {t(Scenario[data.scenario])}
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('发送模式')}`,
@@ -190,7 +189,7 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   {t(SendMode[data.send_mode])}
@@ -201,15 +200,15 @@ export default defineComponent({
               list: [
                 {
                   text: t('周期发送'),
-                  value: 'periodic'
+                  value: 'periodic',
                 },
                 {
                   text: t('仅发一次'),
-                  value: 'one_time'
-                }
+                  value: 'one_time',
+                },
               ],
-              filterFn: () => true
-            }
+              filterFn: () => true,
+            },
           },
           {
             label: `${t('发送时间')}`,
@@ -225,37 +224,37 @@ export default defineComponent({
                   placement='top'
                   popoverDelay={[300, 0]}
                   v-slots={{
-                    content
+                    content,
                   }}
                 >
                   <div
                     class={{
-                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                     }}
                   >
                     {content}
                   </div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('最近一次发送时间')}`,
             field: 'last_send_time',
             sort: {
-              value: null
+              value: null,
             },
             render: ({ data }) => {
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   {data.last_send_time ? dayjs(data.last_send_time).format('YYYY-MM-DD HH:mm:ss') : t('未发送')}
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('发送状态')}`,
@@ -264,7 +263,7 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   <i
@@ -279,11 +278,11 @@ export default defineComponent({
               list: [
                 {
                   text: `${t('发送成功')}`,
-                  value: 'success'
+                  value: 'success',
                 },
                 {
                   text: `${t('未发送')}`,
-                  value: 'no_status'
+                  value: 'no_status',
                 },
                 // {
                 //   text: `${t('发送部分失败')}`,
@@ -291,11 +290,11 @@ export default defineComponent({
                 // },
                 {
                   text: `${t('发送失败')}`,
-                  value: 'failed'
-                }
+                  value: 'failed',
+                },
               ],
-              filterFn: () => true
-            }
+              filterFn: () => true,
+            },
           },
           {
             label: `${t('创建人')}`,
@@ -304,13 +303,13 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   {data.create_user}
                 </div>
               );
-            }
+            },
           },
           {
             width: '50px',
@@ -327,17 +326,17 @@ export default defineComponent({
                   ></Switcher>
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('创建时间')}`,
             field: 'create_time',
             sort: {
-              value: null
+              value: null,
             },
             render: ({ data }) => {
               return <div>{dayjs(data.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
-            }
+            },
           },
           {
             label: `${t('操作')}`,
@@ -413,14 +412,14 @@ export default defineComponent({
                                       .catch(() => {
                                         return false;
                                       });
-                                  }
+                                  },
                                 });
                               }}
                             >
                               {t('删除')}
                             </div>
                           </div>
-                        )
+                        ),
                       }}
                     >
                       <i
@@ -432,10 +431,10 @@ export default defineComponent({
                   </div>
                 </div>
               );
-            }
-          }
+            },
+          },
         ],
-        limit: 0
+        limit: 0,
       },
       settings: {
         fields: [],
@@ -443,14 +442,14 @@ export default defineComponent({
         limit: 0,
         size: 'small',
         sizeList: [],
-        showLineHeight: false
-      }
+        showLineHeight: false,
+      },
     });
     // 根据 table 字段生成对应的字段显隐 setting
     table.settings.fields = table.columns.fields.map(item => {
       return {
         label: item.label,
-        field: item.field
+        field: item.field,
       };
     });
     table.settings.checked = table.columns.fields
@@ -480,7 +479,7 @@ export default defineComponent({
                   {t(`${data.content_title}`)}
                 </Button>
               );
-            }
+            },
           },
           {
             label: `${t('通知渠道')}`,
@@ -496,20 +495,20 @@ export default defineComponent({
                   placement='top'
                   popoverDelay={[300, 0]}
                   v-slots={{
-                    content
+                    content,
                   }}
                 >
                   <div>{content}</div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('订阅场景')}`,
             field: 'scenario',
             render: ({ data }) => {
               return <div>{t(Scenario[data.scenario])}</div>;
-            }
+            },
           },
           {
             label: `${t('发送模式')}`,
@@ -521,15 +520,15 @@ export default defineComponent({
               list: [
                 {
                   text: t('周期发送'),
-                  value: 'periodic'
+                  value: 'periodic',
                 },
                 {
                   text: t('仅发一次'),
-                  value: 'one_time'
-                }
+                  value: 'one_time',
+                },
               ],
-              filterFn: () => true
-            }
+              filterFn: () => true,
+            },
           },
           {
             label: `${t('发送时间')}`,
@@ -545,13 +544,13 @@ export default defineComponent({
                   placement='top'
                   popoverDelay={[300, 0]}
                   v-slots={{
-                    content
+                    content,
                   }}
                 >
                   <div>{content}</div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('审批状态')}`,
@@ -566,14 +565,14 @@ export default defineComponent({
                   {ApplyStatus[data.status]}
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('创建人')}`,
             field: 'create_user',
             render: ({ data }) => {
               return <div>{data.create_user}</div>;
-            }
+            },
           },
           {
             label: `${t('操作')}`,
@@ -593,10 +592,10 @@ export default defineComponent({
                   </Button>
                 </div>
               );
-            }
-          }
+            },
+          },
         ],
-        limit: 0
+        limit: 0,
       },
       settings: {
         fields: [],
@@ -604,14 +603,14 @@ export default defineComponent({
         limit: 0,
         size: 'small',
         sizeList: [],
-        showLineHeight: false
-      }
+        showLineHeight: false,
+      },
     });
     // 根据 tableForSelf 字段生成对应的字段显隐 setting
     tableForSelf.settings.fields = tableForSelf.columns.fields.map(item => {
       return {
         label: item.label,
-        field: item.field
+        field: item.field,
       };
     });
     tableForSelf.settings.checked = tableForSelf.columns.fields.map(item => item.field);
@@ -628,13 +627,13 @@ export default defineComponent({
             field: 'send_time',
             render: ({ data }) => {
               return <div>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
-            }
+            },
           },
           {
             label: `${t('类型')}`,
             render: ({ data }) => {
               return t(ChannelName[data.channel_name]);
-            }
+            },
           },
           {
             label: `${t('接收人')}`,
@@ -648,13 +647,13 @@ export default defineComponent({
                   v-slots={{
                     content: () => {
                       return <span style='word-break: break-word;'>{content}</span>;
-                    }
+                    },
                   }}
                 >
                   <div style='overflow: hidden;text-overflow: ellipsis;white-space: nowrap;'>{content}</div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('发送结果')}`,
@@ -668,7 +667,7 @@ export default defineComponent({
                     <span
                       v-bk-tooltips={{
                         content: data.send_results.find(item => !item.result)?.message,
-                        placement: 'top'
+                        placement: 'top',
                       }}
                       style='margin-left: 10px;'
                     >
@@ -677,7 +676,7 @@ export default defineComponent({
                   )}
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('操作')}`,
@@ -699,26 +698,26 @@ export default defineComponent({
                         const headerTextMap = {
                           user: '已成功发送 {0} 个内部用户',
                           email: '已成功发送 {0} 个外部邮件',
-                          wxbot: '已成功发送 {0} 个企业微信群'
+                          wxbot: '已成功发送 {0} 个企业微信群',
                         };
                         headerText = headerTextMap[data.channel_name];
                         const headerConfirmTextMap = {
                           user: '确定重新发送给以下用户',
                           email: '确定重新发送给以下邮件',
-                          wxbot: '确定重新发送给以下企业微信群'
+                          wxbot: '确定重新发送给以下企业微信群',
                         };
                         headerConfirmText = headerConfirmTextMap[data.channel_name];
                       } else if (['partial_failed', 'failed'].includes(data.send_status)) {
                         const headerTextMap = {
                           user: '已成功发送 {0} 个，失败 {1} 个内部用户',
                           email: '已成功发送 {0} 个，失败 {1} 个外部邮件',
-                          wxbot: '已成功发送 {0} 个，失败 {1} 个企业微信群'
+                          wxbot: '已成功发送 {0} 个，失败 {1} 个企业微信群',
                         };
                         headerText = headerTextMap[data.channel_name];
                         const headerConfirmTextMap = {
                           user: '确定重新发送给以下失败用户',
                           email: '确定重新发送给以下失败邮件',
-                          wxbot: '确定重新发送给以下失败企业微信群'
+                          wxbot: '确定重新发送给以下失败企业微信群',
                         };
                         headerConfirmText = headerConfirmTextMap[data.channel_name];
                       }
@@ -796,7 +795,7 @@ export default defineComponent({
                           </div>
                         </div>
                       );
-                    }
+                    },
                   }}
                 >
                   <Button
@@ -806,10 +805,9 @@ export default defineComponent({
                       toggleMapForSendRecord[index] = true;
                       // 每次重新发送都会重置一次 tag 列表。不知道是否实用。
                       sendRecordTable.data.forEach(item => {
-                        // eslint-disable-next-line no-param-reassign
                         item.tempSendResult = deepClone(item.send_results);
                         // 这里将展示 TagInput 用的保存变量。
-                        // eslint-disable-next-line no-param-reassign
+
                         item.selectedTag = [];
                         // 需要根据发送结果去对 selectedTag 里的内容进行预先填充。
                         item.send_results.forEach(subItem => {
@@ -827,11 +825,11 @@ export default defineComponent({
                   </Button>
                 </Popover>
               );
-            }
-          }
-        ]
+            },
+          },
+        ],
       },
-      isLoading: false
+      isLoading: false,
     });
 
     // 显隐 订阅详情 抽屉组件
@@ -860,7 +858,7 @@ export default defineComponent({
 
     function handleGoToCreateConfigPage() {
       router.push({
-        name: 'create-report'
+        name: 'create-report',
       });
     }
 
@@ -870,7 +868,7 @@ export default defineComponent({
 
     async function handleDeleteRow(report_id) {
       await deleteReport({
-        report_id
+        report_id,
       }).then(() => {
         fetchSubscriptionList();
       });
@@ -889,11 +887,11 @@ export default defineComponent({
               {
                 id: window.user_name || window.username,
                 type: 'user',
-                is_enabled: true
-              }
+                is_enabled: true,
+              },
             ],
-            channel_name: 'user'
-          }
+            channel_name: 'user',
+          },
         ];
         clonedFormData.channels = selfChannels;
       }
@@ -940,7 +938,7 @@ export default defineComponent({
         page: page.value,
         page_size: pageSize.value,
         order: order.value,
-        conditions: conditions.value
+        conditions: conditions.value,
       })
         .then(response => {
           table.data = response.report_list;
@@ -956,7 +954,6 @@ export default defineComponent({
       createOrUpdateReport(data)
         .then(() => {})
         .catch(() => {
-          // eslint-disable-next-line no-param-reassign
           data.is_enabled = !data.is_enabled;
         });
     }
@@ -964,7 +961,7 @@ export default defineComponent({
     function getSendingRecordList() {
       sendRecordTable.isLoading = true;
       getSendRecords({
-        report_id: subscriptionDetail.value.id
+        report_id: subscriptionDetail.value.id,
       })
         .then(response => {
           sendRecordTable.data = response;
@@ -992,22 +989,21 @@ export default defineComponent({
               return data.selectedTag.includes(item.id);
             })
             .map(item => {
-              // eslint-disable-next-line no-param-reassign
               delete item.result;
-              // eslint-disable-next-line no-param-reassign
+
               item.is_enabled = true;
               return item;
-            })
-        }
+            }),
+        },
       ];
       sendReport({
         report_id: data.report_id,
-        channels
+        channels,
       })
         .then(() => {
           Message({
             theme: 'success',
-            message: t('发送成功')
+            message: t('发送成功'),
           });
         })
         .finally(() => {
@@ -1025,11 +1021,11 @@ export default defineComponent({
             {
               id: window.user_name || window.username,
               type: 'user',
-              is_enabled: true
-            }
+              is_enabled: true,
+            },
           ],
-          channel_name: 'user'
-        }
+          channel_name: 'user',
+        },
       ];
       const clonedFormData = deepClone(subscriptionDetail.value);
       clonedFormData.channels = selfChannels;
@@ -1067,7 +1063,7 @@ export default defineComponent({
     function handleReportDetailChange(reportId) {
       isFetchReport.value = true;
       getReport({
-        report_id: reportId
+        report_id: reportId,
       })
         .then(response => {
           subscriptionDetail.value = response;
@@ -1092,7 +1088,7 @@ export default defineComponent({
       isShowEditSideslider.value = true;
       isFetchReport.value = true;
       getReport({
-        report_id: reportId
+        report_id: reportId,
       })
         .then(response => {
           subscriptionDetail.value = response;
@@ -1108,7 +1104,7 @@ export default defineComponent({
           isShowCreateReportFormComponent.value = true;
           // 只需要打开一次 slider 即可。把 url 参数清空，避免刷新页面时还会出现 slider 。
           router.replace({
-            name: 'report'
+            name: 'report',
           });
         });
     }
@@ -1130,7 +1126,7 @@ export default defineComponent({
       getApplyRecords({
         query_type: 'biz',
         // 选择 全部 时则不传
-        status: queryTypeForSelf.value === 'all' ? undefined : queryTypeForSelf.value
+        status: queryTypeForSelf.value === 'all' ? undefined : queryTypeForSelf.value,
       })
         .then(res => {
           tableForSelf.data = res;
@@ -1143,7 +1139,7 @@ export default defineComponent({
     function fetchReportDetail(report_id) {
       isFetchReport.value = true;
       getReport({
-        report_id
+        report_id,
       })
         .then(response => {
           subscriptionDetail.value = response;
@@ -1164,7 +1160,7 @@ export default defineComponent({
 
     const filterConfig = reactive({
       key: '',
-      value: []
+      value: [],
     });
 
     const computedTableDataForSelf = computed(() => {
@@ -1233,7 +1229,7 @@ export default defineComponent({
       isSelfMode,
       computedTableDataForSelf,
       filterConfig,
-      isShowHeaderNav
+      isShowHeaderNav,
     };
   },
   render() {
@@ -1328,7 +1324,7 @@ export default defineComponent({
                   <div class='suffix-icon'>
                     <i class='icon-monitor icon-mc-search'></i>
                   </div>
-                )
+                ),
               }}
             />
           </div>
@@ -1367,7 +1363,7 @@ export default defineComponent({
                   this.page = 1;
                   this.pageSize = limit;
                   this.fetchSubscriptionList();
-                }
+                },
               }}
               onColumnFilter={({ checked, column }) => {
                 let currentIndex = -1;
@@ -1388,7 +1384,7 @@ export default defineComponent({
                   if (checked.length) {
                     this.conditions.push({
                       key: column.field,
-                      value: checked
+                      value: checked,
                     });
                   }
                 }
@@ -1537,13 +1533,13 @@ export default defineComponent({
                         v-slots={{
                           content: () => {
                             return <span>{this.subscriptionDetail.name}</span>;
-                          }
+                          },
                         }}
                       >
                         <span
                           class='sub-title'
                           style={{
-                            maxWidth: currentLang === 'en' ? '180px' : '250px'
+                            maxWidth: currentLang === 'en' ? '180px' : '250px',
                           }}
                         >
                           -&nbsp;{this.subscriptionDetail.name}
@@ -1569,7 +1565,7 @@ export default defineComponent({
                                   .catch(() => {
                                     return false;
                                   });
-                              }
+                              },
                             });
                           }}
                         >
@@ -1594,15 +1590,15 @@ export default defineComponent({
                                 <div>
                                   <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
                                   <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
-                                    'YYYY-MM-DD HH:mm:ss'
+                                    'YYYY-MM-DD HH:mm:ss',
                                   )}`}</div>
                                   <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
                                   <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
-                                    'YYYY-MM-DD HH:mm:ss'
+                                    'YYYY-MM-DD HH:mm:ss',
                                   )}`}</div>
                                 </div>
                               );
-                            }
+                            },
                           }}
                         >
                           <Button style='margin-right: 24px;'>
@@ -1623,7 +1619,7 @@ export default defineComponent({
                     ></SubscriptionDetail>
                   </div>
                 );
-              }
+              },
             }}
           ></Sideslider>
 
@@ -1671,7 +1667,7 @@ export default defineComponent({
                         createOrUpdateReport(response).then(() => {
                           Message({
                             theme: 'success',
-                            message: this.t('保存成功')
+                            message: this.t('保存成功'),
                           });
                           this.fetchSubscriptionList();
                           this.isShowEditSideslider = false;
@@ -1697,7 +1693,7 @@ export default defineComponent({
                             </Dropdown.DropdownItem>
                           </Dropdown.DropdownMenu>
                         );
-                      }
+                      },
                     }}
                   >
                     <Button
@@ -1729,5 +1725,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

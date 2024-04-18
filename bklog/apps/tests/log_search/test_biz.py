@@ -21,9 +21,9 @@ the project delivered to anyone in the future.
 """
 
 from collections import namedtuple
+from unittest.mock import patch
 
 from django.test import TestCase
-from unittest.mock import patch
 
 from apps.log_search.handlers.biz import BizHandler
 
@@ -256,7 +256,26 @@ NODE_MAPPING = {NODE_NAME: {"node_link": [NODE_NAME], "bk_inst_name": NodeInstan
 HOST_LIST_AGENT = [HostInstance.host]
 HOST_DETAILS = [{"bk_host_id": HostInstance.bk_host_id}]
 
-AGENT_STATUS = [{"ip": "127.0.0.1", "plat_id": "0", "status": True}]
+AGENT_STATUS = [
+    {
+        "meta": {"scope_type": "biz", "scope_id": "2", "bk_biz_id": 2},
+        "host_id": 2,
+        "agent_id": "696834226262p",
+        "ip": "127.0.0.1",
+        "ipv6": "",
+        "host_name": "VM-47-78-centos",
+        "os_name": "Linux",
+        "os_type": "Linux",
+        "alive": 1,
+        "cloud_area": {"id": 0, "name": "直连区域"},
+        "biz": {"id": 2, "name": "蓝鲸监控平台"},
+        "bk_host_id": 2,
+        "bk_biz_id": 2,
+        "bk_agent_id": "696834226262p",
+        "bk_agent_alive": 1,
+        "bk_cloud_id": 0,
+    }
+]
 AGENT_STATUS_RESULT = {
     "bk_obj_id": NodeInstance.bk_obj_id,
     "bk_inst_id": NodeInstance.bk_inst_id,
@@ -312,7 +331,7 @@ class TestBiz(TestCase):
         result = self.biz_handler.batch_get_hosts_by_inst_id(NODE_INSTANCE_INFO)
         self.assertEqual(result, HOST_DETAILS)
 
-    @patch("apps.api.GseApi.get_agent_status", lambda _: AGENT_STATUS)
+    @patch("apps.api.NodeApi.ipchooser_host_details", lambda _: AGENT_STATUS)
     def test_batch_get_agent_status(self):
         result = self.biz_handler.batch_get_agent_status((HOST_LIST_AGENT, NODE_INSTANCE, NODE_MAPPING))
         self.assertEqual(result, AGENT_STATUS_RESULT)

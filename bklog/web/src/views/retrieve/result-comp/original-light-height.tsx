@@ -30,6 +30,7 @@ interface IProps {
   originJson: object;
   visibleFields: Array<any>;
   isWrap: boolean;
+  operatorConfig: object;
 }
 @Component
 export default class QueryStatement extends tsc<IProps> {
@@ -37,6 +38,7 @@ export default class QueryStatement extends tsc<IProps> {
   @Prop({ type: Object, required: true }) originJson;
   @Prop({ type: Array<any>, required: true }) visibleFields;
   @Prop({ type: Boolean, required: true }) isWrap;
+  @Prop({ type: Object, required: true }) operatorConfig;
 
   get visibleFieldsNameList() {
     return this.visibleFields.map(item => item.field_name);
@@ -44,6 +46,10 @@ export default class QueryStatement extends tsc<IProps> {
 
   get strOriginJson() {
     return JSON.stringify(this.fieldMapDataObj);
+  }
+
+  get unionIndexItemList() {
+    return this.$store.getters.unionIndexItemList;
   }
 
   // 扁平化对象所有数据
@@ -55,8 +61,14 @@ export default class QueryStatement extends tsc<IProps> {
         visibleObject[el] = newObject[el];
       }
     });
-    const sortObject = this.visibleFieldsNameList.reduce((pre, cur) => {
-      pre[cur] = visibleObject[cur] ?? '';
+    const sortObject = this.visibleFields.reduce((pre, cur) => {
+      let fieldValue = visibleObject[cur.field_name];
+      if (this.operatorConfig.isShowSourceField && cur?.tag === 'union-source') {
+        fieldValue =
+          this.unionIndexItemList.find(item => item.index_set_id === String(this.originJson.__index_set_id__))
+            ?.index_set_name ?? '';
+      }
+      pre[cur.field_name] = fieldValue ?? '';
       return pre;
     }, {});
     return sortObject;

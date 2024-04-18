@@ -42,7 +42,7 @@ interface IEvent {
 }
 
 @Component({
-  name: 'AlarmConfirm'
+  name: 'AlarmConfirm',
 })
 export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -88,7 +88,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
     const params = {
       alert_id: this.ids[0],
       is_anomaly: this.state === 1,
-      description: this.description
+      description: this.description,
     };
     this.loading = true;
     const res = await feedbackAlert(params)
@@ -98,13 +98,13 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
     if (res) {
       this.$bkMessage({
         theme: 'success',
-        message: window.i18n.tc('反馈成功')
+        message: window.i18n.tc('反馈成功'),
       });
       this.handleConfirm(true);
     } else {
       this.$bkMessage({
         theme: 'error',
-        message: window.i18n.tc('反馈失败')
+        message: window.i18n.tc('反馈失败'),
       });
     }
     this.handleShowChange(false);

@@ -36,27 +36,34 @@ $levelColor: #ea3636 #ff9c01 #699df4;
             line-height: 20px;
             white-space: nowrap;
 
+            &.labels {
+              display: flex;
+              margin-bottom: 0;
+
+              .labels-list {
+                flex: 1;
+                white-space: normal;
+              }
+
+              .labels-item {
+                margin-bottom: 5px;
+              }
+            }
+
             &:not(:last-child) {
               margin-right: 100px;
             }
 
             .base-info-label {
+              display: inline-block;
+              width: 54px;
               margin-right: 8px;
               color: #979ba5;
+              text-align: right;
             }
 
             .base-info-value {
               color: #63656e;
-            }
-          }
-
-          .lables-item {
-            margin-bottom: 0;
-
-            .base-info-label {
-              display: inline-block;
-              width: 54px;
-              text-align: right;
             }
           }
 
@@ -78,7 +85,7 @@ $levelColor: #ea3636 #ff9c01 #699df4;
             .custom-label {
               line-height: 20px;
               background-color: #fafbfd;
-              border: 1px solid rgba(151,155,165,.3);
+              border: 1px solid rgba(151, 155, 165, .3);
             }
           }
         }
@@ -153,14 +160,14 @@ $levelColor: #ea3636 #ff9c01 #699df4;
             // background-color: #fff;
             // border: 1px solid #dcdee5;
           }
-      
+
           .step-wrap {
             display: block;
             margin: 10px 0 0 0;
-      
+
             .step-input {
               width: 205px;
-      
+
               .step-input-prepend {
                 display: flex;
                 align-items: center;
@@ -168,7 +175,7 @@ $levelColor: #ea3636 #ff9c01 #699df4;
                 width: 96px;
                 height: 100%;
                 font-size: 12px;
-      
+
                 .icon-hint {
                   margin-left: 8px;
                 }
@@ -499,12 +506,12 @@ $levelColor: #ea3636 #ff9c01 #699df4;
         }
       }
     }
-  } 
+  }
 }
 
 .target-table-wrap {
   .strategy-detail-table {
     /* stylelint-disable-next-line declaration-no-important */
-    margin-top: 0!important;
+    margin-top: 0 !important;
   }
 }

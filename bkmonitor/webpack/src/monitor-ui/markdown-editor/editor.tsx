@@ -88,7 +88,7 @@ export default class MyComponent extends tsc<IMarkdownEditorProps> {
       previewStyle: this.previewStyle,
       hideModeSwitch: true,
       events: this.editorEvents.reduce((pre, key) => (pre[key] = (...args: any) => this.$emit(key, ...args)), {}),
-      viewer: false
+      viewer: false,
     });
     if (this.$listeners.input) {
       this.editor.on('change', () => {

@@ -30,7 +30,6 @@ import dayjs from 'dayjs';
 import { isEn } from '../../../../i18n/i18n';
 
 import './log-retrieval-dialog.scss';
-/* eslint-disable camelcase */
 
 interface LogRetrievalDialogProps {
   show: boolean;
@@ -50,7 +49,7 @@ interface indexItem {
 }
 
 @Component({
-  name: 'LogRetrievalDialog'
+  name: 'LogRetrievalDialog',
 })
 export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, LogRetrievalDialogEvent> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -66,12 +65,12 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
     cancelText: window.i18n.t('取消'),
     width: 571,
     title: window.i18n.t('route-日志检索'),
-    autoClose: false
+    autoClose: false,
   };
   public data = {
     indexSet: '',
     time: ['', ''],
-    sql: ''
+    sql: '',
   };
   public indexSetList = [];
   public rules = {
@@ -79,23 +78,23 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     time: [
       {
         validator: () => this.data.time[0] !== '',
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     sql: [
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   @Watch('show')
@@ -129,7 +128,7 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
       },
       () => {
         // 验证失败
-      }
+      },
     );
   }
   handleClose(v: boolean) {
@@ -167,8 +166,8 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
             {...{
               props: {
                 model: this.data,
-                rules: this.rules
-              }
+                rules: this.rules,
+              },
             }}
           >
             <bk-form-item

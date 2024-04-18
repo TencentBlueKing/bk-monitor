@@ -51,18 +51,18 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
   /** 字段类型筛选选中的值 */
   fieldTypeValue: FieldFilteringType.IFieldTypeValue = {
     aggVal: 'all',
-    fieldType: 'all'
+    fieldType: 'all',
   };
   fieldTypevalueCache: FieldFilteringType.IFieldTypeValue = {
     aggVal: 'all',
-    fieldType: 'all'
+    fieldType: 'all',
   };
 
   /** 字段可聚合配置 */
   fieldAggList: IOption[] = [
     { id: 'all', name: i18n.t('不限') },
     { id: 'yes', name: i18n.t('是') },
-    { id: 'no', name: i18n.t('否') }
+    { id: 'no', name: i18n.t('否') },
   ];
   /** 字段数据类型可选列表 */
   fieldTypeList: IOption[] = [
@@ -70,7 +70,7 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
     { id: 'number', name: i18n.t('数字') },
     { id: 'string', name: i18n.t('字符串') },
     { id: 'text', name: i18n.t('文本') },
-    { id: 'date', name: i18n.t('时间') }
+    { id: 'date', name: i18n.t('时间') },
   ];
 
   /** 字段过滤选中的数量统计 */

@@ -54,18 +54,18 @@ const TOP_NUM = 5;
 const IProps = {
   value: {
     type: Array as PropType<TraceFieldValue[]>,
-    default: () => []
+    default: () => [],
   },
   total: {
     // 记录总数
     type: Number,
-    default: 0
+    default: 0,
   },
   allowDisplay: {
     // 允许控制显示隐藏
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 };
 
 export default defineComponent({
@@ -82,7 +82,7 @@ export default defineComponent({
       () => props.value,
       v => {
         localValue.value = v;
-      }
+      },
     );
 
     /**
@@ -96,7 +96,7 @@ export default defineComponent({
       emit('checkedChange', {
         index,
         checked: !item.checked,
-        field: item.field
+        field: item.field,
       });
     };
 
@@ -110,7 +110,7 @@ export default defineComponent({
         key: item.field,
         method,
         value: [val.id],
-        condition: 'and'
+        condition: 'and',
       });
     };
 
@@ -133,7 +133,7 @@ export default defineComponent({
         interface_name: t('接口名'),
         interface_service_name: t('所属Service'),
         service_name_in_service_statistic: 'Service',
-        service_type_in_service_statistic: t('服务类型')
+        service_type_in_service_statistic: t('服务类型'),
       };
       return aliasMap[key] || key;
     };
@@ -152,7 +152,7 @@ export default defineComponent({
       total,
       allowDisplay,
       localValue,
-      handleChangeShowMore
+      handleChangeShowMore,
     };
   },
   render() {
@@ -262,7 +262,7 @@ export default defineComponent({
         idFiled='key'
         v-slots={{
           default: (item: TraceFieldValue, index: number) => titleSlot(item, index),
-          content: (item: TraceFieldValue) => contentSlot(item)
+          content: (item: TraceFieldValue) => contentSlot(item),
         }}
       >
         {/* <div class="collapse-wrap collapse-wrap-event">
@@ -283,5 +283,5 @@ export default defineComponent({
         </div> */}
       </Collapse>
     );
-  }
+  },
 });

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 import * as customAuth from '../../pages/custom-escalation/authority-map';
@@ -41,10 +41,10 @@ export default [
     path: '/custom-escalation-set/event',
     name: 'custom-set-event',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: CustomEscalationSet
+      noCache: CustomEscalationSet,
     },
     meta: {
       title: '新建',
@@ -52,21 +52,21 @@ export default [
       needBack: true,
       authority: {
         map: customAuth,
-        page: customAuth.MANAGE_CUSTOM_EVENT
+        page: customAuth.MANAGE_CUSTOM_EVENT,
       },
       route: {
-        parent: 'custom-event'
-      }
-    }
+        parent: 'custom-event',
+      },
+    },
   },
   {
     path: '/custom-escalation-set/timeseries',
     name: 'custom-set-timeseries',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: CustomEscalationSet
+      noCache: CustomEscalationSet,
     },
     meta: {
       title: '新建',
@@ -74,21 +74,21 @@ export default [
       needBack: true,
       authority: {
         map: customAuth,
-        page: customAuth.MANAGE_CUSTOM_METRIC
+        page: customAuth.MANAGE_CUSTOM_METRIC,
       },
       route: {
-        parent: 'custom-metric'
-      }
-    }
+        parent: 'custom-metric',
+      },
+    },
   },
   {
     path: '/custom-escalation-detail/event/:id',
     name: 'custom-detail-event',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: CustomEscalationDetail
+      noCache: CustomEscalationDetail,
     },
     meta: {
       title: '详情',
@@ -96,23 +96,23 @@ export default [
       needBack: true,
       authority: {
         map: customAuth,
-        page: customAuth.VIEW_CUSTOM_EVENT
+        page: customAuth.VIEW_CUSTOM_EVENT,
       },
       route: {
-        parent: 'custom-event'
+        parent: 'custom-event',
       },
       needCopyLink: true,
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/custom-escalation-detail/timeseries/:id',
     name: 'custom-detail-timeseries',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: CustomEscalationDetail
+      noCache: CustomEscalationDetail,
     },
     meta: {
       title: '详情',
@@ -120,23 +120,23 @@ export default [
       needBack: true,
       authority: {
         map: customAuth,
-        page: customAuth.VIEW_CUSTOM_METRIC
+        page: customAuth.VIEW_CUSTOM_METRIC,
       },
       route: {
-        parent: 'custom-metric'
+        parent: 'custom-metric',
       },
       needCopyLink: true,
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/custom-escalation-view/:id',
     name: 'custom-escalation-view',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: CustomEscalationView
+      noCache: CustomEscalationView,
     },
     meta: {
       title: '可视化',
@@ -146,21 +146,21 @@ export default [
       noNavBar: true,
       authority: {
         map: customAuth,
-        page: customAuth.VIEW_CUSTOM_METRIC
+        page: customAuth.VIEW_CUSTOM_METRIC,
       },
       route: {
-        parent: 'custom-metric'
-      }
-    }
+        parent: 'custom-metric',
+      },
+    },
   },
   {
     path: '/custom-escalation-event-view/:id',
     name: 'custom-escalation-event-view',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: CustomEscalationEventView
+      noCache: CustomEscalationEventView,
     },
     meta: {
       title: '可视化',
@@ -170,11 +170,11 @@ export default [
       noNavBar: true,
       authority: {
         map: customAuth,
-        page: customAuth.VIEW_CUSTOM_METRIC
+        page: customAuth.VIEW_CUSTOM_METRIC,
       },
       route: {
-        parent: 'custom-event'
-      }
-    }
-  }
+        parent: 'custom-event',
+      },
+    },
+  },
 ] as RouteConfig[];

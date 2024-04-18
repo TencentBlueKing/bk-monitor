@@ -39,16 +39,16 @@ export default defineComponent({
   props: {
     dataType: {
       type: String,
-      default: 'cpu'
+      default: 'cpu',
     },
     dataTypeList: {
       type: Array as PropType<DataTypeItem[]>,
-      default: () => []
+      default: () => [],
     },
     queryParams: {
       type: Object as PropType<IQueryParams>,
-      required: true
-    }
+      required: true,
+    },
   },
   emits: ['update:dataType'],
   setup() {},
@@ -82,5 +82,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

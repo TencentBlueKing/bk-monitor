@@ -38,12 +38,12 @@ export default defineComponent({
   props: {
     list: {
       type: Object as PropType<ApplicationList>,
-      default: () => ({ normal: [], no_data: [] })
+      default: () => ({ normal: [], no_data: [] }),
     },
     value: {
       type: Object as PropType<string[]>,
-      required: true
-    }
+      required: true,
+    },
   },
   emits: ['change'],
   setup(props, { emit }) {
@@ -91,7 +91,7 @@ export default defineComponent({
       /** 应用名称 */
       appName: null,
       /** 服务名称 */
-      serviceName: null
+      serviceName: null,
     });
     const inputText = computed(() => {
       if (!selectValue.appName || !selectValue.serviceName) return '';
@@ -105,8 +105,8 @@ export default defineComponent({
         selectValue.serviceName = val[1] || '';
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     const showPopover = ref(false);
@@ -174,7 +174,7 @@ export default defineComponent({
       handlePopoverShowChange,
       handleViewApp,
       jumpToApp,
-      handleGotoLink
+      handleGotoLink,
     };
   },
   render() {
@@ -314,10 +314,10 @@ export default defineComponent({
                   </div>
                 </div>
               </div>
-            )
+            ),
           }}
         </Popover>
       </div>
     );
-  }
+  },
 });

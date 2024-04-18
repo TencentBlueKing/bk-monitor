@@ -59,7 +59,7 @@ const TimelineHeaderRow = (props: TimelineHeaderRowProps) => {
     onExpandAll,
     numTicks,
     onColummWidthChange,
-    columnResizeHandleHeight
+    columnResizeHandleHeight,
   } = props;
   const viewRange = useViewRangeInject();
   const [viewStart, viewEnd] = viewRange?.viewRange.value.time.current as [number, number];

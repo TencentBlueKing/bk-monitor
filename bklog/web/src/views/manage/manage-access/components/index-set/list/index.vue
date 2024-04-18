@@ -66,11 +66,11 @@
       <bk-table-column :label="$t('索引集')">
         <template slot-scope="{ row }">
           <!-- <bk-button
-            class="indexSet-name"
-            text
-            @click="manageIndexSet('manage', row)">
-            {{ row.index_set_name }}
-          </bk-button> -->
+              class="indexSet-name"
+              text
+              @click="manageIndexSet('manage', row)">
+              {{ row.index_set_name }}
+            </bk-button> -->
           <div class="index-set-name-box">
             <span
               v-cursor="{ active: !(row.permission && row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
@@ -116,6 +116,21 @@
           <div :class="['status-text', row.apply_status === 'normal' && 'success-status']">
             {{ row.apply_status_name || '--' }}
           </div>
+        </template>
+      </bk-table-column>
+      <bk-table-column
+        min-width="200"
+        width="200"
+        :label="$t('标签')"
+        :render-header="$renderHeader"
+      >
+        <template slot-scope="props">
+          <index-set-label-select
+            :row-data="props.row"
+            :label.sync="props.row.tags"
+            :select-label-list="selectLabelList"
+            @refreshLabelList="initLabelSelectList"
+          />
         </template>
       </bk-table-column>
       <bk-table-column
@@ -194,12 +209,14 @@
 import { projectManages } from '@/common/util';
 import { mapGetters } from 'vuex';
 import * as authorityMap from '../../../../../../common/authority-map';
+import IndexSetLabelSelect from '@/components/index-set-label-select';
 import EmptyStatus from '@/components/empty-status';
 
 export default {
   name: 'IndexSetList',
   components: {
-    EmptyStatus
+    EmptyStatus,
+    IndexSetLabelSelect
   },
   data() {
     const scenarioId = this.$route.name.split('-')[0];
@@ -221,7 +238,8 @@ export default {
       isCreateLoading: false, // 新建索引集
       isAllowedCreate: null,
       emptyType: 'empty',
-      isInit: true
+      isInit: true,
+      selectLabelList: []
     };
   },
   computed: {
@@ -250,6 +268,7 @@ export default {
     }
   },
   created() {
+    this.initLabelSelectList();
     this.checkCreateAuth();
     this.getIndexSetList();
   },
@@ -496,6 +515,15 @@ export default {
         });
       } catch (error) {
         return [];
+      }
+    },
+    /** 初始化标签列表 */
+    async initLabelSelectList() {
+      try {
+        const res = await this.$http.request('unionSearch/unionLabelList');
+        this.selectLabelList = res.data;
+      } catch (error) {
+        this.selectLabelList = [];
       }
     }
   }

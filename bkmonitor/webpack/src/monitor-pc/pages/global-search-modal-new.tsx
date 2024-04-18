@@ -72,7 +72,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     { id: 'strategy', name: this.$t('route-告警策略') },
     { id: 'uptimecheck', name: this.$t('route-综合拨测') },
     { id: 'dashboard', name: this.$t('route-仪表盘') },
-    { id: 'apm', name: 'APM' }
+    { id: 'apm', name: 'APM' },
   ];
   defaultNavList = [
     // 默认展示的导航列表
@@ -90,12 +90,12 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     { id: 'custom-metric', name: this.$t('route-自定义指标'), icon: 'icon-menu-custom' },
     { id: 'custom-event', name: this.$t('route-自定义事件'), icon: 'icon-mc-custom-event' },
     { id: 'fta-integrated', name: this.$t('route-告警源'), icon: 'icon-menu-aler-source' },
-    { id: 'apm-home', name: this.$t('route-应用监控'), icon: 'icon-mc-menu-apm' }
+    { id: 'apm-home', name: this.$t('route-应用监控'), icon: 'icon-mc-menu-apm' },
   ];
   searchResultList = [];
   modalPosition = {
     top: 0,
-    left: 0
+    left: 0,
   };
   /** 搜索取消请求方法 */
   searchCancelFn = () => {};
@@ -136,7 +136,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     return [
       // 搜索范围列表
       { id: 'BIZ', name: `${this.$t('本空间')} (${this.curSpaceItem.type_name})` },
-      { id: 'GLOBAL', name: this.$t('全部') }
+      { id: 'GLOBAL', name: this.$t('全部') },
     ];
   }
   /**
@@ -150,7 +150,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     const { top, left } = this.modalPosition;
     return {
       top: `${top}px`,
-      left: `${left}px`
+      left: `${left}px`,
     };
   }
 
@@ -328,11 +328,11 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
         title: item.name,
         view: item.id,
         view_args: {},
-        is_collected: false
+        is_collected: false,
       }));
       this.searchResultList.push({
         scene: 'nav',
-        results: resArr
+        results: resArr,
       });
     }
   }
@@ -396,10 +396,10 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
         bk_biz_id: this.bizId,
         scope: this.activeRange,
         scene: scene.id,
-        query: str
+        query: str,
       };
       await globalSearch(params, {
-        cancelToken: new CancelToken(c => (this.searchCancelFn = c))
+        cancelToken: new CancelToken(c => (this.searchCancelFn = c)),
       }).then(res => {
         this.searchResultList.push(...res);
       });
@@ -428,7 +428,6 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     const params =
       viewArgs.params &&
       Object.keys(viewArgs.params).reduce((result, key) => {
-        // eslint-disable-next-line no-param-reassign
         result[key] = String(viewArgs.params[key]);
         return result;
       }, {});
@@ -442,7 +441,6 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
       let queryStr =
         viewArgs.query &&
         Object.keys(viewArgs.query).reduce((result, key) => {
-          // eslint-disable-next-line no-param-reassign
           result += `${key}=${String(viewArgs.query[key])}&`;
           return result;
         }, '');
@@ -454,14 +452,14 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
       const targetRoute = this.$router.resolve({
         name: view,
         params,
-        query: viewArgs.query
+        query: viewArgs.query,
       });
       location.href = `${location.origin}${location.pathname}?bizId=${data.bk_biz_id}${targetRoute.href}`;
     } else {
       this.$router.push({
         name: view,
         params,
-        query: viewArgs.query
+        query: viewArgs.query,
       });
       if (this.$route.name === view) location.reload();
     }

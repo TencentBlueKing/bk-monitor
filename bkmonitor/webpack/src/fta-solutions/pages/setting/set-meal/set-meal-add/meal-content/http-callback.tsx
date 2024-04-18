@@ -37,7 +37,7 @@ import {
   ISelectListItem,
   ISetingValue,
   THeaderType,
-  TMethod
+  TMethod,
 } from '../components/http-editor/types';
 import { localDataConvertToRequest } from '../components/http-editor/utils';
 
@@ -65,7 +65,7 @@ interface IEvents {
 const QUERY_REG = new RegExp(/\?(([^?&=]+)=([^?&=]*)&?)+/);
 
 @Component({
-  name: 'HttpCallBack'
+  name: 'HttpCallBack',
 })
 export default class HttpCallBack extends tsc<IProps, IEvents> {
   // 编辑状态
@@ -86,13 +86,13 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
 
   httpData: IHttpData = {
     method: 'GET',
-    url: ''
+    url: '',
   };
 
   tabActive: THeaderType = 'Params';
 
   errorMsg = {
-    url: ''
+    url: '',
   };
   rawErrorMsg = '';
 
@@ -101,7 +101,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       key: 'Params',
       name: `${window.i18n.t('参数')}`,
       desc: '',
-      value: []
+      value: [],
     },
     {
       key: 'Authorization',
@@ -109,14 +109,14 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       desc: '',
       type: 'none',
       bearer_token: { token: '' },
-      basic_auth: { username: '', password: '' }
+      basic_auth: { username: '', password: '' },
     },
     {
       key: 'Headers',
       name: `${window.i18n.t('头信息')}`,
       desc: '',
       hide: true,
-      value: []
+      value: [],
     },
     {
       key: 'Body',
@@ -125,7 +125,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       type: 'default',
       form_data: [],
       x_www_form_urlencoded: [],
-      raw: { type: 'text', content: '' }
+      raw: { type: 'text', content: '' },
     },
     {
       key: 'Seting',
@@ -136,54 +136,54 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
         retryInterval: 2,
         maxRetryTimes: 2,
         needPoll: false,
-        notifyInterval: 120
-      }
-    }
+        notifyInterval: 120,
+      },
+    },
   ];
 
   methodList: string[] = ['POST', 'GET'];
   authRadioList: ISelectListItem[] = [
     { id: 'none', name: `${window.i18n.t('无需认证')}` },
     { id: 'bearer_token', name: 'Bearer Token' },
-    { id: 'basic_auth', name: 'Basic Auth' }
+    { id: 'basic_auth', name: 'Basic Auth' },
   ];
   BodyRadioList: ISelectListItem[] = [
     { id: 'default', name: `${window.i18n.t('默认')}` },
     { id: 'form_data', name: 'form-data' },
     { id: 'x_www_form_urlencoded', name: 'x-www-form-urlencoded' },
-    { id: 'raw', name: 'raw' }
+    { id: 'raw', name: 'raw' },
   ];
   setingInputList: ISelectListItem[] = [
     { id: 'timeout', name: `${window.i18n.t('请求超时')}`, unit: 's' },
     { id: 'retryInterval', name: `${window.i18n.t('重试间隔')}`, unit: 's' },
     { id: 'maxRetryTimes', name: `${window.i18n.t('重试次数')}`, unit: `${window.i18n.t('次')}` },
     { id: 'needPoll', name: `${window.i18n.t('是否周期回调')}`, unit: '' },
-    { id: 'notifyInterval', name: `${window.i18n.t('回调间隔')}`, unit: `${window.i18n.t('分钟')}` }
+    { id: 'notifyInterval', name: `${window.i18n.t('回调间隔')}`, unit: `${window.i18n.t('分钟')}` },
   ];
   paramTableColumns: any = [
     { label: '', prop: 'isEnabled', width: 31 },
     { label: `${window.i18n.t('字段名')}`, prop: 'key' },
     { label: `${window.i18n.t('值')}`, prop: 'value' },
     { label: `${window.i18n.t('描述')}`, prop: 'desc' },
-    { label: '', prop: 'handle', width: 48 }
+    { label: '', prop: 'handle', width: 48 },
   ];
   headersTableColumns: any = [
     { label: '', prop: 'isEnabled', width: 31, type: 'selection' },
     { label: `${window.i18n.t('字段名')}`, prop: 'key' },
     { label: `${window.i18n.t('值')}`, prop: 'value' },
     { label: `${window.i18n.t('描述')}`, prop: 'desc' },
-    { label: '', prop: 'handle', width: 48 }
+    { label: '', prop: 'handle', width: 48 },
   ];
 
   headerHideTips = {
     true: {
       placement: 'top',
-      content: `${window.i18n.t('点击展开全部')}`
+      content: `${window.i18n.t('点击展开全部')}`,
     },
     false: {
       placement: 'top',
-      content: `${window.i18n.t('点击隐藏默认')}`
-    }
+      content: `${window.i18n.t('点击隐藏默认')}`,
+    },
   };
 
   /**
@@ -194,9 +194,8 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
   }
 
   get checkUrl(): boolean {
-    // eslint-disable-next-line no-useless-escape
     return /(^(((ht|f)tps?):\/\/)[\w-]+(\.[\w-]+)+([\w.,@?^=%&:/~+#-{}]*[\w@?^=%&/~+#-{}])?$)|({{[\w\.]+?}})/.test(
-      this.httpData.url
+      this.httpData.url,
     );
   }
 
@@ -213,12 +212,12 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
     const res = {
       method: this.httpData.method,
       url: this.httpData.url,
-      ...this.oldValue
+      ...this.oldValue,
     };
     return {
       riskLevel: this.data.riskLevel,
       timeout: this.data.timeout,
-      res
+      res,
     };
   }
 
@@ -395,9 +394,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
     const typeNameMap = {
       json: 'JSON',
       xml: 'XML',
-      html: 'HTML'
+      html: 'HTML',
     };
-    // eslint-disable-next-line no-useless-escape
+
     const isVar = /{{[\w\.]+?}}/.test(content);
     if (content && type === 'json') {
       let target = '';
@@ -441,7 +440,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
    * @param {*} deleteFn
    * @return {*}
    */
-  paramInputScopedSlots(data, changeFn?: Function, deleteFn?) {
+  paramInputScopedSlots(data: any, changeFn?: (data: any) => void, deleteFn?: () => void) {
     return {
       default: props => {
         const index = props.$index;
@@ -490,7 +489,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             )}
           </span>
         );
-      }
+      },
     };
   }
 
@@ -619,7 +618,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             <i
               v-bk-tooltips={{
                 content: this.headerHideTips[`${isHide}`],
-                allowHTML: false
+                allowHTML: false,
               }}
               class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
               onClick={() => (this.curHeaderData.hide = !isHide)}
@@ -655,7 +654,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       { id: 'text', name: 'Text' },
       { id: 'json', name: 'JSON' },
       { id: 'html', name: 'HTML' },
-      { id: 'xml', name: 'XML' }
+      { id: 'xml', name: 'XML' },
     ];
     const { curHeaderData } = this;
     const radioChange = () => {
@@ -776,7 +775,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 disabled={!this.isEdit}
                 vModel={valueKeyMap[item.id]}
                 on-change={this.setingChange}
-              />
+              />,
             );
           }
           if (item.id === 'notifyInterval') {
@@ -791,7 +790,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 vModel={valueKeyMap[item.id]}
                 disabled={!(valueKeyMap as ISetingValue).needPoll || !this.isEdit}
                 v-bk-tooltips={{ content: this.$t('开启周期回调'), disabled: (valueKeyMap as ISetingValue).needPoll }}
-              />
+              />,
             );
           }
           return content(
@@ -804,7 +803,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
               showControls={false}
               disabled={!this.isEdit}
               vModel={valueKeyMap[item.id]}
-            />
+            />,
           );
         })}
       </div>
@@ -845,8 +844,8 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
           'http-editor-wrap',
           {
             'http-editor-is-edit': this.isEdit,
-            'http-editor-has-label': this.label
-          }
+            'http-editor-has-label': this.label,
+          },
         ]}
       >
         {

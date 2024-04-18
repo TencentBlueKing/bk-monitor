@@ -27,7 +27,7 @@ import { RouteConfig } from 'vue-router';
 
 import * as dataRetrievalAuth from '../../pages/data-retrieval/authority-map';
 import * as traceAuth from '../../pages/trace-retrieval/authority-map';
-// eslint-disable-next-line max-len
+
 // const DataRetrievalNew = () => import(/* webpackChunkName: 'DataRetrieval'*/ '../../pages/data-retrieval/data-retrieval');
 const IndexRetrievalNew = () =>
   import(/* webpackChunkName: 'IndexRetrievalNew'*/ '../../pages/data-retrieval/index-retrieval');
@@ -43,7 +43,7 @@ export default [
     path: '/data-retrieval',
     name: 'data-retrieval',
     components: {
-      noCache: IndexRetrievalNew
+      noCache: IndexRetrievalNew,
     },
     meta: {
       title: '指标检索',
@@ -53,18 +53,18 @@ export default [
       needClearQuery: true, // 需要清空query搜索条件
       authority: {
         map: dataRetrievalAuth,
-        page: dataRetrievalAuth.VIEW_AUTH
+        page: dataRetrievalAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'data'
-      }
-    }
+        parent: 'data',
+      },
+    },
   },
   {
     path: '/log-retrieval',
     name: 'log-retrieval',
     components: {
-      noCache: LogRetrievalNew
+      noCache: LogRetrievalNew,
     },
     meta: {
       title: '日志检索',
@@ -74,18 +74,18 @@ export default [
       needClearQuery: true, // 需要清空query搜索条件
       authority: {
         map: dataRetrievalAuth,
-        page: dataRetrievalAuth.VIEW_AUTH
+        page: dataRetrievalAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'data'
-      }
-    }
+        parent: 'data',
+      },
+    },
   },
   {
     path: '/event-retrieval',
     name: 'event-retrieval',
     components: {
-      noCache: EventRetrievalNew
+      noCache: EventRetrievalNew,
     },
     meta: {
       title: '事件检索',
@@ -95,18 +95,18 @@ export default [
       needClearQuery: true, // 需要清空query搜索条件
       authority: {
         map: dataRetrievalAuth,
-        page: dataRetrievalAuth.VIEW_AUTH
+        page: dataRetrievalAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'data'
-      }
-    }
+        parent: 'data',
+      },
+    },
   },
   {
     path: '/trace/home',
     name: 'trace-retrieval',
     components: {
-      noCache: TraceRetrieval
+      noCache: TraceRetrieval,
     },
     meta: {
       title: 'Tracing 检索',
@@ -116,19 +116,19 @@ export default [
       noNavBar: true,
       needClearQuery: true, // 需要清空query搜索条件
       route: {
-        parent: 'data'
+        parent: 'data',
       },
       authority: {
         map: traceAuth,
-        page: traceAuth.VIEW_AUTH
-      }
-    }
+        page: traceAuth.VIEW_AUTH,
+      },
+    },
   },
   {
     path: '/trace/profiling',
     name: 'profiling',
     components: {
-      noCache: Profiling
+      noCache: Profiling,
     },
     meta: {
       title: 'Profiling 检索',
@@ -138,12 +138,12 @@ export default [
       noNavBar: true,
       needClearQuery: true, // 需要清空query搜索条件
       route: {
-        parent: 'data'
+        parent: 'data',
       },
       authority: {
         map: traceAuth,
-        page: traceAuth.VIEW_AUTH
-      }
-    }
-  }
+        page: traceAuth.VIEW_AUTH,
+      },
+    },
+  },
 ] as RouteConfig[];

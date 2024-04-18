@@ -64,8 +64,8 @@ const levelParamsMap = {
 
 @Component({
   components: {
-    StrategyTargetTable
-  }
+    StrategyTargetTable,
+  },
 })
 class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   /* 指标数据 */
@@ -89,8 +89,8 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     targetType: '',
     desc: {
       message: '',
-      subMessage: ''
-    }
+      subMessage: '',
+    },
   };
   /** 表单规则 */
   formRules = {
@@ -98,8 +98,8 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
       {
         required: true,
         message: this.$t('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     level: [
       {
@@ -107,9 +107,9 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
           return val > 0;
         },
         message: this.$t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
   // 展开/收起
   tagOpen = false;
@@ -133,7 +133,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   levelList = [
     { id: 1, name: this.$t('致命'), icon: 'icon-danger' },
     { id: 2, name: this.$t('预警'), icon: 'icon-mind-fill' },
-    { id: 3, name: this.$t('提醒'), icon: 'icon-tips' }
+    { id: 3, name: this.$t('提醒'), icon: 'icon-tips' },
   ];
 
   metricpopoerInstance = null;
@@ -206,7 +206,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
       this.targetList,
       this.metricData?.[0]?.targetType,
       this.defaultCheckedTarget?.node_count || 0,
-      this.defaultCheckedTarget?.instance_count || 0
+      this.defaultCheckedTarget?.instance_count || 0,
     );
   }
 
@@ -293,7 +293,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     targetList: { count: number; bk_obj_id: string; nodes_count?: number; instances_count?: number; all_host: any[] }[],
     bkTargetType: string,
     nodeCount = 0,
-    instance_count = 0
+    instance_count = 0,
   ) {
     const [{ objectType }] = this.metricData;
     const result = handleSetTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
@@ -379,8 +379,8 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
           {...{
             props: {
               model: this.formModel,
-              rules: this.formRules
-            }
+              rules: this.formRules,
+            },
           }}
         >
           <bk-form-item label={`${this.$t('监控项')}：`}>
@@ -498,7 +498,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                     ) : (
                       <span>{this.$t('未添加监控目标')}</span>
                     ),
-                    <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>
+                    <span class='subtitle ml5'>{`(${this.$t('默认为本业务')})`}</span>,
                   ]
                 : [
                     <i class='icon-monitor icon-mc-tv'></i>,
@@ -522,7 +522,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                         class='icon-monitor icon-bianji'
                         onClick={this.handleAddTarget}
                       ></span>
-                    )
+                    ),
                   ]}
             </div>
           </bk-form-item>
@@ -542,7 +542,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               {this.readonly
                 ? this.levelList
                     .filter(
-                      item => (this.formModel.level === item.id || this.formModel.level > item.id ? item.id : 0) !== 0
+                      item => (this.formModel.level === item.id || this.formModel.level > item.id ? item.id : 0) !== 0,
                     )
                     .map(item => (
                       <span class='level-check'>
@@ -559,7 +559,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                       false-value={0}
                       v-bk-tooltips={{
                         disabled: !(this.formModel.level > item.id),
-                        content: this.$t('已选择更低级告警级别')
+                        content: this.$t('已选择更低级告警级别'),
                       }}
                       onChange={this.handleLevelChange}
                     >

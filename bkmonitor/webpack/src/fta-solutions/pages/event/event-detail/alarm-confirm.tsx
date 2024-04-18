@@ -44,7 +44,7 @@ interface IEvent {
 }
 
 @Component({
-  name: 'AlarmConfirm'
+  name: 'AlarmConfirm',
 })
 export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -79,7 +79,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
     this.loading = true;
     getActionConfigByAlerts({
       alert_ids: this.ids,
-      bk_biz_id: this.bizIds?.[0] || this.$store.getters.bizId
+      bk_biz_id: this.bizIds?.[0] || this.$store.getters.bizId,
     })
       .then(data => {
         this.infoContent = data
@@ -100,25 +100,25 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
     const params = {
       ids: this.ids,
       bk_biz_id: this.bizIds?.[0] || this.$store.getters.bizId,
-      message: this.content
+      message: this.content,
     };
     const res = await ackAlert(params).finally(() => (this.loading = false));
     if (res) {
       let msg = {
         theme: 'success',
-        message: this.$t('告警确认成功')
+        message: this.$t('告警确认成功'),
       };
       if (res.alerts_ack_success.length) {
         msg = {
           theme: 'success',
-          message: this.$t('告警确认成功')
+          message: this.$t('告警确认成功'),
         };
         this.handleConfirm(true);
         this.handleShowChange(false);
       } else {
         msg = {
           theme: 'error',
-          message: this.$t('所有告警已恢复/关闭，无需确认')
+          message: this.$t('所有告警已恢复/关闭，无需确认'),
         };
       }
       this.$bkMessage(msg);
@@ -150,7 +150,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
               <div>{`${this.$t('当该告警确认需要处理，并且希望该告警不再通知时，可以直接进行告警确认')}。`}</div>
               <div>
                 {`${this.$t('注意')}：${this.$t(
-                  '告警确认不会影响其他告警，只是避免当前告警的周期间隔发送和处理套餐的执行'
+                  '告警确认不会影响其他告警，只是避免当前告警的周期间隔发送和处理套餐的执行',
                 )}。`}
               </div>
             </div>
@@ -171,7 +171,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
                       <span class='item-id'>{`(#${item.id})`}</span>
                     </div>
                   ))}
-                </div>
+                </div>,
               ]
             : undefined}
           <bk-input

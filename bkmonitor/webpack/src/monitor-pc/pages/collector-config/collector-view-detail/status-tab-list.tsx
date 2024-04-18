@@ -48,7 +48,7 @@ interface IStatusTablListEvents {
 }
 
 @Component({
-  name: 'StatusTablList'
+  name: 'StatusTablList',
 })
 export default class StatusTablList extends tsc<IStatusTablListProps, IStatusTablListEvents> {
   @Prop({ type: String, default: 'all' }) type: string;
@@ -57,31 +57,31 @@ export default class StatusTablList extends tsc<IStatusTablListProps, IStatusTab
     default: () => ({
       success: { count: 0 },
       failed: { count: 0 },
-      nodata: { count: 0 }
-    })
+      nodata: { count: 0 },
+    }),
   })
   statusData: IStatusData;
 
   tabList: ITab[] = [
     {
       name: window.i18n.tc('全部'),
-      type: 'all'
+      type: 'all',
     },
     {
       type: 'success',
       tips: `${window.i18n.t('正常')}  (${window.i18n.t('近3个周期数据')})`,
-      color: 'success'
+      color: 'success',
     },
     {
       type: 'failed',
       tips: `${window.i18n.t('异常')}  (${window.i18n.t('下发采集失败')})`,
-      color: 'failed'
+      color: 'failed',
     },
     {
       type: 'nodata',
       tips: `${window.i18n.t('无数据')}  (${window.i18n.t('近3个周期数据')})`,
-      color: 'nodata'
-    }
+      color: 'nodata',
+    },
   ];
 
   handleClickTab(item: ITab) {

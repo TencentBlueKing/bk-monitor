@@ -58,20 +58,20 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
 
   metricData = {
     statistics: {
-      strategyCount: 0
+      strategyCount: 0,
     },
     info: {
       left: [],
-      right: []
-    }
+      right: [],
+    },
   };
 
   tabData = {
     active: '',
     list: [
       { id: 'dimension', name: window.i18n.t('维度') },
-      { id: 'handleExperience', name: window.i18n.t('处理经验') }
-    ]
+      { id: 'handleExperience', name: window.i18n.t('处理经验') },
+    ],
   };
 
   @Watch('show')
@@ -106,12 +106,12 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
       { label: this.$tc('指标分组'), value: this.detail.result_table_name || '--' },
       // { label: this.$tc('数值类型'), value: '--' },
       { label: this.$tc('单位'), value: this.detail.unit || '--' },
-      { label: this.$tc('数据步长'), value: interval }
+      { label: this.$tc('数据步长'), value: interval },
     ];
     this.metricData.info.right = [
       {
         label: this.$tc('数据来源'),
-        value: dataSouceLabes.find(item => item.id === this.detail.data_source_label)?.name
+        value: dataSouceLabes.find(item => item.id === this.detail.data_source_label)?.name,
       },
       { label: '描述', value: this.detail.description || '--' },
       { label: '监控对象', value: this.detail.result_table_label_name || '--' },
@@ -126,8 +126,8 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
             disabled
             size={'small'}
           ></bk-switcher>
-        )
-      }
+        ),
+      },
     ];
     this.getStrategyCount();
   }
@@ -146,7 +146,7 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
     const dataSourceList = await getStrategyListV2({
       conditions: [{ key: 'metric_id', value: [this.detail.metric_id] }],
       page: 1,
-      page_size: 1
+      page_size: 1,
     })
       .then(data => data.data_source_list)
       .catch(() => []);
@@ -155,7 +155,7 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
 
   handleToDataRetrieval() {
     window.open(
-      `${location.origin}${location.pathname}${location.search}#/data-retrieval/?metric_id=${this.detail.metric_id}`
+      `${location.origin}${location.pathname}${location.search}#/data-retrieval/?metric_id=${this.detail.metric_id}`,
     );
   }
 

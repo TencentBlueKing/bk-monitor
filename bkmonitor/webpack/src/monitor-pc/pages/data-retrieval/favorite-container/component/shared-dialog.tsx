@@ -86,7 +86,7 @@ export default class SharedDialog extends tsc<IProps> {
     const list: IListItem = {
       id: null,
       name: '' /** 普通列表 */,
-      children: []
+      children: [],
     };
     const keyword = this.keyword.trim().toLocaleLowerCase();
     this.bizList.forEach(item => {
@@ -112,7 +112,7 @@ export default class SharedDialog extends tsc<IProps> {
         const newItem = {
           ...item,
           name: item.space_name.replace(/\[.*?\]/, ''),
-          tags
+          tags,
         };
         list.children.push(newItem as IListItem);
       }
@@ -155,7 +155,7 @@ export default class SharedDialog extends tsc<IProps> {
       // 没选空间
       this.$bkMessage({
         message: this.$t('请选择空间'),
-        theme: 'warning'
+        theme: 'warning',
       });
       return;
     }
@@ -174,12 +174,12 @@ export default class SharedDialog extends tsc<IProps> {
         share_bk_biz_ids: selectIDList,
         duplicate_mode: this.resetNameRule,
         name,
-        config
+        config,
       };
       await shareFavorite(data);
       this.$bkMessage({
         message: this.$t('共享成功'),
-        theme: 'success'
+        theme: 'success',
       });
       this.handleShowChange();
     } catch (err) {

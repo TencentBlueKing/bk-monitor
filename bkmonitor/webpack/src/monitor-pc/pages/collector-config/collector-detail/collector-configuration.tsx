@@ -39,7 +39,7 @@ enum ETargetColumn {
   catetory = 'catetory',
   agentStatus = 'agentStatus',
   cloudName = 'cloudName',
-  IP = 'IP'
+  IP = 'IP',
 }
 
 interface IProps {
@@ -73,26 +73,26 @@ export default class CollectorConfiguration extends tsc<IProps> {
     period: window.i18n.t('采集周期'),
     update_user: window.i18n.t('操作者'),
     update_time: window.i18n.t('最近更新时间'),
-    bk_biz_id: window.i18n.t('所属')
+    bk_biz_id: window.i18n.t('所属'),
   };
   /* 采集目标表格字段 */
   nodeColumns = [
     { id: ETargetColumn.name, name: window.i18n.t('节点名称'), width: 140 },
     { id: ETargetColumn.objectType, name: window.i18n.t('实例数'), width: 100 },
-    { id: ETargetColumn.catetory, name: window.i18n.t('分类'), width: 150 }
+    { id: ETargetColumn.catetory, name: window.i18n.t('分类'), width: 150 },
   ];
   ipColumns = [
     { id: ETargetColumn.IP, name: 'IP', width: 320 },
     { id: ETargetColumn.agentStatus, name: window.i18n.t('Agent状态'), width: 100 },
-    { id: ETargetColumn.cloudName, name: window.i18n.t('管控区域'), width: 150 }
+    { id: ETargetColumn.cloudName, name: window.i18n.t('管控区域'), width: 150 },
   ];
   matchType = {
     command: window.i18n.t('命令行匹配'),
-    pid: window.i18n.t('PID文件')
+    pid: window.i18n.t('PID文件'),
   };
   input = {
     show: false,
-    copyName: ''
+    copyName: '',
   };
   name = '';
 
@@ -103,7 +103,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
       { label: this.$t('创建人'), value: this.basicInfo?.create_user || '--' },
       { label: this.$t('创建时间'), value: this.basicInfo?.create_time || '--' },
       { label: this.$t('最近更新人'), value: this.basicInfo?.update_user || '--' },
-      { label: this.$t('修改时间'), value: this.basicInfo?.update_time || '--' }
+      { label: this.$t('修改时间'), value: this.basicInfo?.update_time || '--' },
     ];
   }
 
@@ -128,7 +128,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
         log_path: this.$t('日志路径'),
         filter_patterns: this.$t('排除规则'),
         rules: this.$t('关键字规则'),
-        charset: this.$t('日志字符集')
+        charset: this.$t('日志字符集'),
       };
     }
     if (data.extend_info.process) {
@@ -137,7 +137,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
         ...this.basicInfoMap,
         match: this.$t('进程匹配'),
         process_name: this.$t('进程名'),
-        port_detect: this.$t('端口探测')
+        port_detect: this.$t('端口探测'),
       };
       const {
         match_type: matchType,
@@ -145,7 +145,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
         port_detect: portDetect,
         match_pattern: matchPattern,
         exclude_pattern: excludePattern,
-        pid_path: pidPath
+        pid_path: pidPath,
       } = process;
       this.basicInfo = {
         ...this.basicInfo,
@@ -154,7 +154,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
         exclude_pattern: excludePattern,
         pid_path: pidPath,
         process_name: processName || '--',
-        port_detect: `${portDetect}`
+        port_detect: `${portDetect}`,
       };
     }
     this.runtimeParams = data.runtime_params;
@@ -198,13 +198,13 @@ export default class CollectorConfiguration extends tsc<IProps> {
         this.$emit('update-name', data.id, copyName);
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('修改成功')
+          message: this.$t('修改成功'),
         });
       })
       .catch(err => {
         this.$bkMessage({
           theme: 'error',
-          message: err.message || this.$t('发生错误了')
+          message: err.message || this.$t('发生错误了'),
         });
       })
       .finally(() => {
@@ -234,8 +234,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
         name: 'plugin-edit',
         params: {
           title: `${this.$t('编辑插件')} ${this.basicInfo.plugin_id}`,
-          pluginId: this.basicInfo.plugin_id
-        }
+          pluginId: this.basicInfo.plugin_id,
+        },
       });
     }
   }
@@ -250,8 +250,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
       name: 'collect-config-edit',
       params: {
         id: this.id,
-        pluginId: this.collectConfigData.plugin_id
-      }
+        pluginId: this.collectConfigData.plugin_id,
+      },
     });
   }
 
@@ -269,13 +269,13 @@ export default class CollectorConfiguration extends tsc<IProps> {
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -386,18 +386,18 @@ export default class CollectorConfiguration extends tsc<IProps> {
                                   <span class='item-name'>{this.$t('排除')}</span>
                                   <span class='item-content'>{this.basicInfo?.exclude_pattern}</span>
                                 </li>
-                              </ul>
+                              </ul>,
                             ]
                           : [
                               <div class='match-title'>{this.matchType?.[this.basicInfo?.[key]]}</div>,
-                              <div>{`${this.$t('PID的绝对路径')}：${this.basicInfo?.pid_path}`}</div>
+                              <div>{`${this.$t('PID的绝对路径')}：${this.basicInfo?.pid_path}`}</div>,
                             ]}
                       </span>
                     );
                   }
                   return this.basicInfo?.[key];
-                })()
-              )
+                })(),
+              ),
             )}
             {this.runtimeParams.length
               ? formItem(
@@ -418,7 +418,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                         )}
                       </li>
                     ))}
-                  </ul>
+                  </ul>,
                 )
               : undefined}
           </div>
@@ -442,8 +442,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
               <bk-table
                 {...{
                   props: {
-                    data: this.targetInfo?.table_data || []
-                  }
+                    data: this.targetInfo?.table_data || [],
+                  },
                 }}
               >
                 {this.nodeColumns.map(column => {
@@ -496,8 +496,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
               <bk-table
                 {...{
                   props: {
-                    data: this.targetInfo?.table_data || []
-                  }
+                    data: this.targetInfo?.table_data || [],
+                  },
                 }}
               >
                 {this.ipColumns.map(column => {

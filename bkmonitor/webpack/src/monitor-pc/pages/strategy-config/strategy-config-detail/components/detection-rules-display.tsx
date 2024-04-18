@@ -30,17 +30,17 @@ import { getUnitInfo } from 'monitor-api/modules/strategies';
 import { CONDITION_METHOD_LIST, SIMPLE_METHOD_LIST } from '../../../../constant/constant';
 import AbnormalCluster from '../../strategy-config-set-new/detection-rules/components/abnormal-cluster/abnormal-cluster';
 import IntelligentDetect, {
-  ChartType
+  ChartType,
 } from '../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
 import TimeSeriesForecast, {
-  IModelData
+  IModelData,
 } from '../../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
 import {
   DetectionRuleTypeEnum,
   ICommonItem,
   IDetectionType,
   IDetectionTypeRuleData,
-  MetricDetail
+  MetricDetail,
 } from '../../strategy-config-set-new/typings';
 
 import './detection-rules-display.scss';
@@ -67,7 +67,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
   levelList: ICommonItem[] = [
     { id: 1, name: window.i18n.t('致命') },
     { id: 2, name: window.i18n.t('预警') },
-    { id: 3, name: window.i18n.t('提醒') }
+    { id: 3, name: window.i18n.t('提醒') },
   ];
   /** 检测算法可选数据 */
   detectionTypeList: IDetectionType[] = [
@@ -77,8 +77,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       show: false,
       default: {
         sensitivity_value: 75,
-        anomaly_detect_direct: 'all'
-      }
+        anomaly_detect_direct: 'all',
+      },
     },
     {
       id: 'TimeSeriesForecasting',
@@ -89,8 +89,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
         duration: 1,
         plan_id: '',
         thresholds: [[{ method: 'gte', threshold: 0 }]],
-        visual_type: 'forecasting'
-      }
+        visual_type: 'forecasting',
+      },
     },
     {
       id: 'AbnormalCluster',
@@ -98,8 +98,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       show: false,
       default: {
         args: {},
-        plan_id: ''
-      }
+        plan_id: '',
+      },
     },
     {
       id: 'Threshold',
@@ -109,10 +109,10 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
         [
           {
             method: 'gte',
-            threshold: 0
-          }
-        ]
-      ]
+            threshold: 0,
+          },
+        ],
+      ],
     },
     {
       id: 'AdvancedYearRound',
@@ -122,8 +122,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
         floor: '',
         floor_interval: '',
         ceil: '',
-        ceil_interval: ''
-      }
+        ceil_interval: '',
+      },
     },
     {
       id: 'AdvancedRingRatio',
@@ -134,8 +134,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
         floor_interval: '',
         fetch_type: 'avg',
         ceil: '',
-        ceil_interval: ''
-      }
+        ceil_interval: '',
+      },
     },
     {
       id: 'SimpleYearRound',
@@ -143,8 +143,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       show: false,
       default: {
         floor: '',
-        ceil: ''
-      }
+        ceil: '',
+      },
     },
     {
       id: 'SimpleRingRatio',
@@ -152,16 +152,16 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       show: false,
       default: {
         floor: '',
-        ceil: ''
-      }
+        ceil: '',
+      },
     },
     {
       id: 'PartialNodes',
       name: window.i18n.t('部分节点数'),
       show: false,
       default: {
-        count: 1
-      }
+        count: 1,
+      },
     },
     {
       id: 'YearRoundAmplitude',
@@ -171,8 +171,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
         ratio: '',
         shock: '',
         days: '',
-        method: 'gte'
-      }
+        method: 'gte',
+      },
     },
 
     {
@@ -182,8 +182,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       default: {
         ratio: '',
         shock: '',
-        threshold: ''
-      }
+        threshold: '',
+      },
     },
     {
       id: 'YearRoundRange',
@@ -193,34 +193,34 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
         ratio: '',
         shock: '',
         days: '',
-        method: 'gte'
-      }
-    }
+        method: 'gte',
+      },
+    },
   ];
 
   rateOfChangeList: ICommonItem[] = [
     {
       id: 'ceil',
-      name: window.i18n.tc('向上')
+      name: window.i18n.tc('向上'),
     },
     {
       id: 'floor',
-      name: window.i18n.tc('向下')
+      name: window.i18n.tc('向下'),
     },
     {
       id: 'all',
-      name: window.i18n.tc('向上或向下')
-    }
+      name: window.i18n.tc('向上或向下'),
+    },
   ];
 
   advancedYearRoundTplData = [
     { value1: 'ceil_interval', value2: 'ceil', value3: 'fetch_type', text: window.i18n.t('升') },
-    { value1: 'floor_interval', value2: 'floor', value3: 'fetch_type', text: window.i18n.t('降') }
+    { value1: 'floor_interval', value2: 'floor', value3: 'fetch_type', text: window.i18n.t('降') },
   ];
 
   simpleRoundTplData = [
     { value: 'ceil', text: window.i18n.t('升') },
-    { value: 'floor', text: window.i18n.t('降') }
+    { value: 'floor', text: window.i18n.t('降') },
   ];
 
   /** 单位列表 */
@@ -228,7 +228,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
 
   fetchTypeMapping = {
     avg: this.$t('均值'),
-    last: this.$t('瞬间值')
+    last: this.$t('瞬间值'),
   };
 
   get levelName() {
@@ -264,7 +264,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
     const data = await getUnitInfo({ unit_id: this.unitType }).catch(() => []);
     const list = data.unit_series.map(item => ({
       id: item.suffix,
-      name: item.unit
+      name: item.unit,
     }));
     this.unitList = list;
   }
@@ -303,7 +303,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       // 时序预测
       TimeSeriesForecasting: this.timeSeriesForecastingTpl,
       // 离群检测
-      AbnormalCluster: this.handleOutlierDetecTpl
+      AbnormalCluster: this.handleOutlierDetecTpl,
     };
     return contentMap[this.value.type]();
   }
@@ -391,7 +391,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
               </span>
             </i18n>
           </div>
-        )
+        ),
       };
       return template[type];
     });
@@ -484,7 +484,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
         localValue.push({
           method,
           value: child.threshold,
-          condition: isAnd ? 'AND' : 'OR'
+          condition: isAnd ? 'AND' : 'OR',
         });
       });
     });

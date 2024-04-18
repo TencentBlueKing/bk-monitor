@@ -36,7 +36,7 @@ interface TableChartProps {
   maxHeight: number;
 }
 @Component({
-  name: 'table-chart'
+  name: 'table-chart',
 })
 export default class TableChart extends tsc<TableChartProps> {
   @Prop({ type: Object, default: () => ({}) }) series: ITableSeries;
@@ -76,7 +76,7 @@ export default class TableChart extends tsc<TableChartProps> {
             label={column.text}
             show-overflow-tooltip={true}
             scopedSlots={{
-              default: ({ row }) => row[column.text]
+              default: ({ row }) => row[column.text],
             }}
           ></bk-table-column>
         ))}

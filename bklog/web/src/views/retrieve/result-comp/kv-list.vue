@@ -40,8 +40,8 @@
           <span
             class="field-text"
             :title="field"
-            >{{ field }}</span
-          >
+            >{{ field }}
+          </span>
         </div>
         <div class="handle-option-list">
           <span
@@ -159,7 +159,7 @@ export default {
     },
     /** 获取字段里最大的字段宽度 */
     getMaxWidth() {
-      const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item));
+      const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item, '13px'));
       return Math.max(...fieldWidthList) + 18; // 18是icon的宽度
     },
     hiddenFields() {
@@ -384,9 +384,11 @@ export default {
         display: block;
         width: auto;
         overflow: hidden;
+        font-family: var(--table-fount-family);
+        font-size: var(--table-fount-size);
+        color: var(--table-fount-color);
         word-break: normal;
         word-wrap: break-word;
-        white-space: pre-wrap;
       }
 
       :deep(.icon-ext) {
@@ -398,8 +400,9 @@ export default {
     }
 
     .field-value {
-      // font-family: monospace;
-      // color: #000;
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
+      color: var(--table-fount-color);
       word-break: break-all;
     }
 
@@ -458,6 +461,7 @@ export default {
 
   .relation-monitor-btn {
     margin-left: 12px;
+    font-size: 12px;
     color: #3a84ff;
     cursor: pointer;
   }

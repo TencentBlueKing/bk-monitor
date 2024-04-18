@@ -84,7 +84,7 @@ export default class IndexList extends tsc<IProps, IEvents> {
         >
           {data.name}
         </span>
-      )
+      ),
     };
     return (
       <bk-big-tree

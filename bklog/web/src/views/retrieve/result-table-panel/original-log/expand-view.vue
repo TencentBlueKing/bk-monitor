@@ -129,8 +129,10 @@ export default {
       display: inline-block;
       width: 68px;
       height: 26px;
-      font-size: 12px;
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
       line-height: 26px;
+      color: var(--table-fount-color);
       text-align: center;
       cursor: pointer;
       background-color: #f5f7fa;
@@ -154,11 +156,12 @@ export default {
     background-color: #fafbfd;
 
     :deep(.vjs-tree) {
-      // font-family: monospace;
+      font-family: var(--table-fount-family);
       /* stylelint-disable-next-line declaration-no-important */
-      font-size: 12px !important;
+      font-size: var(--table-fount-size) !important;
 
-      .vjs-value__string {
+      .vjs-value__string,
+      .vjs-value__number {
         line-height: 24px;
         white-space: pre-wrap;
         tab-size: 3;

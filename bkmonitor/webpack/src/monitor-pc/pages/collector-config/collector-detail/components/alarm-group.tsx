@@ -66,7 +66,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
   @Prop({ default: false, type: Boolean }) readonly readonly: boolean;
   @Prop({ default: false, type: Boolean }) readonly isRefresh: boolean;
   @Prop({ default: false, type: Boolean }) readonly loading: boolean;
-  @Prop({ default: true, type: Boolean }) showAddTip: Boolean;
+  @Prop({ default: true, type: Boolean }) showAddTip: boolean;
   @Prop({ default: false, type: Boolean }) isSimple: boolean; // 简洁模式（无预览，无回填）
   @Prop({ default: null, type: Function }) tagClick: (id: number, e: Event) => void;
   @Prop({ default: false, type: Boolean }) isOpenNewPage: boolean; // 点击创建按钮新开页
@@ -79,7 +79,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
 
   detail: IAlarmGroupDeatail = {
     id: 0,
-    show: false
+    show: false,
   };
 
   @Watch('value', { immediate: true, deep: true })
@@ -161,8 +161,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
     this.$router.push({
       name: 'alarm-group-edit',
       params: {
-        id
-      }
+        id,
+      },
     });
   }
 
@@ -178,7 +178,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
     this.emitAddGroup();
     this.hiddenSelect();
     this.$router.push({
-      name: 'alarm-group-add'
+      name: 'alarm-group-add',
     });
   }
 
@@ -227,7 +227,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 popover-width={380}
                 popover-options={{
                   boundary: 'window',
-                  flipOnUpdate: true
+                  flipOnUpdate: true,
                 }}
                 searchable
                 multiple

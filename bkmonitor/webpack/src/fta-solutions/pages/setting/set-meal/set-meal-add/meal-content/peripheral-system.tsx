@@ -51,12 +51,12 @@ interface IEvents {
 }
 
 @Component({
-  name: 'PeripheralSystem'
+  name: 'PeripheralSystem',
 })
 export default class PeripheralSystem extends tsc<IProps, IEvents> {
   @Prop({ default: 0, type: Number }) id: number;
   @Prop({ default: () => ({}), type: Object }) peripheralData: IPeripheral;
-  @Prop({ default: false, type: Boolean }) isEdit: Boolean;
+  @Prop({ default: false, type: Boolean }) isEdit: boolean;
   @Prop({ type: String, default: 'add' }) type: PageType;
   @Prop({ type: Boolean, default: true }) isInit: boolean;
 
@@ -77,7 +77,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
   formList = [];
 
   errorMsg = {
-    getFormTemplateId: ''
+    getFormTemplateId: '',
   };
 
   formTemplateId: string | number = '';
@@ -132,7 +132,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
   async getTemplateDetail(pluginId: number, templateId: number) {
     this.formLoading = true;
     const data: any = await SetMealAddModule.getTemplateDetail({ pluginId, templateId }).finally(
-      () => (this.formLoading = false)
+      () => (this.formLoading = false),
     );
     this.formTitle = data.name;
     this.handleDynamicFormData(data.params);
@@ -147,7 +147,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
     this.formTemplateId = templateId;
     this.data = {
       ...this.peripheralData,
-      data: {}
+      data: {},
     };
     this.data.data = {};
     this.getTemplateDetail(this.id, templateId as any);

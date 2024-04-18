@@ -275,5 +275,5 @@ export default {
     'Alarm levels will be automatically assigned based on the degree of anomaly in the indicators and the number of indicators that have experienced anomalies.',
   内置的分派规则组不允许修改: 'The built-in assignment rule group does not allow modification',
   内置策略不允许修改: 'The built-in strategy does not allow modification',
-  关注人禁用此操作: 'The follower disables this action'
+  关注人禁用此操作: 'The follower disables this action',
 };

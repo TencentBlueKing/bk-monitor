@@ -46,23 +46,23 @@ export default class AppAddForm extends tsc<IProps> {
     name: '',
     enName: '',
     desc: '',
-    pluginId: ''
+    pluginId: '',
   };
   rules = {
     name: [
       {
         required: true,
         message: window.i18n.tc('输入应用名,1-50个字符'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     enName: [
       {
         validator: val => /^[_|a-zA-Z][a-zA-Z0-9_]*$/.test(val) && val.length >= 5,
         message: window.i18n.t('输入5-50字符的字母开头、数字、下划线'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
   /** 英文名是否重名 */
   existedName = false;
@@ -87,7 +87,7 @@ export default class AppAddForm extends tsc<IProps> {
     this.rules.enName.push({
       message: window.i18n.tc('注意: 名字冲突'),
       trigger: 'none',
-      validator: val => !this.existedName && !!val
+      validator: val => !this.existedName && !!val,
     });
   }
 
@@ -98,7 +98,7 @@ export default class AppAddForm extends tsc<IProps> {
       name: '',
       enName: '',
       desc: '',
-      pluginId: ''
+      pluginId: '',
     };
     this.handleShowChange(false);
   }
@@ -114,8 +114,8 @@ export default class AppAddForm extends tsc<IProps> {
         this.$router.push({
           name: 'application-add',
           params: {
-            appInfo: JSON.stringify({ ...this.formData, ...{ pluginId: this.pluginId } })
-          }
+            appInfo: JSON.stringify({ ...this.formData, ...{ pluginId: this.pluginId } }),
+          },
         });
       }
     }
@@ -127,7 +127,7 @@ export default class AppAddForm extends tsc<IProps> {
       if (!this.formData.enName) return resolve(true);
       if (!/^[_|a-zA-Z][a-zA-Z0-9_]*$/.test(this.formData.enName) || this.formData.enName.length < 5)
         return reject(false);
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       setTimeout(async () => {
         if (this.clickSubmit && !isSubmit) {
           resolve(true);
@@ -152,7 +152,7 @@ export default class AppAddForm extends tsc<IProps> {
   handleConfig(id) {
     this.$router.push({
       name: 'application-config',
-      params: { id }
+      params: { id },
     });
   }
 
@@ -174,7 +174,7 @@ export default class AppAddForm extends tsc<IProps> {
               <div class='app-add-question'>{this.$t('什么是应用？')}</div>
               <div class='app-add-answer'>
                 {this.$t(
-                  '应用一般是拥有独立的站点，由多个Service共同组成，提供完整的产品功能，拥有独立的软件架构。 从技术方面来说应用是Trace数据的存储隔离，在同一个应用内的数据将进行统计和观测。更多请查看产品文档。'
+                  '应用一般是拥有独立的站点，由多个Service共同组成，提供完整的产品功能，拥有独立的软件架构。 从技术方面来说应用是Trace数据的存储隔离，在同一个应用内的数据将进行统计和观测。更多请查看产品文档。',
                 )}
               </div>
             </div>
@@ -183,8 +183,8 @@ export default class AppAddForm extends tsc<IProps> {
               {...{
                 props: {
                   model: this.formData,
-                  rules: this.rules
-                }
+                  rules: this.rules,
+                },
               }}
               label-width={84}
               ref='addForm'

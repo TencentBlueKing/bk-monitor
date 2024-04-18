@@ -108,6 +108,10 @@ export default {
           name: this.$t('时间'),
           icon: 'bk-icon icon-clock'
         },
+        date_nanos: {
+          name: this.$t('时间'),
+          icon: 'bk-icon icon-clock'
+        },
         __virtual__: {
           name: this.$t('虚拟字段'),
           icon: 'log-icon icon-ext'

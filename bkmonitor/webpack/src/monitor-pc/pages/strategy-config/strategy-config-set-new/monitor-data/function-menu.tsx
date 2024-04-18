@@ -70,12 +70,11 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
 
   get filterList() {
     if (!this.keyword) return this.list;
-    return this.list.filter(
-      func => func?.children?.some(item => item.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()))
+    return this.list.filter(func =>
+      func?.children?.some(item => item.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase())),
     );
   }
   get activeFuncList() {
-    // eslint-disable-next-line max-len
     return (
       this.filterList
         .find(item => item.id === this.activeFuncType)
@@ -131,7 +130,7 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
       interactive: true,
       boundary: 'window',
       offset: -1,
-      distance: 12
+      distance: 12,
     });
     this.popoverInstance?.show?.(100);
   }
@@ -199,16 +198,16 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
                             {item.name.slice(
                               item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()),
                               item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()) +
-                                this.keyword.length
+                                this.keyword.length,
                             )}
                           </span>
                           {item.name.slice(
                             item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()) +
                               this.keyword.length,
-                            item.name.length
+                            item.name.length,
                           )}
                         </li>
-                      )
+                      ),
                   )}
                 </ul>
               )}

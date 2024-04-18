@@ -36,7 +36,7 @@ interface IWebData {
   baseroute: string;
 }
 @Component
-export default class SharePage extends tsc<{}> {
+export default class SharePage extends tsc<object> {
   @Prop() token: string;
   loading = false;
   url = '';
@@ -50,9 +50,9 @@ export default class SharePage extends tsc<{}> {
     this.loading = true;
     const { data, lock_search, has_permission } = await getShareParams(
       {
-        token: this.token
+        token: this.token,
       },
-      { needMessage: false }
+      { needMessage: false },
     )
       // .then(data => ({ ...data, has_permission: false }))
       .catch(err => {
@@ -74,19 +74,19 @@ export default class SharePage extends tsc<{}> {
       const route = this.$router.resolve({
         name: data.path,
         params: data.params,
-        query: data.query
+        query: data.query,
       });
       const host = has_permission ? location.origin + location.pathname : data.weWebData.host;
       const path = !has_permission && process.env.NODE_ENV === 'production' ? `${location.pathname}apm/` : '';
       url = `${host}${path}?bizId=${this.$store.getters.bizId}/#${data?.path || '/'}?${route.href.replace(
         /^#\/([^?]*)\?/g,
-        ''
+        '',
       )}`;
     } else {
       const route = this.$router.resolve({
         name: data.name,
         params: data.params,
-        query: data.query
+        query: data.query,
       });
       url = `${process.env.NODE_ENV === 'development' ? process.env.devUrl : location.origin}${
         location.pathname
@@ -117,8 +117,8 @@ export default class SharePage extends tsc<{}> {
         token: this.token,
         readonly: true,
         navList: data.navList,
-        lockTimeRange: !!lock_search
-      }
+        lockTimeRange: !!lock_search,
+      },
     });
     activated(id, this.$refs.sharePageWrap as HTMLElement);
     window.requestIdleCallback(() => (this.loading = false));
