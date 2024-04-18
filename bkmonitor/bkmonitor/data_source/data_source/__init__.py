@@ -1031,6 +1031,14 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
         # 不灰度就是全量(灰度列表包含 0 业务)
         return True
 
+    def _update_params_by_advance_method(self):
+        if len(self.metrics) > 1 and not self.functions:
+            # 如果使用了查询函数，会走统一查询模块
+            # 只有多指标情况下, bksql，需要高级过滤转换。
+            self.ADVANCE_CONDITION_METHOD = AdvanceConditionMethod
+
+        return super(BkdataTimeSeriesDataSource, self)._update_params_by_advance_method()
+
     def __init__(self, *args, **kwargs):
         # datasource初始化部分基于 init_by_query_config， 部分是直接初始化
         # 风险： 初始化参数中可能不存在业务id信息
