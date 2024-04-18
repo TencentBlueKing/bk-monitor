@@ -74,6 +74,6 @@ def get_data_id(data_name: str, namespace: Optional[str] = DEFAULT_BKDATA_NAMESP
     phase = data_id_config.get("status", {}).get("phase")
     # 如果状态不是处于正常的终态，则返回 None
     if phase == DataLinkResourceStatus.OK.value:
-        return {"status": phase, "data_id": data_id_config.get("metadata", {}).get("annotations", {}).get("data_id")}
+        return {"status": phase, "data_id": data_id_config.get("metadata", {}).get("annotations", {}).get("dataId")}
 
     return {"status": phase, "data_id": None}

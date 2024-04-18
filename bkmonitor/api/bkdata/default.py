@@ -1043,7 +1043,7 @@ class GetResourceSet(DataAccessAPIResource):
 class ApplyDataLink(DataAccessAPIResource):
     """申请数据链路"""
 
-    action = "/v4/dab/apply/"
+    action = "/v4/apply/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -1053,7 +1053,7 @@ class ApplyDataLink(DataAccessAPIResource):
 class GetDataLink(DataAccessAPIResource):
     """获取数据链路"""
 
-    action = "/v4/dab/namespaces/{namespace}/{kind}/{name}/"
+    action = "/v4/namespaces/{namespace}/{kind}/{name}/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
