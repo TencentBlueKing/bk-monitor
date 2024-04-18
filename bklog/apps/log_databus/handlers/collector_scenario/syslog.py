@@ -44,7 +44,7 @@ class SysLogScenario(CollectorScenario):
         filters = []
         filter_bucket = list()
         for condition in syslog_conditions:
-            if not isinstance(condition, OrderedDict):
+            if not isinstance(condition, dict):
                 continue
 
             key = condition.get("syslog_field", "")
