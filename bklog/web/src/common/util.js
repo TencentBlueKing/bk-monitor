@@ -961,9 +961,9 @@ export const calculateTableColsWidth = (field, list) => {
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
     // 实际字段值长度
-    const fieldValueLen = getTextPxWidth(fieldValue);
+    const fieldValueLen = getTextPxWidth(fieldValue, '13px');
     // 字段名长度 需保证字段名完全显示
-    const fieldNameLen = getTextPxWidth(field.field_name);
+    const fieldNameLen = getTextPxWidth(field.field_name, '13px');
 
     // 600为默认自适应最大宽度
     if (fieldValueLen > 600) return 600;

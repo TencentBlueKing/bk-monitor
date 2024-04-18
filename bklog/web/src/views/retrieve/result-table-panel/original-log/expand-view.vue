@@ -129,8 +129,10 @@ export default {
       display: inline-block;
       width: 68px;
       height: 26px;
-      font-size: 12px;
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
       line-height: 26px;
+      color: var(--table-fount-color);
       text-align: center;
       cursor: pointer;
       background-color: #f5f7fa;
