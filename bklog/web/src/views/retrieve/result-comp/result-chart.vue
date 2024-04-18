@@ -297,41 +297,46 @@ export default {
             index_set_ids: this.unionIndexList
           });
         }
-        const res = await this.$http.request(
-          urlStr,
-          {
-            params: { index_set_id: this.$route.params.indexId },
-            data: queryData
-          },
-          {
-            cancelToken: new CancelToken(c => {
-              this.logChartCancel = c;
-            })
+        const res = await this.$http
+          .request(
+            urlStr,
+            {
+              params: { index_set_id: this.$route.params.indexId },
+              data: queryData
+            },
+            {
+              cancelToken: new CancelToken(c => {
+                this.logChartCancel = c;
+              })
+            }
+          )
+          .catch(() => false);
+        if (res?.data) {
+          const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
+          const targetArr = originChartData.map(item => {
+            this.totalCount = this.totalCount + item.doc_count;
+            return [item.doc_count, item.key];
+          });
+
+          if (this.pollingStartTime <= this.retrieveParams.start_time) {
+            // 轮询结束
+            this.finishPolling = true;
           }
-        );
-        const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
-        const targetArr = originChartData.map(item => {
-          this.totalCount = this.totalCount + item.doc_count;
-          return [item.doc_count, item.key];
-        });
 
-        if (this.pollingStartTime <= this.retrieveParams.start_time) {
-          // 轮询结束
-          this.finishPolling = true;
-        }
-
-        for (let i = 0; i < targetArr.length; i++) {
-          for (let j = 0; j < this.optionData.length; j++) {
-            if (this.optionData[j][1] === targetArr[i][1] && targetArr[i][0] > 0) {
-              // 根据请求结果匹配对应时间下数量叠加
-              this.optionData[j][0] = this.optionData[j][0] + targetArr[i][0];
+          for (let i = 0; i < targetArr.length; i++) {
+            for (let j = 0; j < this.optionData.length; j++) {
+              if (this.optionData[j][1] === targetArr[i][1] && targetArr[i][0] > 0) {
+                // 根据请求结果匹配对应时间下数量叠加
+                this.optionData[j][0] = this.optionData[j][0] + targetArr[i][0];
+              }
             }
           }
+        } else {
+          this.finishPolling = true;
         }
       } else {
         this.finishPolling = true;
       }
-
       return [
         {
           datapoints: this.optionData,
