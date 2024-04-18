@@ -929,8 +929,8 @@ export const getTextPxWidth = (str, fontSize = '12px', fontFamily = null) => {
   const ele = document.createElement('span');
   // 字符串中带有换行符时，会被自动转换成<br/>标签，若需要考虑这种情况，可以替换成空格，以获取正确的宽度
   // str = str.replace(/\\n/g,' ').replace(/\\r/g,' ');
-  if (fontFamily) ele.style.fontFamily = fontFamily;
   ele.innerText = str;
+  if (fontFamily) ele.style.fontFamily = fontFamily;
   // 不同的大小和不同的字体都会导致渲染出来的字符串宽度变化，可以传入尽可能完备的样式信息
   ele.style.fontSize = fontSize;
   // 由于父节点的样式会影响子节点，这里可按需添加到指定节点上
@@ -965,6 +965,7 @@ export const calculateTableColsWidth = (field, list) => {
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
+    // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
     // 实际字段值长度
     const fieldValueLen = getTextPxWidth(fieldValue, '13px', TABLE_FOUNT_FAMILY);
     // 字段名长度 需保证字段名完全显示
