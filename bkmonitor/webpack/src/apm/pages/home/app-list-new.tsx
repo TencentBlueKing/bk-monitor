@@ -90,12 +90,12 @@ interface IAppListItem {
 }
 
 @Component
-export default class AppList extends tsc<{}> {
+export default class AppList extends tsc<object> {
   routeList: INavItem[] = [
     {
       id: '',
-      name: 'APM'
-    }
+      name: 'APM',
+    },
   ];
   /** 时间范围 */
   timeRange: TimeRangeType = ['now-1h', 'now'];
@@ -105,8 +105,8 @@ export default class AppList extends tsc<{}> {
   menuList: IMenuItem[] = [
     {
       id: 'help-docs',
-      name: window.i18n.tc('帮助文档')
-    }
+      name: window.i18n.tc('帮助文档'),
+    },
   ];
   /** 是否显示帮助文档弹窗 */
   showGuideDialog = false;
@@ -120,7 +120,7 @@ export default class AppList extends tsc<{}> {
     current: 1,
     limit: 10,
     total: 100,
-    isEnd: false
+    isEnd: false,
   };
   loading = false;
 
@@ -130,28 +130,28 @@ export default class AppList extends tsc<{}> {
     {
       id: 'storageState',
       name: window.i18n.t('存储状态'),
-      authority: true
+      authority: true,
     },
     {
       id: 'dataStatus',
       name: window.i18n.t('数据状态'),
-      authority: true
+      authority: true,
     },
     {
       id: 'accessService',
       name: window.i18n.t('接入服务'),
-      authority: true
+      authority: true,
     },
     {
       id: 'noDataAlarm',
       name: window.i18n.t('新增无数据告警'),
-      authority: true
+      authority: true,
     },
     {
       id: 'delete',
       name: window.i18n.t('删除'),
-      authority: true
-    }
+      authority: true,
+    },
   ];
 
   searchCondition = [];
@@ -166,10 +166,10 @@ export default class AppList extends tsc<{}> {
           dataType: 'dict',
           api: 'scene_view.getStrategyAndEventCount',
           data: {
-            scene_id: 'apm'
-          }
-        }
-      ]
+            scene_id: 'apm',
+          },
+        },
+      ],
     };
     return new PanelModel(data as any);
   }
@@ -189,7 +189,7 @@ export default class AppList extends tsc<{}> {
     if (query?.queryString) {
       this.searchCondition.push({
         id: query.queryString,
-        name: query.queryString
+        name: query.queryString,
       });
     }
     const setSearchCondition = (keys: string[]) => {
@@ -201,7 +201,7 @@ export default class AppList extends tsc<{}> {
             this.searchCondition.push({
               id: key,
               name,
-              values: [{ ...matchingStatus }]
+              values: [{ ...matchingStatus }],
             });
           }
         }
@@ -251,15 +251,15 @@ export default class AppList extends tsc<{}> {
       sort: '',
       filter_dict: {
         profiling_data_status: profilingDataStatus || undefined,
-        is_enabled_profiling: isEnabledProfiling === null ? undefined : isEnabledProfiling
+        is_enabled_profiling: isEnabledProfiling === null ? undefined : isEnabledProfiling,
       },
       page: this.pagination.current,
-      page_size: this.pagination.limit
+      page_size: this.pagination.limit,
     };
     this.loading = true;
     const listData = await listApplication(params).catch(() => {
       return {
-        data: []
+        data: [],
       };
     });
     this.loading = false;
@@ -282,7 +282,7 @@ export default class AppList extends tsc<{}> {
             current: 1,
             limit: 15,
             // limit: 5,
-            isEnd: false
+            isEnd: false,
           },
           columns: [],
           data: [],
@@ -291,13 +291,13 @@ export default class AppList extends tsc<{}> {
           showLimit: false,
           outerBorder: true,
           scrollLoading: false,
-          maxHeight: 584
+          maxHeight: 584,
           // maxHeight: 284
         },
         tableDataLoading: false,
         tableSortKey: '',
         tableFilters: {},
-        service_count: null
+        service_count: null,
       };
     };
     if (this.pagination.current === 1) {
@@ -307,7 +307,7 @@ export default class AppList extends tsc<{}> {
     }
     this.getAsyncData(
       ['service_count'],
-      listData.data.map(item => item.application_id)
+      listData.data.map(item => item.application_id),
     );
     // 路由同步查询关键字
     const routerParams = {
@@ -316,8 +316,8 @@ export default class AppList extends tsc<{}> {
         ...this.$route.query,
         queryString: queryString || undefined,
         profiling_data_status: profilingDataStatus || undefined,
-        is_enabled_profiling: isEnabledProfiling === null ? undefined : String(isEnabledProfiling)
-      }
+        is_enabled_profiling: isEnabledProfiling === null ? undefined : String(isEnabledProfiling),
+      },
     };
     this.$router.replace(routerParams).catch(() => {});
   }
@@ -327,7 +327,7 @@ export default class AppList extends tsc<{}> {
     fields.forEach(field => {
       const params = {
         column: field,
-        application_ids: appIds
+        application_ids: appIds,
       };
       listApplicationAsync(params).then(res => {
         const dataMap = {};
@@ -336,7 +336,7 @@ export default class AppList extends tsc<{}> {
         });
         this.appList = this.appList.map(app => ({
           ...app,
-          [field]: app[field] || dataMap[String(app.application_id)] || null
+          [field]: app[field] || dataMap[String(app.application_id)] || null,
         }));
       });
     });
@@ -385,10 +385,10 @@ export default class AppList extends tsc<{}> {
             interval: 'auto',
             group_by: [],
             filters: {
-              app_name: item.app_name
-            }
+              app_name: item.app_name,
+            },
           },
-          bk_biz_id: this.$store.getters.bizId
+          bk_biz_id: this.$store.getters.bizId,
         })
           .then(({ columns, data, total }) => {
             if (item.tableData.paginationData.current > 1) {
@@ -408,7 +408,7 @@ export default class AppList extends tsc<{}> {
                 end_time: endTime,
                 column: field,
                 service_names: services,
-                bk_biz_id: this.$store.getters.bizId
+                bk_biz_id: this.$store.getters.bizId,
               })
                 .then(serviceData => {
                   const dataMap = {};
@@ -419,13 +419,13 @@ export default class AppList extends tsc<{}> {
                   });
                   item.tableData.data = item.tableData.data.map(d => ({
                     ...d,
-                    [field]: d[field] || dataMap[String(d.service_name.value || '')] || null
+                    [field]: d[field] || dataMap[String(d.service_name.value || '')] || null,
                   }));
                 })
                 .finally(() => {
                   item.tableData.columns = item.tableData.columns.map(col => ({
                     ...col,
-                    asyncable: col.id === field ? false : col.asyncable
+                    asyncable: col.id === field ? false : col.asyncable,
                   }));
                   // item.tableDataLoading = false;
                   // item.tableData.loading = false;
@@ -479,7 +479,7 @@ export default class AppList extends tsc<{}> {
     // this.pluginId = opt.id;
     // this.showAddDialog = true;
     this.$router.push({
-      name: 'application-add'
+      name: 'application-add',
     });
   }
 
@@ -530,8 +530,8 @@ export default class AppList extends tsc<{}> {
     const routeData = this.$router.resolve({
       name: 'application',
       query: {
-        'filter-app_name': row.app_name
-      }
+        'filter-app_name': row.app_name,
+      },
     });
     // window.open(routeData.href);
     window.location.href = routeData.href;
@@ -544,8 +544,8 @@ export default class AppList extends tsc<{}> {
     const routeData = this.$router.resolve({
       name: 'application-config',
       params: {
-        id: row.application_id
-      }
+        id: row.application_id,
+      },
     });
     // window.open(routeData.href);
     window.location.href = routeData.href;
@@ -565,11 +565,11 @@ export default class AppList extends tsc<{}> {
       const routeData = this.$router.resolve({
         name: 'application-config',
         params: {
-          id: row.application_id
+          id: row.application_id,
         },
         query: {
-          active: id === 'noDataAlarm' ? 'dataStatus' : id
-        }
+          active: id === 'noDataAlarm' ? 'dataStatus' : id,
+        },
       });
       // window.open(routeData.href);
       window.location.href = routeData.href;
@@ -577,8 +577,8 @@ export default class AppList extends tsc<{}> {
       const routeData = this.$router.resolve({
         name: 'service-add',
         params: {
-          appName: row.app_name
-        }
+          appName: row.app_name,
+        },
       });
       // window.open(routeData.href);
       window.location.href = routeData.href;
@@ -595,7 +595,7 @@ export default class AppList extends tsc<{}> {
             this.pagination.isEnd = false;
             this.getAppList();
           });
-        }
+        },
       });
     }
   }
@@ -734,7 +734,7 @@ export default class AppList extends tsc<{}> {
           class='app-list-main'
           onScroll={this.handleScroll}
           v-bkloading={{
-            isLoading: this.pagination.current === 1 && this.loading
+            isLoading: this.pagination.current === 1 && this.loading,
           }}
         >
           {this.showGuidePage ? (
@@ -788,7 +788,7 @@ export default class AppList extends tsc<{}> {
                         <div
                           class='first-code'
                           style={{
-                            background: item.firstCodeColor
+                            background: item.firstCodeColor,
                           }}
                         >
                           <span>{item.firstCode}</span>
@@ -810,7 +810,7 @@ export default class AppList extends tsc<{}> {
                           v-bk-tooltips={{
                             placement: 'top',
                             content: this.$t('10分钟内无数据'),
-                            disabled: item.data_status !== 'no_data'
+                            disabled: item.data_status !== 'no_data',
                           }}
                         >
                           Tracing:
@@ -862,8 +862,8 @@ export default class AppList extends tsc<{}> {
                             popover: this.opreateOptions.map(o => ({
                               ...o,
                               authority: item?.permission[authorityMap.VIEW_AUTH] ?? true,
-                              authorityDetail: authorityMap.VIEW_AUTH
-                            }))
+                              authorityDetail: authorityMap.VIEW_AUTH,
+                            })),
                           }}
                           onOptionClick={id => this.handleConfig(id, item)}
                         >
@@ -889,7 +889,7 @@ export default class AppList extends tsc<{}> {
                         ) : (
                           <EmptyStatus
                             textMap={{
-                              empty: this.$t('暂无数据')
+                              empty: this.$t('暂无数据'),
                             }}
                           ></EmptyStatus>
                         )}

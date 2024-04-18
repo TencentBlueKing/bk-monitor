@@ -77,7 +77,7 @@ const defaultUserItem = (index: number) => {
     draggable: false,
     userList: [],
     users: [],
-    key: random(8)
+    key: random(8),
   };
 };
 
@@ -98,7 +98,7 @@ export default class UserListSort extends tsc<IProps, IEvents> {
         ...item,
         draggable: false,
         users: item.users.map(u => u.id),
-        userList: item.users
+        userList: item.users,
       }));
     } else {
       this.userList.push(defaultUserItem(0));
@@ -123,7 +123,7 @@ export default class UserListSort extends tsc<IProps, IEvents> {
       name: string; // 用户名
       type: 'group' | 'user';
     }[],
-    index: number
+    index: number,
   ) {
     this.userList[index].users = v.map(item => item.id);
     this.userList[index].userList = v;

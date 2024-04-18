@@ -102,7 +102,7 @@ export default class IconBtn extends tsc<IProps, IEvents> {
         class={[
           'icon-btn',
           this.theme,
-          { 'only-icon': this.iconOnly, checked: this.isChecked, 'has-title': !!this.title }
+          { 'only-icon': this.iconOnly, checked: this.isChecked, 'has-title': !!this.title },
         ]}
         onClick={this.handleClick}
       >

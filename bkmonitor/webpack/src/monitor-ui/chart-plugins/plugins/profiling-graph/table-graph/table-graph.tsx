@@ -61,7 +61,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
 
   maxItem: { self: number; total: number } = {
     self: 0,
-    total: 0
+    total: 0,
   };
   /** 表格数据 */
   tableData: ProfilingTableItem[] = [];
@@ -71,7 +71,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
     { id: 'Total', name: 'Total', mode: 'normal', sort: '' },
     { id: 'baseline', name: window.i18n.t('查询项'), mode: 'diff', sort: '' },
     { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
-    { id: 'diff', name: 'Diff', mode: 'diff', sort: '' }
+    { id: 'diff', name: 'Diff', mode: 'diff', sort: '' },
   ];
   tipDetail: ITableTipsDetail = {};
   diffMode = false;
@@ -91,7 +91,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   handleDataChange(val: ProfilingTableItem[]) {
     this.maxItem = {
       self: Math.max(...val.map(item => item.self)),
-      total: Math.max(...val.map(item => item.total))
+      total: Math.max(...val.map(item => item.total)),
     };
     this.getTableData();
   }
@@ -110,7 +110,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
         const color = palette[colorIndex];
         return {
           ...item,
-          color
+          color,
         };
       });
     this.localIsCompared = this.isCompared;
@@ -140,7 +140,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
     return {
       'background-image': `linear-gradient(${color}, ${color})`,
       'background-position': `-${xPosition}px 0px`,
-      'background-repeat': 'no-repeat'
+      'background-repeat': 'no-repeat',
     };
   }
   /** 列字段排序 */
@@ -163,7 +163,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
     this.tableColumns = this.tableColumns.map(item => {
       return {
         ...item,
-        sort: col.id === item.id ? col.sort : ''
+        sort: col.id === item.id ? col.sort : '',
       };
     });
   }
@@ -194,7 +194,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
       comparison,
       mark,
       selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
-      totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`
+      totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`,
     };
   }
   handleRowMouseout() {
@@ -240,7 +240,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                       </div>
                     </div>
                   </th>
-                )
+                ),
             )}
           </thead>
           <tbody>
@@ -267,14 +267,14 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                       ? [
                           <td>{this.formatColValue(row.baseline)}</td>,
                           <td>{this.formatColValue(row.comparison)}</td>,
-                          <td>{getDiffTpl(row)}</td>
+                          <td>{getDiffTpl(row)}</td>,
                         ]
                       : [
                           <td style={this.getColStyle(row, 'self')}>{this.formatColValue(row.self)}</td>,
-                          <td style={this.getColStyle(row, 'total')}>{this.formatColValue(row.total)}</td>
+                          <td style={this.getColStyle(row, 'total')}>{this.formatColValue(row.total)}</td>,
                         ]}
                   </tr>
-                ))
+                )),
               ]
             ) : (
               <tr>
@@ -296,7 +296,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
           style={{
             left: `${this.tipDetail.left || 0}px`,
             top: `${this.tipDetail.top || 0}px`,
-            display: this.tipDetail.title ? 'block' : 'none'
+            display: this.tipDetail.title ? 'block' : 'none',
           }}
         >
           {this.tipDetail.title && [
@@ -309,14 +309,14 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                       <th>Baseline</th>
                       <th>Comparison</th>
                       <th>Diff</th>
-                    </thead>
+                    </thead>,
                   ]
                 : [
                     <thead>
                       <th></th>
                       <th>Self (% of total)</th>
                       <th>Total (% of total)</th>
-                    </thead>
+                    </thead>,
                   ]}
               {this.localIsCompared ? (
                 <tbody>
@@ -336,7 +336,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                   </tr>
                 </tbody>
               )}
-            </table>
+            </table>,
           ]}
         </div>
       </div>

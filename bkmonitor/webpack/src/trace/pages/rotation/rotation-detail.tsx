@@ -37,7 +37,7 @@ import {
   getAutoOrderList,
   getPreviewParams,
   noOrderDutyData,
-  setPreviewDataOfServer
+  setPreviewDataOfServer,
 } from './components/calendar-preview';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
@@ -51,16 +51,16 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     id: {
       type: [Number, String],
-      default: ''
+      default: '',
     },
     onShowChange: {
       type: Function as PropType<(v: boolean) => void>,
-      default: _v => {}
-    }
+      default: _v => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -81,7 +81,7 @@ export default defineComponent({
         if (v) {
           getData();
         }
-      }
+      },
     );
 
     const type = ref<RotationTabTypeEnum>(RotationTabTypeEnum.REGULAR);
@@ -99,7 +99,7 @@ export default defineComponent({
             { label: t('创建人'), value: res.create_user || '--' },
             { label: t('创建时间'), value: res.create_time || '--' },
             { label: t('最近更新人'), value: res.update_user || '--' },
-            { label: t('修改时间'), value: res.update_time || '--' }
+            { label: t('修改时间'), value: res.update_time || '--' },
           ];
           getPreviewData();
         })
@@ -115,14 +115,14 @@ export default defineComponent({
       const params = {
         ...getPreviewParams(detailData.value.effective_time),
         source_type: 'DB',
-        id: props.id
+        id: props.id,
       };
       previewDutyRulePlan(params)
         .then(data => {
           const autoOrders = getAutoOrderList(detailData.value);
           previewData.value = setPreviewDataOfServer(
             detailData.value.category === 'regular' ? noOrderDutyData(data) : data,
-            autoOrders
+            autoOrders,
           );
         })
         .finally(() => {
@@ -155,8 +155,8 @@ export default defineComponent({
       router.push({
         name: 'rotation-edit',
         params: {
-          id: props.id
-        }
+          id: props.id,
+        },
       });
     }
     return {
@@ -171,7 +171,7 @@ export default defineComponent({
       renderUserLogo,
       handleClosed,
       t,
-      handleToEdit
+      handleToEdit,
     };
   },
   render() {
@@ -241,7 +241,7 @@ export default defineComponent({
                         <div class='rule-item'>
                           {rule.ruleTime.length > 1 && [
                             <span class='rule-item-index'>{this.t('第 {num} 班', { num: ind + 1 })}</span>,
-                            <div class='col-separate'></div>
+                            <div class='col-separate'></div>,
                           ]}
                           <span class='rule-item-title'>{time.day}</span>
                           {time.timer.map(item => (
@@ -305,9 +305,9 @@ export default defineComponent({
                 </FormItem>
               </div>
             </Loading>
-          )
+          ),
         }}
       </Sideslider>
     );
-  }
+  },
 });

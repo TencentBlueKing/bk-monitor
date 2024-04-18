@@ -27,9 +27,8 @@ import { defineComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, Dropdown, Message } from 'bkui-vue';
-
-import { createOrUpdateReport, sendReport } from '../../../monitor-api/modules/new_report';
-import { deepClone } from '../../../monitor-common/utils';
+import { createOrUpdateReport, sendReport } from 'monitor-api/modules/new_report';
+import { deepClone } from 'monitor-common/utils';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
@@ -64,11 +63,11 @@ export default defineComponent({
               {
                 id: window.user_name || window.username,
                 type: 'user',
-                is_enabled: true
-              }
+                is_enabled: true,
+              },
             ],
-            channel_name: 'user'
-          }
+            channel_name: 'user',
+          },
         ];
         formData.channels = selfChannels;
       }
@@ -90,7 +89,7 @@ export default defineComponent({
           .then(() => {
             Message({
               theme: 'success',
-              message: t('保存成功')
+              message: t('保存成功'),
             });
             emit('saveSuccess');
           })
@@ -110,8 +109,8 @@ export default defineComponent({
         name: 'report',
         query: {
           reportId,
-          isShowEditSlider: 'true'
-        }
+          isShowEditSlider: 'true',
+        },
       });
     }
 
@@ -126,7 +125,7 @@ export default defineComponent({
       isShowTestSendResult,
       isShowDropdownMenu,
       handleGoToReportListPage,
-      emit
+      emit,
     };
   },
   render() {
@@ -164,7 +163,7 @@ export default defineComponent({
                     </Dropdown.DropdownItem>
                   </Dropdown.DropdownMenu>
                 );
-              }
+              },
             }}
           >
             <Button
@@ -192,5 +191,5 @@ export default defineComponent({
         <TestSendSuccessDialog v-model={this.isShowTestSendResult}></TestSendSuccessDialog>
       </div>
     );
-  }
+  },
 });

@@ -97,7 +97,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
       this.showWrap = true;
       setTimeout(() => {
         const {
-          width
+          width,
           // height
         } = (this.$refs.tip as Element).getBoundingClientRect();
 
@@ -106,12 +106,12 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
           const {
             bottom: moreDropdownBottom,
             left: moreDropdownLeft,
-            width: moreListWidth
+            width: moreListWidth,
           } = moreDropdown.getBoundingClientRect();
 
           this.tipStyles = Object.freeze({
             top: `${moreDropdownBottom + 10}px`,
-            left: `${moreDropdownLeft + (moreListWidth - width) / 2}px`
+            left: `${moreDropdownLeft + (moreListWidth - width) / 2}px`,
           });
           this.placement = 'bottom';
           return;
@@ -122,7 +122,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
           // right: targetRight,
           bottom: targeBottom,
           left: targetLeft,
-          width: targetWidth
+          width: targetWidth,
         } = $stepTarget.getBoundingClientRect();
         // let placement = 'left';
 
@@ -158,7 +158,7 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
         // }
         this.tipStyles = Object.freeze({
           top: `${targeBottom + 10}px`,
-          left: `${targetLeft + (targetWidth - width) / 2}px`
+          left: `${targetLeft + (targetWidth - width) / 2}px`,
         });
         this.placement = 'bottom';
       });

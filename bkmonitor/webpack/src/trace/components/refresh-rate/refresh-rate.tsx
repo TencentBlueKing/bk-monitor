@@ -39,48 +39,48 @@ const IProps = {
       // 刷新间隔列表
       {
         name: `${window.i18n.t('关闭')}（off）`,
-        id: -1
+        id: -1,
       },
       {
         name: '1m',
-        id: 60 * 1000
+        id: 60 * 1000,
       },
       {
         name: '5m',
-        id: 5 * 60 * 1000
+        id: 5 * 60 * 1000,
       },
       {
         name: '15m',
-        id: 15 * 60 * 1000
+        id: 15 * 60 * 1000,
       },
       {
         name: '30m',
-        id: 30 * 60 * 1000
+        id: 30 * 60 * 1000,
       },
       {
         name: '1h',
-        id: 60 * 60 * 1000
+        id: 60 * 60 * 1000,
       },
       {
         name: '2h',
-        id: 60 * 2 * 60 * 1000
+        id: 60 * 2 * 60 * 1000,
       },
       {
         name: '1d',
-        id: 60 * 24 * 60 * 1000
-      }
-    ]
+        id: 60 * 24 * 60 * 1000,
+      },
+    ],
   },
   value: {
     /** 选中值 */ type: Number,
-    default: -1
+    default: -1,
   },
   onSelect: {
-    /** 选中的事件 */ type: Function as PropType<(item: number) => void>
+    /** 选中的事件 */ type: Function as PropType<(item: number) => void>,
   },
   onImmediate: {
-    /** 立即刷新 */ type: Function as PropType<() => void>
-  }
+    /** 立即刷新 */ type: Function as PropType<() => void>,
+  },
 };
 /**
  * 图表的刷新频率组件
@@ -103,7 +103,7 @@ export default defineComponent({
       val => {
         localValue.value = val;
       },
-      { immediate: true }
+      { immediate: true },
     );
 
     /** 选中值 */
@@ -125,7 +125,7 @@ export default defineComponent({
       localValue,
       isShow,
       handleSelect,
-      handeRefreshImmediately
+      handeRefreshImmediately,
     };
   },
   render() {
@@ -161,10 +161,10 @@ export default defineComponent({
                   />
                 </span>
               );
-            }
+            },
           }}
         ></SelectMenu>
       </span>
     );
-  }
+  },
 });

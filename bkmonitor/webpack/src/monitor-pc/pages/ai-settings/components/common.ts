@@ -30,13 +30,13 @@ export const handleSetTargetDesc = (
   bkTargetType: NotificationType,
   objectType?: string,
   nodeCount = 0,
-  instance_count = 0
+  instance_count = 0,
 ) => {
   const targetResult = {
     message: '',
     messageCount: 0,
     subMessage: '',
-    subMessageCount: 0
+    subMessageCount: 0,
   };
   const allHost = new Set();
   if (targetList?.length) {
@@ -53,7 +53,7 @@ export const handleSetTargetDesc = (
       const textMap = {
         TOPO: '{0}个拓扑节点',
         SERVICE_TEMPLATE: '{0}个服务模板',
-        SET_TEMPLATE: '{0}个集群模板'
+        SET_TEMPLATE: '{0}个集群模板',
       };
       targetResult.messageCount = len;
       targetResult.message = textMap[bkTargetType];

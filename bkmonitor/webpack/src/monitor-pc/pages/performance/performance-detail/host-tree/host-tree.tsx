@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -39,7 +38,7 @@ import {
   filterSelectorPanelSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../../monitor-k8s/utils';
 import { DEFAULT_TAB_LIST } from '../host-list/host-list';
 
@@ -158,7 +157,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
   hostStatusMap = {
     SUCCESS: 'success',
     FAILED: 'failed',
-    NODATA: 'nodata'
+    NODATA: 'nodata',
   };
   /** 主机状态 */
   statusMap = {
@@ -190,7 +189,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
   /** 当前选中的节点 */
   curNode: ICurNode = {
     id: null,
-    type: 'overview'
+    type: 'overview',
   };
 
   /** 主机属性数据 */
@@ -219,7 +218,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
       id: item.type,
       name: item.name || (this.statusData[item.type]?.count ?? 0),
       tips: item.tips,
-      status: item.status
+      status: item.status,
     }));
   }
 
@@ -253,7 +252,6 @@ export default class HostTree extends tsc<IProps, IEvents> {
 
   /** 目标对比选中的主机id */
   get compareTargets() {
-    // eslint-disable-next-line max-len
     return (
       this.viewOptions?.compares?.targets?.map(item => this.panel.targets?.[0]?.handleCreateItemId(item, true)) || []
     );
@@ -293,7 +291,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
     } else {
       this.handleTitleChange(
         undefined,
-        `${bk_inst_id ?? ''}` || `${bk_target_service_instance_id ?? ''}` || this.$t('概览').toString()
+        `${bk_inst_id ?? ''}` || `${bk_target_service_instance_id ?? ''}` || this.$t('概览').toString(),
       );
     }
     if (!!this.hostTreeData.length && (bk_inst_id !== undefined || bk_target_service_instance_id !== undefined)) {
@@ -327,10 +325,10 @@ export default class HostTree extends tsc<IProps, IEvents> {
       this.handleTitleChange(null, this.$tc('概览'));
       return;
     }
-    // eslint-disable-next-line no-nested-ternary
+
     this.curNode.type =
       'bk_target_service_instance_id' in val ? 'service' : 'ip' in val || 'bk_target_ip' in val ? 'host' : 'node';
-    // eslint-disable-next-line no-nested-ternary
+
     this.curNode.id =
       this.curNode?.type === 'service'
         ? val.bk_target_service_instance_id
@@ -363,7 +361,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
     this.$api[this.apiData.apiModule]
       [this.apiData.apiFunc]({
         ...variablesService.transformVariables(this.apiData.data),
-        condition_list: transformConditionValueParams(this.searchCondition)
+        condition_list: transformConditionValueParams(this.searchCondition),
       })
       .then(data => {
         this.emptyStatusType = 'empty';
@@ -394,7 +392,6 @@ export default class HostTree extends tsc<IProps, IEvents> {
   getNodeName() {
     const { bk_inst_id, bk_obj_id, bk_target_service_instance_id } = this.viewOptions.filters;
     const targetNode = this.handleFindNode(this.hostTreeData, node => {
-      // eslint-disable-next-line max-len
       const isMatch =
         (node.bk_inst_id === bk_inst_id && node.bk_obj_id === bk_obj_id) ||
         (bk_target_service_instance_id !== undefined && bk_target_service_instance_id === node.service_instance_id);
@@ -428,10 +425,9 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const idMap: Record<string, any> = {
       service: (node: TreeNodeItem) => node.service_instance_id,
       host: (node: TreeNodeItem) => `${this.panel.targets?.[0]?.handleCreateItemId(node)}`,
-      node: (node: TreeNodeItem) => `${node.bk_inst_id}-${node.bk_obj_id}`
+      node: (node: TreeNodeItem) => `${node.bk_inst_id}-${node.bk_obj_id}`,
     };
     const fn = (data: TreeNodeItem[]) => {
-      // eslint-disable-next-line no-restricted-syntax
       for (const node of data) {
         const id = idMap[this.curNode.type]?.(node);
         if (id === this.curNode.id) return id;
@@ -449,7 +445,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
 
@@ -460,7 +456,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
     this.isNoData =
       this.bigTreeRef?.filter({
         status: this.statusType,
-        keyword: this.searchKeyword
+        keyword: this.searchKeyword,
       })?.length < 1;
   }
 
@@ -468,7 +464,6 @@ export default class HostTree extends tsc<IProps, IEvents> {
   get defaultExpandedId() {
     const fn = (list: string | any[], targetName: string | number): any => {
       if (list?.length) {
-        // eslint-disable-next-line no-restricted-syntax
         for (const item of list) {
           const sourceId =
             this.curNode?.type === 'host'
@@ -526,10 +521,10 @@ export default class HostTree extends tsc<IProps, IEvents> {
     this.localCompareTargets = [];
     if (!isOverview) {
       // 选中主机或节点时
-      // eslint-disable-next-line no-nested-ternary
+
       this.curNode.type =
         'service_instance_id' in data ? 'service' : 'ip' in data || 'bk_target_ip' in data ? 'host' : 'node';
-      // eslint-disable-next-line no-nested-ternary
+
       this.curNode.id =
         this.curNode?.type === 'service'
           ? data.service_instance_id
@@ -569,8 +564,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const viewOptions: IViewOptions = {
       ...this.localViewOptions,
       compares: {
-        targets: this.localCompareTargets
-      }
+        targets: this.localCompareTargets,
+      },
     };
     this.handleViewOptionsChnage(viewOptions);
   }
@@ -592,7 +587,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
           !hostMap.has(id) &&
             hostMap.set(id, {
               ...item,
-              id
+              id,
             });
         }
       });
@@ -616,7 +611,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
       'bk_inst_id',
       'bk_obj_id',
       'bk_target_service_instance_id',
-      'bk_host_id'
+      'bk_host_id',
     ];
     const filterList = Object.entries(this.localViewOptions.filters || {});
     const filter = filterList.reduce((newObj, cur: [string, any]) => {
@@ -627,8 +622,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const viewOptions: IViewOptions = {
       ...this.localViewOptions,
       filters: {
-        ...filter
-      }
+        ...filter,
+      },
     };
     if (isOverview) {
       // 数据总览情况下
@@ -636,7 +631,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
     } else if (node) {
       if ('service_instance_id' in node) {
         viewOptions.filters = {
-          bk_target_service_instance_id: node.service_instance_id
+          bk_target_service_instance_id: node.service_instance_id,
         };
       } else if ('ip' in node || 'bk_target_ip' in node) {
         const matchFields: any = {};
@@ -646,13 +641,13 @@ export default class HostTree extends tsc<IProps, IEvents> {
         viewOptions.filters = {
           bk_target_ip: node.ip,
           bk_target_cloud_id: node.bk_cloud_id,
-          bk_host_id: node.bk_host_id
+          bk_host_id: node.bk_host_id,
         };
         viewOptions.matchFields = { ...matchFields };
       } else {
         viewOptions.filters = {
           bk_inst_id: node.bk_inst_id,
-          bk_obj_id: node.bk_obj_id
+          bk_obj_id: node.bk_obj_id,
         };
       }
     }
@@ -677,7 +672,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
         const localStatus = this.hostStatusMap[status];
         if (!statusData[localStatus]?.count) {
           statusData[localStatus] = {
-            count: 0
+            count: 0,
           };
         }
         statusData[localStatus].count += 1;
@@ -694,7 +689,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
     this.isNoData =
       this.bigTreeRef?.filter({
         status: this.statusType,
-        keyword: this.searchKeyword
+        keyword: this.searchKeyword,
       })?.length < 1;
   }
 
@@ -745,8 +740,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
                 `${this.panel.targets?.[0]?.handleCreateItemId(data)}` === this.curNode?.id ||
                 (this.enableCmdbLevel && `${data.bk_inst_id}-${data.bk_obj_id}` === this.curNode?.id) ||
                 data.service_instance_id === this.curNode.id,
-              'checked-target': this.isTargetCompare && this.compareTargets.includes(data.id)
-            }
+              'checked-target': this.isTargetCompare && this.compareTargets.includes(data.id),
+            },
           ]}
           onClick={m.stop(() => this.handleClickItemProxy(data))}
         >
@@ -759,7 +754,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
               v-bk-overflow-tips={{
                 content: `${
                   'service_instance_id' in data ? data.name : data.name || data.display_name || data.bk_inst_name
-                }`
+                }`,
               }}
             >
               {!!data.status ? (
@@ -788,7 +783,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
             ) : undefined}
           </span>
         </div>
-      )
+      ),
     };
     return (
       <div

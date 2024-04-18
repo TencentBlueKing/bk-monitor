@@ -44,7 +44,7 @@ import {
   IPushConfigData,
   ITabListItem,
   StatusType,
-  textMap
+  textMap,
 } from './types';
 
 import './event-source-detail.scss';
@@ -61,7 +61,7 @@ interface IDetail {
 enum ETabKey {
   'desc' = 1,
   'config',
-  'dataStatus'
+  'dataStatus',
 }
 
 /**
@@ -96,7 +96,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
     pluginTypeDisplay: '',
     categoryDisplay: '',
     scenario: null,
-    isInstalled: false
+    isInstalled: false,
   };
   // 概述md文档
   descMd = '';
@@ -110,7 +110,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
     sourceFormat: '',
     ingesterHost: '',
     pluginId: '',
-    pushUrl: ''
+    pushUrl: '',
   };
   /* pull 类型下 配置表单 */
   paramsSchema = [];
@@ -127,7 +127,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
   tabList: ITabListItem[] = [
     { id: 1, name: i18n.tc('概述') },
     { id: 2, name: i18n.tc('配置') },
-    { id: 3, name: i18n.tc('数据状态'), warning: false }
+    { id: 3, name: i18n.tc('数据状态'), warning: false },
   ];
 
   configKey = random(8);
@@ -155,7 +155,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
       this.tabList = [
         { id: 1, name: i18n.tc('概述') },
         { id: 2, name: i18n.tc('配置') },
-        { id: 3, name: i18n.tc('数据状态'), warning: false }
+        { id: 3, name: i18n.tc('数据状态'), warning: false },
       ];
       this.getMinHeight();
       this.getPluginDetail();
@@ -201,7 +201,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
       scenario,
       params_schema: paramsSchema,
       is_installed: isInstalled,
-      instances
+      instances,
     } = data;
     // 插件状态及其基本信息
     this.statusKey = status as StatusType;
@@ -236,7 +236,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
     if (!isInstalled) {
       this.tabList = [
         { id: 1, name: i18n.tc('概述') },
-        { id: 2, name: i18n.tc('配置') }
+        { id: 2, name: i18n.tc('配置') },
       ];
     }
     this.configKey = random(8);
@@ -265,7 +265,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
     // [gogogo](./media/pic.png)
     let res = mdStr.replace(
       /\[(.+?)\]\((.+?)\)/g,
-      (...args) => `[${args[1]}](${siteUrl}fta/plugin/event/${this.id}/media/${args[2].replace(/^\.\/?/, '')})`
+      (...args) => `[${args[1]}](${siteUrl}fta/plugin/event/${this.id}/media/${args[2].replace(/^\.\/?/, '')})`,
     );
     // href="" src=""
     res = res.replace(/(href|src)=('|")(.+?)('|")/g, (...args) => {
@@ -290,7 +290,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
       version: this.version,
       pluginId: this.id,
       paramsSchema: this.paramsSchema,
-      pluginDisplayName: this.baseInfo.name
+      pluginDisplayName: this.baseInfo.name,
     };
   }
 

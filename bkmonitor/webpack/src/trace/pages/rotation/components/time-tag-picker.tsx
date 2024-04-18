@@ -47,7 +47,7 @@ export default defineComponent({
     /** 名称宽度 */
     labelWidth: { type: Number, default: 52 },
     /** 已选择时间 */
-    modelValue: { type: Array as PropType<string[][]>, default: () => [] }
+    modelValue: { type: Array as PropType<string[][]>, default: () => [] },
   },
   emits: ['update:modelValue', 'change'],
   setup(props, { emit }) {
@@ -61,8 +61,8 @@ export default defineComponent({
         localValue.splice(0, localValue.length, ...val);
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
     const isChange = computed(() => {
       if (sourceValue.value.length !== localValue.length) return true;
@@ -79,7 +79,7 @@ export default defineComponent({
       /** 时间选择器是否展示 */
       show: false,
       showInput: false,
-      inputValue: ''
+      inputValue: '',
     });
 
     watch(
@@ -90,7 +90,7 @@ export default defineComponent({
         } else {
           document.removeEventListener('click', handleConfirm);
         }
-      }
+      },
     );
 
     onUnmounted(() => {
@@ -222,7 +222,7 @@ export default defineComponent({
       handleShowTime,
       handleTimeChange,
       handleTagClose,
-      handleConfirm
+      handleConfirm,
     };
   },
   render() {
@@ -291,7 +291,7 @@ export default defineComponent({
                   </span>
                 </div>
               </div>
-            )
+            ),
           }}
         </TimePicker>
         <span
@@ -302,5 +302,5 @@ export default defineComponent({
         </span>
       </div>
     );
-  }
+  },
 });

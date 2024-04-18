@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable new-cap */
+
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
@@ -114,7 +114,7 @@ class EventCenter extends VuexModule implements IEventCenterState {
     store.commit('app/setPageLoading', true);
     let data: IData = await getEventList({
       bk_biz_id: store.getters['app/curBizId'],
-      type: payload.type
+      type: payload.type,
     }).catch(() => []);
     store.commit('app/setPageLoading', false);
     data = transformDataKey(data);

@@ -236,24 +236,24 @@ export type TargetObjectType = 'SERVICE' | 'HOST';
 export const componentProps = {
   panelList: {
     type: Array as PropType<string[]>,
-    default: ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput']
+    default: ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'],
   },
   value: {
     type: Object as PropType<IIpV6Value>,
-    default: () => ({})
+    default: () => ({}),
   },
   // 自定义主机列表列
   hostTableCustomColumnList: {
-    type: Array as PropType<IpSelectorHostTableCustomColumn[]>
+    type: Array as PropType<IpSelectorHostTableCustomColumn[]>,
   },
   nodeTableCustomColumnList: {
-    type: Array as PropType<IpSelectorHostTableCustomColumn[]>
+    type: Array as PropType<IpSelectorHostTableCustomColumn[]>,
   },
   serviceTemplateTableCustomColumnList: {
-    type: Array as PropType<IpSelectorHostTableCustomColumn[]>
+    type: Array as PropType<IpSelectorHostTableCustomColumn[]>,
   },
   setTemplateTableCustomColumnList: {
-    type: Array as PropType<IpSelectorHostTableCustomColumn[]>
+    type: Array as PropType<IpSelectorHostTableCustomColumn[]>,
   },
   // 自定义menu
   hostMemuExtends: { type: Array as PropType<IpSelectorHostMemuExtend[]> },
@@ -301,18 +301,18 @@ export const componentProps = {
   outputFieldList: { type: Array as PropType<string[]> },
   onChange: {
     type: Function as PropType<(v: Record<string, INode[]>) => void>,
-    default: () => {}
+    default: () => {},
   },
   onTargetTypeChange: {
     type: Function as PropType<(v: INodeType) => void>,
-    default: () => {}
+    default: () => {},
   },
   onCloseDialog: {
     type: Function as PropType<(v: boolean) => void>,
-    default: () => {}
+    default: () => {},
   },
   onOutputFieldChange: {
     type: Function as PropType<(v: string[]) => void>,
-    default: () => {}
-  }
+    default: () => {},
+  },
 };

@@ -56,7 +56,7 @@ export enum ERepeatKey {
   everyWeek = 'every-week',
   everyMonth = 'every-month',
   everyYear = 'every-year',
-  custom = 'custom'
+  custom = 'custom',
 }
 
 export interface IRepeatParams {
@@ -72,7 +72,7 @@ export enum ERepeatTypeId {
   days = 'day', // 天
   weeks = 'week', // 周
   months = 'month', // 月
-  years = 'year' // 年
+  years = 'year', // 年
 }
 
 /** 事项列表数据结构 */
@@ -106,37 +106,37 @@ export const repeatParamsMap: Record<ERepeatKey, IRepeatConfig | {}> = {
     interval: 1, // 间隔
     until: null, // 结束日期
     every: [], // 区间
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
   [ERepeatKey.everyWorkingDay]: {
     freq: 'week',
     interval: 1,
     until: null, // 永不结束
     every: [1, 2, 3, 4, 5],
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
   [ERepeatKey.everyWeek]: {
     freq: 'week',
     interval: 1,
     until: null,
     every: [],
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
   [ERepeatKey.everyMonth]: {
     freq: 'month',
     interval: 1,
     until: null,
     every: [],
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
   [ERepeatKey.everyYear]: {
     freq: 'year',
     interval: 1,
     until: null,
     every: [],
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
-  [ERepeatKey.custom]: null // 自定义
+  [ERepeatKey.custom]: null, // 自定义
 };
 
 /**
@@ -150,5 +150,5 @@ export const WORKING_DATE_LIST = [1, 2, 3, 4, 5];
 export enum EDelAndEditType {
   all = 0,
   current = 1,
-  currentAndFuture = 2
+  currentAndFuture = 2,
 }

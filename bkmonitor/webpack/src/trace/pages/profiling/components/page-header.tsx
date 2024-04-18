@@ -39,16 +39,16 @@ export default defineComponent({
   props: {
     isShowFavorite: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isShowSearch: {
       type: Boolean,
-      default: true
+      default: true,
     },
     data: {
       type: Object as PropType<ToolsFormData>,
-      default: null
-    }
+      default: null,
+    },
   },
   emits: ['change', 'showTypeChange', 'refreshIntervalChange', 'menuSelect', 'immediateRefresh'],
   setup(props, { emit }) {
@@ -57,7 +57,7 @@ export default defineComponent({
     const toolsFormData = reactive<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefautTimezone(),
-      refreshInterval: -1
+      refreshInterval: -1,
     });
     watch(
       () => props.data,
@@ -65,7 +65,7 @@ export default defineComponent({
         if (val) {
           Object.assign(toolsFormData, val);
         }
-      }
+      },
     );
 
     function handleTimeRangeChange(timeRange: TimeRangeType) {
@@ -106,7 +106,7 @@ export default defineComponent({
       handleRefreshIntervalChange,
       handleImmediateRefresh,
       handleShowTypeChange,
-      handleMenuSelect
+      handleMenuSelect,
     };
   },
   render() {
@@ -147,7 +147,7 @@ export default defineComponent({
                   v-bk-tooltips={{
                     content: this.isShowSearch ? this.t('点击收起检索') : this.t('点击展开检索'),
                     placements: ['bottom'],
-                    delay: 200
+                    delay: 200,
                   }}
                   class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
                   onClick={() => this.handleShowTypeChange(PanelType.Search, !this.isShowSearch)}
@@ -156,9 +156,9 @@ export default defineComponent({
                 </div>
               </div>
             </div>
-          )
+          ),
         }}
       </PageToolHeader>
     );
-  }
+  },
 });

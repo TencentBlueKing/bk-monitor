@@ -54,7 +54,7 @@ export default class CopyText extends tsc<IProps> {
     copyText(this.copyContent || location.href, errMsg => {
       this.$bkMessage({
         message: errMsg,
-        theme: 'error'
+        theme: 'error',
       });
       hasErr = !!errMsg;
     });
@@ -70,7 +70,7 @@ export default class CopyText extends tsc<IProps> {
           boundary: 'window',
           disabled: !this.tipsText,
           placement: 'right',
-          allowHTML: false
+          allowHTML: false,
         }}
         style='font-size: 12px;'
         onClick={this.handleCopyText}

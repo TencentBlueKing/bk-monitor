@@ -41,16 +41,15 @@ export function getNewSortForClick(prevSort: { key: any; dir: any }, column: { n
 
   return {
     key: column.name,
-    dir: prevSort.key === column.name ? -1 * prevSort.dir : defaultDir
+    dir: prevSort.key === column.name ? -1 * prevSort.dir : defaultDir,
   };
 }
 
-// eslint-disable-next-line max-len
 export function createSortClickHandler(
   column: any,
   currentSortKey: any,
   currentSortDir: any,
-  updateSort: (arg0: any, arg1: any) => void
+  updateSort: (arg0: any, arg1: any) => void,
 ) {
   return function onClickSortingElement() {
     const { key, dir } = getNewSortForClick({ key: currentSortKey, dir: currentSortDir }, column);

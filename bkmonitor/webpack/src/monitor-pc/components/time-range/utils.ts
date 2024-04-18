@@ -70,7 +70,7 @@ export const handleTransformTime = (value: TimeRangeType): TimeRangeType => {
 };
 
 /** 转换成秒 */
-// eslint-disable-next-line max-len
+
 export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType => {
   const timeRange = new TimeRange(value);
   return timeRange.unix();
@@ -90,64 +90,64 @@ export function timestampTransformStr(value: number[]): TimeRangeType {
 export const shortcuts = [
   {
     text: window.i18n.t('近{n}分钟', { n: 5 }),
-    value: ['now-5m', 'now']
+    value: ['now-5m', 'now'],
   },
   {
     text: window.i18n.t('近{n}分钟', { n: 15 }),
-    value: ['now-15m', 'now']
+    value: ['now-15m', 'now'],
   },
   {
     text: window.i18n.t('近{n}分钟', { n: 30 }),
-    value: ['now-30m', 'now']
+    value: ['now-30m', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 1 }),
-    value: ['now-1h', 'now']
+    value: ['now-1h', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 3 }),
-    value: ['now-3h', 'now']
+    value: ['now-3h', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 6 }),
-    value: ['now-6h', 'now']
+    value: ['now-6h', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 12 }),
-    value: ['now-12h', 'now']
+    value: ['now-12h', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 24 }),
-    value: ['now-24h', 'now']
+    value: ['now-24h', 'now'],
   },
   {
     text: window.i18n.t('近 {n} 天', { n: 2 }),
-    value: ['now-2d', 'now']
+    value: ['now-2d', 'now'],
   },
   {
     text: window.i18n.t('近 {n} 天', { n: 7 }),
-    value: ['now-7d', 'now']
+    value: ['now-7d', 'now'],
   },
   {
     text: window.i18n.t('近 {n} 天', { n: 30 }),
-    value: ['now-30d', 'now']
+    value: ['now-30d', 'now'],
   },
   {
     text: window.i18n.t('今天'),
-    value: ['now/d', 'now/d']
+    value: ['now/d', 'now/d'],
   },
   {
     text: window.i18n.t('昨天'),
-    value: ['now-1d/d', 'now-1d/d']
+    value: ['now-1d/d', 'now-1d/d'],
   },
   {
     text: window.i18n.tc('前天'),
-    value: ['now-2d/d', 'now-2d/d']
+    value: ['now-2d/d', 'now-2d/d'],
   },
   {
     text: window.i18n.tc('本周'),
-    value: ['now/w', 'now/w']
-  }
+    value: ['now/w', 'now/w'],
+  },
 ];
 
 /** 默认的时间范围：近一小时 */

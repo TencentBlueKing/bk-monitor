@@ -41,14 +41,14 @@ export const scopeData = () => {
     key: random(8),
     biz: {
       list: [],
-      value: ''
+      value: '',
     },
     tableData: [],
     labelMap: {
       ip: window.i18n.t('主机'),
       instance: window.i18n.t('服务实例'),
       node: window.i18n.t('节点名称'),
-      biz: window.i18n.t('业务')
+      biz: window.i18n.t('业务'),
     },
     shieldDesc: '',
     bkGroup: {
@@ -56,15 +56,15 @@ export const scopeData = () => {
         { name: window.i18n.t('button-服务实例'), id: 'instance' },
         { name: window.i18n.t('button-主机'), id: 'ip' },
         { name: window.i18n.t('button-拓扑节点'), id: 'node' },
-        { name: window.i18n.t('button-业务'), id: 'biz' }
+        { name: window.i18n.t('button-业务'), id: 'biz' },
       ],
-      value: ''
+      value: '',
     },
     targetError: false,
     showIpv6Dialog: false,
     ipv6Value: {},
     originIpv6Value: {},
-    inited: true
+    inited: true,
   };
 };
 
@@ -73,28 +73,28 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isEdit: {
       type: Boolean,
-      default: false
+      default: false,
     },
     value: {
       type: Object,
-      default: () => scopeData()
+      default: () => scopeData(),
     },
     filterTypes: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     require: {
       type: Boolean,
-      default: true
+      default: true,
     },
     onChange: {
       type: Function as PropType<(v: any) => void>,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -103,20 +103,20 @@ export default defineComponent({
       instance: t('服务实例屏蔽: 屏蔽告警中包含该实例的通知'),
       ip: t('主机屏蔽: 屏蔽告警中包含该IP通知,包含对应的实例'),
       node: t('节点屏蔽: 屏蔽告警中包含该节点下的所有IP和实例的通知'),
-      biz: t('本空间屏蔽: 屏蔽告警中包含该空间的所有通知')
+      biz: t('本空间屏蔽: 屏蔽告警中包含该空间的所有通知'),
     };
     const scopeList = [
       {
         id: 'instance',
-        name: t('button-服务实例')
+        name: t('button-服务实例'),
       },
       {
         id: 'ip',
-        name: t('物理主机')
+        name: t('物理主机'),
       },
       {
         id: 'node',
-        name: t('CMDB拓扑')
+        name: t('CMDB拓扑'),
       },
       // {
       //   id: 'k8s',
@@ -124,23 +124,23 @@ export default defineComponent({
       // },
       {
         id: 'biz',
-        name: t('本空间')
-      }
+        name: t('本空间'),
+      },
     ];
 
     const popRefs = reactive({
       instance: {
-        show: false
+        show: false,
       },
       ip: {
-        show: false
+        show: false,
       },
       node: {
-        show: false
+        show: false,
       },
       biz: {
-        show: false
-      }
+        show: false,
+      },
     });
     // const scopeType = ref('');
     const scopeState = reactive(scopeData());
@@ -148,7 +148,7 @@ export default defineComponent({
     const isClone = ref(false);
 
     const errMsg = reactive({
-      target: ''
+      target: '',
     });
 
     watch(
@@ -162,8 +162,8 @@ export default defineComponent({
         });
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     function handleValueChange({ value }) {
@@ -304,7 +304,7 @@ export default defineComponent({
       handleConfirmPop,
       handleCancelPop,
       handleValueChange,
-      handleIpv6DialogChange
+      handleIpv6DialogChange,
     };
   },
   render() {
@@ -385,7 +385,7 @@ export default defineComponent({
                                 </Button>
                               </div>
                             </div>
-                          )
+                          ),
                         }}
                       </Popover>
                     );
@@ -420,8 +420,8 @@ export default defineComponent({
                       {
                         id: 'name',
                         label: () => this.scopeState.labelMap[this.scopeState.bkGroup.value],
-                        render: ({ row }) => row.name
-                      }
+                        render: ({ row }) => row.name,
+                      },
                     ]}
                   ></Table>
                 </div>
@@ -432,5 +432,5 @@ export default defineComponent({
         </FormItem>
       </div>
     );
-  }
+  },
 });

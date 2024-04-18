@@ -44,17 +44,16 @@ import './related-events.scss';
 const statusMap = {
   RECOVERED: window.i18n.tc('已恢复'),
   ABNORMAL: window.i18n.tc('未恢复'),
-  CLOSED: window.i18n.tc('已关闭')
+  CLOSED: window.i18n.tc('已关闭'),
 };
 
 // 事件级别
 const levelMap = {
   1: window.i18n.tc('致命'),
   2: window.i18n.tc('预警'),
-  3: window.i18n.tc('提醒')
+  3: window.i18n.tc('提醒'),
 };
 
-/* eslint-disable camelcase */
 interface IRelatedEventsProps {
   show?: boolean;
   params?: IParams;
@@ -76,7 +75,7 @@ interface IColumnItem {
     fixed?: 'left' | 'right';
     minWidth?: number | string;
     resizable?: boolean;
-    formatter?: Function;
+    formatter?: (value: any, row: any, index: number) => any;
     sortable?: boolean | 'custom';
     showOverflowTooltip?: boolean;
   };
@@ -112,7 +111,7 @@ interface IEventItem {
 }
 
 @Component({
-  name: 'RelatedEvents'
+  name: 'RelatedEvents',
 })
 export default class RelatedEvents extends tsc<IRelatedEventsProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -123,12 +122,12 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
 
   data = {
     events: [],
-    total: 0
+    total: 0,
   };
   pagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
 
   tableColumns: IColumnItem[] = []; // 表格字段
@@ -159,8 +158,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
             >
               {row.id}
             </span>
-          )
-        }
+          ),
+        },
       },
       {
         id: 'time',
@@ -170,8 +169,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         props: {
           minWidth: 130,
           sortable: 'custom',
-          formatter: (row: IEventItem) => <span>{dayjs.tz(row.time * 1000).format('YYYY-MM-DD HH:mm')}</span>
-        }
+          formatter: (row: IEventItem) => <span>{dayjs.tz(row.time * 1000).format('YYYY-MM-DD HH:mm')}</span>,
+        },
       },
       {
         id: 'alert_name',
@@ -179,8 +178,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         checked: false,
         disabled: false,
         props: {
-          minWidth: 130
-        }
+          minWidth: 130,
+        },
       },
       {
         id: 'category',
@@ -190,8 +189,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         props: {
           sortable: 'custom',
           minWidth: 130,
-          formatter: (row: IEventItem) => row.category_display
-        }
+          formatter: (row: IEventItem) => row.category_display,
+        },
       },
       {
         id: 'description',
@@ -200,8 +199,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 200,
-          showOverflowTooltip: true
-        }
+          showOverflowTooltip: true,
+        },
       },
       {
         id: 'assignee',
@@ -211,8 +210,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         props: {
           minWidth: 130,
           sortable: 'custom',
-          formatter: (row: IEventItem) => <span>{row?.assignee?.join(',') || '--'}</span>
-        }
+          formatter: (row: IEventItem) => <span>{row?.assignee?.join(',') || '--'}</span>,
+        },
       },
       {
         id: 'tag',
@@ -229,7 +228,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                   content: tags
                     .map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
                     .join(''),
-                  allowHTML: true
+                  allowHTML: true,
                 }}
                 class='tags-items'
               >
@@ -238,8 +237,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
             ) : (
               '--'
             );
-          }
-        }
+          },
+        },
       },
       {
         id: 'event_id',
@@ -247,8 +246,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         checked: false,
         disabled: false,
         props: {
-          minWidth: 130
-        }
+          minWidth: 130,
+        },
       },
       {
         id: 'anomaly_time',
@@ -257,8 +256,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 130,
-          formatter: (row: IEventItem) => dayjs.tz(row.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss')
-        }
+          formatter: (row: IEventItem) => dayjs.tz(row.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+        },
       },
       {
         id: 'status',
@@ -267,8 +266,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 130,
-          formatter: (row: IEventItem) => statusMap[row.status]
-        }
+          formatter: (row: IEventItem) => statusMap[row.status],
+        },
       },
       {
         id: 'bk_biz_id',
@@ -278,8 +277,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         props: {
           minWidth: 130,
           formatter: (row: IEventItem) =>
-            this.$store.getters.bizList.find(item => item.id === row?.bk_biz_id)?.space_id || row?.bk_biz_id
-        }
+            this.$store.getters.bizList.find(item => item.id === row?.bk_biz_id)?.space_id || row?.bk_biz_id,
+        },
       },
       {
         id: 'strategy_id',
@@ -287,8 +286,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         checked: false,
         disabled: false,
         props: {
-          minWidth: 130
-        }
+          minWidth: 130,
+        },
       },
       {
         id: 'severity',
@@ -297,8 +296,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 130,
-          formatter: (row: IEventItem) => levelMap[row.severity]
-        }
+          formatter: (row: IEventItem) => levelMap[row.severity],
+        },
       },
       {
         id: 'plugin_id',
@@ -306,8 +305,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         checked: false,
         disabled: false,
         props: {
-          minWidth: 130
-        }
+          minWidth: 130,
+        },
       },
       {
         id: 'metric',
@@ -316,8 +315,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 130,
-          formatter: (row: IEventItem) => row.metric?.join('; ') || '--'
-        }
+          formatter: (row: IEventItem) => row.metric?.join('; ') || '--',
+        },
       },
       {
         id: 'target_type',
@@ -326,8 +325,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 130,
-          formatter: (row: IEventItem) => row.target_type || '--'
-        }
+          formatter: (row: IEventItem) => row.target_type || '--',
+        },
       },
       {
         id: 'target',
@@ -336,9 +335,9 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 130,
-          formatter: (row: IEventItem) => row.target || '--'
-        }
-      }
+          formatter: (row: IEventItem) => row.target || '--',
+        },
+      },
     ];
   }
 
@@ -368,7 +367,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       page: this.pagination.current,
       page_size: this.pagination.limit,
       record_history: true,
-      ordering: sort
+      ordering: sort,
     };
     this.getEventTopN(params);
     this.data = await searchEvent(params, { needRes: true })
@@ -377,7 +376,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         return (
           res.data || {
             events: [],
-            total: 0
+            total: 0,
           }
         );
       })
@@ -385,7 +384,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         this.filterInputStatus = res?.data?.code === 3324003 ? 'error' : 'success';
         return {
           events: [],
-          total: 0
+          total: 0,
         };
       })
       .finally(() => {
@@ -408,7 +407,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       'metric',
       'target_type',
       'target',
-      'category'
+      'category',
     ];
     const valueMap = {};
     eventTopN({ ...params, fields, size: 10 }).then(data => {
@@ -498,38 +497,38 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       {
         children: [
           { title: this.$t('事件ID'), content: `${child.event_id}` },
-          { title: this.$t('异常时间'), content: dayjs.tz(child.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss') }
-        ]
+          { title: this.$t('异常时间'), content: dayjs.tz(child.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss') },
+        ],
       },
       {
         children: [
           { title: this.$t('告警名称'), content: child.alert_name },
-          { title: this.$t('事件状态'), content: `${statusMap[child.status]}` }
-        ]
+          { title: this.$t('事件状态'), content: `${statusMap[child.status]}` },
+        ],
       },
       {
         children: [
           { title: this.$t('分类'), content: child.category_display },
-          { title: this.$t('空间ID'), content: spaceId }
-        ]
+          { title: this.$t('空间ID'), content: spaceId },
+        ],
       },
       {
         children: [
           { title: this.$t('告警内容'), content: child.description },
-          { title: this.$t('策略ID'), content: child.strategy_id || '--' }
-        ]
+          { title: this.$t('策略ID'), content: child.strategy_id || '--' },
+        ],
       },
       {
         children: [
           { title: this.$t('负责人'), content: child?.assignee?.join(',') || '--' },
-          { title: this.$t('平台事件ID'), content: child.id }
-        ]
+          { title: this.$t('平台事件ID'), content: child.id },
+        ],
       },
       {
         children: [
           { title: this.$t('事件级别'), content: `${levelMap[child.severity]}` },
-          { title: this.$t('插件ID'), content: child.plugin_id }
-        ]
+          { title: this.$t('插件ID'), content: child.plugin_id },
+        ],
       },
       {
         children: [
@@ -546,7 +545,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                         ?.map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
                         ?.join('') || '',
                     allowHTML: true,
-                    disabled: (child.tags?.length || 0) <= 4
+                    disabled: (child.tags?.length || 0) <= 4,
                   }}
                 >
                   {(child.tags.slice(0, 4) || []).map((item, index) => (
@@ -565,20 +564,20 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
               </div>
             ) : (
               '--'
-            )
-          }
-        ]
-      }
+            ),
+          },
+        ],
+      },
     ];
     const bottomItems = [
       {
         title: this.$t('指标项'),
         content: child.metric?.join('; ') || '--',
         extCls: 'metric-items',
-        tip: arrayTip(child.metric) || ''
+        tip: arrayTip(child.metric) || '',
       },
       { title: this.$t('目标类型'), content: child.target_type || '--' },
-      { title: this.$t('事件目标'), content: child.target || '--' }
+      { title: this.$t('事件目标'), content: child.target || '--' },
     ];
     return (
       <div class='detail-form'>
@@ -622,7 +621,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
    */
   getTableComponent() {
     const childSlots = {
-      default: props => this.getChildSlotsComponent(props.row)
+      default: props => this.getChildSlotsComponent(props.row),
     };
 
     const handleRowClick = (row, event) => {
@@ -636,8 +635,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         {...{
           props: {
             data: this.data.events,
-            size: 'large'
-          }
+            size: 'large',
+          },
         }}
         outer-border={false}
         header-border={false}

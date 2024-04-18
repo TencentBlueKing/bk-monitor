@@ -52,7 +52,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   downloadTypeMaps = [
     'png',
     // 'json',
-    'pprof'
+    'pprof',
     // 'html'
   ];
   keyword = '';
@@ -61,7 +61,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     const list = [
       { id: ViewModeType.Table, icon: 'table' },
       { id: ViewModeType.Combine, icon: 'mc-fenping' },
-      { id: ViewModeType.Flame, icon: 'mc-flame' }
+      { id: ViewModeType.Flame, icon: 'mc-flame' },
     ];
 
     if (!this.isCompared) {

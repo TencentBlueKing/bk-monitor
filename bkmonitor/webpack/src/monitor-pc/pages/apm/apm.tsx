@@ -34,7 +34,7 @@ import './apm.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class ApmPage extends tsc<{}> {
+export default class ApmPage extends tsc<object> {
   loading = false;
   appkey = 'apm';
   get apmHost() {
@@ -48,7 +48,7 @@ export default class ApmPage extends tsc<{}> {
   get apmData() {
     return JSON.stringify({
       host: this.apmHost,
-      baseroute: '/apm/'
+      baseroute: '/apm/',
     });
   }
   // 是否显示引导页
@@ -78,8 +78,8 @@ export default class ApmPage extends tsc<{}> {
       data: {
         host: this.apmHost,
         baseroute: '/apm/',
-        $baseStore: this.$store
-      }
+        $baseStore: this.$store,
+      },
     });
     activated(this.appkey, this.$refs.apmPageWrap as HTMLElement);
     window.requestIdleCallback(() => (this.loading = false));

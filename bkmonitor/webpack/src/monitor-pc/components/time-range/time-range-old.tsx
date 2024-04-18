@@ -32,7 +32,7 @@ import {
   handleTransformTime,
   handleTransformToTimestamp,
   intTimestampStr,
-  shortcuts
+  shortcuts,
 } from './utils';
 
 import './time-range-old.scss';
@@ -43,7 +43,7 @@ type TimeRangeDisplayType = 'normal' | 'simple' | 'border' | 'input';
 interface IProps {
   value: TimeRangeType;
   type?: TimeRangeDisplayType;
-  placement?: String;
+  placement?: string;
   defaultShortcuts?: typeof shortcuts;
 }
 interface IEvents {
@@ -54,7 +54,7 @@ interface IEvents {
 export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
   @Prop({ default: 'normal', type: String }) type: TimeRangeDisplayType; // 组件的样式类型
-  @Prop({ default: 'bottom-end', type: String }) placement: String; // 参照组件库的date-picker
+  @Prop({ default: 'bottom-end', type: String }) placement: string; // 参照组件库的date-picker
   @Prop({ default: () => shortcuts, type: Array }) defaultShortcuts: IProps['defaultShortcuts']; // 默认时间快捷选项
 
   /** 本地值存储 */
@@ -194,7 +194,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           <div class='desc-row'>{`${this.$t('完整格式')}: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`}</div>
           <div class='desc-row'>
             {`${this.$t('快捷格式')}: m ${this.$t('分钟')}, h ${this.$t('小时')}, d ${this.$t('天')}, w ${this.$t(
-              '周'
+              '周',
             )}, M ${this.$t('月')}`}
           </div>
         </div>
@@ -221,7 +221,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
               onShow: () => {
                 /** 防止代码自动格式化 */
                 this.handleTransformTime();
-              }
+              },
             }}
             theme='light time-range-tips'
           >
@@ -242,7 +242,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
                   <div
                     class={[
                       'time-range-trigger',
-                      { active: this.isShow, simple: this.type === 'simple', border: this.type === 'border' }
+                      { active: this.isShow, simple: this.type === 'simple', border: this.type === 'border' },
                     ]}
                     onClick={() => (this.isShow = true)}
                   >
@@ -280,7 +280,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
                     allowHTML: true,
                     theme: 'light',
                     content: '#time-range-desc-left',
-                    placement: 'bottom'
+                    placement: 'bottom',
                   }}
                   onInput={() => this.handleCustomInput(0)}
                   clearable
@@ -292,7 +292,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
                     allowHTML: true,
                     theme: 'light',
                     content: '#time-range-desc-right',
-                    placement: 'bottom'
+                    placement: 'bottom',
                   }}
                   onInput={() => this.handleCustomInput(1)}
                   clearable

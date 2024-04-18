@@ -56,13 +56,13 @@ export class SystemData {
   /** 插件数据 */
   plugin: IListDataItem = {
     title: window.i18n.tc('支持插件'),
-    list: []
+    list: [],
   };
   /** 语言数据 */
   lang: IListDataItem = {
     title: window.i18n.tc('支持语言'),
     multiple: false,
-    list: []
+    list: [],
   };
   /** 环境数据 */
   system = {
@@ -70,13 +70,13 @@ export class SystemData {
     children: [
       {
         title: window.i18n.tc('容器环境'),
-        list: []
+        list: [],
       },
       {
         title: window.i18n.tc('物理环境'),
-        list: []
-      }
-    ]
+        list: [],
+      },
+    ],
   };
   /** 接入流程md文档 */
   mdData: Record<string, Record<string, string>> = null;
@@ -95,10 +95,10 @@ export class SystemData {
         descData: {
           name: author,
           isOfficial: is_official,
-          heat: popularity
+          heat: popularity,
         },
         checked: false,
-        hidden: false
+        hidden: false,
       };
     });
     /** 语言列表 */
@@ -110,7 +110,7 @@ export class SystemData {
         img: icon || '',
         theme: 'lang',
         checked: false,
-        hidden: false
+        hidden: false,
       };
     });
     /** 容器环境 */
@@ -122,7 +122,7 @@ export class SystemData {
         img: icon || '',
         theme: 'system',
         checked: false,
-        hidden: false
+        hidden: false,
       };
       if (item.category.id === 'container') {
         this.system.children[0].list.push(cardItem);
@@ -163,7 +163,7 @@ export class SystemData {
       row =>
         !!row.list?.length ||
         (row.other?.checked && !!row.other?.value) ||
-        row.children?.some?.(child => !!child.list.length)
+        row.children?.some?.(child => !!child.list.length),
     );
   }
 
@@ -174,7 +174,7 @@ export class SystemData {
         if (row.children) {
           return {
             ...row,
-            children: fn(row.children)
+            children: fn(row.children),
           };
         }
         row.list = row.list.filter(item => item.checked);
@@ -210,7 +210,7 @@ export class SystemData {
     return {
       pluginId,
       deploymentIds,
-      languageIds
+      languageIds,
     };
   }
 

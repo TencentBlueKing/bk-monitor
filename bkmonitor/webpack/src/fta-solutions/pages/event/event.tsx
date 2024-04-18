@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
@@ -25,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
+
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
@@ -38,7 +37,7 @@ import {
   listAlertTags,
   searchAction,
   searchAlert,
-  validateQueryString
+  validateQueryString,
 } from 'monitor-api/modules/alert';
 import { listSpaces } from 'monitor-api/modules/commons';
 import { bizWithAlertStatistics } from 'monitor-api/modules/home';
@@ -79,7 +78,7 @@ import {
   ICommonItem,
   ICommonTreeItem,
   IEventItem,
-  SearchType
+  SearchType,
 } from './typings/event';
 import AlertAnalyze from './alert-analyze';
 import EmptyTable from './empty-table';
@@ -110,7 +109,7 @@ const allAnlyzeFieldList = [
   'appointee',
   'labels',
   'plugin_id',
-  'ipv6'
+  'ipv6',
 ];
 const allActionFieldList = [
   'action_name',
@@ -118,54 +117,54 @@ const allActionFieldList = [
   'operator',
   'duration',
   'strategy_name',
-  'operate_target_string'
+  'operate_target_string',
 ];
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 export const commonAlertFieldMap = {
   status: [
     {
       id: isEn ? 'ABNORMAL' : '未恢复',
-      name: window.i18n.tc('未恢复')
+      name: window.i18n.tc('未恢复'),
     },
     {
       id: isEn ? 'RECOVERED' : '已恢复',
-      name: window.i18n.tc('已恢复')
+      name: window.i18n.tc('已恢复'),
     },
     {
       id: isEn ? 'CLOSED' : '已关闭',
-      name: window.i18n.tc('已关闭')
-    }
+      name: window.i18n.tc('已关闭'),
+    },
   ],
   severity: [
     {
       id: isEn ? 1 : '致命',
-      name: window.i18n.tc('致命')
+      name: window.i18n.tc('致命'),
     },
     {
       id: isEn ? 2 : '预警',
-      name: window.i18n.tc('预警')
+      name: window.i18n.tc('预警'),
     },
     {
       id: isEn ? 3 : '提醒',
-      name: window.i18n.tc('提醒')
-    }
-  ]
+      name: window.i18n.tc('提醒'),
+    },
+  ],
 };
 const commonActionFieldMap = {
   status: [
     {
       id: isEn ? 'RUNNING' : '执行中',
-      name: window.i18n.tc('执行中')
+      name: window.i18n.tc('执行中'),
     },
     {
       id: isEn ? 'SUCCESS' : '成功',
-      name: window.i18n.tc('成功')
+      name: window.i18n.tc('成功'),
     },
     {
       id: isEn ? 'FAILURE' : '失败',
-      name: window.i18n.tc('失败')
-    }
-  ]
+      name: window.i18n.tc('失败'),
+    },
+  ],
 };
 // 监控环境下侧栏初始宽度
 const filterWidth = 240;
@@ -189,35 +188,35 @@ const filterIconMap = {
   // },
   MY_FOLLOW: {
     color: '#FF9C01',
-    icon: 'icon-mc-note'
+    icon: 'icon-mc-note',
   },
   MY_APPOINTEE: {
     color: '#699DF4',
-    icon: 'icon-mc-user-one'
+    icon: 'icon-mc-user-one',
   },
   NOT_SHIELDED_ABNORMAL: {
     color: '#EA3636',
-    icon: 'icon-mind-fill'
+    icon: 'icon-mind-fill',
   },
   SHIELDED_ABNORMAL: {
     color: '#C4C6CC',
-    icon: 'icon-menu-shield'
+    icon: 'icon-menu-shield',
   },
   RECOVERED: {
     color: '#2DCB56',
-    icon: 'icon-mc-check-fill'
+    icon: 'icon-mc-check-fill',
   },
   success: {
     color: '#2DCB56',
-    icon: 'icon-mc-check-fill'
+    icon: 'icon-mc-check-fill',
   },
   failure: {
     color: '#EA3636',
-    icon: 'icon-mc-close-fill'
-  }
+    icon: 'icon-mc-close-fill',
+  },
 };
 @Component({
-  name: 'Event'
+  name: 'Event',
 })
 class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   @Provide('authority') authority;
@@ -268,7 +267,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     'operator',
     'duration',
     'strategy_name',
-    'operate_target_string'
+    'operate_target_string',
   ];
 
   // 表格
@@ -282,7 +281,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   pagination = {
     current: 1,
     count: 1,
-    limit: 10
+    limit: 10,
   };
 
   // 查询
@@ -301,7 +300,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     id: '',
     type: 'eventDetail',
     activeTab: '',
-    bizId: +window.bk_biz_id
+    bizId: +window.bk_biz_id,
   };
   dialog = {
     quickShield: {
@@ -313,17 +312,17 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           trigger: '',
           strategy: {
             id: '',
-            name: ''
-          }
-        }
+            name: '',
+          },
+        },
       ],
       ids: [],
-      bizIds: []
+      bizIds: [],
     },
     alarmConfirm: {
       show: false,
       ids: [],
-      bizIds: []
+      bizIds: [],
     },
     manualProcess: {
       show: false,
@@ -331,13 +330,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       bizIds: [],
       debugKey: random(8),
       actionIds: [],
-      mealInfo: null
+      mealInfo: null,
     },
     alarmDispatch: {
       show: false,
       bizIds: [],
-      alertIds: []
-    }
+      alertIds: [],
+    },
   };
   routeStateKeyList: string[] = [];
   isRouteBack = false;
@@ -355,7 +354,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     show: false,
     alertName: '',
     assignee: [],
-    alertIds: []
+    alertIds: [],
   };
 
   // 过滤业务已选择是否为空
@@ -372,7 +371,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 缓存topn概览数据（用于添加字段是无需调用接口）
   topNOverviewData = {
     fieldList: [],
-    count: 0
+    count: 0,
   };
 
   get panelList(): IPanelItem[] {
@@ -415,22 +414,22 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.alertPanelList = [
       {
         id: 'list',
-        name: this.$t('告警列表')
+        name: this.$t('告警列表'),
       },
       {
         id: 'analyze',
-        name: this.$t('告警分析')
-      }
+        name: this.$t('告警分析'),
+      },
     ];
     this.actionPanelList = [
       {
         id: 'list',
-        name: this.$t('处理记录')
+        name: this.$t('处理记录'),
       },
       {
         id: 'analyze',
-        name: this.$t('记录分析')
-      }
+        name: this.$t('记录分析'),
+      },
     ];
     if (!localStorage.getItem(alertAnalyzeStorageKey)) {
       localStorage.setItem(alertAnalyzeStorageKey, JSON.stringify(this.analyzeFields));
@@ -462,7 +461,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
       if (params?.promql?.length) {
         const queryData = await promqlToQueryConfig({
-          promql: params.promql
+          promql: params.promql,
         }).catch(() => false);
         if (queryData?.query_configs?.length) {
           const { query_configs } = queryData;
@@ -527,7 +526,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.allBizList = allBizList.map(item => ({
       id: item.bk_biz_id,
       text: item.space_name,
-      name: item.space_name
+      name: item.space_name,
     }));
   }
   // 拼一个查询语句，然后查询 未恢复的且处理阶段都不满足 的异常通知人数据（显示是通知人为空）
@@ -609,7 +608,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     });
     return {
       ...queryData,
-      ...query
+      ...query,
     };
   }
 
@@ -622,7 +621,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       const time = +defaultData.actionId.toString().slice(0, 10) * 1000;
       defaultData.timeRange = [
         dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ss'),
-        dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss')
+        dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss'),
       ];
     }
     /** 移动端带collectId跳转事件中心 */
@@ -676,7 +675,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       conditions: !onlyOverview
         ? Object.keys(this.condition)
             .map((key, index) =>
-              Object.assign({ key, value: this.condition[key] }, index > 0 ? { condition: 'and' } : {})
+              Object.assign({ key, value: this.condition[key] }, index > 0 ? { condition: 'and' } : {}),
             )
             .filter(item => item.value?.length)
         : [], // 过滤条件，二维数组
@@ -684,7 +683,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       // 为什么不在 input 框（queryString）上替换，会有意料之外的bug，也符合操作直觉。
       query_string: !onlyOverview ? this.replaceSpecialCondition(this.queryString) : '', // 查询字符串
       start_time: startTime, // 开始时间
-      end_time: endTime // 结束时间
+      end_time: endTime, // 结束时间
     };
     const isManualInput = this.filterInputRef?.isManualInput; // 是否手动输入
     if (!commonParams) {
@@ -701,7 +700,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         page_size: onlyOverview ? 0 : this.pagination.limit,
         show_overview: onlyOverview, // 是否返回总览统计信息，默认 true
         show_aggs: !onlyOverview, // 是否返回聚合统计信息，默认 true
-        record_history: !onlyOverview && isManualInput // 是否保存收藏历史，默认 false
+        record_history: !onlyOverview && isManualInput, // 是否保存收藏历史，默认 false
       };
     }
     return params;
@@ -715,14 +714,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const params = {
       ...this.handleGetSearchParams(onlyOverview),
       // alert_ids: this.handleUrl2Params()?.alertIds || [] // 告警ID
-      alert_ids: this.getUrlParamsItem('alertIds') || [] // 告警ID
+      alert_ids: this.getUrlParamsItem('alertIds') || [], // 告警ID
     };
     const {
       aggs,
       actions: list,
       overview,
       total,
-      code
+      code,
     } = await searchAction(params, { needRes: true, needMessage: false })
       .then(res => {
         !onlyOverview && (this.filterInputStatus = 'success');
@@ -737,7 +736,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           actions: [],
           overview: [],
           total: 0,
-          code
+          code,
         };
       });
     return {
@@ -767,12 +766,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             ...item,
             alert_count: item?.alert_id?.length || '-1',
             content,
-            bizName: this.allowedBizList?.find(set => +set.id === +item.bk_biz_id)?.name || '--'
+            bizName: this.allowedBizList?.find(set => +set.id === +item.bk_biz_id)?.name || '--',
           };
         }) || [],
       overview,
       total,
-      code
+      code,
     };
   }
 
@@ -787,7 +786,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       alerts: list,
       overview,
       total,
-      code
+      code,
     } = await searchAlert(this.handleGetSearchParams(onlyOverview), { needRes: true, needMessage: false })
       .then(res => {
         !onlyOverview && (this.filterInputStatus = 'success');
@@ -802,7 +801,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           alerts: [],
           overview: [],
           total: 0,
-          code
+          code,
         };
       });
     if (list?.length && !onlyOverview) {
@@ -816,11 +815,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         ...item,
         extend_info: '',
         event_count: '--',
-        bizName: this.allowedBizList?.find(set => +set.id === +item.bk_biz_id)?.name || '--'
+        bizName: this.allowedBizList?.find(set => +set.id === +item.bk_biz_id)?.name || '--',
       })),
       overview,
       total,
-      code
+      code,
     };
   }
 
@@ -878,8 +877,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             buckets: (item.buckets || []).map(set => ({
               ...set,
               name: set.name,
-              percent: count ? Number((set.count / count).toFixed(4)) : 0
-            }))
+              percent: count ? Number((set.count / count).toFixed(4)) : 0,
+            })),
           });
         }
       });
@@ -888,7 +887,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       if (valueMap.assignee) {
         valueMap.assignee.unshift({
           id: '""',
-          name: this.$t('- 空 -')
+          name: this.$t('- 空 -'),
         });
       }
       if (tagList?.length) {
@@ -911,7 +910,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const topNParams = {
       ...this.handleGetSearchParams(false, true),
       fields: !isDetail ? [...allFieldList, ...(tagList || []).map(item => item.id)] : [this.detailField],
-      size: isDetail ? 100 : 10
+      size: isDetail ? 100 : 10,
     };
     let fieldList = [];
     let count = 0;
@@ -919,9 +918,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       const { fields, doc_count } = await alertTopN(
         {
           ...topNParams,
-          fields: !isDetail ? [...allFieldList] : [this.detailField]
+          fields: !isDetail ? [...allFieldList] : [this.detailField],
         },
-        { needCancel: true }
+        { needCancel: true },
       ).catch(() => ({ doc_count: 0, fields: [] }));
       fieldList = fields;
       count = doc_count;
@@ -929,9 +928,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         alertTopN(
           {
             ...topNParams,
-            fields: (!isDetail ? [...(tagList || []).map(item => item.id)] : [this.detailField]).slice(0, 20)
+            fields: (!isDetail ? [...(tagList || []).map(item => item.id)] : [this.detailField]).slice(0, 20),
           },
-          { needCancel: true }
+          { needCancel: true },
         )
           .then(({ fields, doc_count }) => {
             fieldList = [...fieldList, ...fields];
@@ -943,7 +942,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     } else {
       const { fields, doc_count } = await actionTopN({ ...topNParams }, { needCancel: true }).catch(() => ({
         doc_count: 0,
-        fields: []
+        fields: [],
       }));
       fieldList = fields;
       count = doc_count;
@@ -957,7 +956,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   async handleGetAlertTagList() {
     const list = await listAlertTags({
-      ...this.handleGetSearchParams(false, true)
+      ...this.handleGetSearchParams(false, true),
     }).catch(() => []);
     this.analyzeTagList = list;
   }
@@ -1008,7 +1007,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   async handleGetFilterData() {
     const [{ overview }, { overview: actionOverview }] = await Promise.all([
       this.handleGetSearchAlertList(true),
-      this.handleGetSearchActionList(true)
+      this.handleGetSearchActionList(true),
     ]).catch(() => [{ overview: [] }, { overview: [] }]);
     this.commonFilterData = [overview, { ...actionOverview }];
     if (!this.activeFilterId) {
@@ -1017,7 +1016,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     } else if (this.activeFilterId) {
       this.activeFilterName =
         [overview, actionOverview, ...overview.children, ...actionOverview.children].find(
-          item => item.id === this.activeFilterId
+          item => item.id === this.activeFilterId,
         )?.name || '';
       if (!this.activeFilterName) {
         this.activeFilterId = overview.id;
@@ -1034,7 +1033,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     if (this.queryString?.length) {
       validate = await validateQueryString(
         { query_string: this.replaceSpecialCondition(this.queryString), search_type: this.searchType },
-        { needMessage: false, needRes: true }
+        { needMessage: false, needRes: true },
       )
         .then(res => res.result)
         .catch(() => false);
@@ -1097,12 +1096,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         ...item,
         extend_info: this.relateInfos?.[item.id] || '',
         event_count: this.eventCounts?.[item.id] || '--',
-        followerDisabled: this.searchType === 'alert' ? getOperatorDisabled(item.follower, item.assignee) : false
+        followerDisabled: this.searchType === 'alert' ? getOperatorDisabled(item.follower, item.assignee) : false,
       })) || [];
 
     // 查找当前表格的 告警 标签是否有 通知人 为空的情况。BugID: 1010158081103484871
     this.numOfEmptyAssignee = this.tableData.filter(
-      (item: IEventItem) => this.searchType === 'alert' && !item.assignee?.length && item.status === 'ABNORMAL'
+      (item: IEventItem) => this.searchType === 'alert' && !item.assignee?.length && item.status === 'ABNORMAL',
     ).length;
 
     const ublist = this.allowedBizList.filter(item => item.noAuth && this.bizIds.includes(item.id));
@@ -1144,8 +1143,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         name: this.$route.name,
         query: {
           ...this.handleParam2Url(),
-          key
-        }
+          key,
+        },
       };
       this.routeStateKeyList.length === 0 ? this.$router.replace(params) : this.$router.push(params);
       this.routeStateKeyList.push(key);
@@ -1160,7 +1159,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         id: firstData.id,
         type: this.searchType === 'alert' ? ('eventDetail' as TSliderType) : ('handleDetail' as TSliderType),
         activeTab: '',
-        bizId: firstData.bk_biz_id
+        bizId: firstData.bk_biz_id,
       };
       this.handleShowDetail(params);
     }
@@ -1182,7 +1181,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       condition: {},
       // advancedFilterDefaultOpen: [],
       bizIds: [this.$store.getters.bizId || window.cc_biz_id],
-      batchAction: ''
+      batchAction: '',
     };
   }
   handleParam2Url() {
@@ -1225,18 +1224,18 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   async handleGetAllowedBizList() {
     const { business_list, business_with_alert, business_with_permission } = await bizWithAlertStatistics().catch(
-      () => ({})
+      () => ({}),
     );
     this.allBizList = business_list.map(item => ({
       id: item.bk_biz_id,
-      name: `[${item.bk_biz_id}] ${item.bk_biz_name}`
+      name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
     }));
     const data =
       business_with_permission.map(item => ({
         ...item,
         id: item.bk_biz_id,
         name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
-        sort: this.bizIds.includes(item.id) ? 2 : 1
+        sort: this.bizIds.includes(item.id) ? 2 : 1,
       })) || [];
     if (business_with_alert?.length) {
       business_with_alert.forEach(item => {
@@ -1245,7 +1244,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           id: item.bk_biz_id,
           noAuth: true,
           hasData: true,
-          sort: 2
+          sort: 2,
         });
       });
     }
@@ -1256,7 +1255,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           name: bizItem.name,
           id: bizItem.id,
           noAuth: true,
-          sort: 2
+          sort: 2,
         });
       }
     });
@@ -1264,12 +1263,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       data.unshift({
         id: hasDataBizId,
         name: this.$t('-我有告警的空间-'),
-        sort: 3
+        sort: 3,
       });
       data.unshift({
         id: authorityBizId,
         name: this.$t('-我有权限的空间-'),
-        sort: 3
+        sort: 3,
       });
     }
     data.sort((a, b) => b.sort - a.sort);
@@ -1288,7 +1287,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       start_time: startTime,
       end_time: endTime,
       query_string,
-      status
+      status,
     } = this.handleGetSearchParams(false, true);
     const params = {
       bk_biz_ids,
@@ -1297,7 +1296,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       status,
       start_time: from ? dayjs.tz(from).unix() : startTime, // 开始时间
       end_time: to ? dayjs.tz(to).unix() : endTime, // 结束时间
-      interval: this.chartInterval
+      interval: this.chartInterval,
     };
     const promiseFn = this.searchType === 'action' ? actionDateHistogram : alertDateHistogram;
     const { unit, series, code } = await promiseFn(params, { needRes: true, needMessage: false })
@@ -1309,13 +1308,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         return {
           series: [],
           unit: '',
-          code
+          code,
         };
       });
     if (from) {
       this.timeRange = [
         dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ss')
+        dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
       ];
       this.handleGetFilterData();
       this.pagination.current = 1;
@@ -1327,7 +1326,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       unit,
       series: series
         .sort((a, b) => chartMap[a.name] - chartMap[b.name])
-        .map(item => ({ ...item, name: item.display_name, stack: 'event-alram' }))
+        .map(item => ({ ...item, name: item.display_name, stack: 'event-alram' })),
     };
   }
   /**
@@ -1537,7 +1536,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const messsage = () => {
       this.$bkMessage({
         message: this.$t('当前不能跨业务批量操作'),
-        theme: 'warning'
+        theme: 'warning',
       });
     };
     switch (id) {
@@ -1571,8 +1570,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             trigger: detail.description,
             strategy: {
               id: detail.strategy_id,
-              name: detail.strategy_name
-            }
+              name: detail.strategy_name,
+            },
           });
         });
         this.dialog.quickShield.details = details;
@@ -1615,8 +1614,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         query: {
           ...this.handleParam2Url(),
           batchAction: type || undefined,
-          key
-        }
+          key,
+        },
       };
       this.$router.replace(params);
       this.routeStateKeyList.push(key);
@@ -1649,9 +1648,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         trigger: v.description,
         strategy: {
           id: v?.strategy_id as unknown as string,
-          name: v?.strategy_name
-        }
-      }
+          name: v?.strategy_name,
+        },
+      },
     ];
   }
   /**
@@ -1962,9 +1961,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         'manage_downtime_v2',
         'view_event_v2',
         'view_host_v2',
-        'view_rule_v2'
+        'view_rule_v2',
       ],
-      resources: bizList.map(id => ({ id, type: 'space' }))
+      resources: bizList.map(id => ({ id, type: 'space' })),
     });
     if (applyObj?.apply_url) {
       window.open(applyObj?.apply_url, random(10));
@@ -2014,7 +2013,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         bizIds={this.dialog.alarmDispatch.bizIds}
         onShow={this.handleAlarmDispatchShowChange}
         onSuccess={this.handleAlarmDispatchSuccess}
-      ></AlarmDispatch>
+      ></AlarmDispatch>,
     ];
   }
 
@@ -2037,7 +2036,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               <span class={['item-name', `item-status-${data.id}`]}>{data.name}</span>
               <span class='item-count'>{data.count}</span>
             </div>
-          )
+          ),
         }}
       ></bk-big-tree>
     );
@@ -2066,9 +2065,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               {set.name}
               <span class='item-count'>{set.count}</span>
             </li>
-          ) : undefined
+          ) : undefined,
         ) || undefined}
-      </ul>
+      </ul>,
     ];
   }
 
@@ -2102,7 +2101,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           style={{
             width: `${this.filterWidth}px`,
             flexBasis: `${this.filterWidth}px`,
-            display: this.filterWidth > 200 ? 'flex' : 'none'
+            display: this.filterWidth > 200 ? 'flex' : 'none',
           }}
         >
           <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
@@ -2115,7 +2114,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               onActiveChange={this.handleFilterActiveChange}
               onClear={item => this.clearCheckedFilter(item)}
               scopedSlots={{
-                default: ({ item }) => this.filterGroupSlot(item)
+                default: ({ item }) => this.filterGroupSlot(item),
               }}
               theme='filter'
             />
@@ -2129,7 +2128,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           <div
             class='filter-line-trigger'
             style={{
-              left: `${this.filterWidth}px`
+              left: `${this.filterWidth}px`,
             }}
             onClick={() => (this.filterWidth = 0)}
           >
@@ -2376,7 +2375,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           class='split-panel-wrapper'
           style={{
             width: `${this.splitPanelWidth}px`,
-            display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none'
+            display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
           }}
         >
           {this.isSplitPanel ? (

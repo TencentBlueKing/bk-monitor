@@ -51,25 +51,25 @@ const detailFn = () => ({
     startTime: '',
     endTime: '',
     dayList: '',
-    weekList: ''
+    weekList: '',
   },
   beginTime: '',
   endTime: '',
   description: '',
   shieldNotice: false,
-  category: ''
+  category: '',
 });
 
 const noticeConfigFn = () => ({
   receiver: [],
   way: '',
-  time: ''
+  time: '',
 });
 
 const scopeDataFn = () => ({
   type: '',
   tableData: [],
-  biz: ''
+  biz: '',
 });
 const strategyDataFn = () => ({
   strategys: [],
@@ -79,12 +79,12 @@ const strategyDataFn = () => ({
     dimensionList: [], // 维度列表
     metricMeta: null, // 获取条件候选值得参数
     conditionList: [], // 维度条件数据
-    allNames: {} // 维度名合集
+    allNames: {}, // 维度名合集
   },
   scope: {
     tableData: [],
-    type: ''
-  }
+    type: '',
+  },
 });
 
 const dimensionDataFn = () => ({
@@ -92,13 +92,13 @@ const dimensionDataFn = () => ({
   dimensionList: [], // 维度列表
   metricMeta: null, // 获取条件候选值得参数
   conditionList: [], // 维度条件数据
-  allNames: {} // 维度名合集
+  allNames: {}, // 维度名合集
 });
 
 const eventDataFn = () => ({
   strategys: [],
   dimensions: '',
-  eventMessage: ''
+  eventMessage: '',
 });
 
 export default defineComponent({
@@ -106,16 +106,16 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     id: {
       type: [Number, String],
-      default: ''
+      default: '',
     },
     onShowChange: {
       type: Function,
-      default: _v => {}
-    }
+      default: _v => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -127,22 +127,22 @@ export default defineComponent({
     const statusColorMap = {
       1: {
         text: t('屏蔽中'),
-        color: '#63656E'
+        color: '#63656E',
       },
       2: {
         text: t('已过期'),
-        color: '#C4C6CC'
+        color: '#C4C6CC',
       },
       3: {
         text: t('被解除'),
-        color: '#FF9C01'
-      }
+        color: '#FF9C01',
+      },
     };
     const scopeLabelMap = {
       ip: t('主机'),
       instance: t('服务实例'),
       node: t('节点名称'),
-      biz: t('业务')
+      biz: t('业务'),
     };
     const cycleMap = ['', t('单次'), t('每天'), t('每周'), t('每月')];
     const weekListMap = ['', t('星期一'), t('星期二'), t('星期三'), t('星期四'), t('星期五'), t('星期六'), t('星期日')];
@@ -178,7 +178,7 @@ export default defineComponent({
           dimensionData.value = dimensionDataFn();
           eventData.value = eventDataFn();
         }
-      }
+      },
     );
     /**
      * @description 关闭侧栏
@@ -197,7 +197,7 @@ export default defineComponent({
         { label: t('创建人'), value: data.create_user || '--' },
         { label: t('创建时间'), value: data.create_time || '--' },
         { label: t('最近更新人'), value: data.update_user || '--' },
-        { label: t('修改时间'), value: data.update_time || '--' }
+        { label: t('修改时间'), value: data.update_time || '--' },
       ];
       const bizItem = store.bizList.filter(item => data.bk_biz_id === item.id);
       const detailData = detailFn();
@@ -211,7 +211,7 @@ export default defineComponent({
         startTime: data.cycle_config.begin_time,
         endTime: data.cycle_config.end_time,
         dayList: data.cycle_config.day_list.join('、'),
-        weekList: weekList.join('、')
+        weekList: weekList.join('、'),
       };
       detailData.beginTime = data.begin_time;
       detailData.endTime = data.end_time;
@@ -235,11 +235,11 @@ export default defineComponent({
       if (data.category === 'strategy') {
         strategyDataTemp.strategys = data.dimension_config.strategies.map(item => ({
           name: item.name,
-          id: item.id
+          id: item.id,
         }));
         strategyDataTemp.dimensionCondition.conditionList = data.dimension_config.dimension_conditions.map(item => ({
           ...item,
-          dimensionName: item.name || item.key
+          dimensionName: item.name || item.key,
         }));
         strategyDataTemp.dimensionCondition.conditionList.forEach(item => {
           strategyDataTemp.dimensionCondition.allNames[item.key] = item.name || item.key;
@@ -259,7 +259,7 @@ export default defineComponent({
       if (data.category === 'dimension') {
         dimensionDataTemp.conditionList = data.dimension_config.dimension_conditions.map(item => ({
           ...item,
-          dimensionName: item.name || item.key
+          dimensionName: item.name || item.key,
         }));
         dimensionDataTemp.conditionList.forEach(item => {
           dimensionDataTemp.allNames[item.key] = item.name || item.key;
@@ -272,7 +272,7 @@ export default defineComponent({
       if (data.category === 'alert') {
         eventDataTemp.strategys = data.dimension_config.strategies.map(item => ({
           name: item.name,
-          id: item.id
+          id: item.id,
         }));
         eventDataTemp.dimensions = data.dimension_config.dimensions;
         eventDataTemp.eventMessage = data.dimension_config.event_message;
@@ -306,8 +306,8 @@ export default defineComponent({
       router.push({
         name: 'alarm-shield-edit',
         params: {
-          id: props.id
-        }
+          id: props.id,
+        },
       });
     }
 
@@ -328,7 +328,7 @@ export default defineComponent({
       eventData,
       cycleMap,
       noticeConfig,
-      loading
+      loading,
     };
   },
   render() {
@@ -372,7 +372,7 @@ export default defineComponent({
                   <span
                     class='detail-text'
                     style={{
-                      color: this.statusColorMap[this.detail.status]?.color
+                      color: this.statusColorMap[this.detail.status]?.color,
                     }}
                   >
                     {this.statusColorMap[this.detail.status]?.text}
@@ -394,8 +394,8 @@ export default defineComponent({
                                     {
                                       id: 'name',
                                       label: () => this.scopeLabelMap[this.scopeData.type],
-                                      render: ({ row }) => row.name
-                                    }
+                                      render: ({ row }) => row.name,
+                                    },
                                   ]}
                                 ></Table>
                               </div>
@@ -460,8 +460,8 @@ export default defineComponent({
                                     {
                                       id: 'name',
                                       label: () => this.scopeLabelMap[this.strategyData.scope.type],
-                                      render: ({ row }) => row.name
-                                    }
+                                      render: ({ row }) => row.name,
+                                    },
                                   ]}
                                 ></Table>
                               </div>
@@ -617,9 +617,9 @@ export default defineComponent({
                 )}
               </div>
             </Loading>
-          )
+          ),
         }}
       </Sideslider>
     );
-  }
+  },
 });

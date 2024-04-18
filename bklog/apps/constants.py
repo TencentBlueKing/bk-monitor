@@ -374,6 +374,9 @@ class ViewSetActionEnum(ChoicesEnum):
     SEARCH_VIEWSET_HISTORY = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="history"
     )
+    SEARCH_VIEWSET_OPTION_HISTORY = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="option_history"
+    )
     SEARCH_VIEWSET_CONFIG = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="config"
     )
@@ -475,6 +478,10 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="IpChooserConfigViewSet",
         default_permission=True,
     )
+    # ======================================= 收藏联合查询-FavoriteUnionSearchViewSet =======================================
+    FAVORITE_UNION_SEARCH_VIEWSET_LIST = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteUnionSearchViewSet", view_action="list"
+    )
     # ======================================= BizsViewSet =======================================
     # BizsViewSet, get_display_name 默认允许
     BIZS_VIEWSET_HOST_DISPLAY_NAME = ViewSetAction(
@@ -505,6 +512,7 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_EXPORT,
         SEARCH_VIEWSET_ASYNC_EXPORT,
         SEARCH_VIEWSET_HISTORY,
+        SEARCH_VIEWSET_OPTION_HISTORY,
         SEARCH_VIEWSET_GET_EXPORT_HISTORY,
         SEARCH_VIEWSET_CONFIG,
         SEARCH_VIEWSET_CREATE_CONFIG,
@@ -532,6 +540,8 @@ class ViewSetActionEnum(ChoicesEnum):
         FAVORITE_GROUP_VIEWSET_CREATE,
         FAVORITE_GROUP_VIEWSET_UPDATE,
         FAVORITE_GROUP_VIEWSET_DESTROY,
+        # =================================== 收藏联合查询-FavoriteUnionSearchViewSet ==================================
+        FAVORITE_UNION_SEARCH_VIEWSET_LIST,
         # ======================================= IP选择器 =======================================
         IP_CHOOSER_TOPO_VIEWSET,
         IP_CHOOSER_HOST_VIEWSET,

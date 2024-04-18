@@ -60,7 +60,7 @@ export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue
     return { text: '' };
   }
   return {
-    text: parseFloat(toFixed(value, decimals)).toString(16).toUpperCase()
+    text: parseFloat(toFixed(value, decimals)).toString(16).toUpperCase(),
   };
 }
 

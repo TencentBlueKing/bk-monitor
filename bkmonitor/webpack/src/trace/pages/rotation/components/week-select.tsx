@@ -46,8 +46,8 @@ export default defineComponent({
     labelWidth: { type: Number, default: 52 },
     modelValue: {
       type: Array as PropType<number[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: ['update:modelValue', 'change', 'selectEnd'],
   setup(props, { emit }) {
@@ -62,7 +62,7 @@ export default defineComponent({
     });
     /** 用于展示的文本 */
     const localText = computed(() =>
-      localValue.map(val => weekList.value.find(item => item.id === val).name).join('、')
+      localValue.map(val => weekList.value.find(item => item.id === val).name).join('、'),
     );
     watch(
       () => props.modelValue,
@@ -70,8 +70,8 @@ export default defineComponent({
         localValue.splice(0, localValue.length, ...val);
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     // ---------popover弹窗控制------------
@@ -102,7 +102,7 @@ export default defineComponent({
         { id: 4, label: t('周四') },
         { id: 5, label: t('周五') },
         { id: 6, label: t('周六') },
-        { id: 7, label: t('周日') }
+        { id: 7, label: t('周日') },
       ];
       return list.map(item => {
         const isStart = item.id === localValue[0];
@@ -113,7 +113,7 @@ export default defineComponent({
           /** 是否时起始日 */
           isStart,
           /** 是否有设置起始日功能 */
-          hasSetStart: hoverWeek.value === item.id && !isStart
+          hasSetStart: hoverWeek.value === item.id && !isStart,
         };
       });
     });
@@ -174,7 +174,7 @@ export default defineComponent({
       weekList,
       hoverWeek,
       handleSelectItemClick,
-      handleSetStart
+      handleSetStart,
     };
   },
   render() {
@@ -236,11 +236,11 @@ export default defineComponent({
                 <div class={{ 'week-select-text': true, placeholder: !this.localText }}>
                   {this.localText || this.t('选择')}
                 </div>
-              )
+              ),
             }}
           </Popover>
         </div>
       </div>
     );
-  }
+  },
 });

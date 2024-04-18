@@ -86,8 +86,8 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
       leisure: [],
       dateStrArr: [],
       groups: [],
-      max: 1440
-    })
+      max: 1440,
+    }),
   })
   value: IPreviewValue;
   @Ref('userTip') userTipRef: HTMLDivElement;
@@ -98,12 +98,12 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
     dateStrArr: [],
     groups: [],
     max: 1440,
-    crossDayGroups: []
+    crossDayGroups: [],
   };
   popoverInstance = null;
   popover = {
     users: [],
-    time: ''
+    time: '',
   };
 
   created() {
@@ -133,7 +133,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
       left: `${(range[0] / max) * 100}%`,
       top: `${20 + row * 32}px`,
       borderTop: `2px solid ${color}`,
-      color
+      color,
     };
   }
   /* 跨天用户组样式 */
@@ -144,7 +144,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
       left: `${(range[0] / max) * 100}%`,
       top: `${20 + row * 32}px`,
       borderTop: `2px solid ${color}`,
-      color
+      color,
     };
   }
   /* 弹出提示框 */
@@ -162,7 +162,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
       boundary: 'window',
       theme: 'light',
       arrow: true,
-      interactive: true
+      interactive: true,
     });
     this.popoverInstance?.show(100);
   }
@@ -181,7 +181,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
       width: `${((range[1] - range[0]) / max) * 100}%`,
       height: `${height - 40}px`,
       top: '20px',
-      left: `${(range[0] / max) * 100}%`
+      left: `${(range[0] / max) * 100}%`,
     };
   }
 
@@ -196,7 +196,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
               <div
                 class='title-item'
                 style={{
-                  height: `${this.getGroupHeight(item)}px`
+                  height: `${this.getGroupHeight(item)}px`,
                 }}
               >
                 {item.title}
@@ -241,7 +241,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
                           theme: 'light',
                           placement: 'top',
                           extCls: 'duty-preview-component-leisure-tip',
-                          allowHTML: false
+                          allowHTML: false,
                         }}
                       ></div>
                     ))}
@@ -252,7 +252,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
                 <div
                   class='row'
                   style={{
-                    height: `${this.getGroupHeight(group)}px`
+                    height: `${this.getGroupHeight(group)}px`,
                   }}
                 >
                   {group.dateGroups.map(g => (
@@ -266,7 +266,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
                           >
                             {item.users.map(user => user.name || user.id).join(',')}
                           </div>
-                        ))
+                        )),
                       )}
                     </div>
                   ))}

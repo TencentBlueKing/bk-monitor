@@ -38,7 +38,7 @@ interface IStrategyDetailNewProps {
 }
 
 @Component({
-  name: 'StrategyDetailNew'
+  name: 'StrategyDetailNew',
 })
 export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
   @Prop({ type: Object, default: () => ({}) }) strategyData: any;
@@ -82,7 +82,7 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
                 <div
                   class='column-agg-dimension mb-2'
                   key={index}
-                >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>
+                >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
               ])}
             </div>
           </div>
@@ -104,7 +104,7 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
                 <div class='column-item'>
                   <div class='column-label'> {this.$t('检索语句')} : </div>
                   <div class='column-center'>{queryConfig.keywords_query_string}</div>
-                </div>
+                </div>,
               ]
             : undefined,
           [
@@ -124,7 +124,7 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
                   <div class='item-font'>{queryConfig.agg_method}</div>
                 )}
               </div>
-            </div>
+            </div>,
           ],
           queryConfig.agg_method !== 'REAL_TIME' ? (
             <div class='column-item'>
@@ -157,10 +157,10 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
                 <div
                   class='column-agg-dimension mb-2'
                   key={index}
-                >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>
+                >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
               ])}
             </div>
-          </div>
+          </div>,
         ]}
       </div>
     );
@@ -187,7 +187,7 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
               <div
                 class='column-agg-dimension mb-2'
                 key={index}
-              >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>
+              >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
             ])}
           </div>
         </div>

@@ -47,7 +47,7 @@ export interface IChartOptionPorps {
 export interface IChartInstance {
   getOptions: (
     data: any,
-    otherOptions?: MonitorEchartOptions
+    otherOptions?: MonitorEchartOptions,
   ) => { options: MonitorEchartOptions; legendData: ILegendItem[] };
 }
 

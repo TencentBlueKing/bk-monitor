@@ -59,7 +59,7 @@ interface IGroupSlots {
  * 插件分组信息
  */
 @Component({
-  name: 'Group'
+  name: 'Group',
 })
 export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
   @Prop({ type: Array, default: () => [] }) readonly data: IGroupData[];
@@ -131,7 +131,7 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
             name={item.id}
             scopedSlots={{
               default: () => this.titleSlot(item),
-              content: () => this.$scopedSlots?.default({ item })
+              content: () => this.$scopedSlots?.default({ item }),
             }}
           ></bk-collapse-item>
         ))}

@@ -51,14 +51,14 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
   /** 拖拽数据 */
   dragData: { from: number; to: number } = {
     from: null,
-    to: null
+    to: null,
   };
   localTabData: IBookMark[] = [];
   loading = true;
   curTabForm: SettingsTabType.ITabForm = {};
   curTabFormCache: SettingsTabType.ITabForm = {};
   drag = {
-    active: -1
+    active: -1,
   };
 
   get pageNameList() {
@@ -125,13 +125,13 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
         show_panel_count: true,
         variables: [],
         panels: [],
-        panel_count: 0
+        panel_count: 0,
       });
       this.tabActive = this.localTabData[0].id;
       this.curTabForm = {
         id: `custom_${new Date().getTime()}`,
         name: '新页签',
-        show_panel_count: true
+        show_panel_count: true,
       };
     };
 
@@ -166,7 +166,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
             this.localTabData = deepClone(this.bookMarkData);
           }
           cb();
-        }
+        },
       });
     } else {
       cb();
@@ -180,7 +180,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
    */
   handleDragStart(evt: DragEvent, index: number) {
     this.dragData.from = index;
-    // eslint-disable-next-line no-param-reassign
+
     evt.dataTransfer.effectAllowed = 'move';
   }
 
@@ -269,7 +269,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
       title: this.$t('确认删除此页签吗？'),
       confirmFn: () => {
         this.handleDeleteChange(id);
-      }
+      },
     });
   }
 

@@ -39,13 +39,13 @@ import {
   Slider,
   Switcher,
   Table,
-  TimePicker
+  TimePicker,
 } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
+import { getExistReports, getVariables } from 'monitor-api/modules/new_report';
+import { copyText, deepClone, transformDataKey } from 'monitor-common/utils';
 
-import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
-import { getExistReports, getVariables } from '../../../../monitor-api/modules/new_report';
-import { copyText, deepClone, transformDataKey } from '../../../../monitor-common/utils';
 import MemberSelect from '../../../components/member-select/member-select';
 import { Scenario } from '../mapping';
 import { FrequencyType, Report } from '../types';
@@ -61,7 +61,7 @@ enum PatternLevelEnum {
   '03' = 75,
   '05' = 50,
   '07' = 25,
-  '09' = 0
+  '09' = 0,
 }
 /** 按天频率 包含周末 */
 const INCLUDES_WEEKEND = [1, 2, 3, 4, 5, 6, 7];
@@ -77,15 +77,15 @@ export default defineComponent({
      */
     mode: {
       type: String as PropType<'create' | 'edit'>,
-      default: 'create'
+      default: 'create',
     },
     /** 编辑 模式的时候需要用到这个，作为初始化值 */
     detailInfo: {
       type: Object as PropType<Report>,
       default: () => {
         return getDefaultReportData();
-      }
-    }
+      },
+    },
   },
   emits: ['SelectExistedReport'],
   setup(props, { emit }) {
@@ -108,8 +108,8 @@ export default defineComponent({
             }
           },
           message: t('必填项'),
-          trigger: 'blur'
-        }
+          trigger: 'blur',
+        },
       ],
       channels: [
         // 这个数组顺序不要改
@@ -161,8 +161,8 @@ export default defineComponent({
           },
           // 给个空格，
           message: ' ',
-          trigger: 'blur'
-        }
+          trigger: 'blur',
+        },
       ],
       timerange: [
         {
@@ -170,7 +170,7 @@ export default defineComponent({
             return formData.timerange.length === 2 && !!formData.timerange[0];
           },
           message: t('生效起始时间必填'),
-          trigger: 'change'
+          trigger: 'change',
         },
         {
           validator: () => {
@@ -181,27 +181,27 @@ export default defineComponent({
             return result < 0;
           },
           message: t('生效结束时间不能小于生效起始时间'),
-          trigger: 'change'
-        }
-      ]
+          trigger: 'change',
+        },
+      ],
     };
     /** 针对 订阅人 一项进行特殊的校验异常提醒。因为该项内容有三个输入框要分别处理。 */
     const errorTips = reactive({
       user: {
         message: '',
         defaultMessage: t('内部邮件不可为空'),
-        isShow: false
+        isShow: false,
       },
       email: {
         message: '',
         defaultMessage: t('外部邮件不可为空'),
-        isShow: false
+        isShow: false,
       },
       wxbot: {
         message: '',
         defaultMessage: t('企业微信群不可为空'),
-        isShow: false
-      }
+        isShow: false,
+      },
     });
     /** Pattern 选择器 */
     const pattenLevelSlider = ref(0);
@@ -211,7 +211,7 @@ export default defineComponent({
     const subscriberInput = reactive({
       user: [],
       email: '',
-      wxbot: ''
+      wxbot: '',
     });
     const isIncludeWeekend = ref(true);
     /** 发送频率相关。该对象最后会把该对象数据copy到 formData 上，因为其中 run_time 的日期格式不同导致 日期组件 报异常，所以这里单独抽出整个对象。 */
@@ -221,7 +221,7 @@ export default defineComponent({
       run_time: dayjs().format('HH:mm:ss'),
       only_once_run_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
       week_list: [],
-      day_list: []
+      day_list: [],
     });
     const subscribeFor = ref<'self' | 'others'>('self');
     /** 发送频率 中 按小时 的小时选项。 */
@@ -242,7 +242,7 @@ export default defineComponent({
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const YOYList = [
       { id: 0, name: t('不比对') },
-      ...[1, 2, 3, 6, 12, 24].map(id => ({ id, name: t('{0}小时前', [id]) }))
+      ...[1, 2, 3, 6, 12, 24].map(id => ({ id, name: t('{0}小时前', [id]) })),
     ];
     /** 时间范围选项 */
     const timeRangeOption = [
@@ -250,7 +250,7 @@ export default defineComponent({
       // { id: 'none', name: t('按发送频率') },
       ...[5, 15, 30].map(n => ({ id: `${n}minutes`, name: t('近{n}分钟', { n }) })),
       ...[1, 3, 6, 12, 24].map(n => ({ id: `${n}hours`, name: t('近{n}小时', { n }) })),
-      ...[2, 7, 30].map(n => ({ id: `${n}days`, name: t('近 {n} 天', { n }) }))
+      ...[2, 7, 30].map(n => ({ id: `${n}days`, name: t('近 {n} 天', { n }) })),
     ];
     /** 订阅内容 表单实例 */
     const refOfContentForm = ref();
@@ -283,20 +283,20 @@ export default defineComponent({
                   ></i>
                 </div>
               );
-            }
+            },
           },
           {
             width: '100px',
             label: `${t('变量说明')}`,
-            field: 'description'
+            field: 'description',
           },
           {
             width: '160px',
             label: `${t('示例')}`,
-            field: 'example'
-          }
-        ]
-      }
+            field: 'example',
+          },
+        ],
+      },
     });
     /** 当选择已创建过订阅的索引集时，显示该警告 */
     const isShowExistSubscriptionTips = ref(false);
@@ -306,7 +306,7 @@ export default defineComponent({
     // 任务有效期，视图绑定用。
     const timerange = reactive({
       start: '',
-      end: ''
+      end: '',
     });
     const effectiveEndRef = ref();
     /** 当选择 发送频率 为 仅一次 要保留当前所生成或选择的时间。否则就看起来是 bug 。 */
@@ -324,14 +324,14 @@ export default defineComponent({
       if (str === 'none') return undefined;
       let res = {
         timeLevel: 'hours',
-        number: 24
+        number: 24,
       };
       const isMatch = str.match(/(\d+)(minutes|hours|days)/);
       if (isMatch) {
         const [, date, level] = isMatch;
         res = {
           timeLevel: level,
-          number: +date
+          number: +date,
         };
       }
       return transformDataKey(res, true);
@@ -343,35 +343,35 @@ export default defineComponent({
         hour: 0,
         run_time: '',
         week_list: [],
-        day_list: []
+        day_list: [],
       });
       switch (formData.frequency.type) {
         case FrequencyType.hourly:
           Object.assign(formData.frequency, {
-            hour: frequency.hour
+            hour: frequency.hour,
           });
           break;
         case FrequencyType.dayly:
           Object.assign(formData.frequency, {
             run_time: frequency.run_time,
-            week_list: isIncludeWeekend.value ? INCLUDES_WEEKEND : EXCLUDES_WEEKEND
+            week_list: isIncludeWeekend.value ? INCLUDES_WEEKEND : EXCLUDES_WEEKEND,
           });
           break;
         case FrequencyType.weekly:
           Object.assign(formData.frequency, {
             run_time: frequency.run_time,
-            week_list: frequency.week_list
+            week_list: frequency.week_list,
           });
           break;
         case FrequencyType.monthly:
           Object.assign(formData.frequency, {
             run_time: frequency.run_time,
-            day_list: frequency.day_list
+            day_list: frequency.day_list,
           });
           break;
         case FrequencyType.onlyOnce:
           Object.assign(formData.frequency, {
-            run_time: frequency.only_once_run_time
+            run_time: frequency.only_once_run_time,
           });
           break;
         default:
@@ -397,7 +397,7 @@ export default defineComponent({
       return Promise.all([
         refOfContentForm.value?.validate?.(),
         refOfEmailSubscription.value?.validate?.(),
-        refOfSendingConfigurationForm.value?.validate?.()
+        refOfSendingConfigurationForm.value?.validate?.(),
       ])
         .then(() => {
           const clonedFormData = deepClone(formData);
@@ -405,12 +405,12 @@ export default defineComponent({
             props.mode === 'create'
               ? switchReportDataForCreate(clonedFormData)
               : switchReportDataForUpdate(clonedFormData);
-          /* eslint-disable */
+
           // const {
           //   timerange,
           //   ...deletedKeyFormData
           // } = clonedFormData;
-          /* eslint-enable */
+
           return deletedKeyFormData;
         })
         .catch(error => {
@@ -425,7 +425,7 @@ export default defineComponent({
                   ? !item.subscribers.length
                   : // 检查订阅邮箱格式是否正确。
                     !item.subscribers.every(email => String(email.id).toLowerCase().match(emailRegex)) ||
-                    !item.subscribers.length)
+                    !item.subscribers.length),
             )?.channel_name;
             // @ts-ignore
             if (targetChannel) targetFormItemEle.querySelector(`#${targetChannel}-input`)?.focus();
@@ -450,13 +450,13 @@ export default defineComponent({
       copyText(`{{${text}}}`, msg => {
         Message({
           message: msg,
-          theme: 'error'
+          theme: 'error',
         });
         return;
       });
       Message({
         message: t('复制成功'),
-        theme: 'success'
+        theme: 'success',
       });
     }
 
@@ -506,7 +506,7 @@ export default defineComponent({
           if (hourOption.every(item => Number(item.id) !== formData.frequency.hour)) {
             hourOption.push({
               id: Number(formData.frequency.hour),
-              name: t('{0}小时', [Number(formData.frequency.hour)])
+              name: t('{0}小时', [Number(formData.frequency.hour)]),
             });
           }
           frequency.hour = formData.frequency.hour;
@@ -533,7 +533,7 @@ export default defineComponent({
       formData.timerange = [
         formData.start_time ? dayjs.unix(formData.start_time).format('YYYY-MM-DD HH:mm:ss') : null,
         // 服务端返回 null 时代表永久，前端用 空串 或 null 可以代表永久。
-        formData.end_time ? dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss') : null
+        formData.end_time ? dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss') : null,
       ];
       // 给 任务有效期 添加数据
       const [start, end] = formData.timerange;
@@ -547,7 +547,7 @@ export default defineComponent({
     function checkExistSubscriptions() {
       getExistReports({
         scenario: formData.scenario,
-        index_set_id: formData.scenario_config.index_set_id
+        index_set_id: formData.scenario_config.index_set_id,
       }).then((response: []) => {
         existedReportList.value = response;
         isShowExistSubscriptionTips.value = !!response.length;
@@ -562,7 +562,7 @@ export default defineComponent({
         if (!formData.scenario_config.index_set_id) {
           Message({
             theme: 'warning',
-            message: t('请选择索引集')
+            message: t('请选择索引集'),
           });
           return;
         }
@@ -581,9 +581,9 @@ export default defineComponent({
               year_on_year_hour: formData.scenario_config.year_on_year_hour,
               show_new_pattern: formData.scenario_config.is_show_new_pattern,
               group_by: [],
-              size: 10000
-            }
-          })
+              size: 10000,
+            },
+          }),
         };
         // 根据 时间范围 添加相对应的表达式，日志平台的时间选择会用得上。
         const rangeObj = getTimeRangeObj(dataRange.value);
@@ -620,21 +620,20 @@ export default defineComponent({
         handleDataRangeExchange();
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
     watch(
       () => subscriberInput.user,
       () => {
         formData.channels[0].subscribers = deepClone(subscriberInput.user).map(item => {
-          // eslint-disable-next-line no-param-reassign
           item.is_enabled = true;
           return item;
         });
       },
       {
-        deep: true
-      }
+        deep: true,
+      },
     );
     watch(
       () => subscriberInput.email,
@@ -644,12 +643,12 @@ export default defineComponent({
           .map(item => {
             return {
               id: item,
-              is_enabled: true
+              is_enabled: true,
             };
           })
           .filter(item => item.id);
         formData.channels[1].subscribers = result;
-      }
+      },
     );
     watch(
       () => subscriberInput.wxbot,
@@ -659,23 +658,23 @@ export default defineComponent({
           .map(item => {
             return {
               id: item,
-              is_enabled: true
+              is_enabled: true,
             };
           })
           .filter(item => item.id);
         formData.channels[2].subscribers = result;
-      }
+      },
     );
     watch(
       () => formData.scenario,
       () => {
         getVariables({
-          scenario: formData.scenario
+          scenario: formData.scenario,
         }).then(response => {
           variableTable.data = response;
         });
       },
-      { immediate: true }
+      { immediate: true },
     );
     watch(
       () => formData.frequency.type,
@@ -692,13 +691,13 @@ export default defineComponent({
           formData.start_time = dayjs(start_time).unix();
           formData.end_time = dayjs(end_time).unix();
         }
-      }
+      },
     );
 
     onMounted(() => {
       if (props.mode === 'edit') setFormData();
       logServiceRelationBkLogIndexSet({
-        clustering_only: true
+        clustering_only: true,
       }).then(response => {
         indexSetIDList.value = response;
       });
@@ -744,7 +743,7 @@ export default defineComponent({
       refOfFrequencyHour,
       timerange,
       handleDatePickerOpen,
-      effectiveEndRef
+      effectiveEndRef,
     };
   },
   render() {
@@ -898,7 +897,7 @@ export default defineComponent({
                     v-slots={{
                       title: () => {
                         return this.t('当前日志查询时间范围不支持静态区间');
-                      }
+                      },
                     }}
                   ></Alert>
                 </div>
@@ -951,7 +950,7 @@ export default defineComponent({
                           v-slots={{
                             title: () => {
                               return this.t('当前日志查询时间范围不支持静态区间');
-                            }
+                            },
                           }}
                         ></Alert>
                       </div>
@@ -1087,7 +1086,7 @@ export default defineComponent({
                         ></Table>
                       </div>
                     );
-                  }
+                  },
                 }}
               >
                 <Button
@@ -1227,7 +1226,7 @@ export default defineComponent({
                               {this.t('3.将获取到的会话ID粘贴到输入框,使用逗号分隔')}
                             </div>
                           );
-                        }
+                        },
                       }}
                     >
                       <Input
@@ -1283,7 +1282,7 @@ export default defineComponent({
                               if (!inputNumber) {
                                 return Message({
                                   theme: 'warning',
-                                  message: this.t('请输入有效数值')
+                                  message: this.t('请输入有效数值'),
                                 });
                               }
                               const minNum = 0.5;
@@ -1307,7 +1306,7 @@ export default defineComponent({
                           ></Input>
                         </div>
                       );
-                    }
+                    },
                   }}
                 >
                   {this.hourOption.map(item => {
@@ -1328,7 +1327,7 @@ export default defineComponent({
               )}
 
               {[FrequencyType.monthly, FrequencyType.weekly, FrequencyType.dayly].includes(
-                this.formData.frequency.type
+                this.formData.frequency.type,
               ) && (
                 <div style='display: flex;align-items: center;'>
                   {this.formData.frequency.type === FrequencyType.weekly && (
@@ -1440,5 +1439,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

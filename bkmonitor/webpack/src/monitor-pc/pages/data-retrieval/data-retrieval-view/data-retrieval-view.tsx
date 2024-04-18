@@ -49,22 +49,22 @@ type chartType = IDataRetrievalView.chartType;
 
 @Component({
   directives: {
-    monitorDrag
-  }
+    monitorDrag,
+  },
 })
 export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, IDataRetrievalView.IEvent> {
   @Prop({
     default: () => ({
       compare: {
         type: 'none',
-        value: true
+        value: true,
       },
       tools: {
         refleshInterval: -1,
-        timeRange: 3600000
-      }
+        timeRange: 3600000,
+      },
     }),
-    type: Object
+    type: Object,
   })
   compareValue: IDataRetrievalView.IProps['compareValue'];
   // @Prop({ default: () => [], type: Array }) favoritesList: IDataRetrievalView.IProps['favoritesList'];
@@ -106,113 +106,113 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
   /** 图表配置 */
   chartOption: Object = {
     tool: {
-      list: ['save', 'more', 'fullscreen', 'set', 'strategy', 'area', 'relate-alert'] // 要显示的工具栏的配置id 空数组则为不显示
+      list: ['save', 'more', 'fullscreen', 'set', 'strategy', 'area', 'relate-alert'], // 要显示的工具栏的配置id 空数组则为不显示
     },
     annotation: {
       show: true,
-      list: ['ip', 'process', 'strategy']
-    }
+      list: ['ip', 'process', 'strategy'],
+    },
   };
   /** 对比类型列表 */
   compareList: IDataRetrievalView.IOptionItem[] = [
     {
       id: 'none',
-      name: i18n.t('不对比')
+      name: i18n.t('不对比'),
     },
     {
       id: 'target',
-      name: i18n.t('目标对比')
+      name: i18n.t('目标对比'),
     },
     {
       id: 'time',
-      name: i18n.t('时间对比')
+      name: i18n.t('时间对比'),
     },
     {
       id: 'metric',
-      name: i18n.t('指标对比')
-    }
+      name: i18n.t('指标对比'),
+    },
   ];
   /** 时间范围选择列表 */
   timerangeList: IDataRetrievalView.IOptionItem[] = [
     {
       name: i18n.t('近{n}分钟', { n: 5 }),
-      value: 5 * 60 * 1000
+      value: 5 * 60 * 1000,
     },
     {
       name: i18n.t('近{n}分钟', { n: 15 }),
-      value: 15 * 60 * 1000
+      value: 15 * 60 * 1000,
     },
     {
       name: i18n.t('近{n}分钟', { n: 30 }),
-      value: 30 * 60 * 1000
+      value: 30 * 60 * 1000,
     },
     {
       name: i18n.t('近{n}小时', { n: 1 }),
-      value: 1 * 60 * 60 * 1000
+      value: 1 * 60 * 60 * 1000,
     },
     {
       name: i18n.t('近{n}小时', { n: 3 }),
-      value: 3 * 60 * 60 * 1000
+      value: 3 * 60 * 60 * 1000,
     },
     {
       name: i18n.t('近{n}小时', { n: 6 }),
-      value: 6 * 60 * 60 * 1000
+      value: 6 * 60 * 60 * 1000,
     },
     {
       name: i18n.t('近{n}小时', { n: 12 }),
-      value: 12 * 60 * 60 * 1000
+      value: 12 * 60 * 60 * 1000,
     },
     {
       name: i18n.t('近{n}小时', { n: 24 }),
-      value: 24 * 60 * 60 * 1000
+      value: 24 * 60 * 60 * 1000,
     },
     {
       name: i18n.t('近 {n} 天', { n: 2 }),
-      value: 2 * 24 * 60 * 60 * 1000
+      value: 2 * 24 * 60 * 60 * 1000,
     },
     {
       name: i18n.t('近 {n} 天', { n: 7 }),
-      value: 7 * 24 * 60 * 60 * 1000
+      value: 7 * 24 * 60 * 60 * 1000,
     },
     {
       name: i18n.t('近 {n} 天', { n: 30 }),
-      value: 30 * 24 * 60 * 60 * 1000
+      value: 30 * 24 * 60 * 60 * 1000,
     },
     {
       name: i18n.t('今天'),
-      value: 'today'
+      value: 'today',
     },
     {
       name: i18n.t('昨天'),
-      value: 'yesterday'
+      value: 'yesterday',
     },
     {
       name: i18n.t('前天'),
-      value: 'beforeYesterday'
+      value: 'beforeYesterday',
     },
     {
       name: i18n.t('本周'),
-      value: 'thisWeek'
-    }
+      value: 'thisWeek',
+    },
   ];
   /** 时间对比列表 */
   timeshiftList: IDataRetrievalView.IOptionItem[] = [
     {
       id: '1h',
-      name: i18n.t('1 小时前')
+      name: i18n.t('1 小时前'),
     },
     {
       id: '1d',
-      name: i18n.t('昨天')
+      name: i18n.t('昨天'),
     },
     {
       id: '1w',
-      name: i18n.t('上周')
+      name: i18n.t('上周'),
     },
     {
       id: '1M',
-      name: i18n.t('一月前')
-    }
+      name: i18n.t('一月前'),
+    },
   ];
 
   /** 强制图表key */
@@ -233,7 +233,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
       show: true,
       time: this.queryTimeRange,
       showSplit: false,
-      showAddStrategy: this.canAddStrategy
+      showAddStrategy: this.canAddStrategy,
     };
   }
 
@@ -242,7 +242,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
       const id = item.value as string;
       return {
         id,
-        name: item.name
+        name: item.name,
       };
     });
   }
@@ -325,7 +325,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
       none: this.localCompareValue.compare.type === 'none' ? Boolean(this.localCompareValue.compare.value) : true,
       metric: [],
       target: [],
-      time: ['1d']
+      time: ['1d'],
     };
     this.localCompareValue.compare.type = type;
     this.localCompareValue.compare.value = defaultValueMap[type];
@@ -352,7 +352,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
     if (!item) {
       this.timerangeList.push({
         name: valStr,
-        value: valStr
+        value: valStr,
       });
     }
   }
@@ -368,7 +368,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
       if (!item) {
         this.timeshiftList.push({
           name: val,
-          id: val
+          id: val,
         });
       }
     } else if (Array.isArray(val)) {
@@ -377,7 +377,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
         itemList.forEach(id => {
           this.timeshiftList.push({
             name: id,
-            id
+            id,
           });
         });
       }
@@ -537,7 +537,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
               <div class='tips-text'>
                 <span>{`${this.$t('找到 {count} 条结果 , 耗时  {time} ms', {
                   count: this.chartCount,
-                  time: this.searchTipsObj.time
+                  time: this.searchTipsObj.time,
                 })}`}</span>
                 {this.searchTipsObj.showAddStrategy ? (
                   <span>
@@ -593,33 +593,30 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                   ></span>
                 </PanelsTools>
               ) : undefined}
-              {
-                // eslint-disable-next-line no-nested-ternary
-                this.retrievalType === 'monitor' ? (
-                  this.queryResult?.length ? (
-                    <DashboardPanels
-                      class='dashboard-panels-list'
-                      key={this.dashboardPanelsKey}
-                      groupsData={this.queryResult}
-                      searchTipsObj={{ show: false }}
-                      compareValue={this.localCompareValue}
-                      chartType={this.chartType}
-                      chartOption={this.chartOption}
-                      groupId={this.groupId}
-                      on-split-change={this.handleSplitChange}
-                      on-add-strategy={this.handleAddStrategy}
-                      on-chart-count-change={count => (this.chartCount = count)}
-                    />
-                  ) : (
-                    <RetrievalEmptyShow
-                      style='margin-top: 150px;'
-                      showType='monitor'
-                      queryLoading={this.queryLoading}
-                      emptyStatus={this.emptyStatus}
-                    />
-                  )
-                ) : undefined
-              }
+              {this.retrievalType === 'monitor' ? (
+                this.queryResult?.length ? (
+                  <DashboardPanels
+                    class='dashboard-panels-list'
+                    key={this.dashboardPanelsKey}
+                    groupsData={this.queryResult}
+                    searchTipsObj={{ show: false }}
+                    compareValue={this.localCompareValue}
+                    chartType={this.chartType}
+                    chartOption={this.chartOption}
+                    groupId={this.groupId}
+                    on-split-change={this.handleSplitChange}
+                    on-add-strategy={this.handleAddStrategy}
+                    on-chart-count-change={count => (this.chartCount = count)}
+                  />
+                ) : (
+                  <RetrievalEmptyShow
+                    style='margin-top: 150px;'
+                    showType='monitor'
+                    queryLoading={this.queryLoading}
+                    emptyStatus={this.emptyStatus}
+                  />
+                )
+              ) : undefined}
               {/* <bk-exception style="margin-top: 150px;" type="empty">
                     <span>{this.$t('查无数据')}</span>
                   </bk-exception> */}
@@ -651,7 +648,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                   placement: 'right',
                   isShow: this.isShowIndex,
                   onHidden: () => (this.isShowIndex = false),
-                  onWidthChange: width => (this.indexPanelWidth = width)
+                  onWidthChange: width => (this.indexPanelWidth = width),
                 }}
               >
                 <div class='charts-view-right-content'>

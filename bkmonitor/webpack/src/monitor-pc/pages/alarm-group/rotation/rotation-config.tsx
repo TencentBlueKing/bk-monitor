@@ -44,7 +44,7 @@ import './rotation-config.scss';
 
 const operatorText = {
   bk_bak_operator: window.i18n.t('来自配置平台主机的备份维护人'),
-  operator: window.i18n.t('来自配置平台主机的主维护人')
+  operator: window.i18n.t('来自配置平台主机的主维护人'),
 };
 
 interface IProps {
@@ -95,7 +95,7 @@ export default class RotationConfig extends tsc<IProps> {
   /* 轮值详情侧栏数据 */
   detailData = {
     id: '',
-    show: false
+    show: false,
   };
 
   noticeConfig = noticeData();
@@ -153,7 +153,7 @@ export default class RotationConfig extends tsc<IProps> {
         isCheck: false,
         show: true,
         typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值'),
-        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
+        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled),
       }));
       this.setDutyList();
       this.dutyLoading = false;
@@ -200,9 +200,9 @@ export default class RotationConfig extends tsc<IProps> {
       days: 7,
       begin_time: beginTime,
       config: {
-        duty_rules: this.dutyList.map(d => d.id)
+        duty_rules: this.dutyList.map(d => d.id),
       },
-      id: !!this.alarmGroupId ? this.alarmGroupId : undefined
+      id: !!this.alarmGroupId ? this.alarmGroupId : undefined,
     };
     this.handleDutyChange();
     this.previewLoading = true;
@@ -219,7 +219,7 @@ export default class RotationConfig extends tsc<IProps> {
               tempSet.add(u.id);
               userPreviewList.push({
                 ...u,
-                name: u.display_name
+                name: u.display_name,
               });
             }
           }
@@ -242,9 +242,9 @@ export default class RotationConfig extends tsc<IProps> {
       days: 7,
       begin_time: startTime,
       config: {
-        duty_rules: this.dutyList.map(d => d.id)
+        duty_rules: this.dutyList.map(d => d.id),
       },
-      id: !!this.alarmGroupId ? this.alarmGroupId : undefined
+      id: !!this.alarmGroupId ? this.alarmGroupId : undefined,
     };
     this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
@@ -341,7 +341,7 @@ export default class RotationConfig extends tsc<IProps> {
             this.noticeConfigOfDutyChange();
             this.getPreviewData();
           }
-        }
+        },
       });
     }
     this.popInstance?.show?.();
@@ -394,7 +394,7 @@ export default class RotationConfig extends tsc<IProps> {
       }
     });
     this.dutyList = checked.map(c => ({
-      ...c
+      ...c,
     }));
   }
 
@@ -464,7 +464,7 @@ export default class RotationConfig extends tsc<IProps> {
         isCheck: sets.has(item.id),
         show: item.labels.some(l => l.indexOf(this.search) >= 0) || item.name.indexOf(this.search) >= 0,
         typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值'),
-        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
+        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled),
       };
       maps.set(item.id, obj);
       return obj;
@@ -472,7 +472,7 @@ export default class RotationConfig extends tsc<IProps> {
     this.dutyList = this.dutyList
       .filter(item => allSets.has(item.id))
       .map(item => ({
-        ...maps.get(item.id)
+        ...maps.get(item.id),
       }));
     if (!e) {
       this.cacheDutyList = '';
@@ -620,7 +620,7 @@ export default class RotationConfig extends tsc<IProps> {
                       return undefined;
                     })()}
                   </div>
-                )
+                ),
             )}
           </div>
         )}

@@ -49,7 +49,7 @@ interface IDeprecation {
 export default function processDeprecation(
   config: Record<string, any>,
   deprecation: IDeprecation,
-  issueWarning: boolean
+  issueWarning: boolean,
 ) {
   const { formerKey, currentKey } = deprecation;
   if (_has(config, formerKey)) {
@@ -73,7 +73,7 @@ export default function processDeprecation(
       if (isIgnored) {
         warnings.push(`The value at "${formerKey}" is being ignored in favor of the value at "${currentKey}"`);
       }
-      // eslint-disable-next-line no-console
+
       console.warn(warnings.join('\n'));
     }
   }

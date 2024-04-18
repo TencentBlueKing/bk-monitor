@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -57,7 +56,7 @@ export default defineComponent({
     dashboardId: { type: String, default: '' },
     matchFields: { default: () => {}, type: Object },
     /** 自定义高度 */
-    customHeightFn: { type: [Function, null], default: null }
+    customHeightFn: { type: [Function, null], default: null },
   },
   emits: ['linkTo', 'lintToDetail', 'backToOverview'],
   setup(props) {
@@ -80,7 +79,7 @@ export default defineComponent({
       },
       {
         //   immediate: true
-      }
+      },
     );
 
     watch(
@@ -89,7 +88,7 @@ export default defineComponent({
         echarts.disconnect(props.id.toString());
         handleInitPanelsGridpos(localPanels.value);
         handleConentEcharts();
-      }
+      },
     );
 
     onMounted(() => {
@@ -128,8 +127,8 @@ export default defineComponent({
               ...item.options,
               legend: {
                 displayMode: props.column === 1 ? 'table' : 'list',
-                placement: props.column === 1 ? 'right' : 'bottom'
-              }
+                placement: props.column === 1 ? 'right' : 'bottom',
+              },
             } as any;
           }
         });
@@ -143,7 +142,7 @@ export default defineComponent({
           x: 0,
           y,
           w: 24,
-          h: 1
+          h: 1,
         },
         id: random(10),
         options: {},
@@ -152,7 +151,7 @@ export default defineComponent({
         title: '',
         type: 'row',
         collapsed: true,
-        subTitle: ''
+        subTitle: '',
       };
     }
 
@@ -160,7 +159,7 @@ export default defineComponent({
       const item = new PanelModel({
         ...panel,
         dashboardId: props.id,
-        panelIds: panel?.panels?.map(item => item.id) || []
+        panelIds: panel?.panels?.map(item => item.id) || [],
       });
       return item;
     }
@@ -198,8 +197,8 @@ export default defineComponent({
               getTransformPanel({
                 ...item,
                 show: !!panel.collapsed,
-                groupId: rowPanel.id
-              })
+                groupId: rowPanel.id,
+              }),
             );
             list.push(...childList);
           }
@@ -283,14 +282,14 @@ export default defineComponent({
                     class={{
                       'flex-dashboard-item': true,
                       'row-panel': panel.type === 'row',
-                      'exception-panel': panel.type === 'exception-guide'
+                      'exception-panel': panel.type === 'exception-guide',
                     }}
                     style={{
                       width: `calc(${(1 / +props.column) * 100}% - 16px)`,
                       maxWidth: `calc(${(1 / +props.column) * 100}% - 16px)`,
                       flex: `${(1 / +props.column) * 100}%`,
                       display: getPanelDisplay(panel),
-                      height: ['related-log-chart', 'exception-guide'].includes(panel.type) && 'calc(100vh - 240px)'
+                      height: ['related-log-chart', 'exception-guide'].includes(panel.type) && 'calc(100vh - 240px)',
                     }}
                     key={`${panel.id}__key__`}
                     id={`${panel.id}__key__`}
@@ -303,7 +302,7 @@ export default defineComponent({
                     />
                   </div>
                 ))}
-              </div>
+              </div>,
             ]
           )}
         </div>
@@ -312,10 +311,10 @@ export default defineComponent({
 
     return {
       renderFn,
-      localPanels
+      localPanels,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

@@ -36,7 +36,7 @@ import {
   filterSelectorPanelSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../../monitor-k8s/utils';
 import { StatusClassNameType } from '../host-tree/host-tree';
 
@@ -45,26 +45,26 @@ import './host-list.scss';
 export const DEFAULT_TAB_LIST = [
   {
     name: window.i18n.tc('全部'),
-    type: 'all'
+    type: 'all',
   },
   {
     type: 'success',
     status: 'success',
     tips: `${window.i18n.t('正常')}  (${window.i18n.t('近3个周期数据')})`,
-    color: 'success'
+    color: 'success',
   },
   {
     type: 'failed',
     status: 'failed',
     tips: `${window.i18n.t('异常')}  (${window.i18n.t('下发采集失败')})`,
-    color: 'failed'
+    color: 'failed',
   },
   {
     type: 'nodata',
     status: 'disabled',
     tips: `${window.i18n.t('无数据')}  (${window.i18n.t('近3个周期数据')})`,
-    color: 'nodata'
-  }
+    color: 'nodata',
+  },
 ];
 export interface IProps {
   panel: PanelModel;
@@ -125,7 +125,7 @@ export default class HostList extends tsc<IProps, IEvents> {
   hostStatusMap = {
     SUCCESS: 'success',
     FAILED: 'failed',
-    NODATA: 'nodata'
+    NODATA: 'nodata',
   };
 
   /** 选中值 默认数据总览*/
@@ -144,18 +144,18 @@ export default class HostList extends tsc<IProps, IEvents> {
       {
         id: 'SUCCESS',
         name: '正常',
-        color: 'success'
+        color: 'success',
       },
       {
         id: 'FAILED',
         name: '失败',
-        color: 'warning'
+        color: 'warning',
       },
       {
         id: 'NODATA',
         name: '无数据',
-        color: 'nodata'
-      }
+        color: 'nodata',
+      },
     ];
     return this.panel.options?.[this.panel?.type]?.status_mapping || defaultStatus;
   }
@@ -165,7 +165,7 @@ export default class HostList extends tsc<IProps, IEvents> {
       id: item.type,
       name: item.name || (this.hostStatusData[item.type]?.count ?? 0),
       tips: item.tips,
-      status: item.status
+      status: item.status,
     }));
   }
 
@@ -207,7 +207,6 @@ export default class HostList extends tsc<IProps, IEvents> {
 
   /** 目标对比选中的主机id */
   get compareTargets() {
-    // eslint-disable-next-line max-len
     return (
       this.viewOptions?.compares?.targets?.map(item => this.panel.targets?.[0]?.handleCreateItemId(item, true)) || []
     );
@@ -248,7 +247,7 @@ export default class HostList extends tsc<IProps, IEvents> {
       this.$api[item.apiModule]
         [item.apiFunc]({
           ...variablesService.transformVariables(item.data),
-          condition_list: transformConditionValueParams(this.searchCondition)
+          condition_list: transformConditionValueParams(this.searchCondition),
         })
         .then(data => {
           const list = typeTools.isObject(data) ? data.data : data;
@@ -259,7 +258,7 @@ export default class HostList extends tsc<IProps, IEvents> {
         .catch(err => {
           console.error(err);
           return [];
-        })
+        }),
     );
     this.loading = true;
     const res = await Promise.all(promiseList).catch(err => {
@@ -281,7 +280,7 @@ export default class HostList extends tsc<IProps, IEvents> {
         const value = total[key];
         if (!value) {
           total[key] = {
-            count: 1
+            count: 1,
           };
         } else {
           value.count += 1;
@@ -325,8 +324,8 @@ export default class HostList extends tsc<IProps, IEvents> {
       ...this.viewOptions,
       filters,
       compares: {
-        targets: []
-      }
+        targets: [],
+      },
     };
     this.$emit('checkedChange');
     return this.handleViewOptionsChange(viewOptions);
@@ -368,7 +367,7 @@ export default class HostList extends tsc<IProps, IEvents> {
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
 
@@ -388,7 +387,7 @@ export default class HostList extends tsc<IProps, IEvents> {
   handleListChange(list) {
     return list.map(item => ({
       ...item,
-      id: this.panel.targets[0].handleCreateItemId(item)
+      id: this.panel.targets[0].handleCreateItemId(item),
     }));
   }
 
@@ -399,8 +398,8 @@ export default class HostList extends tsc<IProps, IEvents> {
     const viewOptions: IViewOptions = {
       ...this.viewOptions,
       compares: {
-        targets: this.localCompareTargets
-      }
+        targets: this.localCompareTargets,
+      },
     };
     this.handleViewOptionsChange(viewOptions);
   }
@@ -423,8 +422,8 @@ export default class HostList extends tsc<IProps, IEvents> {
               'host-item-wrap',
               {
                 active: itemId === this.selectId,
-                'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId)
-              }
+                'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
+              },
             ]}
             onClick={() => this.handleClickItem(itemId, item)}
           >
@@ -433,7 +432,7 @@ export default class HostList extends tsc<IProps, IEvents> {
                 class={[
                   'host-status',
                   this.hostStatusMap[item.status],
-                  `status-${this.getItemStatusClassName(item.status)}`
+                  `status-${this.getItemStatusClassName(item.status)}`,
                 ]}
               ></span>
             ) : undefined}
@@ -455,7 +454,7 @@ export default class HostList extends tsc<IProps, IEvents> {
             ) : undefined}
           </div>
         );
-      }
+      },
     };
     return (
       <div
@@ -525,7 +524,7 @@ export default class HostList extends tsc<IProps, IEvents> {
                   item-height={32}
                   scopedSlots={scopedSlots}
                 />
-              ) : undefined
+              ) : undefined,
             ]
           ) : (
             <bk-exception

@@ -40,7 +40,7 @@ function useGetWidthByText() {
   }
 
   return {
-    getWidth
+    getWidth,
   };
 }
 

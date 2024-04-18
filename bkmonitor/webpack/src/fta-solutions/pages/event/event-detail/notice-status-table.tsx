@@ -51,7 +51,7 @@ export default class NoticeStatusTable extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) hasColumns: string[];
   classMap = {
     失败: 'failed',
-    成功: 'success'
+    成功: 'success',
   };
   render() {
     return (
@@ -83,7 +83,7 @@ export default class NoticeStatusTable extends tsc<IProps> {
                           with: 200,
                           content: row[item.prop]?.tip,
                           placements: ['top'],
-                          disabled: !row[item.prop]?.tip
+                          disabled: !row[item.prop]?.tip,
                         }}
                       >
                         {row?.[item.prop]?.label || '--'}
@@ -98,15 +98,15 @@ export default class NoticeStatusTable extends tsc<IProps> {
                           with: 200,
                           content: row[item.prop]?.tip,
                           placements: ['top'],
-                          disabled: !row[item.prop]?.tip
+                          disabled: !row[item.prop]?.tip,
                         }}
                       />
-                    )
+                    ),
                 }}
                 resizable={false}
                 align='center'
               ></bk-table-column>
-            ) : undefined
+            ) : undefined,
           )}
         </bk-table>
       </div>

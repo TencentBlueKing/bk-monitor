@@ -60,7 +60,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   const options = [
     // 公共展示项
     { val: isEn ? enName || data.metric_field : data.metric_field, label: window.i18n.tc('指标名') },
-    { val: data.metric_field_name, label: window.i18n.tc('指标别名') }
+    { val: data.metric_field_name, label: window.i18n.tc('指标别名') },
   ];
   const elList = {
     bk_monitor_time_series: [
@@ -70,7 +70,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
       { val: data.related_name, label: window.i18n.tc('插件名') },
       { val: data.result_table_id, label: window.i18n.tc('分类ID') },
       { val: data.result_table_name, label: window.i18n.tc('分类名') },
-      { val: data.description, label: window.i18n.tc('含义') }
+      { val: data.description, label: window.i18n.tc('含义') },
     ],
     bk_log_search_time_series: [
       // 日志采集
@@ -78,20 +78,20 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
       { val: data.related_name, label: window.i18n.tc('索引集') },
       { val: data.result_table_id, label: window.i18n.tc('索引') },
       { val: data.extend_fields.scenario_name, label: window.i18n.tc('数据源类别') },
-      { val: data.extend_fields.storage_cluster_name, label: window.i18n.tc('数据源名') }
+      { val: data.extend_fields.storage_cluster_name, label: window.i18n.tc('数据源名') },
     ],
     bk_data_time_series: [
       // 数据平台
       ...options,
-      { val: data.result_table_id, label: window.i18n.tc('表名') }
+      { val: data.result_table_id, label: window.i18n.tc('表名') },
     ],
     custom_time_series: [
       // 自定义指标
       ...options,
       { val: data.extend_fields.bk_data_id, label: window.i18n.tc('数据ID') },
-      { val: data.result_table_name, label: window.i18n.tc('数据名') }
+      { val: data.result_table_name, label: window.i18n.tc('数据名') },
     ],
-    bk_monitor_log: [...options]
+    bk_monitor_log: [...options],
   };
   // 拨测指标融合后不需要显示插件id插件名
   const resultTableLabel = data.result_table_label;
@@ -99,7 +99,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   if (resultTableLabel === 'uptimecheck' && !relatedId) {
     const list = elList.bk_monitor_time_series;
     elList.bk_monitor_time_series = list.filter(
-      item => item.label !== window.i18n.tc('插件ID') && item.label !== window.i18n.tc('插件名')
+      item => item.label !== window.i18n.tc('插件ID') && item.label !== window.i18n.tc('插件名'),
     );
   }
   const curElList = elList[curActive] || [...options];

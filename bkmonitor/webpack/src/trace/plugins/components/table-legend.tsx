@@ -34,7 +34,7 @@ import './table-legend.scss';
 export default defineComponent({
   name: 'TableLegend',
   props: {
-    ...commonLegendProps
+    ...commonLegendProps,
   },
   emits: [...commonLegendEmits],
   setup(props, { emit }) {
@@ -71,7 +71,7 @@ export default defineComponent({
     watch(
       () => props.legendData,
       () => handleSortChange(),
-      { immediate: true }
+      { immediate: true },
     );
     const { handleLegendEvent } = useCommonLegend(emit);
     return {
@@ -80,7 +80,7 @@ export default defineComponent({
       sort,
       sortTitle,
       handleSortChange,
-      handleLegendEvent
+      handleLegendEvent,
     };
   },
   render() {
@@ -150,5 +150,5 @@ export default defineComponent({
         </tbody>
       </table>
     );
-  }
+  },
 });

@@ -33,7 +33,7 @@ import './fta.scss';
 Component.registerHooks(['beforeRouteLeave']);
 
 @Component
-export default class FTA extends tsc<{}> {
+export default class FTA extends tsc<object> {
   @Prop() a: number;
   loading = true;
   get ftaHost() {

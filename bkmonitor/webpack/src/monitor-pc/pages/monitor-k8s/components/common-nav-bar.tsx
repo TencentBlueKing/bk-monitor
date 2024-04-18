@@ -47,8 +47,8 @@ export type NavBarMode = 'copy' | 'share' | 'display';
   name: 'CommonNavBar',
   components: {
     TemporaryShare: () =>
-      import(/* webpackChunkName: "TemporaryShare" */ '../../../components/temporary-share/temporary-share') as any
-  }
+      import(/* webpackChunkName: "TemporaryShare" */ '../../../components/temporary-share/temporary-share') as any,
+  },
 })
 export default class CommonNavBar extends tsc<ICommonNavBarProps> {
   @Prop({ type: Array, default: () => [] }) routeList: INavItem[];

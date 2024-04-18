@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/member-ordering */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
@@ -54,7 +53,7 @@ import {
   ISourceData,
   IWhereItem,
   MetricDetail,
-  MetricType
+  MetricType,
 } from '../../strategy-config-set-new/typings/index';
 
 import StrategyChart from './strategy-chart/strategy-chart';
@@ -72,7 +71,7 @@ const metricUrlMap = {
   time_series: '监控平台/产品白皮书/alarm-configurations/rules.md',
   event: '监控平台/产品白皮书/alarm-configurations/events_monitor.md',
   log: '监控平台/产品白皮书/alarm-configurations/log_monitor.md',
-  alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md'
+  alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md',
 };
 
 interface IStrateViewProps {
@@ -101,8 +100,8 @@ interface IStrateViewProps {
     // StrategyViewDimensions,
     StrategyViewLog,
     StrategyViewAlarm,
-    CollectChart
-  }
+    CollectChart,
+  },
 })
 export default class StrategyView extends tsc<IStrateViewProps> {
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
@@ -165,7 +164,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
 
   private tools: { timeRange: TimeRangeType; refleshInterval: number } = {
     timeRange: ['now-3h', 'now'],
-    refleshInterval: 5 * 60 * 1000
+    refleshInterval: 5 * 60 * 1000,
   };
   // 原始时间范围，用于图表双击还原
   private lastTimeRange: TimeRangeType = ['now-1h', 'now'];
@@ -181,7 +180,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   private collect = {
     show: false,
     list: [],
-    count: 0
+    count: 0,
   };
   private logData = [];
   private limit = 20;
@@ -195,7 +194,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     lte: '<=',
     lt: '<',
     eq: '=',
-    neq: '!='
+    neq: '!=',
   };
   private metricQueryString = '';
   private alertTabActive = '';
@@ -204,7 +203,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   private nearNum = 20;
   private shortcutsList = [
     { id: 'NEAR', name: '' },
-    { id: 'assign', name: window.i18n.t('查看指定数据') }
+    { id: 'assign', name: window.i18n.t('查看指定数据') },
   ];
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
@@ -223,12 +222,12 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     }
     return {
       tool: {
-        list
+        list,
       },
       xAxis: {
         // 大于 1 天时，坐标轴标签数量建议值减少
-        splitNumber: endTime - startTime > 86400 ? 6 : 10
-      }
+        splitNumber: endTime - startTime > 86400 ? 6 : 10,
+      },
     };
   }
 
@@ -236,7 +235,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (!this.legalDimensionList?.length) return [];
     return this.legalDimensionList.map(item => ({
       ...item,
-      list: this.dimensionsScopeMap[item.id] || []
+      list: this.dimensionsScopeMap[item.id] || [],
     }));
   }
 
@@ -250,7 +249,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     return (
       this.isAlertStrategy ||
       this.metricData.some(
-        item => item.data_type_label === 'log' || ['bk_fta|event', 'custom|event'].includes(item.metricMetaId)
+        item => item.data_type_label === 'log' || ['bk_fta|event', 'custom|event'].includes(item.metricMetaId),
       )
     );
   }
@@ -273,7 +272,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.metricQueryData.length > 1 && this.expression.trim().length) {
       const title = this.metricQueryData.reduce(
         (pre, cur) => pre.replace(new RegExp(cur.alias, 'gm'), cur.metric_field_name),
-        this.expression
+        this.expression,
       );
       if (this.expression === title) {
         return this.metricQueryData.map(item => item.metric_field_name).join(',');
@@ -367,7 +366,6 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   }
 
   handleGetQetricQueryData(data: MetricDetail[]) {
-    // eslint-disable-next-line camelcase
     return data.map(
       ({ agg_dimension, agg_interval, agg_method, agg_condition, keywords_query_string, index_set_id, functions }) => ({
         agg_dimension,
@@ -376,8 +374,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         agg_condition: agg_condition?.filter(item => item.key && item.value?.length) || [],
         keywords_query_string,
         index_set_id,
-        functions
-      })
+        functions,
+      }),
     );
   }
   handleToolPanelChange({ tools, type }) {
@@ -442,13 +440,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         const filter_dict = !!this.dimensions?.[item.id] ? queryConfig.filter_dict : {};
         return {
           ...queryConfig,
-          filter_dict
+          filter_dict,
         };
       });
       const params = {
         ...commonParams,
         query_configs: queryConfigs,
-        dimension_field: item.id
+        dimension_field: item.id,
       };
       promiseList.push(dimensionUnifyQuery(params));
     });
@@ -523,7 +521,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     const algorithm2Level = {
       1: 5,
       2: 4,
-      3: 3
+      3: 3,
     };
     this.detectionConfig?.data
       ?.filter(item => item?.type === 'IntelligentDetect')
@@ -534,7 +532,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               item =>
                 item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
                 item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-                item.alias === 'upper_bound'
+                item.alias === 'upper_bound',
             )
             ?.datapoints?.map(item => [item[1], item[0]]) || [];
         const lowBoundary =
@@ -543,7 +541,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               item =>
                 item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
                 item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-                item.alias === 'lower_bound'
+                item.alias === 'lower_bound',
             )
             ?.datapoints.map(item => [item[1], item[0]]) || [];
         boundaryList.push({
@@ -551,23 +549,23 @@ export default class StrategyView extends tsc<IStrateViewProps> {
           lowBoundary,
           color: '#e6e6e6',
           stack: `boundary-${algItem?.level || ''}`,
-          z: algorithm2Level[algItem?.level] || 1
+          z: algorithm2Level[algItem?.level] || 1,
         });
         const coverData = queryData?.find(
           item =>
             item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
             item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-            item.alias === 'is_anomaly'
+            item.alias === 'is_anomaly',
         )?.datapoints;
         if (coverData?.length) {
           coverList.push({
             data: coverData.map((item, index) => [
               firstData?.datapoints[index][1],
-              item[0] > 0 ? firstData?.datapoints[index][0] : null
+              item[0] > 0 ? firstData?.datapoints[index][0] : null,
             ]),
             color: '#ff3d3f',
             z: algorithm2Level[algItem.level] + 10,
-            name: `cover-${algItem.level}`
+            name: `cover-${algItem.level}`,
           });
         }
       });
@@ -575,8 +573,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       {
         ...firstData,
         boundary: boundaryList,
-        coverSeries: coverList
-      }
+        coverSeries: coverList,
+      },
     ];
   }
   // 获取图表查询参数设置
@@ -584,7 +582,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     const timePrams = {
       start_time:
         typeof startTime === 'string' || String(startTime).length > 10 ? dayjs.tz(startTime).unix() : startTime,
-      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? dayjs.tz(endTime).unix() : endTime
+      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? dayjs.tz(endTime).unix() : endTime,
     };
     if (this.editMode === 'Source') {
       const params = {
@@ -595,9 +593,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             data_source_label: 'prometheus',
             data_type_label: 'time_series',
             promql: this.sourceData.sourceCode,
-            agg_interval: this.sourceData.step
-          }
-        ]
+            agg_interval: this.sourceData.step,
+          },
+        ],
       };
       return params;
     }
@@ -625,7 +623,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
           time_field: timeField,
           bkmonitor_strategy_id: bkmonitorStrategyId,
           custom_event_name: customEventName,
-          curRealMetric
+          curRealMetric,
         }) => {
           dataTypeLabel = curRealMetric?.data_type_label || dataTypeLabel;
           resultTableId = curRealMetric?.result_table_id || resultTableId;
@@ -651,7 +649,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               metricMetaId === 'bk_log_search|log'
                 ? {
                     index_set_id,
-                    query_string: keywords_query_string
+                    query_string: keywords_query_string,
                   }
                 : { index_set_id: extendFields.index_set_id || '' };
           }
@@ -680,11 +678,11 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   return pre;
                 }, {}),
             functions: hasIntelligentDetect ? [] : func,
-            ...logParam
+            ...logParam,
           };
           return params;
-        }
-      )
+        },
+      ),
     };
     return params;
   }
@@ -694,7 +692,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     const lineColor = {
       1: '#ea3636',
       2: '#ffd000',
-      3: '#ff8000'
+      3: '#ff8000',
     };
     let unitSeries = [];
     if (this.detectionConfig.unit) {
@@ -716,15 +714,15 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             method: cfg.method,
             condition: cfg.condition,
             lineStyle: {
-              color: lineColor[level]
+              color: lineColor[level],
             },
             label: {
-              color: lineColor[level]
+              color: lineColor[level],
             },
             itemStyle: {
               color: lineColor[level],
-              opacity: 0.1
-            }
+              opacity: 0.1,
+            },
           });
         });
       });
@@ -742,8 +740,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         agg_interval,
         agg_condition: aggCondition,
         result_table_id,
-        metric_field
-      }
+        metric_field,
+      },
     ] = metricData || this.metricQueryData;
     return {
       data_source_label,
@@ -762,7 +760,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             }
             return pre;
           }, {}),
-      query_string: keywords_query_string
+      query_string: keywords_query_string,
     };
   }
   // 监控维度变更
@@ -782,8 +780,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         result_table_id: resultTableId,
         index_set_id: indexSetId,
         keywords_query_string: indexStatement,
-        bkmonitor_strategy_id: bkmonitorStrategyId
-      }
+        bkmonitor_strategy_id: bkmonitorStrategyId,
+      },
     ] = this.metricQueryData;
     // const { startTime, endTime } = handleTimeRange(this.tools.timeRange);
     const [startTime, endTime] = handleTransformToTimestamp(this.tools.timeRange);
@@ -800,11 +798,11 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.isAlertStrategy) {
       extendData = {
         bkmonitor_strategy_id: metricField || bkmonitorStrategyId,
-        alert_name: metricField
+        alert_name: metricField,
       };
     } else if (metric.metricMetaId === 'bk_fta|event') {
       extendData = {
-        alert_name: metricField
+        alert_name: metricField,
       };
     }
     this.isLoading = true;
@@ -819,7 +817,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       end_time: endTime,
       limit: this.limit,
       filter_dict: filterDict,
-      ...extendData
+      ...extendData,
     }).catch(() => []);
     this.isLoading = false;
     this.logData = data;
@@ -842,7 +840,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         addition: monitorParams.where || [],
         start_time: startTime * 1000,
         end_time: endTime * 1000,
-        time_range: 'customized'
+        time_range: 'customized',
       };
       const indexSetId = this.metricQueryData[0]?.index_set_id;
       // eslint-disable-next-line vue/max-len
@@ -864,21 +862,21 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     const temp: IWhereItem = {
                       key,
                       method: 'eq',
-                      value: [this.chartDimensions[key]]
+                      value: [this.chartDimensions[key]],
                     };
                     index > 0 && (temp.condition = 'and');
                     return temp;
                   })
-                  .filter(item => !!item.key && item.value?.length)
+                  .filter(item => !!item.key && item.value?.length),
               };
-            })
-          }
-        }
+            }),
+          },
+        },
       ];
       window.open(
         `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(
-          JSON.stringify(targets)
-        )}`
+          JSON.stringify(targets),
+        )}`,
       );
     }
   }
@@ -893,13 +891,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             alias: '',
             data: {
               expression: this.expression || 'a',
-              query_configs
-            }
-          }
+              query_configs,
+            },
+          },
         ],
         title: this.chartTitile,
-        type: 'graph'
-      }
+        type: 'graph',
+      },
     ];
     this.collect.show = true;
   }
@@ -996,7 +994,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       key={this.dimensionsPanelKey}
                       onChange={this.handleDimensionsChange}
                     ></ViewDimensions>
-                  ) : undefined
+                  ) : undefined,
                 ]
               ) : (
                 <div class='chart-empty'>
@@ -1067,7 +1065,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                               </div>
                             ))}
                           </div>
-                        )
+                        ),
                     )}
                 </div>
               </div>
@@ -1078,7 +1076,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               total-count={this.collect.count}
               is-single
               on-close={this.handleCloseCollect}
-            ></collect-chart>
+            ></collect-chart>,
           ]
         ) : (
           <div class='description-info'>
@@ -1090,7 +1088,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               <div
                 class={[
                   'description-item',
-                  { active: item.type === this.descriptionType && !this.isMultivariateAnomalyDetection }
+                  { active: item.type === this.descriptionType && !this.isMultivariateAnomalyDetection },
                 ]}
               >
                 <div class='description-title'>{`${item.title}:`}</div>

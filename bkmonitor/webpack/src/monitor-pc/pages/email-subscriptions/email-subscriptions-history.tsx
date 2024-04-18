@@ -39,13 +39,13 @@ export interface IPagination {
   limit: number;
 }
 @Component
-export default class EmailSubscriptionsHistory extends tsc<{}> {
+export default class EmailSubscriptionsHistory extends tsc<object> {
   loading = false;
   /** 分页数据 */
   pagination: IPagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   /** 展开发送列表 */
   activeList = ['1'];
@@ -61,9 +61,9 @@ export default class EmailSubscriptionsHistory extends tsc<{}> {
     {
       label: window.i18n.t('接收者'),
       key: 'receivers',
-      formatter: row => (row?.details?.receivers?.length ? row.receivers.join(', ') : '--')
+      formatter: row => (row?.details?.receivers?.length ? row.receivers.join(', ') : '--'),
     },
-    { label: window.i18n.t('发送状态'), key: 'isSuccess' }
+    { label: window.i18n.t('发送状态'), key: 'isSuccess' },
   ];
 
   created() {
@@ -135,7 +135,7 @@ export default class EmailSubscriptionsHistory extends tsc<{}> {
                         <span class={scope.row.isSuccess ? 'is-success' : 'is-fail'}>
                           {scope.row.isSuccess ? this.$t('成功') : this.$t('失败')}
                         </span>
-                      )
+                      ),
                     }}
                   ></bk-table-column>
                 ) : (
@@ -145,7 +145,7 @@ export default class EmailSubscriptionsHistory extends tsc<{}> {
                     prop={item.key}
                     formatter={item.formatter}
                   ></bk-table-column>
-                )
+                ),
               )}
             </bk-table>
           </div>

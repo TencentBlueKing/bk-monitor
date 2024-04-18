@@ -42,26 +42,26 @@ export default [
     path: '/alarm-group',
     name: 'alarm-group',
     components: {
-      noCache: AlarmGroup
+      noCache: AlarmGroup,
     },
     meta: {
       title: '告警组',
       navId: 'alarm-group',
       authority: {
         map: AlarmGroupAuth,
-        page: [AlarmGroupAuth.VIEW_AUTH]
+        page: [AlarmGroupAuth.VIEW_AUTH],
       },
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/alarm-group/add',
     name: 'alarm-group-add',
     components: {
-      noCache: AlarmGroupAdd
+      noCache: AlarmGroupAdd,
     },
     meta: {
       title: '新增告警组',
@@ -69,27 +69,27 @@ export default [
       needBack: true,
       authority: {
         map: AlarmGroupAuth,
-        page: [AlarmGroupAuth.MANAGE_AUTH]
+        page: [AlarmGroupAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'alarm-group'
-      }
+        parent: 'alarm-group',
+      },
       // noNavBar: true
-    }
+    },
   },
   {
     path: '/alarm-group/edit/:id',
     name: 'alarm-group-edit',
     components: {
-      noCache: AlarmGroupAdd
+      noCache: AlarmGroupAdd,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     beforeEnter(
       to: Route,
       from: Route,
-      next: (to?: string | false | void | Location | ((vm: Vue) => any) | undefined) => void
+      next: (to?: string | false | void | Location | ((vm: Vue) => any) | undefined) => void,
     ) {
       to.meta.title = to.params.title || '加载中...';
       next();
@@ -101,12 +101,12 @@ export default [
       needCopyLink: false,
       authority: {
         map: AlarmGroupAuth,
-        page: [AlarmGroupAuth.MANAGE_AUTH]
+        page: [AlarmGroupAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'alarm-group'
-      }
+        parent: 'alarm-group',
+      },
       // noNavBar: true
-    }
-  }
+    },
+  },
 ] as RouteConfig[];

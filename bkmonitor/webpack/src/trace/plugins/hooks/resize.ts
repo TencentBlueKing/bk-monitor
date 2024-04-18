@@ -30,7 +30,7 @@ export function useChartResize(
   el: Ref<HTMLDivElement>,
   chartRef: Ref<HTMLDivElement>,
   width: Ref<number>,
-  height: Ref<number>
+  height: Ref<number>,
 ) {
   // resize handle
   function handleResize() {
@@ -47,6 +47,6 @@ export function useChartResize(
     removeListener(el.value!, handleResize);
   });
   return {
-    handleResize
+    handleResize,
   };
 }

@@ -73,7 +73,7 @@ interface ITabItem {
 export type TMode = 'event' | 'log';
 
 @Component({
-  name: 'StrategyMetricWrap'
+  name: 'StrategyMetricWrap',
 })
 export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventFn> {
   @Prop({ default: 'event', type: String }) mode: TMode;
@@ -96,18 +96,18 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   searchData = {
     keyWord: [],
     interval: 7,
-    justSelected: false
+    justSelected: false,
   };
   // 分页数据
   pagination: IPagination = {
     page: 1,
-    limit: 20
+    limit: 20,
   };
 
   // 标题
   titleMap = {
     event: i18n.t('选择事件'),
-    log: i18n.t('选择日志关键字')
+    log: i18n.t('选择日志关键字'),
   };
 
   // 侧栏选中数据
@@ -120,13 +120,13 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   eventTabList: ITabItem[] = [
     { id: 'bk_monitor', name: i18n.t('系统事件'), count: 0, data: null, show: true },
     { id: 'custom', name: i18n.t('自定义事件'), count: 0, data: null, show: true },
-    { id: 'bk_fta', name: i18n.t('第三方告警'), count: 0, data: null, show: true }
+    { id: 'bk_fta', name: i18n.t('第三方告警'), count: 0, data: null, show: true },
   ];
   // 日志数据
   logTabList: ITabItem[] = [
     { id: 'bk_monitor', name: i18n.t('监控采集'), count: 0, data: null, show: true },
     { id: 'bk_log_search', name: i18n.t('日志平台'), count: 0, data: null, show: true },
-    { id: 'bk_apm', name: i18n.t('应用监控'), count: 0, data: null, show: true }
+    { id: 'bk_apm', name: i18n.t('应用监控'), count: 0, data: null, show: true },
   ];
 
   // 指标数据
@@ -141,7 +141,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   get tabList() {
     const map = {
       event: this.getEventTabList,
-      log: this.getLogTabList
+      log: this.getLogTabList,
     };
     return map[this.mode];
   }
@@ -174,7 +174,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   get getEventTabList() {
     const res = this.eventTabList.map(item => {
       const obj = this.dataSourceCountList.find(
-        me => me.data_type_label === this.mode && me.data_source_label === item.id
+        me => me.data_type_label === this.mode && me.data_source_label === item.id,
       );
       obj && (item.count = obj.count);
       return item;
@@ -184,7 +184,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   get getLogTabList() {
     const res = this.logTabList.map(item => {
       const obj = this.dataSourceCountList.find(
-        me => me.data_type_label === this.mode && me.data_source_label === item.id
+        me => me.data_type_label === this.mode && me.data_source_label === item.id,
       );
       obj && (item.count = obj.count);
       return item;
@@ -264,7 +264,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   getSearchCondition() {
     return this.searchData.keyWord.map(item => ({
       key: item.values ? item.id : 'query',
-      value: item.values ? item.values.map(val => val.id) : item.id
+      value: item.values ? item.values.map(val => val.id) : item.id,
     }));
   }
 
@@ -285,7 +285,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
         page,
         page_size: limit,
         result_table_label: this.leftActive,
-        conditions: this.getSearchCondition()
+        conditions: this.getSearchCondition(),
       };
       getMetricListV2(customParams || params)
         .then(res => {
@@ -407,7 +407,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
       { id: 'collect_config', name: this.$t('采集配置'), children: [] },
       { id: 'metric_field', name: this.$t('指标名'), children: [] },
       { id: 'metric_filed_name', name: this.$t('指标别名'), children: [] },
-      { id: 'plugin_type', name: this.$t('插件类型'), children: [] }
+      { id: 'plugin_type', name: this.$t('插件类型'), children: [] },
     ];
     const searchObj = {
       bk_monitor_time_series: [...options],
@@ -419,8 +419,8 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
         { id: 'result_table_name', name: this.$t('数据名称'), children: [] },
         { id: 'metric_field_name', name: this.$t('事件名称'), children: [] },
         { id: 'result_table_id', name: this.$t('数据ID'), children: [] },
-        { id: 'metric_field', name: this.$t('事件ID'), children: [] }
-      ]
+        { id: 'metric_field', name: this.$t('事件ID'), children: [] },
+      ],
     };
     let searchList = searchObj[sourceType] || [];
 
@@ -435,12 +435,12 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
       } else if (this.leftActive === 'uptimecheck') {
         searchList.push(
           { id: 'task_id', name: this.$t('任务ID'), children: [] },
-          { id: 'task_name', name: this.$t('任务名'), children: [] }
+          { id: 'task_name', name: this.$t('任务名'), children: [] },
         );
       } else {
         searchList.push(
           { id: 'plugin_id', name: this.$t('插件ID'), children: [] },
-          { id: 'plugin_name', name: this.$t('插件名'), children: [] }
+          { id: 'plugin_name', name: this.$t('插件名'), children: [] },
         );
       }
     }
@@ -506,7 +506,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
                           <span class='tab-item-count'>{item.count}</span>
                         </div>
                       </li>
-                    ) : undefined
+                    ) : undefined,
                   )}
                 </ul>
               </div>

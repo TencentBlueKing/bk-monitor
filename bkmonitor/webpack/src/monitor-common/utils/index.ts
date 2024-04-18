@@ -39,7 +39,7 @@ export function mergeSpaceList(spaceList: ISpaceItem[]) {
     ...item,
     id: item.bk_biz_id,
     text: item.space_name,
-    name: item.space_name
+    name: item.space_name,
   }));
   window.space_list = list;
   return list;

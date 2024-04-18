@@ -39,15 +39,15 @@ interface IEditableFormItemProps {
   value: any;
   label?: string | TranslateResult;
   selectEditValue?: any; // 下拉编辑选值
-  selectEditOption?: Array<{}>; // 下拉编辑options
+  selectEditOption?: Array<object>; // 下拉编辑options
   formType?: IFormType; // 表单类型
   unit?: string; // 单位
   showEditable?: boolean; // 是否显示编辑icon
   showLabel?: boolean; // 是否显示label
   validator?: any; // 检验规则
   tooltips?: string | TranslateResult; // tooltip提示内容
-  maxExpired?: Number; // 过期时间最大限制
-  selectList?: Array<{}>; // select类型下拉 options
+  maxExpired?: number; // 过期时间最大限制
+  selectList?: Array<object>; // select类型下拉 options
   unitList?: IUnitItme[]; // 单位列表
   authority?: boolean; // 编辑权限
   authorityName?: string; // 权限名称
@@ -81,7 +81,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   @Prop({ default: '', type: String }) tagTheme: string;
   @Prop({ type: Array, default: () => [] }) unitList: IUnitItme[];
   @Prop() validator: (val) => void;
-  @Prop() updateValue: (val) => {};
+  @Prop() updateValue: (val) => object;
   @Prop() onEditChange: (val) => any;
   @Prop() preCheckSwitcher?: (val) => Promise<any>;
 
@@ -97,7 +97,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   secureKeyLoading = false;
   /** 校验的错误信息 */
   errorMsg = {
-    value: ''
+    value: '',
   };
   editCloneVal = '';
   editSubmitVal = '';
@@ -113,7 +113,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         group.formats.find(option => {
           txt = option.id === this.value ? option.name : '';
           return option.id === this.value;
-        })
+        }),
       );
       return target ? txt : '';
     }
@@ -137,13 +137,13 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
   /**
@@ -208,7 +208,6 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
             <span
               v-authority={{ active: !this.authority }}
               class='view-btn'
-              // eslint-disable-next-line @typescript-eslint/no-misused-promises
               onClick={this.handleGetSecureKey}
             >
               {this.$t('点击查看')}
@@ -329,7 +328,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         res = await this.updateValue({
           selectValue: this.editSubmitVal,
           type: 'submit',
-          activeItem: this.lcoalValue
+          activeItem: this.lcoalValue,
         });
       } else {
         res = await this.updateValue(this.lcoalValue);
@@ -379,7 +378,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     return {
       selectValue: type === 'cancel' ? this.editCloneVal : this.editSubmitVal,
       type,
-      activeItem: this.lcoalValue
+      activeItem: this.lcoalValue,
     };
   }
 
@@ -425,7 +424,6 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
                     <span>
                       <span
                         class='bk-icon icon-check-line'
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises
                         onClick={this.handleSubmit}
                       ></span>
                       <span

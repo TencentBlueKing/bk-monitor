@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './monitor-tab.scss';
 
 @Component
-export default class MonitorTab extends tsc<{}> {
+export default class MonitorTab extends tsc<object> {
   render() {
     return (
       <bk-tab

@@ -77,18 +77,18 @@ export default class Integrated extends tsc<IIntegratedProps> {
       {
         id: 'INSTALLED',
         name: this.$t('已安装'),
-        data: []
+        data: [],
       },
       {
         id: 'DISABLED',
         name: this.$t('已停用'),
-        data: []
+        data: [],
       },
       {
         id: 'AVAILABLE',
         name: this.$t('可用'),
-        data: []
-      }
+        data: [],
+      },
     ];
   }
   async getData() {
@@ -98,7 +98,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
     const params = {
       page: 1,
       page_size: -1,
-      search_key: this.searchKey
+      search_key: this.searchKey,
       // plugin_type: this.checkedData?.['plugin_type']?.length ? this.checkedData.plugin_type.join(',') : '',
       // status: this.checkedData?.['status']?.length ? this.checkedData.status.join(',') : ''
     };
@@ -109,7 +109,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
       main_type: this.$t('方式'),
       status: this.$t('状态'),
       tags: this.$t('标签'),
-      scenario: this.$t('分类')
+      scenario: this.$t('分类'),
     };
     Object.keys(count).forEach(key => {
       const groupData = this.filterPanelData.find(item => item.id === key);
@@ -118,7 +118,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
         this.filterPanelData.push({
           id: key,
           name: keyMap[key],
-          data: [...item]
+          data: [...item],
         });
       } else {
         groupData.data.push(...item);
@@ -127,7 +127,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
 
     const pluginTypeMap = {
       event: this.$t('事件插件'),
-      service: this.$t('周边服务')
+      service: this.$t('周边服务'),
     };
     // 插件数据
     list.forEach(item => {
@@ -145,7 +145,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
         categoryData.data.push({
           id: item.category,
           name: pluginTypeMap[item.category],
-          data: [{ ...item, show: true }]
+          data: [{ ...item, show: true }],
         });
       }
     });
@@ -166,12 +166,12 @@ export default class Integrated extends tsc<IIntegratedProps> {
             (tags.length === 0 || child.tags.some(tag => tags.includes(tag))) &&
             this.matchSearchKey(child);
           this.$set(child, 'show', isShow);
-        })
-      )
+        }),
+      ),
     );
     this.listPluginData = list.filter(
       item =>
-        (item.data.length && item.data.some(set => set?.data?.some(child => child.show))) || item.id === 'AVAILABLE'
+        (item.data.length && item.data.some(set => set?.data?.some(child => child.show))) || item.id === 'AVAILABLE',
     );
   }
   // 关键字匹配
@@ -184,10 +184,10 @@ export default class Integrated extends tsc<IIntegratedProps> {
       'plugin_id',
       'update_user',
       'create_user',
-      'author'
+      'author',
     ];
     return matchParams.some(
-      key => String(data[key]).toLocaleLowerCase().indexOf(this.searchKey.toLocaleLowerCase()) > -1
+      key => String(data[key]).toLocaleLowerCase().indexOf(this.searchKey.toLocaleLowerCase()) > -1,
     );
   }
   /**
@@ -261,7 +261,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
           version: item.version,
           pluginId: item.plugin_id,
           paramsSchema: null,
-          pluginDisplayName: item.plugin_display_name
+          pluginDisplayName: item.plugin_display_name,
         };
         this.showInstallDialog = true;
         break;
@@ -332,7 +332,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
           style={{
             width: `${this.filterWidth}px`,
             flexBasis: `${this.filterWidth}px`,
-            display: this.filterWidth > 200 ? 'flex' : 'none'
+            display: this.filterWidth > 200 ? 'flex' : 'none',
           }}
         >
           <Group
@@ -340,7 +340,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
             defaultActiveName={this.defaultActiveFilterGroup}
             onActiveChange={v => (this.defaultActiveFilterGroup = v)}
             scopedSlots={{
-              default: ({ item }) => this.filterGroupSlot(item)
+              default: ({ item }) => this.filterGroupSlot(item),
             }}
             theme='filter'
             onClear={this.handleClearChecked}
@@ -364,7 +364,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
               defaultActiveName={this.defaultActiveContentGroup}
               onActiveChange={v => (this.defaultActiveContentGroup = v)}
               scopedSlots={{
-                default: ({ item }) => this.contentGroupSlot(item)
+                default: ({ item }) => this.contentGroupSlot(item),
               }}
               theme='bold'
             />

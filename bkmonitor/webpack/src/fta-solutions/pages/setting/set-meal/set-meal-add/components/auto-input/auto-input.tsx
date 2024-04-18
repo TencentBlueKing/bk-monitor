@@ -141,12 +141,12 @@ export default class AutoInput extends tsc<IAuto> {
         theme: 'light auto-input',
         maxWidth: 520,
         duration: [200, 0],
-        offset: `${this.offsetX}, ${this.offsetY}`
+        offset: `${this.offsetX}, ${this.offsetY}`,
       });
     } else {
       // 更新提示的位置
       this.popoverInstance.set({
-        offset: `${this.offsetX}, ${this.offsetY}`
+        offset: `${this.offsetX}, ${this.offsetY}`,
       });
     }
     // 显示

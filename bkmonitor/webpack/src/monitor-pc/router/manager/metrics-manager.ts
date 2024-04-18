@@ -38,8 +38,8 @@ export default [
       navId: 'metrics-manager',
       customContent: true,
       route: {
-        parent: 'manager'
-      }
-    }
-  }
+        parent: 'manager',
+      },
+    },
+  },
 ] as RouteConfig[];

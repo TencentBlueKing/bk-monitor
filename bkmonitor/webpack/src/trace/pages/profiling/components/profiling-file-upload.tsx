@@ -66,13 +66,13 @@ function valueFlash(set, val, limit) {
 
 const uploadTypeList = [
   { id: ConditionType.Where, name: window.i18n.t('查询项') },
-  { id: ConditionType.Comparison, name: window.i18n.t('对比项') }
+  { id: ConditionType.Comparison, name: window.i18n.t('对比项') },
 ];
 
 enum EFileStatus {
   failure = 'failure',
   running = 'running',
-  success = 'success'
+  success = 'success',
 }
 interface IFileStatus {
   name: string;
@@ -86,16 +86,16 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isCompare: {
       type: Boolean,
-      default: false
+      default: false,
     },
     appName: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   emits: ['showChange', 'refleshFiles'],
   setup(_props, { emit }) {
@@ -108,12 +108,12 @@ export default defineComponent({
       isRunning: boolean;
     }>({
       files: [],
-      isRunning: false
+      isRunning: false,
     });
     /* 对比详情 */
     const compareObj = reactive({
       files: [],
-      isRunning: false
+      isRunning: false,
     });
 
     const cancelObj = reactive<{
@@ -133,7 +133,7 @@ export default defineComponent({
 
     const filesStatus = ref<IFileStatus[]>([]);
 
-    function showChange(v: Boolean) {
+    function showChange(v: boolean) {
       if (!v) {
         searchObj.files.forEach(item => {
           cancelObj?.[item.uid]?.cancel?.();
@@ -163,7 +163,7 @@ export default defineComponent({
           name: options.file.name,
           uid: options.file.uid,
           progress: 0,
-          status: EFileStatus.running
+          status: EFileStatus.running,
         };
         searchObj.files.push(fileOption);
         filesStatus.value.push(fileOption);
@@ -189,7 +189,7 @@ export default defineComponent({
         // 暂时默认传pprof
         file_type: 'pprof',
         file,
-        global_query: 1
+        global_query: 1,
       };
       const cancelTokenSource = axios.CancelToken.source();
       cancelObj[file.uid] = cancelTokenSource;
@@ -202,7 +202,7 @@ export default defineComponent({
             curFileObj.progress = val;
           },
           0.99,
-          3000
+          3000,
         );
         upload(params, { cancelToken: cancelObj[file.uid].token })
           .then(data => {
@@ -246,7 +246,7 @@ export default defineComponent({
       handleUploadTypeChange,
       handleUploadProgress,
       t,
-      cancelUpload
+      cancelUpload,
     };
   },
   render() {
@@ -278,7 +278,7 @@ export default defineComponent({
               )}
               <div
                 style={{
-                  display: this.isRunning ? 'none' : undefined
+                  display: this.isRunning ? 'none' : undefined,
                 }}
               >
                 <Upload
@@ -299,14 +299,14 @@ export default defineComponent({
                           {this.t('上传')}
                         </Button>
                       </div>
-                    )
+                    ),
                   }}
                 </Upload>
               </div>
               <div
                 class='upload-running-wrap'
                 style={{
-                  display: !this.isRunning ? 'none' : undefined
+                  display: !this.isRunning ? 'none' : undefined,
                 }}
               >
                 <div class='file-list'>
@@ -348,7 +348,7 @@ export default defineComponent({
                           <div
                             class='progress-line'
                             style={{
-                              width: `${item.progress * 100}%`
+                              width: `${item.progress * 100}%`,
                             }}
                           ></div>
                         </div>
@@ -364,9 +364,9 @@ export default defineComponent({
                 </div>
               </div>
             </div>
-          )
+          ),
         }}
       </Dialog>
     );
-  }
+  },
 });

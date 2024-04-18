@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-export const TOP_NAV_HEIGHT = 46 as 46;
+export const TOP_NAV_HEIGHT = 46 as const;
 
-export const FALLBACK_DAG_MAX_NUM_SERVICES = 100 as 100;
-export const FALLBACK_TRACE_NAME = '<trace-without-root-span>' as '<trace-without-root-span>';
+export const FALLBACK_DAG_MAX_NUM_SERVICES = 100 as const;
+export const FALLBACK_TRACE_NAME = '<trace-without-root-span>' as const;
 
-export const FETCH_DONE = 'FETCH_DONE' as 'FETCH_DONE';
-export const FETCH_ERROR = 'FETCH_ERROR' as 'FETCH_ERROR';
-export const FETCH_LOADING = 'FETCH_LOADING' as 'FETCH_LOADING';
+export const FETCH_DONE = 'FETCH_DONE' as const;
+export const FETCH_ERROR = 'FETCH_ERROR' as const;
+export const FETCH_LOADING = 'FETCH_LOADING' as const;
 
 export const fetchedState = {
   DONE: FETCH_DONE,
   ERROR: FETCH_ERROR,
-  LOADING: FETCH_LOADING
+  LOADING: FETCH_LOADING,
 };

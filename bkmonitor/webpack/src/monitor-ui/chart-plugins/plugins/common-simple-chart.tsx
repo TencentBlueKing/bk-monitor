@@ -39,7 +39,7 @@ export class CommonSimpleChart
     ToolsMxin,
     ResizeMixin,
     LegendMixin,
-    ErrorMsgMixins
+    ErrorMsgMixins,
   )
   implements ICommonCharts
 {
@@ -73,7 +73,7 @@ export class CommonSimpleChart
       ...(this.viewOptions?.variables || {}),
       ...(this.viewOptions?.current_target || []),
       ...(this.viewOptions?.variables?.current_target || {}),
-      ...{ current_target: this.viewOptions?.filters || {} }
+      ...{ current_target: this.viewOptions?.filters || {} },
     };
   }
 

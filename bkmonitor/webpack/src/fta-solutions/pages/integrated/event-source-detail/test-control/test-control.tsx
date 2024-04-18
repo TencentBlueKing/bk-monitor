@@ -32,7 +32,7 @@ import './test-control.scss';
  * 测试控件
  */
 @Component
-export default class TestControl extends tsc<{}> {
+export default class TestControl extends tsc<object> {
   @Model('show-change', { default: false, type: Boolean }) show;
 
   tableData = [
@@ -40,7 +40,7 @@ export default class TestControl extends tsc<{}> {
     { input: 'actionid', output: '业务：business_name' },
     { input: 'sendto', output: '目标：target' },
     { input: 'alerttype', output: '级别：serverity' },
-    { input: 'eventid', output: '源事件ID：event_id' }
+    { input: 'eventid', output: '源事件ID：event_id' },
   ];
 
   @Emit('show-change')

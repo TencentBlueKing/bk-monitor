@@ -74,7 +74,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 指标布局列
-  @ProvideReactive('layoutActive') layoutActive: Number = 2;
+  @ProvideReactive('layoutActive') layoutActive = 2;
 
   loading = false;
   /** 关联指标是否触发吸附 */
@@ -109,7 +109,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       return;
     }
     scrollToDom.scrollIntoView({
-      behavior: 'smooth'
+      behavior: 'smooth',
     });
     scrollToDom.classList.add('select');
     setTimeout(() => {
@@ -197,11 +197,11 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
         layoutActive={this.layoutActive}
         {...{
           on: {
-            layoutChange: val => (this.layoutActive = val)
+            layoutChange: val => (this.layoutActive = val),
           },
           scopedSlots: {
-            default: this.renderDashboardPanel.bind(this, item)
-          }
+            default: this.renderDashboardPanel.bind(this, item),
+          },
         }}
       ></MetricsCollapse>
     );
@@ -216,7 +216,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       return;
     }
     current.scrollIntoView({
-      behavior: 'smooth'
+      behavior: 'smooth',
     });
     if (this.$refs[key] && (this.$refs[key] as any).isCollapse) {
       setTimeout(() => {
@@ -251,7 +251,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
         class={[
           'correlation-metric-wrap',
           !this.isCorrelationMetrics ? 'aiops-metrics-view-hide' : '',
-          this.metricRecommendationErr ? 'metrics-err' : ''
+          this.metricRecommendationErr ? 'metrics-err' : '',
         ]}
       >
         {this.panelMap.recommendedMetricPanels.length > 0 ? (
@@ -269,7 +269,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             </div>,
             <div class={['correlation-metric-panels', this.isFixed && 'correlation-metric-fixed-padding']}>
               {this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))}
-            </div>
+            </div>,
           ]
         ) : (
           <div class={`bk-table-empty-block aiops-metrics-view-${!this.isCorrelationMetrics ? 'hide' : 'show'}`}>

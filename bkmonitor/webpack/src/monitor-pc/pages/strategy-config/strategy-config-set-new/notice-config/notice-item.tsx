@@ -38,7 +38,7 @@ interface IProps {
 }
 
 @Component({
-  name: 'NoticeItem'
+  name: 'NoticeItem',
 })
 export default class NoticeItem extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) value: boolean;

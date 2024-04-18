@@ -45,7 +45,7 @@ const traceTableColumns: ITableColumn[] = [
   { id: 'span_id', name: 'spanid', type: 'string' },
   { id: 'status_code', name: window.i18n.tc('状态'), type: 'scoped_slots' },
   { id: 'elapsed_time', name: window.i18n.tc('耗时'), type: 'string', sortable: 'custom' },
-  { id: 'url', name: window.i18n.tc('操作'), type: 'scoped_slots' }
+  { id: 'url', name: window.i18n.tc('操作'), type: 'scoped_slots' },
 ];
 
 interface IProps {
@@ -68,7 +68,7 @@ export default class TraceInfo extends tsc<IProps> {
   traceTablePagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
 
   /* 错误列表数据 */
@@ -77,12 +77,12 @@ export default class TraceInfo extends tsc<IProps> {
     data: [],
     filter: [],
     check_filter: [],
-    total: 0
+    total: 0,
   };
   errDataPagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   errDataParams: {
     filterDict: IFilterDict;
@@ -91,7 +91,7 @@ export default class TraceInfo extends tsc<IProps> {
   } = {
     filterDict: {},
     sortKey: '',
-    filter: 'all'
+    filter: 'all',
   };
   errLoading = false;
 
@@ -132,7 +132,7 @@ export default class TraceInfo extends tsc<IProps> {
       bk_biz_id: this.detail.bk_biz_id,
       trace_ids: this.traceIds,
       start_time: this.startTime,
-      end_time: this.endTime
+      end_time: this.endTime,
     })
       .then(data => {
         this.alltraceIdTable = data.map(item => ({
@@ -141,7 +141,7 @@ export default class TraceInfo extends tsc<IProps> {
           status_code: item.status_code,
           url: item.url,
           elapsedTime: item.root_span.elapsed_time,
-          elapsed_time: formatDuration(item.root_span.elapsed_time)
+          elapsed_time: formatDuration(item.root_span.elapsed_time),
         }));
         this.traceIdSortTable = [...this.alltraceIdTable];
         this.traceTablePagination.count = this.alltraceIdTable.length;
@@ -161,7 +161,7 @@ export default class TraceInfo extends tsc<IProps> {
   getTraceTableData() {
     this.traceIdTable = this.traceIdSortTable.slice(
       (this.traceTablePagination.current - 1) * this.traceTablePagination.limit,
-      this.traceTablePagination.current * this.traceTablePagination.limit
+      this.traceTablePagination.current * this.traceTablePagination.limit,
     );
   }
 
@@ -206,13 +206,13 @@ export default class TraceInfo extends tsc<IProps> {
       keyword: '',
       page: this.errDataPagination.current,
       page_size: this.errDataPagination.limit,
-      sort: this.errDataParams.sortKey
+      sort: this.errDataParams.sortKey,
     }).catch(() => ({
       columns: [],
       data: [],
       filter: [],
       check_filter: [],
-      total: 0
+      total: 0,
     }));
     /* 将type: link target: self 数据个更改为target: target */
     const linkSlefColumns = [];
@@ -232,7 +232,7 @@ export default class TraceInfo extends tsc<IProps> {
           obj[key] = {
             ...targetItem,
             target: 'target',
-            url: `${location.origin}${location.pathname}${location.search}#/apm${targetItem.url}`
+            url: `${location.origin}${location.pathname}${location.search}#/apm${targetItem.url}`,
           };
         } else {
           obj[key] = targetItem;
@@ -242,7 +242,7 @@ export default class TraceInfo extends tsc<IProps> {
     });
     this.errData = {
       ...errData,
-      data: curData
+      data: curData,
     };
     this.errDataPagination.count = errData.total;
     if (!isInit) this.errLoading = false;
@@ -324,7 +324,7 @@ export default class TraceInfo extends tsc<IProps> {
                 >
                   {this.$t('检索')}
                 </span>
-              )
+              ),
             }}
           ></CommonTable>
         </div>

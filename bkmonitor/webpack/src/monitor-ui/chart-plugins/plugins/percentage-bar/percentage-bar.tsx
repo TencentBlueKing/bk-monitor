@@ -109,12 +109,12 @@ class PercentageBarChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const interval = (this.viewOptions.interval, params.end_time - params.start_time, this.panel.collect_interval);
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        interval
+        interval,
       });
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
@@ -123,11 +123,11 @@ class PercentageBarChart extends CommonSimpleChart {
               ...variablesService.transformVariables(item.data, {
                 ...this.viewOptions.filters,
                 ...this.viewOptions,
-                interval
+                interval,
               }),
-              ...params
+              ...params,
             },
-            { needMessage: false }
+            { needMessage: false },
           )
           .then(res => {
             series = res.data || [];
@@ -138,7 +138,7 @@ class PercentageBarChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          })
+          }),
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res && series.length) {
@@ -170,14 +170,14 @@ class PercentageBarChart extends CommonSimpleChart {
       // 若返回数据带total 则计算百分占比则为此total
       this.chartDataList = srcData.map(item => ({
         ...item,
-        usage: item.value / item.total
+        usage: item.value / item.total,
       }));
     } else {
       // 如无total 则获取数组最大value作为total
       const total = srcData.reduce((pre, curv) => (pre.value < curv.value ? curv : pre))?.value;
       this.chartDataList = srcData.map(item => ({
         ...item,
-        usage: item.value / total
+        usage: item.value / total,
       }));
     }
   }
@@ -211,13 +211,13 @@ class PercentageBarChart extends CommonSimpleChart {
     if (item.target === 'self') {
       if (this.isSplitPanel) {
         const route = this.$router.resolve({
-          path: item.url
+          path: item.url,
         });
         const url = `${location.origin}/${location.search}${route.href}`;
         window.open(url);
       } else {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.url}`.replace(/\/\//g, '/')
+          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.url}`.replace(/\/\//g, '/'),
         });
       }
       return;

@@ -66,7 +66,7 @@ export default class SettingParams extends tsc<IProps, IEvents> {
     es_retention: 1,
     es_number_of_replicas: 0,
     es_shards: 1,
-    es_slice_size: ''
+    es_slice_size: '',
   };
 
   /** 集群的详细数据 */
@@ -135,7 +135,7 @@ export default class SettingParams extends tsc<IProps, IEvents> {
       list.forEach(item => {
         item.is_platform ? this.sharedList.push(item) : this.exclusiveList.push(item);
       });
-      // eslint-disable-next-line max-len
+
       this.formData.es_storage_cluster =
         this.exclusiveList[0]?.storage_cluster_id || this.sharedList[0]?.storage_cluster_id || 0;
       this.handleDefaultData();

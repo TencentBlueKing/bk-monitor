@@ -31,13 +31,13 @@ export const BarChartProps = {
   // echart 配置
   options: {
     type: Object as PropType<MonitorEchartOptions>,
-    required: true
+    required: true,
   },
   // 当前滑动选择的时间范围
   selectedRange: {
     type: Array as PropType<number[]>,
-    required: true
-  }
+    required: true,
+  },
 };
 
 export default defineComponent({
@@ -68,7 +68,7 @@ export default defineComponent({
       if (!instance.value) {
         instance.value = echarts.init(chartRef.value!);
         instance.value.setOption({
-          ...(props.options || {})
+          ...(props.options || {}),
         });
         initPropsWatcher();
       }
@@ -82,17 +82,17 @@ export default defineComponent({
           if (instance.value) {
             initChart();
             instance.value.setOption({
-              ...(props.options || {})
+              ...(props.options || {}),
             });
           }
         },
-        { deep: true }
+        { deep: true },
       );
     }
     /** 监听resize */
     function handleResize() {
       instance.value?.resize({
-        silent: true
+        silent: true,
       });
     }
 
@@ -106,5 +106,5 @@ export default defineComponent({
         style='height:56px'
       />
     );
-  }
+  },
 });

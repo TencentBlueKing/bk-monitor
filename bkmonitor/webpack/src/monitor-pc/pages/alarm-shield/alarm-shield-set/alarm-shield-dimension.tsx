@@ -46,28 +46,28 @@ export default class AlarmShieldDimension extends tsc<IProps> {
   @Prop({ default: () => null, type: Object }) shieldData: any;
   @Ref('selectList') selectListRef: HTMLDivElement;
   @Model('changeCommonDateData', {
-    type: Object
+    type: Object,
   })
   commonDateData!: Object;
   isEdit = false;
   isClone = false;
   biz = {
     list: [],
-    value: ''
+    value: '',
   };
   strategyId = '';
   strategyItem = null;
   allStrategy = {
     list: [],
     current: 1,
-    isEnd: false
+    isEnd: false,
   };
   strategyList = [];
   strategyLoading = false;
   strategyPagination = {
     current: 1,
     limit: 10,
-    isEnd: false
+    isEnd: false,
   };
   metricList = [];
 
@@ -97,7 +97,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
       if (!this.isClone) {
         this.conditionList = data.dimension_config.dimension_conditions.map(item => ({
           ...item,
-          dimensionName: item.name || item.key
+          dimensionName: item.name || item.key,
         }));
         this.conditionList.forEach(item => {
           this.allNames[item.key] = item.name || item.key;
@@ -112,7 +112,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
       shieldDate.typeEn = type;
       shieldDate[type] = {
         list: [...cycleConfig.day_list, ...cycleConfig.week_list],
-        range: [cycleConfig.begin_time, cycleConfig.end_time]
+        range: [cycleConfig.begin_time, cycleConfig.end_time],
       };
       shieldDate.dateRange = [data.begin_time, data.end_time];
       if (cycleConfig.type === 1) {
@@ -130,8 +130,8 @@ export default class AlarmShieldDimension extends tsc<IProps> {
           notificationMethod: data.notice_config.notice_way,
           noticeNumber: data.notice_config.notice_time,
           member: {
-            value: data.notice_config.notice_receiver.map(item => item.id)
-          }
+            value: data.notice_config.notice_receiver.map(item => item.id),
+          },
         };
         const RNotice: any = this.$refs.shieldNotice;
         RNotice.setNoticeData(shieldNoticeData);
@@ -151,7 +151,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
     this.strategyPagination = {
       current: 1,
       limit: 10,
-      isEnd: false
+      isEnd: false,
     };
     this.loading = true;
     /* 初始化业务信息 */
@@ -169,14 +169,14 @@ export default class AlarmShieldDimension extends tsc<IProps> {
         ? [
             {
               key: 'strategy_name',
-              value: [serach]
-            }
+              value: [serach],
+            },
           ]
         : [],
       order_by: '-update_time',
       page: this.strategyPagination.current,
       page_size: this.strategyPagination.limit,
-      type: 'monitor'
+      type: 'monitor',
     })
       .then(res => res.strategy_config_list)
       .catch(() => []);
@@ -220,14 +220,14 @@ export default class AlarmShieldDimension extends tsc<IProps> {
   async handleStrategy(strategyId) {
     this.strategyItem = this.strategyList.find(item => item.id === strategyId);
     const {
-      items: [{ query_configs: queryConfigs }]
+      items: [{ query_configs: queryConfigs }],
     } = this.strategyItem;
     if (queryConfigs?.length) {
       const { metric_list: metricList = [] } = await getMetricListV2({
         page: 1,
         page_size: queryConfigs.length,
         // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
-        conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }]
+        conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }],
       }).catch(() => ({}));
       this.metricList = metricList;
       const [metricItem] = metricList;
@@ -237,7 +237,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
           dataTypeLabel: metricItem.data_type_label,
           metricField: metricItem.metric_field,
           resultTableId: metricItem.result_table_id,
-          indexSetId: metricItem.index_set_id
+          indexSetId: metricItem.index_set_id,
         };
       } else {
         this.metricMeta = null;
@@ -293,7 +293,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
         end_time: isSingle ? '' : cycleDate.range[1],
         day_list: result.typeEn === 'month' ? result.month.list : [],
         week_list: result.typeEn === 'week' ? result.week.list : [],
-        type: result.type
+        type: result.type,
       },
       shield_notice: typeof noticeData !== 'boolean',
       notice_config: {},
@@ -304,16 +304,16 @@ export default class AlarmShieldDimension extends tsc<IProps> {
           key: item.key,
           method: item.method,
           value: item.value,
-          name: item.dimensionName
+          name: item.dimensionName,
         })),
-        strategy_id: this.strategyId
-      }
+        strategy_id: this.strategyId,
+      },
     };
     if (params.shield_notice) {
       params.notice_config = {
         notice_time: noticeData.notice_time,
         notice_way: noticeData.notice_way,
-        notice_receiver: noticeData.notice_receiver
+        notice_receiver: noticeData.notice_receiver,
       };
     }
     if (this.isEdit) {
@@ -346,7 +346,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
       <div
         class='alarm-shield-dimension'
         v-bkloading={{
-          isLoading: this.loading
+          isLoading: this.loading,
         }}
       >
         <div class='set-shield-config-item'>
@@ -390,7 +390,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                           allNames={this.allNames}
                           key={this.conditionKey}
                         ></WhereDisplay>
-                      )
+                      ),
                     }}
                   ></bk-table-column>
                 </bk-table>
@@ -438,7 +438,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                     ></SimpleConditionInput>
                   </div>
                 ) : undefined,
-                this.conditionErrMsg ? <div class='err-msg'>{this.conditionErrMsg}</div> : undefined
+                this.conditionErrMsg ? <div class='err-msg'>{this.conditionErrMsg}</div> : undefined,
               ]
             )}
           </div>
