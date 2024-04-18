@@ -20,16 +20,18 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from django.contrib import admin
-from apps.utils.admin import AppModelAdmin
+
 from apps.log_databus.models import (
+    BKDataClean,
+    CleanStash,
+    CleanTemplate,
     CollectorConfig,
+    DataLinkConfig,
+    FieldDateFormat,
     StorageCapacity,
     StorageUsed,
-    DataLinkConfig,
-    BKDataClean,
-    CleanTemplate,
-    CleanStash,
 )
+from apps.utils.admin import AppModelAdmin
 
 
 @admin.register(CollectorConfig)
@@ -126,3 +128,9 @@ class CleanTemplateAdmin(AppModelAdmin):
 class CleanStashAdmin(AppModelAdmin):
     list_display = ["clean_stash_id", "clean_type", "etl_params", "etl_fields", "collector_config_id", "bk_biz_id"]
     search_fields = ["collector_config_id", "clean_type"]
+
+
+@admin.register(FieldDateFormat)
+class FieldDateFormatAdmin(AppModelAdmin):
+    list_display = ["transfer_format", "web_format", "description", "es_format", "es_type", "timestamp_unit"]
+    search_fields = ["transfer_format", "web_format"]
