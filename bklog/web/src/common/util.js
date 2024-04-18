@@ -914,17 +914,22 @@ export const parseTableRowData = (
   return data || data === 0 ? data : emptyCharacter;
 };
 
+/** 表格内字体样式 */
+export const TABLE_FOUNT_FAMILY = 'Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace';
+
 /**
  * @desc: 计算字符串像素长度
  * @param {String} str 字符串
  * @param {String} fontSize 像素大小 默认12px
+ * @param {String} fontFamily 字体样式
  * @returns {Number} 两个对象是否相同
  */
-export const getTextPxWidth = (str, fontSize = '12px') => {
+export const getTextPxWidth = (str, fontSize = '12px', fontFamily = null) => {
   let result = 10;
   const ele = document.createElement('span');
   // 字符串中带有换行符时，会被自动转换成<br/>标签，若需要考虑这种情况，可以替换成空格，以获取正确的宽度
   // str = str.replace(/\\n/g,' ').replace(/\\r/g,' ');
+  if (fontFamily) ele.style.fontFamily = fontFamily;
   ele.innerText = str;
   // 不同的大小和不同的字体都会导致渲染出来的字符串宽度变化，可以传入尽可能完备的样式信息
   ele.style.fontSize = fontSize;
@@ -961,9 +966,9 @@ export const calculateTableColsWidth = (field, list) => {
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
     // 实际字段值长度
-    const fieldValueLen = getTextPxWidth(fieldValue, '13px');
+    const fieldValueLen = getTextPxWidth(fieldValue, '13px', TABLE_FOUNT_FAMILY);
     // 字段名长度 需保证字段名完全显示
-    const fieldNameLen = getTextPxWidth(field.field_name, '13px');
+    const fieldNameLen = getTextPxWidth(field.field_name, '13px', TABLE_FOUNT_FAMILY);
 
     // 600为默认自适应最大宽度
     if (fieldValueLen > 600) return 600;
