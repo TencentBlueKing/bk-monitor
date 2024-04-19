@@ -52,6 +52,7 @@ import bus from 'monitor-common/utils/event-bus';
 // import StrategyMetricSelector from './components/strategy-metric-selector';
 import { deepClone, getUrlParam, transformDataKey, typeTools } from 'monitor-common/utils/utils';
 
+import { LETTERS } from '../../../common/constant';
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
@@ -125,7 +126,6 @@ export interface IAlarmGroupList {
 /* data_source_label 为 prometheus 监控数据模式显示为source模式 */
 const PROMETHEUS = 'prometheus';
 
-const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 const DEFAULT_INTERVAL = 60; // 指标默认的周期单位：秒
 const DEFAULT_TIME_RANGE: ITimeRangeMultipleProps['value'] = DEFAULT_TIME_RANGES.map(timeRange => [
   `${timeRange[0]}:00`,
@@ -1690,7 +1690,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             level: noDataConfig.level, // 无数据告警级别
           },
           target: this.handleGetTargetParams(), // 监控目标
-          expression: this.expression?.toLocaleLowerCase?.() || 'a', // 表达式
+          expression: this.expression?.toLocaleLowerCase?.() || LETTERS.at(0), // 表达式
           functions: this.localExpFunctions, // 表达式函数
           origin_sql: this.sourceData.sourceCode, // source
           // 指标信息
@@ -1781,7 +1781,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         data_label: item.curRealMetric?.data_label || item.data_label,
         data_source_label: item.curRealMetric?.data_source_label || item.data_source_label,
         data_type_label: item.curRealMetric?.data_type_label || item.data_type_label,
-        alias: item.alias?.toLocaleLowerCase?.() || 'a', // 表达式上对应的别名
+        alias: item.alias?.toLocaleLowerCase?.() || LETTERS.at(0), // 表达式上对应的别名
         result_table_id: item.curRealMetric?.result_table_id || item.result_table_id || '',
         agg_method: this.dataMode === 'realtime' ? 'REAL_TIME' : item.agg_method,
         agg_interval: item.agg_interval,
@@ -1835,7 +1835,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (this.monitorDataEditMode === 'Source') {
       return this.baseConfig.name;
     }
-    const exp = this.expression || 'a';
+    const exp = this.expression || LETTERS.at(0);
     const name = exp.replace(/[a-zA-z]/g, (subStr: string) => {
       const { agg_method = '', metric_field_name = '' } =
         this.metricData.find(item => subStr?.toLocaleLowerCase() === item.alias?.toLocaleLowerCase()) || {};
@@ -2181,7 +2181,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       expression: 'a',
       query_configs: this.metricData,
     };
-    this.expression = targetRes.expression || 'a';
+    this.expression = targetRes.expression || LETTERS.at(0);
     this.sourceData.sourceCodeCache = this.sourceData.sourceCode;
     const { metric_list: metricList = [] } = await getMetricListV2({
       // page: 1,
@@ -2236,7 +2236,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       //     agg_condition: item.agg_condition,
       //     agg_dimension: item.agg_dimension,
       //     agg_interval: item.agg_interval,
-      //     alias: item.alias?.toLocaleLowerCase?.() || 'a',
+      //     alias: item.alias?.toLocaleLowerCase?.() || LETTERS.at(0),
       //     functions: item.functions || []
       //   }));
       // }
