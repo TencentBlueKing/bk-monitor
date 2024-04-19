@@ -16,7 +16,9 @@ from django.utils.translation import ugettext as _
 from monitor.models import UptimeCheckGroup as base_UptimeCheckGroup
 from monitor.models import UptimeCheckNode as base_UptimeCheckNode
 from monitor.models import UptimeCheckTask as base_UptimeCheckTask
-from monitor.models import UptimeCheckTaskCollectorLog as base_UptimeCheckTaskCollectorLog
+from monitor.models import (
+    UptimeCheckTaskCollectorLog as base_UptimeCheckTaskCollectorLog,
+)
 
 
 class UptimeCheckNode(base_UptimeCheckNode):
@@ -62,7 +64,9 @@ class UptimeCheckNode(base_UptimeCheckNode):
         finally:
             for node in nodes:
                 if old_format:
-                    node["name"] = node["name"] + _("bkmonitorbeat(版本低于{}, 请升级)").format(settings.BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION)
+                    node["name"] = node["name"] + _("bkmonitorbeat(版本低于{}, 请升级)").format(
+                        settings.BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION
+                    )
                 node["id"] = f"{node['plat_id']}:{node['ip']}"
             return nodes
 
