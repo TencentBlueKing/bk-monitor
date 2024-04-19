@@ -51,6 +51,7 @@ class CommonBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         try:
             return super(CommonBaseResource, self).perform_request(params)
         except BKAPIError as api_error:
+            self.report_api_failure_metric(error_code=getattr(api_error, 'code', 0), exception_type=BKAPIError.__name__)
             # 重新设置异常内容
             error_message = api_error.data.get("message", "第三方系统异常")
             raise BKAPIError(system_name=self.plugin_key, url=self.url_path, result=str(error_message))

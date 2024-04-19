@@ -71,6 +71,9 @@ class CMDBBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         try:
             return super(CMDBBaseResource, self).perform_request(validated_request_data)
         except NoRelatedResourceError:
+            self.report_api_failure_metric(
+                error_code=getattr(NoRelatedResourceError, 'code', 0), exception_type=NoRelatedResourceError.__name__
+            )
             return self.return_type()
 
 

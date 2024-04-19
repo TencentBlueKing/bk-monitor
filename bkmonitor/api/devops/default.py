@@ -38,6 +38,7 @@ class DevopsBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
     def perform_request(self, validated_request_data):
         if not settings.BK_CI_HOST:
+            self.report_api_failure_metric(error_code=BKAPIError.code, exception_type=BKAPIError.__name__)
             raise BKAPIError(system_name=self.module_name, url=self.action, result=_("蓝盾环境未部署"))
         return super(DevopsBaseResource, self).perform_request(validated_request_data)
 
@@ -50,10 +51,9 @@ class ListUserProjectResource(DevopsBaseResource):
     action = "/v4/apigw-user/projects/project_list"
     method = "GET"
 
-    def perform_request(self, validated_request_data):
+    def request(self, request_data=None, **kwargs):
         if not settings.BK_CI_HOST:
             return []
-        return super(ListUserProjectResource, self).perform_request(validated_request_data)
 
 
 class UserProjectCreateResource(DevopsBaseResource):

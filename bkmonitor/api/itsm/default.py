@@ -69,13 +69,14 @@ class TicketRevokeResource(ITSMBaseResource):
         operator = serializers.CharField(label="撤单人", required=True)
         action_message = serializers.CharField(label="撤单消息", required=False, default="撤销单据")
 
-    def perform_request(self, params):
-        params.update(
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(TicketRevokeResource, self).full_request_data(validated_request_data)
+        validated_request_data.update(
             {
                 "action_type": "WITHDRAW",
             }
         )
-        return super(TicketRevokeResource, self).perform_request(params)
+        return validated_request_data
 
 
 class TokenVerifyResource(ITSMBaseResource):
