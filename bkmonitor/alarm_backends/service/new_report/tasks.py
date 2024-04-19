@@ -61,7 +61,7 @@ def new_report_detect():
             f"[new_report_detect] report({report.id}) last_send_time: {last_send_time},"
             f" run_time_strings:{run_time_strings}"
         )
-        if not is_run_time(frequency, run_time_strings):
+        if not is_run_time(frequency, run_time_strings, last_send_time):
             logger.info(f"[new_report_detect] report({report.id}) is not at sending time.")
             continue
         # 根据渠道分别发送，记录最新发送轮次

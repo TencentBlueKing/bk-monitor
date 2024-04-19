@@ -54,7 +54,7 @@ def parse_frequency(frequency, last_send_time=None) -> list:
     return run_time_strings
 
 
-def is_run_time(frequency, run_time_strings: list) -> bool:
+def is_run_time(frequency, run_time_strings: list, last_send_time=None) -> bool:
     """
     是否到执行时间
     """
@@ -68,6 +68,9 @@ def is_run_time(frequency, run_time_strings: list) -> bool:
     for run_time in run_time_strings:
         run_time = TimeMatch.convert_datetime_to_arrow(datetime.datetime.strptime(run_time, "%Y-%m-%d %H:%M:%S"))
         if time_check.is_match(run_time):
+            return True
+        last_send_time = arrow.get(last_send_time)
+        if now_time > run_time and (not last_send_time or run_time > last_send_time):
             return True
     return False
 
