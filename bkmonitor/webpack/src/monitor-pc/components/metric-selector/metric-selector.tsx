@@ -878,15 +878,17 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               <div class='metric-selector-tags'>
                 <HorizontalScrollContainer key={String(this.tag.list?.length || 0)}>
                   <div class='built-in'>
-                    {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(item => (
-                      <div
-                        class={['built-in-item', { active: this.tag.value === item.id }]}
-                        key={item.id}
-                        on-click={() => this.handleTagClick(item.id)}
-                      >
-                        {item.name}
-                      </div>
-                    ))}
+                    {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(
+                      (item, index) => (
+                        <div
+                          class={['built-in-item', { active: this.tag.value === item.id }]}
+                          key={`${item.id}_${index}`}
+                          on-click={() => this.handleTagClick(item.id)}
+                        >
+                          {item.name}
+                        </div>
+                      ),
+                    )}
                   </div>
                 </HorizontalScrollContainer>
               </div>
