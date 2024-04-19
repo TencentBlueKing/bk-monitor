@@ -32,6 +32,7 @@ import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 
+import { LETTERS } from '../../../../../common/constant';
 import { SET_DIMENSIONS_OF_SERIES } from '../../../../../store/modules/strategy-config';
 import { ChartType } from '../../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
 import { IFunctionsValue } from '../../../strategy-config-set-new/monitor-data/function-select';
@@ -235,7 +236,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   /** 根据表达式生成指标图的title */
   getMetricName() {
     // 字符串分隔成多个单词
-    const metricName = (this.expression || 'a').replace(/\b\w+\b/g, alias => {
+    const metricName = (this.expression || LETTERS.at(0)).replace(/\b\w+\b/g, alias => {
       // 单词分隔成多个关键字
       return alias.replace(/and|or|\w/g, keyword => {
         if (keyword === 'and' || keyword === 'or') return keyword;
@@ -354,7 +355,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
    */
   getQueryParams(isDetect = false, isMetric = true, metrics?) {
     const params = {
-      expression: this.expression || 'a',
+      expression: this.expression || LETTERS.at(0),
       functions: this.expression ? this.expFunctions : [],
       target: this.strategyTarget || [],
       query_configs:
@@ -416,7 +417,14 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 const method = aggMethod === 'REAL_TIME' || this.dataMode === 'realtime' ? 'REAL_TIME' : aggMethod;
                 let localMetrics = this.hasIntelligentDetect
                   ? this.createMetrics(isMetric)
-                  : [{ field: fieldValue(), method, alias: alias || 'a', display: dataTypeLabel === 'alert' }];
+                  : [
+                      {
+                        field: fieldValue(),
+                        method,
+                        alias: alias || LETTERS.at(0),
+                        display: dataTypeLabel === 'alert',
+                      },
+                    ];
                 if (this.hasTimeSeriesForecast && metrics) {
                   // 时序预测
                   localMetrics = [...localMetrics, ...metrics];
@@ -493,10 +501,10 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     if (type === 'none') metricFields = ['value', 'is_anomaly'];
     if (type === 'boundary') metricFields = ['value', 'lower_bound', 'upper_bound', 'is_anomaly'];
     if (type === 'score') metricFields = isMetric ? ['value', 'is_anomaly'] : ['anomaly_score'];
-    const metrics = metricFields.map(field => ({
+    const metrics = metricFields.map((field, index) => ({
       field,
       method: field === 'anomaly_score' ? '' : this.intelligentDetect?.agg_method || method,
-      alias: field === 'value' ? alias : 'a',
+      alias: field === 'value' ? alias : LETTERS.at(index),
       display: ['anomaly_score', 'value'].includes(field) ? undefined : true,
     }));
     return metrics;
