@@ -767,6 +767,7 @@ class FieldDateFormat(OperateRecordModel):
                 "es_format": obj["es_format"],
                 "es_type": obj["es_type"],
                 "timestamp_unit": obj["timestamp_unit"],
+                "is_custom": True,
             }
             for obj in objs
         ]
