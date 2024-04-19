@@ -25,7 +25,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import DatePicker from '@blueking/date-picker/vue2';
 import { updateTimezone } from '../../language/dayjs';
 import { DEFAULT_TIME_RANGE } from './utils';
-import '@blueking/date-picker/dist/vue2-full.css';
+import '@blueking/date-picker/vue2/vue2.css';
 
 export type TimeRangeType = [string, string];
 
