@@ -54,7 +54,7 @@
       <template>
         <bk-table-column
           class-name="original-time"
-          width="140"
+          width="160"
         >
           <template slot-scope="{ row }">
             <span
