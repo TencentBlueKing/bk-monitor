@@ -145,6 +145,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   ];
   /* 告警组 */
   alarmGroupList = [];
+  alarmGroupLoading = false;
   /* 面包屑 */
   navName = 'loading...';
   /** 详情信息 */
@@ -449,12 +450,14 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   }
   // 获取告警组数据
   async getAlarmGroupList() {
+    this.alarmGroupLoading = true;
     const data = await listUserGroup().catch(() => []);
     this.alarmGroupList = data.map(item => ({
       id: item.id,
       name: item.name,
       receiver: item.users?.map(rec => rec.display_name) || [],
     }));
+    this.alarmGroupLoading = false;
   }
 
   /** 获取告警组名 */
@@ -1343,7 +1346,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                         <div class='user-notice-item'>
                           <span class='groups-title-warp'>{this.$t('通知升级')}：</span>
                           {this.noticeData?.options?.upgrade_config?.is_enabled ? (
-                            <span>
+                            [
                               <span>
                                 <i18n
                                   class='text'
@@ -1351,21 +1354,25 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                                 >
                                   <span>{this.noticeData?.options?.upgrade_config?.upgrade_interval || 0}</span>
                                 </i18n>
-                              </span>
-                              <span class='ml10'>
-                                {this.noticeData?.options?.upgrade_config?.user_groups?.map(alarm => (
-                                  <span
-                                    class='user-group'
-                                    onClick={(e: Event) => {
-                                      e.stopPropagation();
-                                      this.handleSelcetAlarmGroup(alarm);
-                                    }}
-                                  >
-                                    {this.getAlarmGroupByID(alarm)}
-                                  </span>
-                                ))}
-                              </span>
-                            </span>
+                              </span>,
+                              <div class='ml10 notice-user-list'>
+                                {this.noticeData?.options?.upgrade_config?.user_groups?.map(alarm =>
+                                  !this.alarmGroupLoading ? (
+                                    <span
+                                      class='user-group'
+                                      onClick={(e: Event) => {
+                                        e.stopPropagation();
+                                        this.handleSelcetAlarmGroup(alarm);
+                                      }}
+                                    >
+                                      {this.getAlarmGroupByID(alarm)}
+                                    </span>
+                                  ) : (
+                                    <div class='skeleton-element alarm-group-skeleton'></div>
+                                  ),
+                                )}
+                              </div>,
+                            ]
                           ) : (
                             <span>{this.$t('关闭')}</span>
                           )}
