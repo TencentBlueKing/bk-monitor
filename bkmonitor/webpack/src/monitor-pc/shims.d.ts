@@ -111,6 +111,7 @@ declare global {
     source_app: string;
     bk_bcs_url: string;
     __BK_WEWEB_DATA__: Record<string, any>;
+    __POWERED_BY_BK_WEWEB__?: boolean;
     token?: string;
     enable_create_chat_group: boolean;
     __bk_zIndex_manager: {
