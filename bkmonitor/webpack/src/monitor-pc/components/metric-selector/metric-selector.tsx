@@ -275,6 +275,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     this.pagination.total = 0;
     this.tag.value = '';
     this.isRefreshSuccess = false;
+    if (!this.metricId) {
+      this.selectedMetric = null;
+    }
   }
 
   @Debounce(300)
@@ -904,6 +907,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                         'common-type': this.type === MetricType.TimeSeries,
                       },
                     ]}
+                    key={`__${this.selectedMetric?.metric_id || '--'}__`}
                   >
                     <div class='selected-label'>
                       <div class='blue-bg'>
@@ -921,6 +925,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   [
                     this.metricList.map((item, index) => (
                       <div
+                        key={`${item.metric_id}_${index}`}
                         class={[
                           'metric-item',
                           {
