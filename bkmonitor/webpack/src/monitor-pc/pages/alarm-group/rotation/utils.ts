@@ -83,7 +83,7 @@ export function getCalendarOfNum(num = 7, preDay?: number) {
   return days.map((item: Date) => ({
     year: item.getFullYear(),
     month: item.getMonth() + 1,
-    day: item.getDate()
+    day: item.getDate(),
   }));
 }
 /* 时间点刚好至每天的间隔则-1 */
@@ -116,7 +116,7 @@ export function getTimeRangeToPercent(timeRange: string[], totalRange: string[])
   })();
   return {
     isStartBorder: isStartBorder || startPoint === 0,
-    range: [startPoint / totleLen, endPoint / totleLen]
+    range: [startPoint / totleLen, endPoint / totleLen],
   };
 }
 /* 将时间戳转为字符串格式 */
@@ -130,7 +130,7 @@ function timeStampToTimeStr(num: number) {
     minutes: date.getMinutes(),
     seconds: date.getSeconds(),
     hoursStr: date.getHours() < 10 ? `${0}${date.getHours()}` : date.getHours(),
-    minutesStr: date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes()
+    minutesStr: date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes(),
   };
 }
 /* 根据时间戳段 获取百分比并输出字符串时间格式 */
@@ -150,7 +150,7 @@ export function getDateStrAndRange(timeRange: number[], totalRange: number[]) {
       : `${startTimeStr}-${endTimeStr}`;
   return {
     range,
-    timeStr
+    timeStr,
   };
 }
 
@@ -171,12 +171,11 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
           let start = new Date(item[0]).getTime();
           const end = new Date(item[1]).getTime();
           if (start < totalRangeTime[0]) {
-            // eslint-disable-next-line prefer-destructuring
             start = totalRangeTime[0];
           }
           return [start, end];
-        })
-    )
+        }),
+    ),
   );
   allRangeTime.sort((a, b) => (a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]));
 
@@ -308,10 +307,10 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
     for (let j = i + 1; j < timeRanges.length; j++) {
       // 两两对比
       const curTimeRanges = JSON.parse(
-        JSON.stringify(timeRanges[i].map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()]))
+        JSON.stringify(timeRanges[i].map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()])),
       ) as number[][];
       const nextTimeRanges = JSON.parse(
-        JSON.stringify(timeRanges[j].map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()]))
+        JSON.stringify(timeRanges[j].map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()])),
       ) as number[][];
       const ranges = getOverlapTowByTow([curTimeRanges, nextTimeRanges]);
       ranges.forEach(range => {
@@ -327,8 +326,8 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
               verticalRange: [i, j],
               range: {
                 ...getDateStrAndRange(tempRange, totalRangeTime),
-                tempRange
-              }
+                tempRange,
+              },
             });
           }
         }
@@ -359,7 +358,7 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
               g.verticalRange[0] >= r.verticalRange[0] &&
               g.verticalRange[1] <= r.verticalRange[1] &&
               g.range.tempRange[0] >= r.range.tempRange[0] &&
-              g.range.tempRange[1] <= r.range.tempRange[1]
+              g.range.tempRange[1] <= r.range.tempRange[1],
           ).length;
         if (temp.length) {
           const pre = temp[temp.length - 1];
@@ -437,7 +436,7 @@ function setRowYOfOverlap(data: IDutyDataRangeItem[]) {
   const result: (IDutyDataRangeItem & { timeRangeNum: number[] })[] = [];
   const tempData: (IDutyDataRangeItem & { timeRangeNum: number[] })[] = data.map(item => ({
     ...item,
-    timeRangeNum: item.timeRange.map(t => new Date(t).getTime())
+    timeRangeNum: item.timeRange.map(t => new Date(t).getTime()),
   }));
   tempData.sort((a, b) => a.timeRangeNum[0] - b.timeRangeNum[0]);
   let maxRow = 0;
@@ -451,7 +450,7 @@ function setRowYOfOverlap(data: IDutyDataRangeItem[]) {
         if (preItem.timeRangeNum[1] <= item.timeRangeNum[0]) {
           result.push({
             ...item,
-            row: i
+            row: i,
           });
           break;
         }
@@ -459,7 +458,7 @@ function setRowYOfOverlap(data: IDutyDataRangeItem[]) {
           maxRow += 1;
           result.push({
             ...item,
-            row: maxRow
+            row: maxRow,
           });
           break;
         }
@@ -467,13 +466,13 @@ function setRowYOfOverlap(data: IDutyDataRangeItem[]) {
     } else {
       result.push({
         ...item,
-        row: 0
+        row: 0,
       });
     }
   });
   return {
     maxRow,
-    result
+    result,
   };
 }
 
@@ -487,7 +486,7 @@ export function dutyDataConversion(dutyData: IDutyData) {
   const { dates } = dutyData;
   const totalTimeRange = [
     `${dates[0].year}-${dates[0].month}-${dates[0].day} 00:00`,
-    `${dates[6].year}-${dates[6].month}-${dates[6].day} 23:59`
+    `${dates[6].year}-${dates[6].month}-${dates[6].day} 23:59`,
   ];
   /* 所有用户组范围 */
   const allTimeRange = [];
@@ -515,14 +514,14 @@ export function dutyDataConversion(dutyData: IDutyData) {
         ...d,
         isStartBorder: rangeObj.isStartBorder,
         range: rangeObj.range,
-        other
+        other,
       };
     });
     const obj = setRowYOfOverlap(data.filter(d => d.range[1] - d.range[0] !== 0));
     return {
       ...item,
       maxRow: obj.maxRow,
-      data: obj.result
+      data: obj.result,
     };
   });
   /* 计算空闲时间 */
@@ -560,7 +559,7 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
   const data = dutyList.map(item => ({
     id: item.id,
     name: item.name,
-    data: []
+    data: [],
   }));
   const paramsData = params.map(item => {
     const type = dutyList.find(d => d.id === item.rule_id)?.category;
@@ -569,8 +568,8 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
         ...item,
         duty_plans: item.duty_plans.map(d => ({
           ...d,
-          order: 0
-        }))
+          order: 0,
+        })),
       };
     }
     return item;
@@ -588,8 +587,8 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
           timeRange: [w.start_time, w.end_time],
           other: {
             time: '',
-            users: userStr
-          }
+            users: userStr,
+          },
         });
       });
     });
@@ -620,12 +619,12 @@ function uniqueByDutyUsers(data: IDutyPreviewParams[]) {
       });
       return {
         ...duty,
-        work_times: workTimes
+        work_times: workTimes,
       };
     });
     result.push({
       ...item,
-      duty_plans: dutyPlans
+      duty_plans: dutyPlans,
     });
   });
   return result;
@@ -646,7 +645,7 @@ export function getDutyPlansDetails(data: IDutyPlansItem[], isHistory: boolean) 
         result.push({
           startTime: time.start_time || '--',
           endTime: time.end_time || '--',
-          users: usersStr
+          users: usersStr,
         });
       }
       sets.add(`${usersStr}--${timeStr}`);
@@ -690,9 +689,9 @@ export function userIndexResetOfpreviewData(params: IDutyPreviewParams[]) {
       duty_plans: item.duty_plans.map(plan => {
         return {
           ...plan,
-          user_index: userIndexCount(temp, plan.user_index, plan?.order || 0)
+          user_index: userIndexCount(temp, plan.user_index, plan?.order || 0),
         };
-      })
+      }),
     };
   });
 }

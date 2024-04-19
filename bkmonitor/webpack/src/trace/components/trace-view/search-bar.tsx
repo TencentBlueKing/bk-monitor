@@ -34,20 +34,20 @@ import './search-bar.scss';
 const SearchBarProps = {
   showResultCount: {
     type: Boolean,
-    default: true
+    default: true,
   },
   resultCount: {
     type: Number,
-    default: 1
+    default: 1,
   },
   limitClassify: {
     type: Boolean,
-    default: false
+    default: false,
   },
   prevResult: Function as PropType<() => void>,
   nextResult: Function as PropType<() => void>,
   clearSearch: Function as PropType<() => void>,
-  trackFilter: Function as PropType<(list: string[]) => void>
+  trackFilter: Function as PropType<(list: string[]) => void>,
 };
 
 export default defineComponent({
@@ -83,7 +83,7 @@ export default defineComponent({
     };
 
     expose({
-      handleChange
+      handleChange,
     });
 
     return {
@@ -93,7 +93,7 @@ export default defineComponent({
       handleClear,
       handlePaste,
       handlePrevResult,
-      handleNextResult
+      handleNextResult,
     };
   },
 
@@ -134,5 +134,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

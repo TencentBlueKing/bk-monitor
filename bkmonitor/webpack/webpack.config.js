@@ -40,7 +40,6 @@ let devConfig = {
   devProxyUrl,
   loginHost,
   proxy: {},
-  cache: null
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
@@ -53,7 +52,7 @@ module.exports = async (baseConfig, { production, app }) => {
     // 自动配port
     const port = await require('portfinder').getPortPromise({
       port: devConfig.port,
-      stopPort: 8888
+      stopPort: 8888,
     });
     config.devServer = {
       port,
@@ -63,15 +62,15 @@ module.exports = async (baseConfig, { production, app }) => {
         {
           ...devConfig.proxy,
           proxyTimeout: 5 * 60 * 1000,
-          timeout: 5 * 60 * 1000
-        }
+          timeout: 5 * 60 * 1000,
+        },
       ],
       client: {
-        overlay: false
+        overlay: false,
       },
       open: false,
       static: [],
-      watchFiles: []
+      watchFiles: [],
     };
     config.plugins.push(
       new wepack.DefinePlugin({
@@ -84,9 +83,9 @@ module.exports = async (baseConfig, { production, app }) => {
             loginHost: JSON.stringify(devConfig.loginHost),
             loginUrl: JSON.stringify(`${devConfig.loginHost}`),
             defaultBizId: JSON.stringify(`${devConfig.defaultBizId || 2}`),
-            APP: JSON.stringify(`${app}`)
-          }
-        }
+            APP: JSON.stringify(`${app}`),
+          },
+        },
       })
     );
   } else if (app !== 'email') {
@@ -95,9 +94,9 @@ module.exports = async (baseConfig, { production, app }) => {
         process: {
           env: {
             NODE_ENV: JSON.stringify('production'),
-            APP: JSON.stringify(`${app}`)
-          }
-        }
+            APP: JSON.stringify(`${app}`),
+          },
+        },
       })
     );
     config.plugins.push(new MonitorWebpackPlugin(app));
@@ -109,8 +108,8 @@ module.exports = async (baseConfig, { production, app }) => {
     new CopyPlugin({
       patterns: [
         { from: path.resolve(`./public/${app}/`), to: distUrl },
-        { from: path.resolve('./public/img'), to: path.resolve(distUrl, './img') }
-      ].filter(Boolean)
+        { from: path.resolve('./public/img'), to: path.resolve(distUrl, './img') },
+      ].filter(Boolean),
     })
   );
   return {
@@ -119,11 +118,11 @@ module.exports = async (baseConfig, { production, app }) => {
       publicPath: '',
       ...config.output,
       path: distUrl,
-      uniqueName: app
+      uniqueName: app,
     },
     entry: {
       ...config.entry,
-      main: `./src/${appDirName}/index.ts`
+      main: `./src/${appDirName}/index.ts`,
     },
     resolve: {
       ...config.resolve,
@@ -138,10 +137,10 @@ module.exports = async (baseConfig, { production, app }) => {
         '@common': path.resolve('./src/monitor-common/'),
         ...(['apm', 'fta', 'pc'].includes(app)
           ? {
-              vue$: 'vue/dist/vue.runtime.common.js'
+              vue$: 'vue/dist/vue.runtime.common.js',
             }
-          : {})
-      }
-    }
+          : {}),
+      },
+    },
   };
 };

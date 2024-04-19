@@ -508,6 +508,14 @@ export function formatDate(val, isTimzone = true) {
   const time = date.toTimeString().slice(0, 8);
   return `${yyyy}-${mm}-${dd} ${time}`;
 }
+/**
+ * @desc: days时间格式化
+ * @param {String} val
+ * @returns {String}
+ */
+export function daysFormatDate(val) {
+  return dayjs(val).format('YYYY-MM-DD HH:mm:ss');
+}
 
 /**
  * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
@@ -786,17 +794,23 @@ export const isIPv6 = (str = '') => {
   );
 };
 
+/** 是否强制更新现有的表格缓存显示字段 每次需要强制更新只需取反即可 */
+const TABLE_FORCE = true;
+
 // 列表设置刷新本地缓存
 export const getDefaultSettingSelectFiled = (key, filed) => {
+  const tableForceStr = localStorage.getItem('TABLE_FORCE');
+  const parseForce = JSON.parse(tableForceStr);
   const selectObj = JSON.parse(localStorage.getItem('TABLE_SELECT_FILED'));
   const assignObj = {};
-  if (!selectObj) {
+  if (!selectObj || !tableForceStr || parseForce !== TABLE_FORCE) {
     assignObj[key] = filed;
   } else {
     Object.assign(assignObj, selectObj);
     assignObj[key] = selectObj[key] ?? filed;
   }
   localStorage.setItem('TABLE_SELECT_FILED', JSON.stringify(assignObj));
+  localStorage.setItem('TABLE_FORCE', JSON.stringify(TABLE_FORCE));
   return assignObj[key];
 };
 
@@ -900,18 +914,23 @@ export const parseTableRowData = (
   return data || data === 0 ? data : emptyCharacter;
 };
 
+/** 表格内字体样式 */
+export const TABLE_FOUNT_FAMILY = 'Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace';
+
 /**
  * @desc: 计算字符串像素长度
  * @param {String} str 字符串
  * @param {String} fontSize 像素大小 默认12px
+ * @param {String} fontFamily 字体样式
  * @returns {Number} 两个对象是否相同
  */
-export const getTextPxWidth = (str, fontSize = '12px') => {
+export const getTextPxWidth = (str, fontSize = '12px', fontFamily = null) => {
   let result = 10;
   const ele = document.createElement('span');
   // 字符串中带有换行符时，会被自动转换成<br/>标签，若需要考虑这种情况，可以替换成空格，以获取正确的宽度
   // str = str.replace(/\\n/g,' ').replace(/\\r/g,' ');
   ele.innerText = str;
+  if (fontFamily) ele.style.fontFamily = fontFamily;
   // 不同的大小和不同的字体都会导致渲染出来的字符串宽度变化，可以传入尽可能完备的样式信息
   ele.style.fontSize = fontSize;
   // 由于父节点的样式会影响子节点，这里可按需添加到指定节点上
@@ -940,14 +959,17 @@ export const calculateTableColsWidth = (field, list) => {
   });
   if (firstLoadList[0]) {
     if (['ip', 'serverIp'].includes(field.field_name)) return 124;
+    if (field.field_name === 'dtEventTimeStamp') return 256;
+    if (field.field_name === 'time') return 175;
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
+    // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
     // 实际字段值长度
-    const fieldValueLen = getTextPxWidth(fieldValue);
+    const fieldValueLen = getTextPxWidth(fieldValue, '13px', TABLE_FOUNT_FAMILY);
     // 字段名长度 需保证字段名完全显示
-    const fieldNameLen = getTextPxWidth(field.field_name);
+    const fieldNameLen = getTextPxWidth(field.field_name, '13px', TABLE_FOUNT_FAMILY);
 
     // 600为默认自适应最大宽度
     if (fieldValueLen > 600) return 600;
@@ -1077,4 +1099,21 @@ export const blobDownload = (data, fileName = 'default', type = 'text/plain') =>
   downloadElement.click(); // 点击下载
   document.body.removeChild(downloadElement);
   window.URL.revokeObjectURL(href); // 释放掉blob对象
+};
+
+export const xssFilter = str => {
+  return (
+    str?.replace?.(/[&<>"]/gi, function (match) {
+      switch (match) {
+        case '&':
+          return '&amp;';
+        case '<':
+          return '&lt;';
+        case '>':
+          return '&gt;';
+        case '"':
+          return '&quot;';
+      }
+    }) || str
+  );
 };

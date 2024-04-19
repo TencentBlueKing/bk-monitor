@@ -1,10 +1,10 @@
 .origin-content {
-  // font-family: monospace;
-  // color: #000;
+  font-family: var(--table-fount-family);
+  font-size: var(--table-fount-size);
+  color: var(--table-fount-color);
 
   .black-mark {
     margin-right: 2px;
-    color: #313238;
     background: #e6e6e6;
     border-radius: 2px;
   }

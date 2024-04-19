@@ -63,11 +63,11 @@ export default class ClusterDetails extends tsc<IProps> {
       this.contents = [
         {
           name: this.$tc('资源类别'),
-          content: this.data.cluster_type
+          content: this.data.cluster_type,
         },
         {
           name: this.$t('集群名称'),
-          content: this.data.cluster_name
+          content: this.data.cluster_name,
         },
         {
           name: this.$tc('用途'),
@@ -79,46 +79,46 @@ export default class ClusterDetails extends tsc<IProps> {
             </div>
           ) : (
             '--'
-          )
+          ),
         },
         {
           name: this.$tc('集群域名'),
-          content: this.data.domain_name
+          content: this.data.domain_name,
         },
         {
           name: this.$t('端口'),
-          content: this.data.port
+          content: this.data.port,
         },
         {
           name: this.$t('访问协议'),
-          content: this.data.schema
+          content: this.data.schema,
         },
         {
           name: this.$tc('用户名'),
-          content: this.data.username
+          content: this.data.username,
         },
         {
           name: this.$t('密码'),
-          content: this.data.password
+          content: this.data.password,
         },
         {
           name: this.$t('ges注册配置'),
-          content: this.data.gse_stream_to_id === -1 ? this.$t('否') : this.$t('是')
+          content: this.data.gse_stream_to_id === -1 ? this.$t('否') : this.$t('是'),
         },
         {
           name: this.$t('负责人'),
-          content: this.data.creator
+          content: this.data.creator,
         },
         {
           name: this.$t('描述'),
-          content: this.data.description
-        }
+          content: this.data.description,
+        },
       ];
       this.historyList = [
         { label: this.$t('创建人'), value: this.data.creator || '--' },
         { label: this.$t('创建时间'), value: this.data.create_time || '--' },
         { label: this.$t('最近更新人'), value: this.data.last_modify_user || '--' },
-        { label: this.$t('修改时间'), value: this.data.last_modify_time || '--' }
+        { label: this.$t('修改时间'), value: this.data.last_modify_time || '--' },
       ];
     }
   }

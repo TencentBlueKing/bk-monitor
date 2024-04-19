@@ -47,27 +47,27 @@ interface YearRoundEvents {
 const typeModelMap = {
   [DetectionRuleTypeEnum.SimpleYearRound]: {
     floor: '',
-    ceil: ''
+    ceil: '',
   },
   [DetectionRuleTypeEnum.AdvancedYearRound]: {
     floor: '',
     floor_interval: '',
     ceil: '',
     ceil_interval: '',
-    fetch_type: 'avg'
+    fetch_type: 'avg',
   },
   [DetectionRuleTypeEnum.YearRoundAmplitude]: {
     ratio: 0,
     shock: 0,
     days: 1,
-    method: 'gte'
+    method: 'gte',
   },
   [DetectionRuleTypeEnum.YearRoundRange]: {
     ratio: 0,
     shock: 0,
     days: 1,
-    method: 'gte'
-  }
+    method: 'gte',
+  },
 };
 
 @Component({})
@@ -88,8 +88,8 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
     level: 1,
     config: {
       floor: '',
-      ceil: ''
-    }
+      ceil: '',
+    },
   };
 
   errorMsg = '';
@@ -101,21 +101,21 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
       {
         validator: this.checkConfig,
         message: this.showMsg,
-        trigger: 'change'
-      }
-    ]
+        trigger: 'change',
+      },
+    ],
   };
 
   /** 简易模板 */
   simpleTemplate = [
     { value: 'ceil', text: this.$t('升') },
-    { value: 'floor', text: this.$t('降') }
+    { value: 'floor', text: this.$t('降') },
   ];
 
   /** 高级模板 */
   advancedTemplate = [
     { value1: 'ceil_interval', value2: 'ceil', value3: 'fetch_type', text: window.i18n.t('升') },
-    { value1: 'floor_interval', value2: 'floor', value3: 'fetch_type', text: window.i18n.t('降') }
+    { value1: 'floor_interval', value2: 'floor', value3: 'fetch_type', text: window.i18n.t('降') },
   ];
 
   // 在 同比策略 的 高级算法类型 下，记录当前在 告警条件 里是输入还是选择 均值/瞬间值 （因为在选择时不需要参与表单校验）
@@ -132,7 +132,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
       [DetectionRuleTypeEnum.SimpleYearRound]: [],
       [DetectionRuleTypeEnum.AdvancedYearRound]: [],
       [DetectionRuleTypeEnum.YearRoundAmplitude]: [],
-      [DetectionRuleTypeEnum.YearRoundRange]: []
+      [DetectionRuleTypeEnum.YearRoundRange]: [],
     };
     this.otherSelectRuleData.forEach(item => {
       if (map[item.type]) map[item.type].push(item.level);
@@ -145,7 +145,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
     const list = [
       { id: 1, name: window.i18n.t('致命'), disabled: false, icon: 'icon-danger' },
       { id: 2, name: window.i18n.t('预警'), disabled: false, icon: 'icon-mind-fill' },
-      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' }
+      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' },
     ];
     list.forEach(item => {
       item.disabled = this.selectTypeOrLevelMap[this.localData.type]?.includes(item.id);
@@ -159,7 +159,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
       { id: DetectionRuleTypeEnum.SimpleYearRound, name: window.i18n.t('简易'), disabled: false },
       { id: DetectionRuleTypeEnum.AdvancedYearRound, name: window.i18n.t('高级'), disabled: false },
       { id: DetectionRuleTypeEnum.YearRoundAmplitude, name: window.i18n.t('振幅'), disabled: false },
-      { id: DetectionRuleTypeEnum.YearRoundRange, name: window.i18n.t('区间'), disabled: false }
+      { id: DetectionRuleTypeEnum.YearRoundRange, name: window.i18n.t('区间'), disabled: false },
     ];
     list.forEach(item => {
       item.disabled = this.selectTypeOrLevelMap[item.id]?.includes(this.localData.level);
@@ -323,7 +323,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
                     disabled: !level.disabled,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>
@@ -348,10 +348,10 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                   disabled={type.disabled}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', {
-                      name: this.levelList[this.localData.level - 1].name
+                      name: this.levelList[this.localData.level - 1].name,
                     }),
                     disabled: !type.disabled,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   {type.name}

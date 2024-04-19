@@ -38,7 +38,7 @@ interface IItem {
 const typeIndexs = {
   bg: 0,
   dept: 1,
-  center: 2
+  center: 2,
 };
 type IType = 'bg' | 'dept' | 'center';
 
@@ -58,7 +58,7 @@ export default class OrganizationSelector extends tsc<IProps> {
   allSelectList: ISelectItem[] = [
     { list: [], value: '', type: 'bg', loading: false },
     { list: [], value: '', type: 'dept', loading: false },
-    { list: [], value: '', type: 'center', loading: false }
+    { list: [], value: '', type: 'center', loading: false },
   ];
 
   async created() {
@@ -83,7 +83,7 @@ export default class OrganizationSelector extends tsc<IProps> {
     this.allSelectList[index].loading = true;
     const data = await listDepartments({
       type,
-      id: type === 'bg' ? '' : id
+      id: type === 'bg' ? '' : id,
     }).catch(() => []);
     this.allSelectList[index].list = data;
     if (this.allSelectList[index].value) {

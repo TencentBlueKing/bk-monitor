@@ -43,63 +43,63 @@ interface IListItem {
 export default defineComponent({
   name: 'SelectInput',
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: {
     value: {
       type: String,
-      default: ''
+      default: '',
     },
     list: {
       type: Array as PropType<IListItem[]>,
-      default: () => []
+      default: () => [],
     },
     dimesionKey: {
       type: String,
-      default: ''
+      default: '',
     },
     /* 将维度选择框改为分组(根据策略分组) */
     isDimensionGroup: {
       type: Boolean,
-      default: false
+      default: false,
     },
     groupDimensionMap: {
       type: Object as PropType<Map<string, IDimensionItem[]>>,
-      default: () => new Map()
+      default: () => new Map(),
     },
     strategyList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     onChange: {
       type: Function as PropType<(v: string) => void>,
-      default: _v => {}
+      default: _v => {},
     },
     /* 删除 */
     onDelete: {
       type: Function,
-      default: () => {}
+      default: () => {},
     },
     /* 初始显示的策略列表，避免重复获取 */
     onStrategyListInit: {
       type: Function,
-      default: _v => {}
+      default: _v => {},
     },
     /* 缓存策略包含的维度列表 配合groupDimensionMap使用 */
     dimensionSet: {
       type: Function as PropType<(key: string, list: IDimensionItem[]) => void>,
-      default: (_key, _list) => {}
+      default: (_key, _list) => {},
     },
     /* 缓存策略的meta信息 */
     metricMetaSet: {
       type: Function as PropType<(key: string, obj: any) => void>,
-      default: (_key, _obj) => {}
+      default: (_key, _obj) => {},
     },
     /* 选中维度 */
     onSelectDimension: {
       type: Function as PropType<(item: IDimensionItem, meta: any, strategy) => void>,
-      default: (_item, _meta, _strategy) => {}
-    }
+      default: (_item, _meta, _strategy) => {},
+    },
   },
   setup(props) {
     const popoverRef = ref(null);
@@ -120,13 +120,13 @@ export default defineComponent({
       strategyPagination: {
         page: 1,
         pageSize: 20,
-        isEnd: false
+        isEnd: false,
       },
       /* 右侧选项（需父组件缓存下来） */
       optionsSearch: '',
       options: [],
       rightLoading: false,
-      leftLoading: false
+      leftLoading: false,
     });
     const curMetricMeta = ref(null);
 
@@ -139,7 +139,7 @@ export default defineComponent({
       v => {
         localList.value = v;
       },
-      { immediate: true }
+      { immediate: true },
     );
 
     watch(
@@ -148,8 +148,8 @@ export default defineComponent({
         localValue.value = v;
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     init();
@@ -172,14 +172,14 @@ export default defineComponent({
           ? [
               {
                 key: 'strategy_name',
-                value: [serach]
-              }
+                value: [serach],
+              },
             ]
           : [],
         order_by: '-update_time',
         page: selectData.strategyPagination.page,
         page_size: selectData.strategyPagination.pageSize,
-        type: 'monitor'
+        type: 'monitor',
       })
         .then(res => res.strategy_config_list)
         .catch(() => []);
@@ -251,14 +251,14 @@ export default defineComponent({
           selectData.rightLoading = true;
           const strategyItem = selectData.strategyList.find(item => item.id === v);
           const {
-            items: [{ query_configs: queryConfigs }]
+            items: [{ query_configs: queryConfigs }],
           } = strategyItem;
           if (queryConfigs?.length) {
             const { metric_list: metricListTemp = [] } = await getMetricListV2({
               page: 1,
               page_size: queryConfigs.length,
               // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
-              conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }]
+              conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }],
             }).catch(() => ({}));
             const [metricItem] = metricListTemp;
             if (metricItem) {
@@ -267,7 +267,7 @@ export default defineComponent({
                 dataTypeLabel: metricItem.data_type_label,
                 metricField: metricItem.metric_field,
                 resultTableId: metricItem.result_table_id,
-                indexSetId: metricItem.index_set_id
+                indexSetId: metricItem.index_set_id,
               };
               curMetricMeta.value = metricMeta;
               props.metricMetaSet(v, metricMeta);
@@ -276,7 +276,7 @@ export default defineComponent({
               ? metricListTemp.reduce((pre, cur) => {
                   const dimensionList = pre
                     .concat(
-                      cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
+                      cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension),
                     )
                     .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
                   return dimensionList;
@@ -393,7 +393,7 @@ export default defineComponent({
       handleSearchBlur,
       handleSearchClear,
       handleOptionSearch,
-      debounceHandleOptionSearch
+      debounceHandleOptionSearch,
     };
   },
   render() {
@@ -444,7 +444,7 @@ export default defineComponent({
                                   <span class='search-icon'>
                                     <span class='icon-monitor icon-mc-search'></span>
                                   </span>
-                                )
+                                ),
                               }}
                             </Input>
                           </div>
@@ -495,7 +495,7 @@ export default defineComponent({
                               <span class='search-icon'>
                                 <span class='icon-monitor icon-mc-search'></span>
                               </span>
-                            )
+                            ),
                           }}
                         </Input>
                       </div>
@@ -572,11 +572,11 @@ export default defineComponent({
                       <span>{this.t('删除')}</span>
                     </div>
                   </div>
-                )
+                ),
             }}
           </Popover>
         </span>
       </Popover>
     );
-  }
+  },
 });

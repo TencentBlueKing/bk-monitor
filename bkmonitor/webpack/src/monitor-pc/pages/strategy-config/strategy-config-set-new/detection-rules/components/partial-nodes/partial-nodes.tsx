@@ -63,8 +63,8 @@ export default class PartialNodes extends tsc<PartialNodesProps, PartialNodesEve
     type: DetectionRuleTypeEnum.PartialNodes,
     level: 1,
     config: {
-      count: 1
-    }
+      count: 1,
+    },
   };
 
   errorMsg = '';
@@ -75,9 +75,9 @@ export default class PartialNodes extends tsc<PartialNodesProps, PartialNodesEve
       {
         validator: this.checkConfig,
         message: this.showMsg,
-        trigger: 'change'
-      }
-    ]
+        trigger: 'change',
+      },
+    ],
   };
 
   get otherSelectLevel() {
@@ -92,7 +92,7 @@ export default class PartialNodes extends tsc<PartialNodesProps, PartialNodesEve
     const list = [
       { id: 1, name: window.i18n.t('致命'), disabled: false, icon: 'icon-danger' },
       { id: 2, name: window.i18n.t('预警'), disabled: false, icon: 'icon-mind-fill' },
-      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' }
+      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' },
     ];
     list.forEach(item => {
       item.disabled = this.otherSelectLevel.includes(item.id);
@@ -178,7 +178,7 @@ export default class PartialNodes extends tsc<PartialNodesProps, PartialNodesEve
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
                     disabled: !level.disabled,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>

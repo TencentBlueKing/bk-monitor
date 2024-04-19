@@ -54,32 +54,32 @@ export default defineComponent({
   props: {
     showType: {
       type: String as PropType<'avatar' | 'tag'>,
-      default: 'avatar'
+      default: 'avatar',
     },
     modelValue: {
       type: Array as PropType<DateItem[]>,
-      default: () => []
+      default: () => [],
     },
     filterMethod: {
       type: Function as PropType<FilterMethod>,
-      default: undefined
+      default: undefined,
     },
     hasDefaultGroup: {
       type: Boolean,
-      default: false
+      default: false,
     },
     defaultGroup: {
       type: Array as PropType<TagItemModel[]>,
-      default: () => []
+      default: () => [],
     },
     placeholder: {
       type: String,
-      default: ''
+      default: '',
     },
     tagTpl: {
       type: Function as PropType<(item: TagItemModel, index: number) => JSX.Element | JSX.Element[]>,
-      default: undefined
-    }
+      default: undefined,
+    },
   },
   emits: ['update:modelValue', 'change', 'selectEnd', 'drop'],
   setup(props, { emit }) {
@@ -90,7 +90,7 @@ export default defineComponent({
     /** 用户和用户组列表  */
     const userAndGroupList = reactive<{ group: TagItemModel[]; user: TagItemModel[] }>({
       group: [],
-      user: []
+      user: [],
     });
     /** 映射表，用于通过唯一值获取详情 */
     const userAndGroupMap = reactive(new Map<string, TagItemModel>());
@@ -103,8 +103,8 @@ export default defineComponent({
         setGroup(val);
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
     /** 获取用户组 */
     function getReceiverGroup() {
@@ -123,7 +123,7 @@ export default defineComponent({
           id: item.id,
           type: 'group',
           username: item.display_name,
-          display_name: item.display_name
+          display_name: item.display_name,
         };
         !userAndGroupMap.has(obj.id) && userAndGroupMap.set(obj.id, obj);
         return obj;
@@ -142,11 +142,11 @@ export default defineComponent({
           app_code: 'bk-magicbox',
           page,
           page_size: pageSize,
-          fuzzy_lookups: keyword
+          fuzzy_lookups: keyword,
         },
         {
-          needCancel: true
-        }
+          needCancel: true,
+        },
       )
         .then(res => {
           setUser(res.results);
@@ -167,7 +167,7 @@ export default defineComponent({
           type: 'user',
           logo: item.logo,
           username: item.username,
-          display_name: item.display_name
+          display_name: item.display_name,
         };
         !userAndGroupMap.has(obj.username) && userAndGroupMap.set(obj.username, obj);
         return obj;
@@ -179,7 +179,7 @@ export default defineComponent({
       tags.forEach(tag => {
         const item: TagItemModel = {
           ...tag,
-          username: tag.id
+          username: tag.id,
         };
         if (item.type === 'user' && !userAndGroupMap.has(item.username)) {
           userAndGroupMap.set(item.username, item);
@@ -195,7 +195,7 @@ export default defineComponent({
         tags.splice(0, tags.length, ...val);
         setUserMap(tags);
       },
-      { immediate: true, deep: true }
+      { immediate: true, deep: true },
     );
 
     /** 点击容器，把输入框显示在最后 */
@@ -245,7 +245,7 @@ export default defineComponent({
         <span
           class='icon-monitor icon-mc-close'
           onClick={e => handleCloseTag(e, ind)}
-        ></span>
+        ></span>,
       ];
     }
 
@@ -348,7 +348,7 @@ export default defineComponent({
                 onInput={handleInput}
                 onKeydown={e => handleInputKeyDown(e)}
               />
-            )
+            ),
           }}
         </Popover>
       );
@@ -460,7 +460,7 @@ export default defineComponent({
       popoverShow,
       popoverWrapRef,
       selectList,
-      handleSelect
+      handleSelect,
     };
   },
   render() {
@@ -498,7 +498,7 @@ export default defineComponent({
           ) : (
             [
               this.inputIndex > -1 && this.renderInputContent(),
-              this.inputIndex === -1 && <div class='placeholder'>{this.placeholder || this.t('选择')}</div>
+              this.inputIndex === -1 && <div class='placeholder'>{this.placeholder || this.t('选择')}</div>,
             ]
           )}
         </div>
@@ -510,5 +510,5 @@ export default defineComponent({
         </span>
       </div>
     );
-  }
+  },
 });

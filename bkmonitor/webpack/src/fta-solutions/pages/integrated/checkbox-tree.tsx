@@ -112,7 +112,7 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
                 pre.push(item.id);
                 return pre;
               },
-              [data.id]
+              [data.id],
             )
           : [];
       } else {
@@ -139,7 +139,7 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
     const outputData = this.innerData.reduce<ICheckedData[]>((pre, item) => {
       pre.push({
         id: item.id,
-        values: item?.data?.length ? [...item.value].filter(id => id !== item.id) : [...item.value]
+        values: item?.data?.length ? [...item.value].filter(id => id !== item.id) : [...item.value],
       });
       return pre;
     }, []);
@@ -170,7 +170,7 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
       value: [],
       parent,
       indeterminate: false,
-      data: item.child?.length ? this.recurrenceData(item.child, level + 1, item.id) : []
+      data: item.child?.length ? this.recurrenceData(item.child, level + 1, item.id) : [],
     }));
   }
 

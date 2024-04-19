@@ -51,15 +51,15 @@ interface ISubscriptionContent {
 }
 
 @Component({
-  name: 'SubscriptionContent'
+  name: 'SubscriptionContent',
 })
 export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   @Prop({
     type: Object,
     default: () => ({
       viewData: [],
-      pullData: []
-    })
+      pullData: [],
+    }),
   })
   data: ISubscriptionContent['data'];
   @Prop({ type: String, default: 'view' }) contentType: string;
@@ -67,15 +67,15 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   curTab = 'view';
   tabList = [
     { name: 'view', label: window.i18n.t('视图截取') },
-    { name: 'full', label: window.i18n.t('整屏截取') }
+    { name: 'full', label: window.i18n.t('整屏截取') },
   ];
   tips = {
     view: window.i18n.t(
-      '视图截图指从仪表盘中的视图中获取，可以将不同的仪表盘下的部分内容生成一份报表，而且格式简洁方便邮件的输出。'
+      '视图截图指从仪表盘中的视图中获取，可以将不同的仪表盘下的部分内容生成一份报表，而且格式简洁方便邮件的输出。',
     ),
     full: window.i18n.t(
-      '整屏截取指截取整个仪表盘，按宽度800截取，方便快速创建一个仪表盘的邮件订阅，因为邮件有大小限制，为保证发送质量会进行长宽限制和切分。并且限制只有一个。'
-    )
+      '整屏截取指截取整个仪表盘，按宽度800截取，方便快速创建一个仪表盘的邮件订阅，因为邮件有大小限制，为保证发送质量会进行长宽限制和切分。并且限制只有一个。',
+    ),
   };
   tableKey = null;
   curFromIndex = 0;
@@ -154,7 +154,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
         this.sortEndReportContents[to] = this.sortEndReportContents[from];
         this.sortEndReportContents[from] = temp;
         this.curFromIndex = to;
-      }
+      },
     });
   }
 
@@ -173,7 +173,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
       { label: window.i18n.tc('子标题'), key: 'contentTitle' },
       { label: window.i18n.tc('图表数量'), key: 'graphs', width: 150 },
       { label: window.i18n.tc('布局'), key: 'rowPicturesNum', width: 150 },
-      { label: window.i18n.tc('说明'), key: 'contentDetails' }
+      { label: window.i18n.tc('说明'), key: 'contentDetails' },
     ];
     const formatterColumn = (row, column, cellValue) => {
       if (column.property === 'layout') return cellValue + this.$t('个/行');
@@ -181,7 +181,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
       return cellValue;
     };
     const iconSlot = {
-      default: () => <span class='icon-drag'></span>
+      default: () => <span class='icon-drag'></span>,
     };
     const operateSlot = {
       default: props => [
@@ -200,8 +200,8 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
           onClick={() => this.handleDel(props.$index)}
         >
           {this.$t('删除')}
-        </bk-button>
-      ]
+        </bk-button>,
+      ],
     };
     return (
       <bk-table
@@ -237,7 +237,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
       { label: window.i18n.tc('子标题'), key: 'contentTitle' },
       { label: window.i18n.tc('说明'), key: 'contentDetails', width: 150 },
       { label: window.i18n.tc('业务'), key: 'curBizId', width: 150 },
-      { label: window.i18n.tc('仪表盘名称'), key: 'curGrafanaName' }
+      { label: window.i18n.tc('仪表盘名称'), key: 'curGrafanaName' },
     ];
     const operateSlot = {
       default: props => [
@@ -256,8 +256,8 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
           onClick={() => this.handleDel(props.$index)}
         >
           {this.$t('删除')}
-        </bk-button>
-      ]
+        </bk-button>,
+      ],
     };
     return (
       <bk-table data={this.data.pullData}>
@@ -280,7 +280,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
                 label={item.label}
                 width={item.width}
                 scopedSlots={{
-                  default: ({ row }) => row.curGrafanaName || <div class='status-loading'></div>
+                  default: ({ row }) => row.curGrafanaName || <div class='status-loading'></div>,
                 }}
               ></bk-table-column>
             );

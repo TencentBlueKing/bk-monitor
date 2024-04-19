@@ -41,7 +41,7 @@ export enum Interval {
   Hour = 'hour',
   Minute = 'minute',
   Second = 'second',
-  Millisecond = 'millisecond'
+  Millisecond = 'millisecond',
 }
 
 const INTERVALS_IN_SECONDS: IntervalsInSeconds = {
@@ -52,7 +52,7 @@ const INTERVALS_IN_SECONDS: IntervalsInSeconds = {
   [Interval.Hour]: 3600,
   [Interval.Minute]: 60,
   [Interval.Second]: 1,
-  [Interval.Millisecond]: 0.001
+  [Interval.Millisecond]: 0.001,
 };
 
 export function toNanoSeconds(size: number, decimals: DecimalCount = 2, scaledDecimals?: DecimalCount): FormattedValue {
@@ -78,7 +78,7 @@ export function toNanoSeconds(size: number, decimals: DecimalCount = 2, scaledDe
 export function toMicroSeconds(
   size: number,
   decimals: DecimalCount = 2,
-  scaledDecimals?: DecimalCount
+  scaledDecimals?: DecimalCount,
 ): FormattedValue {
   if (size === null) {
     return { text: '' };
@@ -96,7 +96,7 @@ export function toMicroSeconds(
 export function toMilliSeconds(
   size: number,
   decimals: DecimalCount = 2,
-  scaledDecimals?: DecimalCount
+  scaledDecimals?: DecimalCount,
 ): FormattedValue {
   if (size === null) {
     return { text: '' };
@@ -250,7 +250,7 @@ export function toDuration(size: number, decimals: DecimalCount, timeScale: Inte
     { long: Interval.Hour },
     { long: Interval.Minute },
     { long: Interval.Second },
-    { long: Interval.Millisecond }
+    { long: Interval.Millisecond },
   ];
 
   // convert $size to milliseconds
@@ -291,7 +291,7 @@ export function toClock(size: number, decimals: DecimalCount = 2): FormattedValu
   // < 1 second
   if (size < 1000) {
     return {
-      text: dayjs.utc(size).format('SSS\\m\\s')
+      text: dayjs.utc(size).format('SSS\\m\\s'),
     };
   }
 
@@ -390,7 +390,7 @@ export function dateTimeFromNow(
   value: number,
   decimals: DecimalCount,
   scaledDecimals: DecimalCount,
-  timeZone?
+  timeZone?,
 ): FormattedValue {
   const isUtc = timeZone === 'utc';
   const time = isUtc ? dayjs.utc(value) : dayjs.tz(value);

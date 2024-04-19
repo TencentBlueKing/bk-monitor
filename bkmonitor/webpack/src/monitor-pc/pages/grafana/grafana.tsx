@@ -44,9 +44,9 @@ interface IMessageEvent extends MessageEvent {
   };
 }
 @Component({
-  name: 'grafana'
+  name: 'grafana',
 })
-export default class MyComponent extends tsc<{}> {
+export default class MyComponent extends tsc<object> {
   @Prop({ default: '' }) url: string;
   grafanaUrl = '';
   unWatch = null;
@@ -84,9 +84,9 @@ export default class MyComponent extends tsc<{}> {
       this.iframeRef?.contentWindow.postMessage(
         {
           route: url.pathname.replace('/grafana', ''),
-          search: url.search
+          search: url.search,
         },
-        '*'
+        '*',
       );
     }
   }
@@ -104,8 +104,8 @@ export default class MyComponent extends tsc<{}> {
           this.$router.replace({
             name: 'favorite-dashboard',
             params: {
-              url: dashboardCacheId
-            }
+              url: dashboardCacheId,
+            },
           });
           localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
         } else {
@@ -133,7 +133,7 @@ export default class MyComponent extends tsc<{}> {
   getUrlParamsString() {
     const str = Object.entries({
       ...(this.$route.query || {}),
-      ...Object.fromEntries(new URLSearchParams(location.search))
+      ...Object.fromEntries(new URLSearchParams(location.search)),
     })
       .map(entry => entry.join('='))
       .join('&');
@@ -195,8 +195,8 @@ export default class MyComponent extends tsc<{}> {
         this.$router.push({
           name: 'favorite-dashboard',
           params: {
-            url: dashboardId
-          }
+            url: dashboardId,
+          },
         });
         this.handleSetDashboardCache(dashboardId);
       }

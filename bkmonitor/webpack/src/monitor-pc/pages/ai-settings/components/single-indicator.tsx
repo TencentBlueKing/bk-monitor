@@ -55,7 +55,7 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
 
   // eslint-disable-next-line @typescript-eslint/member-ordering
   errorsMsg = {
-    defaultPlanId: ''
+    defaultPlanId: '',
   };
 
   handleFocusStrategyName() {
@@ -66,7 +66,7 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
   public validate(): Promise<any> {
     return new Promise((resolve, reject) => {
       const descriptor = {
-        defaultPlanId: [{ required: true, message: this.$tc('必填项') }]
+        defaultPlanId: [{ required: true, message: this.$tc('必填项') }],
       };
       const validator = new Schema(descriptor);
       validator.validate({ defaultPlanId: this.baseConfig.default_plan_id }, {}, (errors, fields) => {
@@ -88,7 +88,7 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
   // 清除校验
   public clearErrorMsg() {
     this.errorsMsg = {
-      defaultPlanId: ''
+      defaultPlanId: '',
     };
   }
 
@@ -203,7 +203,7 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
                   <div class='sensitivity-tips'>
                     <span>{this.$t('较少告警')}</span>
                     <span>{this.$t('较多告警')}</span>
-                  </div>
+                  </div>,
                 ]
               ) : (
                 <span>{this.baseConfig.default_sensitivity}</span>

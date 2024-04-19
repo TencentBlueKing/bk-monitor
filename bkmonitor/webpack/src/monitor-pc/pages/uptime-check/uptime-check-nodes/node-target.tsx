@@ -45,7 +45,7 @@ export default class NodeTarget extends tsc<INodeTargetProps> {
   @Watch('target', { immediate: true })
   onTargetChange() {
     this.ipValue = {
-      host_list: this.target.host_list
+      host_list: this.target.host_list,
     };
   }
   addNodeTarget() {

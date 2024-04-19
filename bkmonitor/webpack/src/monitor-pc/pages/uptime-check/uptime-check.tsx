@@ -47,7 +47,7 @@ import './uptime-check.scss';
 export type IActive = IUptimeCheckType['node'] | IUptimeCheckType['task'];
 
 @Component({
-  name: 'UptimeCheck'
+  name: 'UptimeCheck',
 })
 class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
   @Prop({ default: false, type: Boolean }) toggleSet: boolean;
@@ -64,7 +64,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
   // 用于刷新数据的key
   refreshKeys = {
     'uptime-check-task': random(8),
-    'uptime-check-node': random(8)
+    'uptime-check-node': random(8),
   };
 
   // 分屏
@@ -84,13 +84,13 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
     {
       id: 'task-group-edit',
       name: this.$tc('编辑'),
-      show: true
+      show: true,
     },
     {
       id: 'task-group-delete',
       name: this.$tc('解散任务组'),
-      show: true
-    }
+      show: true,
+    },
   ];
 
   get alarmToolsPanel() {
@@ -103,10 +103,10 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
           dataType: 'dict',
           api: 'scene_view.getStrategyAndEventCount',
           data: {
-            scene_id: 'uptime_check'
-          }
-        }
-      ]
+            scene_id: 'uptime_check',
+          },
+        },
+      ],
     };
     return new PanelModel(data as any);
   }
@@ -208,8 +208,8 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
       query: {
         dashboardMode: this.dashboardMode,
         dashboardId: this.active,
-        key: random(10)
-      }
+        key: random(10),
+      },
     });
   }
 
@@ -307,7 +307,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
             class='split-panel-wrapper'
             style={{
               width: `${this.splitPanelWidth}px`,
-              display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none'
+              display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
             }}
           >
             {this.isSplitPanel && (
@@ -324,4 +324,4 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
   }
 }
 
-export default tsx.ofType<{}>().convert(UptimeCheck);
+export default tsx.ofType<object>().convert(UptimeCheck);

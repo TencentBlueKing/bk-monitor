@@ -66,7 +66,7 @@ interface IProps {
 
 const componentClassNames = {
   selectInput: 'space-select-content',
-  pop: 'space-select-component-popover-content'
+  pop: 'space-select-component-popover-content',
 };
 const rightIconClassName = 'space-select-right-icon';
 // 有权限的业务id
@@ -77,7 +77,7 @@ const hasDataBizId = -2;
 const defaultRadioList = [
   { id: 'all', bk_biz_id: 'all', name: window.i18n.tc('有权限的业务(最大20个)') },
   { id: 'settings', bk_biz_id: 'settings', name: window.i18n.tc('配置管理业务') },
-  { id: 'notify', bk_biz_id: 'notify', name: window.i18n.tc('告警接收业务') }
+  { id: 'notify', bk_biz_id: 'notify', name: window.i18n.tc('告警接收业务') },
 ];
 
 const specialIds = [authorityBizId, hasDataBizId, ...defaultRadioList.map(d => d.id)];
@@ -147,13 +147,13 @@ export default class SpaceSelect extends tsc<
     current: 1,
     count: 0,
     limit: 20,
-    data: []
+    data: [],
   };
   /* type栏左右切换数据 */
   typeWrapInfo = {
     showBtn: false,
     nextDisable: false,
-    preDisable: false
+    preDisable: false,
   };
 
   /* 是否需要当前空间功能 */
@@ -177,7 +177,7 @@ export default class SpaceSelect extends tsc<
         strs.push(item.name);
         strList.push({
           name: item.name,
-          id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code
+          id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
         });
       }
     });
@@ -207,14 +207,14 @@ export default class SpaceSelect extends tsc<
       show: true,
       py_text: '',
       pyf_text: '',
-      space_id: ''
+      space_id: '',
     };
     if (this.needAlarmOption) {
       this.localSpaceList.unshift({
         ...nullItem,
         bk_biz_id: hasDataBizId,
         id: hasDataBizId,
-        name: this.$t('-我有告警的空间-')
+        name: this.$t('-我有告警的空间-'),
       } as any);
     }
     if (this.needAuthorityOption) {
@@ -222,7 +222,7 @@ export default class SpaceSelect extends tsc<
         ...nullItem,
         bk_biz_id: authorityBizId,
         id: authorityBizId,
-        name: this.$t('-我有权限的空间-')
+        name: this.$t('-我有权限的空间-'),
       } as any);
     }
     if (this.needDefalutOptions) {
@@ -242,11 +242,11 @@ export default class SpaceSelect extends tsc<
   async setAlllowed() {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { business_list, business_with_alert, business_with_permission } = await bizWithAlertStatistics().catch(
-      () => ({})
+      () => ({}),
     );
     const allBizList = business_list.map(item => ({
       id: item.bk_biz_id,
-      name: item.bk_biz_name
+      name: item.bk_biz_name,
     }));
     // const businessWithPermissionSet = new Set();
     const curidsSet = new Set();
@@ -263,7 +263,7 @@ export default class SpaceSelect extends tsc<
       show: true,
       py_text: '',
       space_id: '',
-      space_type_id: ETagsType.BKCC
+      space_type_id: ETagsType.BKCC,
     };
     const otherSpaces = [];
     if (business_with_alert?.length) {
@@ -276,7 +276,7 @@ export default class SpaceSelect extends tsc<
             id: item.bk_biz_id,
             name: item.bk_biz_name,
             noAuth: true,
-            hasData: true
+            hasData: true,
           });
         }
       });
@@ -285,7 +285,7 @@ export default class SpaceSelect extends tsc<
       business_with_permission.map(item => ({
         ...item,
         id: item.bk_biz_id,
-        name: `[${item.bk_biz_id}] ${item.bk_biz_name}`
+        name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
       })) || [];
     this.value.forEach(id => {
       const bizItem = allBizList.find(set => set.id === id);
@@ -298,7 +298,7 @@ export default class SpaceSelect extends tsc<
             id: bizItem.id,
             name: bizItem.name,
             noAuth: true,
-            hasData: false
+            hasData: false,
           });
         }
       }
@@ -320,7 +320,7 @@ export default class SpaceSelect extends tsc<
         this.pagination.current += 1;
         const temp = showData.slice(
           (this.pagination.current - 1) * this.pagination.limit,
-          this.pagination.current * this.pagination.limit
+          this.pagination.current * this.pagination.limit,
         );
         this.pagination.data.push(...temp);
       }
@@ -345,7 +345,7 @@ export default class SpaceSelect extends tsc<
         name: item.space_name.replace(/\[.*?\]/, ''),
         tags,
         isCheck: false,
-        show: true
+        show: true,
       };
       list.push(newItem);
       /* 空间类型 */
@@ -357,7 +357,7 @@ export default class SpaceSelect extends tsc<
     this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
-      styles: SPACE_TYPE_MAP[key] || SPACE_TYPE_MAP.default
+      styles: SPACE_TYPE_MAP[key] || SPACE_TYPE_MAP.default,
     }));
     return list;
   }
@@ -376,7 +376,7 @@ export default class SpaceSelect extends tsc<
       placement: 'bottom-start',
       boundary: 'window',
       hideOnClick: false,
-      distance: 5
+      distance: 5,
     });
     this.popInstance?.show?.();
     this.isOpen = true;
@@ -532,7 +532,7 @@ export default class SpaceSelect extends tsc<
         strs.push(item.name);
         strList.push({
           name: item.name,
-          id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code
+          id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
         });
       }
     });
@@ -569,7 +569,7 @@ export default class SpaceSelect extends tsc<
           return 3;
         }
         return this.localValue.includes(item.id) ? 2 : 1;
-      })()
+      })(),
     }));
     this.localSpaceList = list.sort((a, b) => b.sort - a.sort);
   }
@@ -648,7 +648,7 @@ export default class SpaceSelect extends tsc<
           'space-select-component',
           { 'space-select-component-common-style': this.isCommonStyle },
           { error: this.isErr },
-          { active: this.isOpen }
+          { active: this.isOpen },
         ]}
       >
         <div
@@ -704,7 +704,7 @@ export default class SpaceSelect extends tsc<
                       item.id,
                       { 'hover-active': item.id !== this.searchTypeId },
                       { selected: item.id === this.searchTypeId },
-                      item.id
+                      item.id,
                     ]}
                     key={item.id}
                     onClick={() => this.handleSearchType(item.id)}
@@ -740,8 +740,8 @@ export default class SpaceSelect extends tsc<
                         !this.needCurSpace ||
                         +this.localCurrentSpace === +item.id ||
                         specialIds.includes(item.id) ||
-                        (!!item.noAuth && !item.hasData)
-                    }
+                        (!!item.noAuth && !item.hasData),
+                    },
                   ]}
                   key={item.id}
                   onClick={() => this.handleSelectOption(item)}
@@ -775,7 +775,7 @@ export default class SpaceSelect extends tsc<
                         class='icon-monitor icon-dingwei1 cur-position'
                         v-bk-tooltips={{
                           content: this.$t('当前空间'),
-                          placements: ['top']
+                          placements: ['top'],
                         }}
                       ></span>
                     )}

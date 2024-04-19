@@ -28,45 +28,45 @@ export const STATUS_MAP = {
     name: window.i18n.tc('正常'),
     style: {
       background: '#fff',
-      color: '#313238'
-    }
+      color: '#313238',
+    },
   },
   no_data: {
     name: window.i18n.tc('无数据'),
     style: {
       background: '#FFEEEE',
-      color: '#EA3536'
-    }
+      color: '#EA3536',
+    },
   },
   stop: {
     name: window.i18n.tc('已停止'),
     style: {
       background: '#F0F1F5',
-      color: '#63656E'
-    }
-  }
+      color: '#63656E',
+    },
+  },
 };
 
 export const SEARCH_STATUS_LIST = [
   {
     id: 'normal',
-    name: STATUS_MAP.normal.name
+    name: STATUS_MAP.normal.name,
   },
   {
     id: 'no_data',
-    name: STATUS_MAP.no_data.name
+    name: STATUS_MAP.no_data.name,
   },
   {
     id: 'stop',
-    name: STATUS_MAP.stop.name
-  }
+    name: STATUS_MAP.stop.name,
+  },
 ];
 
 export const SEARCH_KEYS = [
   {
     name: `Profiling ${window.i18n.t('数据状态')}`,
     id: 'profiling_data_status',
-    children: SEARCH_STATUS_LIST
+    children: SEARCH_STATUS_LIST,
   },
   {
     name: `Profiling ${window.i18n.t('是否启用')}`,
@@ -74,12 +74,12 @@ export const SEARCH_KEYS = [
     children: [
       {
         id: 'true',
-        name: window.i18n.t('是')
+        name: window.i18n.t('是'),
       },
       {
         id: 'false',
-        name: window.i18n.t('否')
-      }
-    ]
-  }
+        name: window.i18n.t('否'),
+      },
+    ],
+  },
 ];

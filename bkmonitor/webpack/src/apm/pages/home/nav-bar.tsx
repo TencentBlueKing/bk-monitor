@@ -53,7 +53,7 @@ export default class NavBar extends tsc<IProps> {
     const positionMap = {
       left: 'flex-start',
       center: 'center',
-      right: 'flex-end'
+      right: 'flex-end',
     };
     return positionMap[this.handlerPosition] ?? 'flex-start';
   }
@@ -70,7 +70,7 @@ export default class NavBar extends tsc<IProps> {
         <div
           class='app-nav-bar-handler'
           style={{
-            'justify-content': this.position
+            'justify-content': this.position,
           }}
         >
           {this.$slots.handler}

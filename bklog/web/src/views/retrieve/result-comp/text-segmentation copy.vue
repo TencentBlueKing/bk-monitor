@@ -157,7 +157,7 @@ export default {
       return ['text'].includes(this.fieldType);
     },
     isVirtual() {
-      return this.fieldType === '__virtual__';
+      return this.fieldType === '__virtual__' || this.fieldType === 'union';
     },
     splitList() {
       const value = this.content;

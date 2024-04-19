@@ -41,11 +41,11 @@ export default class KafkaBasicInfo extends tsc<IProps> {
     port: '', // 端口
     schema: '', // 协议
     username: '', // 用户名
-    password: '' // 密码
+    password: '', // 密码
   };
   formErrMsg = {
     domain: '',
-    port: ''
+    port: '',
   };
 
   created() {

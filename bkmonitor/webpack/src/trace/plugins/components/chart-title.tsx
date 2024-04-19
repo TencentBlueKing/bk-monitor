@@ -35,7 +35,7 @@ import {
   IExtendMetricData,
   IMenuChildItem,
   IMenuItem,
-  ITitleAlarm
+  ITitleAlarm,
 } from '../typings';
 
 import TitleMenu from './title-menu';
@@ -49,27 +49,27 @@ export default defineComponent({
     subtitle: String,
     metrics: {
       type: Array as PropType<IExtendMetricData[]>,
-      default: () => []
+      default: () => [],
     },
     collectInterval: {
       type: String,
-      default: '0'
+      default: '0',
     },
     showMore: Boolean,
     draging: Boolean,
     isInstant: Boolean,
     showAddMetric: {
       type: Boolean,
-      default: true
+      default: true,
     },
     menuList: {
       type: Array as PropType<ChartTitleMenuType[]>,
-      default: () => []
+      default: () => [],
     },
     drillDownOption: {
       type: Array as PropType<IMenuChildItem[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: ['updateDragging', 'menuClick', 'selectChild', 'metricClick', 'allMetricClick', 'alarmClick'],
   setup(props, { emit }) {
@@ -99,7 +99,7 @@ export default defineComponent({
         content,
         showOnInit: false,
         trigger: 'mouseenter',
-        placements: ['top']
+        placements: ['top'],
       };
     });
     const showMetricAlarm = computed(() => props.metrics?.length === 1);
@@ -114,7 +114,7 @@ export default defineComponent({
         const data = await fetchItemStatus({ metric_ids: [id] }).catch(() => ({ [id]: 0 }));
         alarmStatus.value = data?.[id];
       },
-      { immediate: true }
+      { immediate: true },
     );
     function handleShowMenu(e: any) {
       if (!props.draging) {
@@ -207,7 +207,7 @@ export default defineComponent({
       handleHideTips,
       handleTitleBlur,
       handleShowChildren,
-      handleChildMenuToggle
+      handleChildMenuToggle,
     };
   },
   render() {
@@ -252,7 +252,7 @@ export default defineComponent({
                       class='common-chart-tooltips-wrap'
                       v-html={createMetricTitleTooltips(this.metricTitleData)}
                     ></div>
-                  )
+                  ),
                 }}
               ></Popover>
             ) : undefined}
@@ -262,7 +262,7 @@ export default defineComponent({
                 <i
                   class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   style={{
-                    display: this.showMore && this.showAddMetric ? 'flex' : 'none'
+                    display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
                   onClick={this.handleAllMetricSelect}
                 ></i>
@@ -273,7 +273,7 @@ export default defineComponent({
                 <span
                   style={{
                     marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
-                    display: this.showMore ? 'flex' : 'none'
+                    display: this.showMore ? 'flex' : 'none',
                   }}
                   tabindex='undefined'
                   class='icon-monitor icon-mc-more more-icon icon-btn'
@@ -294,11 +294,11 @@ export default defineComponent({
           style={{
             left: `${this.menuLeft}px`,
             top: '36px',
-            display: this.showMenu ? 'flex' : 'none'
+            display: this.showMenu ? 'flex' : 'none',
           }}
           onSelectChild={this.handleMenuChildClick}
         ></TitleMenu>
       </div>
     );
-  }
+  },
 });

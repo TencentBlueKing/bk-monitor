@@ -1,4 +1,3 @@
-/* eslint-disable array-callback-return */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -37,13 +36,13 @@ import {
   ITabelDataFilterItem,
   ITableColumn,
   ITableFilterItem,
-  ITablePagination
+  ITablePagination,
 } from 'monitor-pc/pages/monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from 'monitor-pc/pages/monitor-k8s/utils';
 
 import ChartHeader from '../../components/chart-title/chart-title';
@@ -61,7 +60,7 @@ const STORE_KEY_PREFIX = 'table_chart_store_key_'; /** 图表缓存前缀 */
 
 export enum TABLE_CHART_TYPE {
   TABLE = 'table',
-  FIELD = 'field'
+  FIELD = 'field',
 }
 
 interface INumberChartProps {
@@ -71,7 +70,6 @@ interface ITableChartEvents {
   onChangeHeight?: (v: number) => number;
 }
 @Component
-// eslint-disable-next-line max-len
 export class TableChart extends CommonSimpleChart {
   @Ref() scrollRef: HTMLElement;
   empty = true;
@@ -91,7 +89,7 @@ export class TableChart extends CommonSimpleChart {
     current: 1,
     count: 0,
     limit: 10,
-    showTotalCount: true
+    showTotalCount: true,
   };
   sortKey = '';
   keyword = '';
@@ -194,16 +192,16 @@ export class TableChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval
+        this.panel.collect_interval,
       );
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        interval
+        interval,
       });
       const promiseList = this.panel.targets
         .filter(item => item.dataType === TABLE_CHART_TYPE.TABLE)
@@ -227,18 +225,18 @@ export class TableChart extends CommonSimpleChart {
                   keyword: this.keyword,
                   condition_list: transformConditionValueParams(this.conditionList),
                   view_options: {
-                    ...this.viewOptions
-                  }
+                    ...this.viewOptions,
+                  },
                 },
                 {
                   ...this.viewOptions.filters,
                   ...(this.viewOptions.filters?.current_target || {}),
                   ...this.viewOptions,
                   ...this.viewOptions.variables,
-                  interval
-                }
+                  interval,
+                },
               ),
-              { needMessage: false }
+              { needMessage: false },
             )
             .then(({ columns, data, total, filter, condition_list, overview_data, check_filter = [] }) => {
               this.filterList = filter ?? [];
@@ -265,7 +263,7 @@ export class TableChart extends CommonSimpleChart {
             })
             .catch(error => {
               this.handleErrorMsgChange(error.msg || error.message);
-            })
+            }),
         );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
@@ -299,7 +297,7 @@ export class TableChart extends CommonSimpleChart {
       this.panel.targets
         // 根据 queryData 的 data_tyep = field 和 async_columns 匹配当前异步字段的请求target
         .filter(
-          item => item.dataType === TABLE_CHART_TYPE.FIELD && item.options?.table_chart?.async_columns?.includes(field)
+          item => item.dataType === TABLE_CHART_TYPE.FIELD && item.options?.table_chart?.async_columns?.includes(field),
         )
         .map(item => {
           const asyncDictKey = item.options?.table_chart?.async_dict_key ?? '';
@@ -307,7 +305,7 @@ export class TableChart extends CommonSimpleChart {
           const {
             async_field_key: fieldKey,
             async_field_request_name: fieldRequestName,
-            async_field: asyncField
+            async_field: asyncField,
           } = asyncConfig;
           const dataMap = this.tableData.map(val => {
             if (!val[asyncField]) return null;
@@ -321,22 +319,21 @@ export class TableChart extends CommonSimpleChart {
                   ...item.data,
                   ...params,
                   [fieldKey]: field,
-                  [fieldRequestName]: dataMap
+                  [fieldRequestName]: dataMap,
                 },
                 {
                   ...this.viewOptions.filters,
                   ...(this.viewOptions.filters?.current_target || {}),
                   ...this.viewOptions,
-                  ...this.viewOptions.variables
-                }
+                  ...this.viewOptions.variables,
+                },
               ),
-              { needMessage: false }
+              { needMessage: false },
             )
             .then(res => {
               // 组合结果 以键值对形式组合字段值
               const resultMap = res.reduce((pre, cur) => {
                 if (!pre[cur[asyncField]]) {
-                  // eslint-disable-next-line no-param-reassign
                   pre[cur[asyncField]] = cur[field];
                 }
                 return pre;
@@ -356,7 +353,7 @@ export class TableChart extends CommonSimpleChart {
               // 取消字段请求 loading 状态
               const newColumns = this.columns.map(col => ({
                 ...col,
-                asyncable: col.id === field ? false : col.asyncable
+                asyncable: col.id === field ? false : col.asyncable,
               }));
               this.columns = [...newColumns];
             });
@@ -489,7 +486,7 @@ export class TableChart extends CommonSimpleChart {
           {this.columns?.length ? (
             [
               <div class='search-wrapper'>
-                {/* eslint-disable-next-line no-nested-ternary */}
+                {}
                 {this.searchType === 'search_select' ? (
                   <bk-search-select
                     v-model={this.conditionList}
@@ -554,12 +551,11 @@ export class TableChart extends CommonSimpleChart {
                 jsonViewerDataKey={this.jsonViewerDataKey}
                 jsonViewerDataEmptyText={this.jsonViewerDataEmptyText}
                 onSortChange={this.handleSortChange}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises
                 onLimitChange={this.handleLimitChange}
                 onPageChange={this.handlePageChange}
                 onCollect={this.handleCollect}
                 onFilterChange={this.handleFilterChange}
-              />
+              />,
             ]
           ) : (
             <div class='empty-text'>{this.emptyText}</div>

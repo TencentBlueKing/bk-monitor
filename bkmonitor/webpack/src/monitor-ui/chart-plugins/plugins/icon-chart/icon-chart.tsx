@@ -40,13 +40,12 @@ interface IIconChartProps {
 enum StatusIconEnum {
   SUCCESS = 'check-line',
   WARNING = 'close-line-2',
-  FAILD = 'minus-line'
+  FAILD = 'minus-line',
 }
 
 type StatusType = 'SUCCESS' | 'WARNING' | 'FAILD';
 
 @Component
-// eslint-disable-next-line max-len
 class IconChart extends CommonSimpleChart {
   /** 图表数据 */
   chartDataList: any[] = [];
@@ -72,31 +71,30 @@ class IconChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const viewOptions = {
-        ...this.viewOptions
+        ...this.viewOptions,
       };
-      const promiseList = this.panel.targets.map(
-        item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc]?.(
-              {
-                ...item.data,
-                ...params,
-                view_options: {
-                  ...viewOptions
-                }
+      const promiseList = this.panel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc]?.(
+            {
+              ...item.data,
+              ...params,
+              view_options: {
+                ...viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              this.clearErrorMsg();
-              return res;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
+            },
+            { needMessage: false },
+          )
+          .then(res => {
+            this.clearErrorMsg();
+            return res;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          }),
       );
       const data = await Promise.all(promiseList);
       data && this.updateChartData(data);
@@ -155,7 +153,7 @@ class IconChart extends CommonSimpleChart {
                     v-bk-tooltips={{
                       content: 'lgnores selected time',
                       boundary: 'window',
-                      placements: ['top']
+                      placements: ['top'],
                     }}
                   />
                 )}

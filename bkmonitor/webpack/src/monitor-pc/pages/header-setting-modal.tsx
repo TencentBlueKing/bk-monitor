@@ -33,7 +33,7 @@ import {
   COMMON_ROUTE_STORE_KEY,
   DEFAULT_ROUTE_LIST,
   getLocalStoreRoute,
-  IRouteConfigItem
+  IRouteConfigItem,
 } from '../router/router-config';
 
 import './header-setting-modal.scss';

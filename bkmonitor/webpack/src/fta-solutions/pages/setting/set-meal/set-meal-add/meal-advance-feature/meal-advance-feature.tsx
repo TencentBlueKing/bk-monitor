@@ -48,7 +48,7 @@ interface IMealAdvanceFeature {
   mealType: string | number;
 }
 @Component({
-  name: 'MealAdvanceFeature'
+  name: 'MealAdvanceFeature',
 })
 export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
   @Prop() public failedRetry: IFailedRetry;
@@ -61,13 +61,13 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
     timeout: '',
     timedelta: '',
     count: '',
-    notifyConfig: ''
+    notifyConfig: '',
   };
   customName = {
     title: `${window.i18n.t('执行阶段')}`,
     fatal: `${window.i18n.t('失败时')}`,
     warning: `${window.i18n.t('成功时')}`,
-    info: `${window.i18n.t('执行前')}`
+    info: `${window.i18n.t('执行前')}`,
   };
 
   get getMealType(): number {
@@ -77,7 +77,7 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
   // 收敛方法
   get getConvergeFunctions() {
     return SetMealAddModule.getConvergeFunctions.filter(item =>
-      this.getMealType === 1 ? item.key === 'collect' : item.key !== 'collect'
+      this.getMealType === 1 ? item.key === 'collect' : item.key !== 'collect',
     );
   }
 

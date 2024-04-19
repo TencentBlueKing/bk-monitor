@@ -31,7 +31,7 @@ import {
   hostPerformanceDetail,
   hostTopoNodeDetail,
   searchHostInfo,
-  searchHostMetric
+  searchHostMetric,
 } from 'monitor-api/modules/performance';
 
 // import { savePanelOrder, deletePanelOrder } from 'monitor-api/modules/data_explorer';
@@ -78,7 +78,6 @@ export const SET_PERFORMANCE_PROCESS = 'SET_PERFORMANCE_PROCESS';
 export const SET_PERFORMANCE_VIEWTYPE = 'SET_PERFORMANCE_VIEWTYPE';
 export const SET_URL_QUERY = 'SET_URL_QUERY';
 
-// eslint-disable-next-line new-cap
 @Module({ name: 'performance', dynamic: true, namespaced: true, store })
 class Performance extends VuexModule {
   // todo 老代码
@@ -235,7 +234,7 @@ class Performance extends VuexModule {
   public setProcessId(processId: string | number) {
     this.curNode = {
       ...this.curNode,
-      processId
+      processId,
     };
   }
 
@@ -257,7 +256,7 @@ class Performance extends VuexModule {
             'bk_biz_name',
             'bk_cluster',
             'module',
-            'component'
+            'component',
           ].some(key => {
             let hostProp = item[key] || '';
             if (typeof hostProp === 'string') {
@@ -268,7 +267,7 @@ class Performance extends VuexModule {
               return hostProp.some(set => set.topo_link_display.some(child => child.includes(keyword)));
             }
             return hostProp.some(set => set.display_name.includes(keyword));
-          })
+          }),
         )
       : this.hosts;
   }
@@ -307,7 +306,7 @@ class Performance extends VuexModule {
       this.setCurNode({
         ...this.curNode,
         cloudId: (hosts.find((item: any) => item.bk_host_innerip === this.curNode.ip) || { bk_cloud_id: -1 })
-          .bk_cloud_id
+          .bk_cloud_id,
       });
     }
     // 大数据排序有性能问题
@@ -328,7 +327,7 @@ class Performance extends VuexModule {
   public async getHostPerformanceMetric(): Promise<IHostData> {
     const data: IHostData = await hostPerformance().catch(() => ({
       hosts: [],
-      update_time: ''
+      update_time: '',
     }));
     return data;
   }
@@ -344,8 +343,8 @@ class Performance extends VuexModule {
   public async getTopoTree(
     params = {
       instance_type: 'host',
-      remove_empty_nodes: true
-    }
+      remove_empty_nodes: true,
+    },
   ) {
     const data = await getTopoTree(params).catch(() => []);
     this.setTopoTreeList(data);

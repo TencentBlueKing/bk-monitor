@@ -29,7 +29,7 @@ import { beforeEnter } from '../router/utils';
 
 export const applyGuidePage = (
   routes: RouteConfigSingleView[] | RouteConfigMultipleViews[],
-  excludes: string[] = []
+  excludes: string[] = [],
 ): RouteConfig[] =>
   routes.map(route => {
     if (excludes.includes(route.name)) return route;
@@ -40,8 +40,8 @@ export const applyGuidePage = (
       beforeEnter: (to: RouteConfig, from: RouteConfig, next: Function) => beforeEnter(navId, next),
       meta: {
         ...route.meta,
-        noChangeLoading: true
-      }
+        noChangeLoading: true,
+      },
     };
   });
 
@@ -52,7 +52,7 @@ export const applyNoAuthPage = (routes: RouteConfigSingleView[] | RouteConfigMul
       ...route,
       meta: {
         ...(route.meta || {}),
-        noAuthComponent: noAuthPage
-      }
+        noAuthComponent: noAuthPage,
+      },
     };
   });

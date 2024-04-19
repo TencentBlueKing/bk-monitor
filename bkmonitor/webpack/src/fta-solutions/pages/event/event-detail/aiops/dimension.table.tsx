@@ -40,7 +40,7 @@ const setTooltips = (content: string, placement = 'left', disabled = false) => (
   content: `${content}`,
   delay: 0,
   zIndex: 9000,
-  disabled
+  disabled,
 });
 
 interface IProps {
@@ -53,7 +53,7 @@ export default class DimensionTable extends tsc<IProps> {
   @Prop({ type: String, default: '' }) dimensionDrillDownErr: string;
 
   @Prop({ type: Array, default: () => [] }) tableData: IAnomalyDimensions[];
-  @Inject('reportEventLog') reportEventLog: Function;
+  @Inject('reportEventLog') reportEventLog: (eventType: string) => void;
   /** tips实例 */
   popperInstance: any = null;
 
@@ -63,7 +63,7 @@ export default class DimensionTable extends tsc<IProps> {
 
   @Watch('tableData')
   handleTableDataChange() {
-    !this.isSelectedInit && this.$refs?.dimensionTable?.toggleAllSelection();
+    !this.isSelectedInit && (this.$refs?.dimensionTable as any)?.toggleAllSelection();
     this.isSelectedInit = true;
     this.selection = this.tableData;
   }
@@ -78,7 +78,7 @@ export default class DimensionTable extends tsc<IProps> {
           allowHTML: false,
           onShown: () => {
             this.reportEventLog?.(EventReportType.Tips);
-          }
+          },
         }}
       >
         {this.$t(title)}
@@ -132,7 +132,7 @@ export default class DimensionTable extends tsc<IProps> {
             },
             onHide: () => {
               this.popperInstance = null;
-            }
+            },
           }}
         >
           {row.dimension_anomaly_value_count} / {row.dimension_value_total_count}
@@ -162,7 +162,7 @@ export default class DimensionTable extends tsc<IProps> {
     this.popperInstance?.hide?.();
   }
   /** tips 单个数据点点击回调 */
-  handleTooltipItem(is_anomaly: Boolean, id: string) {
+  handleTooltipItem(is_anomaly: boolean, id: string) {
     is_anomaly && this.handleDimensionClick(is_anomaly, id);
   }
   /** 异常分布绘制 */
@@ -173,8 +173,8 @@ export default class DimensionTable extends tsc<IProps> {
         info={info}
         {...{
           on: {
-            tipsClick: this.handleDimensionClick
-          }
+            tipsClick: this.handleDimensionClick,
+          },
         }}
       ></DimensionLine>
     );
@@ -212,8 +212,8 @@ export default class DimensionTable extends tsc<IProps> {
         {...{
           on: {
             'sort-change': this.handleSortChange,
-            'selection-change': this.handleSelectionChange
-          }
+            'selection-change': this.handleSelectionChange,
+          },
         }}
         header-border={true}
       >
@@ -244,7 +244,7 @@ export default class DimensionTable extends tsc<IProps> {
           render-header={this.renderHeader.bind(
             this,
             '异常分值分布',
-            '异常分值范围从0到1，分值越大，说明该维度值的指标异常程度越高。'
+            '异常分值范围从0到1，分值越大，说明该维度值的指标异常程度越高。',
           )}
           scopedSlots={{ default: props => this.renderDistributed(props.row.anomaly_score_distribution) }}
         ></bk-table-column>
@@ -257,7 +257,7 @@ export default class DimensionTable extends tsc<IProps> {
           render-header={this.renderHeader.bind(
             this,
             'JS散度',
-            'JS散度越大，说明该维度内各维度值的异常分值越离散，越值得排查'
+            'JS散度越大，说明该维度内各维度值的异常分值越离散，越值得排查',
           )}
           scopedSlots={{ default: props => props.row.dim_surprise }}
         ></bk-table-column>

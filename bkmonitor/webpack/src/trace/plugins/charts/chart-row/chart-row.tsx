@@ -36,8 +36,8 @@ export default defineComponent({
     panel: {
       type: Object as PropType<PanelModel>,
       default: () => {},
-      required: true
-    }
+      required: true,
+    },
   },
   emits: ['collapse'],
   setup(props, { emit }) {
@@ -56,7 +56,7 @@ export default defineComponent({
 
     return {
       handleCollapsed,
-      handleClickIcon
+      handleClickIcon,
     };
   },
   render() {
@@ -73,5 +73,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

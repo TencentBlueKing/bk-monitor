@@ -75,13 +75,13 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
             scene_id: this.scencId,
             type: this.sceneType,
             id: this.pageId,
-            bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId
+            bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId,
           },
           field: {
-            id: VALUE_KEY
-          }
-        }
-      ]
+            id: VALUE_KEY,
+          },
+        },
+      ],
     };
   }
 
@@ -104,7 +104,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
     const target = this.currentPanel?.targets[0];
     const api = target?.api;
     const variablesService = new VariablesService({
-      ...this.viewOptions.filters
+      ...this.viewOptions.filters,
     });
     const params: Record<string, any> = variablesService.transformVariables(target.data);
     this.handleGetApi(api)?.(params).then(data => {
@@ -142,7 +142,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
                 content: item,
                 zIndex: 9999,
                 boundary: document.body,
-                allowHTML: false
+                allowHTML: false,
               }}
             >
               {this.handleDisplayName(item)}
@@ -170,7 +170,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
                     placement: 'right',
                     zIndex: 9999,
                     boundary: document.body,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   {opt.name}

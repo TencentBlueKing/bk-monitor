@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -49,7 +48,7 @@ const BIZ_COLOR_LIST = [
   '#E9AE1D',
   '#EB9258',
   '#D36C68',
-  '#BC4FB3'
+  '#BC4FB3',
 ];
 interface IProps {
   value: number;
@@ -81,7 +80,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   @Prop({
     default: 'light',
     type: String,
-    validator: (val: string) => ['dark', 'light'].includes(val)
+    validator: (val: string) => ['dark', 'light'].includes(val),
   })
   theme: ThemeType;
   @Ref() menuSearchInput: any;
@@ -116,14 +115,14 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     current: 1,
     count: 0,
     limit: 20,
-    data: []
+    data: [],
   };
 
   /* type栏左右切换数据 */
   typeWrapInfo = {
     showBtn: false,
     nextDisable: false,
-    preDisable: false
+    preDisable: false,
   };
 
   firstCodeBgColor = '';
@@ -141,7 +140,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
-      styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {}
+      styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
     }));
     this.getFirstCodeBgColor();
   }
@@ -210,17 +209,17 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     const stickyList: IListItem = {
       id: null,
       name: this.$tc('置顶'),
-      children: []
+      children: [],
     };
     const commonList: IListItem = {
       id: null,
       name: this.$tc('常用的'),
-      children: []
+      children: [],
     };
     const list: IListItem = {
       id: 'general',
       name: '' /** 普通列表 */,
-      children: []
+      children: [],
     };
     const keyword = this.keyword.trim().toLocaleLowerCase();
     const generalList = [];
@@ -248,7 +247,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         const newItem = {
           ...item,
           name: item.space_name.replace(/\[.*?\]/, ''),
-          tags
+          tags,
         };
         if (this.stickyList.includes(item.space_uid)) {
           /** 置顶数据 */
@@ -293,7 +292,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         this.pagination.current += 1;
         const temp = showData.slice(
           (this.pagination.current - 1) * this.pagination.limit,
-          this.pagination.current * this.pagination.limit
+          this.pagination.current * this.pagination.limit,
         );
         this.pagination.data.push(...temp);
       }
@@ -336,7 +335,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.popoverRef.instance.popper.querySelector('.tippy-tooltip').style.width = `${this.listWidth}px`;
     this.zIndex &&
       this.popoverRef.instance.set({
-        zIndex: this.zIndex
+        zIndex: this.zIndex,
       });
     this.typeListWrapNextPreShowChange();
   }
@@ -380,7 +379,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         /** 切换为demo业务 */
         this.$store.commit('app/handleChangeBizId', {
           bizId: this.demo.id,
-          ctx: this
+          ctx: this,
         });
       }
     }
@@ -505,7 +504,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
               this.showBizList = false;
               this.handleBizSearch('');
               return true;
-            }
+            },
           }}
         >
           <div class={['biz-select-target', { 'is-shrink': this.isShrink }]}>
@@ -560,7 +559,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                         class='space-type-item'
                         style={{
                           ...item.styles,
-                          borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent'
+                          borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent',
                         }}
                         key={item.id}
                         onClick={() => this.handleSearchType(item.id)}

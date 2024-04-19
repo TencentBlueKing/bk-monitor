@@ -98,7 +98,7 @@ export default class CheckedboxList extends tsc<CheckedboxListProps, CheckedboxL
                             </bk-checkbox>
                             <span class='item-count'>{item.count}</span>
                           </div>
-                        )
+                        ),
                     )}
                   </bk-checkbox-group>
                 </div>

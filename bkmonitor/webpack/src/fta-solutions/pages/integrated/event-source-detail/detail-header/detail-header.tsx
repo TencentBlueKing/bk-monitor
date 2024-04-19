@@ -31,7 +31,7 @@ import './detail-header.scss';
 const HeaderFunctional = ctx => {
   const {
     props: { curStatusText, curFontColor, data },
-    listeners: { install, viewEvent }
+    listeners: { install, viewEvent },
   } = ctx;
   const {
     name,
@@ -46,20 +46,20 @@ const HeaderFunctional = ctx => {
     categoryDisplay,
     scenario,
     pluginType,
-    isInstalled
+    isInstalled,
   } = data as IBaseInfo;
   const { i18n } = window;
 
   const scenarioMap: TScenaris = {
     MONITOR: i18n.tc('监控工具'),
     REST_API: 'REST API',
-    EMAIL: 'EMAIL'
+    EMAIL: 'EMAIL',
   };
 
   const theWayMap: TPluginTypeObj = {
     http_pull: i18n.tc('拉取'),
     http_push: i18n.tc('推送'),
-    email_pull: i18n.tc('拉取')
+    email_pull: i18n.tc('拉取'),
   };
 
   const getlogoText = (str: string) => str.slice(0, 1).toLocaleUpperCase();

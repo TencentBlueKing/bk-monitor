@@ -27,7 +27,7 @@
   <div
     ref="dragRef"
     class="drag-label"
-    @click="(e) => $emit('click', e)"
+    @click="e => $emit('click', e)"
     @mousedown="handleMouseDown"
     @touchstart="handleMouseDown"
     @mousemove="handleMouseMove"
@@ -38,13 +38,16 @@
     <slot>
       <i class="icon-monitor icon-menu-event" />
     </slot>
-    <span v-if="alarmNum > 0" class="alarm-num">
+    <span
+      v-if="alarmNum > 0"
+      class="alarm-num"
+    >
       {{ alarmNum > 99 ? 99 : alarmNum }}
     </span>
   </div>
 </template>
 <script lang="ts">
-import { Vue, Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
 @Component
 export default class DragLabel extends Vue {
   // 告警数量
@@ -118,7 +121,7 @@ export default class DragLabel extends Vue {
         () => {
           event.stopPropagation(); // jq 阻止冒泡事件
         },
-        false
+        false,
       );
     }
   }
@@ -131,35 +134,36 @@ export default class DragLabel extends Vue {
 </script>
 <style lang="scss" scoped>
 .drag-label {
-  z-index: 9999;
   position: fixed;
-  bottom: 92px;
   right: 24px;
+  bottom: 92px;
+  z-index: 9999;
   display: flex;
+  align-items: center;
+  justify-content: center;
   width: 48px;
   height: 48px;
-  opacity: 0.8;
+  font-size: 22px;
+  color: #c4c6cc;
   background: #313238;
   border-radius: 24px;
   box-shadow: 0px 3px 6px 0px rgba(79, 85, 96, 0.3);
-  align-items: center;
-  justify-content: center;
-  color: #c4c6cc;
-  font-size: 22px;
+  opacity: 0.8;
+
   .alarm-num {
     position: absolute;
-    right: 0px;
     top: 0px;
-    width: 16px;
-    height: 16px;
-    padding: 2px;
-    background-color: #ea3636;
-    color: white;
-    border-radius: 50%;
-    font-size: 10px;
+    right: 0px;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 2px;
+    font-size: 10px;
+    color: white;
+    background-color: #ea3636;
+    border-radius: 50%;
   }
 }
 </style>

@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -41,7 +40,7 @@ import './index.scss';
 
 const TraceProps = {
   handleShowSpanDetail: Function as PropType<(span: Span) => void>,
-  updateMatchedSpanIds: Function as PropType<(count: number) => void>
+  updateMatchedSpanIds: Function as PropType<(count: number) => void>,
 };
 
 export default defineComponent({
@@ -56,8 +55,8 @@ export default defineComponent({
     const findMatchesIDs = ref(new Set());
     const viewRange = ref<IViewRange>({
       time: {
-        current: [0, 1]
-      }
+        current: [0, 1],
+      },
     });
     const current = ref<[number, number]>([0, 1]);
 
@@ -70,18 +69,18 @@ export default defineComponent({
       viewRange,
       onViewRangeChange: (val: IViewRange) => {
         viewRange.value = val;
-      }
+      },
     });
     useSpanBarCurrentProvide({
       current,
       onCurrentChange: (val: [number, number]) => {
         current.value = val;
-      }
+      },
     });
     useFocusMatchesProvide({
       focusMatchesId,
       focusMatchesIdIndex,
-      findMatchesIDs
+      findMatchesIDs,
     });
 
     const nextResult = () => {
@@ -103,7 +102,7 @@ export default defineComponent({
           top: 0,
           right: window.innerWidth,
           bottom: window.innerHeight,
-          left: 0
+          left: 0,
         };
       } else {
         containerRect = container.getBoundingClientRect();
@@ -134,7 +133,7 @@ export default defineComponent({
         if (isInContainer(targetElem, containerElem)) {
           return;
         }
-        // eslint-disable-next-line max-len
+
         focusMatchesIdIndex.value = (spanTree.value || []).findIndex(item => item.spanID === focusMatchesId.value);
       });
     };
@@ -158,7 +157,6 @@ export default defineComponent({
         } else if (!matchedSpanIds.size) {
           matchedSpanIds = curMatched;
         } else {
-          // eslint-disable-next-line no-loop-func
           matchedSpanIds = new Set([...new Set([...curMatched].filter(x => matchedSpanIds.has(x)))]);
         }
       }
@@ -200,7 +198,7 @@ export default defineComponent({
       nextResult,
       prevResult,
       clearSearch,
-      findMatchesIDs
+      findMatchesIDs,
     });
 
     return {
@@ -215,7 +213,7 @@ export default defineComponent({
       nextResult,
       prevResult,
       clearSearch,
-      traceTree
+      traceTree,
     };
   },
 
@@ -237,5 +235,5 @@ export default defineComponent({
         </section>
       </div>
     );
-  }
+  },
 });

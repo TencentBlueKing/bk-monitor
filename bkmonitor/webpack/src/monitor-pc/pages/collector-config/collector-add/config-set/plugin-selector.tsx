@@ -40,7 +40,7 @@ const pluginTypeMap = {
   Log: 'Log',
   Process: 'Process',
   SNMP_Trap: 'SNMP Trap',
-  SNMP: 'SNMP'
+  SNMP: 'SNMP',
 };
 
 const colorMap = {
@@ -53,7 +53,7 @@ const colorMap = {
   SNMP: '#B6CAEC',
   SNMP_Trap: '#B6CAEC',
   Log: '#B6CAEC',
-  Process: '#B6CAEC'
+  Process: '#B6CAEC',
 };
 /* snmptrap类型插件(固定) */
 const snmpTrapPluginList = [
@@ -61,20 +61,20 @@ const snmpTrapPluginList = [
     plugin_id: 'snmp_v1',
     plugin_display_name: 'SNMP Trap V1',
     plugin_type: 'SNMP_Trap',
-    logo: ''
+    logo: '',
   },
   {
     plugin_id: 'snmp_v2c',
     plugin_display_name: 'SNMP Trap V2c',
     plugin_type: 'SNMP_Trap',
-    logo: ''
+    logo: '',
   },
   {
     plugin_id: 'snmp_v3',
     plugin_display_name: 'SNMP Trap V3',
     plugin_type: 'SNMP_Trap',
-    logo: ''
-  }
+    logo: '',
+  },
 ];
 /* log类型插件(实际无此插件仅供展示) */
 const logPluginList = [
@@ -82,8 +82,8 @@ const logPluginList = [
     plugin_id: LOG_PLUGIN_ID,
     plugin_display_name: window.i18n.tc('日志关键字采集'),
     plugin_type: 'Log',
-    logo: ''
-  }
+    logo: '',
+  },
 ];
 /* 进程类型插件 */
 const processPluginList = [
@@ -91,8 +91,8 @@ const processPluginList = [
     plugin_id: PROCESS_PLUGIN_ID,
     plugin_display_name: window.i18n.tc('进程采集插件'),
     plugin_type: 'Process',
-    logo: ''
-  }
+    logo: '',
+  },
 ];
 
 export interface IPluginItem {
@@ -148,7 +148,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
 
   handleAddPlugin() {
     this.$router.push({
-      name: 'plugin-add'
+      name: 'plugin-add',
     });
   }
 
@@ -177,7 +177,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
                   class='plugin-logo'
                   style={{
                     'background-image': item.logo ? `url(data:image/gif;base64,${item.logo})` : 'none',
-                    'background-color': item.logo ? '' : colorMap[item.plugin_type]
+                    'background-color': item.logo ? '' : colorMap[item.plugin_type],
                   }}
                 >
                   {item.logo ? '' : item.plugin_display_name.slice(0, 1).toLocaleUpperCase()}

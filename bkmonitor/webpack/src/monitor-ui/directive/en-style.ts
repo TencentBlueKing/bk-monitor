@@ -55,7 +55,7 @@ export default class EnStyleDirective {
             cssText += `${key}: ${options.styles[key]};`;
           });
         el.style.cssText += cssText;
-      }
+      },
     });
   }
 }

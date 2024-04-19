@@ -41,11 +41,11 @@ export default class InfluxdbBasicInfo extends tsc<IProps> {
     domain: '', // Proxy集群域名
     port: '', // 端口
     username: '', // 用户名
-    password: '' // 密码
+    password: '', // 密码
   };
   formErrMsg = {
     domain: '',
-    port: ''
+    port: '',
   };
 
   created() {

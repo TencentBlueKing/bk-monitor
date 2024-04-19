@@ -46,7 +46,7 @@ interface IStrategyMetricSelectorProps {
 }
 
 @Component({
-  name: 'StrategyMetricSelector'
+  name: 'StrategyMetricSelector',
 })
 export default class StrategyMetricSelector extends tsc<IStrategyMetricSelectorProps> {
   @Prop({ default: MetricType.TimeSeries, type: String }) readonly type: MetricType; // 监控指标 | 事件 | 日志

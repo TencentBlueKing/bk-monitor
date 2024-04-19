@@ -102,7 +102,7 @@ export default class Form extends tsc<IProps, IEvents> {
       {
         label: this.$t('依赖历史数据长度'),
         value: description.dataLength?.value,
-        error: !(description.dataLength?.isMatch ?? true)
+        error: !(description.dataLength?.isMatch ?? true),
       },
       {
         label: this.$t('数据频率'),
@@ -110,13 +110,13 @@ export default class Form extends tsc<IProps, IEvents> {
           description.frequency?.value === 0
             ? this.$t('无限制')
             : this.$t(' {n} 秒', { n: description.frequency?.value }),
-        error: !(description.frequency?.isMatch ?? true)
+        error: !(description.frequency?.isMatch ?? true),
       },
       {
         label: this.$t('描述'),
         value: description.message?.value,
-        error: !(description.message?.isMatch ?? true)
-      }
+        error: !(description.message?.isMatch ?? true),
+      },
     ];
     return data;
   }
@@ -242,7 +242,7 @@ export default class Form extends tsc<IProps, IEvents> {
                           onShow: () => {
                             /** 记录hover的选项 */
                             formItem.hoverOptionId = opt.id;
-                          }
+                          },
                         }}
                       >
                         <div class='type-select-item'>

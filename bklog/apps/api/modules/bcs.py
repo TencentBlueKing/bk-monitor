@@ -53,7 +53,7 @@ class _BcsApi:
         )
         self.list_project = DataAPI(
             method="GET",
-            url=f"{bcs_apigateway_host}bcsapi/v4/bcsproject/v1/projects/",
+            url=f"{bcs_apigateway_host}bcsapi/v4/bcsproject/v1/projects",
             module=self.MODULE,
             description="获取项目列表",
             before_request=bcs_before_request,

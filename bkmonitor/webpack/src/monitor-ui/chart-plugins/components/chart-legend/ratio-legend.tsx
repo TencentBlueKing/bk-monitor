@@ -71,7 +71,7 @@ class RatioLegend extends CommonLegend {
                   class='legend-icon'
                   style={{
                     backgroundColor: legend.show ? legend.color : '#ccc',
-                    borderColor: legend.show ? legend.borderColor : '#ccc'
+                    borderColor: legend.show ? legend.borderColor : '#ccc',
                   }}
                 ></span>
                 <div

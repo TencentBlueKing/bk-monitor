@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -35,7 +34,7 @@ import {
   reactive,
   ref,
   toRefs,
-  watch
+  watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -74,13 +73,13 @@ const fieldQueryKeyMaps: AliasMapType = {
   statusCode: 'root_service_status_code',
   type: 'root_service_category',
   service_name: 'resource.service.name',
-  status_code: 'status.code'
+  status_code: 'status.code',
 };
 
 const TRACE_TABLE_ROW_HEIGHR = 60; // trace 表格行高
 
 enum TraceFilter {
-  Error = 'error'
+  Error = 'error',
 }
 
 enum SpanFilter {
@@ -88,17 +87,17 @@ enum SpanFilter {
   EntrySpan = 'entry_span',
   // 第二期：后端未提供该参数，先占个位。
   ThirdPart = '3',
-  Error = 'error'
+  Error = 'error',
 }
 
 enum InterfaceStatisticsFilter {
   RootSpan = 'root_span',
   RootServiceSpan = 'root_service_span',
-  StatusCode = 'status.code'
+  StatusCode = 'status.code',
 }
 
 enum ServiceStatisticsFilter {
-  Error = 'error'
+  Error = 'error',
 }
 
 export type TraceListType = {
@@ -122,16 +121,16 @@ export default defineComponent({
   props: {
     tableLoading: {
       type: Boolean,
-      default: false
+      default: false,
     },
     appName: {
       type: String,
-      required: true
+      required: true,
     },
     appList: {
       type: Array as PropType<IAppItem[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: [
     'scrollBottom',
@@ -143,7 +142,7 @@ export default defineComponent({
     'traceTypeChange',
     'spanTypeChange',
     'interfaceStatisticsChange',
-    'serviceStatisticsChange'
+    'serviceStatisticsChange',
   ],
   setup(props, { emit }) {
     /** 取消请求方法 */
@@ -154,13 +153,13 @@ export default defineComponent({
     const { t } = useI18n();
     const statusList = [
       { id: 'have_root_span', name: 'root span', tips: t('包含根span的trace') },
-      { id: 'have_service_span', name: 'entry span', tips: t('包含至少一个服务的trace') }
+      { id: 'have_service_span', name: 'entry span', tips: t('包含至少一个服务的trace') },
     ];
     const state = reactive({
       total: 24,
       duration: 207,
       collapseActive: true,
-      currentStatus: 'all'
+      currentStatus: 'all',
     });
     const traceTableMain = ref<HTMLDivElement>();
     const traceListWrapper = ref<HTMLDivElement>();
@@ -183,31 +182,31 @@ export default defineComponent({
     const interfaceTypeListInInterfaceStatistics = ref([
       {
         label: '同步',
-        value: t('同步')
+        value: t('同步'),
       },
       {
         label: '异步',
-        value: t('异步')
+        value: t('异步'),
       },
       {
         label: '内部调用',
-        value: t('内部调用')
+        value: t('内部调用'),
       },
       {
         label: '未知',
-        value: t('未知')
-      }
+        value: t('未知'),
+      },
     ]);
     const selectedSourceTypeInInterfaceStatistics = ref([]);
     const sourceTypeListInInterfaceStatistics = ref([
       {
         label: 'OTel',
-        value: 'OTel'
+        value: 'OTel',
       },
       {
         label: 'eBPF',
-        value: 'eBPF'
-      }
+        value: 'eBPF',
+      },
     ]);
 
     const selectedServiceStatisticsType = ref([]);
@@ -215,31 +214,31 @@ export default defineComponent({
     const interfaceTypeListInServiceStatistics = ref([
       {
         label: t('同步'),
-        value: 'sync'
+        value: 'sync',
       },
       {
         label: t('异步'),
-        value: 'async'
+        value: 'async',
       },
       {
         label: t('内部调用'),
-        value: 'internal'
+        value: 'internal',
       },
       {
         label: t('未知'),
-        value: 'unknown'
-      }
+        value: 'unknown',
+      },
     ]);
     const selectedSourceTypeInServiceStatistics = ref([]);
     const sourceTypeListInServiceStatistics = ref([
       {
         label: 'OTel',
-        value: 'OTel'
+        value: 'OTel',
       },
       {
         label: 'eBPF',
-        value: 'eBPF'
-      }
+        value: 'eBPF',
+      },
     ]);
 
     const timeRange = useTimeRanceInject();
@@ -250,7 +249,7 @@ export default defineComponent({
     const tableData = computed(() => store.traceList);
     const filterSpanTableData = computed(() => store.filterSpanList);
     const tableDataOfSpan = computed(() =>
-      filterSpanTableData.value?.length ? filterSpanTableData.value : store.spanList
+      filterSpanTableData.value?.length ? filterSpanTableData.value : store.spanList,
     );
     const filterTableData = computed(() => store.filterTraceList);
     const localTableData = computed(() => (filterTableData.value?.length ? filterTableData.value : tableData.value));
@@ -280,7 +279,6 @@ export default defineComponent({
           <div
             class={['trace-id-column', { 'expand-row': showTraceDetail.value && cell === curTraceId.value }]}
             style={`width:${showTraceDetail.value ? '232px' : 'auto'}`}
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises
             onClick={() => handleTraceDetail(data.trace_id, index)}
           >
             <div
@@ -298,7 +296,7 @@ export default defineComponent({
               </div>
             )}
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -313,12 +311,12 @@ export default defineComponent({
         ),
         width: 160,
         field: 'min_start_time',
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -335,11 +333,11 @@ export default defineComponent({
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_span_name,
-              filterFn: () => true as any
+              filterFn: () => true as any,
               // btnSave: !!traceListFilter.root_span_name.length ? t('确定') : false
             }
           : false,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: ITraceListItem }) => (
           <div class='link-column'>
             <span
@@ -350,7 +348,7 @@ export default defineComponent({
             </span>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -368,7 +366,7 @@ export default defineComponent({
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_service,
-              filterFn: () => true as any
+              filterFn: () => true as any,
               // btnSave: !!traceListFilter.root_service.length ? t('确定') : false
             }
           : false,
@@ -386,8 +384,8 @@ export default defineComponent({
             </div>
           ) : (
             '--'
-          )
-        ]
+          ),
+        ],
       },
       {
         label: () => (
@@ -405,7 +403,7 @@ export default defineComponent({
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_service_span_name,
-              filterFn: () => true as any
+              filterFn: () => true as any,
               // btnSave: !!traceListFilter.root_service_span_name.length ? t('确定') : false
             }
           : false,
@@ -422,8 +420,8 @@ export default defineComponent({
             </div>
           ) : (
             '--'
-          )
-        ]
+          ),
+        ],
       },
       {
         label: () => (
@@ -446,10 +444,10 @@ export default defineComponent({
         filter: isPreCalculationMode.value
           ? {
               list: traceListFilter.root_service_category,
-              filterFn: () => true as any
+              filterFn: () => true as any,
               // btnSave: !!traceListFilter.root_service_category.length ? t('确定') : false
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -467,7 +465,7 @@ export default defineComponent({
         field: 'statusCode',
         filter: {
           list: traceListFilter.root_service_status_code,
-          filterFn: () => true as any
+          filterFn: () => true as any,
           // btnSave: !!traceListFilter.root_service_status_code.length ? t('确定') : false
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -475,7 +473,7 @@ export default defineComponent({
           <div class={`status-code status-${data.root_service_status_code?.type}`}>
             {data.root_service_status_code?.value || '--'}
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -491,7 +489,7 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
           : false,
         settingsLabel: `${t('耗时')}`,
@@ -501,7 +499,7 @@ export default defineComponent({
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -520,9 +518,9 @@ export default defineComponent({
         field: 'kind_statistics.sync',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -540,9 +538,9 @@ export default defineComponent({
         field: 'kind_statistics.async',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -560,9 +558,9 @@ export default defineComponent({
         field: 'kind_statistics.interval',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -580,9 +578,9 @@ export default defineComponent({
         field: 'kind_statistics.unspecified',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -600,9 +598,9 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -620,9 +618,9 @@ export default defineComponent({
         field: 'category_statistics.messaging',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -640,9 +638,9 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -660,9 +658,9 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -681,9 +679,9 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -701,9 +699,9 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -721,9 +719,9 @@ export default defineComponent({
         width: 120,
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -741,9 +739,9 @@ export default defineComponent({
         field: 'hierarchy_count',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
+          : false,
       },
       {
         label: () => (
@@ -761,10 +759,10 @@ export default defineComponent({
         field: 'service_count',
         sort: isPreCalculationMode.value
           ? {
-              sortFn: () => false
+              sortFn: () => false,
             }
-          : false
-      }
+          : false,
+      },
     ]);
     const chartList = computed<PanelModel[]>(() => searchStore.chartPanelList);
     const isListLoading = computed<boolean>(() => store.loading);
@@ -790,13 +788,13 @@ export default defineComponent({
             break;
         }
       },
-      { immediate: true }
+      { immediate: true },
     );
     // 当在 table header 上选择筛选并确定后执行的回调方法。
     const handleSpanFilter = (options: any) => {
       const {
         checked,
-        column: { field }
+        column: { field },
       } = options;
       if (field === 'traceID') {
         // 第二期结束可以删掉该逻辑块
@@ -833,7 +831,7 @@ export default defineComponent({
         // 当前未在全屏，则打开全屏弹窗
         curTraceIndex.value = index;
         isFullscreen.value = true;
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         nextTick(() => getTraceDetails(traceId));
       } else {
         // 当前在全屏下则直接请求trace详情
@@ -849,7 +847,7 @@ export default defineComponent({
       const params: any = {
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
-        trace_id: traceId
+        trace_id: traceId,
       };
 
       if (
@@ -861,7 +859,7 @@ export default defineComponent({
         params.displays = ['source_category_opentelemetry'].concat(selects);
       }
       await traceDetail(params, {
-        cancelToken: new CancelToken((c: any) => (searchCancelFn = c))
+        cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
       })
         .then(async data => {
           await store.setTraceData({ ...data, appName: props.appName, trace_id: traceId });
@@ -908,7 +906,7 @@ export default defineComponent({
       'resource.service.name': [],
       'resource.telemetry.sdk.version': [],
       span_name: [],
-      'status.code': []
+      'status.code': [],
     });
     /** 获取列表表头过滤候选值 */
     const getFilterValues = () => {
@@ -918,14 +916,14 @@ export default defineComponent({
         trace: 'trace',
         span: 'span',
         interfaceStatistics: 'span',
-        serviceStatistics: 'span'
+        serviceStatistics: 'span',
       };
       const params = {
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
         start_time: startTime,
         end_time: endTime,
-        mode: modeMapping[selectedListType.value]
+        mode: modeMapping[selectedListType.value],
       };
       listOptionValues(params).then(res => {
         Object.keys(res).forEach(key => {
@@ -1022,24 +1020,24 @@ export default defineComponent({
       if (selectedInterfaceTypeInServiceStatistics.value.length === interfaceTypeListInServiceStatistics.value.length) {
         emit('serviceStatisticsChange', {
           contain: selectedServiceStatisticsType.value,
-          interfaceType: []
+          interfaceType: [],
         });
         return;
       }
       emit('serviceStatisticsChange', {
         contain: selectedServiceStatisticsType.value,
-        interfaceType: selectedInterfaceTypeInServiceStatistics.value
+        interfaceType: selectedInterfaceTypeInServiceStatistics.value,
       });
     }
 
     watch(
       () => filterTableData.value,
-      () => store.setTraceDetail(false)
+      () => store.setTraceDetail(false),
     );
     watch(
       () => localTableData.value,
       () => handleClientResize(),
-      { immediate: true }
+      { immediate: true },
     );
     watch([() => props.appName, () => timeRange?.value], () => {
       shouldResetTable.value = true;
@@ -1053,7 +1051,7 @@ export default defineComponent({
           renderKey.value = random(6);
           shouldResetTable.value = false;
         }
-      }
+      },
     );
     watch(
       () => isFullscreen.value,
@@ -1062,11 +1060,11 @@ export default defineComponent({
           setTimeout(() => {
             // 将全屏弹窗内表格当前选中项滚动至可视区内
             traceTableElem.value?.scrollTo?.({
-              top: (curTraceIndex.value - 1) * TRACE_TABLE_ROW_HEIGHR
+              top: (curTraceIndex.value - 1) * TRACE_TABLE_ROW_HEIGHR,
             });
           }, 10);
         }
-      }
+      },
     );
 
     onMounted(() => {
@@ -1094,9 +1092,9 @@ export default defineComponent({
         width: 140,
         field: 'span_id',
         sort: {
-          sortFn: () => false
+          sortFn: () => false,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: any[] }) => (
           <div
             class='link-column'
@@ -1109,7 +1107,7 @@ export default defineComponent({
               {cell}
             </span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1125,14 +1123,14 @@ export default defineComponent({
         field: 'span_name',
         filter: {
           list: traceListFilter.span_name,
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
           <div>
             <span title={cell}>{cell}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1147,14 +1145,14 @@ export default defineComponent({
         ),
         field: 'start_time',
         sort: {
-          sortFn: () => false
+          sortFn: () => false,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1169,14 +1167,14 @@ export default defineComponent({
         ),
         field: 'end_time',
         sort: {
-          sortFn: () => false
+          sortFn: () => false,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1192,14 +1190,14 @@ export default defineComponent({
         field: 'elapsed_time',
         width: 120,
         sort: {
-          sortFn: () => false
+          sortFn: () => false,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{formatDuration(cell, ' ')}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1216,7 +1214,7 @@ export default defineComponent({
         width: 120,
         filter: {
           list: traceListFilter['status.code'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
@@ -1225,7 +1223,7 @@ export default defineComponent({
             <span class={`span-status-code-${data.status_code.type}`}></span>
             <span>{data.status_code.value}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1242,14 +1240,14 @@ export default defineComponent({
         width: 150,
         filter: {
           list: traceListFilter.kind,
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{SPAN_KIND_MAPS[data.kind]}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1264,9 +1262,8 @@ export default defineComponent({
         ),
         field: 'resource.service.name',
         filter: {
-          // eslint-disable-next-line @typescript-eslint/quotes
           list: traceListFilter['resource.service.name'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
@@ -1277,7 +1274,7 @@ export default defineComponent({
             <span title={data.resource['service.name']}>{data.resource['service.name']}</span>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1292,9 +1289,8 @@ export default defineComponent({
         ),
         field: 'resource.bk.instance.id',
         filter: {
-          // eslint-disable-next-line @typescript-eslint/quotes
           list: traceListFilter['resource.bk.instance.id'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
@@ -1302,7 +1298,7 @@ export default defineComponent({
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['bk.instance.id']}>{data.resource['bk.instance.id']}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1322,7 +1318,7 @@ export default defineComponent({
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['telemetry.sdk.name']}>{data.resource['telemetry.sdk.name']}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1337,9 +1333,8 @@ export default defineComponent({
         ),
         field: 'resource.telemetry.sdk.version',
         filter: {
-          // eslint-disable-next-line @typescript-eslint/quotes
           list: traceListFilter['resource.telemetry.sdk.version'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
@@ -1347,7 +1342,7 @@ export default defineComponent({
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['telemetry.sdk.version']}>{data.resource['telemetry.sdk.version']}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -1373,8 +1368,8 @@ export default defineComponent({
             </span>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
-      }
+        ),
+      },
     ];
 
     const isSpanDetailLoading = ref(false);
@@ -1384,7 +1379,7 @@ export default defineComponent({
       const params = {
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
-        span_id: span.span_id
+        span_id: span.span_id,
       };
       isShowSpanDetail.value = true;
       isSpanDetailLoading.value = true;
@@ -1392,7 +1387,7 @@ export default defineComponent({
         .then(result => {
           // TODO：这里是东凑西凑出来的数据，代码并不严谨，后期需要调整。
           store.setSpanDetailData(result);
-          // eslint-disable-next-line no-param-reassign
+
           result.trace_tree.traceID = result?.trace_tree?.spans?.[0]?.traceID;
           Object.assign(spanDetails, transformTraceTree(result.trace_tree)?.spans?.[0]);
         })
@@ -1405,13 +1400,12 @@ export default defineComponent({
     function handleTraceColumnSort(option: any) {
       emit('columnSortChange', {
         type: option.type,
-        column: option.column
+        column: option.column,
       });
     }
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      // eslint-disable-next-line no-useless-escape
       const hash = `#/trace/home?app_name=${props.appName}&search_type=accurate&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
@@ -1479,7 +1473,7 @@ export default defineComponent({
       handleTraceTypeChange,
       handleTraceTableSettingsChange,
       handleSpanTableSettingsChange,
-      store
+      store,
     };
   },
 
@@ -1844,5 +1838,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

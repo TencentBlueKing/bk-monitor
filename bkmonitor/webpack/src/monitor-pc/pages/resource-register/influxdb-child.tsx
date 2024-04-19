@@ -46,13 +46,13 @@ export default class InfluxdbChild extends tsc<IProps> {
       data: {
         columns: [
           { id: 'host', name: '域名' },
-          { id: 'port', name: '端口' }
+          { id: 'port', name: '端口' },
         ],
         data: [
           { host: '102.11.1000.1', port: '9092' },
-          { host: '102.11.1000.1', port: '9092' }
-        ]
-      }
+          { host: '102.11.1000.1', port: '9092' },
+        ],
+      },
     },
     {
       id: random(8),
@@ -61,14 +61,14 @@ export default class InfluxdbChild extends tsc<IProps> {
       data: {
         columns: [
           { id: 'host', name: '域名' },
-          { id: 'port', name: '端口' }
+          { id: 'port', name: '端口' },
         ],
         data: [
           { host: '102.11.1000.1', port: '9092' },
-          { host: '102.11.1000.1', port: '9092' }
-        ]
-      }
-    }
+          { host: '102.11.1000.1', port: '9092' },
+        ],
+      },
+    },
   ];
   @Emit('group-operation')
   handleGroupOperation(type = 'clone', data: any) {
@@ -129,14 +129,14 @@ export default class InfluxdbChild extends tsc<IProps> {
               <span
                 class='icon-monitor icon-mc-copy'
                 v-bk-tooltips={{
-                  content: this.$t('克隆')
+                  content: this.$t('克隆'),
                 }}
                 onClick={(e: Event) => this.handleCopy(e, index)}
               ></span>
               <span
                 class='icon-monitor icon-bianji'
                 v-bk-tooltips={{
-                  content: this.$t('编辑组')
+                  content: this.$t('编辑组'),
                 }}
                 onClick={(e: Event) => this.handleEdit(e, index)}
               ></span>
@@ -147,8 +147,8 @@ export default class InfluxdbChild extends tsc<IProps> {
                 header-border={false}
                 {...{
                   props: {
-                    data: item.data.data
-                  }
+                    data: item.data.data,
+                  },
                 }}
               >
                 {item.data.columns.map(column => {

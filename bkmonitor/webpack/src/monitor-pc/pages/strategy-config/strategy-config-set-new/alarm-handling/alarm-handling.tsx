@@ -93,7 +93,7 @@ interface IAlarmHandlingNewEvent {
 }
 
 @Component({
-  name: 'AlarmHandlingNew'
+  name: 'AlarmHandlingNew',
 })
 export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarmHandlingNewEvent> {
   @Prop({
@@ -106,10 +106,10 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           converge_func: 'skip_when_success', // 防御动作
           timedelta: 1, // 防御窗口大小（秒），默认设置为 60
           count: 1, // 执行次数，默认设置为 1
-          is_enabled: true
-        }
-      }
-    })
+          is_enabled: true,
+        },
+      },
+    }),
   })
   value: IAlarmHandlingNewProps['value'];
   @Prop({ type: Array, default: () => [] }) allDefense: IAlarmHandlingNewProps['allDefense'];
@@ -145,9 +145,9 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         converge_func: 'skip_when_success', // 防御动作
         timedelta: 1, // 防御窗口大小（秒），默认设置为 60
         count: 1, // 执行次数，默认设置为 1
-        is_enabled: true
-      }
-    }
+        is_enabled: true,
+      },
+    },
   };
   isShowDetail = false;
 
@@ -180,8 +180,8 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
       this.$router.push({
         name: 'set-meal-add',
         params: {
-          strategyId: !this.isSimple ? `${this.strategyId}` : undefined
-        }
+          strategyId: !this.isSimple ? `${this.strategyId}` : undefined,
+        },
       });
     }, 300);
   }
@@ -229,7 +229,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                 class='add-text'
                 v-bk-tooltips={{
                   content: this.$t('进入新增页，新增完可直接返回不会丢失数据'),
-                  disabled: this.isSimple
+                  disabled: this.isSimple,
                 }}
               >
                 {this.$t('新建套餐')}

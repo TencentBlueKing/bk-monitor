@@ -33,21 +33,21 @@ import './history-dialog.scss';
 export default defineComponent({
   name: 'HistoryDialog',
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: {
     showCallback: {
       type: Function as PropType<Promise<void> | any>,
-      default: () => null
+      default: () => null,
     },
     list: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     title: {
       type: String,
-      default: window.i18n.t('变更记录')
-    }
+      default: window.i18n.t('变更记录'),
+    },
   },
   setup(props) {
     const visible = ref(false);
@@ -68,7 +68,7 @@ export default defineComponent({
 
     return {
       handleHistoryClick,
-      visible
+      visible,
     };
   },
   render() {
@@ -94,5 +94,5 @@ export default defineComponent({
         </div>
       </Popover>
     );
-  }
+  },
 });

@@ -74,11 +74,11 @@ export default class PerformanceChart extends TimeSeries {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       if (this.bkBizId) {
         params = Object.assign({}, params, {
-          bk_biz_id: this.bkBizId
+          bk_biz_id: this.bkBizId,
         });
       }
       const promiseList = [];
@@ -86,11 +86,11 @@ export default class PerformanceChart extends TimeSeries {
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval
+        this.panel.collect_interval,
       );
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        interval
+        interval,
       });
       timeShiftList.forEach(time_shift => {
         const list = this.panel.targets.map(item => {
@@ -101,19 +101,19 @@ export default class PerformanceChart extends TimeSeries {
               ...this.viewOptions,
               ...this.viewOptions.variables,
               time_shift,
-              interval
+              interval,
             }),
             ...params,
             down_sample_range: this.downSampleRangeComputed(
               this.downSampleRange as string,
               [params.start_time, params.end_time],
-              item.apiFunc
-            )
+              item.apiFunc,
+            ),
           };
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
               cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
-              needMessage: false
+              needMessage: false,
             })
             .then(res => {
               this.$emit('seriesData', res);
@@ -124,8 +124,8 @@ export default class PerformanceChart extends TimeSeries {
                   metric_id: res.metrics?.[0]?.metric_id,
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
-                  }`
-                }))
+                  }`,
+                })),
               );
               this.clearErrorMsg();
               return true;
@@ -162,9 +162,9 @@ export default class PerformanceChart extends TimeSeries {
               metric_ids: metrics?.map(item => item.metric_id),
               host: [
                 {
-                  ...this.viewOptions.current_target
-                }
-              ]
+                  ...this.viewOptions.current_target,
+                },
+              ],
             })
             .catch(() => ({}));
         }
@@ -183,9 +183,9 @@ export default class PerformanceChart extends TimeSeries {
               markPoint: this.createMarkPointData(item, series),
               markLine: this.createMarkLine(index),
               markArea: this.createMarkArea(item, index),
-              z: 2
+              z: 2,
             };
-          }) as any
+          }) as any,
         );
         seriesList = seriesList.map((item: any) => {
           if (item.markArea && !this.markArea?.data) {
@@ -200,9 +200,9 @@ export default class PerformanceChart extends TimeSeries {
               }
               return {
                 ...set,
-                value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null]
+                value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
               };
-            })
+            }),
           };
         });
         // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
@@ -222,8 +222,8 @@ export default class PerformanceChart extends TimeSeries {
                     borderWidth: set.symbolSize > 6 ? 6 : 1,
                     enabled: true,
                     shadowBlur: 0,
-                    opacity: 1
-                  }
+                    opacity: 1,
+                  },
                 };
               }
               return set;
@@ -232,13 +232,13 @@ export default class PerformanceChart extends TimeSeries {
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
-        // eslint-disable-next-line max-len
+
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
-        // eslint-disable-next-line max-len
+
         const echartOptions: MonitorEchartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
-          { arrayMerge: (_, newArr) => newArr }
+          { arrayMerge: (_, newArr) => newArr },
         );
         this.options = Object.freeze(
           deepmerge(echartOptions, {
@@ -255,24 +255,24 @@ export default class PerformanceChart extends TimeSeries {
                       }
                       return v;
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase)
+                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
               max: v => Math.max(v.max, +maxThreshold),
               min: v => Math.min(v.min, +minThreshold),
-              z: 1
+              z: 1,
             },
             xAxis: {
               axisLabel: {
-                formatter: formatterFunc || '{value}'
+                formatter: formatterFunc || '{value}',
               },
               splitNumber: Math.ceil(this.width / 80),
-              min: 'dataMin'
+              min: 'dataMin',
             },
-            series: seriesList
-          })
+            series: seriesList,
+          }),
         );
         this.metrics = metrics || [];
         this.handleDrillDownOption(this.metrics);

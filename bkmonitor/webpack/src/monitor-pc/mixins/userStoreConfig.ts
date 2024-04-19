@@ -53,7 +53,7 @@ export default class UserConfigMixin extends Vue {
    */
   public async handleGetUserConfig<T>(
     key: string,
-    config: Record<string, any> = { reject403: true }
+    config: Record<string, any> = { reject403: true },
   ): Promise<T | undefined> {
     if (!this.hasBusinessAuth) return undefined;
     const userConfig = await listUserConfig({ key }, config).catch(() => false);

@@ -25,12 +25,13 @@
  */
 export enum ETabNames {
   dimension = 'dimension',
-  index = 'index'
+  index = 'index',
 }
 
 export enum DimensionTypes {
   uptimecheck = 'icon-mc-service-test',
   application_check = 'icon-mc-business',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   service_module = 'icon-mc-service-test',
   component = 'icon-mc-component',
   host_process = 'icon-mc-aiops-process',
@@ -38,7 +39,7 @@ export enum DimensionTypes {
   kubernetes = 'icon-mc-aiops-kubernetes',
   hardware_device = 'icon-mc-equipment',
   other_rt = 'icon-mc-other',
-  os = 'icon-operating-system'
+  os = 'icon-operating-system',
 }
 
 export interface IInfo {
@@ -70,5 +71,5 @@ export interface IAnomalyDimensions {
 export enum EventReportType {
   'View' = 'event_detail_view',
   'Click' = 'event_detail_click',
-  'Tips' = 'event_detail_tips'
+  'Tips' = 'event_detail_tips',
 }

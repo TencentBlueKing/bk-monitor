@@ -108,7 +108,7 @@ export default class FavList extends tsc<IProps, IEvents> {
                     <i
                       v-bk-tooltips={{
                         content: this.$t('取消收藏'),
-                        extCls: 'garfana-link-tips'
+                        extCls: 'garfana-link-tips',
                       }}
                       class='icon-monitor icon-mc-collect'
                       onClick={() => this.handleUnstarred(child)}

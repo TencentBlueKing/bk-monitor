@@ -36,6 +36,7 @@ from constants.apm import FlowType, OtlpKey, SpanKind
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
+from core.errors.api import BKAPIError
 from metadata import models as metadata_models
 
 from .doris import BkDataDorisProvider
@@ -951,6 +952,17 @@ class TraceDataSource(ApmDataSourceConfigBase):
         for v in mappings.values():
             cls._mappings_properties(v, properties)
 
+    @classmethod
+    def stop(cls, bk_biz_id, app_name):
+        super(TraceDataSource, cls).stop(bk_biz_id, app_name)
+        # 删除关联的索引集
+        ins = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        try:
+            api.log_search.delete_index_set(index_set_id=ins.index_set_id)
+            logger.info(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} of ({bk_biz_id}){app_name}")
+        except BKAPIError as e:
+            logger.error(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} failed, error: {e}")
+
 
 class ProfileDataSource(ApmDataSourceConfigBase):
     """Profile 数据源"""
@@ -972,11 +984,21 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **option):
+        bk_biz_id = int(bk_biz_id)
+        if bk_biz_id < 0:
+            # 非业务创建 profile 将创建在公共业务下
+            bk_biz_id = settings.BK_DATA_BK_BIZ_ID
+
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
         # 创建接入
-        essentials = BkDataDorisProvider.from_datasource_instance(obj, operator=get_global_user()).provider(**option)
+        apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
+        essentials = BkDataDorisProvider.from_datasource_instance(
+            obj,
+            maintainer=get_global_user() if not apm_maintainers else f"{get_global_user()},{apm_maintainers}",
+            operator=get_global_user(),
+        ).provider(**option)
 
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]

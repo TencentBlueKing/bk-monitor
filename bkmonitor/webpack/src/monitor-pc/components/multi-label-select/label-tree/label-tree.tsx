@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -53,21 +52,21 @@ export default class LabelTree extends tsc<IContainerProps> {
     rename: {
       name: 'bk-tooltips',
       value: {
-        content: i18n.t('重命名')
-      }
+        content: i18n.t('重命名'),
+      },
     },
     add: {
       name: 'bk-tooltips',
       value: {
-        content: i18n.t('添加子级')
-      }
+        content: i18n.t('添加子级'),
+      },
     },
     del: {
       name: 'bk-tooltips',
       value: {
-        content: i18n.t('删除')
-      }
-    }
+        content: i18n.t('删除'),
+      },
+    },
   };
 
   private inputValue = '';
@@ -82,7 +81,7 @@ export default class LabelTree extends tsc<IContainerProps> {
   handleCheckedChange(checkedList: string[], obj: any) {
     return {
       checked: deepClone(checkedList),
-      valueChange: obj
+      valueChange: obj,
     };
   }
 
@@ -102,7 +101,7 @@ export default class LabelTree extends tsc<IContainerProps> {
       bk_biz_id: 0,
       strategy_id: 0,
       label_name: name,
-      id
+      id,
     };
     return strategyLabel(param, { needMessage: false }).finally(() => this.handleLoading(false));
     // return new Promise((resolve, reject) => {
@@ -158,14 +157,14 @@ export default class LabelTree extends tsc<IContainerProps> {
     if (this.checkDuplicateName(node)) {
       this.$bkMessage({
         message: this.$t('注意: 名字冲突'),
-        theme: 'error'
+        theme: 'error',
       });
       return;
     }
     if (this.inputValue.indexOf('/') > -1) {
       this.$bkMessage({
         message: `${this.$t('标签名字不能含有分隔符：')} /`,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     }
@@ -183,7 +182,7 @@ export default class LabelTree extends tsc<IContainerProps> {
         this.cancelEdit(null, node);
         this.$bkMessage({
           message: this.$t('创建标签失败'),
-          theme: 'error'
+          theme: 'error',
         });
       }
     } else if (node.renamed) {
@@ -201,7 +200,7 @@ export default class LabelTree extends tsc<IContainerProps> {
         this.cancelEdit(null, node);
         this.$bkMessage({
           message: this.$t('标签重命名失败'),
-          theme: 'error'
+          theme: 'error',
         });
       }
     }
@@ -233,7 +232,7 @@ export default class LabelTree extends tsc<IContainerProps> {
       id: '',
       name: '',
       parent: node,
-      isCreate: true
+      isCreate: true,
     };
     if (!node) {
       this.localTreeList.push(newChild);
@@ -295,7 +294,7 @@ export default class LabelTree extends tsc<IContainerProps> {
         ? h('div', { class: ['info-subHeader'] }, [
             '将同时删除下级',
             h('span', { class: ['count'] }, `${count - 1}`),
-            '个标签'
+            '个标签',
           ])
         : '';
     const subTitle = count === 1 ? this.$t('删除当前分类') : '';
@@ -313,26 +312,26 @@ export default class LabelTree extends tsc<IContainerProps> {
           // })
           const params = {
             bk_biz_id: 0,
-            label_name: this.getNodeKey(node)
+            label_name: this.getNodeKey(node),
           };
           await deleteStrategyLabel(params).then(() => {
             this.removeNode(node);
             this.localTreeListChange();
             this.$bkMessage({
               message: this.$t('删除成功'),
-              theme: 'success'
+              theme: 'success',
             });
           });
           return true;
         } catch (e) {
           this.$bkMessage({
             message: this.$t('删除失败'),
-            theme: 'error'
+            theme: 'error',
           });
           console.warn(e);
           return false;
         }
-      }
+      },
     });
   }
 
@@ -376,7 +375,7 @@ export default class LabelTree extends tsc<IContainerProps> {
     }
     this.handleCheckedChange(temp, {
       type: existed ? 'remove' : 'add',
-      value: node.id
+      value: node.id,
     });
   }
 
@@ -401,34 +400,34 @@ export default class LabelTree extends tsc<IContainerProps> {
         'div',
         {
           class: ['edit-item-wrap'],
-          on: { click: e => e.stopPropagation() }
+          on: { click: e => e.stopPropagation() },
         },
         [
           h('bk-input', {
             ref: 'input',
             props: {
-              value: this.inputValue
+              value: this.inputValue,
             },
             on: {
-              change: val => this.handleInputChange(val)
-            }
+              change: val => this.handleInputChange(val),
+            },
           }),
           h('span', { class: ['icon-group'] }, [
             h('i', {
               class: ['icon-monitor', 'icon-mc-check-small'],
               on: {
-                click: () => this.confirmEdit(node)
-              }
+                click: () => this.confirmEdit(node),
+              },
             }),
             h('i', {
               class: ['icon-monitor', 'icon-mc-close'],
               on: {
-                click: e => this.cancelEdit(e, node)
-              }
-            })
-          ])
-        ]
-      )
+                click: e => this.cancelEdit(e, node),
+              },
+            }),
+          ]),
+        ],
+      ),
     ];
   }
   /**
@@ -441,44 +440,44 @@ export default class LabelTree extends tsc<IContainerProps> {
       h('div', { class: ['normal-item-wrap'] }, [
         h('div', { class: ['item-name-wrap'], directives: [{ name: 'bk-overflow-tips' }] }, [
           h('i', {
-            class: ['icon-monitor', 'icon-mc-triangle-down', { hidden: !node.children, 'to-right': !node.expanded }]
+            class: ['icon-monitor', 'icon-mc-triangle-down', { hidden: !node.children, 'to-right': !node.expanded }],
           }),
-          h('span', { class: ['item-name'] }, node.name)
+          h('span', { class: ['item-name'] }, node.name),
         ]),
         this.mode === 'create'
           ? h('span', { class: ['item-icon-group'] }, [
               h('i', {
                 directives: [this.tooltipsMessage.rename],
                 class: ['icon-monitor', 'icon-bianji'],
-                on: { click: e => this.handleRename(e, node) }
+                on: { click: e => this.handleRename(e, node) },
               }),
               h('i', {
                 directives: [
                   this.tooltipsMessage.add,
                   {
                     name: 'show',
-                    value: this.showAddBtn(node)
-                  }
+                    value: this.showAddBtn(node),
+                  },
                 ],
                 class: ['icon-monitor', 'icon-mc-add'],
-                on: { click: e => this.handleAddChild(e, node) }
+                on: { click: e => this.handleAddChild(e, node) },
               }),
               h('i', {
                 directives: [this.tooltipsMessage.del],
                 class: ['icon-monitor', 'icon-mc-delete-line'],
-                on: { click: e => this.handleDel(e, node) }
-              })
+                on: { click: e => this.handleDel(e, node) },
+              }),
             ])
           : h('i', {
               class: [
                 'icon-monitor',
-                { 'icon-mc-check-small': this.checkedNode.includes(node.id) && !node.children?.length }
+                { 'icon-mc-check-small': this.checkedNode.includes(node.id) && !node.children?.length },
               ],
               on: {
-                click: () => this.confirmEdit(node)
-              }
-            })
-      ])
+                click: () => this.confirmEdit(node),
+              },
+            }),
+      ]),
     ];
   }
 
@@ -489,9 +488,9 @@ export default class LabelTree extends tsc<IContainerProps> {
       {
         class: ['tree-node-item', { 'node-item-active': this.checkedNode.includes(node.id) && this.mode === 'select' }],
         style: { 'padding-left': this.itemPadding(node) },
-        on: { click: () => this.handleCheckedNode(node) }
+        on: { click: () => this.handleCheckedNode(node) },
       },
-      node.isCreate || node.renamed ? this.editTpl(node) : this.normalTpl(node)
+      node.isCreate || node.renamed ? this.editTpl(node) : this.normalTpl(node),
     );
   }
 

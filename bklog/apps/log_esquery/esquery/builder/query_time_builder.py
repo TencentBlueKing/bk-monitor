@@ -65,7 +65,7 @@ class QueryTimeBuilder(object):
     @property
     def time_range_dict(self):
         # 返回构建dsl的时间字典
-        if self.time_field_type in ["date", "date_nanos"]:
+        if self.time_field_type in ["date", "date_nanos", "conflict"]:
             self._time_range_dict.update(
                 {
                     self.time_field: {

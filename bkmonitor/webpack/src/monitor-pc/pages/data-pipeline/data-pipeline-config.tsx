@@ -31,7 +31,7 @@ import {
   getClusterInfo,
   getEtlConfig,
   getTransferList,
-  updateDataPipeline
+  updateDataPipeline,
 } from 'monitor-api/modules/commons';
 
 import SpaceSelect from '../../components/space-select/space-select';
@@ -58,7 +58,7 @@ interface IData {
 enum EType {
   kafka = 'kafka',
   influxdb = 'influxdb',
-  es = 'elasticsearch'
+  es = 'elasticsearch',
 }
 interface IOption {
   id: string;
@@ -97,7 +97,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
     is_default: false,
     influxdb_storage_cluster_id: '',
     kafka_storage_cluster_id: '',
-    description: ''
+    description: '',
   };
   /* 校验信息 */
   errMsg = {
@@ -109,7 +109,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
     is_default: '',
     influxdb_storage_cluster_id: '',
     kafka_storage_cluster_id: '',
-    description: ''
+    description: '',
   };
   /* checkbox */
   influxdbStorageEnable = true;
@@ -206,7 +206,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
           is_default: false,
           influxdb_storage_cluster_id: '',
           kafka_storage_cluster_id: '',
-          description: ''
+          description: '',
         };
       }
       this.clearErr();
@@ -267,7 +267,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
         if (this.formData.spaces.includes(item.id)) {
           spaces.push({
             space_type: item.space_type_id,
-            space_id: item.space_id
+            space_id: item.space_id,
           });
         }
       });
@@ -279,7 +279,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
         chinese_name: this.formData.name,
         description: this.formData.description || undefined,
         influxdb_storage_cluster_id: this.influxdbStorageEnable ? this.formData.influxdb_storage_cluster_id : undefined,
-        kafka_storage_cluster_id: this.kafkaStorageEnable ? this.formData.kafka_storage_cluster_id : undefined
+        kafka_storage_cluster_id: this.kafkaStorageEnable ? this.formData.kafka_storage_cluster_id : undefined,
       };
       this.loading = true;
       if (this.isEdit) {
@@ -287,7 +287,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
           ...params,
           data_pipeline_name: params.name,
           chinese_name: undefined,
-          username: undefined
+          username: undefined,
         }).catch(() => false);
       } else {
         success = await createDataPipeline(params).catch(() => false);
@@ -296,7 +296,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
       if (success !== false) {
         this.$bkMessage({
           theme: 'success',
-          message: this.isEdit ? this.$t('修改成功') : this.$t('创建成功')
+          message: this.isEdit ? this.$t('修改成功') : this.$t('创建成功'),
         });
         this.$emit('success');
         this.emitIsShow(false);
@@ -400,7 +400,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                   disabled={this.isEdit}
                   onChange={() => this.clearErr(true)}
                 ></bk-input>,
-                this.errMsg.name
+                this.errMsg.name,
               )}
               <div class='horizontal'>
                 {formItem(
@@ -414,7 +414,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                       onChange={v => this.handleSpaceChange(v)}
                     ></SpaceSelect>
                   </div>,
-                  this.errMsg.spaces
+                  this.errMsg.spaces,
                 )}
                 {formItem(
                   <span class='require'>{this.$t('数据类型')}</span>,
@@ -430,7 +430,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                       onPack={this.handlePack}
                     ></CustomSelect>
                   </div>,
-                  this.errMsg.etl_configs
+                  this.errMsg.etl_configs,
                 )}
               </div>
               {formItem(
@@ -448,7 +448,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                     ></bk-option>
                   ))}
                 </bk-select>,
-                this.errMsg.kafka_cluster_id
+                this.errMsg.kafka_cluster_id,
               )}
               {formItem(
                 <span class='require'>{this.$t('Transfer链路')}</span>,
@@ -465,7 +465,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                     ></bk-option>
                   ))}
                 </bk-select>,
-                this.errMsg.transfer_cluster_id
+                this.errMsg.transfer_cluster_id,
               )}
             </div>
             <div class='is-defalut'>
@@ -512,7 +512,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                     ></bk-option>
                   ))}
                 </bk-select>,
-                this.errMsg.influxdb_storage_cluster_id
+                this.errMsg.influxdb_storage_cluster_id,
               )}
               {formItem(
                 <span class='check-title'>
@@ -531,7 +531,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                     ></bk-option>
                   ))}
                 </bk-select>,
-                this.errMsg.kafka_storage_cluster_id
+                this.errMsg.kafka_storage_cluster_id,
               )}
               {formItem(
                 <span>{this.$t('备注说明')}</span>,
@@ -541,7 +541,7 @@ export default class DataPipelineConfig extends tsc<IProps> {
                   rows={3}
                   maxlength={100}
                 ></bk-input>,
-                this.errMsg.description
+                this.errMsg.description,
               )}
             </div>
           </div>

@@ -44,11 +44,11 @@ const dataSourceCheckedList = [
   { id: 'bk_data', name: window.i18n.t('计算平台指标'), count: 0 },
   { id: 'custom', name: window.i18n.t('自定义指标'), count: 0 },
   { id: 'bk_log_search', name: window.i18n.t('日志平台指标'), count: 0 },
-  { id: 'bk_apm', name: window.i18n.t('应用监控Trace指标'), count: 0 }
+  { id: 'bk_apm', name: window.i18n.t('应用监控Trace指标'), count: 0 },
 ];
 
 @Component
-export default class MetricsManager extends tsc<{}> {
+export default class MetricsManager extends tsc<object> {
   /* 左边容器宽度 */
   drapWidth = 240;
   /* 是否显示左边容器 */
@@ -67,7 +67,7 @@ export default class MetricsManager extends tsc<{}> {
     checkedData: [],
     defaultActiveName: [],
     show: true,
-    key: random(8)
+    key: random(8),
   };
   /* 监控对象列表 */
   scenarioList = [];
@@ -80,13 +80,13 @@ export default class MetricsManager extends tsc<{}> {
     current: 1,
     count: 0,
     limit: 10,
-    showTotalCount: true
+    showTotalCount: true,
   };
   /* 表头列表筛选列表 */
   tableHeaderFilters = {
     metricType: [],
     unit: [],
-    enabled: []
+    enabled: [],
   };
   loading = false;
   tableLoading = false;
@@ -137,7 +137,7 @@ export default class MetricsManager extends tsc<{}> {
       data_source: dataSource,
       tag: '',
       page: this.pagination.current,
-      page_size: this.pagination.limit
+      page_size: this.pagination.limit,
     })
       .then(response => {
         this.handleShowLeft(true);
@@ -154,7 +154,7 @@ export default class MetricsManager extends tsc<{}> {
           count: 0,
           data_source_list: [],
           metric_list: [],
-          scenario_list: []
+          scenario_list: [],
         };
       });
     this.scenarioList = data.scenario_list;
@@ -183,16 +183,16 @@ export default class MetricsManager extends tsc<{}> {
         data: dataSourceCheckedList
           .map(item => {
             const target = this.dataSourceList.find(
-              set => set.data_type_label === 'time_series' && set.data_source_label === item.id
+              set => set.data_type_label === 'time_series' && set.data_source_label === item.id,
             );
             const count = target?.count || 0;
             return {
               id: item.id,
               name: item.name,
-              count
+              count,
             };
           })
-          .filter(item => !!item.count)
+          .filter(item => !!item.count),
       },
       {
         id: 'result_table_label',
@@ -202,8 +202,8 @@ export default class MetricsManager extends tsc<{}> {
             this.$set(item, 'count', scenarioCountMap[item.id] || 0);
             return item;
           })
-          .filter(item => !!item.count)
-      }
+          .filter(item => !!item.count),
+      },
     ];
   }
 

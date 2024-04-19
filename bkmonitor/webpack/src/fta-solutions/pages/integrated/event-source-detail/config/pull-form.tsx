@@ -78,13 +78,13 @@ export default class PullForm extends tsc<IProps> {
     if (valid) {
       this.loading = true;
       const data = await updateEventPluginInstance(this.instanceId, { config_params: this.formModel }).catch(
-        () => null
+        () => null,
       );
       if (data) {
         this.$bkMessage({
           extCls: 'event-source-detail-config-pull-form-message',
           theme: 'success',
-          message: this.$t('保存成功')
+          message: this.$t('保存成功'),
         });
       }
       this.loading = false;

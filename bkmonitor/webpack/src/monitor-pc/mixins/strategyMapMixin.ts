@@ -94,7 +94,7 @@ export const methodMap = {
   include: 'include',
   exclude: 'exclude',
   reg: 'regex',
-  nreg: 'nregex'
+  nreg: 'nregex',
 };
 export const aggConditionFontMap = {
   '=': 'bold',
@@ -107,7 +107,7 @@ export const aggConditionFontMap = {
   between: 'bold',
   include: 'bold',
   exclude: 'bold',
-  reg: 'bold'
+  reg: 'bold',
 };
 export const aggConditionColorMap = {
   and: '#3A84FF',
@@ -126,5 +126,5 @@ export const aggConditionColorMap = {
   'is not one of': '#FF9C01',
   include: '#FF9C01',
   exclude: '#FF9C01',
-  reg: '#FF9C01'
+  reg: '#FF9C01',
 };

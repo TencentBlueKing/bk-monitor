@@ -37,7 +37,7 @@ import {
   IMealData,
   mealContentDataBackfill,
   mealDataInit,
-  transformMealContentParams
+  transformMealContentParams,
 } from './meal-content/meal-content-data';
 import MealDesc from './meal-desc/meal-desc';
 
@@ -45,9 +45,9 @@ import './set-meal-add.scss';
 
 Component.registerHooks(['beforeRouteLeave', 'beforeRouteEnter']);
 @Component({
-  name: 'SetMealAdd'
+  name: 'SetMealAdd',
 })
-export default class SetMealAdd extends tsc<{}> {
+export default class SetMealAdd extends tsc<object> {
   @Ref('basicInfoRef') readonly basicInfoRefEl: MealBasicInfo;
   @Ref('mealContentRef') mealContentRef: MealContentNew;
 
@@ -63,7 +63,7 @@ export default class SetMealAdd extends tsc<{}> {
     name: '',
     asStrategy: 0,
     enable: true,
-    desc: ''
+    desc: '',
   };
   rightShow = true;
   mealData: IMealData = mealDataInit();
@@ -88,7 +88,7 @@ export default class SetMealAdd extends tsc<{}> {
     this.initMeal();
   }
 
-  public beforeRouteEnter(to: Route, from: Route, next: Function) {
+  public beforeRouteEnter(to: Route, from: Route, next: (a: (b: SetMealAdd) => void) => void) {
     next((vm: SetMealAdd) => {
       vm.fromRouteName = from.name;
     });
@@ -141,7 +141,7 @@ export default class SetMealAdd extends tsc<{}> {
     const routeList = [];
     routeList.push({
       name,
-      id: ''
+      id: '',
     });
     this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
   }
@@ -157,7 +157,6 @@ export default class SetMealAdd extends tsc<{}> {
     this.basicInfo.asStrategy = strategyCount;
   }
   async validator() {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return new Promise(async (resolve, reject) => {
       // 校验基本信息
       if (!this.basicInfoRefEl.validator()) reject(false);
@@ -186,7 +185,7 @@ export default class SetMealAdd extends tsc<{}> {
       name: this.basicInfo.name,
       desc: this.basicInfo.desc,
       isEnabled: this.basicInfo.enable,
-      pluginId: this.mealData.id
+      pluginId: this.mealData.id,
       // ...otherParams(this.mealData)
     };
     const res = transformDataKey(params, true);
@@ -216,7 +215,7 @@ export default class SetMealAdd extends tsc<{}> {
     }
     const result: any = await SetMealAddModule.updateActionConfig({
       configId: this.configId,
-      params: this.getParams()
+      params: this.getParams(),
     });
     if (!result) return;
     if (['strategy-config-edit', 'strategy-config-add'].includes(this.fromRouteName)) {
@@ -236,12 +235,12 @@ export default class SetMealAdd extends tsc<{}> {
     }
     const { strategyId } = this.$route.params;
     const params: { [field in string]: string } = {
-      mealId: `${id}`
+      mealId: `${id}`,
     };
     strategyId && (params.id = `${strategyId}`);
     this.$router.replace({
       name: this.fromRouteName,
-      params
+      params,
     });
   }
 
@@ -250,7 +249,7 @@ export default class SetMealAdd extends tsc<{}> {
     return new Promise(resolve => {
       this.$bkInfo({
         title: this.$t('是否放弃本次操作'),
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         confirmFn: async () => {
           resolve(true);
           if (['strategy-config-edit', 'strategy-config-add'].includes(this.fromRouteName)) {
@@ -258,7 +257,7 @@ export default class SetMealAdd extends tsc<{}> {
             return;
           }
           this.$router.push({ path: '/set-meal' });
-        }
+        },
       });
     });
   }

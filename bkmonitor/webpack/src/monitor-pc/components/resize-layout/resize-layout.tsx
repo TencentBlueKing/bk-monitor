@@ -153,7 +153,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     }
     return {
       mainHeight: this.mainHeight,
-      asideHeight: this.asideHeight
+      asideHeight: this.asideHeight,
     };
   }
 
@@ -162,7 +162,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
   handleMinEmit() {
     return {
       mainHeight: this.mainHeight,
-      asideHeight: this.min
+      asideHeight: this.min,
     };
   }
 
@@ -175,7 +175,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     this.isResizing = false;
     return {
       mainHeight: this.mainHeight,
-      asideHeight: this.asideHeight
+      asideHeight: this.asideHeight,
     };
   }
 
@@ -185,7 +185,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     this.isResizing = false;
     return {
       mainHeight: this.mainHeight,
-      asideHeight: this.asideHeight
+      asideHeight: this.asideHeight,
     };
   }
 
@@ -198,8 +198,8 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
           this.localPlacement,
           {
             animation: this.needAnimation,
-            'is-resizing': this.isResizing
-          }
+            'is-resizing': this.isResizing,
+          },
         ]}
         style='height: 100%'
         collapsible

@@ -31,7 +31,7 @@ import DragItem from 'monitor-ui/monitor-draggable/drag-item';
 import MonitorDraggable, { IOnDrop } from 'monitor-ui/monitor-draggable/monitor-draggable';
 
 import ConditionInput, {
-  IVarOption
+  IVarOption,
 } from '../../../strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import { IBookMark, ICurVarItem, IOption, IViewOptions, IWhere, SettingsVarType } from '../../typings';
 import { handleCheckVarWhere, handleReplaceWhereVar, SETTINGS_POP_ZINDEX } from '../../utils';
@@ -83,7 +83,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     });
     return this.groupByList.map(item => ({
       ...item,
-      disabled: selectedSet.has(item.id)
+      disabled: selectedSet.has(item.id),
     }));
   }
 
@@ -92,7 +92,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     const varMap = new Map();
     const filterDict = {
       ...this.viewOptions,
-      ...this.viewOptions.variables
+      ...this.viewOptions.variables,
     };
     Object.entries(filterDict).forEach(item => {
       const [key, value] = item;
@@ -171,7 +171,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
           loading: false,
           groupBy: data.field,
           where: data.where,
-          optionalValue: []
+          optionalValue: [],
         };
         return localVarItem;
       });
@@ -187,10 +187,10 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
       this.localVarList.map(async item => {
         item.loading = true;
         const options = await this.getGroupByOptionalValueList(item.groupBy, item.where).finally(
-          () => (item.loading = false)
+          () => (item.loading = false),
         );
         item.optionalValue = options;
-      })
+      }),
     );
   }
 
@@ -211,7 +211,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     const params = {
       scene_id: this.sceneId,
       type: this.viewType,
-      id: this.activeTab
+      id: this.activeTab,
     };
     getSceneViewDimensions(params).then(res => {
       this.groupByList = res;
@@ -271,7 +271,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
       alias: groupByItem?.name || '',
       groupBy: groupByItem?.id || '',
       optionalValue: [],
-      where: []
+      where: [],
     };
     this.localVarList.push(item);
     // this.updateAnimation();
@@ -290,7 +290,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
       title: this.$t('确认删除变量吗？'),
       confirmFn: () => {
         this.localVarList.splice(index, 1);
-      }
+      },
     });
   }
 
@@ -305,7 +305,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     curVar.alias = curGroupBy.name;
     curVar.loading = true;
     const options = await this.getGroupByOptionalValueList(groupBy, curVar.where).finally(
-      () => (curVar.loading = false)
+      () => (curVar.loading = false),
     );
     curVar.optionalValue = options;
   }
@@ -319,14 +319,14 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
   getGroupByOptionalValueList(groupBy = '', where: IWhere[] = []): Promise<IOption[]> {
     const cacheKey = `${groupBy}-${JSON.stringify(where)}`;
     let temp = deepClone(where);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     temp = handleReplaceWhereVar(temp, this.varOptionalMap);
     const params = {
       scene_id: this.sceneId,
       type: this.viewType,
       id: this.activeTab,
       field: groupBy,
-      where: temp.filter(item => !!item.value.length)
+      where: temp.filter(item => !!item.value.length),
     };
     if (this.groupByVarListMap.has(cacheKey)) return Promise.resolve(this.groupByVarListMap.get(cacheKey));
     return getSceneViewDimensionValue(params).then(data => {
@@ -368,7 +368,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
         loading: false,
         groupBy: item.groupBy,
         where: item.where,
-        optionalValue: []
+        optionalValue: [],
       };
       return localVarItem;
     });
@@ -388,7 +388,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
           zIndex: SETTINGS_POP_ZINDEX,
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => resolve(true),
-          cancelFn: () => reject(false)
+          cancelFn: () => reject(false),
         });
       });
       return !!res;
@@ -406,7 +406,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     return {
       id: this.localActiveTab,
       name: curTab.name,
-      data: this.localVarList
+      data: this.localVarList,
     };
   }
   /** 保存之前进行变量循环引用检查 */
@@ -420,7 +420,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
       this.$bkMessage({
         message: this.$t('变量不能存在循环引用关系'),
         theme: 'error',
-        extCls: 'common-settings-z-index'
+        extCls: 'common-settings-z-index',
       });
       return;
     }

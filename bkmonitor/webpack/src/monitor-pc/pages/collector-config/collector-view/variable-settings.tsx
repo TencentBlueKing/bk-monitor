@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
@@ -38,8 +37,6 @@ import { getCollectVariable, setCollectVariable } from './variable-set';
 
 import './variable-settings.scss';
 
-/* eslint-disable camelcase */
-
 interface IVariableSettings {
   metricDimension: {
     variableParams?: any; // 获取预览值所需参数
@@ -70,7 +67,7 @@ interface Icache {
 }
 export const selectAllItemKey = 'selecteAllItemKey';
 @Component({
-  name: 'VariableSettings'
+  name: 'VariableSettings',
 })
 export default class VariableSettings extends tsc<IVariableSettings, IVariableSettingsProps> {
   @Prop({ default: () => ({}), type: Object }) metricDimension: IVariableSettings['metricDimension'];
@@ -118,7 +115,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
     const promiseList = [];
     this.cache.push({
       sceneName: this.sceneName,
-      previews: {}
+      previews: {},
     });
     if (
       sceneItem.variables.length &&
@@ -126,7 +123,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
     ) {
       // 如有变量结果则取维度交集
       resultDimensionList = this.metricDimension.dimensionList.filter(
-        item => sceneItem.variables.map(v => v.id).indexOf(item.englishName) !== -1
+        item => sceneItem.variables.map(v => v.id).indexOf(item.englishName) !== -1,
       );
     } else {
       // 没有则默认取前三个
@@ -144,9 +141,9 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
           ...this.metricDimension.variableParams,
           metric_field: metricObj.metrics[0].englishName,
           result_table_id: metricObj.result_table_id,
-          field: dimension.englishName
+          field: dimension.englishName,
         },
-        type: 'dimension'
+        type: 'dimension',
       };
       promiseList.push(this.getVariableValue(params, dimension, sceneVariables));
     });
@@ -156,7 +153,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       key: item.dimension,
       value: item.value,
       name: item.aliaName,
-      groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension)?.groupId
+      groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension)?.groupId,
     }));
     this.resultChange(result);
     this.isLoading = false;
@@ -176,19 +173,19 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
         getCollectVariable(`${this.id}`, this.sceneName, 'variables', this.routeType)?.[dimension.englishName] || [],
       dimension: dimension.englishName,
       dimensionList: [...this.metricDimension.dimensionList],
-      aliaName: sceneVariables[dimension.englishName] || `${dimension.aliaName || dimension.englishName}`
+      aliaName: sceneVariables[dimension.englishName] || `${dimension.aliaName || dimension.englishName}`,
     };
     if (cacheItem.previews[params.params.field]) {
       this.variableList.push({
         ...obj,
-        preview: this.canSelectedAllItem(cacheItem.previews[params.params.field])
+        preview: this.canSelectedAllItem(cacheItem.previews[params.params.field]),
       });
     } else {
       const data = await getVariableValue(params).catch(() => []);
       cacheItem.previews[params.params.field] = data;
       this.variableList.push({
         ...obj,
-        preview: this.canSelectedAllItem(data)
+        preview: this.canSelectedAllItem(data),
       });
     }
   }
@@ -230,15 +227,15 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       sceneName: this.sceneName,
       variables: this.variableList
         .filter(item => item.dimension !== '')
-        .map(item => ({ id: item.dimension, name: item.aliaName }))
+        .map(item => ({ id: item.dimension, name: item.aliaName })),
     };
     const params = {
       id,
       config: {
         name: result.sceneName,
         variables: result.variables,
-        order: this.orderList
-      }
+        order: this.orderList,
+      },
     };
     await saveScenePanelConfig(params)
       .catch(() => ({}))
@@ -272,7 +269,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       dimension: '',
       dimensionList: this.metricDimension.dimensionList,
       aliaName: '',
-      preview: []
+      preview: [],
     });
   }
   /**
@@ -287,7 +284,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
         aliaName: '',
         dimension: '',
         preview: [],
-        value: []
+        value: [],
       });
       return;
     }
@@ -313,9 +310,9 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
           ...this.metricDimension.variableParams,
           metric_field: metricObj.metrics[0].englishName,
           result_table_id: metricObj.result_table_id,
-          field: val
+          field: val,
         },
-        type: 'dimension'
+        type: 'dimension',
       })
         .catch(() => [])
         .finally(() => {
@@ -337,7 +334,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
     const variableListTemp = this.variableList.filter(item => item.dimension !== '');
     if (!val) {
       const isSame = variableListTemp.some(
-        item => JSON.stringify(this.cacheValue[item.dimension]) !== JSON.stringify(item.value)
+        item => JSON.stringify(this.cacheValue[item.dimension]) !== JSON.stringify(item.value),
       );
       if (isSame) {
         const result = variableListTemp.map(item => ({
@@ -345,7 +342,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
           value: item.value,
           name: item.aliaName,
           groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension)
-            .groupId
+            .groupId,
         }));
         this.resultChange(result);
       }
@@ -359,7 +356,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       `${this.id}`,
       this.sceneName,
       { type: 'variables', variables: this.variableList.map(item => ({ id: item.dimension, value: item.value })) },
-      this.routeType
+      this.routeType,
     );
   }
   handleClear(index) {
@@ -369,14 +366,14 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       key: item.dimension,
       value: item.value,
       name: item.aliaName,
-      groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension).groupId
+      groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension).groupId,
     }));
     this.resultChange(result);
     setCollectVariable(
       `${this.id}`,
       this.sceneName,
       { type: 'variables', variables: this.variableList.map(item => ({ id: item.dimension, value: item.value })) },
-      this.routeType
+      this.routeType,
     );
   }
 
@@ -477,7 +474,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                     ></bk-tag-input>
                   </div>
                 </div>
-              ) : undefined
+              ) : undefined,
             ),
             !this.variableList.filter(item => item.dimension !== '').length ? (
               <div class='none-tip'>
@@ -490,7 +487,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
               onClick={this.variableEditChange}
             >
               <span class='icon-monitor icon-bianji'></span>
-            </div>
+            </div>,
           ]
         ) : (
           <div class='variable-edit-items'>
@@ -536,7 +533,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                         disabled
                         v-bk-tooltips={{
                           placements: ['top'],
-                          content: `${this.$t('到指标维度设置')}`
+                          content: `${this.$t('到指标维度设置')}`,
                         }}
                       ></bk-input>
                     </div>
@@ -544,7 +541,9 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                   <td>
                     <div class='preview-value'>
                       {item.preview.map(obj =>
-                        obj.value !== selectAllItemKey ? <span class='preview-value-item'>{obj.label}</span> : undefined
+                        obj.value !== selectAllItemKey ? (
+                          <span class='preview-value-item'>{obj.label}</span>
+                        ) : undefined,
                       )}
                     </div>
                   </td>
@@ -555,7 +554,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                         v-bk-tooltips={{
                           content: `${this.$t('没有维度了')}`,
                           placements: ['top'],
-                          disabled: !(this.checkedDimensions.length === this.metricDimension.dimensionList.length)
+                          disabled: !(this.checkedDimensions.length === this.metricDimension.dimensionList.length),
                         }}
                         on-click={() => this.addVariable(index)}
                       ></span>

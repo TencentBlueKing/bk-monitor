@@ -61,11 +61,11 @@ export const transformTraceInfo = (newData: ITraceData, oldData: ITraceData) => 
       trace_start_time: newStartTime,
       trace_end_time: newEndTime,
       min_duration: newMinDuration,
-      max_duration: newMaxDuration
+      max_duration: newMaxDuration,
     },
     span_classify: newSpanClassify,
     original_data: oldOriginalData,
-    topo_relation: newTopoRelation
+    topo_relation: newTopoRelation,
   } = newData;
   const {
     trace_info: {
@@ -73,7 +73,7 @@ export const transformTraceInfo = (newData: ITraceData, oldData: ITraceData) => 
       trace_start_time: oldStartTime,
       trace_end_time: oldEndTime,
       min_duration: oldMinDuration,
-      max_duration: oldMaxDuration
+      max_duration: oldMaxDuration,
     },
     span_classify: oldSpanClassify,
     original_data: newOriginalData,
@@ -93,7 +93,7 @@ export const transformTraceInfo = (newData: ITraceData, oldData: ITraceData) => 
     trace_end_time: maxEndTime,
     trace_duration: maxEndTime - minStartTime,
     min_duration: Math.min(newMinDuration as number, oldMinDuration as number),
-    max_duration: Math.max(newMaxDuration as number, oldMaxDuration as number)
+    max_duration: Math.max(newMaxDuration as number, oldMaxDuration as number),
   };
 
   /**
@@ -132,6 +132,6 @@ export const transformTraceInfo = (newData: ITraceData, oldData: ITraceData) => 
     trace_info: newInfo,
     span_classify: newClassify,
     original_data: [...oldOriginalData, ...newOriginalData],
-    topo_relation: [...oldTopoRelation, ...newTopoRelation]
+    topo_relation: [...oldTopoRelation, ...newTopoRelation],
   };
 };

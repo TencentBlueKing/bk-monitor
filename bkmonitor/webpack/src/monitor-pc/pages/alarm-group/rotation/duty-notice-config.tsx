@@ -36,11 +36,11 @@ import './duty-notice-config.scss';
 
 const typeList = [
   { label: window.i18n.t('按周'), value: 'week' },
-  { label: window.i18n.t('按月'), value: 'month' }
+  { label: window.i18n.t('按月'), value: 'month' },
 ];
 const timeTypeList = [
   { label: isEnFn() ? 'Week(s)' : '周', value: 'week' },
-  { label: isEnFn() ? 'Day(s)' : '天', value: 'day' }
+  { label: isEnFn() ? 'Day(s)' : '天', value: 'day' },
 ];
 
 const weekList = [
@@ -50,7 +50,7 @@ const weekList = [
   { label: window.i18n.t('周四'), value: 4 },
   { label: window.i18n.t('周五'), value: 5 },
   { label: window.i18n.t('周六'), value: 6 },
-  { label: window.i18n.t('周日'), value: 7 }
+  { label: window.i18n.t('周日'), value: 7 },
 ];
 
 /**
@@ -68,7 +68,7 @@ export const initData = () => ({
   needNotice: false,
   startNum: 1,
   timeType: 'week',
-  rotationId: []
+  rotationId: [],
 });
 
 interface IProps {
@@ -90,7 +90,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
     sendTime: '',
     sendContent: '',
     sendChat: '',
-    rules: ''
+    rules: '',
   };
 
   get chatTipName() {
@@ -171,7 +171,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             size='small'
             theme='primary'
             onChange={() => this.handleChange()}
-          ></bk-switcher>
+          ></bk-switcher>,
         )}
         {formItem(
           this.$t('发送时间'),
@@ -225,10 +225,10 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                   this.handleChange();
                 }, 100);
               }}
-            ></bk-time-picker>
+            ></bk-time-picker>,
           ],
           'mt-16',
-          this.errrMsg.sendTime
+          this.errrMsg.sendTime,
         )}
         {formItem(
           this.$t('发送内容'),
@@ -247,10 +247,10 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                 {this.$t('未来')}
               </div>
             </bk-input>,
-            <span class='content-text'>{this.$t('天的排班结果')}</span>
+            <span class='content-text'>{this.$t('天的排班结果')}</span>,
           ],
           'mt-16',
-          this.errrMsg.sendContent
+          this.errrMsg.sendContent,
         )}
         {formItem(
           this.$t('企业微信群ID'),
@@ -265,16 +265,16 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               v-bk-tooltips={{
                 content: this.$t(
                   "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔",
-                  { name: this.chatTipName }
+                  { name: this.chatTipName },
                 ),
                 boundary: 'window',
                 placements: ['top'],
-                allowHTML: true
+                allowHTML: true,
               }}
-            ></span>
+            ></span>,
           ],
           'mt-16',
-          this.errrMsg.sendChat
+          this.errrMsg.sendChat,
         )}
         {formItemBig(
           this.$t('个人轮值通知'),
@@ -284,7 +284,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             theme='primary'
             onChange={() => this.handleChange()}
           ></bk-switcher>,
-          'mt-24'
+          'mt-24',
         )}
         {formItem(
           this.$t('值班开始前'),
@@ -315,9 +315,9 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                 </bk-select>
               </div>
             </bk-input>,
-            <span class='content-text'>{this.$t('收到通知')}</span>
+            <span class='content-text'>{this.$t('收到通知')}</span>,
           ],
-          'mt-16'
+          'mt-16',
         )}
         {formItem(
           this.$t('指定轮值规则'),
@@ -339,7 +339,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                 <span
                   style={{
                     'margin-left': '8px',
-                    color: '#c4c6cc'
+                    color: '#c4c6cc',
                   }}
                 >
                   {item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')}
@@ -348,7 +348,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             ))}
           </bk-select>,
           'mt-16',
-          this.errrMsg.rules
+          this.errrMsg.rules,
         )}
       </div>
     );

@@ -31,7 +31,7 @@ import {
   IPanelModel,
   IVariableModel,
   PanelModel,
-  VariableModel
+  VariableModel,
 } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
 import { type SceneType } from '../components/common-page-new';
@@ -240,13 +240,13 @@ export class BookMarkModel implements IBookMark {
               // .filter(set => set.type === 'tag-chart')
               .map(set => ({
                 id: set.id.toString(),
-                name: set.title.toString()
-              }))
+                name: set.title.toString(),
+              })),
           );
         } else {
           list.push({
             id: item.id.toString(),
-            name: item.title.toString()
+            name: item.title.toString(),
           });
         }
       });
@@ -255,8 +255,8 @@ export class BookMarkModel implements IBookMark {
           id: '__UN_GROUP__',
           name: window.i18n.tc('未分组视图'),
           multiable: true,
-          children: list
-        }
+          children: list,
+        },
       ];
     }
     if (this.hasGroup) {
@@ -267,8 +267,8 @@ export class BookMarkModel implements IBookMark {
         children:
           item.panels?.map(set => ({
             id: set.id.toString(),
-            name: set.title.toString()
-          })) || []
+            name: set.title.toString(),
+          })) || [],
       }));
     }
     const list = [];
@@ -277,13 +277,13 @@ export class BookMarkModel implements IBookMark {
         list.push(
           ...item.panels.map(set => ({
             id: set.id.toString(),
-            name: set.title.toString()
-          }))
+            name: set.title.toString(),
+          })),
         );
       } else
         list.push({
           id: item.id.toString(),
-          name: item.title.toString()
+          name: item.title.toString(),
         });
     });
     return list;
@@ -301,7 +301,7 @@ export class BookMarkModel implements IBookMark {
     return [
       { id: 'edit-tab', name: '页签设置', show: this.viewEditable },
       { id: 'edit-variate', name: '变量设置', show: this.variableEditable },
-      { id: 'edit-dashboard', name: '视图设置', show: this.orderEditable }
+      { id: 'edit-dashboard', name: '视图设置', show: this.orderEditable },
     ].filter(item => item.show);
   }
   // dashbord tool menu list
@@ -313,8 +313,8 @@ export class BookMarkModel implements IBookMark {
       {
         id: 'view-demo',
         name: window.i18n.tc('DEMO'),
-        show: window.space_list.some(item => item.is_demo)
-      }
+        show: window.space_list.some(item => item.is_demo),
+      },
     ].filter(item => item.show);
   }
   // 是否显示状态统计组件

@@ -37,7 +37,7 @@ interface IEvents {
 export enum SortType {
   'asc' = 'asc' /** 升序 */,
   'desc' = 'desc' /** 降序 */,
-  'none' = '' /** 无排序 */
+  'none' = '' /** 无排序 */,
 }
 /**
  * 表格排序按钮

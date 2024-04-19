@@ -25,7 +25,11 @@ from collections import defaultdict, namedtuple
 from inspect import signature
 from typing import List
 
-from apps.api import CCApi, GseApi
+from django.core.cache import cache
+from django.utils.translation import ugettext as _
+from pypinyin import lazy_pinyin
+
+from apps.api import CCApi, NodeApi
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.constants import DEFAULT_MAX_WORKERS
 from apps.log_search.constants import (
@@ -49,9 +53,8 @@ from apps.utils.db import array_chunk, array_hash
 from apps.utils.function import ignored
 from apps.utils.ipchooser import IPChooser
 from apps.utils.thread import MultiExecuteFunc
-from django.core.cache import cache
-from django.utils.translation import ugettext as _
-from pypinyin import lazy_pinyin
+from bkm_ipchooser import constants
+from bkm_ipchooser.handlers.base import BaseHandler
 
 
 class BizHandler(APIModel):
@@ -295,7 +298,7 @@ class BizHandler(APIModel):
         for host in filtered_host_list:
             bk_host_innerip = host["bk_host_innerip"]
             bk_cloud_id = host["bk_cloud_id"]
-            host_id = f"{bk_host_innerip}|{bk_cloud_id}"
+            host_id = host["bk_host_id"]
             agent_status = agent_status_dict.get(host_id)
             result.append(
                 {
@@ -860,7 +863,6 @@ class BizHandler(APIModel):
         """
         results = []
         for node, service_instance_list in node_service_instance.items():
-
             # service_category_id_list = node_service_category_id.get(node, [])
             labels = [
                 # ServiceCategorySearcher().search(node[0], service_category_id)
@@ -945,7 +947,7 @@ class BizHandler(APIModel):
                 "bk_host_innerip": host["host"]["bk_host_innerip"],
                 "bk_cloud_id": host["host"]["bk_cloud_id"],
                 "bk_host_id": host["host"]["bk_host_id"],
-                "parent_inst_id": bk_inst_id or [self.bk_biz_id]
+                "parent_inst_id": bk_inst_id or [self.bk_biz_id],
             }
             if bk_obj_id in (CCInstanceType.BUSINESS.value):
                 tmp_host["parent_inst_id"] = [self.bk_biz_id]
@@ -1069,23 +1071,19 @@ class BizHandler(APIModel):
         agent状态详细分成4个状态：正常，离线，未安装。已安装，无数据。
         """
         result = defaultdict(int)
-        ip_info_list = [{"ip": host["bk_host_innerip"], "plat_id": host["bk_cloud_id"]} for host in host_list]
+        meta = BaseHandler.get_meta_data(self.bk_biz_id)
+        ip_info_list = [{"host_id": host["bk_host_id"], "meta": meta} for host in host_list]
         if not ip_info_list:
             return {}
-        status_list = GseApi.get_agent_status({"app_id": self.bk_biz_id, "is_real_time": 1, "ip_infos": ip_info_list})
-        for info in status_list:
-            host_id = self.get_host_id(info["ip"], info["plat_id"])
-            result[host_id] = AgentStatusEnum.ON.value if info["status"] else AgentStatusEnum.NOT_EXIST.value
-        return result
 
-    def get_host_id(self, bk_host_inner_ip, bk_cloud_id):
-        """
-        获取主机id信息
-        :param bk_host_inner_ip: str 蓝鲸主机内网ip
-        :param bk_cloud_id: 蓝鲸云id
-        :return:
-        """
-        return f"{bk_host_inner_ip}|{bk_cloud_id}"
+        # 添加no_request参数, 多线程调用时，保证用户信息不漏传
+        scope_list = [{"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(self.bk_biz_id)}]
+        request_params = {"no_request": True, "host_list": ip_info_list, "scope_list": scope_list}
+        status_list = NodeApi.ipchooser_host_details(request_params)
+        for info in status_list:
+            host_id = info["host_id"]
+            result[host_id] = AgentStatusEnum.ON.value if info["alive"] else AgentStatusEnum.NOT_EXIST.value
+        return result
 
     @staticmethod
     def _get_backup_biz_list():

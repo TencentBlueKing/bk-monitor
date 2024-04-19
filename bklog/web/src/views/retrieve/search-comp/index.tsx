@@ -207,13 +207,21 @@ export default class SearchComp extends tsc<IProps> {
     return [...unDisabledList, ...disabledList];
   }
 
+  get unionIndexList() {
+    return this.$store.state.unionIndexList;
+  }
+
+  get isUnionSearch() {
+    return this.$store.getters.isUnionSearch;
+  }
+
   get ipChooserIsOpen() {
     // ip选择器开关
     return this.conditionList.find(item => item.conditionType === 'ip-select')?.isInclude ?? false;
   }
 
   get keywordAndFields() {
-    return `${this.retrievedKeyword}_${this.fieldsKeyStrList.join(',')}`;
+    return `${this.retrievedKeyword}_${this.fieldsKeyStrList.join(',')}_${this.unionIndexList.join(',')}`;
   }
 
   @Watch('keywordAndFields', { immediate: true })
@@ -410,7 +418,7 @@ export default class SearchComp extends tsc<IProps> {
       // 获取当前遍历到的条件
       const currentCondition = this.conditionList[cIndex];
       // 如果当前条件的操作符和字段与给定的匹配
-      if (currentCondition.operator === operator && currentCondition.id === field) {
+      if (currentCondition.operator === operator && currentCondition.id === field && currentCondition.isInclude) {
         // 如果当前条件的值为空数组
         if (!currentCondition.value.length) {
           // 则将输入值数组直接设置为当前条件的值
@@ -574,16 +582,23 @@ export default class SearchComp extends tsc<IProps> {
     if (!fields.length) return;
     const tempList = handleTransformToTimestamp(this.datePickerValue);
     try {
-      const res = await $http.request('retrieve/getAggsTerms', {
+      const urlStr = this.isUnionSearch ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
+      const queryData = {
+        keyword: !!this.retrievedKeyword ? this.retrievedKeyword : '*',
+        fields,
+        start_time: formatDate(tempList[0] * 1000),
+        end_time: formatDate(tempList[1] * 1000)
+      };
+      if (this.isUnionSearch) {
+        Object.assign(queryData, {
+          index_set_ids: this.unionIndexList
+        });
+      }
+      const res = await $http.request(urlStr, {
         params: {
           index_set_id: this.indexId
         },
-        data: {
-          keyword: !!this.retrievedKeyword ? this.retrievedKeyword : '*',
-          fields,
-          start_time: formatDate(tempList[0] * 1000),
-          end_time: formatDate(tempList[1] * 1000)
-        }
+        data: queryData
       });
       this.aggsItems = res.data.aggs_items;
       this.initValueList();
@@ -644,6 +659,7 @@ export default class SearchComp extends tsc<IProps> {
             dropdown-data={this.retrieveDropdownData}
             is-show-ui-type={this.isShowUiType}
             onKeywordBlurUpdate={this.blurUpdateKeyword}
+            total-fields={this.totalFields}
             onInputBlur={this.handleBlurSearchInput}
             onIsCanSearch={val => this.handleUserOperate('isCanStorageFavorite', val)}
             onRetrieve={this.handleRetrieveLog}

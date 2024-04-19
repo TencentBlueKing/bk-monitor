@@ -70,7 +70,7 @@ export default class FtaStrategyConfigSet extends Mixins(authorityMixinCreate(ru
           needBack && this.$router.back();
           resolve(true);
         },
-        cancelFn: () => resolve(false)
+        cancelFn: () => resolve(false),
       });
     });
   }

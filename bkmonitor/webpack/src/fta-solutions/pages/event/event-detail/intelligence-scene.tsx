@@ -90,7 +90,7 @@ export default class IntelligenceScene extends tsc<IProps> {
     this.loading = true;
     const data = await multiAnomalyDetectGraph({
       alert_id: this.params.id,
-      bk_biz_id: this.params.bk_biz_id
+      bk_biz_id: this.params.bk_biz_id,
     }).catch(() => []);
     this.timeRangeInit();
     const result = data.map(item => {
@@ -102,15 +102,15 @@ export default class IntelligenceScene extends tsc<IProps> {
           data: {
             ...target.data,
             id: this.params.id,
-            bk_biz_id: this.params.bk_biz_id
+            bk_biz_id: this.params.bk_biz_id,
           },
-          datasource: 'time_series'
+          datasource: 'time_series',
         })),
         options: {
           time_series: {
-            custom_timerange: true
-          }
-        }
+            custom_timerange: true,
+          },
+        },
       };
     });
     this.panels = result.map(item => new PanelModel(item));
@@ -133,7 +133,7 @@ export default class IntelligenceScene extends tsc<IProps> {
       <div
         class='intelligence-scene-view-component'
         v-bkloading={{
-          isLoading: this.loading
+          isLoading: this.loading,
         }}
       >
         {this.panels.map((panel, index) => (

@@ -35,7 +35,7 @@ export enum FrequencyType {
   /** 按天 */
   dayly = 2,
   /** 仅一次 */
-  onlyOnce = 1
+  onlyOnce = 1,
 }
 
 // 订阅详情 对象 开始

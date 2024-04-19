@@ -29,7 +29,7 @@ const dataTypeLabelNames = {
   time_series: window.i18n.t('监控指标'),
   event: window.i18n.t('事件'),
   log: window.i18n.t('日志关键字'),
-  alert: window.i18n.t('关联告警')
+  alert: window.i18n.t('关联告警'),
 };
 
 const signalNames = {
@@ -39,13 +39,13 @@ const signalNames = {
   execute: window.i18n.t('执行前'),
   execute_success: window.i18n.t('执行成功'),
   execute_failed: window.i18n.t('执行失败'),
-  no_data: window.i18n.t('无数据时')
+  no_data: window.i18n.t('无数据时'),
 };
 
 const levelMap = {
   1: window.i18n.t('致命'),
   2: window.i18n.t('预警'),
-  3: window.i18n.t('提醒')
+  3: window.i18n.t('提醒'),
 };
 
 const detectionTypeMap = {
@@ -63,7 +63,7 @@ const detectionTypeMap = {
   ProcPort: window.i18n.t('进程端口'),
   PingUnreachable: window.i18n.t('Ping不可达算法'),
   TimeSeriesForecasting: window.i18n.t('时序预测'),
-  AbnormalCluster: window.i18n.t('离群检测')
+  AbnormalCluster: window.i18n.t('离群检测'),
 };
 
 export const invalidTypeMap = {
@@ -72,12 +72,12 @@ export const invalidTypeMap = {
   invalid_biz: window.i18n.t('策略所属空间不存在'),
   invalid_target: window.i18n.t('监控目标全部失效'),
   invalid_related_strategy: window.i18n.t('关联的策略已失效'),
-  deleted_related_strategy: window.i18n.t('关联的策略已删除')
+  deleted_related_strategy: window.i18n.t('关联的策略已删除'),
 };
 
 const dataModeNames = {
   converge: window.i18n.t('汇聚'),
-  realtime: window.i18n.t('实时')
+  realtime: window.i18n.t('实时'),
 };
 
 export default class TableStore {
@@ -131,7 +131,7 @@ export default class TableStore {
         action =>
           `${action.signal
             .map(signal => (signalNames[signal] ? `${signalNames[signal]},` : ''))
-            .join('')}${window.i18n.t('执行套餐')}${action.config?.name || '--'}`
+            .join('')}${window.i18n.t('执行套餐')}${action.config?.name || '--'}`,
       );
       this.data.push({
         id: item.id,
@@ -188,7 +188,7 @@ export default class TableStore {
         configSource: item.config_source,
         app: item.app,
         shieldAlertCount: item.shield_alert_count || 0,
-        editAllowed: !!item?.edit_allowed
+        editAllowed: !!item?.edit_allowed,
       });
       i += 1;
     }
@@ -216,9 +216,9 @@ export default class TableStore {
       return {
         tip: {
           content: '--',
-          delay: 200
+          delay: 200,
         },
-        val: '--'
+        val: '--',
       };
     }
     const res = [];
@@ -273,7 +273,7 @@ export default class TableStore {
       }
       res.push({
         tip: tips || tmp,
-        val: tmp
+        val: tmp,
       });
     });
     return res;

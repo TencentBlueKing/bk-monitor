@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -41,10 +40,10 @@ import './temporary-share.scss';
 const MomentFormater = 'YYYY-MM-DD HH:mm:ss';
 export default defineComponent({
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: {
-    onlyCopy: Boolean
+    onlyCopy: Boolean,
   },
   setup(props) {
     const route = useRoute();
@@ -57,7 +56,7 @@ export default defineComponent({
     const store = useAppStore();
     // 分享链接
     const shareUrl = computed(
-      () => `${location.origin}${location.pathname}?bizId=${store.bizId}/#/share/${token.value || ''}`
+      () => `${location.origin}${location.pathname}?bizId=${store.bizId}/#/share/${token.value || ''}`,
     );
 
     async function handleShowDialog() {
@@ -80,7 +79,7 @@ export default defineComponent({
       copyText(typeof url === 'string' ? url : shareUrl.value, (errMsg: string) => {
         Message({
           message: errMsg,
-          theme: 'error'
+          theme: 'error',
         });
         hasErr = !!errMsg;
       });
@@ -111,15 +110,15 @@ export default defineComponent({
             isLockSearch.value
               ? {
                   from: dayjs.tz(timeRange.value[0]).format(MomentFormater),
-                  to: dayjs.tz(timeRange.value[1]).format(MomentFormater)
+                  to: dayjs.tz(timeRange.value[1]).format(MomentFormater),
                 }
-              : {}
+              : {},
           ),
           name: route.name,
           params: route.params,
           path: route.path,
-          weWebData
-        }
+          weWebData,
+        },
       };
     }
     // 隐藏弹窗
@@ -130,7 +129,7 @@ export default defineComponent({
     async function updateShareTokenFunc() {
       const data = await updateShareToken({
         ...getShareTokenParams(),
-        token: token.value
+        token: token.value,
       }).catch(() => ({ token: token.value }));
       token.value = data.token || token.value;
     }
@@ -148,17 +147,17 @@ export default defineComponent({
         subTitle: t('所有的历史分享链接都将失效'),
         onConfirm: async () =>
           deleteShareToken({
-            type: getShareTokenParams().type
+            type: getShareTokenParams().type,
           })
             .then(() => {
               Message({
                 theme: 'success',
-                message: t('回收成功')
+                message: t('回收成功'),
               });
               show.value = false;
               return true;
             })
-            .catch(() => false)
+            .catch(() => false),
       } as any);
     }
     function commonItem(title: TranslateResult, child: VNode, style?: Record<string, any>) {
@@ -244,14 +243,14 @@ export default defineComponent({
       shareTimeRange,
       lockTimeRange,
       handleDeleteAuth,
-      shareDeadline
+      shareDeadline,
     };
   },
   render() {
     const tipsOpts = {
       content: !this.onlyCopy ? this.$t('临时分享') : this.$t('复制链接'),
       delay: 200,
-      placement: 'right'
+      placement: 'right',
     };
     return (
       <div class='temporary-share'>
@@ -286,5 +285,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

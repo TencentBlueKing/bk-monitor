@@ -141,7 +141,7 @@ export default class SortTool extends tsc<IProps, IEvents> {
               class={['sort-btn', 'active']}
               v-bk-tooltips={{
                 content: `${this.order === 'ascending' ? this.$t('升序') : this.$t('降序')}`,
-                disabled: !this.order
+                disabled: !this.order,
               }}
               onClick={e => this.handleChangeOrder(e)}
             >

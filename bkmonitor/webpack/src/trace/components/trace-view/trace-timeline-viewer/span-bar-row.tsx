@@ -49,68 +49,68 @@ const SpanBarRowProps = {
   className: {
     type: String,
     required: false,
-    default: ''
+    default: '',
   },
   color: {
-    type: String
+    type: String,
   },
   columnDivision: {
     type: Number,
-    default: 0
+    default: 0,
   },
   isChildrenExpanded: {
-    type: Boolean
+    type: Boolean,
   },
   isDetailExpanded: {
-    type: Boolean
+    type: Boolean,
   },
   isMatchingFilter: {
-    type: Boolean
+    type: Boolean,
   },
   isFocusMatching: {
-    type: Boolean
+    type: Boolean,
   },
   isActiveMatching: {
-    type: Boolean
+    type: Boolean,
   },
   isHaveRead: {
-    type: Boolean
+    type: Boolean,
   },
   onDetailToggled: Function as PropType<(spanID: string) => void>,
   onLoadCrossAppInfo: Function as PropType<(span: Span) => void>,
   numTicks: {
     type: Number,
-    default: 0
+    default: 0,
   },
   rpc: {
     type: Object,
     required: false,
-    default: null
+    default: null,
   },
   noInstrumentedServer: {
     type: Object,
     required: false,
     default: {
       color: '',
-      serviceName: ''
-    }
+      serviceName: '',
+    },
   },
   showErrorIcon: {
-    type: Boolean
+    type: Boolean,
   },
   // getViewedBounds: Function as PropType<ViewedBoundsFunctionType>,
   // traceStartTime: {
   //   type: Number
   // },
   span: {
-    type: Object as PropType<Span>
+    type: Object as PropType<Span>,
   },
   focusSpan: Function as PropType<(spanID: string) => void>,
   bgColorIndex: {
     // 层级背景色索引
     type: Number,
-    required: true
-  }
+    required: true,
+  },
 };
 
 export default defineComponent({
@@ -125,9 +125,9 @@ export default defineComponent({
     const childrenHiddenStore = useChildrenHiddenInject();
 
     // 是否跨应用调用 span
-    // eslint-disable-next-line max-len
+
     const crossRelationInfo = computed(() =>
-      Object.keys(props.span?.cross_relation || {}).length ? props.span?.cross_relation : false
+      Object.keys(props.span?.cross_relation || {}).length ? props.span?.cross_relation : false,
     );
     const ellipsisDirection = computed(() => useTraceStore().ellipsisDirection);
     // 是否显示耗时
@@ -140,7 +140,7 @@ export default defineComponent({
         min: trace?.startTime || 0,
         max: trace?.endTime || 0,
         viewStart: zoomStart,
-        viewEnd: zoomEnd
+        viewEnd: zoomEnd,
       });
     };
 
@@ -174,7 +174,7 @@ export default defineComponent({
       crossRelationInfo,
       ellipsisDirection,
       showDuration,
-      handleToggleCollapse
+      handleToggleCollapse,
     };
   },
 
@@ -194,7 +194,7 @@ export default defineComponent({
       noInstrumentedServer,
       showErrorIcon,
       bgColorIndex,
-      span
+      span,
     } = this.$props;
     const {
       span_id: spanID,
@@ -210,24 +210,24 @@ export default defineComponent({
       ebpf_tap_side: ebpfTapSide = '',
       ebpf_tap_port_name: ebpfTapPortName = '',
       group_info: groupInfo,
-      is_expand: isExpand
+      is_expand: isExpand,
     } = span as Record<string, any>;
     /** 折叠节点的耗时取自 group_info.duration */
     const realDuration = groupInfo && groupInfo.id === spanID && !isExpand ? groupInfo.duration : duration;
     const label = this.showDuration ? formatDuration(realDuration) : '';
-    // eslint-disable-next-line max-len
+
     const viewBounds = this.getViewedBounds?.()(
       span?.startTime as number,
-      (span?.startTime as number) + (realDuration as number)
+      (span?.startTime as number) + (realDuration as number),
     );
 
     const viewStart = viewBounds?.start;
     const viewEnd = viewBounds?.end;
     const isOddRow = (bgColorIndex as number) % 2 !== 0;
-    // eslint-disable-next-line no-nested-ternary
+
     const displayServiceName =
       source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? ebpfThreadName : ebpfTapSide) : serviceName;
-    // eslint-disable-next-line no-nested-ternary
+
     const displayOperationName =
       source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? operationName : ebpfTapPortName) : operationName;
     const labelDetail = `${displayServiceName}::${displayOperationName}`;
@@ -274,8 +274,8 @@ export default defineComponent({
                 'span-name-wrapper',
                 {
                   'is-matching-filter': this.isMatchingFilter,
-                  'is-disabled': !this.crossRelationInfo.permission
-                }
+                  'is-disabled': !this.crossRelationInfo.permission,
+                },
               ]}
               v-authority={{ active: !this.crossRelationInfo.permission }}
             >
@@ -387,12 +387,12 @@ export default defineComponent({
                           ) : (
                             <span>
                               {this.$t('已折叠 {count} 个相同"Service + Span name + status"的 Span', {
-                                count: groupInfo.members.length
+                                count: groupInfo.members.length,
                               })}
                               <br />
                               {this.$t('点击展开')}
                             </span>
-                          )
+                          ),
                       }}
                     >
                       {isExpand ? (
@@ -430,13 +430,13 @@ export default defineComponent({
                     <div>
                       <div>{`${this.$t('服务')}: ${displayServiceName}`}</div>
                       <div>{`${this.$t('接口')}: ${displayOperationName}`}</div>
-                      {/* eslint-disable-next-line no-nested-ternary */}
+                      {}
                       <div>{`${this.$t('类型')}: ${
                         isVirtual ? this.$t('推断') : source === 'ebpf' ? ebpfKind : SPAN_KIND_MAPS[kind]
                       }`}</div>
                       <div>{`${this.$t('耗时')}: ${formatDuration(realDuration)}`}</div>
                     </div>
-                  )
+                  ),
                 }}
               >
                 <SpanBar
@@ -455,5 +455,5 @@ export default defineComponent({
         )}
       </TimelineRow>
     );
-  }
+  },
 });

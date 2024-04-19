@@ -26,14 +26,14 @@
 
 export enum SearchType {
   Profiling = 'profiling',
-  Upload = 'upload'
+  Upload = 'upload',
 }
 
 export enum ConditionType {
   /** 查询项 */
   Where = 'where',
   /** 对比项 */
-  Comparison = 'comparison'
+  Comparison = 'comparison',
 }
 
 export interface IConditionItem {

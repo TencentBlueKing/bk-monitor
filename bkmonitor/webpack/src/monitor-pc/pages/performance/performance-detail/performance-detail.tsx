@@ -38,7 +38,7 @@ import './performance-detail.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class PerformanceDetail extends tsc<{}> {
+export default class PerformanceDetail extends tsc<object> {
   @Prop({ type: [String, Number], default: '' }) id: string;
   @Prop({ type: [String, Number], default: '' }) process: string;
   @Prop({ type: String, default: '' }) title: string;
@@ -57,8 +57,8 @@ export default class PerformanceDetail extends tsc<{}> {
         filters: {
           bk_target_cloud_id: data.bk_cloud_id,
           bk_target_ip: data.ip,
-          bk_host_id: data.bk_host_id
-        }
+          bk_host_id: data.bk_host_id,
+        },
       };
     }
     if (this.id.toString() === v.toString()) return;
@@ -77,30 +77,30 @@ export default class PerformanceDetail extends tsc<{}> {
       }
       vm.loading = true;
       const { bk_os_type, bk_cloud_id, ip, bk_host_id, display_name } = await getHostInfo(params).catch(() => ({
-        bk_os_type: ''
+        bk_os_type: '',
       }));
       vm.routeList = [
         {
           id: '',
-          name: display_name || ip
-        }
+          name: display_name || ip,
+        },
       ];
       vm.viewOptions = {
         filters: {
           bk_target_cloud_id: bk_cloud_id,
           bk_target_ip: ip,
-          bk_host_id
+          bk_host_id,
         },
         variables: vm.process
           ? {
-              display_name: vm.process
+              display_name: vm.process,
             }
           : {},
         matchFields: !vm.process
           ? {
-              os_type: bk_os_type
+              os_type: bk_os_type,
             }
-          : {}
+          : {},
       };
       vm.loading = false;
     });
@@ -113,7 +113,7 @@ export default class PerformanceDetail extends tsc<{}> {
   handleBack() {
     if (window.history.length <= 1) {
       this.$router.push({
-        name: 'performance'
+        name: 'performance',
       });
     } else {
       this.$router.back();

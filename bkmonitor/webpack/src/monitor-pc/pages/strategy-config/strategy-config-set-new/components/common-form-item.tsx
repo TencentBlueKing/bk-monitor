@@ -37,7 +37,7 @@ interface ICommonFormItemProp {
   topTitle?: boolean;
 }
 @Component({
-  name: 'CommonFormItem'
+  name: 'CommonFormItem',
 })
 export default class CommonFormItem extends tsc<ICommonFormItemProp> {
   @Prop({ type: String, required: false }) title: string | TranslateResult;
@@ -49,7 +49,7 @@ export default class CommonFormItem extends tsc<ICommonFormItemProp> {
   public tooltips = {
     content: this.tips,
     placements: ['top'],
-    allowHTML: false
+    allowHTML: false,
   };
 
   render() {

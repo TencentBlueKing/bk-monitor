@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 import { applyGuidePage } from '../../common';
@@ -49,20 +49,20 @@ export default applyGuidePage(
         navId: 'plugin-manager',
         authority: {
           map: pluginAuth,
-          page: pluginAuth.VIEW_AUTH
+          page: pluginAuth.VIEW_AUTH,
         },
         route: {
-          parent: 'integrated'
+          parent: 'integrated',
         },
-        noNavBar: true
-      }
+        noNavBar: true,
+      },
     },
     {
       path: '/plugin/add',
       name: 'plugin-add',
       components: {
         default: null,
-        noCache: PluginInstance
+        noCache: PluginInstance,
       },
       meta: {
         title: '新建插件',
@@ -70,20 +70,20 @@ export default applyGuidePage(
         navId: 'plugin-manager',
         authority: {
           map: pluginAuth,
-          page: pluginAuth.MANAGE_AUTH
+          page: pluginAuth.MANAGE_AUTH,
         },
         route: {
-          parent: 'plugin-manager'
-        }
+          parent: 'plugin-manager',
+        },
         // noNavBar: true
-      }
+      },
     },
     {
       path: '/plugin/edit/:pluginId',
       name: 'plugin-edit',
       components: {
         default: null,
-        noCache: PluginInstance
+        noCache: PluginInstance,
       },
       meta: {
         title: '编辑',
@@ -91,19 +91,19 @@ export default applyGuidePage(
         navId: 'plugin-manager',
         authority: {
           map: pluginAuth,
-          page: pluginAuth.MANAGE_AUTH
+          page: pluginAuth.MANAGE_AUTH,
         },
         route: {
-          parent: 'plugin-manager'
-        }
-      }
+          parent: 'plugin-manager',
+        },
+      },
     },
     {
       path: '/plugin/update',
       name: 'plugin-update',
       components: {
         default: null,
-        noCache: PluginInstance
+        noCache: PluginInstance,
       },
       meta: {
         title: '升级',
@@ -112,12 +112,12 @@ export default applyGuidePage(
         noNavBar: false,
         authority: {
           map: pluginAuth,
-          page: pluginAuth.MANAGE_AUTH
+          page: pluginAuth.MANAGE_AUTH,
         },
         route: {
-          parent: 'plugin-manager'
-        }
-      }
+          parent: 'plugin-manager',
+        },
+      },
       // route: {
       //   parent: 'plugin-manager'
       // }
@@ -127,7 +127,7 @@ export default applyGuidePage(
       name: 'plugin-detail',
       props: true,
       components: {
-        noCache: PluginInfo
+        noCache: PluginInfo,
       },
       meta: {
         title: '插件详情',
@@ -135,16 +135,16 @@ export default applyGuidePage(
         navClass: 'plugin-detail-nav',
         authority: {
           map: pluginAuth,
-          page: pluginAuth.VIEW_AUTH
+          page: pluginAuth.VIEW_AUTH,
         },
-        noNavBar: true
-      }
+        noNavBar: true,
+      },
     },
     {
       path: '/plugin/setmetric/:pluginId',
       name: 'plugin-setmetric',
       components: {
-        noCache: PluginSetmetric
+        noCache: PluginSetmetric,
       },
       meta: {
         needBack: false,
@@ -152,14 +152,14 @@ export default applyGuidePage(
         title: '设置指标&维度',
         authority: {
           map: pluginAuth,
-          page: pluginAuth.MANAGE_AUTH
+          page: pluginAuth.MANAGE_AUTH,
         },
         route: {
-          parent: 'plugin-manager'
+          parent: 'plugin-manager',
         },
-        noNavBar: false
-      }
-    }
+        noNavBar: false,
+      },
+    },
   ],
-  ['plugin-add']
+  ['plugin-add'],
 ) as RouteConfig[];
