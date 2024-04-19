@@ -220,7 +220,6 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("windows事件内容匹配操作符"),
         choices=PluginParamOpEnum.get_choices(),
         required=False,
-        default="",
     )
 
     # Redis慢日志相关参数
