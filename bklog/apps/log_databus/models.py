@@ -731,8 +731,8 @@ class CollectorPlugin(CollectorBase):
 
 
 class FieldDateFormat(OperateRecordModel):
-    transfer_format = models.CharField(max_length=64, primary_key=True, verbose_name="transfer格式")
-    web_format = models.CharField(max_length=64, verbose_name="web校验格式（python）")
+    id = models.CharField(max_length=64, primary_key=True, verbose_name="transfer格式")
+    name = models.CharField(max_length=64, verbose_name="web校验格式（python）")
     description = models.CharField(max_length=64, verbose_name="传递给清洗模块的值")
     es_format = models.CharField(
         max_length=32,
@@ -748,9 +748,6 @@ class FieldDateFormat(OperateRecordModel):
     timestamp_unit = models.CharField(
         max_length=32,
         choices=[('s', 'seconds'), ('ms', 'milliseconds'), ('µs', 'microseconds'), ('ns', 'nanoseconds')],
-        default="",
-        blank=True,
-        null=True,
         verbose_name="时间格式精度",
     )
 
@@ -761,32 +758,15 @@ class FieldDateFormat(OperateRecordModel):
 
     @classmethod
     def get_field_date_format(cls) -> list:
-        objs = cls.objects.values(
-            "transfer_format", "web_format", "description", "es_format", "es_type", "timestamp_unit"
-        )
+        objs = cls.objects.values("id", "name", "description", "es_format", "es_type", "timestamp_unit")
         return [
             {
-                "id": obj["transfer_format"],
-                "name": obj["web_format"],
+                "id": obj["id"],
+                "name": obj["name"],
                 "description": obj["description"],
                 "es_format": obj["es_format"],
                 "es_type": obj["es_type"],
-                "timestamp_unit": obj["timestamp_unit"] if obj["timestamp_unit"] else "ms",
+                "timestamp_unit": obj["timestamp_unit"],
             }
             for obj in objs
         ]
-
-    @classmethod
-    def to_json(cls, transfer_format: str) -> dict:
-        obj = cls.objects.filter(transfer_format=transfer_format).first()
-        data = {}
-        if obj:
-            data = {
-                "id": obj.transfer_format,
-                "name": obj.web_format,
-                "description": obj.description,
-                "es_format": obj.es_format,
-                "es_type": obj.es_type,
-                "timestamp_unit": obj.timestamp_unit,
-            }
-        return data

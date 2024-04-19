@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django import forms
 from django.contrib import admin
 
 from apps.log_databus.models import (
@@ -130,7 +131,27 @@ class CleanStashAdmin(AppModelAdmin):
     search_fields = ["collector_config_id", "clean_type"]
 
 
+class FieldDateFormatForm(forms.ModelForm):
+    class Meta:
+        model = FieldDateFormat
+        fields = "__all__"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        for key, value in cleaned_data.items():
+            if isinstance(value, str):
+                cleaned_data[key] = value.replace('&nbsp;', ' ')
+        return cleaned_data
+
+
 @admin.register(FieldDateFormat)
-class FieldDateFormatAdmin(AppModelAdmin):
-    list_display = ["transfer_format", "web_format", "description", "es_format", "es_type", "timestamp_unit"]
-    search_fields = ["transfer_format", "web_format"]
+class FieldDateFormatAdmin(admin.ModelAdmin):
+    form = FieldDateFormatForm
+    list_display = ["id", "name", "description", "es_format", "es_type", "timestamp_unit"]
+    search_fields = ["id", "name"]
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is not None:  # 检查是否为编辑现有对象
+            return ["id"]  # 如果是编辑，设置 'id' 字段为只读
+        else:
+            return []  # 如果是创建新对象，没有字段设置为只读

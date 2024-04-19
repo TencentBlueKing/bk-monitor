@@ -41,7 +41,7 @@ from apps.log_databus.exceptions import (
     HotColdCheckException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
-from apps.log_databus.models import CollectorConfig, CollectorPlugin, FieldDateFormat
+from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.log_databus.utils.es_config import get_es_config
 from apps.log_search.constants import (
     FieldBuiltInEnum,
@@ -353,14 +353,11 @@ class EtlStorage(object):
 
                 # 时间精度设置
                 time_fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
-                time_format = field["option"]["time_format"]
-                custom_time_fmt = FieldDateFormat.to_json(time_format)
-                time_fmt = time_fmts.get(time_format, {})
+                time_fmt = time_fmts.get(field["option"]["time_format"], {})
                 time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
                 time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
-                if custom_time_fmt:
-                    time_field["option"]["time_layout"] = time_fmt.get("description", "")
+                time_field["option"]["time_layout"] = time_fmt.get("description", "")
 
                 # 注入默认值
                 time_field["option"]["default_function"] = "fn:timestamp_from_utctime"
