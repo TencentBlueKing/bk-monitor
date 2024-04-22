@@ -336,6 +336,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   editMode: EditModeType = 'Edit';
   /* 是否为场景智能检测 */
   isMultivariateAnomalyDetection = false;
+  multivariateAnomalyDetectionParams = {
+    metrics: [],
+    refleshKey: '',
+  };
 
   /** 预览图描述文档  智能检测算法 | 时序预测 需要展示算法说明 */
   get aiopsModelDescMdGetter() {
@@ -539,7 +543,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
    */
   async handleQueryConfigData(srcData = this.detailData) {
     const [{ expression, query_configs: queryConfigs, functions = [], algorithms }] = srcData.items;
-    if (algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection) {
+    if (
+      algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection ||
+      algorithms?.[0]?.type === MetricType.HostAnomalyDetection
+    ) {
       const curMetricData = new MetricDetail({
         targetType: this.targetDetail?.node_type,
         objectType: this.targetDetail?.instance_type,
@@ -919,6 +926,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     this.localAiopsChartType = type;
   }
 
+  handleSceneConfigMetricChange(metrics) {
+    this.multivariateAnomalyDetectionParams.metrics = metrics;
+    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+  }
+
   render() {
     const panelItem = (title: string, content: any, style = {}, titleRight?: any) => (
       <div
@@ -1048,6 +1060,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     defaultCheckedTarget={this.targetDetail || { target_detail: [] }}
                     metricData={this.metricData}
                     readonly={true}
+                    onMetricChange={this.handleSceneConfigMetricChange}
                   ></AiopsMonitorData>
                 ) : (
                   <div class='query-configs-main'>
@@ -1369,7 +1382,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                                     </span>
                                   ) : (
                                     <div class='skeleton-element alarm-group-skeleton'></div>
-                                  ),
+                                  )
                                 )}
                               </div>,
                             ]
@@ -1510,8 +1523,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                 editMode={this.editMode}
                 expFunctions={this.expFunctions}
                 expression={this.expression}
+                isMultivariateAnomalyDetection={this.isMultivariateAnomalyDetection}
                 legalDimensionList={this.legalDimensionList}
                 metricData={this.metricData}
+                multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
                 sourceData={this.sourceData}
                 strategyTarget={this.detailData?.items?.[0]?.target || []}
               />

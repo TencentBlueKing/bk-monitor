@@ -200,7 +200,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   handleShow(v) {
     if (v) {
       this.isMultivariateAnomalyDetection =
-        this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.MultivariateAnomalyDetection;
+        this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.HostAnomalyDetection;
       if (!this.logData.length) {
         this.getData();
       }

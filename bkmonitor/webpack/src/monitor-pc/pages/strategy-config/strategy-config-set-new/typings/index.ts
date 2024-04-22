@@ -102,6 +102,8 @@ export interface IMetricDetail {
 export enum MetricType {
   ALERT = 'alert',
   EVENT = 'event',
+  /* 场景智能检测type传参用此字段 */
+  HostAnomalyDetection = 'HostAnomalyDetection',
   LOG = 'log',
   MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
   TimeSeries = 'time_series',
@@ -116,6 +118,7 @@ export class MetricDetail {
   bk_biz_id: number | string = '';
   bkmonitor_strategy_id = 0;
   category_display = '';
+  checked: boolean;
   collect_config = '';
   collect_config_ids = '';
   collect_interval = 0;
@@ -394,6 +397,9 @@ export class MetricDetail {
         this.result_table_id === 'uptimecheck.http' &&
         ['message', 'response_code'].includes(this.metric_field))
     );
+  }
+  setChecked(v: boolean) {
+    this.checked = v;
   }
   /** 日志关键字对应指标列表 */
   setLogMetricList(list: IMetricDetail[]) {

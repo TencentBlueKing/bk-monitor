@@ -306,6 +306,7 @@ class DetectAlgorithm(AbstractRecordModel):
         YearRoundRange = "YearRoundRange"
         RingRatioAmplitude = "RingRatioAmplitude"
         IntelligentDetect = "IntelligentDetect"
+        HostAnomalyDetection = "HostAnomalyDetection"
 
     ALGORITHM_CHOICES = (
         (AlgorithmChoices.Threshold, _lazy("静态阈值算法")),
@@ -321,6 +322,7 @@ class DetectAlgorithm(AbstractRecordModel):
         (AlgorithmChoices.YearRoundRange, _lazy("同比区间算法")),
         (AlgorithmChoices.RingRatioAmplitude, _lazy("环比振幅算法")),
         (AlgorithmChoices.IntelligentDetect, _lazy("智能异常检测算法")),
+        (AlgorithmChoices.HostAnomalyDetection, _lazy("主机异常检测算法")),
     )
 
     algorithm_type = models.CharField(max_length=128, choices=ALGORITHM_CHOICES, verbose_name="算法类型")

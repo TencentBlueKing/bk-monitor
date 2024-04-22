@@ -52,6 +52,7 @@ from constants.common import (
 )
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
+from core.errors.user_group import DutyRuleNameExist, UserGroupNameExist
 
 
 class DateTimeField(serializers.CharField):
@@ -442,7 +443,7 @@ class DutyRuleSlz(serializers.ModelSerializer):
         if self.instance:
             query_result = query_result.exclude(id=self.instance.id)
         if query_result.exists():
-            raise ValidationError(detail=_("当前轮值规则组名称已经存在，请重新确认"))
+            raise DutyRuleNameExist()
         return value
 
 
@@ -802,7 +803,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         if self.instance:
             query_result = query_result.exclude(id=self.instance.id)
         if query_result.exists():
-            raise ValidationError(detail=_("当前告警组名称已经存在，请重新确认"))
+            raise UserGroupNameExist()
         return value
 
     def validate_need_duty(self, value):

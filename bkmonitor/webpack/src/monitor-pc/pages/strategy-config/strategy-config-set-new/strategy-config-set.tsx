@@ -34,6 +34,7 @@ import {
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { getConvergeFunction } from 'monitor-api/modules/action';
+import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { strategySnapshot } from 'monitor-api/modules/alert';
 import { listCalendar } from 'monitor-api/modules/calendar';
 import { getFunctions } from 'monitor-api/modules/grafana';
@@ -51,7 +52,7 @@ import {
 import debouceDecorator from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 // import StrategyMetricSelector from './components/strategy-metric-selector';
-import { deepClone, getUrlParam, transformDataKey, typeTools } from 'monitor-common/utils/utils';
+import { deepClone, getUrlParam, random, transformDataKey, typeTools } from 'monitor-common/utils/utils';
 
 import { LETTERS } from '../../../common/constant';
 import ChangeRcord from '../../../components/change-record/change-record';
@@ -374,6 +375,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   descriptionType = '';
   /* 是否为场景智能检测 */
   isMultivariateAnomalyDetection = false;
+  /* 场景智能检测视图参数 */
+  multivariateAnomalyDetectionParams = {
+    metrics: [],
+    refleshKey: '',
+  };
+  /* 是否开启场景智能检测功能 */
+  showMultivariateAnomalyDetection = false;
 
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
@@ -468,7 +476,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 提交按钮禁用提示状态 */
   get submitBtnTipDisabled() {
     if (this.isMultivariateAnomalyDetection) {
-      return false;
+      return true;
     }
     if (!this.editAllowed) {
       return false;
@@ -928,6 +936,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (!this.scenarioList?.length) {
       promiseList.push(this.getScenarioList());
     }
+    promiseList.push(this.getShowMultivariateAnomalyDetection());
     promiseList.push(this.getDefenseList());
     promiseList.push(this.getActionConfigList());
     promiseList.push(this.getCalendarList());
@@ -992,6 +1001,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       with_advance_fields: 'no',
     }).catch(() => []);
     this.actionConfigList = data;
+  }
+
+  // 获取是否展示是否开启场景智能检测功能数据
+  async getShowMultivariateAnomalyDetection() {
+    const data = await fetchAiSetting().catch(() => null);
+    this.showMultivariateAnomalyDetection = !!data?.multivariate_anomaly_detection?.host?.is_enabled;
   }
 
   // 获取告警组数据
@@ -1139,7 +1154,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.defaultCheckedTarget = targetDetail || { target_detail: [] };
     this.target = targetDetail?.target_detail || [];
     /* 是否为场景智能检测 */
-    if (algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection) {
+    if (
+      algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection ||
+      algorithms?.[0]?.type === MetricType.HostAnomalyDetection
+    ) {
       const curMetricData = new MetricDetail({
         targetType: targetDetail?.node_type,
         objectType: targetDetail?.instance_type,
@@ -1539,6 +1557,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   handleTargetChange(target) {
     this.target = target;
     this.defaultCheckedTarget.target_detail = target;
+    if (this.isMultivariateAnomalyDetection) {
+      /* refleshKey用于控制图表数据刷新 */
+      this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+    }
   }
 
   handleMouseDown(e) {
@@ -2414,6 +2436,15 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       ];
     }
   }
+  /**
+   * @description 场景智能检测指标变化
+   * @param metrics
+   */
+  handleSceneConfigMetricChange(metrics) {
+    this.multivariateAnomalyDetectionParams.metrics = metrics;
+    /* refleshKey用于控制图表数据刷新 */
+    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+  }
 
   metricDataContent() {
     /* 是否为场景智能检测 */
@@ -2422,10 +2453,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         <AiopsMonitorData
           ref='aiopsMonitorData'
           defaultCheckedTarget={this.defaultCheckedTarget}
+          defaultScenario={this.baseConfig.scenario}
+          isEdit={this.isEdit}
           metricData={this.metricData as any}
+          scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
+          onMetricChange={this.handleSceneConfigMetricChange}
           onTargetChange={this.handleTargetChange}
-          onTargetTypeChange={this.handleTargetTypeChange}
         ></AiopsMonitorData>
       );
     }
@@ -2560,7 +2594,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               {!this.metricData.length && !this.sourceData.sourceCode
                 ? !this.loading && (
                     <MonitorDataEmpty
-                      on-add-metric={this.handleShowMetric}
+                      showMultivariateAnomalyDetection={this.showMultivariateAnomalyDetection}
+                      onAddMetric={this.handleShowMetric}
                       onHoverType={this.handleEmptyHoverType}
                     />
                   )
@@ -2722,6 +2757,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 isMultivariateAnomalyDetection={this.isMultivariateAnomalyDetection}
                 legalDimensionList={this.legalDimensionList}
                 metricData={this.selectMetricData}
+                multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
                 sourceData={this.sourceData}
                 strategyTarget={this.strategyTarget}
               />

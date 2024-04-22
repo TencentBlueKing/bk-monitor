@@ -28,7 +28,7 @@
  * @LastEditTime: 2021-07-08 10:35:08
  * @Description:
  */
-import { Component, Emit, Inject } from 'vue-property-decorator';
+import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import alertImg from '../../../../static/images/png/alert.png';
@@ -67,12 +67,14 @@ const addLabelItems = {
     displayName: `${window.i18n.tc('主机')}、${window.i18n.tc('拨测')}、K8s、APM`,
   },
 };
-interface IMonitorDataEmptyEvent {
-  addMetric: { id: string; name: string };
-  onHoverType: string;
+interface IProps {
+  showMultivariateAnomalyDetection?: boolean;
+  onAddMetric: (v: { id: string; name: string }) => void;
+  onHoverType: (v: string) => void;
 }
 @Component({ name: 'MonitorDataEmpty' })
-export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
+export default class MonitorDataEmpty extends tsc<IProps> {
+  @Prop({ type: Boolean, default: false }) showMultivariateAnomalyDetection: boolean;
   @Inject('strategyType') strategyType: strategyType;
 
   tipsInstance: any = null;
@@ -104,7 +106,7 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       {
         name: this.$t('场景智能检测'),
         id: MetricType.MultivariateAnomalyDetection,
-        show: true,
+        show: this.showMultivariateAnomalyDetection,
       },
     ].filter(item => item.show);
   }
@@ -124,7 +126,7 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       this.tipsInstance = null;
     }
   }
-  @Emit('add-metric')
+  @Emit('addMetric')
   handleAddMetric(item) {
     return item;
   }
