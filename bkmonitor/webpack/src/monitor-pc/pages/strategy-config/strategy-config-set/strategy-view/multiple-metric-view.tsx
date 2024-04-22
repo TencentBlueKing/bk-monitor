@@ -31,11 +31,10 @@ import { DEFAULT_INTERVAL } from 'monitor-ui/chart-plugins/constants';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
 
-import { MetricDetail } from '../../strategy-config-set-new/typings';
+import { LETTERS } from '../../../../constant/constant';
+import { IMetricDetail, MetricDetail } from '../../strategy-config-set-new/typings';
 
 import './multiple-metric-view.scss';
-
-const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 
 interface IProps {
   metrics?: MetricDetail[];
@@ -46,7 +45,7 @@ interface IProps {
 
 @Component
 export default class MultipleMetricView extends tsc<IProps> {
-  @Prop({ type: Array, default: () => [] }) metrics: MetricDetail[];
+  @Prop({ type: Array, default: () => [] }) metrics: IMetricDetail[];
   @Prop({ default: () => [], type: Array }) strategyTarget: any[];
   /* 近多条数据 */
   @Prop({ default: 20, type: Number }) nearNum: number;
@@ -82,7 +81,7 @@ export default class MultipleMetricView extends tsc<IProps> {
         functions = [],
         time_field: timeField,
         bkmonitor_strategy_id: bkmonitorStrategyId,
-        custom_event_name: customEventName
+        custom_event_name: customEventName,
       } = metric;
       const tableValue = () => {
         if (dataSourceLabel === 'bk_monitor' && dataTypeLabel === 'alert') {
@@ -104,8 +103,8 @@ export default class MultipleMetricView extends tsc<IProps> {
           field: fieldValue(),
           method: aggMethod || 'AVG',
           alias: alias || LETTERS[mIndex] || 'a',
-          display: dataTypeLabel === 'alert'
-        }
+          display: dataTypeLabel === 'alert',
+        },
       ];
       const queryConfigs = {
         expression: LETTERS[mIndex] || 'a',
@@ -124,9 +123,9 @@ export default class MultipleMetricView extends tsc<IProps> {
             time_field: timeField || 'time',
             filter_dict: {},
             functions,
-            target: this.strategyTarget || []
-          }
-        ]
+            target: this.strategyTarget || [],
+          },
+        ],
       };
       return {
         id: this.dashboardId,
@@ -140,8 +139,8 @@ export default class MultipleMetricView extends tsc<IProps> {
             only_one_result: false,
             custom_timerange: true,
             noTransformVariables: false,
-            nearSeriesNum: this.nearNum
-          }
+            nearSeriesNum: this.nearNum,
+          },
         },
         targets: [
           {
@@ -149,9 +148,9 @@ export default class MultipleMetricView extends tsc<IProps> {
             alias: '',
             datasource: 'time_series',
             data_type: 'time_series',
-            api: 'grafana.graphUnifyQuery'
-          }
-        ]
+            api: 'grafana.graphUnifyQuery',
+          },
+        ],
       };
     });
     this.panels = datas.map(data => new PanelModel(data as any));

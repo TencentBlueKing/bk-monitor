@@ -37,7 +37,7 @@ import { handleGotoLink } from '../../common/constant';
 import { isEn } from '../../i18n/i18n';
 import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from '../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
-import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
+import { IMetricDetail, MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import EmptyStatus from '../empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../empty-status/types';
 
@@ -84,7 +84,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   /* 默认选择的监控对象 */
   @Prop({ type: String, default: '' }) defaultScenario: string;
   /* 使用指定的指标列表 */
-  @Prop({ type: Array, default: () => null }) customMetrics: MetricDetail[];
+  @Prop({ type: Array, default: () => null }) customMetrics: IMetricDetail[];
   /* 是否多选 */
   @Prop({ type: Boolean, default: false }) multiple: boolean;
   /* 指标唯一id(多选) */
@@ -347,7 +347,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           item =>
             item.metric_field_name.indexOf(search) >= 0 ||
             item.metric_field.indexOf(search) >= 0 ||
-            item.metric_id.toString().indexOf(search) >= 0
+            item.metric_id.toString().indexOf(search) >= 0,
         );
       }
       if (params.tag.length) {
@@ -364,11 +364,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       if (this.localScenarioList.length) {
         this.localScenarioList = this.localScenarioList.map(item => ({
           ...item,
-          count: scenarioObj?.[item.id] || 0
+          count: scenarioObj?.[item.id] || 0,
         }));
         this.dataSourceList = this.dataSourceList.map(item => ({
           ...item,
-          count: sourceObj?.[item.data_source_label] || 0
+          count: sourceObj?.[item.data_source_label] || 0,
         }));
         this.loading = false;
         this.nextPageLoading = false;
@@ -377,11 +377,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           this.tag.list = tag_list;
           this.localScenarioList = scenario_list.map(item => ({
             ...item,
-            count: scenarioObj?.[item.id] || 0
+            count: scenarioObj?.[item.id] || 0,
           }));
           this.dataSourceList = data_source_list.map(item => ({
             ...item,
-            count: sourceObj?.[item.data_source_label] || 0
+            count: sourceObj?.[item.data_source_label] || 0,
           }));
           this.loading = false;
           this.nextPageLoading = false;
@@ -686,7 +686,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     item.setChecked(v);
     this.$emit('checked', {
       checked: item.checked,
-      id: item.metric_id
+      id: item.metric_id,
     });
   }
 

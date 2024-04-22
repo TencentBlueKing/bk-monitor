@@ -138,18 +138,18 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
       return;
     }
     const tagsEl = tagsWrap.querySelectorAll('.tag-item');
-    if ((tagsWrap as any).offsetHeight < (this.$el as any).offsetHeight) {
+    if ((tagsWrap as HTMLElement).offsetHeight < (this.$el as HTMLElement).offsetHeight) {
       return;
     }
     // 容器宽度
-    const wrapWidth = (this.$el as any).offsetWidth - 24;
+    const wrapWidth = (this.$el as HTMLElement).offsetWidth - 24;
     // 隐藏的数量tag宽度
     const countWrapWidth = 36;
     let countWidth = 0;
     let overflowCount = 0;
     let insertIndex = 0;
     for (let i = 0; i < tagsEl.length; i++) {
-      const width = (tagsEl[i] as any).offsetWidth;
+      const width = (tagsEl[i] as HTMLElement).offsetWidth;
       countWidth += width + 4;
       if (countWidth > wrapWidth - countWrapWidth && countWidth !== wrapWidth) {
         if (!insertIndex) {

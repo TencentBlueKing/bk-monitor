@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { IMetricDetail } from './typings';
+
 // 函数组件value
 export interface IFuncValueItem {
   id: number;
@@ -99,6 +102,6 @@ export const noticeMethod = [
 ];
 
 export interface IMultivariateAnomalyDetectionParams {
-  metrics: any[];
+  metrics: IMetricDetail[];
   refleshKey: string;
 }
