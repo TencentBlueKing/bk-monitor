@@ -221,7 +221,7 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         # metadata同步pingserver配置，下发iplist到proxy机器，每10分钟执行一次
         ("metadata.task.ping_server.refresh_ping_server_2_node_man", "*/10 * * * *", "global"),
         # metadata同步自定义上报配置到节点管理，完成配置订阅，理论上，在配置变更的时候，会执行一次，所以这里运行周期可以放大
-        ("metadata.task.custom_report.refresh_custom_report_2_node_man", "*/5 * * * *", "global"),
+        ("metadata.task.custom_report.refresh_all_custom_report_2_node_man", "*/5 * * * *", "global"),
         # metadata自动部署bkmonitorproxy
         ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
         ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
