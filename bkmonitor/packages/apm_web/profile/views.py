@@ -294,7 +294,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
             if data["is_compared"]:
                 compare_tendency_data = self._query(
-                    api_type=APIType.SELECT_COUNT.value,
+                    api_type=APIType.SELECT_COUNT,
                     bk_biz_id=essentials["bk_biz_id"],
                     app_name=essentials["app_name"],
                     service_name=essentials["service_name"],
@@ -307,7 +307,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                     converted=False,
                     dimension_fields="sample_type,(ROUND(dtEventTimeStamp / 60000) * 60)",
                     extra_params={
-                        "metric_field": "sum(value)",
+                        "metric_fields": "sum(value)",
                         "general_filters": {
                             "sample_type": "op_eq|samples/count",
                         },
