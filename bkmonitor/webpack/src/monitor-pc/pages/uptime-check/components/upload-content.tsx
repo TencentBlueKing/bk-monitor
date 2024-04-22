@@ -76,8 +76,8 @@ export default class UploadContent extends tsc<IUploadContentProps, IUploadConte
     return (
       <div class='uptime-check-upload-content'>
         <div
-          class='upload-content-img'
           style={{ backgroundImage: this.curImg ? `url(${this.curImg})` : 'none' }}
+          class='upload-content-img'
         >
           <div class='mask'>{this.curImg ? this.$t('点击更换') : this.$t('点击上传')}</div>
           <i
@@ -85,9 +85,9 @@ export default class UploadContent extends tsc<IUploadContentProps, IUploadConte
             onClick={this.handleDeleteImg}
           ></i>
           <input
-            type='file'
             class='file-input'
             accept='image/png'
+            type='file'
             onChange={this.handleImgFileChange}
           ></input>
         </div>

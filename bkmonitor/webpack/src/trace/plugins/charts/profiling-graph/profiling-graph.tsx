@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
+
 import { Exception, Loading } from 'bkui-vue';
 import { query } from 'monitor-api/modules/apm_profile';
 import { typeTools } from 'monitor-common/utils';
@@ -34,7 +35,6 @@ import { debounce } from 'throttle-debounce';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { SearchType, ToolsFormData } from '../../../pages/profiling/typings';
 import { DirectionType, IQueryParams } from '../../../typings';
-
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
@@ -87,7 +87,7 @@ export default defineComponent({
       {
         immediate: true,
         deep: true,
-      },
+      }
     );
     watch(
       () => toolsFormData.value.timeRange,
@@ -96,7 +96,7 @@ export default defineComponent({
           handleQuery();
         }
       },
-      { deep: true },
+      { deep: true }
     );
     watch(
       () => toolsFormData.value.refreshInterval,
@@ -108,7 +108,7 @@ export default defineComponent({
         refleshIntervalInstance = window.setInterval(() => {
           handleQuery();
         }, toolsFormData.value.refreshInterval);
-      },
+      }
     );
 
     const getParams = (args: Record<string, any> = {}) => {
@@ -207,7 +207,7 @@ export default defineComponent({
         case 'pprof': {
           const params = getParams({ export_format: 'pprof' });
           const downloadUrl = `/apm/profile_api/query/export/?bk_biz_id=${window.bk_biz_id}${getUrlParamsString(
-            params,
+            params
           )}`;
           const a = document.createElement('a');
           a.style.display = 'none';
@@ -228,8 +228,8 @@ export default defineComponent({
           if (obj[key]) {
             ary.push(
               `${encodeURIComponent(key)}=${encodeURIComponent(
-                typeTools.isObject(obj[key]) ? JSON.stringify(obj[key]) : obj[key],
-              )}`,
+                typeTools.isObject(obj[key]) ? JSON.stringify(obj[key]) : obj[key]
+              )}`
             );
           }
           return ary;
@@ -262,48 +262,48 @@ export default defineComponent({
   render() {
     return (
       <Loading
-        loading={this.isLoading}
         class='profiling-graph'
+        loading={this.isLoading}
       >
         <ChartTitle
           activeMode={this.activeMode}
-          textDirection={this.textDirection}
           isCompared={this.isCompared}
+          textDirection={this.textDirection}
+          onDownload={this.handleDownload}
+          onKeywordChange={val => (this.filterKeyword = val)}
           onModeChange={this.handleModeChange}
           onTextDirectionChange={this.handleTextDirectionChange}
-          onKeywordChange={val => (this.filterKeyword = val)}
-          onDownload={this.handleDownload}
         />
         {this.empty ? (
           <Exception
-            type='empty'
             description={this.$t('暂无数据')}
+            type='empty'
           />
         ) : (
           <div class='profiling-graph-content'>
             {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
               <TableGraph
                 data={this.tableData}
-                unit={this.unit}
-                textDirection={this.textDirection}
-                highlightId={this.highlightId}
-                filterKeyword={this.filterKeyword}
-                isCompared={this.isCompared}
                 dataType={this.queryParams.data_type}
-                onUpdateHighlightId={id => (this.highlightId = id)}
+                filterKeyword={this.filterKeyword}
+                highlightId={this.highlightId}
+                isCompared={this.isCompared}
+                textDirection={this.textDirection}
+                unit={this.unit}
                 onSortChange={this.handleSortChange}
+                onUpdateHighlightId={id => (this.highlightId = id)}
               />
             )}
             {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
               <FrameGraph
                 ref='frameGraphRef'
                 appName={this.$props.queryParams.app_name}
-                textDirection={this.textDirection}
-                showGraphTools={false}
                 data={this.flameData}
+                filterKeywords={this.flameFilterKeywords}
                 highlightId={this.highlightId}
                 isCompared={this.isCompared}
-                filterKeywords={this.flameFilterKeywords}
+                showGraphTools={false}
+                textDirection={this.textDirection}
                 onUpdateHighlightId={id => (this.highlightId = id)}
               />
             )}

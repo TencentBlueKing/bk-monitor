@@ -27,6 +27,7 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { query, queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { Debounce, typeTools } from 'monitor-common/utils/utils';
@@ -42,7 +43,6 @@ import {
   ViewModeType,
 } from '../../typings';
 import { CommonSimpleChart } from '../common-simple-chart';
-
 import ChartTitle from './chart-title/chart-title';
 import FilterSelect from './filter-select/filter-select';
 import FrameGraph from './flame-graph/flame-graph';
@@ -210,7 +210,7 @@ class ProfilingChart extends CommonSimpleChart {
       case 'pprof': {
         const params = this.getParams({ export_format: 'pprof' });
         const downloadUrl = `/apm/profile_api/query/export/?bk_biz_id=${window.bk_biz_id}${this.getUrlParamsString(
-          params,
+          params
         )}`;
         const a = document.createElement('a');
         a.style.display = 'none';
@@ -237,8 +237,8 @@ class ProfilingChart extends CommonSimpleChart {
         if (obj[key]) {
           ary.push(
             `${encodeURIComponent(key)}=${encodeURIComponent(
-              typeTools.isObject(obj[key]) ? JSON.stringify(obj[key]) : obj[key],
-            )}`,
+              typeTools.isObject(obj[key]) ? JSON.stringify(obj[key]) : obj[key]
+            )}`
           );
         }
         return ary;
@@ -273,9 +273,9 @@ class ProfilingChart extends CommonSimpleChart {
         <FilterSelect
           appName={this.queryParams.app_name}
           serviceName={this.queryParams.service_name}
+          onDiffChange={val => this.handleFiltersChange(val, 'diff')}
           onDiffModeChange={this.handleDiffModeChange}
           onFilterChange={val => this.handleFiltersChange(val, 'filter')}
-          onDiffChange={val => this.handleFiltersChange(val, 'diff')}
         />
         <div class='profiling-retrieval-header'>
           <div class='data-type'>
@@ -284,9 +284,9 @@ class ProfilingChart extends CommonSimpleChart {
               {this.dataTypeList.map(item => {
                 return (
                   <bk-button
-                    size='small'
                     key={item.key}
                     class={item.key === this.dataType ? 'is-selected' : ''}
+                    size='small'
                     onClick={() => this.handleDataTypeChange(item.key)}
                   >
                     {item.name}
@@ -298,8 +298,8 @@ class ProfilingChart extends CommonSimpleChart {
           <div class='link-tips'>
             <i class='icon-monitor icon-tishi'></i>
             <i18n
-              path='更多功能，请前往 {0}'
               class='flex-center'
+              path='更多功能，请前往 {0}'
             >
               <span
                 class='link-text'
@@ -317,12 +317,12 @@ class ProfilingChart extends CommonSimpleChart {
         >
           <ChartTitle
             activeMode={this.activeMode}
-            textDirection={this.textDirection}
             isCompared={this.queryParams.is_compared}
+            textDirection={this.textDirection}
+            onDownload={this.handleDownload}
+            onKeywordChange={val => (this.filterKeyword = val)}
             onModeChange={this.handleModeChange}
             onTextDirectionChange={this.handleTextDirectionChange}
-            onKeywordChange={val => (this.filterKeyword = val)}
-            onDownload={this.handleDownload}
           />
           {this.empty ? (
             <div class='empty-chart'>{this.emptyText}</div>
@@ -331,26 +331,26 @@ class ProfilingChart extends CommonSimpleChart {
               {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
                 <TableGraph
                   data={this.tableData}
-                  unit={this.unit}
-                  textDirection={this.textDirection}
-                  highlightId={this.highlightId}
-                  filterKeyword={this.filterKeyword}
-                  isCompared={this.queryParams.is_compared}
                   dataType={this.queryParams.data_type}
-                  onUpdateHighlightId={id => (this.highlightId = id)}
+                  filterKeyword={this.filterKeyword}
+                  highlightId={this.highlightId}
+                  isCompared={this.queryParams.is_compared}
+                  textDirection={this.textDirection}
+                  unit={this.unit}
                   onSortChange={this.handleSortChange}
+                  onUpdateHighlightId={id => (this.highlightId = id)}
                 />
               )}
               {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
                 <FrameGraph
                   ref='frameGraphRef'
                   appName={(this.viewOptions as any).app_name}
-                  textDirection={this.textDirection}
-                  showGraphTools={false}
                   data={this.flameData}
+                  filterKeywords={this.flameFilterKeywords}
                   highlightId={this.highlightId}
                   isCompared={this.queryParams.is_compared}
-                  filterKeywords={this.flameFilterKeywords}
+                  showGraphTools={false}
+                  textDirection={this.textDirection}
                   onUpdateHighlightId={id => (this.highlightId = id)}
                 />
               )}

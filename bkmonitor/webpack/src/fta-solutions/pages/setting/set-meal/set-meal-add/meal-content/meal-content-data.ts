@@ -108,7 +108,7 @@ export interface IWebhook {
 }
 export interface IPeripheral {
   data?: {
-    formTemplateId?: string | number;
+    formTemplateId?: number | string;
     templateDetail?: {
       [propName: string]: string;
     };
@@ -163,7 +163,7 @@ export const executionTips = {
   1: window.i18n.t('高危代表执行此类操作影响比较大，在执行处理套餐时需要进行及时的通知。'),
   2: window.i18n.t('谨慎代表执行此类操作影响比高危小，但是也不可多次反复的执行，一般在失败时需要提示。'),
   3: window.i18n.t(
-    '大部分的处理套餐建议是可以做成可以反复执行并且风险可控的，常见的回调、发工单等甚至都不需要有额外的通知。',
+    '大部分的处理套餐建议是可以做成可以反复执行并且风险可控的，常见的回调、发工单等甚至都不需要有额外的通知。'
   ),
 };
 
@@ -521,7 +521,7 @@ const numberToStr = number => {
   return `${number}`;
 };
 
-export const timeTransform = (timeValue: unknown | number | string, isToStr = false, minIsMinute = false) => {
+export const timeTransform = (timeValue: number | string | unknown, isToStr = false, minIsMinute = false) => {
   if (isToStr) {
     if (minIsMinute) {
       const one = Math.floor(Number(timeValue) / 60);

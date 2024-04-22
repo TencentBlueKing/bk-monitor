@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { checkDuplicateName } from 'monitor-api/modules/apm_meta';
 
 import { ICreateAppFormData } from './app-list';
@@ -160,21 +161,21 @@ export default class AppAddForm extends tsc<IProps> {
     return (
       <div class='app-add-form-wrap'>
         <bk-dialog
-          value={this.value}
-          title={this.$t('新建应用')}
-          header-position='left'
-          ext-cls='app-add-dialog'
           width={640}
-          onValueChange={this.handleShowChange}
+          ext-cls='app-add-dialog'
           confirm-fn={this.handleConfirm}
+          header-position='left'
+          title={this.$t('新建应用')}
+          value={this.value}
           onCancel={this.handleCancel}
+          onValueChange={this.handleShowChange}
         >
           <div class='app-add-dialog-main'>
             <div class='app-add-desc'>
               <div class='app-add-question'>{this.$t('什么是应用？')}</div>
               <div class='app-add-answer'>
                 {this.$t(
-                  '应用一般是拥有独立的站点，由多个Service共同组成，提供完整的产品功能，拥有独立的软件架构。 从技术方面来说应用是Trace数据的存储隔离，在同一个应用内的数据将进行统计和观测。更多请查看产品文档。',
+                  '应用一般是拥有独立的站点，由多个Service共同组成，提供完整的产品功能，拥有独立的软件架构。 从技术方面来说应用是Trace数据的存储隔离，在同一个应用内的数据将进行统计和观测。更多请查看产品文档。'
                 )}
               </div>
             </div>
@@ -186,14 +187,14 @@ export default class AppAddForm extends tsc<IProps> {
                   rules: this.rules,
                 },
               }}
-              label-width={84}
               ref='addForm'
+              label-width={84}
             >
               <bk-form-item
-                label={this.$t('应用名称')}
-                required
-                property='name'
                 error-display-type='normal'
+                label={this.$t('应用名称')}
+                property='name'
+                required
               >
                 <bk-input
                   v-model={this.formData.name}
@@ -202,10 +203,10 @@ export default class AppAddForm extends tsc<IProps> {
                 />
               </bk-form-item>
               <bk-form-item
-                label={this.$t('英文名')}
-                required
-                property='enName'
                 error-display-type='normal'
+                label={this.$t('英文名')}
+                property='enName'
+                required
               >
                 <bk-input
                   v-model={this.formData.enName}
@@ -216,8 +217,8 @@ export default class AppAddForm extends tsc<IProps> {
               </bk-form-item>
               <bk-form-item label={this.$t('描述')}>
                 <bk-input
-                  type='textarea'
                   v-model={this.formData.desc}
+                  type='textarea'
                 ></bk-input>
               </bk-form-item>
             </bk-form>

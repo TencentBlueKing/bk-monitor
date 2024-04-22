@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, toRaw, watch } from 'vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
@@ -143,7 +144,7 @@ export default defineComponent({
       () => props.textDirection,
       () => {
         graphInstance?.setTextDirection(props.textDirection);
-      },
+      }
     );
     watch(
       [() => props.data, props.appName],
@@ -168,7 +169,7 @@ export default defineComponent({
                   },
                   {
                     needCancel: true,
-                  },
+                  }
                 ).catch(() => false)
               )?.diagrams?.flame_data ?? false;
 
@@ -292,7 +293,7 @@ export default defineComponent({
                   // document.addEventListener('mouseup', mouseup);
                 },
               },
-              chartRef.value,
+              chartRef.value
             );
             setTimeout(() => {
               setSvgRect();
@@ -312,19 +313,19 @@ export default defineComponent({
           showException.value = true;
         }
       }),
-      { immediate: true, deep: true },
+      { immediate: true, deep: true }
     );
     watch(
       () => props.filterKeywords,
       () => {
         graphInstance?.filterGraph(props.filterKeywords);
-      },
+      }
     );
     watch(
       () => props.highlightId,
       () => {
         graphInstance?.highlightNodeId(props.highlightId);
-      },
+      }
     );
 
     onBeforeUnmount(() => {
@@ -497,16 +498,16 @@ export default defineComponent({
     if (this.showException)
       return (
         <Exception
-          type='empty'
           description={this.$t('暂无数据')}
+          type='empty'
         />
       );
     return (
       <ResizeLayout
-        placement='right'
         style='height: 100%'
         class={'hide-aside'}
         initialDivide={'0px'}
+        placement='right'
       >
         {{
           main: () => [
@@ -522,11 +523,11 @@ export default defineComponent({
               </div>
             ),
             <div
+              ref='wrapperRef'
               class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
               tabindex={1}
               onBlur={this.handleClickWrapper}
               onClick={this.handleClickWrapper}
-              ref='wrapperRef'
             >
               <div
                 ref='chartRef'
@@ -534,12 +535,12 @@ export default defineComponent({
               />
               <Teleport to='body'>
                 <div
-                  class='flame-graph-tips'
                   style={{
                     left: `${this.tipDetail.left}px`,
                     top: `${this.tipDetail.top + 16}px`,
                     display: this.tipDetail.title ? 'block' : 'none',
                   }}
+                  class='flame-graph-tips'
                 >
                   {this.tipDetail.title && [
                     <div class='funtion-name'>{this.tipDetail.title}</div>,
@@ -586,17 +587,17 @@ export default defineComponent({
                 </div>
               </Teleport>
               <ul
-                class='flame-graph-menu'
                 style={{
                   left: `${this.contextMenuRect.left}px`,
                   top: `${this.contextMenuRect.top}px`,
                   visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
                 }}
+                class='flame-graph-menu'
               >
                 {CommonMenuList.map(item => (
                   <li
-                    class='menu-item'
                     key={item.id}
+                    class='menu-item'
                     onClick={() => this.handleContextMenuClick(item)}
                   >
                     <i class={`menu-item-icon icon-monitor ${item.icon}`} />
@@ -606,23 +607,23 @@ export default defineComponent({
               </ul>
               <Teleport to='body'>
                 <div
-                  class='flame-graph-axis'
                   style={{
                     left: `${this.axisRect.left || 0}px`,
                     top: `${this.axisRect.top || 0}px`,
                     bottom: `${this.axisRect.bottom || 0}px`,
                     visibility: this.axisRect.visibility,
                   }}
+                  class='flame-graph-axis'
                 >
                   <span class='axis-label'>{this.axisRect.title}</span>
                 </div>
               </Teleport>
               <div
-                class='flame-graph-zoom'
                 style={{
                   left: `${this.zoomRect?.left || 0}px`,
                   width: `${this.zoomRect?.width || 0}px`,
                 }}
+                class='flame-graph-zoom'
               ></div>
               {/* <GraphTools
                 style={{
@@ -639,19 +640,19 @@ export default defineComponent({
               /> */}
               {this.showGraphTools ? (
                 <Popover
-                  trigger='manual'
-                  isShow={this.showLegend}
-                  theme='light'
-                  placement='top-start'
-                  allowHtml={false}
-                  arrow={false}
-                  zIndex={1001}
-                  extCls='flame-graph-tools-popover'
                   width={this.graphToolsRect.width}
                   height={this.graphToolsRect.height}
-                  content={this.flameToolsPopoverContent}
+                  extCls='flame-graph-tools-popover'
+                  allowHtml={false}
+                  arrow={false}
                   boundary={'parent'}
+                  content={this.flameToolsPopoverContent}
+                  isShow={this.showLegend}
+                  placement='top-start'
                   renderType='auto'
+                  theme='light'
+                  trigger='manual'
+                  zIndex={1001}
                 >
                   {{
                     default: () => (
@@ -661,22 +662,22 @@ export default defineComponent({
                           display: this.graphToolsRect.left > 0 ? 'flex' : 'none',
                         }}
                         class='topo-graph-tools'
-                        scaleValue={this.scaleValue}
+                        legendActive={this.showLegend}
                         maxScale={MaxScale}
                         minScale={MinScale}
-                        showThumbnail={false}
-                        showLegend={false}
                         scaleStep={scaleStep}
-                        legendActive={this.showLegend}
-                        onStoreImg={this.handleStoreImg}
+                        scaleValue={this.scaleValue}
+                        showLegend={false}
+                        showThumbnail={false}
                         onScaleChange={this.handlesSaleValueChange}
                         onShowLegend={this.handleShowLegend}
+                        onStoreImg={this.handleStoreImg}
                       />
                     ),
                     content: () => (
                       <div
-                        class='flame-tools-popover-content'
                         ref='flameToolsPopoverContent'
+                        class='flame-tools-popover-content'
                       >
                         <ViewLegend />
                       </div>

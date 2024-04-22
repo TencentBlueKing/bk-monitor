@@ -34,7 +34,7 @@ export interface IData {
   icon: string;
   num: number;
   unit: string;
-  type: 'num' | '%' | 'time';
+  type: '%' | 'num' | 'time';
   borderRight?: boolean;
   tip?: string;
   allowHtml?: boolean;
@@ -78,8 +78,8 @@ export default class OverviewContent extends tsc<IOverviewContentProps> {
             </span>
             <span class='item-bottom'>
               <img
-                src={this.getSvgIcon(item.icon)}
                 alt=''
+                src={this.getSvgIcon(item.icon)}
               />
               <span class='title'>{item.name}</span>
             </span>
@@ -90,7 +90,7 @@ export default class OverviewContent extends tsc<IOverviewContentProps> {
             <div>{window.i18n.tc('MTTA指平均应答时间 = 所有告警的总持续时间 / 总告警数量')}</div>
             <div>
               {window.i18n.tc(
-                '其中持续时间指告警的首次异常时间到状态变更的时间段，状态变更如确认/屏蔽/恢复/关闭/已解决等',
+                '其中持续时间指告警的首次异常时间到状态变更的时间段，状态变更如确认/屏蔽/恢复/关闭/已解决等'
               )}
             </div>
           </div>

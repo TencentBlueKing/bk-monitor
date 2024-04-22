@@ -34,8 +34,8 @@ export interface IFuncValueItem {
 }
 
 export interface IIdNameItem {
-  id: string | number;
-  name: string | number;
+  id: number | string;
+  name: number | string;
 }
 
 // 函数组件localValue
@@ -64,7 +64,7 @@ export interface IFuncListItem {
 export interface IFuncListParamsItem {
   name: string;
   default: number | string;
-  list: Array<string | number>;
+  list: Array<number | string>;
 }
 export const levelList: { id: number; name: string }[] = [
   {

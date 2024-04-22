@@ -152,8 +152,8 @@ export default class PartialNodes extends tsc<PartialNodesProps, PartialNodesEve
         <bk-form
           ref='formRef'
           {...{ props: { model: this.localData } }}
-          rules={this.rules}
           label-width={126}
+          rules={this.rules}
         >
           <bk-form-item
             label={this.$t('告警级别')}
@@ -162,24 +162,24 @@ export default class PartialNodes extends tsc<PartialNodesProps, PartialNodesEve
           >
             <bk-select
               ext-cls='level-select'
-              ext-popover-cls='level-select-popover'
-              clearable={false}
-              behavior='simplicity'
               v-model={this.localData.level}
+              behavior='simplicity'
+              clearable={false}
+              ext-popover-cls='level-select-popover'
               prefix-icon={`icon-monitor ${this.levelList[this.localData.level - 1].icon}`}
               onChange={this.emitLocalData}
             >
               {this.levelList.map(level => (
                 <bk-option
-                  key={level.id}
-                  disabled={level.disabled}
                   id={level.id}
-                  name={level.name}
+                  key={level.id}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
                     disabled: !level.disabled,
                     allowHTML: false,
                   }}
+                  disabled={level.disabled}
+                  name={level.name}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>
                   <span class='name'>{level.name}</span>
@@ -188,21 +188,21 @@ export default class PartialNodes extends tsc<PartialNodesProps, PartialNodesEve
             </bk-select>
           </bk-form-item>
           <bk-form-item
+            error-display-type='normal'
             label={this.$t('告警条件')}
             property='config'
             required
-            error-display-type='normal'
           >
             <i18n path='满足以上条件的拨测节点数>={0}时触发告警'>
               <bk-input
-                class='input-align-center inline-input number-handle-input'
-                behavior='simplicity'
-                readonly={this.readonly}
                 style='width: 78px'
+                class='input-align-center inline-input number-handle-input'
                 v-model={this.localData.config.count}
+                behavior='simplicity'
                 clearable={false}
                 min={1}
                 precision={0}
+                readonly={this.readonly}
                 type='number'
                 onChange={this.emitLocalData}
               />

@@ -25,14 +25,14 @@
 -->
 <template>
   <article
-    class="import-config"
     v-bkloading="{ isLoading: loading }"
+    class="import-config"
   >
     <!--折叠内容-->
     <section
+      ref="collapse"
       class="import-config-content"
       :style="{ marginBottom: isScroll ? '34px' : '' }"
-      ref="collapse"
     >
       <bk-collapse
         v-model="collapse.activeName"
@@ -53,32 +53,33 @@
                 :class="{ 'icon-rotate': collapse.activeName.includes(item.name) }"
               />
               <span
-                class="collapse-item-title"
                 v-if="item.name === 'bkmonitor.models.fta.plugin'"
-              >{{
-                getItemTitle(item)
-              }}</span>
-              <span
                 class="collapse-item-title"
-                v-else
-              >{{ selectedTitle(item) }}</span>
+                >{{ getItemTitle(item) }}</span
+              >
               <span
-                class="collapse-item-mark"
+                v-else
+                class="collapse-item-title"
+                >{{ selectedTitle(item) }}</span
+              >
+              <span
                 v-if="item.markName"
-              >{{ item.markName }}</span>
+                class="collapse-item-mark"
+                >{{ item.markName }}</span
+              >
             </div>
             <!--右侧状态-->
             <div
-              class="collapse-item-right"
               v-show="table.statistics && table.statistics[item.name]"
+              class="collapse-item-right"
             >
               <!-- eslint-disable-next-line vue/no-v-html -->
               <span>
                 <template v-for="(val, key) in statusMap">
                   <i18n
                     v-if="table.statistics[item.name] && table.statistics[item.name][key]"
-                    :path="key === 'success' ? '{0} 个检测成功' : '{0} 个检测失败'"
                     :key="key"
+                    :path="key === 'success' ? '{0} 个检测成功' : '{0} 个检测失败'"
                   >
                     <span :class="`total-${key}`">{{ table.statistics[item.name][key] }}</span>
                   </i18n>
@@ -89,23 +90,23 @@
           <!--折叠表格-->
           <template #content>
             <bk-table
-              max-height="410"
-              :ref="item.name"
               v-show="table.tableData[item.name]"
+              :ref="item.name"
+              max-height="410"
               :data="table.tableData[item.name]"
               row-key="uuid"
+              :collapse="item.name"
               @select="handleSelectChange"
               @select-all="handleSelectAll($event, item.name)"
-              :collapse="item.name"
             >
               <bk-table-column
+                v-if="!item.markName"
                 align="left"
                 header-align="left"
                 type="selection"
                 width="40"
                 :selectable="handleItemSelectable"
                 reserve-selection
-                v-if="!item.markName"
               />
               <bk-table-column
                 align="left"
@@ -133,8 +134,8 @@
                     <span class="fix-same-code">{{ statusMap[row.status].name }}</span>
                   </div>
                   <div
-                    class="status-col"
                     v-else
+                    class="status-col"
                   >
                     <span class="status-failed" />
                     <span> {{ $t('状态未知') }} </span>
@@ -155,8 +156,8 @@
     </section>
     <!--底部按钮-->
     <section
-      class="import-config-footer"
       v-if="collapseList.length"
+      class="import-config-footer"
     >
       <!--背景占位-->
       <div :class="{ 'footer-banner': isScroll }" />
@@ -172,8 +173,8 @@
         theme="primary"
         class="mr10"
         :class="{ 'footer-button1': isScroll }"
-        @click="handleImportClick"
         :disabled="disabledConfirmBtn"
+        @click="handleImportClick"
       >
         {{ $t('导入') }}
       </bk-button>
@@ -187,8 +188,8 @@
     </section>
     <!--空数据-->
     <section
-      class="config-empty"
       v-if="!collapseList.length"
+      class="config-empty"
     >
       <content-empty
         :title="$t('无数据')"
@@ -199,17 +200,17 @@
     <template>
       <div v-show="false">
         <div
-          class="label-menu-wrapper"
           ref="labelMenu"
+          class="label-menu-wrapper"
         >
           <ul
-            class="label-menu-list"
             v-if="filterHeader[currentStatus]"
+            class="label-menu-list"
           >
             <li
-              class="item"
               v-for="(item, index) in filterHeader[currentStatus].list"
               :key="index"
+              class="item"
               @click="handleSelectLabel(item)"
             >
               <bk-checkbox
@@ -225,11 +226,15 @@
               <bk-button
                 :text="true"
                 @click="handleStatusChange"
-              > {{ $t('确定') }} </bk-button>
+              >
+                {{ $t('确定') }}
+              </bk-button>
               <bk-button
                 :text="true"
                 @click="handleResetSelected"
-              > {{ $t('重置') }} </bk-button>
+              >
+                {{ $t('重置') }}
+              </bk-button>
             </div>
           </div>
         </div>
@@ -238,24 +243,23 @@
   </article>
 </template>
 <script>
-import { mapActions } from 'vuex';
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { mapActions } from 'vuex';
 
 import ContentEmpty from '../components/content-empty';
-
 import mixin from './import-mixin';
 
 export default {
   name: 'ImportConfiguration',
   components: {
-    ContentEmpty
+    ContentEmpty,
   },
   mixins: [mixin],
   props: {
     // 导入界面数据
     importData: {
-      type: Object
-    }
+      type: Object,
+    },
   },
   data() {
     return {
@@ -263,25 +267,25 @@ export default {
       statusMap: {
         success: {
           name: this.$t('检测成功'),
-          status: 'success'
+          status: 'success',
         },
         failed: {
           name: this.$t('检测失败'),
-          status: 'failed'
-        }
+          status: 'failed',
+        },
       },
       // 表格对象（含mixin公共部分）
       table: {
         firstCheckedAll: [],
         selection: [],
-        tableData: {}
+        tableData: {},
       },
       // 状态列筛选状态
       filterHeader: {
         collect: null,
         strategy: null,
         view: null,
-        plugin: null
+        plugin: null,
       },
       // 任务状态下拉列表
       status: {
@@ -291,31 +295,31 @@ export default {
             id: 'failed',
             name: this.$t('检测失败'),
             checked: 'failed',
-            cancel: ''
+            cancel: '',
           },
           {
             value: '',
             id: 'success',
             name: this.$t('检测成功'),
             checked: 'success',
-            cancel: ''
-          }
+            cancel: '',
+          },
         ],
-        instance: null
+        instance: null,
       },
       // 当前筛选的状态表格
       currentStatus: '',
-      isOverwriteMode: false
+      isOverwriteMode: false,
     };
   },
   computed: {
     // 开始导入按钮禁用状态
     disabledConfirmBtn() {
-      return !(this.table.list?.some(item => item.checked));
+      return !this.table.list?.some(item => item.checked);
     },
     // 当前表格已选总数
     selectedTitle() {
-      return (collapse) => {
+      return collapse => {
         const checkedCount = this.table.list.filter(item => item.type === collapse.name && item.checked).length;
         return `${collapse.title}（${this.$t('已选{count}个', { count: checkedCount })}）`;
       };
@@ -326,9 +330,12 @@ export default {
     },
     // 状态列是否勾选
     hasSelectStatus() {
-      return collapseName => this.filterHeader[collapseName]?.list.filter(item => item.value).map(item => item.value)
-        .join(',');
-    }
+      return collapseName =>
+        this.filterHeader[collapseName]?.list
+          .filter(item => item.value)
+          .map(item => item.value)
+          .join(',');
+    },
   },
   created() {
     if (!this.importData) {
@@ -350,7 +357,7 @@ export default {
     },
     // 初始化任务状态列
     handleInitStatusCol() {
-      Object.keys(this.filterHeader).forEach((key) => {
+      Object.keys(this.filterHeader).forEach(key => {
         this.filterHeader[key] = JSON.parse(JSON.stringify(this.status));
       });
     },
@@ -360,13 +367,13 @@ export default {
       // if (!data.importHistoryId) return
       // this.table.taskId = data.importHistoryId
       this.table.list = data.configList
-        ? data.configList.map((item) => {
-          item.checked = item.type !== 'bkmonitor.models.fta.plugin' && item.fileStatus === 'success'; // 默认勾选所有成功项
-          item.status = item.fileStatus;
-          return item;
-        })
+        ? data.configList.map(item => {
+            item.checked = item.type !== 'bkmonitor.models.fta.plugin' && item.fileStatus === 'success'; // 默认勾选所有成功项
+            item.status = item.fileStatus;
+            return item;
+          })
         : [];
-      this.collapse.list.forEach((item) => {
+      this.collapse.list.forEach(item => {
         this.table.tableData[item.name] = this.table.list.filter(list => list.type === item.name);
       });
       this.table.statistics = this.handleCountData(data);
@@ -377,7 +384,7 @@ export default {
     handleClickCollapse() {
       this.$nextTick().then(() => {
         // 首次展开默认全选
-        this.collapse.activeName.forEach((activeItem) => {
+        this.collapse.activeName.forEach(activeItem => {
           if (!this.table.firstCheckedAll.includes(activeItem) && this.$refs[activeItem]?.length === 1) {
             this.$refs[activeItem][0].toggleAllSelection();
             this.table.firstCheckedAll.push(activeItem);
@@ -411,7 +418,7 @@ export default {
      * @param {String} name collapse name
      */
     handleSelectAll(selection, name) {
-      this.table.list.forEach((item) => {
+      this.table.list.forEach(item => {
         if (item.type === name && item.status === 'success' && item.type !== 'bkmonitor.models.fta.plugin') {
           item.checked = !(selection.length === 0);
         }
@@ -455,23 +462,27 @@ export default {
      */
     renderHeader(h, data) {
       const collapseName = data.store.table.$attrs.collapse;
-      return  h('span', {
-        class: {
-          'dropdown-trigger': true,
-          selected: this.hasSelectStatus(collapseName)
-        },
-        on: {
-          click: e => this.handleShow(e, collapseName)
-        }
-      }, [
-        this.$t('任务状态'),
-        h('i', {
+      return h(
+        'span',
+        {
           class: {
-            'icon-monitor': true,
-            'icon-filter-fill': true
-          }
-        })
-      ]);
+            'dropdown-trigger': true,
+            selected: this.hasSelectStatus(collapseName),
+          },
+          on: {
+            click: e => this.handleShow(e, collapseName),
+          },
+        },
+        [
+          this.$t('任务状态'),
+          h('i', {
+            class: {
+              'icon-monitor': true,
+              'icon-filter-fill': true,
+            },
+          }),
+        ]
+      );
       // (
       //   <span
       //     onClick={(e) => this.handleShow(e, collapseName)}
@@ -503,7 +514,7 @@ export default {
           onHidden: () => {
             status.instance.destroy();
             status.instance = null;
-          }
+          },
         });
       }
       status.instance?.show(100);
@@ -522,8 +533,9 @@ export default {
       this.filterHeader[collapseName].instance.hide(100);
       const status = this.filterHeader[collapseName].list.filter(item => item.value).map(item => item.value);
       if (status && status.length === 1) {
-        // eslint-disable-next-line vue/max-len
-        this.table.tableData[collapseName] = this.table.list.filter(item => item.type === collapseName && item.status === status[0]);
+        this.table.tableData[collapseName] = this.table.list.filter(
+          item => item.type === collapseName && item.status === status[0]
+        );
       } else {
         this.table.tableData[collapseName] = this.table.list.filter(item => item.type === collapseName);
       }
@@ -533,12 +545,12 @@ export default {
      * 状态列重置事件
      */
     handleResetSelected() {
-      this.filterHeader[this.currentStatus].list.forEach((item) => {
+      this.filterHeader[this.currentStatus].list.forEach(item => {
         item.value = '';
       });
       this.handleStatusChange();
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

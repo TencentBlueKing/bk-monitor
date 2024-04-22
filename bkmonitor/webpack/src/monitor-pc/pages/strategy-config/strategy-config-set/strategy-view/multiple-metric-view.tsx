@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
 import { DEFAULT_INTERVAL } from 'monitor-ui/chart-plugins/constants';
@@ -170,9 +171,9 @@ export default class MultipleMetricView extends tsc<IProps> {
             class='panel-item'
           >
             <ChartWrapper
-              panel={panel}
               needCheck={false}
               needHoverStryle={false}
+              panel={panel}
             ></ChartWrapper>
           </div>
         ))}

@@ -27,7 +27,6 @@ import { padIPv6 } from 'monitor-common/utils/ip-utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { ICommonTableProps } from '../monitor-k8s/components/common-table';
-
 import { IData as IGroupData, ITaskItem as IGroupDataTaskItem } from './components/group-card';
 import { IData as ITaskCardData } from './components/task-card';
 
@@ -52,7 +51,7 @@ export interface IDragStatus {
 // 任务组命名校验
 export const groupNameValidate = (
   targetStr: string,
-  allName: string[],
+  allName: string[]
 ): {
   validate: boolean;
   message: string;
@@ -70,7 +69,7 @@ export const groupNameValidate = (
   if (/["/[\]':;|=,+*?<>{}.\\]+/g.test(targetStr)) {
     validateStatus.validate = true;
     validateStatus.message = `${window.i18n.t(
-      '不允许包含如下特殊字符：',
+      '不允许包含如下特殊字符：'
     )} " / \\ [ ]' : ; | = , + * ? < > { } ${window.i18n.t('空格')}`;
     return validateStatus;
   }
@@ -181,7 +180,7 @@ export const tableAvailableProcessColor = (available: number, status: string) =>
 };
 
 // 任务卡片平均响应时长及可用率数字颜色
-export const filterTaskAlarmColor = (num: number | null, isAlarm: boolean) => {
+export const filterTaskAlarmColor = (num: null | number, isAlarm: boolean) => {
   if (isAlarm) {
     return '#ea3436';
   }
@@ -258,11 +257,11 @@ export const taskTableDataInit = (
     count: tasks.length,
     current: 1,
     limit: 10,
-  },
+  }
 ): ITaskTableData => ({
   ...taskCommonTableProps,
   data: taskDataToTableData(
-    tasks.slice((pagination.current - 1) * pagination.limit, pagination.current * pagination.limit),
+    tasks.slice((pagination.current - 1) * pagination.limit, pagination.current * pagination.limit)
   ),
   pagination,
 });
@@ -344,11 +343,11 @@ export const nodesToTableDataInit = (
     count: nodes.length,
     current: 1,
     limit: 10,
-  },
+  }
 ): INodesTableData => ({
   ...nodesCommonTableProps,
   data: nodesToTableData(
-    nodes.slice((pagination.current - 1) * pagination.limit, pagination.current * pagination.limit),
+    nodes.slice((pagination.current - 1) * pagination.limit, pagination.current * pagination.limit)
   ),
   pagination,
 });

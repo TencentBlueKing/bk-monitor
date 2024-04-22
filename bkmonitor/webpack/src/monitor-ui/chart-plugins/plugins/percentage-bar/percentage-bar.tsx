@@ -25,6 +25,7 @@
  */
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
@@ -42,7 +43,7 @@ interface ILineEchartProps {
   panel: PanelModel;
 }
 
-type TableFontClassType = 'font-normal' | 'font-middle' | 'font-large';
+type TableFontClassType = 'font-large' | 'font-middle' | 'font-normal';
 
 @Component
 class PercentageBarChart extends CommonSimpleChart {
@@ -127,7 +128,7 @@ class PercentageBarChart extends CommonSimpleChart {
               }),
               ...params,
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(res => {
             series = res.data || [];
@@ -138,7 +139,7 @@ class PercentageBarChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res && series.length) {
@@ -252,19 +253,19 @@ class PercentageBarChart extends CommonSimpleChart {
         <ChartHeader
           ref='chartHeaderRef'
           class='draggable-handle'
-          title={this.panel.title}
-          subtitle={this.panel.subTitle || ''}
-          showMore={false}
           draging={this.panel.draging}
-          metrics={this.metrics}
           isInstant={this.panel.instant}
+          metrics={this.metrics}
+          showMore={false}
+          subtitle={this.panel.subTitle || ''}
+          title={this.panel.title}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         {!this.empty ? (
           <div class='avr-chart-main'>
             <table
-              class={['avr-chart-table', this.tableClass]}
               ref='tableRef'
+              class={['avr-chart-table', this.tableClass]}
             >
               {this.inited &&
                 this.chartDataList.map((item, index) => (
@@ -285,8 +286,8 @@ class PercentageBarChart extends CommonSimpleChart {
                         </div>
                         <div class='progress-bar'>
                           <div
-                            class='progress-inner'
                             style={`width: ${this.handleProgressUsage(item.usage)}%;`}
+                            class='progress-inner'
                           ></div>
                         </div>
                       </div>

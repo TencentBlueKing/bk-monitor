@@ -48,7 +48,7 @@ export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6
             ip: 'ip' in item ? item.ip : item.bk_target_ip,
             cloud_id: 'bk_cloud_id' in item ? item.bk_cloud_id : item.bk_target_cloud_id,
             cloud_area: { id: 'bk_cloud_id' in item ? item.bk_cloud_id : item.bk_target_cloud_id },
-          }),
+          })
         ),
       };
     case 'TOPO':

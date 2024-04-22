@@ -30,10 +30,10 @@ export interface ITagItem {
 }
 export interface IFilterItem {
   text: string;
-  value: string | number;
+  value: number | string;
 }
 export interface IFilterDict {
-  [key: string]: (string | number)[];
+  [key: string]: (number | string)[];
 }
 export interface IPermission {
   [key: string]: boolean;
@@ -52,7 +52,7 @@ export interface ILinkItem {
   syncTime?: boolean; // 同步时间跳转
 }
 // self 为内部框架跳转  blank为新开窗口跳转 event 触发本地事件
-export type LinkItemTarget = 'self' | 'blank' | 'event' | 'null_event';
+export type LinkItemTarget = 'blank' | 'event' | 'null_event' | 'self';
 export interface IProgressItem {
   value: number; // 0-100
   label: string; // title
@@ -85,36 +85,36 @@ export interface IRelationItem {
 export type TableRow = Record<string, ITableItem<TableColumnType>>;
 // 字段数据类型
 export type TableColumnType =
-  | 'string'
-  | 'number'
-  | 'time'
-  | 'list'
-  | 'id'
-  | 'tag'
-  | 'link'
-  | 'kv'
-  | 'status'
-  | 'progress'
-  | 'scoped_slots'
   | 'collect'
+  | 'id'
+  | 'kv'
+  | 'link'
   | 'link_list'
-  | 'relation'
+  | 'list'
   | 'more_operate'
+  | 'number'
   | 'permission'
-  | 'stack_link';
+  | 'progress'
+  | 'relation'
+  | 'scoped_slots'
+  | 'stack_link'
+  | 'status'
+  | 'string'
+  | 'tag'
+  | 'time';
 // 表格数据每一个字段的数据类型
 export type ITableItem<T extends TableColumnType> = Pick<ITableItemMap, T>[T];
 export interface ITableItemMap {
   // 字符串类型
   string: { text: string; type: string; icon?: string };
   // number类型
-  number: number | { value: number; unit: string; color?: string };
+  number: { value: number; unit: string; color?: string } | number;
   // 时间
-  time: string | number;
+  time: number | string;
   // 列表
   list: string[];
   // id
-  id: string | number;
+  id: number | string;
   // 标签
   tag: string[];
   // key - value 类型
@@ -145,21 +145,21 @@ export interface ITableItemMap {
 }
 /** 正常 | 异常 | 成功状态 | 失败状态 | 禁用状态 | 等待*/
 export type ITableItemStatus =
-  | 'normal'
-  | 'warning'
-  | 'success'
-  | 'failed'
-  | 'disabled'
-  | 'waiting'
-  | 'stoped'
   | 'NODATA'
-  | 'SUCCESS';
+  | 'SUCCESS'
+  | 'disabled'
+  | 'failed'
+  | 'normal'
+  | 'stoped'
+  | 'success'
+  | 'waiting'
+  | 'warning';
 
 /** 表格过滤条件 */
 export interface ITableFilterItem {
   id: string;
   status?: ITableItemStatus;
-  name: string | number;
+  name: number | string;
   icon?: string;
   tips?: string; // tooltips
 }
@@ -175,7 +175,7 @@ export interface ITableColumn {
   // 字段名称
   name: string;
   // 是否可以排序
-  sortable?: boolean | 'custom';
+  sortable?: 'custom' | boolean;
   // 是否伸缩大小
   resizable?: boolean;
   // 是否固定列 left | right
@@ -198,7 +198,7 @@ export interface ITableColumn {
   // 过滤数据选项
   filter_list?: IFilterItem[];
   // 选中的数据过滤项
-  filter_value?: (string | number)[];
+  filter_value?: (number | string)[];
   // 当前列 权限
   actionId?: string;
   // 头部icon
@@ -243,8 +243,8 @@ export interface ITablePagination {
   showTotalCount?: boolean;
 }
 // 表格排序类型
-export type ColumnSort = 'ascending' | 'descending' | 'custom';
+export type ColumnSort = 'ascending' | 'custom' | 'descending';
 // 表格大小设置类型
-export type TableSizeType = 'small' | 'medium' | 'large';
+export type TableSizeType = 'large' | 'medium' | 'small';
 // 表格分页类型
-export type TablePaginationType = 'simple' | 'normal';
+export type TablePaginationType = 'normal' | 'simple';

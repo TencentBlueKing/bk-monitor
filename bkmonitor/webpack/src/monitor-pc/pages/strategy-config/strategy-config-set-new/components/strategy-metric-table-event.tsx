@@ -30,6 +30,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { throttle } from 'throttle-debounce';
 
 import { TMode } from './strategy-metric-wrap';
@@ -149,10 +150,10 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
       <div class='strategy-metric-table-event'>
         <bk-table
           ref='metricTable'
-          outer-border={false}
           height={397}
-          max-height={397}
           data={this.data || []}
+          max-height={397}
+          outer-border={false}
         >
           <bk-table-column
             width={48}
@@ -163,18 +164,18 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
             if (this.mode === 'log' && this.type === 'bk_log_search' && item.key === 'scenario_name') {
               return (
                 <bk-table-column
+                  width={item.width}
                   label={item.label}
                   prop={item.prop}
-                  width={item.width}
                   scopedSlots={scopedSlotsLog}
                 ></bk-table-column>
               );
             }
             return (
               <bk-table-column
+                width={item.width}
                 label={item.label}
                 prop={item.prop}
-                width={item.width}
               ></bk-table-column>
             );
           })}

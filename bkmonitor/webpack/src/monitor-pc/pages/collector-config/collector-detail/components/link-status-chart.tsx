@@ -26,6 +26,7 @@
 
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import { MonitorEchartOptions, MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -37,7 +38,7 @@ import './link-status-chart.scss';
 
 interface LinkStatusChartProps {
   timeRange?: TimeRangeType;
-  type: 'minute' | 'hour';
+  type: 'hour' | 'minute';
   data: [number, number][];
   getChartData: () => any;
 }
@@ -194,10 +195,10 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
           <div class='chart-label'>{this.type === 'minute' ? this.$tc('分钟数据量') : this.$tc('小时数据量')}</div>
           <div class='chart-tools'>
             <TimeRange
-              value={this.timeRange}
-              onChange={val => this.handleTimeRange(val)}
               commonUseList={this.defaultShortcuts}
               needTimezone={false}
+              value={this.timeRange}
+              onChange={val => this.handleTimeRange(val)}
             ></TimeRange>
             <span class='operate'>
               <i

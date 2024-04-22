@@ -241,7 +241,7 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
               item =>
                 item.metric_field_name.indexOf(search) >= 0 ||
                 item.metric_field.indexOf(search) >= 0 ||
-                item.metric_id.toString().indexOf(search) >= 0,
+                item.metric_id.toString().indexOf(search) >= 0
             )
             .map(item => new MetricDetail(item));
         }
@@ -255,8 +255,8 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
   render() {
     return (
       <span
-        class={['aiops-monitor-metric-select-component', { 'show-all': this.showAll }]}
         id={this.selectTargetId}
+        class={['aiops-monitor-metric-select-component', { 'show-all': this.showAll }]}
         onClick={this.handleClick}
       >
         <div class='tag-select-wrap'>
@@ -279,16 +279,16 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
           onClick={e => this.handleClearAll(e)}
         ></div>
         <MetricSelector
+          defaultScenario={this.defaultScenario}
+          getMetricData={this.getMetricData}
+          metricIds={this.localValue}
+          multiple={true}
+          scenarioList={this.scenarioList}
           show={this.showSelector}
           targetId={`#${this.selectTargetId}`}
           type={MetricType.TimeSeries}
-          scenarioList={this.scenarioList}
-          getMetricData={this.getMetricData}
-          multiple={true}
-          metricIds={this.localValue}
-          defaultScenario={this.defaultScenario}
-          onShowChange={val => this.handleShowSelector(val)}
           onChecked={val => this.handleChecked(val)}
+          onShowChange={val => this.handleShowSelector(val)}
         ></MetricSelector>
       </span>
     );

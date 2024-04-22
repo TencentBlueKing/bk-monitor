@@ -74,8 +74,8 @@ export default class AiopsTabtitle extends tsc<IProps> {
     return (
       <div class='aiops-tab-title'>
         <div
-          class={['aiops-tab-title-item', { 'aiops-tab-title-active': this.active === ETabNames.dimension }]}
           style={{ borderRightWidth: this.showMetricRecommendation ? '1px' : '0px' }}
+          class={['aiops-tab-title-item', { 'aiops-tab-title-active': this.active === ETabNames.dimension }]}
           onClick={this.handleActive.bind(this, 'dimension')}
         >
           <span class='aiops-tab-title-icon'>
@@ -113,8 +113,8 @@ export default class AiopsTabtitle extends tsc<IProps> {
                     {isExitDimensionInfo ? ',' : ''}
                   </span>,
                   <span
-                    class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
                     style='marginLeft: 6px'
+                    class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
                   >
                     {this.$t('异常维度值')}
                     <font> {this.dimensionInfo.anomaly_dimension_value_count}</font>
@@ -163,8 +163,8 @@ export default class AiopsTabtitle extends tsc<IProps> {
                   {isExitIndexInfo ? ',' : ''}
                 </span>
                 <span
-                  class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
                   style='marginLeft: 6px'
+                  class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
                 >
                   <i18n path='{0} 个维度'>
                     <font>{this.indexInfo.recommended_metric_count || 0} </font>

@@ -25,6 +25,7 @@
  */
 import { defineComponent, getCurrentInstance, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import { createMetricTitleTooltips } from '../../utils';
@@ -153,7 +154,7 @@ export default defineComponent({
             needTips: true,
           }));
         }
-      },
+      }
     );
     function handleMenuClick(item: IMenuItem) {
       emit('select', item);
@@ -228,8 +229,8 @@ export default defineComponent({
            */
           const menuItemTpl = (
             <li
-              class='chart-menu-item'
               key={item.id}
+              class='chart-menu-item'
               onClick={() => this.handleMenuClick(item)}
             >
               <i
@@ -239,13 +240,13 @@ export default defineComponent({
               {!!item.children?.length && item.hasLink && (
                 <bk-popover
                   ref={`${item.id}-popover`}
+                  animation='slide-toggle'
+                  arrow={false}
+                  disabled={item.children.length < 2}
+                  distance={12}
+                  offset={-1}
                   placement='bottom-start'
                   theme='light cycle-list-wrapper child-list-popover'
-                  animation='slide-toggle'
-                  disabled={item.children.length < 2}
-                  arrow={false}
-                  offset={-1}
-                  distance={12}
                 >
                   <span class='menu-item-trigger'>{this.handleGetItemName(item.children, item.childValue!)}</span>
                   {childTpl(item)}
@@ -258,16 +259,16 @@ export default defineComponent({
           if (item.children?.length && !item.hasLink) {
             return (
               <Popover
-                class='chart-menu-item-more'
                 ref={`${item.id}-popover`}
-                placement='right-start'
-                theme='light cycle-list-wrapper child-list-popover more'
-                arrow={false}
-                offset={-1}
+                class='chart-menu-item-more'
                 v-slots={{
                   default: () => menuItemTpl,
                   content: () => childTpl(item),
                 }}
+                arrow={false}
+                offset={-1}
+                placement='right-start'
+                theme='light cycle-list-wrapper child-list-popover more'
               ></Popover>
             );
           }

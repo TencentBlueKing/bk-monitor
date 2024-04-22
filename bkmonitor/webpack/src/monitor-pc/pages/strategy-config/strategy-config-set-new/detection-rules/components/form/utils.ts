@@ -25,21 +25,20 @@
  */
 
 import { IItem } from '../threshold/threshold-select';
-
 import { BoundType } from './alarm-threshold-select';
 
 type FormItemType =
-  | 'select'
-  | 'number'
-  | 'string'
-  | 'thresholds'
-  | 'model-select'
-  | 'switch'
-  | 'input-unit'
-  | 'tag-input'
-  | 'range'
+  | 'ai-level'
   | 'alarm-thresholds'
-  | 'ai-level';
+  | 'input-unit'
+  | 'model-select'
+  | 'number'
+  | 'range'
+  | 'select'
+  | 'string'
+  | 'switch'
+  | 'tag-input'
+  | 'thresholds';
 
 export interface ISelectOptionItem {
   id: string;
@@ -55,14 +54,14 @@ export interface IUnitOptionItem {
 type IBehavior = 'normal' | 'simplicity';
 
 export enum EFormItemValueType {
-  string = 'string',
-  number = 'number',
   array = 'array',
+  number = 'number',
+  string = 'string',
 }
 
-type TValueType = EFormItemValueType.number | EFormItemValueType.string | EFormItemValueType.array;
+type TValueType = EFormItemValueType.array | EFormItemValueType.number | EFormItemValueType.string;
 
-type errorDisplayType = 'tooltips' | 'normal';
+type errorDisplayType = 'normal' | 'tooltips';
 
 export interface IFormDataItem {
   label: string;
@@ -95,71 +94,6 @@ export interface IFormDataItem {
 }
 /** 时序预测表单组件数据结构 */
 export class FormItem {
-  label = ''; // 表单label
-  field = ''; // 提交字段
-  value: any = ''; // 值
-  default?: any = ''; // 默认值
-  type: FormItemType = 'string'; // 表单组件类型
-  options: ISelectOptionItem[] = []; // 下拉可选项数据
-  min?: number; // 最小值
-  max?: number; // 最大值
-  unit?: string; // 阈值单位
-  methodList?: IItem[]; // 阈值方法列表
-  behavior?: IBehavior; // 组件的样式模式
-  required?: boolean; // 是否必选
-  onChange?: (item: FormItem) => void; /** 组件值更新回调 */
-  placeholder?: string; // 提示
-  disabled?: boolean; // 禁用
-  multiple?: boolean; // 是否可以多选
-  valueType?: TValueType; // 接口所需类型
-  clearable?: boolean; // 是否可清除
-  hoverOptionId?: string = null; // hover选项的id
-  width?: number; // 组件宽度
-  unitOption?: IUnitOptionItem[]; // 单位可选值
-  unitId?: number; // 单位换倍数
-  description?: string; // 表单描述
-  boundType?: BoundType; // 告警阈值类型
-  errorDisplayType?: errorDisplayType; // 表单项错误提示的方式
-  isAdvanced?: boolean; // 是否隐藏参数组件，但是要提交默认值给后台
-  separator?: string; // 多选的分隔符
-
-  constructor(data: IFormDataItem) {
-    if (!!data) {
-      this.label = data.label ?? '';
-      this.field = data.field ?? '';
-      this.value = data.value ?? '';
-      this.default = data.default;
-      this.type = data.type ?? 'string';
-      this.options = data.options ?? [];
-      this.min = data.min;
-      this.max = data.max;
-      this.unit = data.unit ?? '';
-      this.methodList = data.methodList;
-      this.behavior = data.behavior ?? 'normal';
-      this.required = data.required ?? false;
-      this.onChange = data.onChange;
-      this.placeholder = data.placeholder;
-      this.disabled = data.disabled;
-      this.multiple = data.multiple;
-      this.valueType = data.valueType;
-      this.clearable = data.clearable ?? true;
-      this.width = data.width;
-      this.unitOption = data.unitOption ?? [];
-      this.unitId = data.unitId ?? 1;
-      this.description = data.description ?? '';
-      this.boundType = data.boundType ?? 'middle';
-      this.errorDisplayType = data.errorDisplayType ?? 'normal';
-      this.isAdvanced = data.isAdvanced ?? false;
-      this.separator = data.separator ?? '';
-    }
-  }
-  /**
-   * 根据模型接口数据生成表单所需数据
-   * @param data 接口数据
-   * @param valueDisplay 回填的value值
-   * @returns Array<bk-form-item>
-   */
-  // eslint-disable-next-line @typescript-eslint/member-ordering
   static createFormItemData(data, valueDisplay?: Record<string, any>) {
     const { args } = data;
     const formItemList: FormItem[] = args.map(item => {
@@ -207,14 +141,8 @@ export class FormItem {
       return new FormItem(res);
     });
     return formItemList;
-  }
-  /**
-   * 根据模型参数接口的所需类型进行转换
-   * @param valueType 数据所需类型
-   * @param value 值
-   * @returns 转换后的值
-   */
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+  } // 表单label
+
   static handleValueType(item: FormItem) {
     const { valueType, value } = item;
     const localValue = value;
@@ -227,6 +155,76 @@ export class FormItem {
         return Array.isArray(localValue) ? localValue : [];
       default:
         return localValue;
+    }
+  } // 提交字段
+  behavior?: IBehavior; // 值
+  boundType?: BoundType; // 默认值
+  clearable?: boolean; // 表单组件类型
+  default?: any = ''; // 下拉可选项数据
+  description?: string; // 最小值
+  disabled?: boolean; // 最大值
+  errorDisplayType?: errorDisplayType; // 阈值单位
+  field = ''; // 阈值方法列表
+  hoverOptionId?: string = null; // 组件的样式模式
+  isAdvanced?: boolean; // 是否必选
+  label = ''; /** 组件值更新回调 */
+  max?: number; // 提示
+  methodList?: IItem[]; // 禁用
+  min?: number; // 是否可以多选
+  multiple?: boolean; // 接口所需类型
+  onChange?: (item: FormItem) => void; // 是否可清除
+  options: ISelectOptionItem[] = []; // hover选项的id
+  placeholder?: string; // 组件宽度
+  required?: boolean; // 单位可选值
+  separator?: string; // 单位换倍数
+  type: FormItemType = 'string'; // 表单描述
+  unit?: string; // 告警阈值类型
+  unitId?: number; // 表单项错误提示的方式
+  unitOption?: IUnitOptionItem[]; // 是否隐藏参数组件，但是要提交默认值给后台
+  value: any = ''; // 多选的分隔符
+
+  valueType?: TValueType;
+  /**
+   * 根据模型接口数据生成表单所需数据
+   * @param data 接口数据
+   * @param valueDisplay 回填的value值
+   * @returns Array<bk-form-item>
+   */
+  width?: number;
+  /**
+   * 根据模型参数接口的所需类型进行转换
+   * @param valueType 数据所需类型
+   * @param value 值
+   * @returns 转换后的值
+   */
+  constructor(data: IFormDataItem) {
+    if (!!data) {
+      this.label = data.label ?? '';
+      this.field = data.field ?? '';
+      this.value = data.value ?? '';
+      this.default = data.default;
+      this.type = data.type ?? 'string';
+      this.options = data.options ?? [];
+      this.min = data.min;
+      this.max = data.max;
+      this.unit = data.unit ?? '';
+      this.methodList = data.methodList;
+      this.behavior = data.behavior ?? 'normal';
+      this.required = data.required ?? false;
+      this.onChange = data.onChange;
+      this.placeholder = data.placeholder;
+      this.disabled = data.disabled;
+      this.multiple = data.multiple;
+      this.valueType = data.valueType;
+      this.clearable = data.clearable ?? true;
+      this.width = data.width;
+      this.unitOption = data.unitOption ?? [];
+      this.unitId = data.unitId ?? 1;
+      this.description = data.description ?? '';
+      this.boundType = data.boundType ?? 'middle';
+      this.errorDisplayType = data.errorDisplayType ?? 'normal';
+      this.isAdvanced = data.isAdvanced ?? false;
+      this.separator = data.separator ?? '';
     }
   }
 }

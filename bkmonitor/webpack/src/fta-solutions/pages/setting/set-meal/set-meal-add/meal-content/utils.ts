@@ -79,7 +79,7 @@ export const variableJsonVerify = async (pluginId, jsonData) =>
         ],
         is_demo: true,
       },
-      { needMessage: false },
+      { needMessage: false }
     )
       .then(() => {
         resolve(true);

@@ -26,6 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
@@ -78,7 +79,7 @@ class RelatedLogChart extends CommonSimpleChart {
   /** 关联是否为蓝鲸日志平台 */
   isBkLog = true;
   /** alert提示文字 */
-  alertText: string | TranslateResult = '';
+  alertText: TranslateResult | string = '';
   /** 第三方日志 */
   thirdPartyLog = '';
   /** 搜索关键字 */
@@ -94,7 +95,7 @@ class RelatedLogChart extends CommonSimpleChart {
     arrayMerge: (_, srcArr) => srcArr,
   });
   /** 汇聚周期 */
-  chartInterval: number | 'auto' = 'auto';
+  chartInterval: 'auto' | number = 'auto';
   /** 汇聚周期选项 */
   intervalList = [
     { id: 'auto', name: 'auto' },
@@ -216,7 +217,7 @@ class RelatedLogChart extends CommonSimpleChart {
                   ...this.viewOptions,
                 },
               },
-              { needMessage: false },
+              { needMessage: false }
             )
             .then(res => {
               if (res.series?.[0].datapoints?.length) {
@@ -241,7 +242,7 @@ class RelatedLogChart extends CommonSimpleChart {
             })
             .finally(() => {
               this.handleLoadingChange(false);
-            }),
+            })
         );
       this.clearErrorMsg();
     } catch (error) {
@@ -303,7 +304,7 @@ class RelatedLogChart extends CommonSimpleChart {
             })
             .finally(() => {
               this.handleLoadingChange(false);
-            }),
+            })
         );
     } catch (e) {}
   }
@@ -428,9 +429,9 @@ class RelatedLogChart extends CommonSimpleChart {
                           <span class='interval-label'>{this.$t('汇聚周期')}</span>
                           <bk-select
                             class='interval-select'
-                            size='small'
                             behavior='simplicity'
                             clearable={false}
+                            size='small'
                             value={this.chartInterval}
                             onChange={this.handleIntervalChange}
                           >
@@ -459,13 +460,13 @@ class RelatedLogChart extends CommonSimpleChart {
                     <div class='monitor-echart-common-content'>
                       {!this.emptyChart ? (
                         <div
-                          class='chart-instance'
                           ref='baseChart'
+                          class='chart-instance'
                         >
                           <BaseEchart
-                            class='base-chart'
-                            height={this.height}
                             width={this.width}
+                            height={this.height}
+                            class='base-chart'
                             options={this.customOptions}
                             onDataZoom={this.dataZoom}
                             onDblClick={this.handleDblClick}
@@ -480,20 +481,20 @@ class RelatedLogChart extends CommonSimpleChart {
                 <div class='query-tool'>
                   <bk-select
                     class='table-search-select'
-                    v-model={this.relatedIndexSetId}
-                    clearable={false}
-                    onSelected={v => this.handleSelectIndexSet(v)}
                     v-bk-tooltips={{
                       content: this.selectedOptionAlias,
                       theme: 'light',
                       placement: 'top-start',
                       allowHTML: false,
                     }}
+                    v-model={this.relatedIndexSetId}
+                    clearable={false}
+                    onSelected={v => this.handleSelectIndexSet(v)}
                   >
                     {this.relatedIndexSetList.map(option => (
                       <bk-option
-                        key={option.index_set_id}
                         id={option.index_set_id}
+                        key={option.index_set_id}
                         name={option.index_set_name}
                       ></bk-option>
                     ))}
@@ -501,8 +502,8 @@ class RelatedLogChart extends CommonSimpleChart {
                   <bk-input
                     class='table-search-input'
                     vModel={this.keyword}
-                    onEnter={this.handleSearchChange}
                     onClear={() => this.handleSearchChange('')}
+                    onEnter={this.handleSearchChange}
                   />
                   <bk-button
                     theme='primary'
@@ -514,15 +515,15 @@ class RelatedLogChart extends CommonSimpleChart {
                 {this.columns.length ? (
                   <CommonTable
                     key={this.tableRenderKey}
+                    height='100%'
                     class='related-log-table'
                     checkable={false}
-                    height='100%'
-                    hasColnumSetting={false}
-                    showExpand={true}
-                    data={this.tableData}
                     columns={this.columns}
+                    data={this.tableData}
+                    hasColnumSetting={false}
                     jsonViewerDataKey='source'
                     pagination={null}
+                    showExpand={true}
                     onScrollEnd={this.handleScrollEnd}
                   />
                 ) : (

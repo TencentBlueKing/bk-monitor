@@ -25,6 +25,7 @@
  */
 import { Component, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
@@ -58,11 +59,11 @@ interface IProps {
 
 @Component
 export default class AiopsDimensionPoint extends tsc<IProps> {
-  @Ref() baseChart: any;
+  @Ref() baseChart: InstanceType<typeof BaseEchart>;
 
   @Prop({ type: Array, default: () => [] }) chartData: IChartDataItem[];
   @Prop({ type: Object, default: () => {} }) info: IInfo;
-  @Inject('reportEventLog') reportEventLog: Function;
+  @Inject('reportEventLog') reportEventLog: (arg: any) => void;
   /** tips 是否初始化事件 */
   initTipsEvent = false;
   /** tips 参数 */
@@ -220,7 +221,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
   }
   /** 取消数据点高亮 */
   handleDownplay(params = this.tipsParams) {
-    const { instance } = this.$refs.baseChart;
+    const { instance } = this.baseChart;
     this.highlightName = '';
     instance.dispatchAction({ type: 'downplay', name: params.name });
     instance.dispatchAction({ type: 'downplay', name: params.name.replace('_cursor', '') });
@@ -231,7 +232,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
       return;
     }
     this.highlightName = params.name;
-    const { instance } = this.$refs.baseChart;
+    const { instance } = this.baseChart;
     instance.dispatchAction({ type: 'highlight', name: params.name });
     instance.dispatchAction({ type: 'highlight', name: params.name.replace('_cursor', '') });
   }
@@ -361,12 +362,12 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
       <div class='aiops-dimension-line'>
         {this.chartData.length > 0 && (
           <BaseEchart
-            style='width: 320px;height: 40px;'
             ref='baseChart'
+            style='width: 320px;height: 40px;'
             height={40}
-            onMouseout={this.mouseout}
-            onMousemove={this.mouseover}
             options={this.customOptions}
+            onMousemove={this.mouseover}
+            onMouseout={this.mouseout}
           />
         )}
       </div>

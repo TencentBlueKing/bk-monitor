@@ -27,12 +27,12 @@
 import { defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+
 import { Popover, Table } from 'bkui-vue';
 
 import { formatDuration } from '../../../components/trace-view/utils/date';
 import { SPAN_KIND_MAPS } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
-
 import { TraceListType } from './trace-list';
 
 import './service-statistics.scss';
@@ -63,10 +63,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='Service'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>Service</span>
           </Popover>
@@ -109,10 +109,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('服务类型')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('服务类型')}</span>
           </Popover>
@@ -132,10 +132,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('Span数量')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Span数量')}</span>
           </Popover>
@@ -150,10 +150,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('错误数')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('错误数')}</span>
           </Popover>
@@ -168,10 +168,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('错误率')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('错误率')}</span>
           </Popover>
@@ -185,10 +185,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('平均耗时')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('平均耗时')}</span>
           </Popover>
@@ -208,10 +208,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('P90耗时')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('P90耗时')}</span>
           </Popover>
@@ -230,10 +230,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('P50耗时')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('P50耗时')}</span>
           </Popover>
@@ -256,9 +256,9 @@ export default defineComponent({
         render: ({ cell, data }: { cell: Record<string, string>; data: any }) => (
           <div style='display: flex;'>
             <div
+              style='width: 40px;'
               class='link-column'
               onClick={() => handleToTraceQuery(data)}
-              style='width: 40px;'
             >
               <span
                 class='link-text'
@@ -270,9 +270,9 @@ export default defineComponent({
             </div>
 
             <div
+              style='margin-left: 10px;'
               class='link-column'
               onClick={() => handleToObserve(data)}
-              style='margin-left: 10px;'
             >
               <span
                 class='link-text'
@@ -351,10 +351,10 @@ export default defineComponent({
         style='height: 100%'
         height='100%'
         class='service-statistics-table'
-        rowHeight={40}
         border={['outer']}
         columns={tableColumn}
         data={store.serviceStatisticsList}
+        rowHeight={40}
         settings={store.tableSettings.serviceStatistics as any}
         onSettingChange={handleTableSettingChange}
         // TODO：后期确认空数据的设计样式

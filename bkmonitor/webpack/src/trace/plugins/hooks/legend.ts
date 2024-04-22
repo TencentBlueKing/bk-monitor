@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Ref } from 'vue';
+
 import { deepClone } from 'monitor-common/utils/utils';
 import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -33,7 +34,7 @@ import { ILegendItem, LegendActionType } from '../typings';
 export function useChartLegend(
   baseChart: Ref<typeof BaseEchart | undefined>,
   showHeaderMoreTool: Ref<boolean>,
-  legendData: Ref<ILegendItem[]>,
+  legendData: Ref<ILegendItem[]>
 ) {
   function handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
     if (legendData.value.length < 2) {

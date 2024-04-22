@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import {
   createOrUpdateAuthorizer,
@@ -42,25 +43,24 @@ import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import { ISpaceItem } from '../../types';
 import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
-
 import AuthorizationDialog from './authorization-dialog';
 
 import './authorization-list.scss';
 
 const { i18n } = window;
 
-export type AngleType = 'user' | 'resource' | 'approval';
-type StatusType = 'all' | 'invalid' | 'available' | 'approval' | 'expired' | 'success' | 'failed';
+export type AngleType = 'approval' | 'resource' | 'user';
+type StatusType = 'all' | 'approval' | 'available' | 'expired' | 'failed' | 'invalid' | 'success';
 enum TableColumnEnum {
-  authorized_user = 'authorized_user',
   action_id = 'action_id',
-  resources = 'resources',
-  authorizer = 'authorizer',
-  space_name = 'space_name',
-  expire_time = 'expire_time',
-  status = 'status',
-  resource_id = 'resource_id',
+  authorized_user = 'authorized_user',
   authorized_users = 'authorized_users',
+  authorizer = 'authorizer',
+  expire_time = 'expire_time',
+  resource_id = 'resource_id',
+  resources = 'resources',
+  space_name = 'space_name',
+  status = 'status',
 }
 
 interface ColumnItem {
@@ -128,7 +128,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
   searchValue = ''; // 搜索关键字
   angleType: AngleType = 'user'; // 视角类型
   statusActive: StatusType = 'all'; // 状态类型
-  totalListData: (UserListItem | ResourceListItem)[] = []; // 总列表数据
+  totalListData: (ResourceListItem | UserListItem)[] = []; // 总列表数据
   // 列表Columns管理
   tableColumns: { [key in AngleType]: ColumnItem[] } = {
     user: [
@@ -586,7 +586,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                     {row.resources?.map((id, ind) =>
                       ind < 3 || row.isExpand ? (
                         <div class='resource-item'>{this.resourceList.find(item => item.uid === id)?.text}</div>
-                      ) : undefined,
+                      ) : undefined
                     )}
                     {row.resources?.length > 3 && (
                       <p
@@ -637,12 +637,12 @@ export default class AuthorizationList extends tsc<{}, {}> {
   statusPoint(color1: string, color2) {
     return (
       <div
-        class='status-point'
         style={{ background: color2 }}
+        class='status-point'
       >
         <div
-          class='point'
           style={{ background: color1 }}
+          class='point'
         ></div>
       </div>
     );
@@ -717,11 +717,11 @@ export default class AuthorizationList extends tsc<{}, {}> {
           >
             <p class='page-title'>{this.$t('route-外部授权列表')}</p>
             <BizSelect
-              value={+this.bizId}
               bizList={this.bizIdList}
-              theme='light'
               isShowCommon={false}
               minWidth={310}
+              theme='light'
+              value={+this.bizId}
               onChange={this.handleBizChange}
             />
           </div>
@@ -729,10 +729,10 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
         <div class='page-content'>
           <bk-alert
-            type='error'
             title={this.$t(
-              '需遵循公司规范，禁止对外暴露用户或公司内部敏感信息（用户PII信息、账号密码、云AKSK、内部系统鉴权/Token、保密文档等），若因授权不当造成数据泄露须承担相应责任; ',
+              '需遵循公司规范，禁止对外暴露用户或公司内部敏感信息（用户PII信息、账号密码、云AKSK、内部系统鉴权/Token、保密文档等），若因授权不当造成数据泄露须承担相应责任; '
             )}
+            type='error'
           />
 
           <div class='authorization-header'>
@@ -752,16 +752,16 @@ export default class AuthorizationList extends tsc<{}, {}> {
                 </bk-select>
                 <bk-button
                   class='member-btn'
-                  text
                   title='primary'
+                  text
                   onClick={this.createOrUpdateAuthUser}
                 >
                   {this.$t('确定')}
                 </bk-button>
                 <bk-button
                   class='member-btn'
-                  text
                   title='primary'
+                  text
                   onClick={() => (this.isEditMember = false)}
                 >
                   {this.$t('取消')}
@@ -796,10 +796,10 @@ export default class AuthorizationList extends tsc<{}, {}> {
                 {
                   <bk-button
                     class='auth-btn'
+                    disabled={!this.memberSelect}
+                    icon='plus'
                     theme='primary'
                     type='submit'
-                    icon='plus'
-                    disabled={!this.memberSelect}
                     onClick={() => this.showDialog()}
                   >
                     {this.$t('添加授权')}
@@ -831,6 +831,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                 <div class='status-list'>
                   {this.currentStatus.map((item, index) => (
                     <div
+                      key={item.id}
                       class={[
                         'status-list-item',
                         { active: this.statusActive === item.id },
@@ -839,7 +840,6 @@ export default class AuthorizationList extends tsc<{}, {}> {
                             this.statusActive === item.id || this.currentStatus[index + 1]?.id === this.statusActive,
                         },
                       ]}
-                      key={item.id}
                       onClick={() => this.handleStatusChange(item.id)}
                     >
                       {index !== 0 && this.statusPoint(item.color1, item.color2)}
@@ -849,37 +849,36 @@ export default class AuthorizationList extends tsc<{}, {}> {
                 </div>
 
                 <bk-input
-                  value={this.searchValue}
-                  onInput={this.handleSearchBlur}
                   class='search-input'
                   right-icon='bk-icon icon-search'
+                  value={this.searchValue}
+                  onInput={this.handleSearchBlur}
                 ></bk-input>
               </div>
             </div>
 
             <div class='table-wrapper'>
               <bk-table
+                key={this.angleType}
                 v-bkloading={{ isLoading: this.loading }}
-                row-auto-height
                 data={this.listData}
                 pagination={this.pagination}
-                key={this.angleType}
+                size='large'
+                row-auto-height
                 on-page-change={this.handlePageChange}
                 on-page-limit-change={this.handlePageLimitChange}
-                size='large'
               >
                 <bk-table-column
-                  label='ID'
                   width={105}
                   scopedSlots={{
                     default: ({ $index }) => (
                       <div>{(this.pagination.current - 1) * this.pagination.limit + $index + 1}</div>
                     ),
                   }}
+                  label='ID'
                 />
                 {this.currentColumns.map(column => this.renderColumn(column))}
                 <bk-table-column
-                  label={this.$t('操作')}
                   width={140}
                   scopedSlots={{
                     default: ({ row }) => (
@@ -894,8 +893,8 @@ export default class AuthorizationList extends tsc<{}, {}> {
                         ) : (
                           [
                             <bk-button
-                              text
                               style='margin-right: 16px'
+                              text
                               onClick={() => this.showDialog(row)}
                             >
                               {this.$t('编辑')}
@@ -911,13 +910,14 @@ export default class AuthorizationList extends tsc<{}, {}> {
                       </div>
                     ),
                   }}
+                  label={this.$t('操作')}
                 />
                 <bk-table-column type='setting'>
                   <bk-table-setting-content
                     fields={this.tableColumns[this.angleType].filter(item => !item.authHidden)}
-                    value-key='prop'
                     label-key='name'
                     selected={this.currentColumns}
+                    value-key='prop'
                     on-setting-change={this.handleSettingChange}
                   ></bk-table-setting-content>
                 </bk-table-column>
@@ -934,10 +934,10 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
         <AuthorizationDialog
           v-model={this.visible}
-          rowData={this.rowData}
           authorizer={this.memberSelect}
-          viewType={this.angleType}
           bizId={this.bizId}
+          rowData={this.rowData}
+          viewType={this.angleType}
           onSuccess={this.handleSuccess}
         />
       </div>

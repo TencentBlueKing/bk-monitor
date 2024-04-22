@@ -25,8 +25,8 @@
  */
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-property-decorator';
+
 import { random } from 'monitor-common/utils/utils';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonAlert from 'monitor-pc/pages/monitor-k8s/components/common-alert';
@@ -39,9 +39,10 @@ import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import applicationStore from '../../store/modules/application';
 import AppAddForm from '../home/app-add-form';
-
 import * as authorityMap from './../home/authority-map';
 import NoDataGuide from './app-add/no-data-guide';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './application.scss';
 
@@ -84,7 +85,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   isReady = false;
   /** 当前tab */
   tabId = '';
-  tabName: string | TranslateResult = '';
+  tabName: TranslateResult | string = '';
   /** 定位详情文案 */
   subName = '';
   // menu list
@@ -226,32 +227,32 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
         {
           <CommonPage
             ref='commonPageRef'
+            backToOverviewKey={this.backToOverviewKey}
+            defaultViewOptions={this.viewOptions}
+            isShowSplitPanel={false}
             sceneId={'apm_application'}
             sceneType={'overview'}
-            isShowSplitPanel={false}
-            defaultViewOptions={this.viewOptions}
-            backToOverviewKey={this.backToOverviewKey}
             tab2SceneType
+            onSceneTypeChange={this.handleSecendTypeChange}
             onTabChange={this.handleSceneTabChange}
             onTimeRangeChange={this.handelTimeRangeChange}
-            onSceneTypeChange={this.handleSecendTypeChange}
             onTitleChange={this.handleTitleChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={false}
+              needShadow={true}
               positionText={this.positonText}
+              routeList={this.routeList}
+              needCopyLink
             />
             {this.isReady && this.viewHasNoData && (
               <div slot='noData'>
                 <CommonAlert class='no-data-alert'>
                   <div slot='title'>
                     <bk-spin
-                      theme='warning'
                       size='mini'
+                      theme='warning'
                     />
                     {this.$t('当前数据还未加载完成，如数据长时间未加载出来可')}
                     <span
@@ -290,21 +291,21 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           </CommonPage>
         }
         <AppAddForm
-          pluginId={this.pluginId}
           v-model={this.showAddDialog}
+          pluginId={this.pluginId}
         ></AppAddForm>
         <bk-dialog
-          value={this.showGuideDialog}
-          mask-close={true}
-          ext-cls='no-data-guide-dialog'
           width={1280}
+          ext-cls='no-data-guide-dialog'
+          mask-close={true}
           position={{ top: 50 }}
           show-footer={false}
+          value={this.showGuideDialog}
           on-cancel={this.handleCloseGuideDialog}
         >
           <NoDataGuide
-            type='noData'
             appName={this.appInfo?.app_name}
+            type='noData'
           />
         </bk-dialog>
       </div>

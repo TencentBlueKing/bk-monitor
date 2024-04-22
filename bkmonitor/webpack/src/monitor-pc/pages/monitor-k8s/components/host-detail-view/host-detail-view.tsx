@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { copyText, random } from 'monitor-common/utils/utils';
 
@@ -36,7 +37,7 @@ import CommonTagList from '../common-tag-list/common-tag-list';
 
 interface IProps {
   data: IDetailItem[];
-  width: string | number;
+  width: number | string;
 }
 
 interface IEvents {
@@ -46,7 +47,7 @@ interface IEvents {
 interface IStatusData {
   name: string;
   type: string;
-  value: string | IStatusDataSubValue;
+  value: IStatusDataSubValue | string;
 }
 
 interface IStatusDataSubValue {
@@ -69,7 +70,7 @@ const textMapping = {
 export default class HostDetailView extends tsc<IProps, IEvents> {
   @InjectReactive('readonly') readonly readonly: boolean;
   @Prop({ type: Array, default: () => [] }) data: IDetailItem[];
-  @Prop({ type: [String, Number] }) width: string | number;
+  @Prop({ type: [String, Number] }) width: number | string;
   activeCollapseName: [] = [];
   targetStatusName = ['运营状态', '采集状态'];
   targetListName = ['所属模块'];
@@ -112,8 +113,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
       <div id={key}>
         <Collapse
           defaultHeight={110} // 超过五条显示展开按钮
-          maxHeight={300}
           expand={item.isExpand}
+          maxHeight={300}
           needCloseButton={false}
           onExpandChange={val => {
             item.isExpand = val;
@@ -126,9 +127,9 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
             {val.length
               ? val.map((item, index) => [
                   <div
-                    v-bk-overflow-tips
                     key={index}
                     class='list-type-item'
+                    v-bk-overflow-tips
                   >
                     {item}
                   </div>,
@@ -158,8 +159,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
     const key = random(10);
     return (
       <div
-        class='tag-column'
         id={key}
+        class='tag-column'
       >
         {val?.length
           ? val.map((item, index) => (
@@ -169,15 +170,15 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 v-bk-overflow-tips
               >
                 <span
-                  class='tag-item-key'
                   key={`key__${index}`}
+                  class='tag-item-key'
                 >
                   {item.key}
                 </span>
                 &nbsp;:&nbsp;
                 <span
-                  class='tag-item-val'
                   key={`val__${index}`}
+                  class='tag-item-val'
                 >
                   {item.value}
                 </span>
@@ -247,8 +248,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
   statusFormatter(val: ITableItem<'status'>) {
     return (
       <CommonStatus
-        type={val.type}
         text={val.text}
+        type={val.type}
       />
     );
   }
@@ -259,14 +260,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
         {<div>{val.label}</div>}
         <bk-progress
           class={['common-progress-color', `color-${val.status}`]}
-          showText={false}
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
+          showText={false}
         ></bk-progress>
       </div>
     );
   }
   // 常用值格式化
-  commonFormatter(val: IDetailValItem<'string'> | IDetailValItem<'number'>, item: IDetailItem) {
+  commonFormatter(val: IDetailValItem<'number'> | IDetailValItem<'string'>, item: IDetailItem) {
     const text = `${val ?? ''}`;
     return (
       <div class='common-detail-text'>
@@ -421,19 +422,19 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           )}
         </div>
         <bk-collapse
-          v-model={this.activeCollapseName}
           class='detail-collapse-title'
+          v-model={this.activeCollapseName}
         >
           {this.labelListData.map(item => (
             <div>
               <bk-collapse-item
-                name={item.name}
                 hide-arrow={!item?.children?.length}
+                name={item.name}
               >
                 <div
-                  class='panel-item'
-                  style={{ maxWidth: `${this.width}px` }}
                   key={item.name}
+                  style={{ maxWidth: `${this.width}px` }}
+                  class='panel-item'
                 >
                   <span class={['item-title', { 'title-middle': ['progress'].includes(item.type) }]}>{item.name}</span>
                   <span class='item-value'>{this.handleTransformVal(item)}</span>
@@ -445,8 +446,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 </div>
                 {item?.count > 0 && (
                   <div
-                    slot='content'
                     class='detail-collapse-content'
+                    slot='content'
                   >
                     {item?.children?.map?.(child => (
                       <div class='row'>

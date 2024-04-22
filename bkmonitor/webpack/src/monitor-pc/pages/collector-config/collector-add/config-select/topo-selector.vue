@@ -779,7 +779,7 @@ export default {
         nodesMap.forEach(
           item =>
             !res.find(v => v.ip === item.ip && v.bk_cloud_id === item.bk_cloud_id) &&
-            res.push({ ip: item.ip, bk_cloud_id: item.bk_cloud_id, bk_supplier_id: item.bk_supplier_id }),
+            res.push({ ip: item.ip, bk_cloud_id: item.bk_cloud_id, bk_supplier_id: item.bk_supplier_id })
         );
       } else if (type === 'static-ip') {
         // 静态 IP
@@ -793,7 +793,7 @@ export default {
             bk_obj_id: item.bk_obj_id,
             bk_obj_name: item.bk_obj_name,
             bk_biz_id: item.bk_biz_id,
-          }),
+          })
         );
       }
       return res;
@@ -910,7 +910,7 @@ export default {
     findChildren(parent) {
       return parent.children.reduce(
         (prev, cur) => prev.concat(cur.children?.length ? this.findChildren(cur) : cur),
-        [],
+        []
       );
     },
     async getSelectorData(type, checkedData, treeData) {

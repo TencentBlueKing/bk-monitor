@@ -84,8 +84,8 @@ export default class MoreOperate extends tsc<IProps, IEvents> {
         ) : undefined}
         <div style={{ display: 'none' }}>
           <div
-            class='table-more-operate-component-more-items'
             ref='moreItems'
+            class='table-more-operate-component-more-items'
           >
             {this.options.map(item => (
               <span

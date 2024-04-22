@@ -51,8 +51,8 @@ export interface ICommonChartTips {
 }
 
 export interface ICurPoint {
-  xAxis: string | number;
-  yAxis: string | number;
+  xAxis: number | string;
+  yAxis: number | string;
   dataIndex: number;
   color: string;
   name: string;

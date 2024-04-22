@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import './simple-select-input.scss';
@@ -63,7 +64,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
     if (this.value) {
       const isCheck = this.list.some(item => item.name === this.value || item.id === this.value) && this.isSelected;
       return this.list.filter(
-        item => item.name.indexOf(this.value) > -1 || item.id.indexOf(this.value) > -1 || isCheck,
+        item => item.name.indexOf(this.value) > -1 || item.id.indexOf(this.value) > -1 || isCheck
       );
     }
     return this.list;
@@ -116,19 +117,19 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
     return (
       <span class='simple-select-input-component'>
         <span
-          onClick={event => this.handleShowPopover(event)}
           ref='inputWrap'
+          onClick={event => this.handleShowPopover(event)}
         >
           <bk-input
-            class='input-wrap'
-            value={this.value}
             ref='input'
+            class='input-wrap'
             placeholder={this.placeholder}
+            value={this.value}
+            onBlur={this.handleBlur}
             onInput={value => {
               this.handleChange(value);
               this.isSelected = false;
             }}
-            onBlur={this.handleBlur}
           />
         </span>
         <div style={{ display: 'none' }}>

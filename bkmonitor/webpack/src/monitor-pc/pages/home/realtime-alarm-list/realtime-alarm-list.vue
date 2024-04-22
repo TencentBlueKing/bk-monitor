@@ -40,9 +40,9 @@
     <div class="list">
       <ul>
         <li
-          class="item"
           v-for="item in list"
           :key="item.id"
+          class="item"
           @click="item.id && gotoDetailHandle(item.id)"
         >
           <span :class="`icon-${item.level}`">{{ item.level === 1 ? 'C' : item.level === 2 ? 'N' : 'S' }}</span>
@@ -50,13 +50,11 @@
             class="content"
             :title="item.title"
           >
-            <div class="content-content">
-              {{ item.targetKey }} {{ item.title }}
-            </div>
+            <div class="content-content">{{ item.targetKey }} {{ item.title }}</div>
             <svg-icon
+              v-if="item.isRecovered"
               icon-name="check"
               class="checked-icon"
-              v-if="item.isRecovered"
             />
           </div>
           <span class="end">{{ getTimeFromNow(item.beginTime) || '--' }}</span>
@@ -73,19 +71,18 @@ import { gotoPageMixin } from '../../../common/mixins';
 import SvgIcon from '../../../components/svg-icon/svg-icon';
 import PanelCard from '../components/panel-card/panel-card';
 
-
 export default {
   name: 'RealTimeAlarmList',
   components: {
     PanelCard,
-    SvgIcon
+    SvgIcon,
   },
   mixins: [gotoPageMixin],
   props: {
     list: {
       type: Array,
-      required: true
-    }
+      required: true,
+    },
   },
   methods: {
     getTimeFromNow(t) {
@@ -97,19 +94,19 @@ export default {
         query: {
           activeFilterId: 'NOT_SHIELDED_ABNORMAL',
           from: 'now-7d',
-          to: 'now'
-        }
+          to: 'now',
+        },
       });
     },
     gotoDetailHandle(id) {
       this.$router.push({
         name: 'event-center-detail',
         params: {
-          id
-        }
+          id,
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
 

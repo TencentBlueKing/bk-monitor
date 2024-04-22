@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, reactive } from 'vue';
+
 import {
   agentStatisticsIpChooserTemplate,
   agentStatisticsIpChooserTopo,
@@ -46,7 +47,6 @@ import {
 } from 'monitor-api/modules/model';
 
 import { useAppStore } from '../../store/modules/app';
-
 import {
   CommomParams,
   componentProps,
@@ -168,7 +168,7 @@ export default defineComponent({
      * @returns
      */
     async function fetchHostAgentStatisticsNodes(
-      node: IFetchNode,
+      node: IFetchNode
     ): Promise<{ agent_statistics: IStatistics; node: INode }[]> {
       return await agentStatisticsIpChooserTopo({
         scope_list: scopeList,
@@ -253,7 +253,7 @@ export default defineComponent({
           scope_list: scopeList,
           template_type: 'SERVICE_TEMPLATE',
           ...params,
-        }),
+        })
       ).catch(() => []);
     }
     /**
@@ -299,7 +299,7 @@ export default defineComponent({
                 total_count: item.count,
               },
               service_template: query.service_template_list[0],
-            })),
+            }))
           )
           .catch(() => []);
       }
@@ -316,7 +316,7 @@ export default defineComponent({
           scope_list: scopeList,
           template_type: 'SET_TEMPLATE',
           ...query,
-        }),
+        })
       ).catch(() => []);
     }
     /**
@@ -366,7 +366,7 @@ export default defineComponent({
                 total_count: item.count,
               },
               set_template: query.set_template_list[0],
-            })),
+            }))
           )
           .catch(() => []);
       }
@@ -428,27 +428,27 @@ export default defineComponent({
   render() {
     return (
       <BkIpSelector
-        mode={this.mode}
-        value={this.value}
-        originalValue={this.originalValue}
-        showView={this.showView}
-        showDialog={this.showDialog}
-        showViewDiff={this.showViewDiff}
-        viewSearchKey={this.viewSearchKey}
-        readonly={this.readonly}
-        keepHostFieldOutput={this.keepHostFieldOutput}
+        config={this.ipSelectorConfig}
+        defaultOutputFieldList={this.defaultOutputFieldList}
         disableDialogSubmitMethod={this.disableDialogSubmitMethod}
         disableHostMethod={this.disableHostMethod}
-        service={this.ipSelectorServices}
-        config={this.ipSelectorConfig}
-        singleHostSelect={this.singleHostSelect}
+        keepHostFieldOutput={this.keepHostFieldOutput}
+        mode={this.mode}
+        originalValue={this.originalValue}
         outputFieldList={this.outputFieldList}
         outputFieldOptionalHostTableColumn={this.outputFieldOptionalHostTableColumn}
-        defaultOutputFieldList={this.defaultOutputFieldList}
+        readonly={this.readonly}
+        service={this.ipSelectorServices}
+        showDialog={this.showDialog}
+        showView={this.showView}
+        showViewDiff={this.showViewDiff}
+        singleHostSelect={this.singleHostSelect}
+        value={this.value}
+        viewSearchKey={this.viewSearchKey}
         onChange={this.onChange}
-        onPanelChange={this.onPanelChange}
         onCloseDialog={this.onCloseDialog}
         onOutputField-change={this.onOutPutFieldChange}
+        onPanelChange={this.onPanelChange}
       ></BkIpSelector>
     );
   },

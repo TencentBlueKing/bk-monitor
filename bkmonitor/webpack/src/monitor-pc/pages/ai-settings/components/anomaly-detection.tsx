@@ -31,14 +31,14 @@ import { Component as tsc } from 'vue-tsx-support';
 import './anomaly-detection.scss';
 
 interface IGroupPanelProps {
-  title?: string | TranslateResult;
-  subtitle?: string | TranslateResult;
+  title?: TranslateResult | string;
+  subtitle?: TranslateResult | string;
   showExpand?: boolean;
   defaultExpand?: boolean;
   readonly?: boolean;
   validate?: boolean;
   isPackUp?: boolean;
-  theme?: 'light' | 'dark';
+  theme?: 'dark' | 'light';
 }
 
 @Component
@@ -76,8 +76,8 @@ export default class AnomalyDetection extends tsc<IGroupPanelProps, { onExpand: 
       <div class={['anomaly-detection', { 'anomaly-dark': this.theme === 'dark' }]}>
         <div class='anomaly-detection-header'>
           <div
-            class='header-wrapper'
             style={{ cursor: this.showExpand ? 'pointer' : 'default' }}
+            class='header-wrapper'
             onClick={() => !this.isPackUp && this.handleExpandPanel()}
           >
             {this.showExpand ? (
@@ -92,8 +92,8 @@ export default class AnomalyDetection extends tsc<IGroupPanelProps, { onExpand: 
           </div>
         </div>
         <div
-          class='anomaly-detection-content'
           style={{ display: this.expand ? 'block' : 'none' }}
+          class='anomaly-detection-content'
         >
           {this.$slots.default}
           {this.readonly && <div class='content-readonly'></div>}

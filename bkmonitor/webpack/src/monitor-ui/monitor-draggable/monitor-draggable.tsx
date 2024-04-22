@@ -39,7 +39,7 @@ export interface IOnDrop {
 }
 
 @Component
-export default class MonitorDraggable extends tsc<{}, IDraggableEvent> {
+export default class MonitorDraggable extends tsc<object, IDraggableEvent> {
   /** 拖拽索引 */
   fromIndex = 0;
   toIndex = 0;
@@ -117,9 +117,9 @@ export default class MonitorDraggable extends tsc<{}, IDraggableEvent> {
     return (
       <div
         class='monitor-draggable-wrap'
+        onDragover={this.handleDragOver}
         onDragstart={this.handleDragStart}
         onDrop={this.handleDrop}
-        onDragover={this.handleDragOver}
       >
         {/* <transition-group name="flip-list" tag="div"> */}
         {this.$slots.default}

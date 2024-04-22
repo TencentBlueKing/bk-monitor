@@ -26,6 +26,7 @@
 import { defineComponent, inject, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+
 import { Button, Loading, Sideslider, Table } from 'bkui-vue';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { frontendShieldDetail } from 'monitor-api/modules/shield';
@@ -35,7 +36,6 @@ import { random } from 'monitor-common/utils';
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { useAppStore } from '../../store/modules/app';
 import { IAuthority } from '../../typings/authority';
-
 import FormItem from './components/form-item';
 import StrategyDetail from './components/strategy-detail';
 import WhereDisplay from './components/where-display';
@@ -178,7 +178,7 @@ export default defineComponent({
           dimensionData.value = dimensionDataFn();
           eventData.value = eventDataFn();
         }
-      },
+      }
     );
     /**
      * @description 关闭侧栏
@@ -334,10 +334,10 @@ export default defineComponent({
   render() {
     return (
       <Sideslider
+        width={640}
         extCls={'alarm-shield-detail-side'}
         isShow={this.show}
         quickClose={true}
-        width={640}
         onClosed={this.handleClosed}
       >
         {{
@@ -347,6 +347,7 @@ export default defineComponent({
               <span class='header-right'>
                 <Button
                   class='mr-8'
+                  v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
                   theme='primary'
                   outline
                   onClick={() =>
@@ -354,7 +355,6 @@ export default defineComponent({
                       ? this.handleToEdit()
                       : this.authority.showDetail([this.authority.map.MANAGE_AUTH])
                   }
-                  v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
                 >
                   {this.t('编辑')}
                 </Button>
@@ -370,10 +370,10 @@ export default defineComponent({
                 </FormItem>
                 <FormItem label={this.t('屏蔽状态')}>
                   <span
-                    class='detail-text'
                     style={{
                       color: this.statusColorMap[this.detail.status]?.color,
                     }}
+                    class='detail-text'
                   >
                     {this.statusColorMap[this.detail.status]?.text}
                   </span>
@@ -387,9 +387,6 @@ export default defineComponent({
                             {this.scopeData.type !== 'biz' ? (
                               <div>
                                 <Table
-                                  data={this.scopeData.tableData}
-                                  maxHeight={450}
-                                  border={['outer']}
                                   columns={[
                                     {
                                       id: 'name',
@@ -397,6 +394,9 @@ export default defineComponent({
                                       render: ({ row }) => row.name,
                                     },
                                   ]}
+                                  border={['outer']}
+                                  data={this.scopeData.tableData}
+                                  maxHeight={450}
                                 ></Table>
                               </div>
                             ) : (
@@ -440,10 +440,10 @@ export default defineComponent({
                           <FormItem label={this.t('维度条件')}>
                             <span class='detail-text'>
                               <WhereDisplay
-                                value={this.strategyData.dimensionCondition.conditionList}
-                                readonly={true}
-                                allNames={this.strategyData.dimensionCondition.allNames}
                                 key={this.strategyData.dimensionCondition.conditionKey}
+                                allNames={this.strategyData.dimensionCondition.allNames}
+                                readonly={true}
+                                value={this.strategyData.dimensionCondition.conditionList}
                               ></WhereDisplay>
                             </span>
                           </FormItem>
@@ -453,9 +453,6 @@ export default defineComponent({
                             <div class='scope-content'>
                               <div>
                                 <Table
-                                  data={this.strategyData.scope.tableData}
-                                  maxHeight={450}
-                                  border={['outer']}
                                   columns={[
                                     {
                                       id: 'name',
@@ -463,6 +460,9 @@ export default defineComponent({
                                       render: ({ row }) => row.name,
                                     },
                                   ]}
+                                  border={['outer']}
+                                  data={this.strategyData.scope.tableData}
+                                  maxHeight={450}
                                 ></Table>
                               </div>
                             </div>
@@ -478,10 +478,10 @@ export default defineComponent({
                       <FormItem label={this.t('维度条件')}>
                         <span class='detail-text'>
                           <WhereDisplay
-                            value={this.dimensionData.conditionList}
-                            readonly={true}
-                            allNames={this.dimensionData.allNames}
                             key={this.dimensionData.conditionKey}
+                            allNames={this.dimensionData.allNames}
+                            readonly={true}
+                            value={this.dimensionData.conditionList}
                           ></WhereDisplay>
                         </span>
                       </FormItem>
@@ -579,15 +579,15 @@ export default defineComponent({
                       <span class='detail-text notice-user'>
                         {this.noticeConfig.receiver.map((item, index) => (
                           <div
-                            class='personnel-choice'
                             key={index}
+                            class='personnel-choice'
                           >
                             {(() => {
                               if (!!item.logo) {
                                 return (
                                   <img
-                                    src={item.logo}
                                     alt=''
+                                    src={item.logo}
                                   ></img>
                                 );
                               }

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType, ref } from 'vue';
+
 import { bkTooltips, Popover } from 'bkui-vue';
 
 import ViewParam from './view-param';
@@ -84,9 +85,9 @@ export default defineComponent({
         >
           <span class='icon-monitor icon-lishijilu icon'></span>
           <ViewParam
+            list={this.list}
             title={this.title}
             visible={this.visible}
-            list={this.list}
             onChange={val => (this.visible = val)}
           >
             {this.$slots.default?.()}

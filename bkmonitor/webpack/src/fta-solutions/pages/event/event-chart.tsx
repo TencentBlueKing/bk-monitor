@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts.vue';
 
 import { ICommonItem, SearchType } from './typings/event';
@@ -32,7 +33,7 @@ import { ICommonItem, SearchType } from './typings/event';
 import './event-chart.scss';
 
 interface IEventChartProps {
-  chartInterval: string | number;
+  chartInterval: number | string;
   getSeriesData: () => Promise<{ unit: string; series: any[] }>;
   intervalList?: ICommonItem[];
   chartKey: string;
@@ -40,7 +41,7 @@ interface IEventChartProps {
 }
 
 interface IEventChartEvent {
-  onIntervalChange: string | number;
+  onIntervalChange: number | string;
 }
 @Component({
   components: { MonitorEcharts },
@@ -71,7 +72,7 @@ export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> 
     ],
   })
   intervalList: ICommonItem[];
-  @Prop({ default: 'auto', type: [String, Number] }) chartInterval: string | number;
+  @Prop({ default: 'auto', type: [String, Number] }) chartInterval: number | string;
   @Prop({ required: true, type: [Function] }) getSeriesData: () => Promise<any[]>;
   @Prop({ required: true, type: [String] }) chartKey: string;
   @Prop({ required: true, type: String }) searchType: SearchType;
@@ -104,32 +105,32 @@ export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> 
     return (
       <div class={['event-chart', { 'is-expand': !this.expand }]}>
         <monitor-echarts
-          height={200}
           key={this.chartKey}
-          title={this.searchType === 'action' ? this.$t('执行趋势') : this.$t('告警趋势')}
+          height={200}
+          chart-type='bar'
           colors={this.chartColors}
           getSeriesData={this.getSeriesData}
-          options={this.chartOption}
-          chart-type='bar'
           needFullScreen={false}
+          options={this.chartOption}
+          title={this.searchType === 'action' ? this.$t('执行趋势') : this.$t('告警趋势')}
         >
           <div
-            slot='title'
             class='event-chart-title'
+            slot='title'
             onClick={this.handleExpandChange}
           >
             <i
-              onClick={this.handleExpandChange}
               class={['icon-monitor icon-mc-triangle-down chart-icon', { 'is-expand': this.expand }]}
+              onClick={this.handleExpandChange}
             />
             {this.searchType === 'action' ? this.$t('执行趋势') : this.$t('告警趋势')}
             {this.expand && [
               <span class='interval-label'>{this.$t('汇聚周期')}</span>,
               <bk-select
                 class='interval-select'
-                size='small'
                 behavior='simplicity'
                 clearable={false}
+                size='small'
                 value={this.chartInterval}
                 onChange={this.handleIntervalChange}
               >

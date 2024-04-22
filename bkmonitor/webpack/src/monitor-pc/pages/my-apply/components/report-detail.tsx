@@ -25,13 +25,13 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 
 import { Scenario } from '../../my-subscription/mapping';
 import { FrequencyType, Report, ReportQueryType } from '../../my-subscription/types';
 import { getDefaultReportData, getSendFrequencyText } from '../../my-subscription/utils';
-
 import DetailRow from './detail-row';
 
 import './report-detail.scss';
@@ -141,7 +141,6 @@ class ReportDetail extends tsc<IProps> {
 
           {/* 特殊节点 订阅人里有其他要展示的内容 */}
           <div
-            class='row subscribers'
             style={{
               paddingBottom: this.detailInfo.channels
                 .find(item => item.channel_name === 'user')
@@ -149,6 +148,7 @@ class ReportDetail extends tsc<IProps> {
                 ? '13px'
                 : '20px',
             }}
+            class='row subscribers'
           >
             <div class='label'>
               <span>{this.$t('订阅人')}</span>

@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 
 import loadingIcon from '../../../icons/spinner.svg';
@@ -123,10 +124,10 @@ export default class TrendChart extends tsc<ITrendChartProps> {
         <bk-collapse v-model={this.collapse}>
           <bk-collapse-item
             ext-cls='trend-chart-collapse'
-            name='trend'
             scopedSlots={{
               content: () => <div class='trend-chart-wrap'>{this.collapse && this.panel && chartHtml}</div>,
             }}
+            name='trend'
           >
             <div
               class='trend-chart-header'
@@ -134,15 +135,15 @@ export default class TrendChart extends tsc<ITrendChartProps> {
             >
               <div class='bk-button-group'>
                 <bk-button
-                  size='small'
                   class={`${this.chartType === 'all' ? 'is-selected' : ''}`}
+                  size='small'
                   onClick={() => (this.chartType = 'all')}
                 >
                   {this.$t('总趋势')}
                 </bk-button>
                 <bk-button
-                  size='small'
                   class={`${this.chartType === 'trace' ? 'is-selected' : ''}`}
+                  size='small'
                   onClick={() => (this.chartType = 'trace')}
                 >
                   {this.$t('Trace 数据')}

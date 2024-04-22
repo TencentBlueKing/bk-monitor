@@ -27,8 +27,8 @@
   <div class="chart-tools">
     <!-- <i class="icon-monitor icon-mc-mark tools-icon" @click.self="handleCollectChart"></i> -->
     <i
-      class="icon-monitor icon-mc-camera tools-icon"
       v-bk-tooltips="{ content: $t('截图到本地') }"
+      class="icon-monitor icon-mc-camera tools-icon"
       @click.self="handleStoreImage"
     />
     <i
@@ -45,14 +45,14 @@
     />
     <div v-show="false">
       <ul
-        class="tool-list"
         ref="moreTools"
+        class="tool-list"
       >
         <template v-for="item in moreToolsList">
           <li
-            class="tool-list-item"
             v-show="moreList.indexOf(item.id) > -1"
             :key="item.name"
+            class="tool-list-item"
             @click="handleMoreItemClick(item)"
           >
             {{ !item.checked ? item.name : item.nextName || item.name }}
@@ -68,7 +68,7 @@ import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 import { IMoreToolItem, MoreChartToolItem } from '../options/type-interface';
 
 @Component({
-  name: 'ChartTools'
+  name: 'ChartTools',
 })
 export default class ChartTools extends Vue {
   @Prop({ default: false }) needFullScreen: boolean;
@@ -81,25 +81,25 @@ export default class ChartTools extends Vue {
       {
         name: '检索',
         checked: false,
-        id: 'explore'
+        id: 'explore',
       },
       {
         name: 'Y轴固定最小值0',
         checked: false,
         id: 'set',
-        nextName: 'Y轴自适应'
+        nextName: 'Y轴自适应',
       },
       {
         name: '添加策略',
         checked: false,
-        id: 'strategy'
+        id: 'strategy',
       },
       {
         name: '面积图',
         checked: false,
         id: 'area',
-        nextName: '线性图'
-      }
+        nextName: '线性图',
+      },
     ];
   }
   beforeDestroy() {
@@ -130,7 +130,7 @@ export default class ChartTools extends Vue {
       offset: '50, -6',
       sticky: true,
       duration: [275, 0],
-      interactive: true
+      interactive: true,
     });
     this.moreToolInstance?.show(100);
   }
@@ -157,16 +157,17 @@ export default class ChartTools extends Vue {
     margin-right: 8px;
 
     &:hover {
-      cursor: pointer;
       color: #3a84ff;
+      cursor: pointer;
     }
   }
 }
 
 .monitor-chart-theme {
+  z-index: 999;
+
   /* stylelint-disable-next-line declaration-no-important */
   background: white !important;
-  z-index: 999;
 
   .tool-list {
     display: flex;
@@ -176,15 +177,15 @@ export default class ChartTools extends Vue {
     background-color: white;
 
     &-item {
-      flex: 0 0 32px;
       display: flex;
+      flex: 0 0 32px;
       align-items: center;
       padding: 0 10px 0 15px;
       color: #63656e;
 
       &:hover {
-        cursor: pointer;
         color: #3a84ff;
+        cursor: pointer;
         background-color: #eaf3ff;
       }
     }

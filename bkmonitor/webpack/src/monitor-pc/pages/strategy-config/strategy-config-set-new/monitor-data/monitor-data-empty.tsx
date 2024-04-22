@@ -161,9 +161,9 @@ export default class MonitorDataEmpty extends tsc<IProps> {
         <ul class='set-panel'>
           {this.metricSetList.map(item => (
             <li
-              class='set-panel-item'
               id={`set-panel-item-${item.id}`}
               key={item.id}
+              class='set-panel-item'
               on-click={() => this.handleAddMetric({ type: item.id })}
               onMouseenter={() => this.handleMouseenter(item.id)}
               onMouseleave={() => this.handleMouseleave()}
@@ -171,8 +171,8 @@ export default class MonitorDataEmpty extends tsc<IProps> {
               <i class='icon-monitor icon-plus-line'></i>
               <img
                 class='type-icon'
-                src={addLabelItems[item.id].icon}
                 alt=''
+                src={addLabelItems[item.id].icon}
               />
               <div class='label'>
                 <div class='label-top'>{addLabelItems[item.id].name}</div>
@@ -183,8 +183,8 @@ export default class MonitorDataEmpty extends tsc<IProps> {
         </ul>
         <div style='display: none'>
           <div
-            class='remind-tips'
             ref='remindTips'
+            class='remind-tips'
           >
             <div class='remind-tips-title'>{this.$t('添加监控项')}</div>
             <div class='remind-tips-desc'>

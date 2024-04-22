@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 import { frontendReportEvent } from 'monitor-api/modules/commons';
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import { getRouteConfigById } from '../../router/router-config';
 import store from '../store';
@@ -57,7 +57,7 @@ class ReportLogStore extends VuexModule {
       {
         needMessage: false,
         needTraceId: false,
-      },
+      }
     ).catch(() => false);
   }
 }

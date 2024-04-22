@@ -25,14 +25,14 @@
  */
 export class UseTopoChart {
   containerHtml = null;
-  imageHtml = null;
+  dragStartX = 0;
 
-  scale = 1; // 当前大小缩放比例
-  isDragging = false; // 当前是否拖动状态
-  dragStartX = 0; // 拖动 x 坐标
-  dragStartY = 0; // 拖动 y 坐标
-  imgX = 0; // 图片 x 坐标
-  imgY = 0; // 图片 y 坐标
+  dragStartY = 0; // 当前大小缩放比例
+  imageHtml = null; // 当前是否拖动状态
+  imgX = 0; // 拖动 x 坐标
+  imgY = 0; // 拖动 y 坐标
+  isDragging = false; // 图片 x 坐标
+  scale = 1; // 图片 y 坐标
   zoomSpeed = 0.1; // 缩放步长
 
   constructor(container: HTMLDivElement, image: HTMLDivElement) {

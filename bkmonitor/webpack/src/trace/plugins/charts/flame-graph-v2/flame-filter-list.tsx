@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref } from 'vue';
+
 import { Select, Table } from 'bkui-vue';
 import random from 'lodash/random';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
@@ -32,7 +33,7 @@ import './flame-filter-list.scss';
 
 const usFormat = getValueFormat('µs');
 
-export type FilterKey = 'servce' | 'source' | 'name' | 'kind';
+export type FilterKey = 'kind' | 'name' | 'servce' | 'source';
 
 /**
  * 定义 FilterValueItem 接口，表示过滤器的值的项
@@ -119,7 +120,7 @@ export default defineComponent({
       const data = props.data.find(item => item.aggregation_key === columnKey.value)?.items;
       if (!data) return [];
       return data.map(item => {
-        let value: string | number = item.values[columnValueKey.value];
+        let value: number | string = item.values[columnValueKey.value];
         if (value && columnValueKey.value.match(/(_duration|P9)/)) {
           const { text, suffix } = usFormat(value);
           value = `${text}${suffix}`;
@@ -158,17 +159,17 @@ export default defineComponent({
         label: () => (
           <div class='col-label'>
             <Select
-              modelValue={this.columnKey}
               behavior='simplicity'
-              size='small'
               clearable={false}
+              modelValue={this.columnKey}
+              size='small'
               onChange={this.handleSelectLabelChange}
             >
               {this.data.map(item => (
                 <Select.Option
                   key={item.aggregation_key}
-                  value={item.aggregation_key}
                   label={item.display_name}
+                  value={item.aggregation_key}
                 />
               ))}
             </Select>
@@ -181,18 +182,18 @@ export default defineComponent({
         label: () => (
           <div class='col-value'>
             <Select
-              modelValue={this.columnValueKey}
               behavior='simplicity'
-              size='small'
               clearable={false}
+              modelValue={this.columnValueKey}
+              size='small'
               onChange={this.handleColumnValueChange}
               onClick={e => e.stopPropagation()}
             >
               {FilterValueColumn.map(item => (
                 <Select.Option
                   key={item.id}
-                  value={item.id}
                   label={item.name}
+                  value={item.id}
                 />
               ))}
             </Select>
@@ -211,12 +212,12 @@ export default defineComponent({
     return (
       <div>
         <Table
-          rowKey={random(10).toString()}
-          showOverflowTooltip={true}
           class='flame-filter-list'
           columns={columns}
           data={this.tableData || []}
           maxHeight={this.maxHeight}
+          rowKey={random(10).toString()}
+          showOverflowTooltip={true}
         />
       </div>
     );

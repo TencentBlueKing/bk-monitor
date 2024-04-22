@@ -35,9 +35,9 @@ import './status-tips.scss';
 // 已下架 REMOVED
 // 已停用 DISABLED
 // 可用 AVAILABLE
-export type StatusType = 'ENABLED' | 'UPDATABLE' | 'NO_DATA' | 'REMOVE_SOON' | 'REMOVED' | 'DISABLED' | 'AVAILABLE';
+export type StatusType = 'AVAILABLE' | 'DISABLED' | 'ENABLED' | 'NO_DATA' | 'REMOVE_SOON' | 'REMOVED' | 'UPDATABLE';
 
-export type MapType<T extends string | number> = { [key in T]?: any };
+export type MapType<T extends number | string> = { [key in T]?: any };
 
 interface StatusTipsProps {
   status: StatusType;
@@ -91,12 +91,12 @@ export default class StatusTips extends tsc<StatusTipsProps> {
     return (
       <div class='status-tips'>
         <div
-          class='line'
           style={this.lineStyle}
+          class='line'
         ></div>
         <div
-          class='title'
           style={this.nameStyle}
+          class='title'
         >
           <span style={this.titleStyle}>{this.statusMap[this.status]}</span>
         </div>

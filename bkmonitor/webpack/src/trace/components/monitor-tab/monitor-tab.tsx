@@ -25,6 +25,7 @@
  */
 
 import { defineComponent } from 'vue';
+
 import { Tab } from 'bkui-vue';
 
 import './monitor-tab.scss';
@@ -52,13 +53,13 @@ export default defineComponent({
     return (
       <Tab
         class='monitor-tab'
-        type='unborder-card'
-        tab-position='top'
-        active={this.active}
-        onTab-change={this.handleTabChange}
         v-slots={{
           setting: () => this.$slots.setting?.(),
         }}
+        active={this.active}
+        tab-position='top'
+        type='unborder-card'
+        onTab-change={this.handleTabChange}
       >
         {this.$slots.default?.()}
       </Tab>

@@ -26,6 +26,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import BkUserSelector from '@blueking/user-selector';
 import { createChatGroup } from 'monitor-api/modules/action';
 
@@ -111,18 +112,18 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
   render() {
     return (
       <bk-dialog
-        ext-cls='chat-group-dialog-wrap'
-        value={this.show}
-        mask-close={true}
-        header-position='left'
         width={640}
+        ext-cls='chat-group-dialog-wrap'
+        header-position='left'
+        mask-close={true}
         title={this.$t('一键拉群')}
+        value={this.show}
         on-value-change={this.handleShowChange}
       >
         <div class='header'>
           <img
-            src={require('../../static/img/we-com.svg')}
             alt=''
+            src={require('../../static/img/we-com.svg')}
           />
           <span>{this.title}</span>
         </div>
@@ -152,11 +153,11 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
         </div>
         <template slot='footer'>
           <bk-button
-            onClick={() => this.handleConfirm()}
-            disabled={!this.localValue.length || !this.contentType.length}
-            theme='primary'
-            loading={this.isLoading}
             style='margin-right: 10px'
+            disabled={!this.localValue.length || !this.contentType.length}
+            loading={this.isLoading}
+            theme='primary'
+            onClick={() => this.handleConfirm()}
           >
             {this.$t('确定')}
           </bk-button>

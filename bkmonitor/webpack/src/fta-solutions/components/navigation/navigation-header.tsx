@@ -57,8 +57,8 @@ export default class FtaNavigationHeader extends tsc<IFtaNavigationHeaderProps> 
           {this.list.map(item => (
             <li
               key={item.id}
-              onClick={() => this.handleNavChange(item.id)}
               class={{ 'nav-list-item': true, 'nav-active': this.active === item.id }}
+              onClick={() => this.handleNavChange(item.id)}
             >
               {item.name}
             </li>

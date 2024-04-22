@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getDemoActionDetail } from 'monitor-api/modules/action';
 
 import './manual-debug-status.scss';
@@ -46,7 +47,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
   // 手动处理状态轮询
   isQueryStatus = false;
   debugStatusData: {
-    status?: '' | 'success' | 'failure' | 'received' | 'running';
+    status?: '' | 'failure' | 'received' | 'running' | 'success';
     is_finished?: boolean;
     content?: { text: string; url: string; action_plugin_type: string };
   } = {};
@@ -197,12 +198,12 @@ export default class ManualDebugStatus extends tsc<IProps> {
   render() {
     return (
       <bk-dialog
-        extCls={'manual-debug-running-dialog'}
-        value={!!this.debugStatusData?.status}
         width={400}
-        renderDirective={'if'}
+        extCls={'manual-debug-running-dialog'}
         maskClose={false}
+        renderDirective={'if'}
         showFooter={false}
+        value={!!this.debugStatusData?.status}
         on-cancel={() => this.handleStopDebug()}
       >
         <div class='status-content'>

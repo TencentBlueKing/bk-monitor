@@ -33,7 +33,7 @@ export interface IBaseParams {
 
 export interface IBaseInfoList {
   label: TranslateResult;
-  icon: string | null;
+  icon: null | string;
   value: string;
 }
 
@@ -72,17 +72,17 @@ export interface IAppInfoList {
   relate_app_name?: string;
   relate_bk_biz_id?: number;
   relate_bk_biz_name?: string;
-  editBkID: string | number;
+  editBkID: number | string;
   submitType: string;
 }
 
 export interface ISelectEditValue {
-  activeItem: ICMDBInfoList | ILogsInfoList | IAppInfoList;
+  activeItem: IAppInfoList | ICMDBInfoList | ILogsInfoList;
   selectValue: string;
   type: string;
 }
 
-export type IReqType = 'get' | 'set' | 'del';
+export type IReqType = 'del' | 'get' | 'set';
 
 export interface IExtraData {
   category_name: string;
@@ -98,7 +98,7 @@ export interface ICmdbRelationCategory {
 }
 
 export interface ICmdbRelation {
-  template_id?: string | number;
+  template_id?: number | string;
   id?: number;
   template_name?: string;
   first_category?: ICmdbRelationCategory;

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getVariableValue } from 'monitor-api/modules/grafana';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -316,8 +317,8 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
         </ul>
         <div style='display: none;'>
           <div
-            class='filter-condition-content'
             ref='filter-condition-content'
+            class='filter-condition-content'
             v-bkloading={{ isLoading: this.loading }}
           >
             <div class='filter-condition-main'>
@@ -326,9 +327,9 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                 <span class='filter-select filter-select-label'>
                   <div class='select-label'>{this.$t('字段')}</div>
                   <bk-select
-                    clearable={false}
-                    vModel={this.currentValue.key}
                     key={JSON.stringify(this.groupBy)}
+                    vModel={this.currentValue.key}
+                    clearable={false}
                     onSelected={this.handleGetVarList}
                   >
                     {this.groupBy.map(item => (
@@ -342,8 +343,8 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                 <span class='filter-select filter-select-condition'>
                   <div class='select-label'>{this.$t('操作')}</div>
                   <bk-select
-                    clearable={false}
                     vModel={this.currentValue.method}
+                    clearable={false}
                   >
                     {this.conditionOption.map(item => (
                       <bk-option
@@ -358,11 +359,11 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                     <div class='select-label'>{this.$t('值')}</div>
                     <bk-tag-input
                       vModel={this.currentValue.value}
+                      list={this.valueOption}
                       placeholder={this.valuePlaceholder}
                       trigger='focus'
                       allow-auto-match
                       allow-create
-                      list={this.valueOption}
                     />
                   </span>
                 ) : undefined}

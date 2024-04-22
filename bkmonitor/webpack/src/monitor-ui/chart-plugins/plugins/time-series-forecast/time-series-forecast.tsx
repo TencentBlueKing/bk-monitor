@@ -25,6 +25,7 @@
  */
 // import { Component as tsc } from 'vue-tsx-support';
 import { Component, Ref, Watch } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
@@ -43,8 +44,8 @@ import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import { LineChart } from '../time-series/time-series';
 
-import './time-series-forecast.scss';
 import '../time-series/time-series.scss';
+import './time-series-forecast.scss';
 
 @Component
 export default class TimeSeriesForecast extends LineChart {
@@ -72,7 +73,7 @@ export default class TimeSeriesForecast extends LineChart {
       const need = includesList.includes(item.metricField);
       if (need) {
         item.alias = `${item.name === 'predict' ? '' : item.name}${this.$tc(
-          item.metricField === '_result_' ? '当前值' : '预测值',
+          item.metricField === '_result_' ? '当前值' : '预测值'
         )}`;
         total.push(item);
       }
@@ -168,9 +169,9 @@ export default class TimeSeriesForecast extends LineChart {
                   : {}),
               },
               {
-                cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
+                cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
                 needMessage: false,
-              },
+              }
             )
             .then(res => {
               metrics.push(...res.metrics);
@@ -184,7 +185,7 @@ export default class TimeSeriesForecast extends LineChart {
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
                   }`,
-                })),
+                }))
               );
               this.clearErrorMsg();
               return true;
@@ -219,7 +220,7 @@ export default class TimeSeriesForecast extends LineChart {
         const predictSeries = seriesResult.find(item => item.metric_field === 'predict');
 
         const formatterFuncPredict = this.handleSetFormatterFunc(
-          predictSeries?.datapoints?.filter?.(item => item[0] ?? false) || [],
+          predictSeries?.datapoints?.filter?.(item => item[0] ?? false) || []
         );
         let seriesList = this.handleTransformSeries(
           seriesResult.map(item => {
@@ -246,7 +247,7 @@ export default class TimeSeriesForecast extends LineChart {
                   : this.createMarkOptionPredict(item),
               z: 1,
             } as any;
-          }),
+          })
         );
         /** 处理上下边界 */
         const boundarySeries = this.handleBoundaryList(seriesResult[0], seriesResult).flat(Infinity);
@@ -310,7 +311,7 @@ export default class TimeSeriesForecast extends LineChart {
           item => {
             const value = Array.isArray(item) ? item : item.value;
             return !!value[1];
-          },
+          }
         );
         const resultEndTime = resultEndTimePoint?.value?.[0];
         // const { canScale, minThreshold } = this.handleSetThreholds();
@@ -321,7 +322,7 @@ export default class TimeSeriesForecast extends LineChart {
         const echartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
-          { arrayMerge: (_, newArr) => newArr },
+          { arrayMerge: (_, newArr) => newArr }
         );
         this.options = Object.freeze(
           deepmerge(echartOptions, {
@@ -431,7 +432,7 @@ export default class TimeSeriesForecast extends LineChart {
               formatter: this.handleSetTooltip,
             },
             series: seriesList,
-          }),
+          })
         );
         this.metrics = metrics || [];
         this.inited = true;
@@ -544,7 +545,7 @@ export default class TimeSeriesForecast extends LineChart {
       boundaryList.forEach((item: any) => {
         const base = -item.lowBoundary.reduce(
           (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Infinity,
+          Infinity
         );
         this.minBase = Math.max(base, this.minBase);
       });
@@ -637,7 +638,7 @@ export default class TimeSeriesForecast extends LineChart {
    * @param type 'preend': 往前加， 'append': 往后加
    * @returns points
    */
-  handleCreateNullPoint(points, type: 'preend' | 'append' = 'preend') {
+  handleCreateNullPoint(points, type: 'append' | 'preend' = 'preend') {
     const leng = points.length;
     const isPre = type === 'preend';
     if (leng >= 2) {
@@ -723,7 +724,7 @@ export default class TimeSeriesForecast extends LineChart {
           xAxis: item[1],
           yAxis: item[0],
           symbolSize: 12,
-        })),
+        }))
       );
     /** 事件中心告警开始点 */
     const markPoint = {
@@ -768,12 +769,12 @@ export default class TimeSeriesForecast extends LineChart {
     targets.forEach(target => {
       target.data.query_configs =
         target?.data?.query_configs.map(queryConfig =>
-          queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars),
+          queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars)
         ) || [];
     });
     /** 判断跳转日志检索 */
     const isLog = targets.some(item =>
-      item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log'),
+      item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log')
     );
     if (isLog) {
       const { startTime, endTime } = handleTimeRange(this.timeRange);
@@ -788,15 +789,15 @@ export default class TimeSeriesForecast extends LineChart {
         time_range: 'customized',
       };
       const indexSetId = queryConfig.index_set_id;
-      // eslint-disable-next-line vue/max-len
+
       const queryStr = transformLogUrlQuery(retrieveParams);
       const url = `${this.$store.getters.bkLogSearchUrl}#/retrieve/${indexSetId}${queryStr}`;
       window.open(url);
     } else {
       window.open(
         `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(
-          JSON.stringify(targets),
-        )}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
+          JSON.stringify(targets)
+        )}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
       );
     }
   }
@@ -808,34 +809,34 @@ export default class TimeSeriesForecast extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            title={this.panel.title}
-            showMore={this.showHeaderMoreTool}
-            menuList={this.menuList}
-            showAddMetric={this.showAddMetric}
             draging={this.panel.draging}
-            metrics={this.metrics}
-            subtitle={this.panel.subTitle || ''}
             isInstant={this.panel.instant}
+            menuList={this.menuList}
+            metrics={this.metrics}
+            showAddMetric={this.showAddMetric}
+            showMore={this.showHeaderMoreTool}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onAllMetricClick={this.handleAllMetricClick}
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
-            onAllMetricClick={this.handleAllMetricClick}
+            onUpdateDragging={() => this.panel.updateDraging(false)}
           />
         )}
         {!this.empty ? (
           <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChart'
-                  height={this.height}
                   width={this.width}
-                  options={this.options}
+                  height={this.height}
                   groupId={this.panel.dashboardId}
+                  options={this.options}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                 />

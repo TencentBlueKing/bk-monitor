@@ -27,6 +27,7 @@ import { VNode } from 'vue';
 import { Component, Prop } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+
 import AlarmGroupAdd from 'monitor-pc/pages/alarm-group/alarm-group-add/alarm-group-add-common/alarm-group-add';
 
 interface IAlarmGroupAdd {
@@ -48,8 +49,8 @@ export default class AlarmGroupAddFta extends tsc<IAlarmGroupAdd> {
     return (
       <AlarmGroupAdd
         style='padding: 40px 159px 0px 48px; height: 100%;'
-        groupId={+this.id}
         fromRoute={this.fromRoute}
+        groupId={+this.id}
         type='fta'
       ></AlarmGroupAdd>
     );

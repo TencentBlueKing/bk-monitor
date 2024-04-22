@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="config-select"
     v-bkloading="{ isLoading: loading }"
+    class="config-select"
   >
     <template v-if="config.set.data.collectType === 'SNMP'">
       <div style="margin-bottom: 10px">
@@ -43,9 +43,9 @@
       />
     </template>
     <div
-      class="select-container"
-      ref="selectContainer"
       v-else
+      ref="selectContainer"
+      class="select-container"
     >
       <!-- <div class="select-tips"><i class="icon-monitor icon-tips"></i> {{ $t('动态：只能选择节点，采集目标按节点动态变更。静态：只能选择主机IP，采集目标不会变更。') }}</div> -->
       <!-- <topo-selector
@@ -90,8 +90,8 @@
     </div>
     <div :class="['remote-container', { 'is-snmp': config.set.data.collectType === 'SNMP' }]">
       <div
-        class="remote-hint"
         v-if="config.set.supportRemote"
+        class="remote-hint"
       >
         <bk-switcher
           v-model="info.isUseRemoteHost"
@@ -99,19 +99,19 @@
         />
         <span class="hint-text"> {{ $t('使用远程运行主机') }} </span>
         <i
-          class="icon-monitor icon-tips hint-icon"
           v-bk-tooltips="remoteHostTooltips"
+          class="icon-monitor icon-tips hint-icon"
         />
       </div>
       <div
-        style="margin-top: 10px"
         v-if="config.set.data.collectType === 'SNMP' && info.isUseRemoteHost"
+        style="margin-top: 10px"
       >
         {{ $t('采集器主机') }}
       </div>
       <div
-        class="remote-host"
         v-show="info.isUseRemoteHost"
+        class="remote-host"
       >
         <div class="host-input">
           <div
@@ -119,33 +119,33 @@
             @click="handleShowSelector"
           >
             <span
-              class="host-placeholder"
               v-if="!info.remoteCollectingHost.ip"
+              class="host-placeholder"
             >
               {{ $t('添加采集插件运行主机') }}
             </span>
             <span v-else>{{ info.remoteCollectingHost.ip }}</span>
           </div>
           <i
+            v-if="info.remoteCollectingHost.ip"
             class="bk-icon icon-close-circle-shape clear-icon"
             @click="handleClearIp"
-            v-if="info.remoteCollectingHost.ip"
           />
         </div>
         <div
-          class="host-pro"
           v-en-style="'min-width: 230px'"
+          class="host-pro"
         >
           <bk-checkbox
-            class="pro-checkbox"
             v-model="info.remoteCollectingHost.isCollectingOnly"
+            class="pro-checkbox"
             :disabled="!canSelectProHost"
           >
             {{ $t('采集专有主机') }}
           </bk-checkbox>
           <i
-            class="icon-monitor icon-tips host-hint-icon"
             v-bk-tooltips="proHostTooltips"
+            class="icon-monitor icon-tips host-hint-icon"
           />
         </div>
       </div>
@@ -154,7 +154,9 @@
       <bk-button
         class="btn-previous"
         @click="handlePrevious"
-      > {{ $t('上一步') }} </bk-button>
+      >
+        {{ $t('上一步') }}
+      </bk-button>
       <bk-button
         class="btn-delivery"
         theme="primary"
@@ -188,17 +190,17 @@ export default {
   name: 'ConfigSelect',
   components: {
     SelectHost,
-    MonitorIpSelector
+    MonitorIpSelector,
   },
   props: {
     config: {
       type: Object,
-      default: () => {}
+      default: () => {},
     },
     passwordInputChangeSet: {
       type: Set,
-      default: () => new Set()
-    }
+      default: () => new Set(),
+    },
   },
   data() {
     return {
@@ -210,42 +212,42 @@ export default {
           ip: '',
           bkCloudId: '',
           bkSupplierId: '',
-          isCollectingOnly: true
+          isCollectingOnly: true,
         },
-        targetNodes: []
+        targetNodes: [],
       },
       remoteHostTooltips: {
         content: this.$t('默认就是采集目标与采集程序运行在一起，在有单独的采集主机或者权限限制需要远程采集的方式。'),
-        placement: 'top'
+        placement: 'top',
       },
       proHostTooltips: {
         content: this.$t('使用整个服务器的50%的资源，其他情况都只是使用10%的资源并且不超过单CPU资源。'),
-        placement: 'top'
+        placement: 'top',
       },
       selector: {
         mode: 'add',
         targetNodeType: 'TOPO',
         targetObjectType: 'HOST',
-        checkedData: []
+        checkedData: [],
       },
       selectHostConf: {
-        isShow: false
+        isShow: false,
       },
       agentStatusMap: {
         normal: `Agent ${this.$t('正常')}`,
         abnormal: `Agent ${this.$t('异常')}`,
-        not_exist: `Agent ${this.$t('未安装')}`
+        not_exist: `Agent ${this.$t('未安装')}`,
       },
       snmpTargets: [],
       ipv4Reg:
-        /^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]).){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$/, // eslint-disable-line
+        /^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]).){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$/,
       selectContainerHeight: 0,
       checkPluginLoading: false,
       ipCheckValue: {},
       originValue: undefined,
       ipSelectorPanels: [],
       ipTargetType: 'TOPO',
-      countInstanceType: 'host'
+      countInstanceType: 'host',
     };
   },
   computed: {
@@ -260,9 +262,10 @@ export default {
       // 2. 已启用【使用远程主机】，且已经选择远程主机。
       const { info } = this;
       const { isUseRemoteHost } = info;
-      const snmpTargetsIsOk =        this.config.set.data.collectType === 'SNMP'
-        ? !!this.snmpTargets.length && isUseRemoteHost && info.remoteCollectingHost.ip !== ''
-        : true;
+      const snmpTargetsIsOk =
+        this.config.set.data.collectType === 'SNMP'
+          ? !!this.snmpTargets.length && isUseRemoteHost && info.remoteCollectingHost.ip !== ''
+          : true;
       return (!isUseRemoteHost || (isUseRemoteHost && info.remoteCollectingHost.ip !== '')) && snmpTargetsIsOk;
     },
     serviceInstanceColumnList() {
@@ -270,12 +273,12 @@ export default {
         return [
           {
             renderHead: h => h('span', this.$t('服务实例数')),
-            renderCell: (h, row) => h('span', row.node.count || '--')
-          }
+            renderCell: (h, row) => h('span', row.node.count || '--'),
+          },
         ];
       }
       return undefined;
-    }
+    },
   },
   created() {
     this.handleConfig(this.config);
@@ -304,7 +307,7 @@ export default {
         this.$emit('target', {
           bkObjType: this.selector.targetObjectType,
           target: this.snmpTargets,
-          bkTargetType: this.selector.targetNodeType
+          bkTargetType: this.selector.targetNodeType,
         });
       } else {
         // const target = this.$refs.topoSelector.getCheckedData();
@@ -314,20 +317,20 @@ export default {
           target = await getNodesByTemplate({
             bk_inst_type: this.selector.targetObjectType,
             bk_obj_id: this.ipTargetType,
-            bk_inst_ids: target.map(item => item.bk_inst_id)
+            bk_inst_ids: target.map(item => item.bk_inst_id),
           }).catch(() => []);
         }
 
         this.$emit('target', {
           bkObjType: this.selector.targetObjectType,
           target,
-          bkTargetType: this.ipTargetType
+          bkTargetType: this.ipTargetType,
         });
       }
       const save = async () => {
         // 保存配置
         await this.saveConfig(params)
-          .then((data) => {
+          .then(data => {
             this.selector.type = this.selectorType;
             this.saveData(this.config, this.info, data);
             this.$emit('next');
@@ -342,7 +345,7 @@ export default {
         const checkPluginParams = {
           collect_type: 'Process',
           target_node_type: params.target_node_type,
-          target_nodes: params.target_nodes
+          target_nodes: params.target_nodes,
         };
         this.checkPluginLoading = true;
         const checkPluginRes = await checkPluginVersion(checkPluginParams).catch(() => ({ result: false }));
@@ -351,9 +354,12 @@ export default {
           save();
         } else {
           const pluginNames = Object.keys(checkPluginRes.invalid_host || { '--': [] });
-          const linkText = pluginNames.map(name => this.$t('{0}版本低于{1}', [name, (checkPluginRes.plugin_version?.[name] || '--')])).join('、');
+          const linkText = pluginNames
+            .map(name => this.$t('{0}版本低于{1}', [name, checkPluginRes.plugin_version?.[name] || '--']))
+            .join('、');
           const hostListText = (checkPluginRes.invalid_host?.[pluginNames[0]] || [])
-            .map(target => target[0]).slice(0, 2)
+            .map(target => target[0])
+            .slice(0, 2)
             .join('、');
           const h = this.$createElement;
           this.$bkInfo({
@@ -367,27 +373,27 @@ export default {
                   style: { color: '#3a84ff', cursor: 'pointer' },
                   attrs: {
                     href: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
-                    target: '_blank'
+                    target: '_blank',
                   },
                   directives: [
                     {
                       name: 'bk-tooltips',
                       value: {
                         placements: ['top'],
-                        content: this.$t('前往节点管理处理')
-                      }
-                    }
-                  ]
+                        content: this.$t('前往节点管理处理'),
+                      },
+                    },
+                  ],
                 },
                 linkText
               ),
-              h('span', {}, `，${this.$t('可能出现下发失败或无数据上报，是否继续下发')}？`)
+              h('span', {}, `，${this.$t('可能出现下发失败或无数据上报，是否继续下发')}？`),
             ]),
             maskClose: true,
             escClose: true,
             confirmFn: () => {
               save();
-            }
+            },
           });
         }
         return;
@@ -435,7 +441,7 @@ export default {
       const { mode } = config;
       const { selector } = this;
       const others = {
-        selector
+        selector,
       };
       config.data.id = data.id;
       if (mode === 'edit') {
@@ -451,8 +457,8 @@ export default {
         select: {
           data: info,
           others,
-          mode: 'edit'
-        }
+          mode: 'edit',
+        },
       });
     },
     // 获取要保存的数据
@@ -468,14 +474,17 @@ export default {
       selectData.targetNodes = transformValueToMonitor(this.ipCheckValue, this.ipTargetType);
 
       // 编辑态下如果目标节点为空，则取默认
-      selectData.targetNodeType = this.selector.mode === 'edit' && !selectData.targetNodes.length ? this.selector.targetNodeType : this.ipTargetType;
+      selectData.targetNodeType =
+        this.selector.mode === 'edit' && !selectData.targetNodes.length
+          ? this.selector.targetNodeType
+          : this.ipTargetType;
 
       const param = {
         collector: {
           period: setData.period,
-          timeout: setData.timeout
+          timeout: setData.timeout,
         },
-        plugin: {}
+        plugin: {},
       };
       const { collector, plugin } = param;
       if (setData.collectType === 'SNMP_Trap') {
@@ -484,7 +493,7 @@ export default {
           this.$set(param.snmp_trap, 'version', setData.plugin.snmpv.split('_')[1]);
         }
       }
-      pluginData.configJson.forEach((item) => {
+      pluginData.configJson.forEach(item => {
         if (setData.collectType === 'SNMP_Trap') {
           // SNMP_Trap 用 item.key 作为键名
           if (setData.plugin.snmpv === 'snmp_v3') {
@@ -492,7 +501,7 @@ export default {
               param.snmp_trap.auth_info = [];
               item.auth_json.forEach((items, index) => {
                 param.snmp_trap.auth_info.push({});
-                items.forEach((item) => {
+                items.forEach(item => {
                   param.snmp_trap.auth_info[index][item.key] = item.default;
                 });
               });
@@ -519,7 +528,7 @@ export default {
             if (item.type === 'file') {
               plugin[item.name] = {
                 filename: item.default,
-                file_base64: item.file_base64
+                file_base64: item.file_base64,
               };
             }
           }
@@ -551,13 +560,13 @@ export default {
         target_nodes: selectData.targetNodes,
         remote_collecting_host: remoteCollectingHost?.ip
           ? {
-            ip: remoteCollectingHost.ip,
-            is_collecting_only: remoteCollectingHost.isCollectingOnly,
-            bk_cloud_id: remoteCollectingHost.bkCloudId,
-            bk_supplier_id: remoteCollectingHost.bkSupplierId,
-            bk_host_id: remoteCollectingHost.bk_host_id
-          }
-          : null
+              ip: remoteCollectingHost.ip,
+              is_collecting_only: remoteCollectingHost.isCollectingOnly,
+              bk_cloud_id: remoteCollectingHost.bkCloudId,
+              bk_supplier_id: remoteCollectingHost.bkSupplierId,
+              bk_host_id: remoteCollectingHost.bk_host_id,
+            }
+          : null,
       };
       if (this.config.mode === 'edit' && setData.id) {
         // 编辑时，增加 `id` 字段
@@ -575,9 +584,9 @@ export default {
       const param = {
         collector: {
           period: setData.period,
-          timeout: setData.timeout
+          timeout: setData.timeout,
         },
-        plugin: {}
+        plugin: {},
       };
       const configJsonList = configJson.reduce((total, cur) => {
         if (cur.auth_json) {
@@ -587,7 +596,7 @@ export default {
         }
         return total;
       }, []);
-      configJsonList.forEach((item) => {
+      configJsonList.forEach(item => {
         if (item.mode === 'collector') {
           param.collector[item.key] = item.default;
         } else {
@@ -605,18 +614,18 @@ export default {
         target_node_type: 'INSTANCE',
         remote_collecting_host: remoteCollectingHost?.ip
           ? {
-            ip: remoteCollectingHost.ip,
-            is_collecting_only: remoteCollectingHost.isCollectingOnly,
-            bk_cloud_id: remoteCollectingHost.bkCloudId,
-            bk_supplier_id: remoteCollectingHost.bkSupplierId,
-            bk_host_id: remoteCollectingHost.bk_host_id
-          }
+              ip: remoteCollectingHost.ip,
+              is_collecting_only: remoteCollectingHost.isCollectingOnly,
+              bk_cloud_id: remoteCollectingHost.bkCloudId,
+              bk_supplier_id: remoteCollectingHost.bkSupplierId,
+              bk_host_id: remoteCollectingHost.bk_host_id,
+            }
           : null,
         target_nodes: this.snmpTargets.map(item => ({
           ip: item,
           bk_cloud_id: 0,
-          bk_supplier_id: 0
-        }))
+          bk_supplier_id: 0,
+        })),
       };
       if (this.config.mode === 'edit' && setData.id) {
         // 编辑时，增加 `id` 字段
@@ -646,18 +655,18 @@ export default {
         targetNodeType: data.targetNodeType,
         remoteCollectingHost: remoteCollectingHost
           ? {
-            ip: remoteCollectingHost.ip,
-            bkCloudId: remoteCollectingHost.bk_cloud_id,
-            bkSupplierId: remoteCollectingHost.bk_supplier_id,
-            isCollectingOnly: remoteCollectingHost.is_collecting_only
-          }
+              ip: remoteCollectingHost.ip,
+              bkCloudId: remoteCollectingHost.bk_cloud_id,
+              bkSupplierId: remoteCollectingHost.bk_supplier_id,
+              isCollectingOnly: remoteCollectingHost.is_collecting_only,
+            }
           : {
-            ip: '',
-            bkCloudId: '',
-            bkSupplierId: '',
-            isCollectingOnly: true
-          },
-        targetNodes: data.targetNodes
+              ip: '',
+              bkCloudId: '',
+              bkSupplierId: '',
+              isCollectingOnly: true,
+            },
+        targetNodes: data.targetNodes,
       };
     },
     // 获取主机
@@ -668,18 +677,18 @@ export default {
     handleCheckedData(type, data) {
       const checkedData = [];
       if (['static-ip', 'static-topo'].includes(type)) {
-        data.forEach((item) => {
+        data.forEach(item => {
           checkedData.push({
             ip: item.ip,
             bk_cloud_id: item.bkCloudId,
-            bk_supplier_id: item.bkSupplierId
+            bk_supplier_id: item.bkSupplierId,
           });
         });
       } else {
-        data.forEach((item) => {
+        data.forEach(item => {
           checkedData.push({
             bk_inst_id: item.bkInstId,
-            bk_obj_id: item.bkObjId
+            bk_obj_id: item.bkObjId,
           });
         });
       }
@@ -693,7 +702,6 @@ export default {
       return keyWord ? data.filter(item => item.ip.indexOf(keyWord) > -1) : data;
     },
     handleSnmpTargetChange(valueList) {
-      // eslint-disable-next-line no-restricted-syntax
       for (const item of valueList) {
         // ipv4
         const reg =          /^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]).){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$/; // eslint-disable-line
@@ -720,8 +728,8 @@ export default {
     },
     handleTargetTypeChange(v) {
       this.ipTargetType = v;
-    }
-  }
+    },
+  },
 };
 </script>
 

@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
 
 import ExpiredSelect from '../../../components/expired-select/expired-select';
 import { ICreateAppFormData } from '../../home/app-list';
-
 import { IPluginItem, ISetupData } from './app-add';
 import ClusterTable from './cluster-table';
 
@@ -51,7 +51,7 @@ export interface IEsClusterInfo {
   es_retention: number;
   es_number_of_replicas: number;
   es_shards: number;
-  es_slice_size?: number | '';
+  es_slice_size?: '' | number;
 }
 @Component
 export default class SettingParams extends tsc<IProps, IEvents> {
@@ -169,20 +169,20 @@ export default class SettingParams extends tsc<IProps, IEvents> {
             required
           >
             <ClusterTable
-              v-model={this.formData.es_storage_cluster}
-              v-bkloading={{ isLoading: this.tableLoading }}
-              tableList={this.sharedList}
-              class={{ 'is-animation': this.sliderAnimation }}
               style={{ marginRight: this.marginRightWidth }}
+              class={{ 'is-animation': this.sliderAnimation }}
+              v-bkloading={{ isLoading: this.tableLoading }}
+              v-model={this.formData.es_storage_cluster}
+              tableList={this.sharedList}
               onChange={this.handleClusterChange}
             />
             <ClusterTable
-              tableType='exclusive'
-              v-model={this.formData.es_storage_cluster}
-              v-bkloading={{ isLoading: this.tableLoading }}
-              tableList={this.exclusiveList}
-              class={{ 'is-animation': this.sliderAnimation }}
               style={{ margin: `20px ${this.marginRightWidth} 0 0` }}
+              class={{ 'is-animation': this.sliderAnimation }}
+              v-bkloading={{ isLoading: this.tableLoading }}
+              v-model={this.formData.es_storage_cluster}
+              tableList={this.exclusiveList}
+              tableType='exclusive'
               onChange={this.handleClusterChange}
             />
           </bk-form-item>
@@ -202,27 +202,27 @@ export default class SettingParams extends tsc<IProps, IEvents> {
           <bk-form-item label={this.$t('副本数')}>
             <bk-input
               class='copies-num-item'
-              type='number'
               v-model={this.formData.es_number_of_replicas}
-              min={0}
               max={this.numberOfReplicasMax}
+              min={0}
+              type='number'
             ></bk-input>
           </bk-form-item>
           <bk-form-item label={this.$t('分片数')}>
             <bk-input
               class='copies-num-item'
-              type='number'
               v-model={this.formData.es_shards}
-              min={1}
               max={this.esShardsMax}
+              min={1}
+              type='number'
             ></bk-input>
           </bk-form-item>
           <bk-form-item label={this.$t('索引切分大小')}>
             <bk-input
               class='copies-num-item'
-              type='number'
               v-model={this.formData.es_slice_size}
               min={1}
+              type='number'
             >
               <div
                 class='unit'
@@ -242,8 +242,8 @@ export default class SettingParams extends tsc<IProps, IEvents> {
               </bk-button>
               <bk-button
                 class='btn'
-                theme='primary'
                 loading={this.loading}
+                theme='primary'
                 onClick={this.handleSubmit}
               >
                 {this.$t('提交')}

@@ -47,8 +47,8 @@
           @click="handleClose"
         />
         <div
-          :class="['monitor-dialog-header', headerTheme]"
           v-if="needHeader"
+          :class="['monitor-dialog-header', headerTheme]"
         >
           <slot name="header">
             {{ title }}
@@ -63,8 +63,8 @@
           <slot />
         </div>
         <div
-          class="monitor-dialog-footer"
           v-if="needFooter"
+          class="monitor-dialog-footer"
         >
           <slot name="footer">
             <bk-button
@@ -78,7 +78,9 @@
             <bk-button
               theme="default"
               @click="handleClickCancel"
-            > {{ $t('取消') }} </bk-button>
+            >
+              {{ $t('取消') }}
+            </bk-button>
           </slot>
         </div>
       </div>
@@ -89,7 +91,7 @@
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 
 enum HeaderThemeType {
-  headerBar = 'header-bar'
+  headerBar = 'header-bar',
 }
 @Component
 export default class MonitorDialog extends Vue {
@@ -97,9 +99,9 @@ export default class MonitorDialog extends Vue {
   // 是否显示
   @Prop({
     type: Boolean,
-    default: false
+    default: false,
   })
-    value: boolean;
+  value: boolean;
 
   // 标题
   @Prop({
@@ -107,73 +109,73 @@ export default class MonitorDialog extends Vue {
     default() {
       return '';
       // return this.$t('监控平台')
-    }
+    },
   })
-    title: string;
+  title: string;
 
   // 宽度
   @Prop({
     type: [String, Number],
-    default: 400
+    default: 400,
   })
-    width: string | number;
+  width: number | string;
 
   // 是否插入到body下
   @Prop({
     type: Boolean,
-    default: false
+    default: false,
   })
-    appendToBody: boolean;
+  appendToBody: boolean;
 
   // 是否点击mask关闭
   @Prop({
     type: Boolean,
-    default: false
+    default: false,
   })
-    maskClose: boolean;
+  maskClose: boolean;
 
   // 层级
   @Prop({
     type: [String, Number],
-    default: 1000
+    default: 1000,
   })
-    zIndex: number;
+  zIndex: number;
 
   // 是否需要footer
   @Prop({
     type: Boolean,
-    default: true
+    default: true,
   })
-    needFooter: boolean;
+  needFooter: boolean;
 
   // 关闭之前触发
   @Prop([Function])
-    beforeClose: (args: any) => void;
+  beforeClose: (args: any) => void;
 
   // 是否全屏
   @Prop([Boolean])
-    fullScreen: boolean;
+  fullScreen: boolean;
 
   // 是否需要展示header
   @Prop({
     type: Boolean,
-    default: true
+    default: true,
   })
-    needHeader: boolean;
+  needHeader: boolean;
 
   // header的主题
   @Prop({
     type: String,
-    validator: theme => [HeaderThemeType.headerBar].includes(theme)
+    validator: theme => [HeaderThemeType.headerBar].includes(theme),
   })
-    headerTheme: HeaderThemeType;
+  headerTheme: HeaderThemeType;
 
   // 是否需要展示确定按钮
   @Prop({
     type: Boolean,
-    default: true
+    default: true,
   })
-    showConfirmBtn: boolean;
+  showConfirmBtn: boolean;
 
   @Watch('value')
   onValueChange(val: boolean): void {
@@ -191,7 +193,7 @@ export default class MonitorDialog extends Vue {
   }
 
   destroyed() {
-    if (this.appendToBody && this.$el && this.$el.parentNode) {
+    if (this.appendToBody && this.$el?.parentNode) {
       this.$el.parentNode.removeChild(this.$el);
     }
   }
@@ -247,30 +249,30 @@ export default class MonitorDialog extends Vue {
 <style lang="scss" scoped>
 .monitor-dialog-mask {
   position: fixed;
-  left: 0;
+  top: 0;
   right: 0;
   bottom: 0;
-  top: 0;
-  background-color: rgba(0, 0, 0, .6);
+  left: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity .3s;
+  background-color: rgba(0, 0, 0, 0.6);
+  transition: opacity 0.3s;
 
   .monitor-dialog {
-    min-height: 200px;
-    box-sizing: border-box;
-    background-color: rgb(255, 255, 255);
-    background-clip: padding-box;
-    box-shadow: rgba(0, 0, 0, .15) 0px 4px 12px;
-    border-width: 0px;
-    border-radius: 2px;
-    color: #63656e;
-    padding: 20px 24px 0 24px;
     position: relative;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    transition: opacity .3s;
+    min-height: 200px;
+    padding: 20px 24px 0 24px;
+    color: #63656e;
+    background-color: rgb(255, 255, 255);
+    background-clip: padding-box;
+    border-width: 0px;
+    border-radius: 2px;
+    box-shadow: rgba(0, 0, 0, 0.15) 0px 4px 12px;
+    transition: opacity 0.3s;
 
     &.header-bar {
       padding-top: 38px;
@@ -278,19 +280,19 @@ export default class MonitorDialog extends Vue {
 
     &.full-screen {
       position: fixed;
-      left: 0;
       top: 0;
-      bottom: 0;
       right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 2001;
 
       /* stylelint-disable-next-line declaration-no-important */
       width: 0 !important;
       min-width: 100%;
-      min-height: 100%;
 
       /* stylelint-disable-next-line declaration-no-important */
       height: 0 !important;
-      z-index: 2001;
+      min-height: 100%;
     }
 
     &-header {
@@ -299,19 +301,21 @@ export default class MonitorDialog extends Vue {
       &.header-bar {
         position: absolute;
         top: 0;
-        left: 0;
         right: 0;
+        left: 0;
         height: 52px;
         font-size: 16px;
         line-height: 52px;
         text-align: center;
         background: #fff;
-        box-shadow: 0 1px 0 0 #dcdee5, 0 3px 4px 0 rgba(64,112,203,.06);
+        box-shadow:
+          0 1px 0 0 #dcdee5,
+          0 3px 4px 0 rgba(64, 112, 203, 0.06);
 
         .monitor-dialog-close {
-          font-size: 24px;
           top: 14px;
           right: 28px;
+          font-size: 24px;
         }
       }
     }
@@ -321,74 +325,74 @@ export default class MonitorDialog extends Vue {
     }
 
     &-footer {
-      height: 50px;
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      border-top: 1px solid #dcdee5;
-      margin: 0 -24px;
+      height: 50px;
       padding-right: 24px;
+      margin: 0 -24px;
       background-color: #fafbfd;
+      border-top: 1px solid #dcdee5;
 
       .footer-btn {
-        margin-left: auto;
         margin-right: 10px;
+        margin-left: auto;
       }
     }
 
     /* stylelint-disable-next-line no-descending-specificity */
     &-close {
       position: absolute;
-      right: 10px;
       top: 10px;
-      height: 24px;
-      width: 24px;
-      font-size: 16px;
-      font-weight: bold;
+      right: 10px;
+      z-index: 2000;
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 2000;
+      width: 24px;
+      height: 24px;
+      font-size: 16px;
+      font-weight: bold;
 
       /* stylelint-disable-next-line no-descending-specificity */
       &:hover {
-        border-radius: 50%;
-        background-color: #f0f1f5;
         cursor: pointer;
+        background-color: #f0f1f5;
+        border-radius: 50%;
       }
     }
   }
 }
 
 .monitor-dialog-enter-active {
-  animation: monitor-dialog-in .3s;
+  animation: monitor-dialog-in 0.3s;
 }
 
 .monitor-dialog-leave-active {
-  animation: monitor-dialog-out .3s;
+  animation: monitor-dialog-out 0.3s;
 }
 
 @keyframes monitor-dialog-in {
   0% {
-    transform: translate3d(0, -20px, 0);
     opacity: 0;
+    transform: translate3d(0, -20px, 0);
   }
 
   100% {
-    transform: translate3d(0, 0, 0);
     opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes monitor-dialog-out {
   0% {
-    transform: translate3d(0, 0, 0);
     opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 
   100% {
-    transform: translate3d(0, -20px, 0);
     opacity: 0;
+    transform: translate3d(0, -20px, 0);
   }
 }
 </style>

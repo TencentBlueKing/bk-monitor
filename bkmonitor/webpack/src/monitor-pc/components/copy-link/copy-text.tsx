@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { copyText, Debounce } from 'monitor-common/utils/utils';
 
 import './copy-text.scss';
@@ -63,6 +64,7 @@ export default class CopyText extends tsc<IProps> {
   render() {
     return (
       <span
+        style='font-size: 12px;'
         class={['icon-monitor', 'copy-text-button', this.icon]}
         v-bk-tooltips={{
           content: this.tipsText,
@@ -72,7 +74,6 @@ export default class CopyText extends tsc<IProps> {
           placement: 'right',
           allowHTML: false,
         }}
-        style='font-size: 12px;'
         onClick={this.handleCopyText}
       ></span>
     );

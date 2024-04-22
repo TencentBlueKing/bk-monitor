@@ -26,17 +26,17 @@
 <template>
   <div class="process">
     <common-unset
-      :alarm="alarm"
       v-if="alarm.status === 'unset'"
+      :alarm="alarm"
     />
     <common-noraml
-      :alarm="alarm"
       v-else-if="alarm.status === 'normal'"
+      :alarm="alarm"
     />
     <process-serious
+      v-else-if="alarm.status === 'serious' || alarm.status === 'slight'"
       :alarm="alarm"
       :home-days="homeDays"
-      v-else-if="alarm.status === 'serious' || alarm.status === 'slight'"
     />
   </div>
 </template>
@@ -51,21 +51,21 @@ export default {
   components: {
     CommonUnset,
     CommonNoraml,
-    ProcessSerious
+    ProcessSerious,
   },
   props: {
     alarm: {
       type: Object,
       default() {
         return {};
-      }
+      },
     },
     homeDays: {
       type: Number,
       default() {
         return 7;
-      }
-    }
-  }
+      },
+    },
+  },
 };
 </script>

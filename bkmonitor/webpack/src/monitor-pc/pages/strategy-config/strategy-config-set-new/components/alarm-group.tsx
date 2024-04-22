@@ -26,6 +26,7 @@
  */
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
 import AlarmGroupDetail, { IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
@@ -63,7 +64,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
   @Prop({ default: false, type: Boolean }) readonly readonly: boolean;
   @Prop({ default: false, type: Boolean }) readonly isRefresh: boolean;
   @Prop({ default: false, type: Boolean }) readonly loading: boolean;
-  @Prop({ default: '', type: [Number, String] }) readonly strategyId: string | number;
+  @Prop({ default: '', type: [Number, String] }) readonly strategyId: number | string;
   @Prop({ default: true, type: Boolean }) showAddTip: boolean;
   @Prop({ default: false, type: Boolean }) isSimple: boolean; // 简洁模式（无预览，无回填）
   @Prop({ default: null, type: Function }) tagClick: (id: number, e: Event) => void;
@@ -206,8 +207,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
         <div class='alarm-group-tag-list'>
           {this.localValue.map((item, index) => (
             <span
-              class={['alarm-group-tag', { 'tag-active': this.detail.id === item }]}
               key={index}
+              class={['alarm-group-tag', { 'tag-active': this.detail.id === item }]}
               onClick={e => (this.tagClick ? this.tagClick(item, e) : this.handleSelectTag(item, e))}
             >
               <span
@@ -227,27 +228,27 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
           {this.readonly ? undefined : (
             <span class='add-btn'>
               <bk-select
-                ext-popover-cls='alarm-group-popover'
-                class='alarm-group-select'
                 ref='alarmGroupSelect'
-                popover-width={380}
+                class='alarm-group-select'
+                v-model={this.localValue}
                 popover-options={{
                   boundary: 'window',
                   flipOnUpdate: true,
                 }}
-                searchable
+                ext-popover-cls='alarm-group-popover'
+                popover-width={380}
+                zIndex={5000}
                 multiple
-                v-model={this.localValue}
+                searchable
                 onChange={this.handleSelectChange}
                 onToggle={this.handleToggle}
-                zIndex={5000}
               >
                 {this.list.map(option => (
                   <bk-option
-                    key={option.id}
                     id={option.id}
-                    name={option.name}
+                    key={option.id}
                     disabled={this.disabledList.includes(option.id)}
+                    name={option.name}
                   >
                     <div class='alarm-group-option'>
                       <div class='group-content'>
@@ -269,8 +270,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                   </bk-option>
                 ))}
                 <div
-                  slot='extension'
                   class='item-input-create'
+                  slot='extension'
                   v-authority={{ active: !this.authority.ALARM_GROUP_MANAGE_AUTH }}
                   onClick={() =>
                     this.authority.ALARM_GROUP_MANAGE_AUTH
@@ -290,7 +291,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                       {this.$t('新增告警组')}
                       {!this.isSimple && !this.isOpenNewPage && (
                         <span style={{ marginLeft: '10px', color: '#ea3636' }}>{`(${this.$t(
-                          '新增后会进行回填',
+                          '新增后会进行回填'
                         )})`}</span>
                       )}
                     </span>
@@ -302,9 +303,9 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                     >
                       {this.loading ? (
                         <img
-                          src={require('../../../../static/images/svg/spinner.svg')}
                           class='status-loading'
                           alt=''
+                          src={require('../../../../static/images/svg/spinner.svg')}
                         ></img>
                       ) : (
                         <span class='icon-monitor icon-mc-retry'></span>

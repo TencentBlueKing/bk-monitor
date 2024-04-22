@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType } from 'vue';
+
 import { Alert } from 'bkui-vue';
 
 type ExistedReportListItem = {
@@ -51,13 +52,11 @@ export default defineComponent({
   render() {
     return (
       <Alert
-        theme='warning'
         v-slots={{
           title: () => {
             return (
               <div>
                 <i18n-t
-                  keypath='当前已存在相同索引集的订阅 {btn} ，请确认是否要创建新订阅或是直接修改已有订阅内容？'
                   v-slots={{
                     btn: () => {
                       return this.existedReportList.map((item, index) => {
@@ -75,11 +74,13 @@ export default defineComponent({
                       });
                     },
                   }}
+                  keypath='当前已存在相同索引集的订阅 {btn} ，请确认是否要创建新订阅或是直接修改已有订阅内容？'
                 />
               </div>
             );
           },
         }}
+        theme='warning'
       ></Alert>
     );
   },

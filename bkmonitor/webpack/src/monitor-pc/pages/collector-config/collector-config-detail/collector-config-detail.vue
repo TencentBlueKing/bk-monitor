@@ -27,9 +27,9 @@
   <bk-sideslider
     class="collector-config-detail"
     :is-show="sideShow"
-    @update:isShow="handleHidden"
     :width="900"
     :quick-close="true"
+    @update:isShow="handleHidden"
   >
     <div
       slot="header"
@@ -56,8 +56,8 @@
       </span>
       <span v-else>{{ $t('加载中...') }}</span>
       <div
-        class="operation"
         v-if="sideData && Object.keys(sideData).length"
+        class="operation"
       >
         <bk-button
           v-if="basicInfo && basicInfo.bk_biz_id === $store.getters.bizId"
@@ -65,12 +65,12 @@
           theme="primary"
           :outline="true"
           style="width: 88px; margin-right: 8px"
+          :disabled="sideData.status === 'STOPPED'"
           @click="
             authority.MANAGE_AUTH || sideData.status === 'STOPPED'
               ? sideData.status !== 'STOPPED' && handleToEdit()
               : handleShowAuthorityDetail()
           "
-          :disabled="sideData.status === 'STOPPED'"
         >
           {{ $t('button-编辑') }}
         </bk-button>
@@ -81,45 +81,45 @@
       </div>
     </div>
     <div
-      class="detail-content"
       slot="content"
       v-bkloading="{ isLoading: loading }"
+      class="detail-content"
     >
       <div class="detail-content-tab clearfix">
         <span
           v-en-style="'min-width: 120px'"
           class="tab-item"
-          @click="active = 0"
           :class="{ 'tab-active': active === 0 }"
+          @click="active = 0"
         >
           {{ $t('基本信息') }}
         </span>
         <span
           v-en-style="'min-width: 120px'"
           class="tab-item"
-          @click="active = 1"
           :class="{ 'tab-active': active === 1 }"
+          @click="active = 1"
         >
           {{ $t('采集目标') }}
         </span>
       </div>
       <div class="detail-content-wrap">
         <div
-          class="basic-info"
           v-show="active === 0"
+          class="basic-info"
         >
           <ul
-            class="basic-info-detail"
             v-if="basicInfo"
+            class="basic-info-detail"
           >
             <li
-              class="detail-item"
               v-for="(item, key) in basicInfoMap"
               :key="key"
+              class="detail-item"
             >
               <div
-                class="detail-item-label"
                 v-en-style="'width: 120px'"
+                class="detail-item-label"
                 :class="{ 'detail-item-name': key === 'name' }"
               >
                 {{ item }}：
@@ -136,23 +136,23 @@
                   class="name-wrapper"
                 >
                   <span
-                    class="config-name"
                     v-bk-tooltips.top="basicInfo[key]"
+                    class="config-name"
                     >{{ basicInfo[key] }}
                   </span>
                   <i
-                    class="icon-monitor icon-bianji col-name-icon"
                     v-if="!input.show"
+                    class="icon-monitor icon-bianji col-name-icon"
                   />
                 </span>
                 <bk-input
                   v-if="input.show"
                   :ref="'input' + key"
+                  v-model="input.copyName"
+                  v-bk-clickoutside="handleTagClickout"
                   style="width: 150px"
                   :maxlength="50"
-                  v-model="input.copyName"
                   @keydown="handleLabelKey"
-                  v-bk-clickoutside="handleTagClickout"
                 />
               </span>
               <span
@@ -176,16 +176,16 @@
               <template v-if="key === 'plugin_display_name'">
                 <template v-if="basicInfo && basicInfo.collect_type !== 'Log'">
                   <span
-                    class="detail-item-val plugin-id"
                     v-bk-tooltips.top="basicInfo['plugin_id'] + '(' + basicInfo[key] + ')'"
+                    class="detail-item-val plugin-id"
                   >
                     {{ basicInfo['plugin_id'] + '(' + basicInfo[key] + ')' }}
                   </span>
                   <i
+                    v-if="!input.show"
                     v-authority="{ active: !authority.PLUGIN_MANAGE_AUTH }"
                     class="icon-monitor icon-bianji col-name-icon"
                     style="margin-top: -4px"
-                    v-if="!input.show"
                     @click="handleToEditPlugin"
                   />
                 </template>
@@ -285,30 +285,30 @@
             </li>
           </ul>
           <div
-            class="param-label"
             v-if="runtimeParams.length"
+            class="param-label"
           >
             {{ $t('运行参数') }} :
           </div>
           <ul
-            class="param-list"
             v-if="runtimeParams.length"
+            class="param-list"
           >
             <li
-              class="param-list-item"
               v-for="(item, index) in runtimeParams"
               :key="index"
+              class="param-list-item"
             >
               <span class="item-name">{{ item.name }}</span>
               <span
-                class="item-content"
                 v-if="['password', 'encrypt'].includes(item.type)"
+                class="item-content"
               >
                 ******
               </span>
               <span
-                class="item-content"
                 v-else
+                class="item-content"
               >
                 {{ (item.type === 'file' ? item.value.filename : item.value) || '--' }}
               </span>
@@ -321,13 +321,13 @@
             {{ $t('预览') }} :
           </div>
           <right-panel
+            v-for="(table, index) in metricList"
+            :key="index"
             class="metric-wrap"
             need-border
-            v-for="(table, index) in metricList"
-            @change="handleCollapseChange(index)"
-            :key="index"
             :class="{ 'no-bottom': table.collapse }"
             :collapse="table.collapse"
+            @change="handleCollapseChange(index)"
           >
             <div
               slot="title"
@@ -384,14 +384,14 @@
           </right-panel>
         </div>
         <div
-          class="collect-target"
           v-show="active === 1"
+          class="collect-target"
         >
           <!-- <right-panel need-border> -->
           <!-- 复制目标 -->
           <div
-            class="copy-target"
             v-if="targetInfo.table_data && targetInfo.table_data.length"
+            class="copy-target"
           >
             <bk-button
               :text="true"
@@ -402,9 +402,9 @@
             >
           </div>
           <bk-table
+            v-if="['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(targetInfo.target_node_type)"
             :data="targetInfo.table_data"
             :empty-text="$t('无数据')"
-            v-if="['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(targetInfo.target_node_type)"
           >
             <bk-table-column
               :label="$t('节点名称')"
@@ -443,9 +443,9 @@
             </bk-table-column>
           </bk-table>
           <bk-table
+            v-else-if="targetInfo.target_node_type === 'INSTANCE'"
             :data="targetInfo.table_data"
             :empty-text="$t('无数据')"
-            v-else-if="targetInfo.target_node_type === 'INSTANCE'"
           >
             <bk-table-column
               label="IP"
@@ -493,6 +493,7 @@ export default {
     RightPanel,
     HistoryDialog,
   },
+  inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
     sideData: {
       type: Object,
@@ -502,7 +503,6 @@ export default {
     },
     sideShow: Boolean,
   },
-  inject: ['authority', 'handleShowAuthorityDetail'],
   data() {
     return {
       active: 0,

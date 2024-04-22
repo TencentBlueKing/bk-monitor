@@ -25,6 +25,7 @@
  */
 import { Component, Inject, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { listActionConfig, listAssignGroup, listAssignRule, listUserGroup } from 'monitor-api/modules/model';
 import { getCookie, random, transformDataKey } from 'monitor-common/utils';
@@ -36,11 +37,11 @@ import { getEventPaths } from '../../utils';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
 import { csvToArr } from '../custom-escalation/utils';
 import { downCsvFile } from '../view-detail/utils';
-
 import AlarmBatchEdit from './components/alarm-batch-edit';
 import AlarmGroupSelect from './components/alarm-group-select';
 import CommonCondition from './components/common-condition-new';
 import DebuggingResult, { IRuleGroupsDataItem } from './components/debugging-result';
+import { ActionType, deepCompare, EColumn, ICondtionItem, LEVELLIST, RuleData } from './typing';
 import {
   allKVOptions,
   GROUP_KEYS,
@@ -50,7 +51,6 @@ import {
   TGroupKeys,
   TValueMap,
 } from './typing/condition';
-import { ActionType, deepCompare, EColumn, ICondtionItem, LEVELLIST, RuleData } from './typing';
 
 import './alarm-dispatch-config.scss';
 
@@ -89,8 +89,8 @@ interface ITableColumn {
   show?: boolean;
 }
 
-type FiledType = EColumn | 'priority' | 'name' | 'notice' | 'alertSeveritySingle';
-type MergeColumn = 'noticeProgress' | 'levelTag';
+type FiledType = 'alertSeveritySingle' | 'name' | 'notice' | 'priority' | EColumn;
+type MergeColumn = 'levelTag' | 'noticeProgress';
 
 @Component
 export default class AlarmDispatchConfig extends tsc<object> {
@@ -391,8 +391,8 @@ export default class AlarmDispatchConfig extends tsc<object> {
         <span>{this.$t('匹配规则')}</span>
         {
           <span
-            class='unified-setting'
             ref='unifiedSettingBtn'
+            class='unified-setting'
             onClick={() => this.handleClickUnifiedSetting()}
           >
             {/* <span class="icon-monitor "></span> */}
@@ -522,7 +522,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
             addId: random(8),
             conditions: deepClone(this.unifiedSettings.conditions),
             isEnabled: true,
-          }),
+          })
         );
         break;
       case 'delete':
@@ -757,7 +757,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
           }
         });
         this.conditionsLoading = false;
-      },
+      }
     );
   }
   handleConditionChange(v, index: number) {
@@ -807,7 +807,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
           }
           this.kvOptionsData.groupKeys.set(
             'dimensions',
-            [...keySet].map(k => ({ id: k, name: k })),
+            [...keySet].map(k => ({ id: k, name: k }))
           );
         });
       }
@@ -928,9 +928,9 @@ export default class AlarmDispatchConfig extends tsc<object> {
                   .map(item => ({ key: item.split(':')[0], value: item.split(':')[1] })),
                 is_enabled: item[6] === 'true',
               },
-              false,
-            ),
-          ),
+              false
+            )
+          )
       );
       // new RuleData({ ...transformDataKey(item, false) }))
       this.tableData = [...this.tableData, ...targetImportData];
@@ -1199,7 +1199,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
 
     // 告警组不能和通知升级里的告警组有交集
     const intersectionSet = [...new Set(row.userGroups)].filter(item =>
-      new Set(row.upgradeConfig.userGroups).has(item),
+      new Set(row.upgradeConfig.userGroups).has(item)
     );
 
     if (intersectionSet.length && row.upgradeConfig.noticeIsEnabled && row.upgradeConfig.isEnabled) {
@@ -1242,8 +1242,8 @@ export default class AlarmDispatchConfig extends tsc<object> {
             <table
               class='table-wrap-content'
               border='1'
-              cellspacing='0'
               cellpadding='0'
+              cellspacing='0'
             >
               <tr class='table-wrap-header-tr'>
                 <td
@@ -1281,13 +1281,13 @@ export default class AlarmDispatchConfig extends tsc<object> {
                     <div class='file-wrap'>
                       <MonitorImport
                         accept={'.csv'}
-                        return-text={true}
                         base64={false}
+                        return-text={true}
                         onChange={this.handleImportChange}
                       >
                         <bk-button
-                          size='small'
                           class='mr10'
+                          size='small'
                         >
                           {this.$t('导入')}
                         </bk-button>
@@ -1306,23 +1306,23 @@ export default class AlarmDispatchConfig extends tsc<object> {
               <tr class='process-list'>
                 {this.processList.map((item, index) => (
                   <td
-                    colspan={item.colspan}
                     style={{
                       'border-color': item.bg,
                     }}
+                    colspan={item.colspan}
                   >
                     <div
-                      class='process-list-item'
                       style={{
                         background: item.bg,
                       }}
+                      class='process-list-item'
                     >
                       {!!item.arrow && (
                         <div
-                          class='process-arrow'
                           style={{
                             'border-color': item.arrow,
                           }}
+                          class='process-arrow'
                         ></div>
                       )}
                       {item.index && <div class='index'>{item.index}</div>}
@@ -1357,9 +1357,9 @@ export default class AlarmDispatchConfig extends tsc<object> {
                 {this.tableColumns.map(item => (
                   <th
                     key={item.id}
-                    v-show={item.show}
-                    class={item.class || ''}
                     style={{ width: `${item.width}px` }}
+                    class={item.class || ''}
+                    v-show={item.show}
                   >
                     {item.content?.()}
                   </th>
@@ -1383,39 +1383,39 @@ export default class AlarmDispatchConfig extends tsc<object> {
                         {item.id === 'operate' && (
                           <div class='batch-operate-warp'>
                             <bk-popconfirm
-                              content={this.$t('是否批量删除勾选规则？')}
-                              ext-popover-cls='alarm-dispatch-rule-operate'
-                              onConfirm={() => this.handleOperateAction('batchDelete')}
-                              onCancel={() => (this.batchTipsDisabled = false)}
                               tippy-options={{
                                 onHide: () => {
                                   this.batchTipsDisabled = false;
                                 },
                               }}
+                              content={this.$t('是否批量删除勾选规则？')}
+                              ext-popover-cls='alarm-dispatch-rule-operate'
                               trigger='click'
+                              onCancel={() => (this.batchTipsDisabled = false)}
+                              onConfirm={() => this.handleOperateAction('batchDelete')}
                             >
                               <span
                                 class='icon-monitor icon-jian'
-                                onClick={() => (this.batchTipsDisabled = true)}
                                 v-bk-tooltips={{ content: this.$t('批量删除'), disabled: this.batchTipsDisabled }}
+                                onClick={() => (this.batchTipsDisabled = true)}
                               ></span>
                             </bk-popconfirm>
                             <bk-popconfirm
-                              content={this.$t('是否批量撤回勾选规则上一次生效的配置？')}
-                              ext-popover-cls='alarm-dispatch-rule-operate'
-                              onConfirm={() => this.handleOperateAction('batchReset')}
-                              onCancel={() => (this.batchTipsDisabled = false)}
                               tippy-options={{
                                 onHide: () => {
                                   this.batchTipsDisabled = false;
                                 },
                               }}
+                              content={this.$t('是否批量撤回勾选规则上一次生效的配置？')}
+                              ext-popover-cls='alarm-dispatch-rule-operate'
                               trigger='click'
+                              onCancel={() => (this.batchTipsDisabled = false)}
+                              onConfirm={() => this.handleOperateAction('batchReset')}
                             >
                               <span
                                 class='icon-monitor icon-chehui1'
-                                onClick={() => (this.batchTipsDisabled = true)}
                                 v-bk-tooltips={{ content: this.$t('批量撤回'), disabled: this.batchTipsDisabled }}
+                                onClick={() => (this.batchTipsDisabled = true)}
                               ></span>
                             </bk-popconfirm>
                             <span class='icon-monitor icon-jian icon-hidden'></span>
@@ -1430,13 +1430,13 @@ export default class AlarmDispatchConfig extends tsc<object> {
               {/* 表格数据 */}
               {this.tableData.map((row, index) => (
                 <tr
-                  class='table-data-row'
                   key={index}
+                  class='table-data-row'
                 >
                   {this.tableColumns.map(column => (
                     <td
-                      class='rule-td'
                       style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
+                      class='rule-td'
                       v-show={column.show}
                     >
                       <div
@@ -1467,10 +1467,10 @@ export default class AlarmDispatchConfig extends tsc<object> {
               }}
             >
               <bk-button
-                theme='primary'
-                onClick={() => this.handleStartDebug()}
                 class='mr10'
                 disabled={!this.editAllowed}
+                theme='primary'
+                onClick={() => this.handleStartDebug()}
               >
                 {this.$t('调试并生效')}
               </bk-button>
@@ -1486,51 +1486,51 @@ export default class AlarmDispatchConfig extends tsc<object> {
         <div style='display: none'>
           <AlarmBatchEdit
             ref='alarmBatchEdit'
-            filed={this.filed}
-            priorityList={this.priorityList}
-            alarmDisabledList={this.alarmDisabledList}
-            processPackage={this.processPackage}
-            alarmGroupList={this.alarmGroupList}
-            processLoading={this.processLoading}
-            alarmGroupListLoading={this.alarmGroupListLoading}
-            dataSource={this.dataSource}
             conditionProps={{
               keyList: this.kvOptionsData.keys,
               valueMap: this.kvOptionsData.valueMap,
               groupKey: GROUP_KEYS,
               groupKeys: this.kvOptionsData.groupKeys,
             }}
-            canDebug={this.canDebug}
             addProcess={this.handleAddProcess}
-            showAlarmGroupDetail={this.handleSelcetAlarmGroup}
-            refreshProcess={this.handleRefreshProcess}
-            refreshAlarm={this.handleRefreshAlarmGroup}
-            onSubmit={this.handleBatchEditSubmit}
+            alarmDisabledList={this.alarmDisabledList}
+            alarmGroupList={this.alarmGroupList}
+            alarmGroupListLoading={this.alarmGroupListLoading}
+            canDebug={this.canDebug}
             close={this.removePopoverInstance}
+            dataSource={this.dataSource}
+            filed={this.filed}
+            priorityList={this.priorityList}
+            processLoading={this.processLoading}
+            processPackage={this.processPackage}
+            refreshAlarm={this.handleRefreshAlarmGroup}
+            refreshProcess={this.handleRefreshProcess}
+            showAlarmGroupDetail={this.handleSelcetAlarmGroup}
             onFindReplace={this.handleFindReplace}
+            onSubmit={this.handleBatchEditSubmit}
           />
         </div>
         {/* 调试结果 */}
         {this.showSideliner && (
           <DebuggingResult
-            isShow={this.showSideliner}
-            alarmGroupList={this.alarmGroupList}
-            ruleGroupsData={this.debugData}
             conditionProps={{
               keys: this.kvOptionsData.keys,
               valueMap: this.kvOptionsData.valueMap,
               groupKey: GROUP_KEYS,
               groupKeys: this.kvOptionsData.groupKeys,
             }}
-            onShowChange={this.handleShowChange}
+            alarmGroupList={this.alarmGroupList}
+            isShow={this.showSideliner}
+            ruleGroupsData={this.debugData}
             onSaveSuccess={this.handleSaveSuccess}
+            onShowChange={this.handleShowChange}
           />
         )}
         {/* 统一设置 */}
         <div style={'display: none'}>
           <div
-            class='alarm-dispatch-config-unified-setting'
             ref='unifiedSettings'
+            class='alarm-dispatch-config-unified-setting'
           >
             <div class='setting-content-wrap'>
               <div class='setting-title ml16'>
@@ -1549,22 +1549,22 @@ export default class AlarmDispatchConfig extends tsc<object> {
               <div class='ml16 mr16'>
                 <CommonCondition
                   key={this.unifiedSettings.conditionsSelectorKey}
-                  value={this.unifiedSettings.targetConditions}
-                  keyList={this.kvOptionsData.keys as any}
                   groupKey={GROUP_KEYS}
                   groupKeys={this.kvOptionsData.groupKeys}
-                  valueMap={this.kvOptionsData.valueMap}
-                  specialOptions={this.kvOptionsData.specialOptions}
+                  isFormMode={false}
+                  keyList={this.kvOptionsData.keys as any}
                   loading={this.conditionsLoading}
                   needValidate={false}
-                  isFormMode={false}
+                  specialOptions={this.kvOptionsData.specialOptions}
+                  value={this.unifiedSettings.targetConditions}
+                  valueMap={this.kvOptionsData.valueMap}
                   onChange={this.handleUnifiedSettingsConditionsChange}
                 ></CommonCondition>
               </div>
               <div class='bottom-opreate'>
                 <bk-button
-                  size='small'
                   class='mr8'
+                  size='small'
                   theme='primary'
                   onClick={this.handleConfirmUnifiedSettings}
                 >
@@ -1601,20 +1601,20 @@ export default class AlarmDispatchConfig extends tsc<object> {
         return (
           <CommonCondition
             key={row.conditionsRenderKey}
-            value={row.conditions}
-            keyList={this.kvOptionsData.keys as any}
             groupKey={GROUP_KEYS}
             groupKeys={this.kvOptionsData.groupKeys}
-            valueMap={this.kvOptionsData.valueMap}
-            replaceData={row.replaceData}
-            specialOptions={this.kvOptionsData.specialOptions}
-            settingsValue={this.unifiedSettings.conditions}
+            keyList={this.kvOptionsData.keys as any}
             loading={this.conditionsLoading}
             needValidate={!row.isNullData}
+            replaceData={row.replaceData}
+            settingsValue={this.unifiedSettings.conditions}
+            specialOptions={this.kvOptionsData.specialOptions}
+            value={row.conditions}
+            valueMap={this.kvOptionsData.valueMap}
             onChange={v => this.handleConditionChange(v, index)}
+            onRepeat={v => row.setConditionsRepeat(v)}
             onSettingsChange={this.handleSettingsClear}
             onValidate={v => row.setVerificatory('conditions', v)}
-            onRepeat={v => row.setConditionsRepeat(v)}
           ></CommonCondition>
         );
       // 告警组
@@ -1629,16 +1629,16 @@ export default class AlarmDispatchConfig extends tsc<object> {
             ]}
           >
             <AlarmGroupSelect
-              value={row.userGroups}
-              options={this.alarmGroupList}
               loading={this.alarmGroupListLoading}
-              onTagclick={this.handleSelcetAlarmGroup}
-              onRefresh={this.handleRefreshAlarmGroup}
+              options={this.alarmGroupList}
+              value={row.userGroups}
               onChange={value => {
                 row.userGroups = value;
                 this.handleDiffRuleItemChange(row, id, index);
                 this.validateAlarmGroup(row);
               }}
+              onRefresh={this.handleRefreshAlarmGroup}
+              onTagclick={this.handleSelcetAlarmGroup}
             ></AlarmGroupSelect>
             <i
               class='icon-monitor icon-mind-fill'
@@ -1662,8 +1662,8 @@ export default class AlarmDispatchConfig extends tsc<object> {
             ]}
           >
             <bk-select
-              v-model={row.actionId}
               class='alarm-group-select'
+              v-model={row.actionId}
               ext-popover-cls={'alarm-group-select-process-component-pop'}
               onChange={value => {
                 row.setActions(value, 'itsm');
@@ -1672,14 +1672,14 @@ export default class AlarmDispatchConfig extends tsc<object> {
             >
               {this.processPackage.map(option => (
                 <bk-option
-                  key={option.id}
                   id={option.id}
+                  key={option.id}
                   name={option.name}
                 />
               ))}
               <div
-                slot='extension'
                 class='extension-wrap'
+                slot='extension'
               >
                 <div
                   class='add-wrap'
@@ -1694,10 +1694,10 @@ export default class AlarmDispatchConfig extends tsc<object> {
                 >
                   {this.processLoading ? (
                     <img
+                      class='status-loading'
                       alt=''
                       // eslint-disable-next-line @typescript-eslint/no-require-imports
                       src={require('../../static/images/svg/spinner.svg')}
-                      class='status-loading'
                     ></img>
                   ) : (
                     <span class='icon-monitor icon-mc-retry'></span>
@@ -1763,8 +1763,8 @@ export default class AlarmDispatchConfig extends tsc<object> {
           <div class={['table-data-row-item', { 'is-change': row.config[id] }]}>
             <bk-switcher
               v-model={row.isEnabled}
-              theme='primary'
               size='small'
+              theme='primary'
               onChange={() => {
                 this.handleDiffRuleItemChange(row, id, index);
               }}
@@ -1783,21 +1783,21 @@ export default class AlarmDispatchConfig extends tsc<object> {
             ]}
           >
             <bk-tag-input
-              class='alarm-group-select'
               ref={`additionalTags${index}`}
+              class='alarm-group-select'
               v-model={row.tag}
+              allow-auto-match={true}
+              allow-create={true}
+              clearable={false}
+              disabled={false}
+              has-delete-icon={true}
+              placeholder={this.$t('填写标签，格式key:value')}
+              tooltip-key='name'
               onChange={value => {
                 row.setAdditionalTags(value);
                 this.handleAdditionalTagsChange(value, row, index);
                 this.handleDiffRuleItemChange(row, id, index);
               }}
-              tooltip-key='name'
-              clearable={false}
-              disabled={false}
-              allow-auto-match={true}
-              placeholder={this.$t('填写标签，格式key:value')}
-              allow-create={true}
-              has-delete-icon={true}
             ></bk-tag-input>
             {row.validateTips[id] && (
               <i
@@ -1817,53 +1817,53 @@ export default class AlarmDispatchConfig extends tsc<object> {
           <div class='table-data-row-item operate-wrap'>
             <span
               class='icon-monitor icon-mc-copy'
-              onClick={() => this.handleOperateAction('copy', index)}
               v-bk-tooltips={{ content: this.$t('复制'), disabled: row.tooltipsDisabled }}
+              onClick={() => this.handleOperateAction('copy', index)}
             ></span>
             <span
               class='icon-monitor icon-jia'
-              onClick={() => this.handleOperateAction('add', index)}
               v-bk-tooltips={{ content: this.$t('增加'), disabled: row.tooltipsDisabled }}
+              onClick={() => this.handleOperateAction('add', index)}
             ></span>
             <bk-popconfirm
-              content={this.$t('是否删除当前规则?')}
-              ext-popover-cls='alarm-dispatch-rule-operate'
-              onConfirm={() => {
-                this.handleOperateAction('delete', index);
-              }}
               tippy-options={{
                 onHide: () => {
                   row.setTooltipsDisabled(false);
                 },
               }}
+              content={this.$t('是否删除当前规则?')}
+              ext-popover-cls='alarm-dispatch-rule-operate'
               trigger='click'
+              onConfirm={() => {
+                this.handleOperateAction('delete', index);
+              }}
             >
               <span
                 class='icon-monitor icon-jian'
-                onClick={() => row.setTooltipsDisabled(true)}
                 v-bk-tooltips={{ content: this.$t('删除'), disabled: row.tooltipsDisabled }}
+                onClick={() => row.setTooltipsDisabled(true)}
               />
             </bk-popconfirm>
             {/* 复制和新增的规则不支持撤回 */}
             {!this.resetConfig[index]?.disabled && !row.addId && !row.copyId ? (
               <bk-popconfirm
-                content={this.$t('是否撤销当前编辑内容？')}
-                ext-popover-cls='alarm-dispatch-rule-operate'
-                onConfirm={() => this.handleOperateAction('reset', index)}
                 tippy-options={{
                   onHide: () => {
                     row.setTooltipsDisabled(false);
                   },
                 }}
+                content={this.$t('是否撤销当前编辑内容？')}
+                ext-popover-cls='alarm-dispatch-rule-operate'
                 trigger='click'
+                onConfirm={() => this.handleOperateAction('reset', index)}
               >
                 <span
                   class='icon-monitor icon-chehui1'
-                  onClick={() => row.setTooltipsDisabled(true)}
                   v-bk-tooltips={{
                     content: this.$t('撤销回上一次生效的配置'),
                     disabled: row.tooltipsDisabled,
                   }}
+                  onClick={() => row.setTooltipsDisabled(true)}
                 />
               </bk-popconfirm>
             ) : (

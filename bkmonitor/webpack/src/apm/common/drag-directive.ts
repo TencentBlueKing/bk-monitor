@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { VueConstructor } from 'vue';
-import { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
+
 import { random } from 'monitor-common/utils/utils';
+import { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
 
 let insertedEl: IDragHtmlElement = null;
 

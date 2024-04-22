@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getVariableValue } from 'monitor-api/modules/grafana';
 import { Debounce } from 'monitor-common/utils/utils';
 
@@ -79,7 +80,7 @@ export default class DimensionTable extends tsc<IProps> {
     const filterDimension = this.detail.dimensions.filter(item => !!item.is_dimension);
     const dimension = this.search
       ? filterDimension.filter(
-          item => String(item.id).indexOf(this.search) > -1 || String(item.name).indexOf(this.search) > -1,
+          item => String(item.id).indexOf(this.search) > -1 || String(item.name).indexOf(this.search) > -1
         )
       : filterDimension;
     this.pagination.count = dimension.length;
@@ -124,7 +125,7 @@ export default class DimensionTable extends tsc<IProps> {
           ? {
               index_set_id: this.detail.index_set_id,
             }
-          : {},
+          : {}
       ),
     });
     const promisFn = id =>
@@ -164,8 +165,8 @@ export default class DimensionTable extends tsc<IProps> {
           this.$createElement(
             'div',
             { class: 'content' },
-            values.map(item => this.$createElement('span', { class: 'label' }, item.label)),
-          ),
+            values.map(item => this.$createElement('span', { class: 'label' }, item.label))
+          )
         ),
         this.$createElement('div', { class: 'bottom' }, this.$tc('当前仅展示{0}条数据', [values.length])),
       ]),
@@ -193,20 +194,13 @@ export default class DimensionTable extends tsc<IProps> {
         <bk-input
           class='dimension-search'
           v-model={this.search}
-          clearable
           placeholder={this.$t('输入')}
           rightIcon='bk-icon icon-search'
+          clearable
           on-change={this.handleSearch}
         ></bk-input>
         <CommonTable
           class='dimension-table'
-          data={this.tableData}
-          columns={dimensionsColumns}
-          checkable={false}
-          hasColnumSetting={false}
-          pagination={this.pagination}
-          onPageChange={this.handlePageChange}
-          onLimitChange={this.handleLimitChange}
           scopedSlots={{
             value: row =>
               row.values.length ? (
@@ -218,10 +212,17 @@ export default class DimensionTable extends tsc<IProps> {
                 '--'
               ),
           }}
+          checkable={false}
+          columns={dimensionsColumns}
+          data={this.tableData}
+          hasColnumSetting={false}
+          pagination={this.pagination}
+          onLimitChange={this.handleLimitChange}
+          onPageChange={this.handlePageChange}
         >
           <EmptyStatus
-            type={this.emptyStatusType}
             slot='empty'
+            type={this.emptyStatusType}
             onOperation={this.handleOperation}
           />
         </CommonTable>

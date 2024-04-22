@@ -25,13 +25,13 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deleteSceneView, getSceneView, getSceneViewList, updateSceneView } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { IBookMark, ISettingTpl, SettingsDashboardType, SettingsWrapType } from '../typings';
 import { SettingsTabType, SettingsVarType, SettingType } from '../typings/settings';
 import { SETTINGS_POP_ZINDEX } from '../utils';
-
 import SettingsDashboard from './settings-dashboard/settings-dashboard';
 import SettingsTab from './settings-tab/settings-tab';
 import SettingsVar from './settings-var/settings-var';
@@ -370,26 +370,26 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
         <SettingsTab
           key={this.active}
           ref='settingsTabRef'
-          needAutoAdd={this.initAddSetting}
-          canAddTab={this.canAddTab}
           activeTab={this.localActiveTab}
           bookMarkData={this.localBookMarkData}
+          canAddTab={this.canAddTab}
+          needAutoAdd={this.initAddSetting}
           title={this.title}
-          onSave={this.handleSaveTabList}
           onDelete={this.handleDeleteTab}
+          onSave={this.handleSaveTabList}
         />
       ),
       /** 编辑变量 */
       'edit-variate': (
         <SettingsVar
-          sceneId={this.sceneId}
-          needAutoAdd={this.initAddSetting}
-          viewType={this.viewType}
-          activeTab={this.activeTab}
           ref='settingsVarRef'
+          activeTab={this.activeTab}
           bookMarkData={this.localBookMarkData}
-          title={this.title}
           getTabDetail={this.getTabDetail}
+          needAutoAdd={this.initAddSetting}
+          sceneId={this.sceneId}
+          title={this.title}
+          viewType={this.viewType}
           onSave={this.handleSaveVarList}
         />
       ),
@@ -399,10 +399,10 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
           ref='settingsDashBoardRef'
           activeTab={this.localActiveTab}
           bookMarkData={this.localBookMarkData}
-          title={this.title}
           enableAutoGrouping={this.enableAutoGrouping}
-          onGetTabDetail={this.getTabDetail}
+          title={this.title}
           on-tab-change={tab => (this.localActiveTab = tab)}
+          onGetTabDetail={this.getTabDetail}
           onSave={this.handleSaveOrder}
         />
       ),

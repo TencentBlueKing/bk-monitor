@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { CancelToken } from 'monitor-api/index';
 import {
   getIntelligentDetectAccessStatus,
@@ -279,7 +280,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
   async getModelList() {
     this.loading = true;
     const resData = await listIntelligentModels({ algorithm: 'TimeSeriesForecasting' }).finally(
-      () => (this.loading = false),
+      () => (this.loading = false)
     );
     let modelItem: FormItem = null;
     let durationItem: FormItem = null;
@@ -415,13 +416,13 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
   render() {
     return (
       <div
-        v-bkloading={{ isLoading: this.loading }}
         class='time-series-forecast-wrap'
+        v-bkloading={{ isLoading: this.loading }}
       >
         {this.tipsData.message && !this.isChangeModel && (
           <bk-alert
-            type={this.tipsData.status}
             class='alert-message'
+            type={this.tipsData.status}
           >
             <div
               class='alert-message-number'
@@ -432,12 +433,12 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
         )}
         <Form
           ref='formRef'
-          rules={this.rules}
-          readonly={this.readonly}
+          class='time-serise-forecast-wrap'
           formItemList={this.formItem}
           label-width={126}
+          readonly={this.readonly}
+          rules={this.rules}
           onChange={this.handleFormValueChange}
-          class='time-serise-forecast-wrap'
         ></Form>
       </div>
     );

@@ -26,7 +26,6 @@
 import dayjs from 'dayjs';
 
 import { DecimalCount } from '../types/displayValue';
-
 import { FormattedValue, toFixed, toFixedScaled, ValueFormatter } from './valueFormats';
 
 interface IntervalsInSeconds {
@@ -34,14 +33,14 @@ interface IntervalsInSeconds {
 }
 
 export enum Interval {
-  Year = 'year',
-  Month = 'month',
-  Week = 'week',
   Day = 'day',
   Hour = 'hour',
-  Minute = 'minute',
-  Second = 'second',
   Millisecond = 'millisecond',
+  Minute = 'minute',
+  Month = 'month',
+  Second = 'second',
+  Week = 'week',
+  Year = 'year',
 }
 
 const INTERVALS_IN_SECONDS: IntervalsInSeconds = {
@@ -78,7 +77,7 @@ export function toNanoSeconds(size: number, decimals: DecimalCount = 2, scaledDe
 export function toMicroSeconds(
   size: number,
   decimals: DecimalCount = 2,
-  scaledDecimals?: DecimalCount,
+  scaledDecimals?: DecimalCount
 ): FormattedValue {
   if (size === null) {
     return { text: '' };
@@ -96,7 +95,7 @@ export function toMicroSeconds(
 export function toMilliSeconds(
   size: number,
   decimals: DecimalCount = 2,
-  scaledDecimals?: DecimalCount,
+  scaledDecimals?: DecimalCount
 ): FormattedValue {
   if (size === null) {
     return { text: '' };
@@ -390,7 +389,7 @@ export function dateTimeFromNow(
   value: number,
   decimals: DecimalCount,
   scaledDecimals: DecimalCount,
-  timeZone?,
+  timeZone?
 ): FormattedValue {
   const isUtc = timeZone === 'utc';
   const time = isUtc ? dayjs.utc(value) : dayjs.tz(value);

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
 import './favorites-list.scss';
@@ -239,8 +240,8 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
         onClick={() => this.handleExpandMore()}
       >
         <div
-          class={['fav-main', { 'is-expanded': !this.isCollapsed }]}
           ref='favMain'
+          class={['fav-main', { 'is-expanded': !this.isCollapsed }]}
         >
           <div class='box-shadow'></div>
           <span class='fav-label'>{this.$t('收藏')}</span>
@@ -249,8 +250,8 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
             class={['fav-list-wrap', { 'allow-scroll': this.allowScroll && this.isExpand }]}
           >
             <ul
-              class='fav-list'
               ref='favList'
+              class='fav-list'
             >
               {this.localValue.map((item, index) => (
                 <li

@@ -26,18 +26,18 @@
 <template>
   <article v-show="false">
     <div
-      class="label-menu-wrapper"
       ref="labelMenuWrapper"
+      class="label-menu-wrapper"
     >
       <ul
-        class="label-menu-list"
         v-if="filterType === 'checkbox'"
+        class="label-menu-list"
       >
         <!-- <li class="item" v-for="(item, index) in label.list" :key="index" @click="handleSelectLabel(item)"> -->
         <li
-          class="item"
           v-for="(item, index) in label.list"
           :key="index"
+          class="item"
           @click="handleSelectCheckbox(item)"
         >
           <!-- <bk-checkbox :value="item.value" :true-value="item.checked" :false-value="item.cancel"></bk-checkbox> -->
@@ -50,14 +50,14 @@
         </li>
       </ul>
       <bk-radio-group
-        v-model="radio.value"
         v-else-if="filterType === 'radio'"
+        v-model="radio.value"
         class="radio-group"
       >
         <bk-radio
-          ext-cls="radio-item"
           v-for="(item, index) in radioList"
           :key="index + 'radio'"
+          ext-cls="radio-item"
           :value="item"
           :checked="item === radio.value"
         >
@@ -69,11 +69,15 @@
           <span
             class="monitor-btn"
             @click="handleLabelChange"
-          > {{ $t('确定') }} </span>
+          >
+            {{ $t('确定') }}
+          </span>
           <span
             class="monitor-btn"
             @click="handleResetLable"
-          > {{ $t('重置') }} </span>
+          >
+            {{ $t('重置') }}
+          </span>
         </div>
       </div>
     </div>
@@ -85,28 +89,28 @@ export default {
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     target: null,
     radioList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     // 菜单列表
     menuList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     // 筛选列表类型 多选/单选
     filterType: {
       type: String,
       default: 'checkbox',
-      validator: val => ['checkbox', 'radio'].includes(val)
+      validator: val => ['checkbox', 'radio'].includes(val),
     },
     value: {
       type: [String, Array],
-      default: ''
-    }
+      default: '',
+    },
   },
   data() {
     return {
@@ -115,7 +119,7 @@ export default {
         instance: null,
         values: [],
         selectedLabels: [],
-        isFilter: false
+        isFilter: false,
       },
       tippyOptions: {
         trigger: 'manual',
@@ -125,19 +129,19 @@ export default {
         offset: '-1, -11',
         sticky: true,
         duration: [275, 0],
-        interactive: true
+        interactive: true,
       },
       radio: {
         value: '',
         tempVal: '',
-        isFilter: false
-      }
+        isFilter: false,
+      },
     };
   },
   computed: {
     labelKeyword() {
       return this.label.list.filter(item => item.checked).map(item => item.id);
-    }
+    },
   },
   watch: {
     show(v) {
@@ -163,7 +167,7 @@ export default {
     menuList() {
       this.genreationSelectorList();
       this.handleUpdateChecked();
-    }
+    },
   },
   created() {
     this.tippyOptions = Object.assign(this.tippyOptions, this.options);
@@ -198,7 +202,7 @@ export default {
           this.filterType === 'radio' && this.handleUpdateRadio();
           this.handleDestroy();
         },
-        ...this.tippyOptions
+        ...this.tippyOptions,
       });
       this.label.instance?.show(100);
     },
@@ -233,7 +237,7 @@ export default {
           this.$emit('reset', '');
         }
       } else {
-        this.label.list.forEach((item) => {
+        this.label.list.forEach(item => {
           item.checked = false;
         });
         this.label.selectedLabels = [];
@@ -246,7 +250,7 @@ export default {
     },
     handleUpdateChecked() {
       const list = this.label.selectedLabels.length ? this.label.selectedLabels : [];
-      this.label.list.forEach((item) => {
+      this.label.list.forEach(item => {
         if (list.includes(item.id)) {
           item.value = item.id;
         } else {
@@ -261,15 +265,15 @@ export default {
       this.label.list = this.menuList.map(item => ({
         name: item.name,
         id: item.id,
-        checked: this.value.includes(item.id)
+        checked: this.value.includes(item.id),
       }));
     },
     // 更新radio值
     handleUpdateRadio() {
       this.radio.tempVal !== this.radio.value && (this.radio.value = this.radio.tempVal);
       !this.radio.isFilter && (this.radio.value = '');
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

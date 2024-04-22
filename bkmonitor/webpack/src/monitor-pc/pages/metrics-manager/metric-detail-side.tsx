@@ -25,13 +25,13 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 
 import { secToString } from '../../components/cycle-input/utils';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 // import InputConfirm from './input-confirm';
 import { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
-
 import HandleExperience from './components/handle-experiences';
 import DimensionTable from './dimension-table';
 import { dataSouceLabes } from './metrics-table';
@@ -121,10 +121,10 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
         label: '启/停',
         value: (
           <bk-switcher
-            value={true}
-            theme='primary'
-            disabled
             size={'small'}
+            theme='primary'
+            value={true}
+            disabled
           ></bk-switcher>
         ),
       },
@@ -155,7 +155,7 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
 
   handleToDataRetrieval() {
     window.open(
-      `${location.origin}${location.pathname}${location.search}#/data-retrieval/?metric_id=${this.detail.metric_id}`,
+      `${location.origin}${location.pathname}${location.search}#/data-retrieval/?metric_id=${this.detail.metric_id}`
     );
   }
 
@@ -168,16 +168,16 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
     );
     return (
       <bk-sideslider
-        extCls='metric-detail-side-component'
-        isShow={this.localShow}
         width={960}
+        extCls='metric-detail-side-component'
+        beforeClose={() => this.emitShow(false)}
+        isShow={this.localShow}
         quickClose
         transfer
-        beforeClose={() => this.emitShow(false)}
       >
         <div
-          slot='header'
           class='side-header'
+          slot='header'
         >
           <span class='left'>{this.title}</span>
           <span
@@ -189,8 +189,8 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
           </span>
         </div>
         <div
-          slot='content'
           class='side-content'
+          slot='content'
         >
           <div class='content-bg'>
             <div class='statistics'>
@@ -206,28 +206,28 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
               </div>
             </div>
             <MonitorTab
+              extCls='content-tab'
               active={this.tabData.active}
               type='unborder-card'
-              extCls='content-tab'
               on-tab-change={this.handleTabChange}
             >
               {this.tabData.list.map(item => (
                 <bk-tab-panel
-                  name={item.id}
-                  label={item.name}
                   key={item.id}
+                  label={item.name}
+                  name={item.id}
                 ></bk-tab-panel>
               ))}
             </MonitorTab>
           </div>
           <div class='tab-container'>
             <DimensionTable
-              show={this.tabData.active === 'dimension'}
               detail={this.detail}
+              show={this.tabData.active === 'dimension'}
             ></DimensionTable>
             <HandleExperience
-              show={this.tabData.active === 'handleExperience'}
               metricData={this.detail}
+              show={this.tabData.active === 'handleExperience'}
             ></HandleExperience>
           </div>
         </div>

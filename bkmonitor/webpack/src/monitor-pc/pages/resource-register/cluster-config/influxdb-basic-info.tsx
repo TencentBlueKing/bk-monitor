@@ -79,31 +79,31 @@ export default class InfluxdbBasicInfo extends tsc<IProps> {
     return (
       <div>
         <FormItem
+          errMsg={this.formErrMsg.domain}
           title={this.$tc('proxy集群域名')}
           require
-          errMsg={this.formErrMsg.domain}
         >
           <bk-input
             v-model={this.localFormData.domain}
-            onFocus={() => this.clearError()}
             onChange={this.handleEmitChange}
+            onFocus={() => this.clearError()}
           ></bk-input>
         </FormItem>
         <FormItem
+          errMsg={this.formErrMsg.port}
           title={this.$tc('端口')}
           require
-          errMsg={this.formErrMsg.port}
         >
           <bk-input
             v-model={this.localFormData.port}
-            onFocus={() => this.clearError()}
             onChange={this.handleEmitChange}
+            onFocus={() => this.clearError()}
           ></bk-input>
         </FormItem>
         <div class='horizontal'>
           <FormItem
-            title={this.$tc('用户名')}
             width={270}
+            title={this.$tc('用户名')}
           >
             <bk-input
               v-model={this.localFormData.username}
@@ -111,8 +111,8 @@ export default class InfluxdbBasicInfo extends tsc<IProps> {
             />
           </FormItem>
           <FormItem
-            title={this.$tc('密码')}
             width={270}
+            title={this.$tc('密码')}
           >
             <bk-input
               v-model={this.localFormData.password}

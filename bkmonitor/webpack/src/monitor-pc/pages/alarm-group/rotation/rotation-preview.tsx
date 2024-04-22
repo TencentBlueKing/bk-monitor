@@ -32,7 +32,7 @@ import './rotation-preview.scss';
 
 interface IProps {
   value?: any;
-  alarmGroupId?: string | number;
+  alarmGroupId?: number | string;
   dutyPlans?: any[];
   previewDutyRules?: any[];
   onStartTimeChange?: (v: string) => void;
@@ -42,7 +42,7 @@ interface IProps {
 @Component
 export default class RotationPreview extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: any[];
-  @Prop({ type: [Number, String], default: '' }) alarmGroupId: string | number;
+  @Prop({ type: [Number, String], default: '' }) alarmGroupId: number | string;
   /* 轮值历史 */
   @Prop({ default: () => [], type: Array }) dutyPlans: any[];
   /* 当前预览接口数据 用于展示明细 */
@@ -225,8 +225,8 @@ export default class RotationPreview extends tsc<IProps> {
             <bk-switcher
               class='ml-24'
               v-model={this.showNoData}
-              theme='primary'
               size='small'
+              theme='primary'
             ></bk-switcher>
           </span>
           <span class='ml-6'>{this.$t('显示未排班')}</span>
@@ -257,11 +257,11 @@ export default class RotationPreview extends tsc<IProps> {
             <div class='left-content'>
               {this.dutyData.data.map((item, index) => (
                 <div
-                  class='left-content-item'
+                  key={index}
                   style={{
                     height: `${64 + item.maxRow * 22}px`,
                   }}
-                  key={index}
+                  class='left-content-item'
                 >
                   <span v-bk-overflow-tips>{item.name}</span>
                 </div>
@@ -269,14 +269,14 @@ export default class RotationPreview extends tsc<IProps> {
             </div>
           </div>
           <div
-            class='preview-content-right'
             ref='previewContent'
+            class='preview-content-right'
           >
             <div class='right-header'>
               {this.dutyData.dates.map((item, index) => (
                 <div
-                  class='right-header-item'
                   key={index}
+                  class='right-header-item'
                 >{`${item.month}-${item.day}`}</div>
               ))}
               <div
@@ -295,23 +295,22 @@ export default class RotationPreview extends tsc<IProps> {
             <div class='right-content'>
               {this.dutyData.data.map((row, rowIndex) => (
                 <div
-                  class='row-content'
+                  key={rowIndex}
                   style={{
                     height: `${64 + row.maxRow * 22}px`,
                   }}
-                  key={rowIndex}
+                  class='row-content'
                 >
                   {this.dutyData.dates.map((_col, colIndex) => (
                     <div
-                      class='col-content'
                       key={`${rowIndex}_${colIndex}`}
+                      class='col-content'
                     ></div>
                   ))}
                   {row.data
                     .filter(duty => duty.range[1] - duty.range[0] !== 0)
                     .map((duty, dutyIndex) => (
                       <div
-                        class='user-item'
                         key={dutyIndex}
                         style={{
                           top: `${21 + duty.row * 22}px`,
@@ -320,15 +319,16 @@ export default class RotationPreview extends tsc<IProps> {
                           }px`,
                           left: `${(duty?.isStartBorder ? 1 : 0) + this.containerWidth * duty.range[0]}px`,
                         }}
+                        class='user-item'
                         onMouseenter={(event: Event) => this.handleMouseenter(event, duty.other)}
                       >
                         <div
-                          class='user-header'
                           style={{ background: duty.color }}
+                          class='user-header'
                         ></div>
                         <div
-                          class='user-content'
                           style={{ color: duty.color }}
+                          class='user-content'
                         >
                           <span>{duty.users.map(u => u.name || u.id).join(',')}</span>
                         </div>
@@ -340,18 +340,17 @@ export default class RotationPreview extends tsc<IProps> {
                 this.dutyData.freeTimes.map((item, index) => (
                   <div
                     key={`free_${index}`}
-                    class='free-col'
                     style={{
                       width: `${this.containerWidth * (item.range[1] - item.range[0])}px`,
                       left: `${this.containerWidth * item.range[0]}px`,
                     }}
+                    class='free-col'
                     onMouseenter={(event: Event) => this.handleMouseenter(event, { time: item.timeStr })}
                   ></div>
                 ))}
               {this.dutyData.overlapTimes.map((item, index) => (
                 <div
                   key={`overlap_${index}`}
-                  class='overlap-col'
                   style={{
                     ...this.getOverlapStyleTop(item.verticalRange),
                     // top: `${(item.verticalRange[0] + 1) * 64 - 21}px`,
@@ -359,6 +358,7 @@ export default class RotationPreview extends tsc<IProps> {
                     width: `${this.containerWidth * (item.range.range[1] - item.range.range[0])}px`,
                     left: `${this.containerWidth * item.range.range[0]}px`,
                   }}
+                  class='overlap-col'
                   onMouseenter={(event: Event) =>
                     this.handleMouseenter(event, {
                       time: item.range.timeStr,
@@ -371,20 +371,20 @@ export default class RotationPreview extends tsc<IProps> {
           </div>
         </div>
         <bk-sideslider
-          isShow={this.showDetail}
           width={640}
-          transfer={true}
           extCls={'rotation-preview-side'}
+          before-close={() => this.handleShowDetail(false, '')}
+          isShow={this.showDetail}
           quickClose={true}
           title={this.detailTitle}
-          before-close={() => this.handleShowDetail(false, '')}
+          transfer={true}
         >
           <div slot='content'>
             {this.detailDutyPlans.length ? (
               this.detailDutyPlans.map((item, index) => (
                 <div
-                  class='content-item'
                   key={index}
+                  class='content-item'
                 >
                   <span class='item-left'>{`${item.startTime} ～ ${item.endTime}`}</span>
                   <span class='item-right'>{item.users}</span>
@@ -397,8 +397,8 @@ export default class RotationPreview extends tsc<IProps> {
         </bk-sideslider>
         <div style={{ display: 'none' }}>
           <div
-            class='duty-preview-component-user-item-tip'
             ref='userTip'
+            class='duty-preview-component-user-item-tip'
           >
             <div class='time'>{this.popover.time}</div>
             <div class='users'>{this.popover.users}</div>

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import { getVariableValue } from 'monitor-api/modules/grafana';
 import { noticeGroupList } from 'monitor-api/modules/notice_group';
 import {

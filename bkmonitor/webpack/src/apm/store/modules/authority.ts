@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
 import {
   checkAllowedByActionIds,
@@ -32,76 +31,26 @@ import {
   getAuthorityMeta,
 } from 'monitor-api/modules/iam';
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 @Module({ name: 'authority', dynamic: true, namespaced: true, store })
 class Authority extends VuexModule {
-  public authorityMeta: any = [];
-  public showAuthortyDialog = false;
-  public dialogLoading = false;
   public authApplyUrl = '';
   public authDetail: any = {};
-  public get showDialog() {
-    return this.showAuthortyDialog;
-  }
-  public get loading() {
-    return this.dialogLoading;
-  }
+  public authorityMeta: any = [];
+  public dialogLoading = false;
+  public showAuthortyDialog = false;
   public get applyUrl() {
     return this.authApplyUrl;
   }
   public get authorityDetail() {
     return this.authDetail;
   }
-  @Mutation
-  public setAuthorityMeta(data: any) {
-    this.authorityMeta = data;
+  public get loading() {
+    return this.dialogLoading;
   }
-  @Mutation
-  public setShowAuthortyDialog(data: boolean) {
-    this.showAuthortyDialog = data;
-  }
-  @Mutation
-  public setDialogLoading(data: boolean) {
-    this.dialogLoading = data;
-  }
-  @Mutation
-  public setApplyUrl(data: string) {
-    this.authApplyUrl = data;
-  }
-  @Mutation
-  public setAuthorityDetail(data: any) {
-    this.authDetail = data;
-  }
-  @Action // 获取系统所有权限对应表
-  public async getAuthorityMeta() {
-    const data = await getAuthorityMeta().catch(() => []);
-    this.setAuthorityMeta(transformDataKey(data));
-  }
-  @Action // 通过actionId获取对应权限及依赖的权限的详情，及申请权限的跳转Url
-  public async getAuthorityDetail(actionId: string | string[]) {
-    this.setDialogLoading(true);
-    this.setShowAuthortyDialog(true);
-    const res = await this.handleGetAuthDetail(actionId);
-    const data = transformDataKey(res);
-    this.setApplyUrl(data.applyUrl);
-    this.setAuthorityDetail(data.authorityList);
-    this.setDialogLoading(false);
-  }
-  @Action
-  public async handleGetAuthDetail(actionId: string | string[]) {
-    const res = await getAuthorityDetail({
-      action_ids: Array.isArray(actionId) ? actionId : [actionId],
-    }).catch(() => ({ applyUrl: '', authorityList: {} }));
-    return res;
-  }
-  @Action
-  public showAuthorityDetail(res: any) {
-    this.setDialogLoading(true);
-    this.setShowAuthortyDialog(true);
-    const data = transformDataKey(res);
-    this.setApplyUrl(data.data.applyUrl);
-    this.setAuthorityDetail(data.permission);
-    this.setDialogLoading(false);
+  public get showDialog() {
+    return this.showAuthortyDialog;
   }
   @Action // 通过actionIds获取对应权限是否放行
   public async checkAllowedByActionIds(params: any) {
@@ -118,6 +67,57 @@ class Authority extends VuexModule {
       bk_biz_id: store.getters.bizId || window.cc_biz_id,
     }).catch(() => []);
     return transformDataKey(data);
+  }
+  @Action // 通过actionId获取对应权限及依赖的权限的详情，及申请权限的跳转Url
+  public async getAuthorityDetail(actionId: string | string[]) {
+    this.setDialogLoading(true);
+    this.setShowAuthortyDialog(true);
+    const res = await this.handleGetAuthDetail(actionId);
+    const data = transformDataKey(res);
+    this.setApplyUrl(data.applyUrl);
+    this.setAuthorityDetail(data.authorityList);
+    this.setDialogLoading(false);
+  }
+  @Action // 获取系统所有权限对应表
+  public async getAuthorityMeta() {
+    const data = await getAuthorityMeta().catch(() => []);
+    this.setAuthorityMeta(transformDataKey(data));
+  }
+  @Action
+  public async handleGetAuthDetail(actionId: string | string[]) {
+    const res = await getAuthorityDetail({
+      action_ids: Array.isArray(actionId) ? actionId : [actionId],
+    }).catch(() => ({ applyUrl: '', authorityList: {} }));
+    return res;
+  }
+  @Mutation
+  public setApplyUrl(data: string) {
+    this.authApplyUrl = data;
+  }
+  @Mutation
+  public setAuthorityDetail(data: any) {
+    this.authDetail = data;
+  }
+  @Mutation
+  public setAuthorityMeta(data: any) {
+    this.authorityMeta = data;
+  }
+  @Mutation
+  public setDialogLoading(data: boolean) {
+    this.dialogLoading = data;
+  }
+  @Mutation
+  public setShowAuthortyDialog(data: boolean) {
+    this.showAuthortyDialog = data;
+  }
+  @Action
+  public showAuthorityDetail(res: any) {
+    this.setDialogLoading(true);
+    this.setShowAuthortyDialog(true);
+    const data = transformDataKey(res);
+    this.setApplyUrl(data.data.applyUrl);
+    this.setAuthorityDetail(data.permission);
+    this.setDialogLoading(false);
   }
 }
 

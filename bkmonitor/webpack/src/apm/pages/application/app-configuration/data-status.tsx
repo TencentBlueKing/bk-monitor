@@ -27,6 +27,7 @@
 import VueJsonPretty from 'vue-json-pretty';
 import { Component, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import {
   dataSampling,
@@ -43,7 +44,6 @@ import { ApdexChart } from 'monitor-ui/chart-plugins/plugins/apdex-chart/apdex-c
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../components/panel-item/panel-item';
-
 import { IStrategyData } from './type';
 
 import 'vue-json-pretty/lib/styles.css';
@@ -292,10 +292,10 @@ export default class DataStatus extends tsc<object> {
         <PanelItem title={this.$t('告警策略')}>
           <TimeRange
             slot='headerTool'
-            value={this.timeRange}
             timezone={this.timezone}
-            onTimezoneChange={this.handleTimezoneChange}
+            value={this.timeRange}
             onChange={this.handleTimeRangeChange}
+            onTimezoneChange={this.handleTimezoneChange}
           />
           <div
             class='form-content'
@@ -310,10 +310,10 @@ export default class DataStatus extends tsc<object> {
                   {this.$t('无数据告警')}
                 </span>
                 <bk-switcher
+                  pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
                   size='small'
                   theme='primary'
                   value={this.strategyInfo.is_enabled}
-                  pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
                 />
               </div>
               <div class='msg-item'>
@@ -332,9 +332,9 @@ export default class DataStatus extends tsc<object> {
                 <div class='apdex-chart-box'>
                   {this.apdexChartPanel && (
                     <ApdexChart
+                      panel={this.apdexChartPanel}
                       showChartHeader={false}
                       split-number={2}
-                      panel={this.apdexChartPanel}
                     />
                   )}
                 </div>
@@ -376,28 +376,28 @@ export default class DataStatus extends tsc<object> {
           </span>
           <bk-table
             class={'sampling-table'}
+            v-bkloading={{ isLoading: this.tableLoading }}
+            data={this.samplingList}
             outer-border={false}
             row-auto-height={true}
-            data={this.samplingList}
-            v-bkloading={{ isLoading: this.tableLoading }}
           >
             <bk-table-column
+              width='80'
               label={this.$t('序号')}
               type='index'
-              width='80'
             />
             <bk-table-column
               label={this.$t('原始数据')}
               scopedSlots={logSlots}
             />
             <bk-table-column
-              label={this.$t('采样时间')}
               width='200'
+              label={this.$t('采样时间')}
               scopedSlots={{ default: props => props.row.sampling_time }}
             />
             <bk-table-column
-              label={this.$t('查看')}
               width='180'
+              label={this.$t('查看')}
               scopedSlots={operatorSlot}
             />
           </bk-table>
@@ -405,15 +405,15 @@ export default class DataStatus extends tsc<object> {
 
         <bk-sideslider
           ext-cls='origin-log-sideslider'
-          transfer={true}
           isShow={this.sideslider.show}
+          transfer={true}
           {...{ on: { 'update:isShow': v => (this.sideslider.show = v) } }}
-          quick-close={true}
           width={596}
+          quick-close={true}
         >
           <div
-            slot='header'
             class='title-wrap'
+            slot='header'
           >
             <span>{this.$t('上报日志详情')}</span>
             <bk-button
@@ -428,10 +428,10 @@ export default class DataStatus extends tsc<object> {
             slot='content'
           >
             <VueJsonPretty
+              data={this.sideslider.log}
+              deep={5}
               virtual={true}
               virtualLines={80}
-              deep={5}
-              data={this.sideslider.log}
             />
           </div>
         </bk-sideslider>

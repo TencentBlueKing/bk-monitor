@@ -115,6 +115,7 @@
 
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+
 import { Grid, GridItem, Popup, Radio, RadioGroup } from 'vant';
 
 import { quickShield } from '../../../monitor-api/modules/mobile_event';
@@ -150,7 +151,7 @@ enum TimeSemantics {
   TwelveHour,
   OneDays,
   SevenDays,
-  Custom
+  Custom,
 }
 
 @Component({
@@ -162,11 +163,11 @@ enum TimeSemantics {
     [Popup.name]: Popup,
     [Grid.name]: Grid,
     [GridItem.name]: GridItem,
-    FooterButton
-  }
+    FooterButton,
+  },
 })
 export default class AlarmDetail extends Vue {
-  @Prop({ default: 0 }) readonly eventId!: string | number;
+  @Prop({ default: 0 }) readonly eventId!: number | string;
   @Prop() readonly routeKey: string;
   private active = TimeSemantics.TenMinutes; // 屏蔽时间当前项
   private shieldType = 'event'; // 屏蔽类型 value
@@ -185,7 +186,7 @@ export default class AlarmDetail extends Vue {
     strategyName: '',
     targetMessage: '',
     anomalyMessage: '',
-    levelName: ''
+    levelName: '',
   };
 
   @Watch('routeKey')
@@ -197,14 +198,14 @@ export default class AlarmDetail extends Vue {
     this.radioList = {
       type: [
         { name: this.$tc('事件屏蔽'), value: 'event' },
-        { name: this.$tc('策略屏蔽'), value: 'strategy' }
+        { name: this.$tc('策略屏蔽'), value: 'strategy' },
       ],
       reason: [
         { name: this.$tc('变更中'), value: '变更中' },
         { name: this.$tc('无关紧要'), value: '无关紧要' },
         { name: this.$tc('已知问题'), value: '已知问题' },
-        { name: this.$tc('其他'), value: '其他' }
-      ]
+        { name: this.$tc('其他'), value: '其他' },
+      ],
     };
     this.customTime = this.$tc('自定义');
     this.dataPickerList = [
@@ -213,7 +214,7 @@ export default class AlarmDetail extends Vue {
       { id: 3, name: String(this.$t('小时', { num: 12 })), value: 60000 * 60 * 12 },
       { id: 4, name: String(this.$t('天', { num: 1 })), value: 60000 * 60 * 24 },
       { id: 5, name: String(this.$t('天', { num: 7 })), value: 60000 * 60 * 24 * 7 },
-      { id: 6, name: this.$tc('自定义'), value: 0 }
+      { id: 6, name: this.$tc('自定义'), value: 0 },
     ];
   }
 
@@ -233,7 +234,7 @@ export default class AlarmDetail extends Vue {
     this.$store.commit('app/setPageLoading', true);
     const [eventDetail] = await Promise.all([
       EventModule.getEventDetail({ id: this.eventId }),
-      AlarmModule.getEventNum()
+      AlarmModule.getEventNum(),
     ]);
     this.eventDetail = eventDetail;
     this.handleSetRadioList();
@@ -241,28 +242,28 @@ export default class AlarmDetail extends Vue {
       {
         type: 'event',
         name: this.$tc('级别'),
-        value: this.eventDetail.levelName
+        value: this.eventDetail.levelName,
       },
       {
         type: 'event',
         name: this.$tc('维度'),
-        value: this.eventDetail.dimensionMessage
+        value: this.eventDetail.dimensionMessage,
       },
       {
         type: 'strategy',
         name: this.$tc('策略名称'),
-        value: this.eventDetail.strategyName
+        value: this.eventDetail.strategyName,
       },
       {
         type: 'scope',
         name: this.$tc('IP/实例'),
-        value: this.eventDetail.targetMessage
+        value: this.eventDetail.targetMessage,
       },
       {
         type: 'event',
         name: this.$tc('条件'),
-        value: this.eventDetail.anomalyMessage
-      }
+        value: this.eventDetail.anomalyMessage,
+      },
     ];
     this.$store.commit('app/setPageLoading', false);
   }
@@ -323,7 +324,7 @@ export default class AlarmDetail extends Vue {
       event_id: this.eventId,
       type: this.shieldType,
       end_time: this.endTime,
-      desc: this.reason
+      desc: this.reason,
     };
     quickShield(params)
       .then(() => {
@@ -358,7 +359,7 @@ export default class AlarmDetail extends Vue {
       padding: 0 20px;
       background: #fff;
       border-radius: 4px;
-      box-shadow: 0 1px 0 0 rgba(99, 101, 110, .05);
+      box-shadow: 0 1px 0 0 rgba(99, 101, 110, 0.05);
 
       .content-radio {
         position: relative;
@@ -377,7 +378,7 @@ export default class AlarmDetail extends Vue {
           height: 1px;
           content: '';
           background: $borderColor;
-          opacity: .6;
+          opacity: 0.6;
         }
 
         &:nth-last-child(1)::after {

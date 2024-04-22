@@ -32,7 +32,6 @@ import { listUsersUser } from 'monitor-api/modules/model';
 import { getMetricListV2, getScenarioList, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-
 import { CONDITIONS, ICondtionItem } from './index';
 
 /* 通知人员需支持远程搜索 */
@@ -62,7 +61,7 @@ export interface IConditionProps {
   groupKey: string[];
 }
 /* 每个key前缀包含的选项 例：dimensions: ['xxx'] => dimensions.xxx */
-export type TGroupKeys = Map<string, string[] | any[]>;
+export type TGroupKeys = Map<string, any[] | string[]>;
 /* 条件选择组合key选项 */
 export const GROUP_KEYS = ['dimensions', 'tags', 'set', 'module', 'host'];
 /* 条件选择value固定项 */
@@ -73,8 +72,8 @@ export const IS_EMPTY_USERS_VALUES = [
 export enum EKeyTags {
   all = 'all',
   cmdb = 'CMDB',
-  strategy = 'strategy',
   event = 'event',
+  strategy = 'strategy',
 }
 
 /* key的标签分类 */
@@ -108,7 +107,7 @@ export function conditionFindReplace(
   oldCondition: ICondtionItem[],
   findData: ICondtionItem[],
   replaceData: ICondtionItem[],
-  isUnshift = false,
+  isUnshift = false
 ) {
   const conditions = [];
   const findConditions: ICondtionItem[] = findData.map(item => ({
@@ -186,7 +185,7 @@ export function topNDataStrTransform(value: string) {
 export async function allKVOptions(
   bkBizIds,
   setData: (type: string, key: string, values: any) => void,
-  end?: () => void,
+  end?: () => void
 ) {
   // setData('valueMap', 'is_empty_users', [
   //   { id: 'true', name: window.i18n.t('是') },
@@ -272,7 +271,7 @@ export async function allKVOptions(
           ...item,
           id: String(item.id),
           name: item.name,
-        })),
+        }))
       );
       awaitAll();
     })
@@ -294,7 +293,7 @@ export async function allKVOptions(
         data.metric_list.map(m => ({
           id: m.metric_id,
           name: m.name,
-        })),
+        }))
       );
       awaitAll();
     })
@@ -323,7 +322,7 @@ export async function allKVOptions(
             fieldData.buckets.map(b => ({
               id: isChar ? topNDataStrTransform(b.id) : b.id,
               name: b.name,
-            })),
+            }))
           );
         }
         if ('alert_name' === fieldData.field) {
@@ -333,7 +332,7 @@ export async function allKVOptions(
             fieldData.buckets.map(b => ({
               id: isChar ? topNDataStrTransform(b.id) : b.id,
               name: b.name,
-            })),
+            }))
           );
         }
         // if ('metric' === fieldData.field) {
@@ -368,7 +367,7 @@ export async function allKVOptions(
               id: o.id,
               name: o.name,
             };
-          }),
+          })
         );
       }
       return {
@@ -424,7 +423,7 @@ export async function allKVOptions(
         data.results.map(item => ({
           id: item.username,
           name: item.display_name,
-        })),
+        }))
       );
       awaitAll();
     })
@@ -452,7 +451,7 @@ export async function allKVOptions(
             t.buckets.map(b => ({
               id: isChar ? topNDataStrTransform(b.id) : b.id,
               name: b.name,
-            })),
+            }))
           );
         }
       });
@@ -491,7 +490,7 @@ export async function allKVOptions(
       t.buckets.map(b => ({
         id: isChar ? topNDataStrTransform(b.id) : b.id,
         name: b.name,
-      })),
+      }))
     );
   });
   awaitAll();
@@ -517,7 +516,7 @@ export async function setDimensionsOfStrategy(strategyId, setData: (valuesMap) =
             data.map(d => ({
               id: d.value,
               name: d.label,
-            })),
+            }))
           );
           reslove(true);
         })

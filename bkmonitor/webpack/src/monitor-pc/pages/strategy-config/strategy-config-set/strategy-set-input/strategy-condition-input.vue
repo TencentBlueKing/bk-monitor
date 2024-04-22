@@ -26,29 +26,28 @@
 <template>
   <div class="strategy-set-input">
     <component
-      v-for="(item, index) in alarmConditionList"
-      :key="item.type + '-' + item.compKey"
       :is="item.component"
-      :ref="'component-' + index"
+      v-for="(item, index) in alarmConditionList"
       v-show="item.show"
+      :key="item.type + '-' + item.compKey"
+      :ref="'component-' + index"
+      :list="item.list"
+      v-bind="item"
       @click="handleChange(index)"
       @remove="handleItemRemove(item, index)"
       @set-hide="handleSetHide(item, index)"
-      @item-select="(data) => handleItemSelect(data, item, index)"
+      @item-select="data => handleItemSelect(data, item, index)"
       @set-add="item.addEvent && handleSetAdd($event, item, index)"
-      @set-value="(data) => handleSetValue(data, item, index)"
-      :list="item.list"
-      v-bind="item"
+      @set-value="data => handleSetValue(data, item, index)"
     />
     <!-- <span class="input-blank"></span> -->
   </div>
 </template>
 <script>
-import { createNamespacedHelpers } from 'vuex';
 import { deepClone, random } from 'monitor-common/utils/utils';
+import { createNamespacedHelpers } from 'vuex';
 
 import { CONDITION_METHOD_LIST } from '../../../../constant/constant';
-
 import SetAdd from './set-add';
 import SetInput from './set-input';
 
@@ -58,65 +57,65 @@ export default {
   name: 'StrategyConditionInput',
   components: {
     SetInput,
-    SetAdd
+    SetAdd,
   },
   props: {
     dimensionList: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     conditions: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     // 系统事件无result_table_id，非必须
     resultTableId: {
       type: [String, Number],
-      required: false
+      required: false,
     },
     metricField: {
       type: [String, Number],
-      required: true
+      required: true,
     },
     field: {
       type: [String, Number],
-      required: false
+      required: false,
     },
     bizId: {
       type: [String, Number],
-      required: true
+      required: true,
     },
     typeId: {
       type: [String, Number],
-      required: true
+      required: true,
     },
     dataTypeLabel: {
       type: String,
-      required: true
+      required: true,
     },
     dataSourceLabel: {
       type: String,
-      required: true
+      required: true,
     },
     // 条件列表
     methodList: {
       type: Array,
-      default: () => CONDITION_METHOD_LIST // 默认全量的method
+      default: () => CONDITION_METHOD_LIST, // 默认全量的method
     },
     // 日志关键字不需要过滤method
     needFilterMethod: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   data() {
     return {
       alarmConditionList: [],
-      curActive: 0
+      curActive: 0,
     };
   },
   computed: {
@@ -144,9 +143,9 @@ export default {
       // 兼容后端返回number类型,导致无法正确展示条件名称
       return this.conditions.map(item => ({
         ...item,
-        value: Array.isArray(item.value) ? (item.value = item.value.map(v => `${v}`)) : `${item.value}`
+        value: Array.isArray(item.value) ? (item.value = item.value.map(v => `${v}`)) : `${item.value}`,
       }));
-    }
+    },
   },
   async created() {
     const len = this.getConditions.length;
@@ -180,8 +179,8 @@ export default {
               field: keyItem.value.id,
               metric_field: this.metricField,
               result_table_id: this.resultTableId,
-              where: []
-            }
+              where: [],
+            },
           };
           await this.getVariableValueList(params);
         }
@@ -230,14 +229,14 @@ export default {
         list: this.dimensionList,
         value: {
           id: '',
-          name: ''
+          name: '',
         },
         component: 'set-input',
         show: true,
         type: 'key',
         'is-key': true,
         compKey: key,
-        readonly: this.isReadOnly
+        readonly: this.isReadOnly,
       };
     },
     handleMethList(list, type) {
@@ -247,10 +246,10 @@ export default {
         { id: 'gt', name: '>' },
         { id: 'gte', name: '>=' },
         { id: 'lt', name: '<' },
-        { id: 'lte', name: '<=' }
+        { id: 'lte', name: '<=' },
       ];
       const res = deepClone(list);
-      typeIsNumberMap.forEach((item) => {
+      typeIsNumberMap.forEach(item => {
         if (type === 'number') {
           const findRes = list.find(set => set.id === item.id);
           if (!findRes) res.unshift(deepClone(item));
@@ -279,7 +278,7 @@ export default {
         show: true,
         type: 'method',
         compKey: key,
-        readonly: this.isReadOnly
+        readonly: this.isReadOnly,
       };
     },
     getDefaultOldValue() {
@@ -288,13 +287,13 @@ export default {
         list: [],
         value: {
           id: '',
-          name: ''
+          name: '',
         },
         component: 'set-input',
         show: true,
         type: 'value',
         compKey: key,
-        readonly: this.isReadOnly
+        readonly: this.isReadOnly,
       };
     },
     getDefaultValue() {
@@ -309,7 +308,7 @@ export default {
         multiple: true,
         readonly: this.isReadOnly,
         allowCreate: this.isAllowCreate,
-        allowAutoMatch: this.isAllowCreate
+        allowAutoMatch: this.isAllowCreate,
       };
     },
     getDefaultCondition() {
@@ -318,16 +317,16 @@ export default {
         list: [
           {
             id: 'and',
-            name: 'AND'
+            name: 'AND',
           },
           {
             id: 'or',
-            name: 'OR'
-          }
+            name: 'OR',
+          },
         ],
         value: {
           id: 'and',
-          name: 'AND'
+          name: 'AND',
         },
         width: '40',
         'list-min-width': '38',
@@ -336,7 +335,7 @@ export default {
         show: true,
         type: 'condition',
         compKey: key,
-        readonly: this.isReadOnly
+        readonly: this.isReadOnly,
       };
     },
     getDefaultAdd() {
@@ -348,7 +347,7 @@ export default {
         type: 'add',
         compKey: key,
         addDesc: this.$t('（对数据进行筛选过滤）'),
-        addType: this.alarmConditionList.length > 1 ? 'common' : 'character'
+        addType: this.alarmConditionList.length > 1 ? 'common' : 'character',
       };
     },
     handleSetAdd(e, item, index) {
@@ -381,8 +380,8 @@ export default {
                 field: item.value.id,
                 metric_field: this.metricField,
                 result_table_id: this.resultTableId,
-                where: []
-              }
+                where: [],
+              },
             };
             await this.getVariableValueList(params);
             this.SET_LOADING(false);
@@ -494,7 +493,7 @@ export default {
       if (this.alarmConditionList.length) {
         let data = {};
         let valueType = 'string';
-        this.alarmConditionList.forEach((item) => {
+        this.alarmConditionList.forEach(item => {
           const { type } = item;
           if (['key', 'method', 'value', 'condition'].includes(type)) {
             if (type === 'condition') {
@@ -502,16 +501,16 @@ export default {
               data = {};
               data[type] = item.value.id;
             } else if (type === 'key') {
-              valueType =                typeof item.value.type === 'undefined'
-                ? this.dimensionList?.find(set => set.id === item.value.id)?.type || 'string'
-                : item.value.type;
+              valueType =
+                typeof item.value.type === 'undefined'
+                  ? this.dimensionList?.find(set => set.id === item.value.id)?.type || 'string'
+                  : item.value.type;
               data[type] = data[type] || item.value.id;
             } else if (type === 'value') {
-              data[type] =                data[type]
-                || (Array.isArray(item.value)
-                  ? item.value
-                    .map(v => (valueType === 'number' ? Number(v) : String(v).trim()))
-                    .filter(v => v !== NaN)
+              data[type] =
+                data[type] ||
+                (Array.isArray(item.value)
+                  ? item.value.map(v => (valueType === 'number' ? Number(v) : String(v).trim())).filter(v => v !== NaN)
                   : item.value);
             } else {
               data[type] = data[type] || item.value.id;
@@ -521,8 +520,8 @@ export default {
         Object.keys(data).length > 2 && ret.push(data);
       }
       return ret;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

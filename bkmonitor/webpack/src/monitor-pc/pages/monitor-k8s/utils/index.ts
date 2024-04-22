@@ -107,7 +107,7 @@ export const handleCheckVarWhere = (sourceData: VarWhereMap): boolean => {
  * @param {IWhere} where 条件
  * @param {Map} dataMap 变量替换的映射表
  */
-export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, string[] | string>) => {
+export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, string | string[]>) => {
   const result = where
     .filter(item => !!item.value.length)
     .map(item => {
@@ -228,7 +228,7 @@ export const updateBkSearchSelectName = (
   conditionList: IBkSeachSelectValue[],
   searchList: IBkSeachSelectValue[],
   needFilter = false,
-  excludesKeyword = false,
+  excludesKeyword = false
 ): IBkSeachSelectValue[] => {
   const localSearchList = deepClone(searchList);
   const res = localSearchList.reduce((total: IBkSeachSelectValue[], item) => {
@@ -265,7 +265,7 @@ export const filterSelectorPanelSearchList = (conditionList, searchList) =>
       isShow = !searchList.find(set => set.id === item.id && !!set.values);
     } else if (item.children.length > 1) {
       item.children = item.children.filter(
-        child => !searchList.some(set => set.values?.some?.(val => val.id === child.id) ?? true),
+        child => !searchList.some(set => set.values?.some?.(val => val.id === child.id) ?? true)
       );
       if (!item.children.length) isShow = false;
     }

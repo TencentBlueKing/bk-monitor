@@ -29,9 +29,9 @@
     theme="primary"
     :header-position="'left'"
     :show-footer="false"
-    @after-leave="handleAfterLeave"
     :title="$t('推荐变量')"
     width="960px"
+    @after-leave="handleAfterLeave"
   >
     <div class="variable-table">
       <div class="dialog-left">
@@ -77,15 +77,9 @@
         </div>
         <div class="item">
           <div>{{ $t('对象包含') }}:</div>
-          <div class="content">
-            host {{ $t('主机') }}
-          </div>
-          <div class="content">
-            process {{ $t('进程') }}
-          </div>
-          <div class="content">
-            service {{ $t('服务实例') }}
-          </div>
+          <div class="content">host {{ $t('主机') }}</div>
+          <div class="content">process {{ $t('进程') }}</div>
+          <div class="content">service {{ $t('服务实例') }}</div>
         </div>
         <div class="item">
           <div>{{ $t('字段名') }}:</div>
@@ -106,12 +100,12 @@ export default {
   props: {
     isShowVariableTable: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   data() {
     return {
-      data: []
+      data: [],
     };
   },
   created() {
@@ -119,14 +113,14 @@ export default {
   },
   methods: {
     getTableData() {
-      getCollectVariables().then((data) => {
+      getCollectVariables().then(data => {
         this.data = data;
       });
     },
     handleAfterLeave() {
       this.$emit('update:isShowVariableTable', false);
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -146,7 +140,6 @@ export default {
     overflow-x: hidden;
   }
 }
-
 
 .variable-table {
   position: relative;

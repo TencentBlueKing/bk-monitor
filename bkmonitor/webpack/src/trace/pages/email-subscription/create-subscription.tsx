@@ -26,6 +26,7 @@
 import { defineComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+
 import { Button, Dropdown, Message } from 'bkui-vue';
 import { createOrUpdateReport, sendReport } from 'monitor-api/modules/new_report';
 import { deepClone } from 'monitor-common/utils';
@@ -140,17 +141,14 @@ export default defineComponent({
         </div>
         <div class='footer-bar'>
           <Button
-            theme='primary'
-            loading={this.isSaving}
             style='width: 88px;margin-right: 8px;'
+            loading={this.isSaving}
+            theme='primary'
             onClick={this.handleSave}
           >
             {this.t('保存')}
           </Button>
           <Dropdown
-            isShow={this.isShowDropdownMenu}
-            trigger='manual'
-            placement='top-start'
             v-slots={{
               content: () => {
                 return (
@@ -165,12 +163,15 @@ export default defineComponent({
                 );
               },
             }}
+            isShow={this.isShowDropdownMenu}
+            placement='top-start'
+            trigger='manual'
           >
             <Button
+              style='width: 88px;margin-right: 8px;'
+              loading={this.isSending}
               theme='primary'
               outline
-              loading={this.isSending}
-              style='width: 88px;margin-right: 8px;'
               onClick={() => {
                 this.isShowDropdownMenu = !this.isShowDropdownMenu;
               }}

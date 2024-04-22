@@ -66,8 +66,8 @@ export default class CommonCollapse extends tsc<ICommonCollapseProps, ICommonCol
         vModel={this.actived}
       >
         <bk-collapse-item
-          hide-arrow
           name='common-collapse'
+          hide-arrow
         >
           <div class='collapse-header'>
             <div class='header-left'>
@@ -81,25 +81,25 @@ export default class CommonCollapse extends tsc<ICommonCollapseProps, ICommonCol
               {this.$slots.headerRight}
               <bk-popover
                 ref='menuPopover'
-                transfer
-                always={false}
                 ext-cls='domain-select-tips common-collapse-tips'
                 tippy-options={{
                   arrow: false,
                   trigger: 'click',
                 }}
+                always={false}
+                transfer
               >
                 <span class='rigth-tools'>
                   <i class='bk-icon icon-more' />
                 </span>
                 <ul
-                  slot='content'
                   class='domain-select-list'
+                  slot='content'
                 >
                   {this.menuList.map(item => (
                     <li
-                      class='domain-select-list-item'
                       key={item.id}
+                      class='domain-select-list-item'
                       onClick={() => this.handleMenuItemSelect(item.id)}
                     >
                       {item.name}
