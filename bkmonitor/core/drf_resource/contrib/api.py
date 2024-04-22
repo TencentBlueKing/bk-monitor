@@ -268,15 +268,18 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         """
         当调用三方API异常时，上报自定义指标
         """
-        metrics.API_FAILED_REQUESTS_TOTAL.labels(
-            action=self.action,
-            module=self.module_name,
-            code=error_code,
-            role=settings.ROLE,
-            exception=exception_type,
-            user_name=getattr(self, 'bk_username', ''),
-        ).inc()
-        metrics.report_all()
+        try:
+            metrics.API_FAILED_REQUESTS_TOTAL.labels(
+                action=self.action,
+                module=self.module_name,
+                code=error_code,
+                role=settings.ROLE,
+                exception=exception_type,
+                user_name=getattr(self, 'bk_username', ''),
+            ).inc()
+            metrics.report_all()
+        except Exception as err:  # pylint: disable=broad-except
+            logger.exception(f"Failed to report api_failed_requests metrics,error:{err}")
 
     @property
     def label(self):

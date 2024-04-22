@@ -56,6 +56,7 @@ class ListUserProjectResource(DevopsBaseResource):
     def request(self, request_data=None, **kwargs):
         if not settings.BK_CI_HOST:
             return []
+        return super(ListUserProjectResource, self).request(request_data, **kwargs)
 
 
 class UserProjectCreateResource(DevopsBaseResource):
