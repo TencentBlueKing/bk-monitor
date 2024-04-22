@@ -45,5 +45,9 @@ class BKAPIError(Error):
 
 
 class DevopsNotDeployedError(BKAPIError):
+    """
+    蓝盾环境未部署错误
+    """
+
     code = 3301002
     name = _lazy("蓝盾环境未部署")
