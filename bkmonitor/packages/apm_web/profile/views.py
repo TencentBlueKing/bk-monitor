@@ -345,7 +345,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                         f"异常信息：{record.content}"
                     )
 
-        if (isinstance(doris_converter, dict) and not doris_converter) or not doris_converter.get("list"):
+        if (isinstance(doris_converter, dict) and not doris_converter) or (
+            isinstance(doris_converter, DorisConverter) and not doris_converter.raw_data
+        ):
             raise ValueError(_("未查询到有效数据"))
 
         diagram_types = data["diagram_types"]

@@ -26,7 +26,7 @@ class TendencyDiagrammer:
                     "datapoints": [
                         [
                             i.get(self.value_key, i.get(self.value_key1)),
-                            int(i.get(self.field_key, i.get(self.field_key1))),
+                            int(i.get(self.field_key, i.get(self.field_key1))) * 1000,
                         ]
                         for i in c.get("list", [])
                         if self.field_key in i or self.field_key1 in i
@@ -48,7 +48,7 @@ class TendencyDiagrammer:
                     "datapoints": [
                         [
                             i.get(self.value_key, i.get(self.value_key1)),
-                            int(i.get(self.field_key, i.get(self.field_key1))),
+                            int(i.get(self.field_key, i.get(self.field_key1))) * 1000,
                         ]
                         for i in base_doris_converter.get("list", [])
                         if self.field_key in i or self.field_key1 in i
@@ -62,7 +62,7 @@ class TendencyDiagrammer:
                     "datapoints": [
                         [
                             i.get(self.value_key, i.get(self.value_key1)),
-                            int(i.get(self.field_key, i.get(self.field_key1))),
+                            int(i.get(self.field_key, i.get(self.field_key1))) * 1000,
                         ]
                         for i in diff_doris_converter.get("list", [])
                         if self.field_key in i or self.field_key1 in i
