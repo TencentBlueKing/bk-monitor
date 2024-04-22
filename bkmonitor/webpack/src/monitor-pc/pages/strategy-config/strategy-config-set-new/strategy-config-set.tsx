@@ -176,6 +176,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   scenarioList: IScenarioItem[] = [];
   // 告警组
   alarmGroupList: IAlarmGroupList[] = [];
+  alarmGroupLoading = false;
 
   strategyView: { rightWidth: string | number; range: number[]; show: boolean; isActive: boolean } = {
     rightWidth: '33%',
@@ -921,12 +922,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.strategyId = 0;
     this.editAllowed = true;
     this.isMultivariateAnomalyDetection = false;
+    /** 获取告警组接口太慢，不和其他接口一起请求 */
+    this.getAlarmGroupList();
     const promiseList = [];
     if (!this.scenarioList?.length) {
       promiseList.push(this.getScenarioList());
     }
     promiseList.push(this.getDefenseList());
-    promiseList.push(this.getAlarmGroupList());
     promiseList.push(this.getActionConfigList());
     promiseList.push(this.getCalendarList());
     if (!SetMealAddStore.getMessageTemplateList.length) {
@@ -994,15 +996,20 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   // 获取告警组数据
   getAlarmGroupList() {
-    return listUserGroup({ exclude_detail_info: 1 }).then(data => {
-      this.alarmGroupList = data.map(item => ({
-        id: item.id,
-        name: item.name,
-        needDuty: item.need_duty,
-        receiver:
-          item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || [],
-      }));
-    });
+    this.alarmGroupLoading = true;
+    return listUserGroup({ exclude_detail_info: 1 })
+      .then(data => {
+        this.alarmGroupList = data.map(item => ({
+          id: item.id,
+          name: item.name,
+          needDuty: item.need_duty,
+          receiver:
+            item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || [],
+        }));
+      })
+      .finally(() => {
+        this.alarmGroupLoading = false;
+      });
   }
 
   // 获取监控对象数据
@@ -2650,6 +2657,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 <NoticeConfigNew
                   ref='noticeConfigNew'
                   allAction={actionConfigGroupList(this.actionConfigList)}
+                  alarmGroupLoading={this.alarmGroupLoading}
                   userList={this.alarmGroupList}
                   value={this.noticeData}
                   readonly={this.isDetailMode}
