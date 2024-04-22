@@ -1,3 +1,4 @@
+/* eslint-disable vue/multi-word-component-names */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,16 +27,16 @@
 import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
-
-import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 import * as authMap from './authority-map';
 import RotationDetail from './rotation-detail';
+import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 
 import './rotation.scss';
 
@@ -52,19 +53,19 @@ function getTimeStr(time: string) {
 }
 
 enum Ecategory {
-  regular = 'regular',
   handoff = 'handoff',
+  regular = 'regular',
 }
 
 enum EColunm {
-  name = 'name',
-  type = 'type',
-  label = 'label',
-  relation = 'relation',
-  status = 'status',
-  scope = 'scope',
   enabled = 'enabled',
+  label = 'label',
+  name = 'name',
   operate = 'operate',
+  relation = 'relation',
+  scope = 'scope',
+  status = 'status',
+  type = 'type',
 }
 
 export default defineComponent({
@@ -320,14 +321,14 @@ export default defineComponent({
           filterAllRotationList.sort((a, b) =>
             tableData.sort.type === 'asc'
               ? a.user_groups_count - b.user_groups_count
-              : b.user_groups_count - a.user_groups_count,
+              : b.user_groups_count - a.user_groups_count
           );
         }
         if (tableData.sort.column === EColunm.scope) {
           filterAllRotationList.sort((a, b) =>
             tableData.sort.type === 'asc'
               ? new Date(a.effective_time).getTime() - new Date(b.effective_time).getTime()
-              : new Date(b.effective_time).getTime() - new Date(a.effective_time).getTime(),
+              : new Date(b.effective_time).getTime() - new Date(a.effective_time).getTime()
           );
         }
       }
@@ -335,7 +336,7 @@ export default defineComponent({
       tableData.pagination.count = filterAllRotationList.length;
       const list = filterAllRotationList.slice(
         (tableData.pagination.current - 1) * tableData.pagination.limit,
-        tableData.pagination.current * tableData.pagination.limit,
+        tableData.pagination.current * tableData.pagination.limit
       );
       tableData.data = list;
     }
@@ -552,8 +553,8 @@ export default defineComponent({
         case EColunm.relation: {
           return !!row.user_groups_count ? (
             <Button
-              text
               theme='primary'
+              text
               onClick={() => handleToAlarmGroup(row)}
             >
               {row.user_groups_count}
@@ -584,20 +585,20 @@ export default defineComponent({
         case EColunm.enabled: {
           return (
             <Popover
-              placement='top'
               arrow={true}
-              trigger={'hover'}
-              popoverDelay={[300, 0]}
               disabled={row.enabled ? row.delete_allowed : true}
+              placement='top'
+              popoverDelay={[300, 0]}
+              trigger={'hover'}
             >
               {{
                 default: () => (
                   <Switcher
+                    beforeChange={v => handleEnableBeforeChange(v, row)}
+                    disabled={!row.delete_allowed && row.enabled}
                     size='small'
                     theme='primary'
                     value={row.enabled}
-                    disabled={!row.delete_allowed && row.enabled}
-                    beforeChange={v => handleEnableBeforeChange(v, row)}
                     onChange={v => (row.enabled = v)}
                   ></Switcher>
                 ),
@@ -610,23 +611,23 @@ export default defineComponent({
           return (
             <span>
               <Popover
-                placement='top'
                 arrow={true}
-                trigger={'hover'}
-                popoverDelay={[300, 0]}
                 disabled={row.edit_allowed}
+                placement='top'
+                popoverDelay={[300, 0]}
+                trigger={'hover'}
               >
                 {{
                   default: () => (
                     <Button
-                      text
-                      theme='primary'
                       class='mr-8'
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       disabled={!row.edit_allowed}
+                      theme='primary'
+                      text
                       onClick={() =>
                         authority.auth.MANAGE_AUTH ? handleEdit(row) : authority.showDetail([authority.map.MANAGE_AUTH])
                       }
-                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('编辑')}
                     </Button>
@@ -635,24 +636,24 @@ export default defineComponent({
                 }}
               </Popover>
               <Popover
-                placement='top'
                 arrow={true}
-                trigger={'hover'}
-                popoverDelay={[300, 0]}
                 disabled={row.delete_allowed}
+                placement='top'
+                popoverDelay={[300, 0]}
+                trigger={'hover'}
               >
                 {{
                   default: () => (
                     <Button
-                      text
-                      theme='primary'
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       disabled={!row.delete_allowed}
+                      theme='primary'
+                      text
                       onClick={() =>
                         authority.auth.MANAGE_AUTH
                           ? handleDelete(row)
                           : authority.showDetail([authority.map.MANAGE_AUTH])
                       }
-                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('删除')}
                     </Button>
@@ -706,23 +707,15 @@ export default defineComponent({
               </Button>
               <SearchSelect
                 class='width-350'
-                placeholder={`ID / ${this.t('规则名称')}`}
-                modelValue={this.searchData.value}
                 data={this.searchData.data}
+                modelValue={this.searchData.value}
+                placeholder={`ID / ${this.t('规则名称')}`}
                 onUpdate:modelValue={v => this.handleSearch(v)}
               ></SearchSelect>
             </div>
             <Loading loading={this.loading}>
               <div class='table-content'>
                 <Table
-                  data={this.tableData.data}
-                  settings={this.settings}
-                  showOverflowTooltip={true}
-                  darkHeader={true}
-                  pagination={false}
-                  onColumnSort={this.handleColumnSort}
-                  onColumnFilter={this.handleColumnFilter}
-                  onSettingChange={this.handleSettingChange}
                   columns={this.tableData.columns
                     .filter(item => this.settings.checked.includes(item.id))
                     .map(item => {
@@ -732,15 +725,23 @@ export default defineComponent({
                         render: ({ row, _column }) => this.handleSetFormater(row, item.id),
                       };
                     })}
+                  darkHeader={true}
+                  data={this.tableData.data}
+                  pagination={false}
+                  settings={this.settings}
+                  showOverflowTooltip={true}
+                  onColumnFilter={this.handleColumnFilter}
+                  onColumnSort={this.handleColumnSort}
+                  onSettingChange={this.handleSettingChange}
                 ></Table>
                 <Pagination
                   class='mt-14'
-                  modelValue={this.tableData.pagination.current}
+                  align={'right'}
                   count={this.tableData.pagination.count}
+                  layout={['total', 'limit', 'list']}
                   limit={this.tableData.pagination.limit}
                   location={'right'}
-                  align={'right'}
-                  layout={['total', 'limit', 'list']}
+                  modelValue={this.tableData.pagination.current}
                   onChange={v => this.handlePageChange(v)}
                   onLimitChange={v => this.handleLimitChange(v)}
                 ></Pagination>
@@ -750,8 +751,8 @@ export default defineComponent({
         </div>
 
         <RotationDetail
-          show={this.detailData.show}
           id={this.detailData.id}
+          show={this.detailData.show}
           onShowChange={v => (this.detailData.show = v)}
         ></RotationDetail>
       </div>

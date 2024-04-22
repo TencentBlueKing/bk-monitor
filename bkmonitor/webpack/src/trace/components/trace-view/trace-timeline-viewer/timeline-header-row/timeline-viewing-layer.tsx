@@ -112,6 +112,7 @@ function getMarkers(viewStart: number, viewEnd: number, from: number, to: number
   const { isDraggingLeft, left, width } = layout;
   return (
     <div
+      style={{ left, width }}
       class={[
         'timeline-viewing-layer-dragged',
         {
@@ -121,7 +122,6 @@ function getMarkers(viewStart: number, viewEnd: number, from: number, to: number
           isShiftDrag: isShift,
         },
       ]}
-      style={{ left, width }}
     />
   );
 }
@@ -216,7 +216,7 @@ export default defineComponent({
     const [viewStart, viewEnd] = this.spanBarCurrentStore?.current.value as [number, number];
 
     const haveNextTimeRange = reframe != null || shiftEnd != null || shiftStart != null;
-    let cusrorPosition: string | TNil;
+    let cusrorPosition: TNil | string;
 
     if (!haveNextTimeRange && cursor != null && cursor >= viewStart && cursor <= viewEnd) {
       cusrorPosition = `${mapToViewSubRange(viewStart, viewEnd, cursor) * 100}%`;
@@ -224,8 +224,8 @@ export default defineComponent({
 
     return (
       <div
-        class='timeline-viewing-layer'
         ref='viewingLayerRef'
+        class='timeline-viewing-layer'
         onMousedown={this.draggerReframe.handleMouseDown}
         onMouseleave={this.draggerReframe.handleMouseLeave}
         onMousemove={this.draggerReframe.handleMouseMove}
@@ -233,8 +233,8 @@ export default defineComponent({
         {}
         {cusrorPosition != null && (
           <div
-            class='timeline-viewing-layer-cursorGuide'
             style={{ left: cusrorPosition }}
+            class='timeline-viewing-layer-cursorGuide'
           />
         )}
         {}

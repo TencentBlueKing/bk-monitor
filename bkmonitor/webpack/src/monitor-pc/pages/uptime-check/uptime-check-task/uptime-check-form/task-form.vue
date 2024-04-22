@@ -25,42 +25,48 @@
 -->
 <template>
   <div
-    class="task-form"
     v-bkloading="{ isLoading: isLoading }"
+    class="task-form"
   >
     <div class="task-form-content">
       <section v-show="!formDone.show">
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
-          >{{ $t('所属') }}</div>
+            class="item-label item-required"
+          >
+            {{ $t('所属') }}
+          </div>
           <div class="item-container">
             <bk-select
+              v-model="task.business"
               class="reset-width"
               :disabled="ccBizId !== 0"
               :clearable="false"
-              v-model="task.business"
               @change="handleChangeBiz"
             >
               <bk-option
                 v-for="item in $store.getters.bizList"
-                :key="item.id"
                 :id="item.id"
+                :key="item.id"
                 :name="item.text"
               />
             </bk-select>
             <span
-              class="validate-hint"
               v-show="requiredOptions.business"
-            > {{ $t('选择所属空间') }} </span>
+              class="validate-hint"
+            >
+              {{ $t('选择所属空间') }}
+            </span>
           </div>
         </div>
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
-          >{{ $t('任务名称') }}</div>
+            class="item-label item-required"
+          >
+            {{ $t('任务名称') }}
+          </div>
           <div class="item-container">
             <verify-input
               class="reset-width"
@@ -77,29 +83,32 @@
         </div>
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
-          >{{ $t('协议') }}</div>
+            class="item-label item-required"
+          >
+            {{ $t('协议') }}
+          </div>
           <div class="item-container">
             <bk-radio-group
               v-model="protocol.value"
               @change="handleChangeProtocol"
             >
               <bk-radio
-                class="protocol-radio"
                 v-for="(item, index) in protocol.data"
                 :key="index"
+                class="protocol-radio"
                 :value="item"
               >
                 <span
-                  style="font-size: 12px;"
                   v-if="item !== 'ICMP'"
-                >{{ item === 'HTTP' ? `${item}(S)` : item }}</span>
+                  style="font-size: 12px"
+                  >{{ item === 'HTTP' ? `${item}(S)` : item }}</span
+                >
                 <span
-                  style="font-size: 12px;"
                   v-else
-                  class="radio-icmp-tips"
                   v-bk-tooltips.bottom="$t('功能依赖1.10.x及以上版本的bkmonitorbeat')"
+                  style="font-size: 12px"
+                  class="radio-icmp-tips"
                 >
                   {{ item }}
                 </span>
@@ -109,9 +118,11 @@
         </div>
         <div class="uptime-form-item http-selector-wrap">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
-          >{{ $t('目标') }}</div>
+            class="item-label item-required"
+          >
+            {{ $t('目标') }}
+          </div>
           <div class="item-container">
             <http-target
               v-if="protocol.value === 'HTTP'"
@@ -126,8 +137,8 @@
               :default-value="tcpTarget"
             />
             <div
-              class="item-container-tips"
               v-show="requiredOptions.target"
+              class="item-container-tips"
               :style="{ color: '#f56c6c' }"
             >
               {{ $t('添加拨测目标') }}
@@ -135,18 +146,20 @@
           </div>
         </div>
         <div
-          class="uptime-form-item http-selector-wrap"
           v-if="protocol.value === 'HTTP'"
+          class="uptime-form-item http-selector-wrap"
         >
           <div
-            class="item-label"
             v-en-class="'mw-170'"
-          >{{ $t('参数设置') }}</div>
+            class="item-label"
+          >
+            {{ $t('参数设置') }}
+          </div>
           <div class="item-container">
             <http-editor
               :key="httpEditorKey"
-              class="http-selector"
               ref="http-selector"
+              class="http-selector"
               behavior="normal"
               :value="httpConfig"
               :method-list="methodList"
@@ -158,36 +171,42 @@
           </div>
         </div>
         <div
-          class="uptime-form-item submit-content"
           v-show="protocol.value === 'HTTP' && task.method === 'POST'"
+          class="uptime-form-item submit-content"
         >
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
-          >{{ $t('提交内容') }}</div>
+            class="item-label item-required"
+          >
+            {{ $t('提交内容') }}
+          </div>
           <div class="item-container">
             <bk-input
-              class="reset-width"
-              placeholder="发送的内容格式：k1=v1;k2=v2，或者一段JSONObject，如: {&quot;key&quot;:&quot;value&quot;}"
-              type="textarea"
               v-model="task.submitContent"
+              class="reset-width"
+              placeholder='发送的内容格式：k1=v1;k2=v2，或者一段JSONObject，如: {"key":"value"}'
+              type="textarea"
               @focus="requiredOptions.submitContent = false"
               @blur="requiredOptions.submitContent = !Boolean(task.submitContent)"
             />
             <span
-              class="validate-hint"
               v-show="requiredOptions.submitContent"
-            > {{ $t('填写提交内容') }} </span>
+              class="validate-hint"
+            >
+              {{ $t('填写提交内容') }}
+            </span>
           </div>
         </div>
         <div
-          class="uptime-form-item"
           v-show="protocol.value !== 'HTTP' && protocol.value !== 'ICMP'"
+          class="uptime-form-item"
         >
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
-          >{{ $t('端口') }}</div>
+            class="item-label item-required"
+          >
+            {{ $t('端口') }}
+          </div>
           <div class="item-container">
             <verify-input
               class="reset-width"
@@ -206,13 +225,15 @@
           </div>
         </div>
         <div
-          class="uptime-form-item"
           v-show="protocol.value === 'UDP'"
+          class="uptime-form-item"
         >
           <div
-            class="item-label"
             v-en-class="'mw-170'"
-          >{{ $t('请求内容') }}</div>
+            class="item-label"
+          >
+            {{ $t('请求内容') }}
+          </div>
           <div class="item-container request">
             <verify-input
               :show-validate.sync="requiredOptions.requestContent"
@@ -227,15 +248,17 @@
                 >
                   <bk-option
                     v-for="item in resFormatOptions"
-                    :key="item.id"
                     :id="item.id"
+                    :key="item.id"
                     :name="item.name"
                   />
                 </bk-select>
                 <bk-input
-                  class="request-width"
-                  :placeholder="$t(requestFormat === 'hex' ? '十六进制的请求内容，如3a47534b422d644c' : '原始请求内容, 如echo')"
                   v-model="task.requestContent"
+                  class="request-width"
+                  :placeholder="
+                    $t(requestFormat === 'hex' ? '十六进制的请求内容，如3a47534b422d644c' : '原始请求内容, 如echo')
+                  "
                   @blur="() => validateRequestContent(task.requestContent)"
                 />
               </bk-compose-form-item>
@@ -244,31 +267,33 @@
         </div>
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
-          >{{ $t('拨测节点') }}</div>
+            class="item-label item-required"
+          >
+            {{ $t('拨测节点') }}
+          </div>
           <div class="item-container">
             <verify-input
               :show-validate.sync="requiredOptions.nodes"
               :validator="{ content: $t('选择拨测节点') }"
             >
               <bk-select
-                class="reset-width"
                 ref="taskNodeSelect"
+                v-model="task.nodes"
+                class="reset-width"
                 :clearable="false"
                 :multiple="true"
-                @change="() => requiredOptions.nodes = false"
-                v-model="task.nodes"
+                @change="() => (requiredOptions.nodes = false)"
               >
                 <bk-option
                   v-for="item in node[task.business]"
-                  :disabled="Boolean(item.status === '-1')"
-                  :key="item.id"
-                  :name="item.name + ' ' + item.ip"
                   :id="item.id"
+                  :key="item.id"
+                  :disabled="Boolean(item.status === '-1')"
+                  :name="item.name + ' ' + item.ip"
                 >
                   <div class="node-option">
-                    <span>{{item.name + ' ' + item.ip}}</span>
+                    <span>{{ item.name + ' ' + item.ip }}</span>
                     <span v-if="!!item.version">v{{ item.version }}</span>
                   </div>
                 </bk-option>
@@ -285,29 +310,33 @@
         </div>
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
-          >{{ $t('超时设置') }}</div>
+            class="item-label item-required"
+          >
+            {{ $t('超时设置') }}
+          </div>
           <div class="item-container timeout">
             <verify-input
               :show-validate.sync="requiredOptions.timeout"
               :validator="timeoutValidate"
             >
               <bk-input
-                style="width: 120px"
                 v-model.number="task.timeout"
+                style="width: 120px"
                 type="number"
                 @blur="handleValidateTimeout"
               >
                 <div
-                  class="unit"
                   slot="append"
-                >ms</div>
+                  class="unit"
+                >
+                  ms
+                </div>
               </bk-input>
             </verify-input>
             <div
-              class="hint-icon"
               v-bk-tooltips.top="$t('超过该时长未正常采集数据时，系统判定该任务为不可用状态！')"
+              class="hint-icon"
             >
               <span class="icon-monitor icon-tips icon" />
             </div>
@@ -315,36 +344,38 @@
         </div>
         <div class="uptime-form-item last-item">
           <div
-            class="item-label group"
             v-en-class="'mw-170'"
-          >{{ $t('任务组') }}</div>
+            class="item-label group"
+          >
+            {{ $t('任务组') }}
+          </div>
           <div class="item-container">
             <bk-select
+              v-model="task.groups"
               :placeholder="$t('选择想要加入的任务组')"
               :multiple="true"
               class="reset-width"
-              v-model="task.groups"
             >
               <bk-option
                 v-for="item in groupList"
-                class="reset-width"
-                :key="item.id"
-                :name="item.name"
                 :id="item.id"
+                :key="item.id"
+                class="reset-width"
+                :name="item.name"
               />
             </bk-select>
           </div>
         </div>
         <div class="uptime-form-item text-item">
           <div
-            class="item-label"
             v-en-class="'mw-170'"
+            class="item-label"
           />
           <div class="item-container item-advance">
             <bk-button
               text
+              style="font-size: 12px"
               @click="isShowAdvanced = !isShowAdvanced"
-              style="font-size: 12px;"
             >
               {{ isShowAdvanced ? $t('隐藏高级选项') : $t('显示高级选项') }}
             </bk-button>
@@ -365,8 +396,8 @@
         </transition>
         <div class="uptime-form-item">
           <div
-            class="item-label"
             v-en-class="'mw-170'"
+            class="item-label"
           />
           <div class="item-container">
             <bk-button
@@ -405,6 +436,7 @@
   </div>
 </template>
 <script>
+import HttpEditor from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/http-editor/http-editor';
 import {
   createUptimeCheckTask,
   deployUptimeCheckTask,
@@ -413,16 +445,15 @@ import {
   retrieveUptimeCheckTask,
   runningStatusUptimeCheckTask,
   testUptimeCheckTask,
-  updateUptimeCheckTask } from 'monitor-api/modules/model';
+  updateUptimeCheckTask,
+} from 'monitor-api/modules/model';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
 
-import HttpEditor from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/http-editor/http-editor';
 import PollingLoading from '../../../../components/polling-loading/polling-loading';
 import VerifyInput from '../../../../components/verify-input/verify-input';
 import authorityMixinCreate from '../../../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import * as uptimeAuth from '../../authority-map';
-
 import AdvancedOption, { RESPONSE_FORMAT_OPTIONS } from './advanced-option';
 import HttpTarget from './http-target';
 import TaskFormDone from './task-form-done';
@@ -437,116 +468,11 @@ export default {
     PollingLoading,
     HttpEditor,
     HttpTarget,
-    TcpTarget
+    TcpTarget,
   },
   mixins: [authorityMixinCreate(uptimeAuth)],
-  props: {
-    id: [Number, String]
-  },
-  data() {
-    return {
-      task: {
-        business: parseInt(this.$store.getters.bizId, 10)
-      },
-      backup: {},
-      taskInfo: {},
-      protocol: {
-        data: ['HTTP', 'TCP', 'UDP', 'ICMP'],
-        value: 'HTTP'
-      },
-      requiredOptions: {
-        business: false,
-        name: false,
-        timeout: false,
-        nodes: false,
-        urls: false,
-        port: false,
-        requestContent: false,
-        submitContent: false,
-        target: false
-      },
-      nameErrorMsg: '',
-      isShowAdvanced: false,
-      advancedOptions: {},
-      ccBizId: parseInt(this.$store.getters.bizId, 10),
-      // 拨测节点信息
-      node: {},
-      groupList: [],
-      isSubmit: false,
-      isLoading: false,
-      formDone: {
-        show: false,
-        status: 'success',
-        errorMsg: '',
-        data: []
-      },
-      uptimeCheckMetricMap: {
-        task_duration: this.$t('响应时间'),
-        response_code: this.$t('期望响应码'),
-        message: this.$t('期望响应内容'),
-        available: this.$t('单点可用率')
-      },
-      createprocess: {
-        isCreate: false,
-        id: ''
-      },
-      pollingObj: {
-        status: {
-          failMsg: '',
-          msg: ''
-        },
-        show: false
-      },
-      toEditId: '',
-      methodList: ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'],
-      httpConfig: null,
-      httpEditorKey: random(10),
-      resFormatOptions: RESPONSE_FORMAT_OPTIONS,
-      requestFormat: 'hex',
-      httpTarget: {
-        url_list: [],
-        method: 'GET'
-      },
-      tcpTarget: {
-        ip_list: [],
-        url_list: [],
-        node_list: [],
-        target_ip_type: 0,
-        dns_check_mode: 'all'
-      },
-      // 该变量记录上一个访问 拔测节点 数据的 id，避免重复请求。
-      previousBizId: -1
-    };
-  },
-  computed: {
-    submitBtnText() {
-      if (!this.isSubmit) {
-        return this.$t('提交');
-      }
-      return this.id ? this.$t('编辑中...') : this.$t('创建中...');
-    },
-    operatorType() {
-      return this.id ? 'edit' : 'add';
-    },
-    maxAvailableDurationLimit() {
-      return this.$store.getters.maxAvailableDurationLimit;
-    },
-    timeoutValidate() {
-      return {
-        content: `${this.$t('设置超时时间')}，${this.$t('最小值:')}0ms (${this.$t('不包含')})`
-        + `，${this.$t('最大值：{limit}ms', this.maxAvailableDurationLimit)}`
-      };
-    }
-  },
-  watch: {
-    id: {
-      handler() {
-        !this.isLoading && this.handleInitTaskForm();
-      }
-    }
-  },
   beforeRouteEnter(to, from, next) {
-    next((vueModule) => {
+    next(vueModule => {
       const vm = vueModule;
       if (!Object.keys(vm.backup || {}).length) {
         !vm.isLoading && vm.handleInitTaskForm();
@@ -564,7 +490,7 @@ export default {
       show: false,
       status: 'success',
       errorMsg: '',
-      data: []
+      data: [],
     };
     if (to.name !== 'uptime-check-node-add') {
       this.backup = {};
@@ -572,17 +498,123 @@ export default {
       this.isShowAdvanced = false;
       this.httpTarget = {
         url_list: [],
-        method: 'GET'
+        method: 'GET',
       };
       this.tcpTarget = {
         ip_list: [],
         url_list: [],
         node_list: [],
         target_ip_type: 0,
-        dns_check_mode: 'all'
+        dns_check_mode: 'all',
       };
     }
     next();
+  },
+  props: {
+    id: [Number, String],
+  },
+  data() {
+    return {
+      task: {
+        business: parseInt(this.$store.getters.bizId, 10),
+      },
+      backup: {},
+      taskInfo: {},
+      protocol: {
+        data: ['HTTP', 'TCP', 'UDP', 'ICMP'],
+        value: 'HTTP',
+      },
+      requiredOptions: {
+        business: false,
+        name: false,
+        timeout: false,
+        nodes: false,
+        urls: false,
+        port: false,
+        requestContent: false,
+        submitContent: false,
+        target: false,
+      },
+      nameErrorMsg: '',
+      isShowAdvanced: false,
+      advancedOptions: {},
+      ccBizId: parseInt(this.$store.getters.bizId, 10),
+      // 拨测节点信息
+      node: {},
+      groupList: [],
+      isSubmit: false,
+      isLoading: false,
+      formDone: {
+        show: false,
+        status: 'success',
+        errorMsg: '',
+        data: [],
+      },
+      uptimeCheckMetricMap: {
+        task_duration: this.$t('响应时间'),
+        response_code: this.$t('期望响应码'),
+        message: this.$t('期望响应内容'),
+        available: this.$t('单点可用率'),
+      },
+      createprocess: {
+        isCreate: false,
+        id: '',
+      },
+      pollingObj: {
+        status: {
+          failMsg: '',
+          msg: '',
+        },
+        show: false,
+      },
+      toEditId: '',
+      methodList: ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'],
+      httpConfig: null,
+      httpEditorKey: random(10),
+      resFormatOptions: RESPONSE_FORMAT_OPTIONS,
+      requestFormat: 'hex',
+      httpTarget: {
+        url_list: [],
+        method: 'GET',
+      },
+      tcpTarget: {
+        ip_list: [],
+        url_list: [],
+        node_list: [],
+        target_ip_type: 0,
+        dns_check_mode: 'all',
+      },
+      // 该变量记录上一个访问 拔测节点 数据的 id，避免重复请求。
+      previousBizId: -1,
+    };
+  },
+  computed: {
+    submitBtnText() {
+      if (!this.isSubmit) {
+        return this.$t('提交');
+      }
+      return this.id ? this.$t('编辑中...') : this.$t('创建中...');
+    },
+    operatorType() {
+      return this.id ? 'edit' : 'add';
+    },
+    maxAvailableDurationLimit() {
+      return this.$store.getters.maxAvailableDurationLimit;
+    },
+    timeoutValidate() {
+      return {
+        content:
+          `${this.$t('设置超时时间')}，${this.$t('最小值:')}0ms (${this.$t('不包含')})` +
+          `，${this.$t('最大值：{limit}ms', this.maxAvailableDurationLimit)}`,
+      };
+    },
+  },
+  watch: {
+    id: {
+      handler() {
+        !this.isLoading && this.handleInitTaskForm();
+      },
+    },
   },
   methods: {
     handleHttpUrlChange(v) {
@@ -603,10 +635,7 @@ export default {
       this.updateNav(this.$t('加载中...'));
       this.generationFormField();
       this.handleSetBusiness();
-      await Promise.all([
-        this.getNodeList(),
-        this.getGroupList()
-      ]).catch(() => {
+      await Promise.all([this.getNodeList(), this.getGroupList()]).catch(() => {
         this.isLoading = false;
       });
       if (!Array.isArray(this.task.groups)) {
@@ -615,7 +644,8 @@ export default {
       if (this.$route.params.groupName) {
         const item = this.groupList.find(item => item.name === this.$route.params.groupName);
         item && this.task.groups.push(item.id);
-      } if (this.$route.query.groupId) {
+      }
+      if (this.$route.query.groupId) {
         const item = this.groupList.find(item => item.id === Number(this.$route.query.groupId));
         item && this.task.groups.push(item.id);
       }
@@ -646,7 +676,7 @@ export default {
         name: this.task.name || '',
         groups: this.task.groups || [],
         nodes: this.task.nodes || [],
-        timeout: this.task.timeout || 3000
+        timeout: this.task.timeout || 3000,
       };
       if (!this.task.business) {
         this.task.business = +this.$store.getters.bizId;
@@ -668,10 +698,10 @@ export default {
         requestContent: '',
         timeout: 3000,
         groups: [],
-        target: []
+        target: [],
       };
       const protocols = ['HTTP', 'TCP', 'UDP', 'ICMP'];
-      protocols.forEach((item) => {
+      protocols.forEach(item => {
         tpl.protocol = item;
         this.backup[item] = JSON.parse(JSON.stringify(tpl));
       });
@@ -698,7 +728,7 @@ export default {
       if (this.previousBizId === Number(this.task.business)) return Promise.resolve();
       this.previousBizId = Number(this.task.business);
       return listUptimeCheckNode({ bk_biz_id: this.task.business })
-        .then((data) => {
+        .then(data => {
           this.$set(this.node, `${this.task.business}`, data);
           const curNode = this.node[this.task.business].map(item => item.id);
           const len = this.task.nodes.length - 1;
@@ -715,15 +745,17 @@ export default {
     },
     // 获取任务组信息
     getGroupList() {
-      return listUptimeCheckGroup().then((data) => {
+      return listUptimeCheckGroup().then(data => {
         this.groupList = data;
       });
     },
     updateNav(name = '') {
-      const routeList = [{
-        name,
-        id: ''
-      }];
+      const routeList = [
+        {
+          name,
+          id: '',
+        },
+      ];
       this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
     },
     async getTaskInfo(id) {
@@ -733,10 +765,10 @@ export default {
       if (!data) {
         this.$bkMessage({
           theme: 'error',
-          message: this.$t('没有找到对应的数据')
+          message: this.$t('没有找到对应的数据'),
         });
         this.$router.push({
-          name: 'uptime-check'
+          name: 'uptime-check',
         });
       } else {
         this.backFillData({ ...data, name: this.$route.query.taskId ? '' : data.name });
@@ -783,7 +815,7 @@ export default {
           return callBack({ status: 'timeout', message: this.$t('下发拨测任务超时') });
         }
         runningStatusUptimeCheckTask(taskId)
-          .then((data) => {
+          .then(data => {
             if (data.status === 'running' || data.status === 'start_failed') {
               data.status === 'start_failed' && (this.toEditId = saveStatus.id);
               callBack(data);
@@ -795,17 +827,17 @@ export default {
               }, 10000);
             }
           })
-          .catch((err) => {
+          .catch(err => {
             callBack(err);
           });
       };
-      polling(saveStatus.id, (res) => {
+      polling(saveStatus.id, res => {
         this.pollingObj.show = false;
         // 拨测服务发布成功
         if (res.status === 'running') {
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('部署成功')
+            message: this.$t('部署成功'),
           });
           this.isSubmit = false;
           this.formDone.status = 'success';
@@ -872,7 +904,7 @@ export default {
       return false;
     },
     test(params) {
-      return testUptimeCheckTask(params, { needMessage: false }).catch((err) => {
+      return testUptimeCheckTask(params, { needMessage: false }).catch(err => {
         this.isLoading = false;
         this.isSubmit = false;
         this.formDone.status = 'error';
@@ -885,7 +917,7 @@ export default {
       const ajaxFn = id
         ? updateUptimeCheckTask(id, params, { needMessage: false })
         : createUptimeCheckTask(params, { needMessage: false });
-      return ajaxFn.catch((err) => {
+      return ajaxFn.catch(err => {
         this.isLoading = false;
         this.isSubmit = false;
         this.formDone.errorMsg = err.message || err.data.message || '';
@@ -896,7 +928,7 @@ export default {
     depoly(id) {
       return deployUptimeCheckTask(id, {}, { needRes: true })
         .then(res => Promise.resolve(res))
-        .catch((err) => {
+        .catch(err => {
           if (!this.id) {
             this.createprocess.isCreate = true;
             this.createprocess.id = id;
@@ -913,7 +945,7 @@ export default {
     getConfig(advanced) {
       const config = {
         period: advanced.period,
-        ...this.$refs.tcpTarget?.getValue()
+        ...this.$refs.tcpTarget?.getValue(),
       };
       if (this.protocol.value === 'ICMP') {
         config.max_rtt = this.task.timeout;
@@ -957,7 +989,7 @@ export default {
         bk_biz_id: task.business,
         protocol: this.protocol.value,
         node_id_list: task.nodes.filter(item => !!item),
-        config
+        config,
       };
       if (type === 'SAVE') {
         params.location = advanced.location;
@@ -991,17 +1023,18 @@ export default {
         business: val => Boolean(val),
         name: () => this.validateName(),
         nodes: val => Boolean(val.length),
-        timeout: val => this.handleValidateTimeout(val)
+        timeout: val => this.handleValidateTimeout(val),
       };
       if (protocol === 'HTTP') {
         fields = fields.concat(['httpConfig']);
         rules.httpConfig = this.validateHttpConfig;
       } else {
-        rules.target = this.validateTcpTarget ;
+        rules.target = this.validateTcpTarget;
         fields = fields.concat(['target']);
         if (protocol !== 'ICMP') {
           // 校验端口是否合法
-          rules.port = v => /^([1-9]\d{0,4}|[1-5]\d{5}|6[0-4]\d{4}|65[0-4]\d{3}|655[0-2]\d{2}|6553[0-5])$/.test(v.toString().trim());
+          rules.port = v =>
+            /^([1-9]\d{0,4}|[1-5]\d{5}|6[0-4]\d{4}|65[0-4]\d{3}|655[0-2]\d{2}|6553[0-5])$/.test(v.toString().trim());
         }
         if (protocol === 'TCP') {
           fields = fields.concat(['port']);
@@ -1012,7 +1045,7 @@ export default {
         }
       }
       const result = [];
-      fields.forEach((field) => {
+      fields.forEach(field => {
         const fn = rules[field];
         this.requiredOptions[field] = !fn(this.task[field]);
         result.push(this.requiredOptions[field]);
@@ -1026,7 +1059,7 @@ export default {
       this.protocol.value = data.protocol;
       this.task.name = data.name;
       this.task.groups = data.groups.map(group => group.id);
-      data.nodes.forEach((node) => {
+      data.nodes.forEach(node => {
         const sameNode = this.node[data.bk_biz_id].find(item => item.id === node.id);
         if (sameNode && !this.task.nodes.some(id => id === node.id) && node.id) {
           this.task.nodes.push(node.id);
@@ -1041,19 +1074,19 @@ export default {
           headers: transformDataKey(headers),
           body: transformDataKey(body),
           authorize: transformDataKey(authorize),
-          queryParams: transformDataKey(query_params)
+          queryParams: transformDataKey(query_params),
         };
         this.httpTarget.url_list = url_list;
         this.httpTarget.method = method;
       } else {
-        const { url_list = [], ip_list = [], node_list = [], target_ip_type, output_fields, dns_check_mode  } = config;
+        const { url_list = [], ip_list = [], node_list = [], target_ip_type, output_fields, dns_check_mode } = config;
         this.tcpTarget = {
           url_list,
           ip_list,
           node_list,
           target_ip_type,
           output_fields,
-          dns_check_mode
+          dns_check_mode,
         };
         if (this.protocol.value === 'ICMP') {
           this.task.timeout = config.max_rtt;
@@ -1072,7 +1105,7 @@ export default {
     getMetricDataFromData(data) {
       if (!data) return [];
       return Object.keys(this.uptimeCheckMetricMap)
-        .map((key) => {
+        .map(key => {
           const metricData = {
             metric: key,
             label: this.uptimeCheckMetricMap[key],
@@ -1082,7 +1115,7 @@ export default {
             relatedName: data.name,
             status: 1,
             detail: '',
-            value: ''
+            value: '',
           };
           if (['available', 'task_duration'].includes(key)) {
             metricData.detail = this.$t('已配置'); // ${this.uptimeCheckMetricMap[key]}
@@ -1104,16 +1137,15 @@ export default {
       this.$bkMessage({
         theme: 'error',
         message: msg,
-        ellipsisLine: 0
+        ellipsisLine: 0,
       });
       this.isLoading = false;
     },
     handleSetBusiness() {
       switch (this.operatorType) {
         case 'edit':
-          this.task.business = this.$route.params.bizId === undefined
-            ? this.$store.getters.bizId
-            : this.$route.params.bizId;
+          this.task.business =
+            this.$route.params.bizId === undefined ? this.$store.getters.bizId : this.$route.params.bizId;
           break;
         case 'add':
           this.task.business = this.$store.getters.bizId;
@@ -1129,7 +1161,7 @@ export default {
       }
       if (this.operatorType === 'edit' && v) {
         this.$router.push({
-          name: 'uptime-check-task-add'
+          name: 'uptime-check-task-add',
         });
       }
       this.formDone.show = false;
@@ -1140,7 +1172,7 @@ export default {
         dropInstance.hide(0);
       }
       this.$router.push({
-        name: 'uptime-check-node-add'
+        name: 'uptime-check-node-add',
       });
     },
     setDefaultData() {
@@ -1155,19 +1187,18 @@ export default {
         requestContent: false,
         submitContent: false,
         target: false,
-        httpConfig: false
+        httpConfig: false,
       };
       this.isShowAdvanced = false;
       this.$refs.advancedRef.setDefaultData();
       this.createprocess = {
         isCreate: false,
-        id: ''
+        id: '',
       };
     },
     handleValidateTimeout() {
-      this.requiredOptions.timeout = !this.task.timeout
-      || this.task.timeout <= 0
-      || this.task.timeout > this.maxAvailableDurationLimit;
+      this.requiredOptions.timeout =
+        !this.task.timeout || this.task.timeout <= 0 || this.task.timeout > this.maxAvailableDurationLimit;
       return !this.requiredOptions.timeout;
     },
     validateName() {
@@ -1198,20 +1229,20 @@ export default {
     isMoreThanVersion(versions) {
       const nums = [1000, 100, 10, 1];
       const maxVersion = '2.7.3.184';
-      const maxVersionNum = maxVersion.split('.').reduce((pre, cur, index) => pre + (+cur) * nums[index], 0);
-      const updNodeVersionNums = versions.map((item) => {
-        const numFn = v => (!!v ? v.split('.').reduce((pre, cur, index) => pre + (+cur) * nums[index], 0) : 0);
+      const maxVersionNum = maxVersion.split('.').reduce((pre, cur, index) => pre + +cur * nums[index], 0);
+      const updNodeVersionNums = versions.map(item => {
+        const numFn = v => (!!v ? v.split('.').reduce((pre, cur, index) => pre + +cur * nums[index], 0) : 0);
         return numFn(item);
       });
-      return (updNodeVersionNums.sort((a, b) => b - a)[0] >= maxVersionNum);
+      return updNodeVersionNums.sort((a, b) => b - a)[0] >= maxVersionNum;
     },
     /* 强制保存 */
     handleEnforceSave() {
       const params = this.getParams(this.protocol.value);
       // 无论参数是否变更，都走一样的流程
       this.handleCreateTaskSubmit(params, true);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -1351,7 +1382,7 @@ export default {
       text-align: right;
 
       &.mw-170 {
-        min-width: 170px
+        min-width: 170px;
       }
 
       &.item-required:after {
@@ -1524,7 +1555,7 @@ export default {
 
   .advanced-option-fade {
     &-enter-active {
-      transition: opacity .5s cubic-bezier(.25, 1, .25, 1);
+      transition: opacity 0.5s cubic-bezier(0.25, 1, 0.25, 1);
     }
 
     &-leave-active,

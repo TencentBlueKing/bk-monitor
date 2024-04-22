@@ -25,6 +25,7 @@
  */
 import { Component, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import { MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
@@ -43,15 +44,15 @@ import ViewInfo from './view-info';
 import './tab-container.scss';
 
 enum EPanelsNames {
-  viewInfo = 'viewInfo',
-  performance = 'performance',
-  handleExperience = 'handleExperience',
   circulationRecord = 'circulationRecord',
-  relatedEvents = 'relatedEvents',
+  handleExperience = 'handleExperience',
   hostProcess = 'hostProcess',
-  traceInfo = 'traceInfo',
   logInfo = 'logInfo',
+  performance = 'performance',
+  relatedEvents = 'relatedEvents',
   sceneView = 'sceneView',
+  traceInfo = 'traceInfo',
+  viewInfo = 'viewInfo',
 }
 
 const { i18n } = window;
@@ -69,7 +70,7 @@ interface ITabContainerProps {
 }
 
 interface IDataZoomTimeRange {
-  timeRange: TimeRangeType | [];
+  timeRange: [] | TimeRangeType;
 }
 
 @Component({
@@ -312,8 +313,8 @@ export default class TabContainer extends tsc<ITabContainerProps> {
       <div class='circulation-filter-btn'>
         <bk-popover
           ref='setPopover'
-          placement='bottom-end'
           width='515'
+          placement='bottom-end'
           theme='light strategy-setting'
           trigger='click'
           on-hide={this.handleHideFilterPopover}
@@ -322,8 +323,8 @@ export default class TabContainer extends tsc<ITabContainerProps> {
             <span class='icon-monitor icon-menu-setting'></span>
           </div>
           <div
-            slot='content'
             class='circulation-tool-popover'
+            slot='content'
           >
             <div class='tool-popover-title'>{this.$t('字段显示设置')}</div>
             <ul class='tool-popover-content'>
@@ -333,9 +334,9 @@ export default class TabContainer extends tsc<ITabContainerProps> {
                   class='tool-popover-content-item'
                 >
                   <bk-checkbox
+                    disabled={item.disabled}
                     value={item.checked}
                     on-change={() => this.handleCheckColChange(item)}
-                    disabled={item.disabled}
                   >
                     {item.name}
                   </bk-checkbox>
@@ -344,9 +345,9 @@ export default class TabContainer extends tsc<ITabContainerProps> {
             </ul>
             <div class='tool-popover-footer'>
               <bk-button
-                on-click={this.handleConfirmPopover}
-                theme='primary'
                 class='footer-btn'
+                theme='primary'
+                on-click={this.handleConfirmPopover}
               >
                 {this.$t('确定')}
               </bk-button>
@@ -368,10 +369,10 @@ export default class TabContainer extends tsc<ITabContainerProps> {
     return (
       <div class='event-detail-tab'>
         <bk-tab
-          on-tab-change={this.tabChange}
+          key={`tab-key-${this.panelsFilter.length}`}
           active={this.active}
           type={'unborder-card'}
-          key={`tab-key-${this.panelsFilter.length}`}
+          on-tab-change={this.tabChange}
         >
           {this.panelsFilter.map(item => (
             <bk-tab-panel
@@ -382,43 +383,43 @@ export default class TabContainer extends tsc<ITabContainerProps> {
         </bk-tab>
         {this.active === EPanelsNames.circulationRecord ? this.getCirculationFilterComponent() : undefined}
         <ViewInfo
-          show={this.active === EPanelsNames.viewInfo}
           alertId={this.alertId}
-          isScrollEnd={this.isScrollEnd}
           detail={this.detail}
+          isScrollEnd={this.isScrollEnd}
+          show={this.active === EPanelsNames.viewInfo}
         ></ViewInfo>
         {!!(window as any).enable_aiops && !this.isMultivariateAnomalyDetection && (
           <AiopsContainer
-            show={this.active === EPanelsNames.viewInfo}
             detail={this.detail}
+            show={this.active === EPanelsNames.viewInfo}
           ></AiopsContainer>
         )}
         <HandleExperiences
-          show={this.active === EPanelsNames.handleExperience}
           detail={this.detail}
+          show={this.active === EPanelsNames.handleExperience}
         ></HandleExperiences>
         <CirculationRecord
-          show={this.active === EPanelsNames.circulationRecord}
-          detail={this.detail}
-          conditions={this.getConditions}
-          isScrollEnd={this.isScrollEnd}
           actions={this.actions}
+          conditions={this.getConditions}
+          detail={this.detail}
+          isScrollEnd={this.isScrollEnd}
+          show={this.active === EPanelsNames.circulationRecord}
           on-related-events={this.handleRelatedEvents}
         ></CirculationRecord>
         <RelatedEvents
-          show={this.active === EPanelsNames.relatedEvents}
-          params={this.relatedEventsParams}
           alertId={this.alertId}
           detail={this.detail}
+          params={this.relatedEventsParams}
+          show={this.active === EPanelsNames.relatedEvents}
         ></RelatedEvents>
         <PerformanceView
-          show={this.active === EPanelsNames.performance}
           detail={this.detail}
+          show={this.active === EPanelsNames.performance}
         ></PerformanceView>
         <PerformanceView
-          show={this.active === EPanelsNames.hostProcess}
           detail={this.detail}
           isProcess={true}
+          show={this.active === EPanelsNames.hostProcess}
         ></PerformanceView>
         {/* 日志 tab */}
         <LogInfo
@@ -432,10 +433,10 @@ export default class TabContainer extends tsc<ITabContainerProps> {
           traceIds={this.traceIds}
         ></TraceInfo>
         <SceneView
-          show={this.active === EPanelsNames.sceneView}
           detail={this.detail}
           sceneId={this.sceneId}
           sceneName={this.sceneName}
+          show={this.active === EPanelsNames.sceneView}
         ></SceneView>
       </div>
     );

@@ -31,7 +31,7 @@ interface Children {
   value: string | string[];
 }
 
-export type CommonDetailType = 'link' | 'number' | 'list' | 'status' | 'string' | 'tag' | 'time' | 'kv' | 'progress';
+export type CommonDetailType = 'kv' | 'link' | 'list' | 'number' | 'progress' | 'status' | 'string' | 'tag' | 'time';
 
 export interface IDetailItem {
   name: string;

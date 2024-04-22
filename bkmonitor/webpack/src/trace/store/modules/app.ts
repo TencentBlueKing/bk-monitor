@@ -29,7 +29,7 @@ import { IDocLinkData, ISpaceItem } from '../../typings';
 
 export interface IAppState {
   userName: string;
-  bizId: string | number;
+  bizId: number | string;
   bizList: ISpaceItem[];
   csrfCookieName: string;
   siteUrl: string;

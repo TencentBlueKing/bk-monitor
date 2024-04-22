@@ -26,6 +26,7 @@
 
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { CheckedboxListEvents, CheckedboxListProps, CheckedboxListVlaue, ICheckedboxList } from './typings';
@@ -86,8 +87,8 @@ export default class CheckedboxList extends tsc<CheckedboxListProps, CheckedboxL
                         item.show && (
                           <div class='checkedbox-item'>
                             <bk-checkbox
-                              value={item.id}
                               key={item.id}
+                              value={item.id}
                             >
                               <span
                                 class='item-name'
@@ -98,7 +99,7 @@ export default class CheckedboxList extends tsc<CheckedboxListProps, CheckedboxL
                             </bk-checkbox>
                             <span class='item-count'>{item.count}</span>
                           </div>
-                        ),
+                        )
                     )}
                   </bk-checkbox-group>
                 </div>

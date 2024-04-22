@@ -25,12 +25,12 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
@@ -40,6 +40,8 @@ import {
   updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
+
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
 import './apm-api-panel.scss';
 
@@ -126,12 +128,12 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     const localList = this.list.filter(item =>
       (item.name.includes(this.keyword) || item.id.toString().includes(this.keyword)) && this.currentStatus === 'all'
         ? true
-        : item.status?.type === this.currentStatus,
+        : item.status?.type === this.currentStatus
     );
     if (localList.some(item => item.metric?.[this.activeTab]?.percent)) {
       return localList.sort(
         (a, b) =>
-          +b.metric[this.activeTab].percent.replace('%', '') - +a.metric[this.activeTab].percent.replace('%', ''),
+          +b.metric[this.activeTab].percent.replace('%', '') - +a.metric[this.activeTab].percent.replace('%', '')
       );
     }
     return localList;
@@ -218,7 +220,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
               name: set.name || id,
             };
           });
-        }),
+        })
     );
     const [data] = await Promise.all(promiseList).catch(() => [[]]);
     this.list = data;
@@ -306,18 +308,18 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
         <div class='list-header'>
           {!!this.conditionList.length ? (
             <bk-search-select
-              placeholder={this.$t('搜索')}
               vModel={this.searchCondition}
-              show-condition={false}
               data={this.currentConditionList}
+              placeholder={this.$t('搜索')}
+              show-condition={false}
               show-popover-tag-change={false}
               onChange={this.handleSearch}
             />
           ) : (
             <bk-input
               v-model={this.keyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
@@ -339,16 +341,16 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
         {!!this.tabList.length && (
           <bk-tab
             class='list-tab'
-            type='unborder-card'
-            labelHeight={42}
-            on-tab-change={this.handleTabChange}
             active={this.activeTab}
+            labelHeight={42}
+            type='unborder-card'
+            on-tab-change={this.handleTabChange}
           >
             {this.tabList.map(tab => (
               <bk-tab-panel
-                name={tab.id}
                 key={tab.id}
                 label={tab.name}
+                name={tab.id}
               ></bk-tab-panel>
             ))}
           </bk-tab>
@@ -357,13 +359,12 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
           {this.localList?.length ? (
             <bk-virtual-scroll
               ref='virtualInstance'
-              item-height={36}
               scopedSlots={{
                 default: ({ data }) => (
                   <div
-                    onClick={() => this.handleSelect(data)}
                     style={{ '--percent': data.metric?.[this.activeTab]?.percent || data.percent || '0%' }}
                     class={[`list-wrapper-item ${data.id === this.activeId ? 'item-active' : ''}`]}
+                    onClick={() => this.handleSelect(data)}
                   >
                     {!!data.status?.type && (
                       <CommonStatus
@@ -376,12 +377,13 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
                   </div>
                 ),
               }}
+              item-height={36}
             ></bk-virtual-scroll>
           ) : (
             <bk-exception
               class='exception-part'
-              type='search-empty'
               scene='part'
+              type='search-empty'
             />
           )}
         </div>

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType, ref } from 'vue';
+
 import _groupBy from 'lodash/groupBy';
 
 // import AccordianLogs from './span-detail/accordian-logs';
@@ -132,19 +133,19 @@ export default defineComponent({
     return (
       <div
         class='span-bar-wrapper'
+        aria-hidden
         onClick={onClick}
         onMouseout={this.setShortLabel}
         onMouseover={this.setLongLabel}
-        aria-hidden
       >
         <div
-          aria-label={this.label}
-          class={{ 'span-bar': true, 'is-infer': isVirtual }}
           style={{
             backgroundColor: color,
             left: toPercent(viewStart),
             width: toPercent(viewEnd - viewStart),
           }}
+          class={{ 'span-bar': true, 'is-infer': isVirtual }}
+          aria-label={this.label}
         >
           <div class={`span-bar-label is-${hintSide}`}>
             {hintSide === 'right' && spanKindIcon && (
@@ -178,12 +179,12 @@ export default defineComponent({
         </div> */}
         {rpc && (
           <div
-            class='span-bar-rpc'
             style={{
               background: rpc.color,
               left: toPercent(rpc.viewStart),
               width: toPercent(rpc.viewEnd - rpc.viewStart),
             }}
+            class='span-bar-rpc'
           />
         )}
       </div>

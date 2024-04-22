@@ -61,10 +61,10 @@ export default class AutoHeightTextarea extends tsc<IProps> {
     return (
       <bk-input
         class='auto-height-textarea-component'
-        value={this.value}
         placeholder={this.placeholder}
-        type='textarea'
         row={1}
+        type='textarea'
+        value={this.value}
         onChange={this.handleChange}
       ></bk-input>
     );

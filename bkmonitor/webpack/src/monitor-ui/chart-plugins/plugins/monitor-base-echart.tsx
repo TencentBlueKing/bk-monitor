@@ -25,13 +25,13 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { hexToRgbA } from 'monitor-common/utils/utils';
 
 import { ICurPoint } from '../typings';
 import { echarts, type MonitorEchartOptions } from '../typings/index';
-
 import BaseEchart, { IChartEvent, IChartProps } from './base-echart';
 
 import './base-echart.scss';
@@ -102,8 +102,8 @@ class MonitorBaseEchart extends BaseEchart {
             },
           },
         },
-        this.options,
-      ),
+        this.options
+      )
     );
   }
   initChart() {
@@ -177,7 +177,7 @@ class MonitorBaseEchart extends BaseEchart {
         (this as any).curChartOption = (this as any).instance.getOption();
         this.initChartAction();
       },
-      { deep: false },
+      { deep: false }
     );
   }
   /**
@@ -299,13 +299,13 @@ class MonitorBaseEchart extends BaseEchart {
     return (
       <div class='chart-base-wrap'>
         <div
-          class='chart-base'
           ref='chartInstance'
           style={{ minHeight: `${1}px` }}
-          onMouseover={this.handleMouseover}
-          onMouseleave={this.handleMouseleave}
+          class='chart-base'
           onClick={this.handleClick}
           onDblclick={this.handleDblClick}
+          onMouseleave={this.handleMouseleave}
+          onMouseover={this.handleMouseover}
         ></div>
         {this.showRestore && (
           <span

@@ -41,15 +41,15 @@ export class TimeRange {
     this.init(times);
   }
 
+  /** 格式化时间范围 */
+  format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
+    return this.value.map(item => item?.format?.(str) || null) as TimeRangeType;
+  }
+
   /** 初始化时间对象 */
   init(times: TimeRangeType) {
     const dateRange = new DateRange(times as DateValue, 'YYYY-MM-DD HH:mm:ss', window.timezone);
     this.value = [dateRange.startDate, dateRange.endDate];
-  }
-
-  /** 格式化时间范围 */
-  format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
-    return this.value.map(item => item?.format?.(str) || null) as TimeRangeType;
   }
   /** 格式化成秒 */
   unix(): TimestampsType {
@@ -58,7 +58,7 @@ export class TimeRange {
 }
 
 /** 字符串的时间戳(毫秒)转为数字类型 */
-export const intTimestampStr = (str): number | null => {
+export const intTimestampStr = (str): null | number => {
   const isTimestamp = /^\d{1}$|^([1-9]\d{1,12})$/.test(str);
   return isTimestamp ? parseInt(str, 10) : str;
 };

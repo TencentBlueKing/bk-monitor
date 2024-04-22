@@ -36,11 +36,11 @@ import { Component as tsc } from 'vue-tsx-support';
 import './group.scss';
 
 export interface IGroupData {
-  id: string | number;
+  id: number | string;
   name: TranslateResult;
   data: any[]; // data为自定义分组数据
 }
-type themeType = 'filter' | 'bold';
+type themeType = 'bold' | 'filter';
 type titleSlotType = (item: IGroupData) => VNode;
 
 interface IGroupProps {
@@ -58,7 +58,7 @@ interface IGroupSlots {
   default: { item: IGroupData };
 }
 
-type TActiveName = (string | number)[];
+type TActiveName = (number | string)[];
 
 /**
  * 插件分组信息
@@ -135,16 +135,16 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
         {this.data?.map(item =>
           item.data.length > 0 ? (
             <bk-collapse-item
-              ext-cls={`collapse-item collapse-item-${this.theme}`}
-              hide-arrow
               key={item.id}
-              name={item.id}
+              ext-cls={`collapse-item collapse-item-${this.theme}`}
               scopedSlots={{
                 default: () => this.titleSlot(item),
                 content: () => this.$scopedSlots?.default?.({ item }),
               }}
+              name={item.id}
+              hide-arrow
             ></bk-collapse-item>
-          ) : undefined,
+          ) : undefined
         )}
       </bk-collapse>
     );

@@ -26,12 +26,12 @@
 
 import { Component, Emit, Prop, Provide, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { FavoriteIndexType, IFavList } from '../typings';
-
 import CollectGroup from './collect-group';
 
 import './collect-container.scss';
@@ -102,18 +102,18 @@ export default class CollectContainer extends tsc<FavoriteIndexType.IContainerPr
             <VueDraggable
               vModel={this.dragList}
               animation='150'
-              handle='.group-title'
-              on-end={this.handleMoveEnd}
-              move={this.handleMoveIng}
               disabled={true}
+              handle='.group-title'
+              move={this.handleMoveIng}
+              on-end={this.handleMoveEnd}
             >
               <transition-group>
                 {this.dragList.map(item => (
                   <div key={`${item.id}`}>
                     <CollectGroup
                       collectItem={item}
-                      groupList={this.groupList}
                       favCheckedValue={this.favCheckedValue}
+                      groupList={this.groupList}
                       isSearchFilter={this.isSearchFilter}
                     ></CollectGroup>
                   </div>

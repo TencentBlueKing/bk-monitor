@@ -282,5 +282,5 @@ export default applyGuidePage(
       },
     },
   ] as RouteConfig[],
-  ['collect-config-add', 'collect-config-edit'],
+  ['collect-config-add', 'collect-config-edit']
 );

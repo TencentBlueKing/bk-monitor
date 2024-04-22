@@ -49,7 +49,7 @@ export function createSortClickHandler(
   column: any,
   currentSortKey: any,
   currentSortDir: any,
-  updateSort: (arg0: any, arg1: any) => void,
+  updateSort: (arg0: any, arg1: any) => void
 ) {
   return function onClickSortingElement() {
     const { key, dir } = getNewSortForClick({ key: currentSortKey, dir: currentSortDir }, column);

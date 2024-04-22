@@ -26,12 +26,12 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 import { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
 import { handleGetReferenceKeyList } from '../../utils';
-
 import FilterVarSelect, { CustomParamsType, FilterDictType } from './filter-var-select';
 
 import './filter-var-select-group.scss';
@@ -101,7 +101,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
   }
 
   /** 带有$开头的变量可选值映射表 */
-  get varOptionalMap(): Map<string, string[] | string> {
+  get varOptionalMap(): Map<string, string | string[]> {
     const varMap = new Map();
     this.localPanelList?.forEach(item => {
       const entries = Object.entries(item.value);
@@ -326,25 +326,25 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
           {this.localPanelList.map(item =>
             item.checked ? (
               <FilterVarSelect
-                ref={item.fieldsKey}
                 key={item.title}
-                multiple={item.options?.variables?.multiple ?? true}
-                required={item.options?.variables?.required}
-                clearable={item.options?.variables?.clearable ?? true}
-                editable={this.editable}
-                customParams={this.filterCustomsParams}
+                ref={item.fieldsKey}
                 autoGetOption={this.editable}
-                panel={item}
-                label={item.title}
-                whereRefMap={this.varOptionalMap}
-                viewOptions={this.viewOptions}
-                variables={this.variables}
+                clearable={item.options?.variables?.clearable ?? true}
                 currentGroupValue={this.curentLocalValue}
-                onValueChange={val => this.handleVarSelectChange(item, val)}
+                customParams={this.filterCustomsParams}
+                editable={this.editable}
+                label={item.title}
+                multiple={item.options?.variables?.multiple ?? true}
+                panel={item}
+                required={item.options?.variables?.required}
+                variables={this.variables}
+                viewOptions={this.viewOptions}
+                whereRefMap={this.varOptionalMap}
                 onChange={val => this.handleVarSelectChange(item, val)}
                 onDefaultValue={val => this.handleSetDefaultValue(item, val)}
+                onValueChange={val => this.handleVarSelectChange(item, val)}
               />
-            ) : undefined,
+            ) : undefined
           )}
           {!this.readonly && this.needAddBtn && (
             <span

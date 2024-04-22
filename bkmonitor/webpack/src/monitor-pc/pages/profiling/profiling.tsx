@@ -61,12 +61,12 @@ export default class Profiling extends tsc<object> {
     return (
       <div class='profiling-wrap'>
         <bk-weweb
-          setShodowDom={true}
-          class='profiling-wrap-iframe'
-          url={this.profilingUrl}
-          showSourceCode={true}
           id='profiling'
+          class='profiling-wrap-iframe'
           data={this.profilingData}
+          setShodowDom={true}
+          showSourceCode={true}
+          url={this.profilingUrl}
         />
       </div>
     );

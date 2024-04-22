@@ -54,7 +54,7 @@ export interface ISpanClassifyItem {
   name: string;
   icon: string;
   count: number;
-  filter_value: string | number;
+  filter_value: number | string;
   filter_key: string;
   color: string;
   app_name?: string;
@@ -163,10 +163,10 @@ export interface ISpanListItem {
 }
 
 export enum EListItemType {
-  tags = 'Tags',
   events = 'Events',
-  stageTime = 'StageTime',
   process = 'Process',
+  stageTime = 'StageTime',
+  tags = 'Tags',
 }
 
 export interface ITagContent {
@@ -196,10 +196,10 @@ export interface IEventsItem {
 }
 
 export interface IStageTimeItemContent {
-  type: 'useTime' | 'gapTime';
+  type: 'gapTime' | 'useTime';
   useTime?: {
     tags: string[];
-    gap: { type: 'toRight' | 'toLeft'; value: string };
+    gap: { type: 'toLeft' | 'toRight'; value: string };
   };
   gapTime?: string;
 }
@@ -319,7 +319,7 @@ export interface ISpanDetail {
       processID: string;
     }[];
     processes: {
-      [key: string]: Object;
+      [key: string]: object;
     };
   };
 }

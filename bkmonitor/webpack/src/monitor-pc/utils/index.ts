@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 import dayjs from 'dayjs';
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
-
-import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
 import { IOption } from '../pages/monitor-k8s/typings';
 /**
@@ -223,15 +222,6 @@ export class Storage implements IStorage {
   constructor(express?: number) {
     this.express = express;
   }
-  /** 设置缓存 */
-  set(key: string, value: any, express: number = this.express) {
-    const data: ILocalStroageItem = {
-      value,
-      updateTime: Date.now(),
-      express,
-    };
-    localStorage.setItem(key, JSON.stringify(data));
-  }
   /** 获取缓存 */
   get(key: string) {
     const dataStr = localStorage.getItem(key);
@@ -247,6 +237,15 @@ export class Storage implements IStorage {
   /** 移除缓存 */
   remove(key: string) {
     localStorage.removeItem(key);
+  }
+  /** 设置缓存 */
+  set(key: string, value: any, express: number = this.express) {
+    const data: ILocalStroageItem = {
+      value,
+      updateTime: Date.now(),
+      express,
+    };
+    localStorage.setItem(key, JSON.stringify(data));
   }
 }
 
@@ -288,7 +287,7 @@ export const getStrLengOfPx = (str: string, lengPx = 6, lengPxDouble = 13) => {
  * @param min 最小值 单位: px
  * @return number 宽度值 单位: px
  */
-export const getPopoverWidth = (options: IOption[] | IMetricDetail[], padding = 32, min?: number) => {
+export const getPopoverWidth = (options: IMetricDetail[] | IOption[], padding = 32, min?: number) => {
   const width = options.reduce((width, item) => {
     const curWidth = getStrLengOfPx(item.name as string, 6, 13) + padding;
     return Math.max(curWidth, width);

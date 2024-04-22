@@ -26,6 +26,7 @@
 import { computed, ComputedRef, defineComponent, inject, PropType, reactive, Ref, ref, watch } from 'vue';
 import { TranslateResult, useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
+
 import { Alert, Button, Exception, Input, Popover, Select, Table } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
@@ -45,7 +46,6 @@ import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 // src/monitor-ui/chart-plugins/utils/index.ts
 import { downFile } from 'monitor-ui/chart-plugins/utils';
-import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 // import { VariablesService } from '../../utils/variable';
@@ -60,6 +60,8 @@ import {
   useTimeRanceInject,
 } from '../../hooks';
 import { ITableDataItem } from '../../typings/table-chart';
+
+import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './related-log-chart.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -109,7 +111,7 @@ export default defineComponent({
     /** 关联是否为蓝鲸日志平台 */
     const isBkLog = ref(true);
     /** alert提示文字 */
-    const alertText = ref<string | TranslateResult>('');
+    const alertText = ref<TranslateResult | string>('');
     /** 第三方日志 */
     const thirdPartyLog = ref('');
     /** 搜索关键字 */
@@ -124,10 +126,10 @@ export default defineComponent({
     const customOptions = ref<MonitorEchartOptions>(
       deepmerge(MONITOR_BAR_OPTIONS, option, {
         arrayMerge: (_, srcArr) => srcArr,
-      }),
+      })
     );
     /** 汇聚周期 */
-    const chartInterval = ref<number | 'auto'>('auto');
+    const chartInterval = ref<'auto' | number>('auto');
     /** 汇聚周期选项 */
     const intervalList = ref([
       { id: 'auto', name: 'auto' },
@@ -363,7 +365,7 @@ export default defineComponent({
                     ...viewOptions.value,
                   },
                 },
-                { needMessage: false },
+                { needMessage: false }
               )
               .then(res => {
                 if (res.series?.[0].datapoints?.length) {
@@ -385,7 +387,7 @@ export default defineComponent({
                 } else {
                   emptyChart.value = true;
                 }
-              }),
+              })
           );
       } catch (error) {
         handleErrorMsgChange(error.msg || error.message);
@@ -438,7 +440,7 @@ export default defineComponent({
               })
               .finally(() => {
                 isScrollLoading.value = false;
-              }),
+              })
           );
       } catch (e) {}
       setTimeout(() => {
@@ -602,14 +604,13 @@ export default defineComponent({
   render() {
     return (
       <div
-        class='related-log-chart-wrap'
         ref='RelatedLogChartRef'
+        class='related-log-chart-wrap'
       >
         {!this.empty ? (
           <div>
             <div class='related-alert-info'>
               <Alert
-                show-icon={false}
                 v-slots={{
                   title: () => (
                     <div>
@@ -634,6 +635,7 @@ export default defineComponent({
                     </div>
                   ),
                 }}
+                show-icon={false}
               ></Alert>
             </div>
             {this.isBkLog && (
@@ -648,16 +650,16 @@ export default defineComponent({
 
                           <Select
                             class='interval-select'
-                            size='small'
+                            v-model={this.chartInterval}
                             behavior='simplicity'
                             clearable={false}
-                            v-model={this.chartInterval}
+                            size='small'
                             onChange={this.handleIntervalChange}
                           >
                             {this.intervalList.map(item => (
                               <Select.Option
-                                key={item.id}
                                 id={item.name}
+                                key={item.id}
                               >
                                 {item.name}
                               </Select.Option>
@@ -668,8 +670,8 @@ export default defineComponent({
                     </span>
                     {!this.emptyChart && (
                       <Popover
-                        placement='top'
                         content={this.$t('截图到本地')}
+                        placement='top'
                       >
                         <i
                           class='icon-monitor icon-mc-camera'
@@ -682,13 +684,13 @@ export default defineComponent({
                     <div class='monitor-echart-common-content'>
                       {!this.emptyChart ? (
                         <div
-                          class='chart-instance'
                           ref='baseChart'
+                          class='chart-instance'
                         >
                           <BaseEchart
-                            class='base-chart'
-                            height={this.height}
                             width={this.width}
+                            height={this.height}
+                            class='base-chart'
                             options={this.customOptions}
                             onDataZoom={this.dataZoom}
                             onDblClick={this.handleDblClick}
@@ -702,16 +704,16 @@ export default defineComponent({
                 </div>
                 <div class='query-tool'>
                   <Select
+                    style='flex-shrink: 0;'
                     class='table-search-select'
                     v-model={this.relatedIndexSetId}
                     clearable={false}
                     onChange={v => this.handleSelectIndexSet(v)}
-                    style='flex-shrink: 0;'
                   >
                     {this.relatedIndexSetList.map(option => (
                       <Select.Option
-                        key={option.index_set_id}
                         id={option.index_set_id}
+                        key={option.index_set_id}
                         name={option.index_set_name}
                       ></Select.Option>
                     ))}
@@ -719,9 +721,9 @@ export default defineComponent({
                   <Input
                     class='table-search-input'
                     v-model={this.keyword}
-                    onEnter={this.handleSearchChange}
-                    onClear={() => this.handleSearchChange('')}
                     onChange={this.handleSearchChange}
+                    onClear={() => this.handleSearchChange('')}
+                    onEnter={this.handleSearchChange}
                   />
                   <Button
                     theme='primary'
@@ -732,12 +734,8 @@ export default defineComponent({
                 </div>
                 <div class='related-table-container'>
                   <Table
-                    data={this.tableData}
-                    height='100%'
-                    columns={this.transformedColumns}
-                    scroll-loading={this.isScrollLoading}
-                    onScrollBottom={this.handlePageChange}
                     style='width: 100%;'
+                    height='100%'
                     v-slots={{
                       expandRow: row => {
                         return (
@@ -747,6 +745,10 @@ export default defineComponent({
                         );
                       },
                     }}
+                    columns={this.transformedColumns}
+                    data={this.tableData}
+                    scroll-loading={this.isScrollLoading}
+                    onScrollBottom={this.handlePageChange}
                   ></Table>
                 </div>
               </div>

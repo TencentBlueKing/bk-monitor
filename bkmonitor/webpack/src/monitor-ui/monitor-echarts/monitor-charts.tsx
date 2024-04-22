@@ -25,9 +25,9 @@
  */
 import { ofType } from 'vue-tsx-support';
 
+import MonitorCharts from './monitor-echarts-new.vue';
 import { ChartType, IStatusChartOption, IStatusSeries, ITextChartOption, ITextSeries } from './options/type-interface';
 import { type MonitorEchartOptions, type MonitorEchartSeries } from './types/monitor-echarts';
-import MonitorCharts from './monitor-echarts-new.vue';
 
 interface IAlarmStatus {
   status: number;
@@ -35,7 +35,7 @@ interface IAlarmStatus {
   strategy_number: number;
 }
 interface IMonitorEchartsProps {
-  options: MonitorEchartOptions | IStatusChartOption | ITextChartOption;
+  options: IStatusChartOption | ITextChartOption | MonitorEchartOptions;
   watchOptionsDeep: boolean;
   autoresize: boolean;
   // 是否需要设置全屏
@@ -52,7 +52,7 @@ interface IMonitorEchartsProps {
   title: string;
   subtitle: string;
   // 图表系列数据
-  series: MonitorEchartSeries | IStatusSeries | ITextSeries;
+  series: IStatusSeries | ITextSeries | MonitorEchartSeries;
   // 背景图
   backgroundUrl: string;
   // 获取图标数据

@@ -35,7 +35,7 @@ export interface ILegendItem {
   show: boolean;
   hidden?: boolean;
 }
-export type ChartType = 'bar' | 'line' | 'pie' | 'map' | 'status' | 'text' | 'table' | 'scatter';
+export type ChartType = 'bar' | 'line' | 'map' | 'pie' | 'scatter' | 'status' | 'table' | 'text';
 export interface IChartOptionPorps {
   chartType: ChartType;
   colors: string[];
@@ -47,7 +47,7 @@ export interface IChartOptionPorps {
 export interface IChartInstance {
   getOptions: (
     data: any,
-    otherOptions?: MonitorEchartOptions,
+    otherOptions?: MonitorEchartOptions
   ) => { options: MonitorEchartOptions; legendData: ILegendItem[] };
 }
 
@@ -88,9 +88,9 @@ export interface ITextSeries {
 export interface ITextChartOption {
   series: ITextSeries;
 }
-export type MoreChartToolItem = 'explore' | 'set' | 'strategy' | 'area';
+export type MoreChartToolItem = 'area' | 'explore' | 'set' | 'strategy';
 
-export type IChartOption = MonitorEchartOptions | IStatusChartOption | ITextChartOption;
+export type IChartOption = IStatusChartOption | ITextChartOption | MonitorEchartOptions;
 
 export interface ITableSeries {
   columns?: { text: string; type: string }[];

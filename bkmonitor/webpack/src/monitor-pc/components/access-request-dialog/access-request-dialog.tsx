@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 
 import { handleGotoLink } from '../../common/constant';
@@ -98,16 +99,16 @@ export default class AccessRequestDialog extends tsc<object> {
   render() {
     return (
       <bk-dialog
-        v-model={this.visible}
         width={480}
-        show-footer={false}
-        draggable={false}
         ext-cls='access-requst-dialog'
+        v-model={this.visible}
+        draggable={false}
         mask-close={false}
+        show-footer={false}
       >
         <bk-exception
-          type={403}
           scene={'part'}
+          type={403}
         >
           <div class='access-request-title'>{window.i18n.t('你当前暂无 {0} 业务权限', [this.bizName])}</div>
           <div class='access-request-container'>

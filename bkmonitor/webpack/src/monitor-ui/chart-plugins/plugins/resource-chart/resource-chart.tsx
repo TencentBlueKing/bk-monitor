@@ -26,6 +26,7 @@
 
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { deepClone } from 'monitor-common/utils/utils';
@@ -94,7 +95,7 @@ class ResourceChart extends CommonSimpleChart {
                 ...this.viewOptions,
               },
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(res => {
             this.clearErrorMsg();
@@ -102,7 +103,7 @@ class ResourceChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item?.length)) {
@@ -185,14 +186,14 @@ class ResourceChart extends CommonSimpleChart {
     const result_table_id = res.find(item => item.name.includes(bcs_cluster_id))?.id;
     const query =
       alertFilterable.event_center?.query_string.map(
-        item => `指标ID : ${data_source_label}.${data_type_label}.${result_table_id}.${item.metric}`,
+        item => `指标ID : ${data_source_label}.${data_type_label}.${result_table_id}.${item.metric}`
       ) || [];
     query.length &&
       window.open(
         location.href.replace(
           location.hash,
-          `#/event-center?queryString=${query.join(' or ')}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
-        ),
+          `#/event-center?queryString=${query.join(' or ')}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
+        )
       );
   }
 
@@ -240,8 +241,8 @@ class ResourceChart extends CommonSimpleChart {
             location.hash,
             `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
               eventTargetStr ? ` AND ${eventTargetStr}` : ''
-            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
-          ),
+            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
+          )
         );
         break;
     }
@@ -252,13 +253,13 @@ class ResourceChart extends CommonSimpleChart {
       <div class='resource-chart-content'>
         {this.data[0].map(item => (
           <div
-            class='content-item'
             style={{ cursor: item.link ? 'pointer' : '' }}
+            class='content-item'
             onClick={() => this.handleJump(item)}
           >
             <div
-              class={`content-header`}
               style={{ color: item.color || '#313238' }}
+              class={`content-header`}
             >
               <span class='item-val'>{item.value}</span>
               {item.tips && (
@@ -286,16 +287,16 @@ class ResourceChart extends CommonSimpleChart {
       <div class='resource-chart'>
         <ChartHeader
           class='draggable-handle'
-          title={this.panel.title}
           draging={this.panel.draging}
-          showMore={!this.empty && this.showHeaderMoreTool && !!this.panel.options?.alert_filterable}
+          isInstant={this.panel.instant && this.showHeaderMoreTool}
           menuList={this.menuList}
           metrics={this.metrics}
-          isInstant={this.panel.instant && this.showHeaderMoreTool}
-          onMetricClick={this.handleMetricClick}
-          onMenuClick={this.handleMenuToolsSelect}
-          onAllMetricClick={this.handleAllMetricClick}
+          showMore={!this.empty && this.showHeaderMoreTool && !!this.panel.options?.alert_filterable}
+          title={this.panel.title}
           onAlarmClick={this.handleAlarmClick}
+          onAllMetricClick={this.handleAllMetricClick}
+          onMenuClick={this.handleMenuToolsSelect}
+          onMetricClick={this.handleMetricClick}
         />
         {!this.empty ? this.chartContent() : <span class='empty-chart'>{this.emptyText}</span>}
       </div>

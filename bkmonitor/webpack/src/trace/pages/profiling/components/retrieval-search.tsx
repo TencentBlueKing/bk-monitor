@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 import { listApplicationServices, queryLabels } from 'monitor-api/modules/apm_profile';
@@ -39,7 +40,6 @@ import {
   SearchType,
   ToolsFormData,
 } from '../typings';
-
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';
 
@@ -91,14 +91,14 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
     watch(
       () => toolsFormData.value.timeRange,
       () => {
         getLabelList();
         getApplicationList();
-      },
+      }
     );
 
     /**
@@ -303,8 +303,8 @@ export default defineComponent({
                 <div class='content'>
                   <Switcher
                     modelValue={this.localFormData.isComparison}
-                    theme='primary'
                     size='small'
+                    theme='primary'
                     onChange={this.handleComparisonChange}
                   />
                 </div>

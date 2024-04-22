@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { bulkEditStrategy, getTargetDetail } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils';
 
@@ -46,7 +47,7 @@ interface IStrategyIpv6Props {
   strategyIds?: string[];
   objectType?: TargetObjectType;
   nodeType?: INodeType;
-  bizId?: string | number;
+  bizId?: number | string;
   checkedNodes?: any[];
 }
 interface IStrategyIpv6Events {
@@ -75,7 +76,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
 
   @Prop({ type: String }) objectType: TargetObjectType;
   @Prop({ type: String }) nodeType: INodeType;
-  @Prop({ type: [String, Number] }) bizId: string | number;
+  @Prop({ type: [String, Number] }) bizId: number | string;
   ipCheckValue: IIpV6Value = {};
   panelList: string[] = [];
   ipNodeType: INodeType = 'TOPO';
@@ -182,14 +183,14 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
       <div v-bkloading={{ isLoading: this.loading }}>
         {this.panelList.length > 0 && (
           <MonitorIpSelector
-            panelList={this.panelList}
-            mode={'dialog'}
-            showDialog={this.inited && this.showDialog}
-            value={this.ipCheckValue}
-            countInstanceType={this.countInstanceType}
             class={this.countInstanceType === 'service_instance' ? 'service-instance-selector' : ''}
+            countInstanceType={this.countInstanceType}
+            mode={'dialog'}
             originalValue={this.originValue}
+            panelList={this.panelList}
+            showDialog={this.inited && this.showDialog}
             showViewDiff={!!this.originValue}
+            value={this.ipCheckValue}
             onChange={this.handleIpChange}
             onCloseDialog={this.closeDialog}
             onTargetTypeChange={v => (this.ipNodeType = v)}

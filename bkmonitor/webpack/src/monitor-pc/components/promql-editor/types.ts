@@ -32,14 +32,14 @@ import * as monacoEditor from 'monaco-editor/esm/vs/editor/editor.api';
  */
 export type EditorConstructionOptions = NonNullable<Parameters<typeof monacoEditor.editor.create>[1]>;
 
-export type EditorWillMount = (monaco: typeof monacoEditor) => void | EditorConstructionOptions;
+export type EditorWillMount = (monaco: typeof monacoEditor) => EditorConstructionOptions | void;
 
 export type EditorDidMount = (editor: monacoEditor.editor.IStandaloneCodeEditor, monaco: typeof monacoEditor) => void;
 
 export type EditorWillUnmount = (
   editor: monacoEditor.editor.IStandaloneCodeEditor,
-  monaco: typeof monacoEditor,
-) => void | EditorConstructionOptions;
+  monaco: typeof monacoEditor
+) => EditorConstructionOptions | void;
 
 export type ChangeHandler = (value: string, event: monacoEditor.editor.IModelContentChangedEvent) => void;
 
@@ -47,12 +47,12 @@ export interface MonacoEditorBaseProps {
   /**
    * Width of editor. Defaults to 100%.
    */
-  width?: string | number;
+  width?: number | string;
 
   /**
    * Height of editor. Defaults to 100%.
    */
-  height?: string | number;
+  height?: number | string;
 
   /**
    * The initial value of the auto created model in the editor.
@@ -69,12 +69,12 @@ export interface MonacoEditorBaseProps {
    * The current out-of-the-box available themes are: 'vs' (default), 'vs-dark', 'hc-black'.
    * You can create custom themes via `monaco.editor.defineTheme`.
    */
-  theme?: string | null;
+  theme?: null | string;
 
   /**
    * Optional string classname to append to the editor.
    */
-  className?: string | null;
+  className?: null | string;
 }
 
 export interface MonacoEditorProps extends MonacoEditorBaseProps {
@@ -83,7 +83,7 @@ export interface MonacoEditorProps extends MonacoEditorBaseProps {
    * If you specify `null` or `undefined` for this property, the component behaves in uncontrolled mode.
    * Otherwise, it behaves in controlled mode.
    */
-  value?: string | null;
+  value?: null | string;
 
   /**
    * Refer to Monaco interface {monaco.editor.IStandaloneEditorConstructionOptions}.
@@ -124,17 +124,17 @@ export interface MonacoEditorProps extends MonacoEditorBaseProps {
 // ============ Diff Editor ============
 
 export type DiffEditorWillMount = (
-  monaco: typeof monacoEditor,
-) => void | monacoEditor.editor.IStandaloneEditorConstructionOptions;
+  monaco: typeof monacoEditor
+) => monacoEditor.editor.IStandaloneEditorConstructionOptions | void;
 
 export type DiffEditorDidMount = (
   editor: monacoEditor.editor.IStandaloneDiffEditor,
-  monaco: typeof monacoEditor,
+  monaco: typeof monacoEditor
 ) => void;
 
 export type DiffEditorWillUnmount = (
   editor: monacoEditor.editor.IStandaloneDiffEditor,
-  monaco: typeof monacoEditor,
+  monaco: typeof monacoEditor
 ) => void;
 
 export type DiffChangeHandler = ChangeHandler;

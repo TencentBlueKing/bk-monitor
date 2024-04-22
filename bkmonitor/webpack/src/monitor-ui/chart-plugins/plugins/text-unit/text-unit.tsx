@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -37,9 +38,9 @@ import './text-unit.scss';
 
 interface ITextUnitSeriesItem {
   // 值
-  value: string | number;
+  value: number | string;
   // 单位
-  unit: string | number;
+  unit: number | string;
 }
 @Component
 export default class TextUnit extends CommonSimpleChart {
@@ -67,7 +68,7 @@ export default class TextUnit extends CommonSimpleChart {
         interval: reviewInterval(
           this.viewOptions.interval,
           params.end_time - params.start_time,
-          this.panel.collect_interval,
+          this.panel.collect_interval
         ),
       });
       const promiseList = this.panel.targets.map(item =>
@@ -77,7 +78,7 @@ export default class TextUnit extends CommonSimpleChart {
               ...variablesService.transformVariables(item.data),
               ...params,
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(({ value, unit }) => {
             // 单位转换
@@ -91,7 +92,7 @@ export default class TextUnit extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
@@ -115,10 +116,10 @@ export default class TextUnit extends CommonSimpleChart {
       <div class='text-unit'>
         <ChartTitle
           class='draggable-handle text-header'
-          title={this.panel.title}
-          showMore={false}
           draging={this.panel.draging}
           isInstant={this.panel.instant}
+          showMore={false}
+          title={this.panel.title}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         <div class='text-wrapper'>

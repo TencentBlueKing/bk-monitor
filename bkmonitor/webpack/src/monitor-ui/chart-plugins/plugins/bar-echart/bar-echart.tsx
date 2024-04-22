@@ -25,6 +25,7 @@
  */
 import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import deepmerge from 'deepmerge';
 
 import ListLegend from '../../components/chart-legend/common-legend';
@@ -71,7 +72,7 @@ class LineBarEChart
     IntersectionMixin,
     LegendMixin,
     ToolsMxin,
-    ChartLoadingMixin,
+    ChartLoadingMixin
   )
   implements ICommonCharts
 {
@@ -185,21 +186,21 @@ class LineBarEChart
       <div class='monitor-echart-common'>
         <ChartHeader
           class='draggable-handle'
-          title={'这是一个标题'}
-          subtitle={'这是一个副标题'}
-          showMore={this.showHeaderMoreTool}
           isInstant={this.panel.instant}
+          showMore={this.showHeaderMoreTool}
+          subtitle={'这是一个副标题'}
+          title={'这是一个标题'}
           onMenuClick={this.handleMenuToolsSelect}
         />
         <div class={`monitor-echart-common-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
           <div
-            class='chart-instance'
             ref='chart'
+            class='chart-instance'
           >
             <BaseEchart
               ref='baseChart'
-              height={this.height}
               width={this.width}
+              height={this.height}
               options={this.customOptions}
             />
           </div>

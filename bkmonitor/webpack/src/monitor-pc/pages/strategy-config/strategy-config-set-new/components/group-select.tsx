@@ -25,13 +25,14 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 
 import './group-select.scss';
 
 interface IGroupSelect {
   list?: IGroupItem[];
-  value?: string | number;
+  value?: number | string;
   readonly?: boolean;
   placeholder?: string;
 }
@@ -44,14 +45,14 @@ export interface IGroupItem {
 }
 interface IGroupSelectEvent {
   onClear?: any;
-  onChange?: string | number;
+  onChange?: number | string;
 }
 @Component({
   name: 'GroupSelect',
 })
 export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
   @Prop({ type: Array, default: () => [] }) list: IGroupItem[];
-  @Prop({ type: [String, Number], default: '' }) value: string | number;
+  @Prop({ type: [String, Number], default: '' }) value: number | string;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ type: String, default: window.i18n.tc('选择') }) placeholder: string;
   @Ref('group-select-panel') selectPanelRef: HTMLDivElement;
@@ -68,7 +69,7 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
   get filterList() {
     if (!this.keyword) return this.list;
     return this.list.filter(item =>
-      item?.children?.some(child => child.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase())),
+      item?.children?.some(child => child.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()))
     );
   }
   get activeList() {
@@ -163,8 +164,8 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
     return (
       <div class={['group-select-component', { 'is-readonly': this.readonly }]}>
         <div
-          class={['select-wrap', { 'is-focus': this.isShow }, { 'is-hover': !this.readonly }]}
           ref='select-wrap'
+          class={['select-wrap', { 'is-focus': this.isShow }, { 'is-hover': !this.readonly }]}
           data-set='select-wrap'
           onClick={this.handleWrapClick}
         >
@@ -194,13 +195,13 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
         </div>
         <div style='display: none;'>
           <div
-            class='group-select-panel'
             ref='group-select-panel'
+            class='group-select-panel'
           >
             <bk-input
               class='panel-search'
-              leftIcon='bk-icon icon-search'
               behavior='simplicity'
+              leftIcon='bk-icon icon-search'
               placeholder={this.$t('输入关键字')}
               value={this.keyword}
               on-change={this.handleKeywordChange}
@@ -211,8 +212,8 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
                   <ul class='panel-item'>
                     {this.filterList.map(item => (
                       <li
-                        class={['list-item', { 'item-active': item.id === this.activeGroupId }]}
                         key={item.id}
+                        class={['list-item', { 'item-active': item.id === this.activeGroupId }]}
                         onMouseenter={() => this.handleGroupMouseenter(item)}
                       >
                         {item.name}
@@ -227,28 +228,28 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
                       item =>
                         item.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()) && (
                           <li
-                            class={['list-item', { 'item-active': item.id === this.activeId }]}
                             key={item.id}
+                            class={['list-item', { 'item-active': item.id === this.activeId }]}
                             onClick={() => this.handleSelect(item)}
                           >
                             {item.name.slice(
                               0,
-                              item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()),
+                              item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase())
                             )}
                             <span style='color: #FF9C00'>
                               {item.name.slice(
                                 item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()),
                                 item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()) +
-                                  this.keyword.length,
+                                  this.keyword.length
                               )}
                             </span>
                             {item.name.slice(
                               item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()) +
                                 this.keyword.length,
-                              item.name.length,
+                              item.name.length
                             )}
                           </li>
-                        ),
+                        )
                     )}
                   </ul>
                 )}
@@ -258,8 +259,8 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
                 <div style='width: 100%;'>
                   <bk-exception
                     class='exception-wrap-item exception-part'
-                    type='empty'
                     scene='part'
+                    type='empty'
                   >
                     {' '}
                   </bk-exception>

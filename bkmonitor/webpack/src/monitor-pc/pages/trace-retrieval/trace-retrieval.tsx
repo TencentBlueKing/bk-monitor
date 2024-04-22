@@ -57,12 +57,12 @@ export default class TraceRetrieval extends tsc<object> {
     return (
       <div class='trace-wrap'>
         <bk-weweb
-          setShodowDom={true}
-          class='trace-wrap-iframe'
-          url={this.traceUrl}
-          showSourceCode={true}
           id='trace'
+          class='trace-wrap-iframe'
           data={this.traceData}
+          setShodowDom={true}
+          showSourceCode={true}
+          url={this.traceUrl}
         />
       </div>
     );

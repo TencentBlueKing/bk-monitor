@@ -26,15 +26,16 @@
 
 import { Component, PropSync, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { customServiceDataView, customServiceList, deleteCustomSerivice } from 'monitor-api/modules/apm_meta';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../components/panel-item/panel-item';
-
 import AddServiceDialog from './add-service-dialog';
 import { IAppInfo, ICustomServiceInfo } from './type';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 interface IPagination {
   current: number;
@@ -195,8 +196,8 @@ export default class CustomService extends tsc<IProps> {
           {props.row.icon && props.row.match_type === 'manual' && (
             <img
               class='service-icon'
-              src={props.row.icon}
               alt=''
+              src={props.row.icon}
             />
           )}
           {props.row.name ? (
@@ -245,23 +246,23 @@ export default class CustomService extends tsc<IProps> {
         </PanelItem>
         <PanelItem title={this.$t('服务详情')}>
           <bk-button
-            theme='primary'
-            icon='plus'
             class='add-service'
+            icon='plus'
+            theme='primary'
             onClick={() => this.handleAddService()}
           >
             {this.$t('新增')}
           </bk-button>
           <bk-table
             class={'service-table'}
-            outer-border={false}
-            row-auto-height={true}
-            data={this.serviceList}
             v-bkloading={{ isLoading: this.tableLoading }}
+            data={this.serviceList}
+            outer-border={false}
             pagination={this.pagination}
-            on-sort-change={this.handleSortChange}
+            row-auto-height={true}
             on-page-change={this.handlePageChange}
             on-page-limit-change={this.handleLimitChange}
+            on-sort-change={this.handleSortChange}
           >
             <bk-table-column
               label={this.$t('匹配类型')}
@@ -276,22 +277,22 @@ export default class CustomService extends tsc<IProps> {
               prop={'type'}
             />
             <bk-table-column
-              label={this.$t('域名匹配')}
               width='160'
+              label={this.$t('域名匹配')}
               prop={'host_match_count'}
-              sortable='custom'
               scopedSlots={{ default: props => props.row.host_match_count?.value }}
+              sortable='custom'
             />
             <bk-table-column
-              label={this.$t('URI匹配')}
               width='160'
+              label={this.$t('URI匹配')}
               prop={'uri_match_count'}
               scopedSlots={{ default: props => props.row.uri_match_count?.value }}
               sortable='custom'
             />
             <bk-table-column
-              label={this.$t('操作')}
               width='180'
+              label={this.$t('操作')}
               scopedSlots={operatorSlot}
             />
           </bk-table>

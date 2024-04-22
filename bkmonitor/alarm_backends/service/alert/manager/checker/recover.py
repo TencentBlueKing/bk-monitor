@@ -31,6 +31,7 @@ from alarm_backends.core.detect_result import ANOMALY_LABEL
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
 from bkmonitor.data_source import CustomEventDataSource
 from bkmonitor.documents import AlertLog
+from bkmonitor.models import AlgorithmModel
 from constants.alert import EventStatus
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.unit import load_unit
@@ -112,7 +113,10 @@ class RecoverStatusChecker(BaseChecker):
         window_unit = Strategy.get_check_window_unit(item, self.DEFAULT_CHECK_WINDOW_UNIT)
 
         try:
-            recovery_configs = Strategy.get_recovery_configs(strategy)[str(alert.event_severity)]
+            if self.check_has_dynamic_severity(item):
+                recovery_configs = list(Strategy.get_recovery_configs(strategy).values())[0]
+            else:
+                recovery_configs = Strategy.get_recovery_configs(strategy)[str(alert.event_severity)]
             recovery_window_size = recovery_configs["check_window_size"]
             status_setter = recovery_configs["status_setter"]
         except (ValueError, TypeError, IndexError, KeyError):
@@ -125,7 +129,10 @@ class RecoverStatusChecker(BaseChecker):
         recovery_window_offset = window_unit * recovery_window_size
 
         try:
-            trigger_config = Strategy.get_trigger_configs(strategy)[str(alert.event_severity)]
+            if self.check_has_dynamic_severity(item):
+                trigger_config = list(Strategy.get_trigger_configs(strategy).values())[0]
+            else:
+                trigger_config = Strategy.get_trigger_configs(strategy)[str(alert.event_severity)]
             trigger_window_size = trigger_config["check_window_size"]
             trigger_count = trigger_config["trigger_count"]
         except (ValueError, TypeError, IndexError, KeyError):
@@ -392,3 +399,17 @@ class RecoverStatusChecker(BaseChecker):
         except Exception as error:
             logger.info("load value unit for alert(%s) failed %s, current value(%s)", alert.id, str(error), value)
             return value
+
+    def check_has_dynamic_severity(self, strategy_item) -> bool:
+        """检查策略是否包含动态告警级别.
+
+        :param strategy_item: 策略配置
+        :return: 是否包含动态告警级别
+        """
+        if (
+            len(strategy_item["algorithms"]) > 0
+            and strategy_item["algorithms"][0]["type"] == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection
+        ):
+            return True
+
+        return False

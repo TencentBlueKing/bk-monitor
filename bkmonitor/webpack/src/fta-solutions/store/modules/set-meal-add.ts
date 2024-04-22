@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
 import {
   getConvergeFunction,
@@ -37,6 +36,7 @@ import {
 import { createActionConfig, retrieveActionConfig, updateActionConfig } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 const { i18n } = window;
 export interface ISetMealAddState {
@@ -46,36 +46,17 @@ export interface ISetMealAddState {
 
 @Module({ name: 'set-meal-add', dynamic: true, namespaced: true, store })
 class SetMealAdd extends VuexModule implements ISetMealAddState {
-  // 编辑状态
-  isEdit = false;
-
-  // 通知方式表格
-  noticeWayList = [];
-
-  // 收敛维度
-  dimensions = [];
+  // http 回调id
+  callbackId: number = null;
 
   // 收敛方法列表
   convergeFunctions = [];
 
-  // 输入变量列表
-  messageTemplateList = [];
+  // 收敛维度
+  dimensions = [];
 
-  // 周边系统id
-  peripheralIdMap: number[] = [];
-  // 告警通知插件id
-  noticeId: number = null;
-  // http 回调id
-  callbackId: number = null;
-
-  // 套餐类型列表
-  mealTypeList = [];
-
-  // 变量列表数据
-  variableData = {
-    variablePanels: [],
-    variableTable: {},
-  };
+  // 编辑状态
+  isEdit = false;
 
   levelList = [
     { id: 1, name: i18n.t('致命') },
@@ -83,19 +64,59 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
     { id: 3, name: i18n.t('提醒') },
   ];
 
+  // 套餐类型列表
+  mealTypeList = [];
+  // 输入变量列表
+  messageTemplateList = [];
+  // 告警通知插件id
+  noticeId: number = null;
+
+  // 通知方式表格
+  noticeWayList = [];
+
+  // 周边系统id
+  peripheralIdMap: number[] = [];
+
+  pluginDescription = {};
+
+  // 变量列表数据
+  variableData = {
+    variablePanels: [],
+    variableTable: {},
+  };
+
   // 变量数据
-  variables = [];
+  variables = []; // 套餐类型md文档
 
-  pluginDescription = {}; // 套餐类型md文档
-
-  public get getNoticeWayList() {
-    return this.noticeWayList;
+  public get getCallbackId() {
+    return this.callbackId;
+  }
+  public get getConvergeFunctions() {
+    return this.convergeFunctions;
   }
   public get getDimensions() {
     return this.dimensions;
   }
-  public get getConvergeFunctions() {
-    return this.convergeFunctions;
+  public get getIsEdit() {
+    return this.isEdit;
+  }
+  public get getLevelList() {
+    return this.levelList;
+  }
+  public get getMessageTemplateList() {
+    return this.messageTemplateList;
+  }
+  public get getNoticeId() {
+    return this.noticeId;
+  }
+  public get getNoticeWayList() {
+    return this.noticeWayList;
+  }
+  public get getPeripheralIdMap() {
+    return this.peripheralIdMap;
+  }
+  public get getPluginDescription() {
+    return this.pluginDescription;
   }
   public get getVariablePanels() {
     return this.variableData.variablePanels;
@@ -103,69 +124,11 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   public get getVariableTable() {
     return this.variableData.variableTable;
   }
-  public get getIsEdit() {
-    return this.isEdit;
-  }
-  public get getPeripheralIdMap() {
-    return this.peripheralIdMap;
-  }
-  public get getNoticeId() {
-    return this.noticeId;
-  }
-  public get getCallbackId() {
-    return this.callbackId;
-  }
-  public get getMessageTemplateList() {
-    return this.messageTemplateList;
-  }
-  public get mealTypeListData() {
-    return this.mealTypeList;
-  }
-  public get getLevelList() {
-    return this.levelList;
-  }
-  public get getPluginDescription() {
-    return this.pluginDescription;
-  }
   public get getVariables() {
     return this.variables;
   }
-
-  /**
-   * 修改state值
-   * @param expr 表达式
-   * @param value 值
-   * @param context 上下文 默认为this
-   */
-  @Mutation
-  public setData({ expr, value, context = this }: { expr: string; value: any; context?: any }) {
-    expr.split('.').reduce((data, curKey, index, arr) => {
-      if (index === arr.length - 1) {
-        // 给表达式最后一个赋值
-        return (data[curKey] = value);
-      }
-      return data[curKey];
-    }, context);
-  }
-
-  // 设置插件类型id
-  @Mutation
-  public setPluginId(data) {
-    this.peripheralIdMap = data.peripheralIdMap;
-    this.noticeId = data.noticeId;
-    this.callbackId = data.callbackId;
-  }
-
-  // 获取套餐
-  @Action
-  public async retrieveActionConfig(params: any) {
-    const res: any = await retrieveActionConfig(params).catch(() => ({}));
-    const isPeripheral = res.plugin_type !== '' && !['notice', 'webhook'].includes(res.plugin_type);
-    const result: any = transformDataKey(res);
-    if (isPeripheral) {
-      result.executeConfig.templateDetail = res.execute_config.template_detail;
-    }
-    return result;
+  public get mealTypeListData() {
+    return this.mealTypeList;
   }
 
   // 创建套餐
@@ -175,12 +138,16 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
     return result;
   }
 
-  // 修改套餐
   @Action
-  public async updateActionConfig(v) {
-    const { configId, params } = v;
-    const result = await updateActionConfig(configId, params).catch(() => ({}));
-    return result;
+  public async getConvergeFunctionList() {
+    const list = await getConvergeFunction().catch(() => []);
+    this.setConvergeFunction(list);
+  }
+
+  @Action
+  public async getDimensionList() {
+    const list = await getDimensions().catch(() => []);
+    this.setDimension(list);
   }
 
   /**
@@ -193,6 +160,14 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
     this.setPluginDescription(result);
     return result;
   }
+
+  // 获取通知方式表格
+  @Action
+  public async getNoticeWay() {
+    const data = await getNoticeWay().catch(() => []);
+    this.setNoticeWay(data);
+  }
+
   /**
    * 获取周边系统下拉列表
    * @param id 套餐列表id
@@ -201,22 +176,9 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   public async getPluginTemplates(id: number) {
     return getPluginTemplates({ plugin_id: id });
   }
-
   @Action
   public async getTemplateDetail(params: { pluginId: number; templateId: number }) {
     return getTemplateDetail({ plugin_id: params.pluginId, template_id: params.templateId }).catch(() => ({}));
-  }
-
-  @Action
-  public async getDimensionList() {
-    const list = await getDimensions().catch(() => []);
-    this.setDimension(list);
-  }
-
-  @Action
-  public async getConvergeFunctionList() {
-    const list = await getConvergeFunction().catch(() => []);
-    this.setConvergeFunction(list);
   }
 
   // 获取变量列表
@@ -243,16 +205,16 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
     this.setVariables(data);
   }
 
-  // 获取通知方式表格
+  // 获取套餐
   @Action
-  public async getNoticeWay() {
-    const data = await getNoticeWay().catch(() => []);
-    this.setNoticeWay(data);
-  }
-
-  @Mutation
-  public setDimension(list) {
-    this.dimensions = list;
+  public async retrieveActionConfig(params: any) {
+    const res: any = await retrieveActionConfig(params).catch(() => ({}));
+    const isPeripheral = res.plugin_type !== '' && !['notice', 'webhook'].includes(res.plugin_type);
+    const result: any = transformDataKey(res);
+    if (isPeripheral) {
+      result.executeConfig.templateDetail = res.execute_config.template_detail;
+    }
+    return result;
   }
 
   @Mutation
@@ -260,14 +222,26 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
     this.convergeFunctions = list;
   }
 
+  /**
+   * 修改state值
+   * @param expr 表达式
+   * @param value 值
+   * @param context 上下文 默认为this
+   */
   @Mutation
-  public setVariablePanels(v) {
-    this.variableData.variablePanels = v;
+  public setData({ expr, value, context = this }: { expr: string; value: any; context?: any }) {
+    expr.split('.').reduce((data, curKey, index, arr) => {
+      if (index === arr.length - 1) {
+        // 给表达式最后一个赋值
+        return (data[curKey] = value);
+      }
+      return data[curKey];
+    }, context);
   }
 
   @Mutation
-  public setVariableTable(v) {
-    this.variableData.variableTable = v;
+  public setDimension(list) {
+    this.dimensions = list;
   }
 
   @Mutation
@@ -300,12 +274,12 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
       if (item.type === 'wxwork-bot') {
         data.tip = i18n.t(
           "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔",
-          { name: item.name },
+          { name: item.name }
         );
       }
       if (item.type === 'bkchat') {
         data.tip = i18n.tc(
-          '支持将告警信息发送至外部，包括企业微信群机器人、QQ、Slack、钉钉、飞书、微信公众号以及外部邮箱等多种告警通知方式。',
+          '支持将告警信息发送至外部，包括企业微信群机器人、QQ、Slack、钉钉、飞书、微信公众号以及外部邮箱等多种告警通知方式。'
         );
         data.width = 240;
       }
@@ -323,6 +297,24 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
     });
   }
 
+  // 设置插件类型id
+  @Mutation
+  public setPluginId(data) {
+    this.peripheralIdMap = data.peripheralIdMap;
+    this.noticeId = data.noticeId;
+    this.callbackId = data.callbackId;
+  }
+
+  @Mutation
+  public setVariablePanels(v) {
+    this.variableData.variablePanels = v;
+  }
+
+  @Mutation
+  public setVariableTable(v) {
+    this.variableData.variableTable = v;
+  }
+
   @Mutation
   public setVariables(data) {
     const res = data.map(item => ({
@@ -335,6 +327,14 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
       })),
     }));
     this.variables = res;
+  }
+
+  // 修改套餐
+  @Action
+  public async updateActionConfig(v) {
+    const { configId, params } = v;
+    const result = await updateActionConfig(configId, params).catch(() => ({}));
+    return result;
   }
 }
 export default getModule(SetMealAdd);

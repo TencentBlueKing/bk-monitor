@@ -26,30 +26,30 @@
 <template>
   <div class="alarm-shield-event">
     <div
-      class="event-item"
       v-if="bizList.length"
+      class="event-item"
     >
       <div class="event-item-label">
         {{ $t('所属') }}
       </div>
       <div class="event-item-content">
         <bk-select
+          v-model="bizId"
           style="width: 413px"
           readonly
-          v-model="bizId"
         >
           <bk-option
             v-for="(option, index) in bizList"
-            :key="index"
             :id="option.id"
+            :key="index"
             :name="option.text"
           />
         </bk-select>
       </div>
     </div>
     <div
-      class="event-detail"
       v-if="shieldData.dimension_config"
+      class="event-detail"
     >
       <div class="event-detail-label">
         {{ $t('告警内容') }}
@@ -59,9 +59,7 @@
                     <div class="item-label"> {{ $t('告警级别：') }} </div><div class="item-content">{{shieldData.dimension_config.level}}</div>
                 </div> -->
         <div class="column-item">
-          <div class="item-label">
-            {{ $t('维度信息') }} :
-          </div>
+          <div class="item-label">{{ $t('维度信息') }} :</div>
           <div class="item-content">
             {{ shieldData.dimension_config.dimensions }}
           </div>
@@ -70,9 +68,7 @@
           class="column-item"
           style="margin-bottom: 18px"
         >
-          <div class="item-label">
-            {{ $t('检测算法') }} :
-          </div>
+          <div class="item-label">{{ $t('检测算法') }} :</div>
           <div class="item-content">
             {{ shieldData.dimension_config.event_message }}
           </div>
@@ -86,9 +82,9 @@
       </div>
       <div class="event-desc-content">
         <bk-input
+          v-model="desc"
           class="content-desc"
           type="textarea"
-          v-model="desc"
           :maxlength="100"
         />
       </div>
@@ -102,7 +98,9 @@
         class="button"
         :theme="'primary'"
         @click="handleSubmit"
-      > {{ $t('提交') }} </bk-button>
+      >
+        {{ $t('提交') }}
+      </bk-button>
       <bk-button
         class="button"
         :theme="'default'"
@@ -125,14 +123,14 @@ export default {
   name: 'AlarmShieldEvent',
   components: {
     ShieldDateConfig,
-    AlarmShieldNotice
+    AlarmShieldNotice,
   },
   mixins: [alarmShieldMixin],
   props: {
     shieldData: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -143,15 +141,15 @@ export default {
       eventInfo: {},
       isShowDetail: false,
       noticeShow: false,
-      desc: ''
+      desc: '',
     };
   },
   watch: {
     shieldData: {
       handler() {
         this.handleSetEventData();
-      }
-    }
+      },
+    },
   },
   methods: {
     handleSetEventData() {
@@ -169,15 +167,15 @@ export default {
           notificationMethod: data.notice_config.notice_way,
           noticeNumber: data.notice_config.notice_time,
           member: {
-            value: data.notice_config.notice_receiver.map(item => item.id)
-          }
+            value: data.notice_config.notice_receiver.map(item => item.id),
+          },
         };
         this.$refs.notice.setNoticeData(shieldNoticeData);
       }
       shieldDate.typeEn = type;
       shieldDate[type] = {
         list: [...cycleConfig.day_list, ...cycleConfig.week_list],
-        range: isSingle ? [data.begin_time, data.end_time] : [cycleConfig.begin_time, cycleConfig.end_time]
+        range: isSingle ? [data.begin_time, data.end_time] : [cycleConfig.begin_time, cycleConfig.end_time],
       };
       shieldDate.dateRange = isSingle ? [] : [data.begin_time, data.end_time];
       this.$refs.noticeDate.setDate(shieldDate);
@@ -195,13 +193,13 @@ export default {
         id: this.shieldData.id,
         category: 'event',
         dimension_config: {
-          id: this.eventId
+          id: this.eventId,
         },
         description: this.desc,
         shield_notice: this.noticeShow,
         cycle_config: cycle.cycle_config,
         begin_time: cycle.begin_time,
-        end_time: cycle.end_time
+        end_time: cycle.end_time,
       };
       if (this.noticeShow) {
         params.notice_config = notice;
@@ -218,8 +216,8 @@ export default {
     },
     handleChangeShow(v) {
       this.noticeShow = v;
-    }
-  }
+    },
+  },
 };
 </script>
 

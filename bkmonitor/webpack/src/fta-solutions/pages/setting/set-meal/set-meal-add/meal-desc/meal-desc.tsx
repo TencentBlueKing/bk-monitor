@@ -25,10 +25,10 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
-
 import VariableList from './variable-list/variable-list';
 
 import './meal-desc.scss';
@@ -103,8 +103,8 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
               <div class='variable'>
                 <div class='variable-title'>
                   <i18n
-                    path='变量列表'
                     class='variable-title-left'
+                    path='变量列表'
                   ></i18n>
                   <span class='variable-title-right'>{/* {this.$t('帮助文档')} <span>{'>'}</span> */}</span>
                 </div>

@@ -210,7 +210,7 @@ export function replaceRotationTransform(originData, type) {
           customWorkDays: [],
           customTab: 'duration',
           value: [],
-        },
+        }
       );
       const obj: ReplaceItemDataModel = {
         id: data.id,

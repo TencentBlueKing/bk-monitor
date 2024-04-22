@@ -26,6 +26,7 @@
 
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { CancelToken } from 'monitor-api/index';
 import { globalSearch } from 'monitor-api/modules/search';
 
@@ -272,8 +273,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     return (
       <span
         class='result-text'
-        title={item.title}
         domPropsInnerHTML={innerHtml}
+        title={item.title}
       ></span>
     );
   }
@@ -479,22 +480,22 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
   render() {
     return (
       <div
-        class='global-search-modal'
         style={this.modalStyle}
+        class='global-search-modal'
       >
         <div class='global-search-wrap'>
           <div class='search-input'>
             <bk-input
               ref='input'
               v-model={this.searchVal}
-              placeholder={this.$t('请输入关键词搜索')}
               clearable={!this.isLoading}
+              placeholder={this.$t('请输入关键词搜索')}
               right-icon={`${!this.isLoading ? 'bk-icon icon-search' : ''}`}
               on-change={() => {
                 this.isSearchedQuery = false;
               }}
-              on-enter={() => this.handleSearch()}
               on-clear={() => this.handleSearch()}
+              on-enter={() => this.handleSearch()}
             ></bk-input>
             {this.isLoading && (
               <bk-spin
@@ -539,8 +540,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 <div class='search-empty'>
                   <bk-exception
                     class='search-empty-item'
-                    type='search-empty'
                     scene='part'
+                    type='search-empty'
                   >
                     <div class='empty-text'>{this.$t('输入关键词进行搜索')}</div>
                   </bk-exception>
@@ -567,8 +568,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                   </div>
                 )}
                 <div
-                  class='scene-result-list'
                   style={`height:${this.searchResultList.length > 1 ? 'calc(100% - 43px)' : '100%'}`}
+                  class='scene-result-list'
                 >
                   {this.searchResultList.map(list => (
                     <div
@@ -606,8 +607,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 <div class='bar-content'>
                   <span class='loading-text-default'>
                     <bk-spin
-                      theme='info'
                       size='mini'
+                      theme='info'
                     ></bk-spin>
                     {`${this.$t('加载中...')}`}
                   </span>
@@ -620,8 +621,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
               <div class='search-empty'>
                 <bk-exception
                   class='search-empty-item'
-                  type='search-empty'
                   scene='part'
+                  type='search-empty'
                 >
                   <div class='empty-text'>
                     {this.activeRange === 'BIZ' ? this.$t('当前空间下无结果，尝试') : this.$t('全站搜索无结果')}
@@ -652,8 +653,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 {this.searchRangeMenu.map(item => (
                   <bk-radio
                     key={item.id}
-                    value={item.id}
                     class={`${item.id === 'BIZ' ? 'biz-radio' : ''}`}
+                    value={item.id}
                   >
                     {item.id === 'BIZ' ? (
                       <div class='range-biz'>
@@ -664,8 +665,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                           {item.name}
                         </div>
                         <div
-                          class='range-biz-item'
                           style='color: #ddd'
+                          class='range-biz-item'
                           v-bk-overflow-tips
                         >
                           {this.curSpaceItem.text}(
@@ -703,8 +704,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 {this.sceneViewList.map(scene => (
                   <bk-checkbox
                     key={scene.id}
-                    value={scene.id}
                     class='scene-item'
+                    value={scene.id}
                   >
                     {scene.name}
                   </bk-checkbox>

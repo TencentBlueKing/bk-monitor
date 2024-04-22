@@ -29,9 +29,9 @@
  * @Description:
  */
 
-import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
 import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
+import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import { ISpaceItem } from '../../typings';
 
@@ -54,16 +54,16 @@ interface INavRouteListItem {
 
 @Module({ name: 'app', namespaced: true, dynamic: true, store })
 class AppStore extends VuexModule implements IAppState {
-  public navId = 'home';
-  public userName = '';
   public bizId;
   public bizList = [];
-  public csrfCookieName = '';
-  public siteUrl = '/';
-  public navTitle = '';
-  public navRouteList = [];
   public bkUrl = '';
+  public csrfCookieName = '';
   public lang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn';
+  public navId = 'home';
+  public navRouteList = [];
+  public navTitle = '';
+  public siteUrl = '/';
+  public userName = '';
   @Mutation
   SET_APP_STATE(data: IAppState) {
     Object.keys(data).forEach(key => {
@@ -71,22 +71,13 @@ class AppStore extends VuexModule implements IAppState {
     });
   }
   @Mutation
-  SET_NAV_TITLE(title: string) {
-    this.navTitle = title;
-  }
-
-  @Mutation
   SET_NAV_ID(navId: string) {
     this.navId = navId;
   }
 
-  /**
-   * 修改全局的面包屑数据
-   * @param list 面包屑数据
-   */
   @Mutation
-  setNavRouterList(list: INavRouteListItem[]) {
-    this.navRouteList = list;
+  SET_NAV_TITLE(title: string) {
+    this.navTitle = title;
   }
 
   /** 切换业务id逻辑 */
@@ -116,6 +107,15 @@ class AppStore extends VuexModule implements IAppState {
     } else {
       handleReload();
     }
+  }
+
+  /**
+   * 修改全局的面包屑数据
+   * @param list 面包屑数据
+   */
+  @Mutation
+  setNavRouterList(list: INavRouteListItem[]) {
+    this.navRouteList = list;
   }
 }
 

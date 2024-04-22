@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import BkUserSelector from '@blueking/user-selector';
 
 import './user-selector.scss';
@@ -99,21 +100,21 @@ export default class UserSelector extends tsc<IProps> {
           ref='userSelector'
           class='bk-user-selector'
           v-model={this.localValue}
+          api={this.bkUrl}
+          displayDomain={false}
+          displayTagTips={false}
+          emptyText={window.i18n.t('无匹配人员')}
+          fastClear={true}
+          multiple={false}
           panelWidth={300}
           placeholder={window.i18n.t('选择通知对象')}
-          displayTagTips={false}
-          displayDomain={false}
-          tagClearable={false}
-          fastClear={true}
-          emptyText={window.i18n.t('无匹配人员')}
-          api={this.bkUrl}
-          multiple={false}
-          renderTag={this.renderUserSelectorTag}
           renderList={this.renderUserSelectorList}
-          onFocus={this.handleFocus}
+          renderTag={this.renderUserSelectorTag}
+          tagClearable={false}
           onBlur={this.handleBlur}
           onChange={this.handleChange}
           onClear={this.handleClear}
+          onFocus={this.handleFocus}
         ></BkUserSelector>
       </div>
     );

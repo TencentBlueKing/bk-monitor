@@ -28,7 +28,7 @@
  * @LastEditTime: 2021-07-08 10:35:08
  * @Description:
  */
-import { Component, Emit, Inject } from 'vue-property-decorator';
+import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import alertImg from '../../../../static/images/png/alert.png';
@@ -67,12 +67,14 @@ const addLabelItems = {
     displayName: `${window.i18n.tc('主机')}、${window.i18n.tc('拨测')}、K8s、APM`,
   },
 };
-interface IMonitorDataEmptyEvent {
-  addMetric: { id: string; name: string };
-  onHoverType: string;
+interface IProps {
+  showMultivariateAnomalyDetection?: boolean;
+  onAddMetric: (v: { id: string; name: string }) => void;
+  onHoverType: (v: string) => void;
 }
 @Component({ name: 'MonitorDataEmpty' })
-export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
+export default class MonitorDataEmpty extends tsc<IProps> {
+  @Prop({ type: Boolean, default: false }) showMultivariateAnomalyDetection: boolean;
   @Inject('strategyType') strategyType: strategyType;
 
   tipsInstance: any = null;
@@ -104,7 +106,7 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       {
         name: this.$t('场景智能检测'),
         id: MetricType.MultivariateAnomalyDetection,
-        show: true,
+        show: this.showMultivariateAnomalyDetection,
       },
     ].filter(item => item.show);
   }
@@ -124,7 +126,7 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       this.tipsInstance = null;
     }
   }
-  @Emit('add-metric')
+  @Emit('addMetric')
   handleAddMetric(item) {
     return item;
   }
@@ -159,9 +161,9 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
         <ul class='set-panel'>
           {this.metricSetList.map(item => (
             <li
-              class='set-panel-item'
               id={`set-panel-item-${item.id}`}
               key={item.id}
+              class='set-panel-item'
               on-click={() => this.handleAddMetric({ type: item.id })}
               onMouseenter={() => this.handleMouseenter(item.id)}
               onMouseleave={() => this.handleMouseleave()}
@@ -169,8 +171,8 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
               <i class='icon-monitor icon-plus-line'></i>
               <img
                 class='type-icon'
-                src={addLabelItems[item.id].icon}
                 alt=''
+                src={addLabelItems[item.id].icon}
               />
               <div class='label'>
                 <div class='label-top'>{addLabelItems[item.id].name}</div>
@@ -181,8 +183,8 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
         </ul>
         <div style='display: none'>
           <div
-            class='remind-tips'
             ref='remindTips'
+            class='remind-tips'
           >
             <div class='remind-tips-title'>{this.$t('添加监控项')}</div>
             <div class='remind-tips-desc'>

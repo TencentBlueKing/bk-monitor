@@ -28,7 +28,7 @@
 </template>
 <script>
 export default {
-  name: 'LoadingComponent'
+  name: 'LoadingComponent',
 };
 </script>
 <style lang="scss" scoped>

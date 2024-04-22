@@ -153,8 +153,8 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
         ))}
         {!!this.moreChecked.length ? (
           <i
-            class='icon-monitor icon-mc-more'
             ref='moreRef'
+            class='icon-monitor icon-mc-more'
             onClick={this.handleShowMenu}
           ></i>
         ) : undefined}

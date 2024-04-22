@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 import { getVariableValue } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
@@ -72,7 +73,7 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const maps = reactive<{
-      whereNameMap: Map<string | number, string>;
+      whereNameMap: Map<number | string, string>;
       methodNameMap: Map<string, string>;
       whereValueMap: Map<string, ICommonItem[]>;
     }>({
@@ -122,13 +123,13 @@ export default defineComponent({
         return getVariableValue(params).then(res => {
           maps.whereValueMap.set(
             item.key,
-            res.map(set => ({ id: set.label, name: set.value })),
+            res.map(set => ({ id: set.label, name: set.value }))
           );
           /* 将变量保存在父组件 */
           const valueMap = new Map(props.allWhereValueMap);
           valueMap.set(
             item.key,
-            res.map(set => ({ id: set.label, name: set.value })),
+            res.map(set => ({ id: set.label, name: set.value }))
           );
           handleValueMap(valueMap);
         });
@@ -166,16 +167,16 @@ export default defineComponent({
               {!!item.condition && !!index ? <span class='where-condition'>{` ${item.condition} `}</span> : undefined}
               <Popover
                 content={item?.key}
+                disabled={!item?.key || item?.key === getFieldName(item)}
                 placement={'top'}
                 popoverDelay={[300, 0]}
-                disabled={!item?.key || item?.key === getFieldName(item)}
               >
                 <span class='where-field'>{` ${getFieldName(item)} `}</span>
               </Popover>
               <span class='where-method'>{` ${maps.methodNameMap.get(item.method) || item.method} `}</span>
               <span
-                class='where-content'
                 key={valueKey.value}
+                class='where-content'
               >
                 {handleValue(item.value, item.key)}
               </span>

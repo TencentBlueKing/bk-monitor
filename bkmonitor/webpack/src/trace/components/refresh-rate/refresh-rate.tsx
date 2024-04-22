@@ -103,7 +103,7 @@ export default defineComponent({
       val => {
         localValue.value = val;
       },
-      { immediate: true },
+      { immediate: true }
     );
 
     /** 选中值 */
@@ -134,10 +134,6 @@ export default defineComponent({
     return (
       <span class='refresh-rate-wrap'>
         <SelectMenu
-          value={this.localValue}
-          list={this.list}
-          onSelect={this.handleSelect}
-          onShowChange={val => (this.isShow = val)}
           v-slots={{
             default: item => {
               let triggerText = item?.name || this.list[0].name;
@@ -155,14 +151,18 @@ export default defineComponent({
                     <span class={['refresh-text', { 'active-text': textActive }]}>{triggerText}</span>
                   </div>
                   <IconFont
-                    icon='icon-mc-alarm-recovered'
                     fontSize={16}
+                    icon='icon-mc-alarm-recovered'
                     onClick={this.handeRefreshImmediately}
                   />
                 </span>
               );
             },
           }}
+          list={this.list}
+          value={this.localValue}
+          onSelect={this.handleSelect}
+          onShowChange={val => (this.isShow = val)}
         ></SelectMenu>
       </span>
     );

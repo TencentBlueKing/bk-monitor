@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, PropType, ref } from 'vue';
+
 import { Dropdown, Input } from 'bkui-vue';
 import { ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { debounce } from 'throttle-debounce';
@@ -112,8 +113,8 @@ export default defineComponent({
           ))}
         </div>
         <Input
-          type='search'
           v-model={this.keyword}
+          type='search'
           onInput={this.handleKeywordChange}
         />
         <div class='ellipsis-direction button-group'>
@@ -135,7 +136,6 @@ export default defineComponent({
         </div> */}
 
         <Dropdown
-          placement='bottom-end'
           v-slots={{
             content: () => (
               <Dropdown.DropdownMenu>
@@ -150,6 +150,7 @@ export default defineComponent({
               </Dropdown.DropdownMenu>
             ),
           }}
+          placement='bottom-end'
         >
           <div class='download-button'>
             <i class='icon-monitor icon-xiazai1'></i>

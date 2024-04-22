@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { feedbackAlert } from 'monitor-api/modules/alert';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
@@ -127,11 +128,11 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
   render() {
     return (
       <MonitorDialog
+        width={480}
+        header-position={'left'}
+        title={this.$t('反馈')}
         value={this.show}
         on-change={this.handleShowChange}
-        title={this.$t('反馈')}
-        header-position={'left'}
-        width={480}
       >
         <div
           class='event-detail-feedbak-dialog'
@@ -168,10 +169,10 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
               </div>
             )}
             <bk-input
-              v-model={this.description}
-              type={'textarea'}
-              rows={3}
               class='content-text'
+              v-model={this.description}
+              rows={3}
+              type={'textarea'}
               onChange={() => (this.errMsg = '')}
             ></bk-input>
             {this.errMsg ? <div class='err-msg'>{this.errMsg}</div> : undefined}
@@ -179,10 +180,10 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
         </div>
         <template slot='footer'>
           <bk-button
-            on-click={this.handleAlarmConfirm}
-            theme='primary'
             style='margin-right: 10px'
             disabled={this.loading}
+            theme='primary'
+            on-click={this.handleAlarmConfirm}
           >
             {this.$t('确认')}
           </bk-button>

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { createOrUpdateExternalPermission, getByAction } from 'monitor-api/modules/iam';
 import { deepClone } from 'monitor-common/utils';
@@ -35,7 +36,7 @@ import './authorization-dialog.scss';
 
 interface IProps {
   value?: boolean;
-  rowData?: null | EditModel;
+  rowData?: EditModel | null;
   bizId: number | string;
   viewType: AngleType;
   authorizer: string;
@@ -51,7 +52,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   @Prop({ required: true, type: [Number, String] }) bizId: number | string;
   @Prop({ required: true, type: String }) viewType: AngleType;
   @Prop({ required: true, type: String }) authorizer: string;
-  @Prop({ required: false, type: Object, default: null }) rowData: null | EditModel;
+  @Prop({ required: false, type: Object, default: null }) rowData: EditModel | null;
   @Ref() formRef: any;
 
   resourceList = [];
@@ -142,14 +143,14 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   render() {
     return (
       <bk-dialog
-        value={this.value}
-        title={this.$t(this.rowData ? '编辑授权' : '添加授权')}
-        header-position='left'
         width={480}
-        onCancel={this.handleCancel}
         auto-close={false}
-        loading={this.loading}
         draggable={false}
+        header-position='left'
+        loading={this.loading}
+        title={this.$t(this.rowData ? '编辑授权' : '添加授权')}
+        value={this.value}
+        onCancel={this.handleCancel}
       >
         <bk-form
           ref='formRef'
@@ -162,8 +163,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           }}
         >
           <bk-form-item
-            property='authorized_users'
             error-display-type='normal'
+            property='authorized_users'
           >
             <div class='custom-label'>
               <span class='label required'>{this.$t('被授权人')}</span>
@@ -172,15 +173,15 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             <bk-tag-input
               v-model={this.formData.authorized_users}
               allow-create={true}
-              free-paste
-              separator=';'
               disabled={!!this.rowData && this.viewType === 'user'}
+              separator=';'
+              free-paste
               has-delete-icon
             />
           </bk-form-item>
           <bk-form-item
-            property='action_id'
             error-display-type='normal'
+            property='action_id'
           >
             <div class='custom-label'>
               <span class='label required'>{this.$t('操作权限')}</span>
@@ -203,8 +204,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             </bk-select>
           </bk-form-item>
           <bk-form-item
-            property='resources'
             error-display-type='normal'
+            property='resources'
           >
             <div class='custom-label'>
               <span class='label'>{this.$t('操作实例')}</span>
@@ -214,31 +215,31 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             </div>
             <bk-select
               v-model={this.formData.resources}
-              multiple
               disabled={!!this.rowData && this.viewType === 'resource'}
+              multiple
             >
               {this.resourceList.map(item => (
                 <bk-option
                   id={item.uid}
-                  name={item.text}
                   key={item.uid}
+                  name={item.text}
                 ></bk-option>
               ))}
             </bk-select>
           </bk-form-item>
           <bk-form-item
-            property='expire_time'
             error-display-type='normal'
+            property='expire_time'
           >
             <div class='custom-label'>
               <span class='label required'>{this.$t('截止时间')}</span>
             </div>
             <bk-date-picker
-              value={this.formData.expire_time}
-              type='date'
               clearable={false}
               format='yyyy-MM-dd HH:mm:ss'
               options={{ disabledDate: this.disabledDate }}
+              type='date'
+              value={this.formData.expire_time}
               onChange={this.handleDateChange}
             ></bk-date-picker>
           </bk-form-item>
@@ -246,10 +247,10 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
 
         <div slot='footer'>
           <bk-button
-            theme='primary'
             style='margin-right: 8px'
-            onClick={this.handleConfirm}
             loading={this.loading}
+            theme='primary'
+            onClick={this.handleConfirm}
           >
             {this.$t('确认')}
           </bk-button>

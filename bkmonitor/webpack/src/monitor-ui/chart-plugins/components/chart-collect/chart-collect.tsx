@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collection-view-dialog';
@@ -41,7 +42,7 @@ import './chart-collect.scss';
 const isEn = isEnFn();
 
 export interface ICheckPanel {
-  id: string | number;
+  id: number | string;
   panels?: ICheckPanel[];
 }
 
@@ -84,7 +85,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
       const interval = reviewInterval(
         this.viewOptions.interval,
         dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-        panel.collect_interval,
+        panel.collect_interval
       );
       return {
         ...panel,
@@ -170,12 +171,12 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
         ...(this.viewOptions.filters?.current_target || {}),
         ...this.viewOptions,
         ...this.viewOptions.variables,
-      }),
+      })
     );
     window.open(
       `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(
-        JSON.stringify(targets),
-      )}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
+        JSON.stringify(targets)
+      )}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
     );
   }
 
@@ -252,10 +253,10 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
           ) : undefined}
         </transition>
         <CollectionDialog
-          isShow={this.showCollectionDialog}
           collectionList={this.checkList}
-          onShow={(v: boolean) => this.handleShowCollectEmit(v)}
+          isShow={this.showCollectionDialog}
           onOnCollectionSuccess={() => this.handleCollectSuccess}
+          onShow={(v: boolean) => this.handleShowCollectEmit(v)}
         ></CollectionDialog>
         {this.showDetail && (
           <ViewDetail

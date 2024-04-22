@@ -26,12 +26,12 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 import { getVariableValue } from 'monitor-api/modules/grafana';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { Debounce } from '../../../components/ip-selector/common/util';
-
 import { metric, orderList, variable } from './type';
 import { getCollectVariable, setCollectVariable } from './variable-set';
 
@@ -123,7 +123,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
     ) {
       // 如有变量结果则取维度交集
       resultDimensionList = this.metricDimension.dimensionList.filter(
-        item => sceneItem.variables.map(v => v.id).indexOf(item.englishName) !== -1,
+        item => sceneItem.variables.map(v => v.id).indexOf(item.englishName) !== -1
       );
     } else {
       // 没有则默认取前三个
@@ -334,7 +334,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
     const variableListTemp = this.variableList.filter(item => item.dimension !== '');
     if (!val) {
       const isSame = variableListTemp.some(
-        item => JSON.stringify(this.cacheValue[item.dimension]) !== JSON.stringify(item.value),
+        item => JSON.stringify(this.cacheValue[item.dimension]) !== JSON.stringify(item.value)
       );
       if (isSame) {
         const result = variableListTemp.map(item => ({
@@ -356,7 +356,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       `${this.id}`,
       this.sceneName,
       { type: 'variables', variables: this.variableList.map(item => ({ id: item.dimension, value: item.value })) },
-      this.routeType,
+      this.routeType
     );
   }
   handleClear(index) {
@@ -373,7 +373,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       `${this.id}`,
       this.sceneName,
       { type: 'variables', variables: this.variableList.map(item => ({ id: item.dimension, value: item.value })) },
-      this.routeType,
+      this.routeType
     );
   }
 
@@ -461,20 +461,20 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                   <div class='item-value'>
                     <bk-tag-input
                       ext-cls='item-value-select'
-                      placeholder={`${this.$t('输入')}`}
-                      clearable
-                      allow-create
-                      value={item.value}
                       list={item.preview.map(p => ({ id: p.value, name: p.label }))}
-                      trigger={'focus'}
-                      on-change={tags => this.handleTagChange(tags, index)}
-                      on-blur={this.handleTagsBlur}
-                      on-removeAll={() => this.handleClear(index)}
                       paste-fn={v => this.handlePaste(v, item, index)}
+                      placeholder={`${this.$t('输入')}`}
+                      trigger={'focus'}
+                      value={item.value}
+                      allow-create
+                      clearable
+                      on-blur={this.handleTagsBlur}
+                      on-change={tags => this.handleTagChange(tags, index)}
+                      on-removeAll={() => this.handleClear(index)}
                     ></bk-tag-input>
                   </div>
                 </div>
-              ) : undefined,
+              ) : undefined
             ),
             !this.variableList.filter(item => item.dimension !== '').length ? (
               <div class='none-tip'>
@@ -509,17 +509,17 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                     <div class='dimension-select'>
                       <bk-select
                         ext-cls='item-edit-select'
-                        clearable={false}
                         v-model={item.dimension}
+                        clearable={false}
                         searchable
                         on-change={val => this.dimensionChange(val, item, index)}
                       >
                         {item.dimensionList.map(dimension => (
                           <bk-option
                             id={dimension.englishName}
-                            name={dimension.aliaName || dimension.englishName}
                             key={dimension.englishName}
                             disabled={this.checkedDimensions.includes(dimension.englishName)}
+                            name={dimension.aliaName || dimension.englishName}
                           ></bk-option>
                         ))}
                       </bk-select>
@@ -528,22 +528,20 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                   <td>
                     <div class='display-name'>
                       <bk-input
-                        on-focus={() => (this.verify = false)}
-                        v-model={item.aliaName}
-                        disabled
                         v-bk-tooltips={{
                           placements: ['top'],
                           content: `${this.$t('到指标维度设置')}`,
                         }}
+                        v-model={item.aliaName}
+                        disabled
+                        on-focus={() => (this.verify = false)}
                       ></bk-input>
                     </div>
                   </td>
                   <td>
                     <div class='preview-value'>
                       {item.preview.map(obj =>
-                        obj.value !== selectAllItemKey ? (
-                          <span class='preview-value-item'>{obj.label}</span>
-                        ) : undefined,
+                        obj.value !== selectAllItemKey ? <span class='preview-value-item'>{obj.label}</span> : undefined
                       )}
                     </div>
                   </td>
@@ -570,8 +568,8 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
             {this.errMsg !== '' && <div class='err-red'>{this.errMsg}</div>}
             <div class='save-cancel'>
               <bk-button
-                theme='primary'
                 class='mr10'
+                theme='primary'
                 on-click={this.saveChange}
               >
                 {this.$t('保存')}

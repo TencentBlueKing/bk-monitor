@@ -34,9 +34,9 @@ export default class MonitorTab extends tsc<object> {
     return (
       <bk-tab
         class='monitor-tab'
-        type='unborder-card'
-        tab-position='top'
         props={this.$attrs}
+        tab-position='top'
+        type='unborder-card'
         on={this.$listeners}
       >
         {this.$slots.default}

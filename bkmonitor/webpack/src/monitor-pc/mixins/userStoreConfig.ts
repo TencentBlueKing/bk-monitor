@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
+
 import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
 
 @Component
@@ -35,25 +36,13 @@ export default class UserConfigMixin extends Vue {
     return window.space_list.some(item => +item.id === +window.cc_biz_id);
   }
   /**
-   * @description: 设置用户配置
-   * @param {string} key
-   * @param {string} value
-   * @return {*}
-   */
-  public async handleSetUserConfig(key: string, value: string): Promise<boolean> {
-    if (!this.hasBusinessAuth) return false;
-    return await partialUpdateUserConfig(this.storeId, { value }, { reject403: true })
-      .then(() => true)
-      .catch(() => false);
-  }
-  /**
    * @description: 获取用户个性化配置
    * @param {string} key key
    * @return {*}
    */
   public async handleGetUserConfig<T>(
     key: string,
-    config: Record<string, any> = { reject403: true },
+    config: Record<string, any> = { reject403: true }
   ): Promise<T | undefined> {
     if (!this.hasBusinessAuth) return undefined;
     const userConfig = await listUserConfig({ key }, config).catch(() => false);
@@ -69,5 +58,17 @@ export default class UserConfigMixin extends Vue {
       console.error('parse user stiky note error');
     }
     return undefined;
+  }
+  /**
+   * @description: 设置用户配置
+   * @param {string} key
+   * @param {string} value
+   * @return {*}
+   */
+  public async handleSetUserConfig(key: string, value: string): Promise<boolean> {
+    if (!this.hasBusinessAuth) return false;
+    return await partialUpdateUserConfig(this.storeId, { value }, { reject403: true })
+      .then(() => true)
+      .catch(() => false);
   }
 }

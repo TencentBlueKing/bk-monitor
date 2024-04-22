@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import DetailState from '../trace-timeline-viewer/span-detail/detail-state';
-
 import TNil from './TNil';
 
 type TTraceTimeline = {
@@ -33,7 +32,7 @@ type TTraceTimeline = {
   hoverIndentGuideIds: Set<string>;
   shouldScrollToFirstUiFindMatch: boolean;
   spanNameColumnWidth: number;
-  traceID: string | TNil;
+  traceID: TNil | string;
 };
 
 export default TTraceTimeline;

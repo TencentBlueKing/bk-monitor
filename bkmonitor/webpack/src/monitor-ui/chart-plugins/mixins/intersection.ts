@@ -28,24 +28,17 @@ import { Component, Vue } from 'vue-property-decorator';
 @Component
 export default class IntersectionMixin extends Vue {
   intersectionObserver: IntersectionObserver;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getPanelData(...p) {}
-  mounted() {
-    setTimeout(this.registerObserver, 20);
-  }
   beforeDestroy() {
     this.unregisterOberver();
   }
-  unregisterOberver() {
-    if (this.intersectionObserver) {
-      this.intersectionObserver.unobserve(this.$el);
-      this.intersectionObserver.disconnect();
-      this.intersectionObserver = null;
-    }
-  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getPanelData(...p) {}
   isInViewPort() {
     const { top, bottom } = this.$el.getBoundingClientRect();
     return (top > 0 && top <= innerHeight) || (bottom >= 0 && bottom < innerHeight);
+  }
+  mounted() {
+    setTimeout(this.registerObserver, 20);
   }
   // 注册Intersection监听
   registerObserver(...params) {
@@ -60,5 +53,12 @@ export default class IntersectionMixin extends Vue {
       });
     });
     this.intersectionObserver.observe(this.$el);
+  }
+  unregisterOberver() {
+    if (this.intersectionObserver) {
+      this.intersectionObserver.unobserve(this.$el);
+      this.intersectionObserver.disconnect();
+      this.intersectionObserver = null;
+    }
   }
 }

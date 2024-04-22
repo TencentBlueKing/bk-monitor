@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils';
 
 import './number-select.scss';
@@ -69,42 +70,42 @@ export default class NumberSelect extends tsc<IProps> {
   render() {
     return (
       <bk-popover
-        offset={-1}
-        distance={12}
-        arrow={false}
-        animation='slide-toggle'
-        theme='light strategy-view-number-select-pop'
-        placement='bottom-start'
-        trigger='click'
         ref='pop'
         tippyOptions={{
           appendTo: document.body,
         }}
+        animation='slide-toggle'
+        arrow={false}
+        distance={12}
+        offset={-1}
+        placement='bottom-start'
+        theme='light strategy-view-number-select-pop'
+        trigger='click'
       >
         <slot
-          name='trigger'
           class='strategy-view-number-select'
+          name='trigger'
         >
           <bk-input
             class='width-45'
             v-model={this.localValue}
-            type='number'
+            behavior='simplicity'
             max={100}
             min={1}
-            behavior='simplicity'
             showControls={false}
+            type='number'
             onBlur={() => this.handleBlur()}
           ></bk-input>
         </slot>
         <ul
-          slot='content'
           class='list-wrap'
+          slot='content'
         >
           {this.list.map((item, index) => (
             <li
-              onClick={() => this.handleSelect(item)}
-              class='list-item'
               key={index}
+              class='list-item'
+              onClick={() => this.handleSelect(item)}
             >
               {item}
             </li>

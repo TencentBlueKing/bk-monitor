@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
 import StrategyMetricWrap from './strategy-metric-wrap';
@@ -82,10 +83,10 @@ export default class StrategyMetricEvent extends tsc<IStrategyMetricEvent, IEven
       <div>
         <StrategyMetricWrap
           isShow={this.isShow}
+          left-select={this.test}
           leftList={this.getLeftList}
           tabList={this.getTabList}
           onShowChange={this.test}
-          left-select={this.test}
         >
           test
         </StrategyMetricWrap>

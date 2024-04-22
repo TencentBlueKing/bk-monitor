@@ -106,6 +106,7 @@
 <script lang="ts">
 import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
+
 import dayjs from 'dayjs';
 import { Popup } from 'vant';
 
@@ -116,7 +117,6 @@ import SelectButton from '../../components/select-button/select-button.vue';
 import HideChartTooltipMixin from '../../mixins/hideChartTooltipMixin';
 import EventModule from '../../store/modules/event-detail';
 import { ICompare, ICompareData, ISelectGroup, ISeriesData } from '../../types/tendency-chart';
-
 import DataCompare from './data-compare.vue';
 
 Component.registerHooks(['beforeRouteLeave']);
@@ -134,7 +134,7 @@ Component.registerHooks(['beforeRouteLeave']);
 })
 export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
   // 事件ID
-  @Prop({ default: -1 }) readonly id!: string | number;
+  @Prop({ default: -1 }) readonly id!: number | string;
   @Prop() readonly routeKey: string;
   orientation = Math.abs(window.orientation as number) === 90 ? Screen.LANDSCAPE : Screen.PORTRAIT;
   // 图表数据
@@ -293,7 +293,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
             item =>
               item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
               item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-              item.metric.metric_field.includes('upper_bound'),
+              item.metric.metric_field.includes('upper_bound')
           )
           ?.datapoints?.map(item => [item[1], item[0]]) || [];
       const lowBoundary =
@@ -302,7 +302,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
             item =>
               item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
               item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-              item.metric.metric_field.includes('lower_bound'),
+              item.metric.metric_field.includes('lower_bound')
           )
           ?.datapoints?.map(item => [item[1], item[0]]) || [];
       const coverData =
@@ -310,7 +310,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
           item =>
             item?.dimensions?.bk_target_ip === dimensions.bk_target_ip &&
             item?.dimensions?.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-            item?.metric?.metric_field?.includes('is_anomaly'),
+            item?.metric?.metric_field?.includes('is_anomaly')
         )?.datapoints || [];
       if (coverData.length) {
         coverList.push({

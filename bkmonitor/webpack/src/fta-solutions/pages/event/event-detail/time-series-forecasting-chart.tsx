@@ -25,6 +25,7 @@
  */
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -75,7 +76,7 @@ export default class TimeSeriesForecastingChart extends tsc<IProps> {
     const { startTime, endTime } = createAutoTimerange(
       this.detail.begin_time,
       this.detail.end_time,
-      this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval,
+      this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval
     );
 
     const forecastTimeRange = [

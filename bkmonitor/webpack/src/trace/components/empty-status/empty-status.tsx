@@ -25,11 +25,12 @@
  */
 import { computed, defineComponent, PropType } from 'vue';
 import { TranslateResult } from 'vue-i18n';
+
 import { Exception } from 'bkui-vue';
 
 import './empty-status.scss';
 
-export type EmptyStatusType = 'empty' | '500' | 'search-empty' | '403' | string;
+export type EmptyStatusType = '403' | '500' | 'empty' | 'search-empty' | string;
 type EmptyStatusScene = 'page' | 'part';
 type EmptyStatusOperationType = 'clear-filter' | 'refresh';
 export type IEmptyStatusTextMap = {
@@ -87,8 +88,8 @@ export default defineComponent({
           >
             <span style='margin: 0 3px'>{this.$t('调整关键词')}</span>
             <span
-              class='operation-btn'
               style='margin-left: 3px'
+              class='operation-btn'
               onClick={() => this.handleOperation('clear-filter')}
             >
               {this.$t('清空筛选条件')}

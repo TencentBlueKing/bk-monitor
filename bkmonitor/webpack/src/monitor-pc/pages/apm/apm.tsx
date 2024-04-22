@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
 
 import introduce from '../../common/introduce';
@@ -103,8 +104,8 @@ export default class ApmPage extends tsc<object> {
     return (
       <div class='apm-wrap'>
         <div
-          class='apm-wrap-iframe'
           ref='apmPageWrap'
+          class='apm-wrap-iframe'
         />
       </div>
     );

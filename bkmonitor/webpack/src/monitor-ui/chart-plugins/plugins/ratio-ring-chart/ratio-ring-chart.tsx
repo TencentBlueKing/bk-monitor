@@ -25,6 +25,7 @@
  */
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import Big from 'big.js';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
@@ -134,7 +135,7 @@ class RatioRingChart extends CommonSimpleChart {
                 ...this.viewOptions,
               },
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(res => {
             const seriesData = res.data || [];
@@ -146,7 +147,7 @@ class RatioRingChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item)) {
@@ -222,7 +223,7 @@ class RatioRingChart extends CommonSimpleChart {
             type: 'pie',
           },
         ],
-      }),
+      })
     ) as MonitorEchartOptions;
   }
   /**
@@ -320,40 +321,40 @@ class RatioRingChart extends CommonSimpleChart {
       <div class='ratio-ring-chart'>
         <ChartHeader
           class='draggable-handle'
-          title={this.panelTitle}
           draging={this.panel.draging}
-          showMore={false}
-          metrics={this.metrics}
           isInstant={this.panel.instant && this.showHeaderMoreTool}
+          metrics={this.metrics}
+          showMore={false}
+          title={this.panelTitle}
           onMenuClick={this.handleMenuToolsSelect}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         {!this.empty ? (
           <div class='ratio-ring-chart-content'>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               <BaseEchart
                 ref='baseChart'
-                height={this.height}
                 width={this.width}
+                height={this.height}
                 options={this.chartOption}
-                onMouseover={this.handleMouseover}
-                onMouseout={this.handleMouseout}
                 onClick={this.handleClickChart}
+                onMouseout={this.handleMouseout}
+                onMouseover={this.handleMouseover}
               />
             </div>
             {
               <div
-                class='chart-legend right-legend'
                 ref='chartLegend'
+                class='chart-legend right-legend'
               >
                 <RatioLegend
                   style={`height:${this.isLegendFullContainer ? '100%' : 'auto'}`}
                   legendData={this.legendData as any}
-                  onSelectLegend={this.handleSelectLegend}
                   percent={this.panel.percent}
+                  onSelectLegend={this.handleSelectLegend}
                 />
               </div>
             }

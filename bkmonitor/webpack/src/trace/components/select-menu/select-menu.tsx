@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, PropType, ref, toRefs, watch } from 'vue';
+
 import { Dropdown } from 'bkui-vue';
 
 export interface ISelectMenuOption {
-  id: string | number;
+  id: number | string;
   name: string;
 }
 /**
@@ -64,7 +65,7 @@ export default defineComponent({
       val => {
         localValue.value = val;
       },
-      { immediate: true },
+      { immediate: true }
     );
 
     /** 当前选中的项 */
@@ -96,12 +97,6 @@ export default defineComponent({
     return (
       <span>
         <Dropdown
-          trigger='click'
-          onShow={() => this.showChange(true)}
-          onHide={() => this.showChange(false)}
-          popoverOptions={{
-            zIndex: 8003,
-          }}
           v-slots={{
             content: () => (
               <Dropdown.DropdownMenu>
@@ -111,6 +106,12 @@ export default defineComponent({
               </Dropdown.DropdownMenu>
             ),
           }}
+          popoverOptions={{
+            zIndex: 8003,
+          }}
+          trigger='click'
+          onHide={() => this.showChange(false)}
+          onShow={() => this.showChange(true)}
         >
           {this.$slots.default?.(this.currentItem)}
         </Dropdown>

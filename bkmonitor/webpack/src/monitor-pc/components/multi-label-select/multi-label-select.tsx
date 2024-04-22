@@ -32,6 +32,7 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { strategyLabelList } from 'monitor-api/modules/strategies';
 import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
@@ -569,11 +570,11 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
   protected render(): VNode {
     return (
       <div
+        ref='wrapper'
         class={[
           'multi-label-select',
           { 'simplicit-theme': this.behavior === 'simplicity', 'is-readonly': this.readonly },
         ]}
-        ref='wrapper'
       >
         {/* 新增模式 */}
         {this.mode === 'create' ? (
@@ -586,18 +587,18 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
             </bk-button>
             {this.localTreeList.length ? (
               <div
+                style={`width: ${this.addWrapSize.width}px; height: ${this.addWrapSize.height}px;`}
                 class='label-tree-contain-wrap'
                 v-bkloading={{ isLoading: this.treeLoading }}
-                style={`width: ${this.addWrapSize.width}px; height: ${this.addWrapSize.height}px;`}
               >
                 <div class='label-tree-scroll-wrap'>
                   <label-tree
                     ref='createLabelTree'
-                    mode='create'
-                    onLoading={this.handleTreeLoading}
-                    onListChange={this.handleLocalTreeListChange}
                     checkedNode={this.localCheckNode}
+                    mode='create'
                     treeData={this.localTreeList}
+                    onListChange={this.handleLocalTreeListChange}
+                    onLoading={this.handleTreeLoading}
                   />
                 </div>
                 <i class='resize-icon-inner'></i>
@@ -616,16 +617,16 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
           // 选择模式
           <div>
             <bk-popover
-              class='multi-label-select-dropdown'
               ref='selectDropdown'
-              trigger='manual'
-              placement='bottom-start'
-              theme='light multi-label-list-wrapper'
+              class='multi-label-select-dropdown'
               animation='slide-toggle'
-              transfer={false}
               arrow={false}
               distance={12}
+              placement='bottom-start'
+              theme='light multi-label-list-wrapper'
               tippyOptions={this.tippyOptions}
+              transfer={false}
+              trigger='manual'
             >
               <div
                 class={['multi-label-input', { 'is-focus': this.isEdit }]}
@@ -637,13 +638,13 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                   ''
                 )}
                 <ul
-                  class='tag-list'
                   ref='tagList'
+                  class='tag-list'
                 >
                   {this.localCheckNode.map((item, index) => (
                     <li
-                      class='key-node'
                       key={index}
+                      class='key-node'
                     >
                       <div class='tag'>
                         <span class='text'>
@@ -668,13 +669,13 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                     >
                       <span class='input-value'>{this.inputValue}</span>
                       <input
-                        type='text'
-                        class='input'
                         ref='input'
+                        class='input'
+                        type='text'
                         value={this.inputValue}
-                        onInput={this.inputChange}
                         onBlur={this.inputBlur}
                         onClick={e => e.stopPropagation()}
+                        onInput={this.inputChange}
                         onKeydown={this.inputKeydown}
                       />
                     </li>
@@ -687,10 +688,10 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                 </span>
               </div>
               <div
-                slot='content'
-                class='menu-list-wrap'
                 ref='menuList'
                 style={`display: ${this.menuListDisplay}; width: ${this.popoverContentWidth}px`}
+                class='menu-list-wrap'
+                slot='content'
               >
                 {
                   // 搜索结果
@@ -725,13 +726,13 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                               <div class='title'>{`${item.groupName}( ${item.children.length} )`}</div>
                             </div>
                             <label-tree
-                              mode='select'
                               checkedNode={this.localCheckNode}
+                              mode='select'
                               treeData={item.children}
                               onCheckedChange={this.handleNodeChecked}
                             />
                           </div>
-                        ) : undefined,
+                        ) : undefined
                       )}
                     </div>
                   )

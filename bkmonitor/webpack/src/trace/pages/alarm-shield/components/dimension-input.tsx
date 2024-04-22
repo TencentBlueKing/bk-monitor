@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, PropType, ref, watch } from 'vue';
+
 import { Message, Popover, TagInput } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert';
 import { getVariableValue } from 'monitor-api/modules/grafana';
@@ -32,7 +33,6 @@ import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST }
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
 import { IConditionItem, IDimensionItem, IMetricMeta } from '../typing';
-
 import SelectInput, { ALL } from './select-input';
 
 import './dimension-input.scss';
@@ -107,7 +107,7 @@ export default defineComponent({
           value: [],
           method: 'eq',
         },
-        needCondition ? { condition: 'and' } : {},
+        needCondition ? { condition: 'and' } : {}
       );
     }
     async function handleDimensionChange(item, v) {
@@ -339,45 +339,45 @@ export default defineComponent({
           return [
             item.condition && item.key && index > 0 ? (
               <ConditionCondition
+                key={`condition-${index}-${item.key}`}
                 class='mb-8'
                 item={item}
-                key={`condition-${index}-${item.key}`}
                 onChange={v => this.handleConditionConditionChange(item, v)}
               ></ConditionCondition>
             ) : undefined,
             <SelectInput
               class='mb-8'
-              value={item.dimensionName}
-              list={this.dimensionsList as any}
+              dimensionSet={(key, list) => this.handleSetDimensionList(key, list)}
               dimesionKey={item.key}
-              isDimensionGroup={this.isDimensionGroup}
               groupDimensionMap={this.groupDimensionMap}
+              isDimensionGroup={this.isDimensionGroup}
+              list={this.dimensionsList as any}
+              metricMetaSet={(key, obj) => this.handleSetMetricMetaSet(key, obj)}
               strategyList={this.strategyList}
+              value={item.dimensionName}
               onChange={v => this.handleDimensionChange(item, v)}
               onDelete={() => this.handleDeleteKey(index)}
-              dimensionSet={(key, list) => this.handleSetDimensionList(key, list)}
-              metricMetaSet={(key, obj) => this.handleSetMetricMetaSet(key, obj)}
-              onStrategyListInit={list => this.handleStrategyListInit(list)}
               onSelectDimension={(dimensionItem, meta, strategy) =>
                 this.handleSelectDimension(item, dimensionItem, meta, strategy)
               }
+              onStrategyListInit={list => this.handleStrategyListInit(list)}
             ></SelectInput>,
             item.dimensionName
               ? [
                   <ConditionMethod
-                    value={item.method}
-                    dimensionList={this.dimensionsList}
                     dimensionKey={item.key}
+                    dimensionList={this.dimensionsList}
+                    value={item.method}
                     onChange={v => this.handleMehodChange(item, v)}
                   ></ConditionMethod>,
                   <TagInput
-                    modelValue={item.value}
                     class='condition-item condition-item-value mb-8'
-                    list={this.getDimensionValues(item.key)}
-                    trigger={'focus'}
-                    allowCreate={true}
                     allowAutoMatch={true}
+                    allowCreate={true}
+                    list={this.getDimensionValues(item.key)}
+                    modelValue={item.value}
                     pasteFn={v => this.handlePaste(v, item)}
+                    trigger={'focus'}
                     onUpdate:modelValue={v => this.handleDimensionValueChange(item, v)}
                   ></TagInput>,
                 ]
@@ -419,20 +419,20 @@ const ConditionCondition = defineComponent({
     }
     return () => (
       <Popover
-        placement='bottom-start'
-        arrow={false}
-        theme='light'
-        trigger='click'
         ref={popoverRef}
         extCls='dimension-condition-input-condition-condition-component-pop'
+        arrow={false}
+        placement='bottom-start'
+        theme='light'
+        trigger='click'
       >
         {{
           default: () => (
             <input
               style={{ display: props.item.condition ? 'block' : 'none' }}
               class='condition-item condition-item-condition mb-8'
-              readonly
               value={props.item.condition.toLocaleUpperCase()}
+              readonly
             ></input>
           ),
           content: () => (
@@ -489,13 +489,13 @@ const ConditionMethod = defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     function getMethodNameById(id: string) {
       return NUMBER_CONDITION_METHOD_LIST.find(item => item.id === id)?.name || '';
     }
-    function handleGetMethodList(type: 'string' | 'number') {
+    function handleGetMethodList(type: 'number' | 'string') {
       if (type === 'number') {
         return NUMBER_CONDITION_METHOD_LIST;
       }
@@ -509,12 +509,12 @@ const ConditionMethod = defineComponent({
 
     return () => (
       <Popover
-        placement='bottom-start'
-        arrow={false}
-        theme='light'
-        trigger='click'
         ref={popoverRef}
         extCls='dimension-condition-input-condition-method-component-pop'
+        arrow={false}
+        placement='bottom-start'
+        theme='light'
+        trigger='click'
         onAfterHidden={() => (show.value = false)}
         onAfterShow={() => (show.value = true)}
       >

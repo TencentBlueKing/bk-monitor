@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils/utils';
@@ -96,7 +97,7 @@ class PieChart extends CommonSimpleChart {
                 ...viewOptions,
               },
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(res => {
             const seriesData = res.data || [];
@@ -107,7 +108,7 @@ class PieChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const res = await Promise.all(promiseList);
       if (res) {
@@ -156,7 +157,7 @@ class PieChart extends CommonSimpleChart {
             type: 'pie',
           },
         ],
-      }),
+      })
     ) as MonitorEchartOptions;
   }
   /**
@@ -203,24 +204,24 @@ class PieChart extends CommonSimpleChart {
       >
         <ChartHeader
           class='draggable-handle'
-          title={this.panelTitle}
           draging={this.panel.draging}
-          showMore={this.showHeaderMoreTool}
-          metrics={this.metrics}
           isInstant={this.panel.instant}
+          metrics={this.metrics}
+          showMore={this.showHeaderMoreTool}
+          title={this.panelTitle}
           onMenuClick={this.handleMenuToolsSelect}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         {!this.empty ? (
           <div class='pie-echart-content right-legend'>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               <BaseEchart
                 ref='baseChart'
-                height={this.height}
                 width={this.width}
+                height={this.height}
                 options={this.chartOption}
               />
             </div>

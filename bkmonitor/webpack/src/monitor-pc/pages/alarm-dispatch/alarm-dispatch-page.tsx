@@ -26,7 +26,6 @@
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
 import AlarmDispatch from './alarm-dispatch';
 import * as authorityMap from './authority-map';
 

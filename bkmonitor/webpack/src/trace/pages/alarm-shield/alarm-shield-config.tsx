@@ -26,6 +26,7 @@
 import { computed, defineComponent, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 import { Button, Checkbox, Input, Loading, Message, Select, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
@@ -35,13 +36,12 @@ import { deepClone, random } from 'monitor-common/utils';
 import { transformMonitorToValue, transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NavBar from '../../components/nav-bar/nav-bar';
 import { useAppStore } from '../../store/modules/app';
-
-import FormItem from './components/form-item';
-import MemberSelector from './components/member-selector';
-import ScopeDateConfig from './components/scope-date-config';
 import AlarmShieldConfigDimension, { dimensionPropData } from './alarm-shield-config-dimension';
 import AlarmShieldConfigScope, { scopeData as scopeDataParams } from './alarm-shield-config-scope';
 import AlarmShieldConfigStrategy, { strategyDataProp } from './alarm-shield-config-strategy';
+import FormItem from './components/form-item';
+import MemberSelector from './components/member-selector';
+import ScopeDateConfig from './components/scope-date-config';
 import {
   categoryMap,
   EShieldCycle,
@@ -371,7 +371,7 @@ export default defineComponent({
         const dimensionConfig = { scope_type: dimension } as any;
         dimensionConfig.target = transformValueToMonitor(
           scopeData.value.ipv6Value,
-          ShieldDimension2NodeType[dimension],
+          ShieldDimension2NodeType[dimension]
         );
         params.dimension_config = dimensionConfig;
       } else if (tabData.active === EShieldType.Strategy) {
@@ -383,7 +383,7 @@ export default defineComponent({
         };
         const target = transformValueToMonitor(
           strategyShieldData.value.scopeData.ipv6Value,
-          ShieldDimension2NodeType[strategyShieldData.value.scopeData.bkGroup.value],
+          ShieldDimension2NodeType[strategyShieldData.value.scopeData.bkGroup.value]
         );
         if (target.length) {
           dimensionConfig.scope_type = strategyShieldData.value.scopeData.bkGroup.value;
@@ -504,9 +504,9 @@ export default defineComponent({
     return (
       <>
         <NavBar
-          routeList={this.navList}
-          needBack={true}
           callbackRouterBack={this.handleBackPage}
+          needBack={true}
+          routeList={this.navList}
         ></NavBar>
         <Loading loading={this.loading}>
           <div class='alarms-shield-config-page'>
@@ -521,15 +521,15 @@ export default defineComponent({
                 require={true}
               >
                 <Select
-                  modelValue={this.formData.bizId}
                   class='width-413'
                   disabled={true}
+                  modelValue={this.formData.bizId}
                 >
                   {this.bizList.map(item => (
                     <Select.Option
+                      id={item.id}
                       key={item.id}
                       name={item.text}
-                      id={item.id}
                     ></Select.Option>
                   ))}
                 </Select>
@@ -544,9 +544,9 @@ export default defineComponent({
                     .filter(item => (this.tabData.active !== EShieldType.Event ? item.id !== EShieldType.Event : true))
                     .map(item => (
                       <Button
-                        selected={item.id === this.tabData.active}
                         key={item.id}
                         disabled={this.isEdit ? item.id !== this.tabData.active : false}
+                        selected={item.id === this.tabData.active}
                         onClick={() => !this.isEdit && this.handleShieldTypeChange(item)}
                       >
                         {item.name}
@@ -556,17 +556,17 @@ export default defineComponent({
               </FormItem>
               <AlarmShieldConfigStrategy
                 ref='strategyRef'
-                value={this.strategyShieldData}
-                isEdit={this.isEdit}
                 isClone={this.isClone}
+                isEdit={this.isEdit}
                 show={this.tabData.active === EShieldType.Strategy}
+                value={this.strategyShieldData}
                 onChange={v => (this.strategyShieldData = v)}
               ></AlarmShieldConfigStrategy>
               <AlarmShieldConfigScope
                 ref='scopeRef'
                 isEdit={this.isEdit}
-                value={this.scopeData}
                 show={this.tabData.active === EShieldType.Scope}
+                value={this.scopeData}
                 onChange={v => (this.scopeData = v)}
               ></AlarmShieldConfigScope>
               <AlarmShieldConfigDimension
@@ -607,45 +607,45 @@ export default defineComponent({
               >
                 <Input
                   class='width-940'
-                  modelValue={this.formData.desc}
-                  type='textarea'
-                  rows={3}
                   maxlength={100}
+                  modelValue={this.formData.desc}
+                  rows={3}
+                  type='textarea'
                   onUpdate:modelValue={v => (this.formData.desc = v)}
                 ></Input>
               </FormItem>
               <FormItem
-                label={this.t('通知设置')}
                 class='mt24'
+                label={this.t('通知设置')}
               >
                 <Switcher
                   class='mt6'
                   modelValue={this.showNoticeConfig}
-                  onUpdate:modelValue={v => this.handleShowNoticeConfig(v)}
                   theme='primary'
+                  onUpdate:modelValue={v => this.handleShowNoticeConfig(v)}
                 ></Switcher>
               </FormItem>
               {!!this.showNoticeConfig && (
                 <>
                   <FormItem
-                    label={this.t('通知对象')}
                     class='mt24'
-                    require={true}
                     errMsg={this.errMsg.noticeMember}
+                    label={this.t('通知对象')}
+                    require={true}
                   >
                     <MemberSelector
                       class='width-940'
-                      value={this.formData.noticeMember}
                       api={this.userApi}
                       userGroups={this.defaultGroupList}
+                      value={this.formData.noticeMember}
                       onChange={this.handleUserChange}
                     ></MemberSelector>
                   </FormItem>
                   <FormItem
-                    label={this.t('通知方式')}
                     class='mt24'
-                    require={true}
                     errMsg={this.errMsg.notificationMethod}
+                    label={this.t('通知方式')}
+                    require={true}
                   >
                     <Checkbox.Group
                       class='mt8'
@@ -663,8 +663,8 @@ export default defineComponent({
                     </Checkbox.Group>
                   </FormItem>
                   <FormItem
-                    label={this.t('通知时间')}
                     class='mt24'
+                    label={this.t('通知时间')}
                     require={true}
                   >
                     <div>
@@ -672,10 +672,10 @@ export default defineComponent({
                         <span class='inline-block'>
                           <Input
                             class='width-68 mlr-10'
-                            type='number'
-                            min={1}
                             max={1440}
+                            min={1}
                             modelValue={this.formData.noticeNumber}
+                            type='number'
                             onUpdate:modelValue={v => this.handleNoticeNumberChange(v)}
                           ></Input>
                         </span>
@@ -686,8 +686,8 @@ export default defineComponent({
               )}
               <FormItem class='mt32'>
                 <Button
-                  theme={'primary'}
                   class='min-w88 mr8'
+                  theme={'primary'}
                   onClick={this.handleSubmit}
                 >
                   {this.t('确定')}

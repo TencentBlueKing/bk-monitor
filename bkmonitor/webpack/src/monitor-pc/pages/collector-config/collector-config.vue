@@ -396,7 +396,6 @@
   </div>
 </template>
 <script lang="js">
-import { createNamespacedHelpers } from 'vuex';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import {
   collectConfigList,
@@ -406,6 +405,7 @@ import {
 } from 'monitor-api/modules/collecting';
 // import { isCancel } from 'axios'
 import { debounce } from 'throttle-debounce';
+import { createNamespacedHelpers } from 'vuex';
 
 import introduce from '../../common/introduce';
 import { commonPageSizeMixin } from '../../common/mixins';
@@ -414,11 +414,10 @@ import GuidePage from '../../components/guide-page/guide-page';
 import pageTips from '../../components/pageTips/pageTips';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_ADD_DATA, SET_ADD_MODE, SET_OBJECT_TYPE } from '../../store/modules/collector-config';
-
+import * as collectAuth from './authority-map';
 import CollectorConfigDetail from './collector-config-detail/collector-config-detail';
 import CollectorConfigUpdate from './collector-config-update/collector-config-update';
 import DeleteCollector from './collector-dialog-delete/collector-dialog-delete';
-import * as collectAuth from './authority-map';
 import TableStore from './store.ts';
 
 const { mapMutations } = createNamespacedHelpers('collector-config');
@@ -798,7 +797,7 @@ export default {
           needMessage: false,
           needCancel: true,
           cancelFn: c => (this.cancelFetch = c.bind(this, 'cancelFetch')),
-        },
+        }
       )
         .then(res => {
           const data = res.data || { config_list: [], total: 0, type_list: [] };
@@ -879,7 +878,7 @@ export default {
           if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO'].includes(item.nodeType)) {
             item.targetString = `${this.$t(textMap[item.nodeType], [item.targetNodesCount])} （${this.$t(
               '共{0}台主机',
-              [item.totalInstanceCount],
+              [item.totalInstanceCount]
             )}）`;
           } else if (item.nodeType === 'INSTANCE') {
             item.targetString = this.$t('{0}台主机', [item.totalInstanceCount]);
@@ -888,7 +887,7 @@ export default {
           if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO'].includes(item.nodeType)) {
             item.targetString = `${this.$t(textMap[item.nodeType], [item.targetNodesCount])} （${this.$t(
               '共{0}个实例',
-              [item.totalInstanceCount],
+              [item.totalInstanceCount]
             )}）`;
           }
         }
@@ -975,7 +974,7 @@ export default {
               },
             },
           },
-          this.$t('前去升级配置'),
+          this.$t('前去升级配置')
         ),
       });
     },
@@ -1188,7 +1187,7 @@ export default {
           this.tableInstance.deleteDataById(this.popover.data.id);
           this.table.data = this.tableInstance.getTableData(
             this.filterTabList[this.panel.active].key,
-            this.panel.itemActive,
+            this.panel.itemActive
           );
           this.handleTableDataChange(this.table.data);
           this.$bkMessage({

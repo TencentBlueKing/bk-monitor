@@ -32,7 +32,12 @@ from alarm_backends.core.cache.cmdb import (
     TopoManager,
 )
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.models import MetricListCache, StrategyHistoryModel, StrategyModel
+from bkmonitor.models import (
+    AlgorithmModel,
+    MetricListCache,
+    StrategyHistoryModel,
+    StrategyModel,
+)
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
@@ -136,6 +141,10 @@ class StrategyCacheManager(CacheManager):
         need_check_type = [DataTypeLabel.ALERT, DataTypeLabel.TIME_SERIES]
         # 检测单位与数据单位是否同族，多指标无需检测
         if item["algorithms"]:
+            if item["algorithms"][0]["type"] == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
+                # 主机智能异常检测不检测指标项
+                return
+
             unit_prefix = item["algorithms"][0].get("unit_prefix", "")
             unit = item["query_configs"][0].get("unit", "")
             if invalid_strategy_dict["loaded_unit"].get(unit):

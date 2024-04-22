@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, onBeforeUnmount, PropType, ref } from 'vue';
+
 import { Button } from 'bkui-vue';
 
 import { useSpanBarCurrentInject, useViewRangeInject } from '../hooks';
@@ -37,7 +38,6 @@ import {
   ViewRangeTimeUpdate,
 } from '../typings';
 import DraggableManager, { DraggableBounds, DraggingUpdate, EUpdateTypes } from '../utils/draggable-manager';
-
 import GraphTicks from './graph-ticks';
 import Scrubber from './scrubber';
 
@@ -101,7 +101,7 @@ export default defineComponent({
     const viewRangeStore = useViewRangeInject();
     const spanBarCurrentStore = useSpanBarCurrentInject();
 
-    const getDraggingBounds = (tag: string | TNil): DraggableBounds => {
+    const getDraggingBounds = (tag: TNil | string): DraggableBounds => {
       if (!layerGraphRef.value) {
         throw new Error('invalid state');
       }
@@ -241,6 +241,8 @@ export default defineComponent({
       return [
         <rect
           key='fill'
+          width={layout.width}
+          height={(props.height as number) - 2}
           class={[
             'draggedShift',
             {
@@ -250,11 +252,11 @@ export default defineComponent({
           ]}
           x={layout.x}
           y='0'
-          width={layout.width}
-          height={(props.height as number) - 2}
         />,
         <rect
           key='edge'
+          width='1'
+          height={(props.height as number) - 2}
           class={[
             'draggedEdge',
             {
@@ -264,8 +266,6 @@ export default defineComponent({
           ]}
           x={layout.leadingX}
           y='0'
-          width='1'
-          height={(props.height as number) - 2}
         />,
       ];
     };
@@ -311,42 +311,42 @@ export default defineComponent({
 
     return (
       <div
-        class='viewing-layer'
         style={{ height: `${height}px` }}
+        class='viewing-layer'
       >
         {(viewStart !== 0 || viewEnd !== 1) && (
           <Button
-            onClick={this.resetTimeZoomClickHandler}
             class='reset-zoom'
             size='small'
+            onClick={this.resetTimeZoomClickHandler}
           >
             {this.$t('重置')}
           </Button>
         )}
         <svg
+          ref='layerGraphRef'
           height={height}
           class='wiewing-layer-graph'
-          ref='layerGraphRef'
           onMousedown={this.draggerReframe.handleMouseDown}
           onMouseleave={this.draggerReframe.handleMouseLeave}
           onMousemove={this.draggerReframe.handleMouseMove}
         >
           {leftInactive > 0 && (
             <rect
+              width={`${leftInactive}%`}
+              height='100%'
+              class='viewing-layer-inactive'
               x={0}
               y={0}
-              height='100%'
-              width={`${leftInactive}%`}
-              class='viewing-layer-inactive'
             />
           )}
           {rightInactive > 0 && (
             <rect
+              width={`${rightInactive}%`}
+              height='100%'
+              class='viewing-layer-inactive'
               x={`${100 - rightInactive}%`}
               y={0}
-              height='100%'
-              width={`${rightInactive}%`}
-              class='viewing-layer-inactive'
             />
           )}
           <GraphTicks numTicks={numTicks as number} />
@@ -357,19 +357,19 @@ export default defineComponent({
           {cursorPosition && (
             <line
               class='viewinglayer-cursorGuide'
-              x1={cursorPosition}
-              y1='0'
-              x2={cursorPosition}
-              y2={(height as number) - 2}
               stroke-width='1'
+              x1={cursorPosition}
+              x2={cursorPosition}
+              y1='0'
+              y2={(height as number) - 2}
             />
           )}
           <Scrubber
             isDragging={shiftStart !== null}
+            position={viewStart || 0}
             onMouseDown={this.draggerStart.handleMouseDown}
             onMouseEnter={this.draggerStart.handleMouseEnter}
             onMouseLeave={this.draggerStart.handleMouseLeave}
-            position={viewStart || 0}
           />
           <Scrubber
             isDragging={shiftEnd !== null}

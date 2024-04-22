@@ -25,6 +25,7 @@
  */
 import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
@@ -102,7 +103,7 @@ export class LineChart
     ToolsMxin,
     ChartLoadingMixin,
     LegendMixin,
-    ErrorMsgMixins,
+    ErrorMsgMixins
   )
   implements ICommonCharts
 {
@@ -127,9 +128,9 @@ export class LineChart
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 当前粒度
-  @InjectReactive('downSampleRange') readonly downSampleRange: string | number;
+  @InjectReactive('downSampleRange') readonly downSampleRange: number | string;
   // 当前使用的业务id
-  @InjectReactive('bkBizId') readonly bkBizId: string | number;
+  @InjectReactive('bkBizId') readonly bkBizId: number | string;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   // yAxis是否需要展示单位
@@ -150,7 +151,7 @@ export class LineChart
   empty = true;
   emptyText = window.i18n.tc('暂无数据');
   hasSetEvent = false;
-  cancelTokens: Function[] = [];
+  cancelTokens: (() => void)[] = [];
   minBase = 0;
   renderThresholds = false;
   thresholdLine = [];
@@ -240,7 +241,7 @@ export class LineChart
       const { startTime, endTime } = handleTimeRange(this.timeRange);
       this.getPanelData(
         dayjs(startTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ss')
       );
     } else {
       this.getPanelData(val[0], val[1]);
@@ -344,7 +345,7 @@ export class LineChart
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval,
+        this.panel.collect_interval
       );
       const variablesService = new VariablesService({
         ...this.viewOptions,
@@ -364,13 +365,13 @@ export class LineChart
                 time_shift,
                 interval,
               },
-              noTransformVariables,
+              noTransformVariables
             ),
             ...params,
             down_sample_range: this.downSampleRangeComputed(
               this.downSampleRange as string,
               [params.start_time, params.end_time],
-              item.apiFunc,
+              item.apiFunc
             ),
           };
           // 主机监控ipv6特殊逻辑 用于去除不必要的group_by字段
@@ -382,7 +383,7 @@ export class LineChart
           }
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
-              cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
+              cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
             .then(res => {
@@ -394,7 +395,7 @@ export class LineChart
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
                   }`,
-                })),
+                }))
               );
               this.clearErrorMsg();
               return true;
@@ -439,7 +440,7 @@ export class LineChart
             markArea: this.createMarkArea(item, index),
             z: 1,
             traceData: item.trace_data ?? '',
-          })) as any,
+          })) as any
         );
         const boundarySeries = seriesResult.map(item => this.handleBoundaryList(item, series)).flat(Infinity);
         if (!!boundarySeries) {
@@ -490,7 +491,7 @@ export class LineChart
         const echartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
-          { arrayMerge: (_, newArr) => newArr },
+          { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
         this.options = Object.freeze(
@@ -530,7 +531,7 @@ export class LineChart
             },
             series: seriesList,
             tooltip: this.handleSetTooltip(),
-          }),
+          })
         );
         this.metrics = metrics || [];
         this.handleDrillDownOption(this.metrics);
@@ -616,7 +617,7 @@ export class LineChart
       boundaryList.forEach((item: any) => {
         const base = -item.lowBoundary.reduce(
           (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Infinity,
+          Infinity
         );
         this.minBase = Math.max(base, this.minBase);
       });
@@ -686,7 +687,7 @@ export class LineChart
     const getDimStr = dim => `${dim.bk_target_ip}-${dim.bk_target_cloud_id}`;
     const currentDimStr = getDimStr(currentDimensions);
     const currentIsAanomalyData = series.find(
-      item => item.alias === 'is_anomaly' && currentDimStr === getDimStr(item.dimensions),
+      item => item.alias === 'is_anomaly' && currentDimStr === getDimStr(item.dimensions)
     );
     let markPointData = [];
     if (!!currentIsAanomalyData) {
@@ -717,7 +718,7 @@ export class LineChart
           xAxis: item[1],
           yAxis: item[0],
           symbolSize: 12,
-        })),
+        }))
       );
     /** 事件中心告警开始点 */
     const markPoint = {
@@ -862,7 +863,7 @@ export class LineChart
       const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
         unitFormatter,
-        item.unit,
+        item.unit
       );
       if (item.name) {
         Object.keys(legendItem).forEach(key => {
@@ -973,7 +974,7 @@ export class LineChart
           interval: reviewInterval(
             this.viewOptions.interval,
             dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-            this.panel.collect_interval,
+            this.panel.collect_interval
           ),
         });
         copyPanel = variablesService.transformVariables(copyPanel);
@@ -1059,7 +1060,7 @@ export class LineChart
         ...this.viewOptions,
         ...this.viewOptions.variables,
       },
-      false,
+      false
     );
     const result = targets.map(item => {
       item.data.query_configs = item.data.query_configs.map(query => {
@@ -1095,8 +1096,8 @@ export class LineChart
             location.hash,
             `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
               eventTargetStr ? ` AND ${eventTargetStr}` : ''
-            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
-          ),
+            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
+          )
         );
         break;
     }
@@ -1254,39 +1255,39 @@ export class LineChart
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            title={this.panel.title}
-            showMore={this.showHeaderMoreTool}
-            inited={this.inited}
-            menuList={this.menuList}
-            drillDownOption={this.drillDownOptions}
-            showAddMetric={this.showAddMetric}
-            draging={this.panel.draging}
-            metrics={this.metrics}
             descrition={this.panel.options?.header?.tips || ''}
-            subtitle={this.panel.subTitle || ''}
+            draging={this.panel.draging}
+            drillDownOption={this.drillDownOptions}
+            inited={this.inited}
             isInstant={this.panel.instant}
+            menuList={this.menuList}
+            metrics={this.metrics}
+            showAddMetric={this.showAddMetric}
+            showMore={this.showHeaderMoreTool}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
-            onMenuClick={this.handleMenuToolsSelect}
-            onSelectChild={this.handleSelectChildMenu}
-            onMetricClick={this.handleMetricClick}
             onAllMetricClick={this.handleAllMetricClick}
+            onMenuClick={this.handleMenuToolsSelect}
+            onMetricClick={this.handleMetricClick}
+            onSelectChild={this.handleSelectChildMenu}
+            onUpdateDragging={() => this.panel.updateDraging(false)}
           />
         )}
         {!this.empty ? (
           <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
-              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
               ref='chart'
+              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChart'
-                  showRestore={this.showRestore}
-                  height={this.height}
                   width={this.width}
-                  options={this.options}
+                  height={this.height}
                   groupId={this.panel.dashboardId}
+                  options={this.options}
+                  showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
@@ -1297,13 +1298,13 @@ export class LineChart
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
                 {legend?.displayMode === 'table' ? (
                   <TableLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 ) : (
                   <ListLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 )}
               </div>

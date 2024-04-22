@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import { ILegendItem, LegendActionType } from '../typings';
+
+import type { PropType } from 'vue';
 
 import './common-legend.scss';
 
@@ -66,19 +67,19 @@ export default defineComponent({
           if (legend.hidden) return undefined;
           return (
             <div
-              class='common-legend-item'
               key={index}
+              class='common-legend-item'
               onClick={e => this.handleLegendEvent(e, 'click', legend)}
               // onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
               // onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}
             >
               <span
-                class='legend-icon'
                 style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
+                class='legend-icon'
               ></span>
               <div
-                class='legend-name'
                 style={{ color: legend.show ? '#63656e' : '#ccc' }}
+                class='legend-name'
               >
                 {legend.alias || legend.name}
               </div>

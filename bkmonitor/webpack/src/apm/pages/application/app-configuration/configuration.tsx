@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Provide, Ref } from 'vue-property-decorator';
+
 import { applicationInfo, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -31,7 +32,6 @@ import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as authorityMap from '../../home/authority-map';
-
 import BasicConfiguration from './basic-configuration';
 // import IndicatorDimension from './indicator-dimension';
 import ConfigurationView from './configuration-view';
@@ -107,7 +107,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
   recordData: Record<string, string> = {};
   /** 插件使用说明侧栏配置 */
   configurationView: {
-    rightWidth: string | number;
+    rightWidth: number | string;
     range: number[];
     isActive: boolean;
     show: boolean;
@@ -313,8 +313,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       case 'storageState': // 存储状态
         return (
           <StorageState
-            data={this.appInfo}
             clusterList={this.clusterList}
+            data={this.appInfo}
             on-change={this.getAppBaseInfo}
           />
         );
@@ -338,32 +338,32 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       >
         <CommonNavBar
           class='application-configuration-nav'
+          navMode={'display'}
+          needBack={true}
+          positionText={this.positonText}
           routeList={this.routeList}
           needCopyLink
-          needBack={true}
-          navMode={'display'}
-          positionText={this.positonText}
         ></CommonNavBar>
         <div
-          class='application-configuration-page'
           ref='contentRef'
+          class='application-configuration-page'
         >
           <div
-            class='configuration-content-left'
             style={this.handleContentStyle('left')}
+            class='configuration-content-left'
           >
             <ConfigurationNav
               active={this.activeMenu}
               menuList={this.menuList}
-              onMenuClick={this.handleMenuClick}
               onAlertClick={this.handleClickAlert}
+              onMenuClick={this.handleMenuClick}
             >
               {!this.firstLoad && this.getContentPanel()}
             </ConfigurationNav>
           </div>
           <div
-            class='configuration-content-right'
             style={this.handleContentStyle('right')}
+            class='configuration-content-right'
           >
             <div class='right-wrapper'>
               <div

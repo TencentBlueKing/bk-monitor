@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import Vuex from 'vuex';
 
-import { IAppState } from './modules/app';
 import getters from './getters';
+import { IAppState } from './modules/app';
 
 Vue.use(Vuex);
 

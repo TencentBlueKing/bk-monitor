@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getSceneViewDimensions, getSceneViewDimensionValue } from 'monitor-api/modules/scene_view';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import DragItem from 'monitor-ui/monitor-draggable/drag-item';
@@ -187,10 +188,10 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
       this.localVarList.map(async item => {
         item.loading = true;
         const options = await this.getGroupByOptionalValueList(item.groupBy, item.where).finally(
-          () => (item.loading = false),
+          () => (item.loading = false)
         );
         item.optionalValue = options;
-      }),
+      })
     );
   }
 
@@ -305,7 +306,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     curVar.alias = curGroupBy.name;
     curVar.loading = true;
     const options = await this.getGroupByOptionalValueList(groupBy, curVar.where).finally(
-      () => (curVar.loading = false),
+      () => (curVar.loading = false)
     );
     curVar.optionalValue = options;
   }
@@ -451,15 +452,15 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
             <bk-tab
               class='tab-wrap'
               active={this.localActiveTab}
-              type='unborder-card'
               before-toggle={this.handleChangeTabBefore}
+              type='unborder-card'
               {...{ on: { 'update:active': this.handleChangeTab } }}
             >
               {this.bookMarkData.map(item => (
                 <bk-tab-panel
-                  name={item.id}
-                  label={item.name}
                   key={item.id}
+                  label={item.name}
+                  name={item.id}
                   render-label={tabItemTpl}
                 />
               ))}
@@ -468,30 +469,30 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
         </div>
         <div class='set-var-main'>
           <bk-button
-            onClick={this.handleAddVar}
             class='set-var-add-btn'
             theme='primary'
+            onClick={this.handleAddVar}
           >
             <i class='icon-monitor icon-mc-add'></i>
             <span class='set-var-btn-text'>{this.$t('新增')}</span>
           </bk-button>
           {!!this.localVarList.length ? (
             <MonitorDraggable
-              onDrop={this.handleDrop}
-              onDragstart={this.handleDragstrart}
               class='set-var-item-list'
+              onDragstart={this.handleDragstrart}
+              onDrop={this.handleDrop}
             >
               <transition-group
-                name={this.disabledAnimation ? '' : 'flip-list'}
                 class='set-var-item-wrap'
+                name={this.disabledAnimation ? '' : 'flip-list'}
                 tag='div'
               >
                 {this.localVarList.map((item, index) => (
                   <DragItem
                     key={item.key}
-                    index={index}
                     class='drag-item'
                     v-bkloading={{ isLoading: item.loading, zIndex: 2000 }}
+                    index={index}
                   >
                     <div class='set-var-item'>
                       <div class='set-var-item-header drag-handle'>
@@ -500,9 +501,9 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
                           <span class='set-var-item-title'>{`$${item.groupBy}`}</span>
                           <bk-select
                             class='set-var-select'
-                            disabled
-                            placeholder={this.$t('选择')}
                             behavior='simplicity'
+                            placeholder={this.$t('选择')}
+                            disabled
                           />
                         </span>
                         <i
@@ -516,15 +517,15 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
                             <div class='set-var-form-label'>{this.$t('维度')}</div>
                             <div class='set-var-form-value'>
                               <bk-select
-                                vModel={item.groupBy}
                                 class='set-var-group-by'
+                                vModel={item.groupBy}
                                 onSelected={val => this.handleChangeGroupBy(index, val)}
                               >
                                 {this.groupByListOptional.map(opt => (
                                   <bk-option
                                     id={opt.id}
-                                    name={opt.id}
                                     disabled={opt.disabled}
+                                    name={opt.id}
                                   />
                                 ))}
                               </bk-select>
@@ -573,8 +574,8 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
           ) : (
             <bk-exception
               class='set-var-no-data'
-              type='empty'
               scene='part'
+              type='empty'
             />
           )}
           <div class='set-var-btn-group'>

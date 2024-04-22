@@ -226,15 +226,15 @@ export default class CustomSelect extends tsc<IProps> {
         </div>
         <div style={{ display: 'none' }}>
           <div
-            class={componentClassNames.pop}
             ref='wrap'
             style={{ width: `${this.width}px` }}
+            class={componentClassNames.pop}
           >
             <div class='select-list'>
               {this.localList.map(item => (
                 <div
-                  class={'select-list-item'}
                   key={item.id}
+                  class={'select-list-item'}
                   onClick={() => this.handleSelectOption(item)}
                 >
                   <div onClick={(e: Event) => e.stopPropagation()}>

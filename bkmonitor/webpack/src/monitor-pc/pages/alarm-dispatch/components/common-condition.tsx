@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, random } from 'monitor-common/utils';
 
 import { getEventPaths } from '../../../utils';
@@ -48,12 +49,12 @@ const groupNamesMap = {
 };
 
 enum TypeEnum {
+  condition = 'condition',
   input = 'input',
   key = 'key',
-  value = 'value',
   method = 'method',
-  condition = 'condition',
   null = '',
+  value = 'value',
 }
 
 const NULL_NAME = `-${window.i18n.t('空')}-`;
@@ -1260,9 +1261,9 @@ export default class CommonCondition extends tsc<IProps> {
   render() {
     return (
       <div
+        id={this.componetId}
         class='common-condition-component'
         v-bkloading={{ isLoading: this.loading, mode: 'spin', size: 'mini' }}
-        id={this.componetId}
         onClick={e => this.handleClickComponent(e)}
         onMouseenter={this.handleMouseEnter}
         onMouseleave={this.handleMouseLeave}
@@ -1272,8 +1273,8 @@ export default class CommonCondition extends tsc<IProps> {
             case 'condition':
               return (
                 <div
-                  class='common-tag tag-condition'
                   key={`${item.id}_${index}`}
+                  class='common-tag tag-condition'
                   onClick={e => this.handleMOrCTagClick(e, item, index)}
                 >
                   {item.name}
@@ -1282,13 +1283,13 @@ export default class CommonCondition extends tsc<IProps> {
             case 'key':
               return (
                 <div
+                  key={`${item.id}_${index}`}
                   class='common-tag tag-key'
                   v-bk-tooltips={{
                     content: item.id,
                     placements: ['top'],
                     allowHTML: false,
                   }}
-                  key={`${item.id}_${index}`}
                   onClick={e => this.handleClickKeyTag(e, item, index)}
                 >
                   {item?.alias || item.name}
@@ -1297,8 +1298,8 @@ export default class CommonCondition extends tsc<IProps> {
             case 'method':
               return (
                 <div
-                  class='common-tag tag-method'
                   key={`${item.id}_${index}`}
+                  class='common-tag tag-method'
                   onClick={e => this.handleMOrCTagClick(e, item, index)}
                 >
                   {item.name}
@@ -1308,13 +1309,13 @@ export default class CommonCondition extends tsc<IProps> {
               return (
                 !!item.name && (
                   <div
+                    key={`${item.id}_${index}`}
                     class='common-tag tag-value'
                     v-bk-tooltips={{
                       content: item.id,
                       placements: ['top'],
                       allowHTML: false,
                     }}
-                    key={`${item.id}_${index}`}
                     onClick={e => this.handleClickValueTag(e, item, index)}
                   >
                     <span class='tag-value-name'>{item.name}</span>
@@ -1331,13 +1332,13 @@ export default class CommonCondition extends tsc<IProps> {
               return (
                 !this.readonly && (
                   <div
-                    class='input-wrap'
                     key={`${item.id}_${index}`}
+                    class='input-wrap'
                   >
                     <span class='input-value'>{this.inputValue}</span>
                     <input
-                      class='input'
                       ref='input'
+                      class='input'
                       v-model={this.inputValue}
                       onBlur={this.handBlur}
                       onInput={this.handleInput}
@@ -1360,17 +1361,17 @@ export default class CommonCondition extends tsc<IProps> {
         )}
         <div style={'display: none;'}>
           <div
-            class='common-condition-component-pop-wrap'
-            ref='wrap'
             id={this.componetId}
+            ref='wrap'
+            class='common-condition-component-pop-wrap'
           >
             {(this.isPopTypeOfValue || this.isClickValueTag) && (
               <div class='search-wrap'>
                 <bk-input
-                  value={this.valueSearch}
+                  behavior={'simplicity'}
                   left-icon='bk-icon icon-search'
                   placeholder={window.i18n.t('输入关键字搜索')}
-                  behavior={'simplicity'}
+                  value={this.valueSearch}
                   onChange={this.handleSearchChange}
                 ></bk-input>
               </div>
@@ -1381,7 +1382,7 @@ export default class CommonCondition extends tsc<IProps> {
                   .filter(item =>
                     this.isPopTypeOfValue || this.isClickValueTag
                       ? item.id.indexOf(this.valueSearch) > -1 || item.name.indexOf(this.valueSearch) > -1
-                      : true,
+                      : true
                   )
                   .map((item, index) => (
                     <div
@@ -1430,8 +1431,8 @@ export default class CommonCondition extends tsc<IProps> {
         </div>
         <div style={'display: none'}>
           <div
-            class={settingPopClassName}
             ref='settingsMsg'
+            class={settingPopClassName}
           >
             <div class='top'>
               <span class='icon-monitor icon-remind'></span>
@@ -1457,8 +1458,8 @@ export default class CommonCondition extends tsc<IProps> {
         </div>
         <div style={'display: none'}>
           <div
-            class='common-condition-component-second-pop-wrap'
             ref='secondWrap'
+            class='common-condition-component-second-pop-wrap'
           >
             {this.keyListSecond.length ? (
               <div class='wrap-list'>
@@ -1466,12 +1467,12 @@ export default class CommonCondition extends tsc<IProps> {
                   <div
                     key={item.id}
                     class='list-item key-type'
-                    onMousedown={() => this.handleClickSecondKey(item)}
                     v-bk-tooltips={{
                       content: item.id,
                       placements: ['right'],
                       allowHTML: false,
                     }}
+                    onMousedown={() => this.handleClickSecondKey(item)}
                   >
                     <span>{item.name}</span>
                   </div>

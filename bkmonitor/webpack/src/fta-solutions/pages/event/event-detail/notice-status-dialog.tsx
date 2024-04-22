@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { subActionDetail } from 'monitor-api/modules/alert';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 
@@ -77,7 +78,7 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
           res.map(item => ({
             label: item.label,
             prop: item.type,
-          })),
+          }))
         )
         .catch(() => []);
     }
@@ -104,12 +105,12 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
   render() {
     return (
       <bk-dialog
-        ext-cls='notice-status-dialog-wrap'
-        value={this.value}
-        mask-close={true}
-        header-position='left'
         width={800}
+        ext-cls='notice-status-dialog-wrap'
+        header-position='left'
+        mask-close={true}
         title={this.$t('通知状态')}
+        value={this.value}
         {...{ on: { 'value-change': this.handleClose } }}
       >
         <div
@@ -117,9 +118,9 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
           v-bkloading={{ isLoading: this.loading }}
         >
           <NoticeStatusTable
-            tableData={this.tableData}
-            tableColumns={this.tableClounms}
             hasColumns={this.hasColumns}
+            tableColumns={this.tableClounms}
+            tableData={this.tableData}
           ></NoticeStatusTable>
         </div>
       </bk-dialog>

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import BkUserSelector from '@blueking/user-selector';
 import { assignAlert } from 'monitor-api/modules/action';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
@@ -35,8 +36,8 @@ const reasonList = [window.i18n.tc('当前工作安排较多'), window.i18n.tc('
 
 interface IProps {
   show?: boolean;
-  alertIds?: (string | number)[];
-  bizIds?: (string | number)[];
+  alertIds?: (number | string)[];
+  bizIds?: (number | string)[];
 }
 interface IEvents {
   onShow?: boolean;
@@ -45,8 +46,8 @@ interface IEvents {
 @Component
 export default class AlarmDispatch extends tsc<IProps, IEvents> {
   @Prop({ default: false, type: Boolean }) show: boolean;
-  @Prop({ default: () => [], type: Array }) alertIds: (string | number)[];
-  @Prop({ default: () => [], type: Array }) bizIds: (string | number)[];
+  @Prop({ default: () => [], type: Array }) alertIds: (number | string)[];
+  @Prop({ default: () => [], type: Array }) bizIds: (number | string)[];
 
   users = [];
   noticeWay = [];
@@ -156,12 +157,12 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
   render() {
     return (
       <bk-dialog
-        extCls={'alarm-dispatch-component-dialog'}
-        value={this.show}
         width={480}
-        mask-close={true}
+        extCls={'alarm-dispatch-component-dialog'}
         header-position='left'
+        mask-close={true}
         title={this.$t('告警分派')}
+        value={this.show}
         on-cancel={() => this.$emit('show', false)}
       >
         <div
@@ -182,8 +183,8 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
                 class='content-user-selector'
                 v-model={this.users}
                 api={this.bkUrl}
-                placeholder={this.$t('输入用户')}
                 empty-text={this.$t('搜索结果为空')}
+                placeholder={this.$t('输入用户')}
               ></BkUserSelector>
             </div>
             {!!this.errorMsg.users && <div class='err-msg'>{this.errorMsg.users}</div>}
@@ -208,9 +209,9 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
             >
               <bk-input
                 v-model={this.reason}
-                type={'textarea'}
-                row={3}
                 maxlength={100}
+                row={3}
+                type={'textarea'}
               ></bk-input>
             </div>
             {!!this.errorMsg.reason && <div class='err-msg'>{this.errorMsg.reason}</div>}
@@ -232,8 +233,8 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             style={{ 'margin-right': '8px' }}
+            theme='primary'
             onClick={this.handleSubmit}
           >
             {this.$t('确定')}

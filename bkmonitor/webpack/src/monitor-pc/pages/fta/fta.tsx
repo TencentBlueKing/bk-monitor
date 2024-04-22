@@ -66,10 +66,10 @@ export default class FTA extends tsc<object> {
         v-monitor-loading={{ isLoading: this.loading }}
       >
         <bk-weweb
-          class='fta-wrap-iframe'
-          url={this.ftaUrl}
           id='fta'
+          class='fta-wrap-iframe'
           data={this.ftaData}
+          url={this.ftaUrl}
         />
       </div>
     );

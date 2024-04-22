@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -258,7 +259,7 @@ export default class HostList extends tsc<IProps, IEvents> {
         .catch(err => {
           console.error(err);
           return [];
-        }),
+        })
     );
     this.loading = true;
     const res = await Promise.all(promiseList).catch(err => {
@@ -405,7 +406,7 @@ export default class HostList extends tsc<IProps, IEvents> {
   }
 
   /** 生成主机主机的状态类名 */
-  getItemStatusClassName(status: string | number): StatusClassNameType {
+  getItemStatusClassName(status: number | string): StatusClassNameType {
     const target = this.statusMapping.find(item => item.id === status);
     return (target.color as StatusClassNameType) || 'none';
   }
@@ -417,7 +418,6 @@ export default class HostList extends tsc<IProps, IEvents> {
         const itemId = this.getItemId(item);
         return (
           <div
-            v-bk-overflow-tips={{ content: item.ip || item.name }}
             class={[
               'host-item-wrap',
               {
@@ -425,6 +425,7 @@ export default class HostList extends tsc<IProps, IEvents> {
                 'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
               },
             ]}
+            v-bk-overflow-tips={{ content: item.ip || item.name }}
             onClick={() => this.handleClickItem(itemId, item)}
           >
             {!!this.hostStatusMap[item.status] ? (
@@ -465,28 +466,28 @@ export default class HostList extends tsc<IProps, IEvents> {
           <div class='host-list-tool'>
             {this.conditionList.length ? (
               <bk-search-select
-                placeholder={this.$t('搜索')}
                 vModel={this.searchCondition}
+                data={this.currentConditionList}
+                placeholder={this.$t('搜索')}
                 show-condition={false}
                 show-popover-tag-change={false}
-                data={this.currentConditionList}
                 onChange={this.handleSearch}
               />
             ) : (
               <bk-input
                 class='host-search'
-                value={this.searchKeyword}
-                right-icon='bk-icon icon-search'
                 placeholder={this.placeholder}
+                right-icon='bk-icon icon-search'
+                value={this.searchKeyword}
                 onInput={this.handleLocalSearch}
               ></bk-input>
             )}
             {this.enableStatusFilter && (
               <StatusTab
-                needAll={false}
-                disabledClickZero
                 v-model={this.currentStatus}
+                needAll={false}
                 statusList={this.statusList}
+                disabledClickZero
                 onChange={this.handleStatusFilter}
               ></StatusTab>
             )}
@@ -502,8 +503,8 @@ export default class HostList extends tsc<IProps, IEvents> {
             {this.isTargetCompare ? (
               <bk-alert
                 class='target-compare-tips'
-                type='info'
                 title={this.$t('选择目标进行对比')}
+                type='info'
               ></bk-alert>
             ) : undefined}
           </div>
@@ -519,8 +520,8 @@ export default class HostList extends tsc<IProps, IEvents> {
               //   : undefined,
               this.hostListData.length ? (
                 <bk-virtual-scroll
-                  style={{ height: `${this.listHeight}px` }}
                   ref='hostListRef'
+                  style={{ height: `${this.listHeight}px` }}
                   item-height={32}
                   scopedSlots={scopedSlots}
                 />
@@ -528,8 +529,8 @@ export default class HostList extends tsc<IProps, IEvents> {
             ]
           ) : (
             <bk-exception
-              type='empty'
               scene='part'
+              type='empty'
             />
           )}
         </div>

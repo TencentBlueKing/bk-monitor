@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, PropType } from 'vue';
+
 import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
 
 import { IFavoriteItem } from '../../typings';
@@ -99,11 +100,11 @@ export default defineComponent({
             <span class='append-tools-item'>
               <RefreshRate
                 value={props.refreshInterval}
+                onImmediate={() => emit('immediateRefresh')}
                 onSelect={val => {
                   emit('update:refreshInterval', val);
                   emit('refreshIntervalChange', val);
                 }}
-                onImmediate={() => emit('immediateRefresh')}
               />
               <SelectMenu
                 list={props.menuList}

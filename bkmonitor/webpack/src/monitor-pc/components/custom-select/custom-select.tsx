@@ -32,7 +32,7 @@ import { getPopoverWidth } from '../../utils';
 import './custom-select.scss';
 
 export interface ICustomSelectProps {
-  value?: string[] | string;
+  value?: string | string[];
   multiple?: boolean;
   options?: IOption[];
   searchable?: boolean;
@@ -79,7 +79,7 @@ export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectE
         },
         searchable: true,
       },
-      this.$attrs,
+      this.$attrs
     );
   }
 

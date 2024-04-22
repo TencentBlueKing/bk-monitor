@@ -25,12 +25,12 @@
 -->
 <template>
   <div
-    class="monitor-echart-wrap"
     :style="{ 'background-image': backgroundUrl }"
+    class="monitor-echart-wrap"
   >
     <div
-      class="echart-header"
       v-if="chartTitle || $slots.title"
+      class="echart-header"
     >
       <chart-title
         :title="chartTitle"
@@ -40,22 +40,22 @@
       />
     </div>
     <div
+      ref="charWrapRef"
       class="chart-wrapper"
       tabindex="-1"
-      ref="charWrapRef"
       :style="{
         flexDirection: !chartOption.legend.toTheRight ? 'column' : 'row',
         minHeight: height - (chartTitle ? 36 : 0) + 'px',
-        maxHeight: height - (chartTitle ? 36 : 0) + 'px'
+        maxHeight: height - (chartTitle ? 36 : 0) + 'px',
       }"
       @blur="handleCharBlur"
       @dblclick.prevent="handleChartDblClick"
     >
       <div
-        @click.stop="handleChartClick"
-        class="echart-instance"
         ref="chartRef"
+        class="echart-instance"
         :style="{ height: chartHeight - 10 + 'px' }"
+        @click.stop="handleChartClick"
       >
         <div
           v-if="chartType === 'status'"
@@ -70,7 +70,7 @@
         class="echart-legend"
         :style="{
           maxHeight:
-            (chartOption.legend.toTheRight ? height - (chartTitle ? 36 : 0) - 5 : chartOption.legend.maxHeight) + 'px'
+            (chartOption.legend.toTheRight ? height - (chartTitle ? 36 : 0) - 5 : chartOption.legend.maxHeight) + 'px',
         }"
       >
         <chart-legend
@@ -93,9 +93,9 @@
       />
     </div>
     <div
-      class="echart-content"
       v-if="setNoData"
       v-show="noData || !series || !series.length"
+      class="echart-content"
     >
       <slot name="noData">
         {{ emptyText }}
@@ -105,6 +105,7 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+
 import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
@@ -124,7 +125,8 @@ import {
   IStatusChartOption,
   IStatusSeries,
   ITextChartOption,
-  ITextSeries } from './options/type-interface';
+  ITextSeries,
+} from './options/type-interface';
 import { echarts, MonitorEchartOptions, MonitorEchartSeries } from './types/monitor-echarts';
 import ChartInView from './utils/chart-in-view';
 import watermarkMaker from './utils/watermarkMaker';
@@ -143,8 +145,8 @@ const hexToRgbA = (hex, apacity = 1) => {
   throw new Error('Bad Hex');
 };
 interface ICurValue {
-  xAxis: string | number;
-  yAxis: string | number;
+  xAxis: number | string;
+  yAxis: number | string;
   dataIndex: number;
   color: string;
   name: string;
@@ -156,15 +158,15 @@ interface ICurValue {
     ChartLegend,
     ChartTools,
     ChartAnnotation,
-    ChartTitle
-  }
+    ChartTitle,
+  },
 })
 export default class MonitorEcharts extends Vue {
   @Ref() readonly chartRef!: HTMLDivElement;
   @Ref() readonly charWrapRef!: HTMLDivElement;
 
   // echarts配置项
-  @Prop() readonly options: MonitorEchartOptions | IStatusChartOption | ITextChartOption;
+  @Prop() readonly options: IStatusChartOption | ITextChartOption | MonitorEchartOptions;
   // echarts配置项是否深度监听
   @Prop({ default: true }) readonly watchOptionsDeep: boolean;
   // 是否自动resize
@@ -183,16 +185,16 @@ export default class MonitorEcharts extends Vue {
   @Prop({ default: '' }) readonly title: string;
   @Prop({ default: '' }) readonly subtitle: string;
   // 图表系列数据
-  @Prop() readonly series: MonitorEchartSeries | IStatusSeries | ITextSeries;
+  @Prop() readonly series: IStatusSeries | ITextSeries | MonitorEchartSeries;
 
   // 背景图
   @Prop({
     type: String,
     default() {
       return `url('${watermarkMaker(window.user_name || window.username)}')`;
-    }
+    },
   })
-    backgroundUrl: String;
+  backgroundUrl: String;
 
   // 获取图标数据
   @Prop() getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;
@@ -254,18 +256,18 @@ export default class MonitorEcharts extends Vue {
       '#FCE2DE',
       '#BADFF4',
       '#F9D9F9',
-      '#DEDAF7'
-    ]
+      '#DEDAF7',
+    ],
   })
   // 图标系列颜色集合
-    colors: string[];
+  colors: string[];
 
   @Prop({
     default() {
       return '查无数据';
-    }
+    },
   })
-    emptyText: string;
+  emptyText: string;
 
   // 图表高度
   @Prop({ default: 310 }) height: number | string;
@@ -290,7 +292,7 @@ export default class MonitorEcharts extends Vue {
   hasInitChart = false;
   legend: { show: boolean; list: ILegendItem[] } = {
     show: false,
-    list: []
+    list: [],
   };
   statusSeries: IStatusSeries[] = []; // status图表数据
   textSeries: ITextSeries = {}; // status图表数据
@@ -308,22 +310,21 @@ export default class MonitorEcharts extends Vue {
             axis: 'auto',
             label: {
               show: false,
-              formatter: (params) => {
+              formatter: params => {
                 if (this.chartType !== 'line') return;
                 if (params.axisDimension === 'y') {
                   this.curValue.yAxis = params.value;
                 } else {
                   this.curValue.xAxis = params.value;
-                  this.curValue.dataIndex = params.seriesData?.length
-                    ? params.seriesData[0].dataIndex : -1;
+                  this.curValue.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
                 }
-              }
+              },
             },
             crossStyle: {
               color: 'transparent',
               opacity: 0,
-              width: 0
-            }
+              width: 0,
+            },
           },
           appendToBody: true,
           formatter: this.handleSetTooltip,
@@ -340,15 +341,15 @@ export default class MonitorEcharts extends Vue {
             if (this.chartInView.chartInBottom || (!this.chartInView.chartInTop && isBig)) {
               return {
                 left: pos[0] + 20,
-                bottom: size.viewSize[1] - pos[1] + 20
+                bottom: size.viewSize[1] - pos[1] + 20,
               };
             }
             return {
               left: pos[0] + 20,
-              top: pos[1] + -20
+              top: pos[1] + -20,
             };
-          }
-        }
+          },
+        },
       };
     }
     return {};
@@ -359,26 +360,26 @@ export default class MonitorEcharts extends Vue {
         legend: {
           asTable: false, // 是否转换为table图例
           toTheRight: false, // 图例位置在右侧
-          maxHeight: 30 // 图例最大高度 只对toTheRight为false有效
+          maxHeight: 30, // 图例最大高度 只对toTheRight为false有效
         },
         tool: {
           show: true, // 工具栏是否显示
           moreList: ['explore', 'set', 'strategy', 'area'], // 要显示的多工具栏的配置id 空数组则为不显示
-          list: ['save', 'screenshot', 'fullscreen', 'explore', 'set', 'strategy', 'area']
+          list: ['save', 'screenshot', 'fullscreen', 'explore', 'set', 'strategy', 'area'],
         },
         annotation: {
           show: false, // 是否显示annotation
-          list: ['ip', 'process', 'strategy'] // 要显示的anotation配置id 空数组则为不显示
-        }
+          list: ['ip', 'process', 'strategy'], // 要显示的anotation配置id 空数组则为不显示
+        },
       },
       this.options || {},
       {
-        arrayMerge: (destinationArray, sourceArray) => sourceArray
+        arrayMerge: (destinationArray, sourceArray) => sourceArray,
       }
     );
   }
   get chartHeight() {
-    let { height  } = this;
+    let { height } = this;
     if (this.chartTitle) {
       height -= 36;
     }
@@ -461,8 +462,8 @@ export default class MonitorEcharts extends Vue {
   }
   // 注册Intersection监听
   registerObserver(): void {
-    this.intersectionObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
         if (this.needObserver) {
           if (entry.intersectionRatio > 0) {
             this.handleSeriesData();
@@ -489,9 +490,9 @@ export default class MonitorEcharts extends Vue {
       const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
       const data = await this.getSeriesData(startTime, endTime, isRange).catch(() => ({ series: [] }));
       if (
-        !this.isEchartsRender
-        || (Array.isArray(data) && data.length && data.some(item => item))
-        || (data && Object.prototype.hasOwnProperty.call(data, 'series') && data.series.length)
+        !this.isEchartsRender ||
+        (Array.isArray(data) && data.length && data.some(item => item)) ||
+        (data && Object.prototype.hasOwnProperty.call(data, 'series') && data.series.length)
       ) {
         await this.handleSetChartData(data);
       } else {
@@ -517,33 +518,33 @@ export default class MonitorEcharts extends Vue {
         return {
           ...item,
           data: datapoints.map(set => (Array.isArray(set) ? set.slice().reverse() : [])),
-          name: !mapData[target] ? target : target + mapData[target]
+          name: !mapData[target] ? target : target + mapData[target],
         };
-      })
+      }),
     };
   }
   // 设置chart配置
   async handleSetChartData(data) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (!this.chart) {
         this.initChart();
       }
       if (this.isEchartsRender) {
         const series: any = deepMerge([], data || []);
-        const hasSeries =          (series && series.length > 0 && series.some(item => item.datapoints?.length))
-          || (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+        const hasSeries =
+          (series && series.length > 0 && series.some(item => item.datapoints?.length)) ||
+          (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
 
         this.chartOptionInstance = new EchartOptions({
           chartType: this.chartType,
           colors: this.colors,
           showExtremum: this.chartOption.legend.asTable,
-          chartOption: this.chartOption
+          chartOption: this.chartOption,
         } as any);
         const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(series), {});
         if (['bar', 'line'].includes(this.chartType)) {
           this.legend.show = hasSeries && optionData.legendData.length > 0;
         } else {
-          // eslint-disable-next-line no-nested-ternary
           this.legend.show = optionData.options.lengend
             ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
               ? optionData.options.lengend.show
@@ -552,20 +553,20 @@ export default class MonitorEcharts extends Vue {
         }
         this.legend.list = optionData.legendData || [];
         if (this.chartOption.grid) {
-          optionData.options.grid.bottom = (this.chartOption.grid).bottom;
+          optionData.options.grid.bottom = this.chartOption.grid.bottom;
         }
         setTimeout(() => {
           if (this.chart) {
             this.chart.setOption(deepMerge(optionData.options, this.defaultOptions), {
               notMerge: false,
               lazyUpdate: false,
-              silent: false
+              silent: false,
             });
             if (!this.hasInitChart) {
               this.hasInitChart = true;
               if (optionData.options.toolbox) {
                 this.initChartAction();
-                this.chart.on('dataZoom', async (event) => {
+                this.chart.on('dataZoom', async event => {
                   this.loading = true;
                   const [batch] = event.batch;
                   if (batch.startValue && batch.endValue) {
@@ -574,7 +575,7 @@ export default class MonitorEcharts extends Vue {
                     this.timeRange = [timeFrom, timeTo];
                     if (this.getSeriesData) {
                       this.chart.dispatchAction({
-                        type: 'restore'
+                        type: 'restore',
                       });
                       await this.handleSeriesData(timeFrom, timeTo);
                     }
@@ -604,7 +605,7 @@ export default class MonitorEcharts extends Vue {
         const formater = getValueFormat(setData?.unit || '')(+value);
         this.textSeries = {
           value: +formater.text || '',
-          unit: formater.suffix
+          unit: formater.suffix,
         };
         this.curChartOption = {};
         resolve(undefined);
@@ -618,14 +619,14 @@ export default class MonitorEcharts extends Vue {
   // 设置tooltip
   handleSetTooltip(params) {
     if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
-      this.chartType === 'line'
-        && (this.curValue = {
+      this.chartType === 'line' &&
+        (this.curValue = {
           color: '',
           name: '',
           seriesIndex: -1,
           dataIndex: -1,
           xAxis: '',
-          yAxis: ''
+          yAxis: '',
         });
       return;
     }
@@ -634,18 +635,18 @@ export default class MonitorEcharts extends Vue {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
 
-    const liHtmls = params.map((item) => {
-      let markColor = 'color: \'#fafbfd\';';
+    const liHtmls = params.map(item => {
+      let markColor = "color: '#fafbfd';";
       if (data[0].value === item.value[1]) {
-        markColor = 'color: \'#ffffff\';font-weight: bold;';
-        this.chartType === 'line'
-          && (this.curValue = {
+        markColor = "color: '#ffffff';font-weight: bold;";
+        this.chartType === 'line' &&
+          (this.curValue = {
             color: item.color,
             name: item.seriesName,
             seriesIndex: item.seriesIndex,
             dataIndex: item.dataIndex,
             xAxis: item.value[0],
-            yAxis: item.value[1]
+            yAxis: item.value[1],
           });
       }
       if (item.value[1] === null) return '';
@@ -678,10 +679,10 @@ export default class MonitorEcharts extends Vue {
     if (this.timeRange.length > 0) {
       this.timeRange = [];
       this.chart.dispatchAction({
-        type: 'restore'
+        type: 'restore',
       });
-      this.getSeriesData
-        && setTimeout(() => {
+      this.getSeriesData &&
+        setTimeout(() => {
           this.handleSeriesData();
         }, 100);
     }
@@ -701,7 +702,7 @@ export default class MonitorEcharts extends Vue {
         if (series?.length) {
           const setPixel = this.chart.convertToPixel({ seriesIndex: this.curValue.seriesIndex }, [
             this.curValue.xAxis,
-            this.curValue.yAxis
+            this.curValue.yAxis,
           ]);
           const { dimensions = {}, metric = {} } = series[this.curValue.seriesIndex];
           const { annotation } = this.chartOption;
@@ -719,22 +720,22 @@ export default class MonitorEcharts extends Vue {
                 show: annotation.list.includes('ip') && !!dimensions.bk_target_ip,
                 value: `${dimensions.bk_target_ip}${
                   dimensions.bk_target_cloud_id ? `-${dimensions.bk_target_cloud_id}` : ''
-                }`
+                }`,
               },
               {
                 id: 'process',
                 show: annotation.list.includes('process') && (!!dimensions.process_name || !!dimensions.display_name),
                 value: {
                   processId: dimensions.process_name || dimensions.display_name || '',
-                  id: `${dimensions.bk_target_ip}-${dimensions.bk_target_cloud_id}`
-                }
+                  id: `${dimensions.bk_target_ip}-${dimensions.bk_target_cloud_id}`,
+                },
               },
               {
                 id: 'strategy',
                 show: annotation.list.includes('strategy') && !!metric.metric_field,
-                value: `${metric.result_table_id}.${metric.metric_field}`
-              }
-            ]
+                value: `${metric.result_table_id}.${metric.metric_field}`,
+              },
+            ],
           };
           this.charWrapRef.focus();
           this.chart.dispatchAction({ type: 'hideTip' });
@@ -779,8 +780,8 @@ export default class MonitorEcharts extends Vue {
       this.chart.setOption({
         ...options,
         yAxis: {
-          scale: needScale
-        }
+          scale: needScale,
+        },
       });
     }
   }
@@ -793,9 +794,9 @@ export default class MonitorEcharts extends Vue {
         series: options.series.map((item, index) => ({
           ...item,
           areaStyle: {
-            color: isArea ? hexToRgbA(this.colors[index % this.colors.length], 0.2) : 'transparent'
-          }
-        }))
+            color: isArea ? hexToRgbA(this.colors[index % this.colors.length], 0.2) : 'transparent',
+          },
+        })),
       });
     }
   }
@@ -822,15 +823,15 @@ export default class MonitorEcharts extends Vue {
     if (actionType === 'shift-click') {
       this.chart.dispatchAction({
         type: !item.show ? 'legendSelect' : 'legendUnSelect',
-        name: item.name
+        name: item.name,
       });
       item.show = !item.show;
     } else if (actionType === 'click') {
       const hasOtherShow = this.legend.list.some(set => set.name !== item.name && set.show);
-      this.legend.list.forEach((legend) => {
+      this.legend.list.forEach(legend => {
         this.chart.dispatchAction({
           type: legend.name === item.name || !hasOtherShow ? 'legendSelect' : 'legendUnSelect',
-          name: legend.name
+          name: legend.name,
         });
         legend.show = legend.name === item.name || !hasOtherShow;
       });
@@ -845,7 +846,7 @@ export default class MonitorEcharts extends Vue {
         .catch(() => {});
     } else {
       toPng(this.$el as HTMLDivElement)
-        .then((dataUrl) => {
+        .then(dataUrl => {
           const tagA = document.createElement('a');
           tagA.download = `${this.title}.png`;
           tagA.href = dataUrl;
@@ -900,7 +901,7 @@ export default class MonitorEcharts extends Vue {
 
   // 初始化chart事件
   initChartEvent() {
-    this.chart.on('click', (e) => {
+    this.chart.on('click', e => {
       this.$emit('chart-click', e);
     });
   }
@@ -910,7 +911,7 @@ export default class MonitorEcharts extends Vue {
     this.dispatchAction({
       type: 'takeGlobalCursor',
       key: 'dataZoomSelect',
-      dataZoomSelectActive: true
+      dataZoomSelectActive: true,
     });
   }
 

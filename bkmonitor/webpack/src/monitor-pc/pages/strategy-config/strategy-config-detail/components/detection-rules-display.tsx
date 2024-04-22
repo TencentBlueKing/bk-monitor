@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getUnitInfo } from 'monitor-api/modules/strategies';
 
 import { CONDITION_METHOD_LIST, SIMPLE_METHOD_LIST } from '../../../../constant/constant';
@@ -326,12 +327,12 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
   intelligentDetectTpl() {
     return (
       <IntelligentDetect
-        readonly
-        onModelChange={this.handleModelChange}
-        onChartTypeChange={this.handleAiopsChartTypeChange}
-        resultTableId={this.metricData[0]?.intelligent_detect?.result_table_id}
         data={this.value}
         interval={this.metricData[0].agg_interval}
+        resultTableId={this.metricData[0]?.intelligent_detect?.result_table_id}
+        readonly
+        onChartTypeChange={this.handleAiopsChartTypeChange}
+        onModelChange={this.handleModelChange}
       />
     );
   }
@@ -339,11 +340,11 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
   timeSeriesForecastingTpl() {
     return (
       <TimeSeriesForecast
-        readonly
         data={this.value}
+        interval={this.metricData[0].agg_interval}
         methodList={CONDITION_METHOD_LIST}
         unit={this.unitDisplay}
-        interval={this.metricData[0].agg_interval}
+        readonly
         onModelChange={this.handleModelChange}
       />
     );
@@ -352,10 +353,10 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
   handleOutlierDetecTpl() {
     return (
       <AbnormalCluster
-        readonly
-        metricData={this.metricData}
         data={this.value}
         interval={this.metricData[0].agg_interval}
+        metricData={this.metricData}
+        readonly
       />
     );
   }
@@ -422,8 +423,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
     return (
       <div class='rules-item'>
         <i18n
-          path='(当前值 - 前一时刻值){0}过去{1}天内任意一天同时刻的 (差值 ×{2}+{3}) 时触发告警'
           class='i18n-path'
+          path='(当前值 - 前一时刻值){0}过去{1}天内任意一天同时刻的 (差值 ×{2}+{3}) 时触发告警'
         >
           <span class='i18n-span'>{this.getCurrentMethod(this.config.method)}</span>
           <span class='i18n-span'>{this.config.days}</span>
@@ -438,8 +439,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
     return (
       <div class='rules-item'>
         <i18n
-          path='当前值与前一时刻值 >={0}且，之间差值 >= 前一时刻 ×{1}+{2}'
           class='i18n-path'
+          path='当前值与前一时刻值 >={0}且，之间差值 >= 前一时刻 ×{1}+{2}'
         >
           <span class='i18n-span'>{this.config.threshold}</span>
           <span class='i18n-span'>{this.config.ratio}</span>
@@ -453,8 +454,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
     return (
       <div class='rules-item'>
         <i18n
-          path='当前值 {0} 过去{1}天内同时刻绝对值 ×{2}+{3}'
           class='i18n-path'
+          path='当前值 {0} 过去{1}天内同时刻绝对值 ×{2}+{3}'
         >
           <span class='i18n-span'>{this.getCurrentMethod(this.config.method)}</span>
           <span class='i18n-span'>{this.config.days}</span>

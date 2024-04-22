@@ -1125,14 +1125,14 @@
   dest_http_method: DELETE
   is_hidden: True
 
-- path: /v2/bk_log/index_set/{index_set_id}/desensitize/config/state/
+- path: /v2/bk_log/index_set/desensitize/config/state/
   name: desensitize_config_state
   label: 索引集脱敏状态
   label_en: desensitize config state
   method: POST
   api_type: query
   comp_codename: generic.v2.bk_log.bk_log_component
-  dest_path: /api/v1/index_set/{index_set_id}/desensitize/config/state/
+  dest_path: /api/v1/index_set/desensitize/config/state/
   dest_http_method: POST
   is_hidden: True
 

@@ -26,7 +26,6 @@
 import { RouteConfig } from 'vue-router';
 
 import * as functionAuth from '../../pages/function-switch/authority-map';
-
 import externalAuthRoutes from './external-auth';
 import noBusinessRoutess from './no-business';
 import shareRoutes from './share';
