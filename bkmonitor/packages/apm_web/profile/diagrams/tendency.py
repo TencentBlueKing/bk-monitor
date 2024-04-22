@@ -11,7 +11,9 @@ specific language governing permissions and limitations under the License.
 
 class TendencyDiagrammer:
     field_key = "(round((cast(dtEventTimeStamp as DOUBLE) / cast(60000 as DOUBLE))) * cast(60 as DOUBLE))"
+    field_key1 = "((round((CAST(`dtEventTimeStamp` AS DOUBLE) / 60000)) * 60))"
     value_key = "sum(value)"
+    value_key1 = "sum(`value`)"
 
     def draw(self, c: dict, **options) -> dict:
         """statistics profile data by time"""
@@ -22,7 +24,12 @@ class TendencyDiagrammer:
                 {
                     "alias": "_result_",
                     "datapoints": [
-                        [int(i[self.field_key]), i[self.value_key]] for i in c.get("list", []) if self.field_key in i
+                        [
+                            i.get(self.value_key, i.get(self.value_key1)),
+                            int(i.get(self.field_key, i.get(self.field_key1))),
+                        ]
+                        for i in c.get("list", [])
+                        if self.field_key in i or self.field_key1 in i
                     ],
                     "type": "line",
                     "unit": "",
@@ -39,9 +46,12 @@ class TendencyDiagrammer:
                 {
                     "alias": "_result_",
                     "datapoints": [
-                        [int(i[self.field_key]), i[self.value_key]]
+                        [
+                            i.get(self.value_key, i.get(self.value_key1)),
+                            int(i.get(self.field_key, i.get(self.field_key1))),
+                        ]
                         for i in base_doris_converter.get("list", [])
-                        if self.field_key in i
+                        if self.field_key in i or self.field_key1 in i
                     ],
                     "type": "line",
                     "unit": "",
@@ -50,9 +60,12 @@ class TendencyDiagrammer:
                 {
                     "alias": "_result_",
                     "datapoints": [
-                        [int(i[self.field_key]), i[self.value_key]]
+                        [
+                            i.get(self.value_key, i.get(self.value_key1)),
+                            int(i.get(self.field_key, i.get(self.field_key1))),
+                        ]
                         for i in diff_doris_converter.get("list", [])
-                        if self.field_key in i
+                        if self.field_key in i or self.field_key1 in i
                     ],
                     "type": "line",
                     "unit": "",
