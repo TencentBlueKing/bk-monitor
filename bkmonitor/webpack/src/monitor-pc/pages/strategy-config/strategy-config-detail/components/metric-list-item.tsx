@@ -311,7 +311,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
         </div>
 
         <div style='display:none'>
-          <div ref='metricTipsContent'>{this.handleGetMetricTipsContent(this.metric)}</div>
+          {this.metric && <div ref='metricTipsContent'>{this.handleGetMetricTipsContent(this.metric)}</div>}
         </div>
       </div>
     );
