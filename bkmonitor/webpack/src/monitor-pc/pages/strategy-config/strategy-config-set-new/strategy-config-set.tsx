@@ -1551,6 +1551,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.target = target;
     this.defaultCheckedTarget.target_detail = target;
     if (this.isMultivariateAnomalyDetection) {
+      /* refleshKey用于控制图表数据刷新 */
       this.multivariateAnomalyDetectionParams.refleshKey = random(8);
     }
   }
@@ -2434,6 +2435,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    */
   handleSceneConfigMetricChange(metrics) {
     this.multivariateAnomalyDetectionParams.metrics = metrics;
+    /* refleshKey用于控制图表数据刷新 */
     this.multivariateAnomalyDetectionParams.refleshKey = random(8);
   }
 
