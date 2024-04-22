@@ -275,6 +275,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     this.pagination.total = 0;
     this.tag.value = '';
     this.isRefreshSuccess = false;
+    if (!this.metricId) {
+      this.selectedMetric = null;
+    }
   }
 
   @Debounce(300)
@@ -875,15 +878,17 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               <div class='metric-selector-tags'>
                 <HorizontalScrollContainer key={String(this.tag.list?.length || 0)}>
                   <div class='built-in'>
-                    {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(item => (
-                      <div
-                        class={['built-in-item', { active: this.tag.value === item.id }]}
-                        key={item.id}
-                        on-click={() => this.handleTagClick(item.id)}
-                      >
-                        {item.name}
-                      </div>
-                    ))}
+                    {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(
+                      (item, index) => (
+                        <div
+                          class={['built-in-item', { active: this.tag.value === item.id }]}
+                          key={`${item.id}_${index}`}
+                          on-click={() => this.handleTagClick(item.id)}
+                        >
+                          {item.name}
+                        </div>
+                      ),
+                    )}
                   </div>
                 </HorizontalScrollContainer>
               </div>
@@ -904,6 +909,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                         'common-type': this.type === MetricType.TimeSeries,
                       },
                     ]}
+                    key={`__${this.selectedMetric?.metric_id || '--'}__`}
                   >
                     <div class='selected-label'>
                       <div class='blue-bg'>
@@ -921,6 +927,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   [
                     this.metricList.map((item, index) => (
                       <div
+                        key={`${item.metric_id}_${index}`}
                         class={[
                           'metric-item',
                           {
