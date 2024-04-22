@@ -62,7 +62,6 @@ class CheckCMSIResource(CMSIBaseResource):
             return {"username_check": {"invalid": []}, "message": _("发送成功")}
         except BKAPIError as e:
             invalid = receivers
-            self.report_api_failure_metric(error_code=BKAPIError.code, exception_type=BKAPIError.__name__)
             if isinstance(e.data, dict):
                 try:
                     invalid = e.data["data"]["username_check"]["invalid"]

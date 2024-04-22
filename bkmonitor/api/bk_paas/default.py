@@ -40,6 +40,7 @@ class GetAppClusterNamespaceResource(BkPaaSAPIGWResource):
         try:
             resp = super(GetAppClusterNamespaceResource, self).perform_request(validated_request_data)
         except Exception:
+            # TODO:这个地方是否需要上报记录？
             resp = []
 
         return resp

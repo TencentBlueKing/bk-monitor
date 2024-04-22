@@ -37,6 +37,11 @@ class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
         return request_url.format(**validated_request_data)
 
+    def get_headers(self):
+        headers = super(BcsStorageBaseResource, self).get_headers()
+        headers["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
+        return headers
+
     def render_response_data(self, validated_request_data, response_data):
         data = []
         for item in response_data.get("data", []):

@@ -93,7 +93,6 @@ class SendNoticeGroupMsg(BkchatAPIGWResource):
             return {"username_check": {"invalid": []}, "message": _("发送成功")}
         except BKAPIError as e:
             invalid = validated_request_data["notice_group_id_list"]
-            self.report_api_failure_metric(error_code=getattr(e, 'code', 0), exception_type=BKAPIError.__name__)
             if isinstance(e.data, dict):
                 try:
                     invalid = e.data["data"]["fail_notice_group_id_list"]

@@ -70,9 +70,9 @@ class CMDBBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         # 非cmdb空间兼容，无关联资源捕获异常返回空数据
         try:
             return super(CMDBBaseResource, self).perform_request(validated_request_data)
-        except NoRelatedResourceError:
+        except NoRelatedResourceError as err:
             self.report_api_failure_metric(
-                error_code=getattr(NoRelatedResourceError, 'code', 0), exception_type=NoRelatedResourceError.__name__
+                error_code=getattr(err, 'code', 0), exception_type=NoRelatedResourceError.__name__
             )
             return self.return_type()
 

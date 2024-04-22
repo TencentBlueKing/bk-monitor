@@ -45,7 +45,6 @@ class SopsBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
                 return super(SopsBaseResource, self).perform_request(params)
             except BKAPIError as error:
                 code = error.data.get("code")
-                self.report_api_failure_metric(error_code=code, exception_type=BKAPIError.__name__)
                 if code == 3599999:
                     # 标准运维权限不足的时候，继续运行
                     if index < len(assignee) - 1:

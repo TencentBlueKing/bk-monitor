@@ -218,10 +218,6 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             # 上报API调用失败统计指标
             self.report_api_failure_metric(error_code=getattr(error, 'code', 0), exception_type=type(error).__name__)
             raise BKAPIError(system_name=self.module_name, url=self.action, result=_("接口返回结果超时"))
-        except Exception as error:  # pylint: disable=broad-except
-            logger.exception("【模块：{}】请求APIGW错误：{}，请求url: {} ".format(self.module_name, error, request_url))
-            self.report_api_failure_metric(error_code=getattr(error, 'code', 0), exception_type=type(error).__name__)
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=_(type(error).__name__))
 
         try:
             result.raise_for_status()
@@ -278,7 +274,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             code=error_code,
             role=settings.ROLE,
             exception=exception_type,
-            user_name=getattr(self, 'bk_username', 'Unknown user'),
+            user_name=getattr(self, 'bk_username', ''),
         ).inc()
         metrics.report_all()
 

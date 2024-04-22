@@ -22,4 +22,6 @@ logger = logging.getLogger(__name__)
 
 class BcsApiGatewayBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     def get_headers(self):
-        return {"Authorization": f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"}
+        headers = super(BcsApiGatewayBaseResource, self).get_headers()
+        headers["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
+        return headers
