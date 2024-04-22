@@ -338,7 +338,7 @@ export default {
     }
   },
   created() {
-    this.handleRetrieve = debounce(300, false, () => this.$emit('retrieve'));
+    this.handleRetrieve = debounce(300, () => this.$emit('retrieve'));
   },
   methods: {
     handleClickDropdown(e) {
