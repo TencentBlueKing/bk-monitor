@@ -40,10 +40,10 @@ import './my-apply.scss';
 @Component({
   components: {
     ReportDetail,
-    QueryTypeRadio
-  }
+    QueryTypeRadio,
+  },
 })
-class MyApply extends tsc<{}> {
+class MyApply extends tsc<object> {
   approvalStatus: MyApplicationQueryType = 'ALL';
   searchValue = '';
   tableData = [];
@@ -55,7 +55,7 @@ class MyApply extends tsc<{}> {
     { type: 'ALL', text: '全部', iconClass: 'ALL', isShow: false },
     { type: 'RUNNING', text: '待审批', iconClass: 'RUNNING' },
     { type: 'SUCCESS', text: '审批通过', iconClass: 'SUCCESS' },
-    { type: 'FAILED', text: '审批驳回', iconClass: 'FAILED' }
+    { type: 'FAILED', text: '审批驳回', iconClass: 'FAILED' },
   ];
   handleGetSubscriptionID(report_id) {
     getReport({ report_id }).then(response => {
@@ -113,7 +113,7 @@ class MyApply extends tsc<{}> {
           <bk-table
             data={this.computedTableData}
             v-bkloading={{
-              isLoading: this.isTableLoading
+              isLoading: this.isTableLoading,
             }}
             style='margin-top: 24px;'
           >
@@ -123,7 +123,7 @@ class MyApply extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return <div v-bk-overflow-tips>{row.approval_sn}</div>;
-                }
+                },
               }}
             ></bk-table-column>
 
@@ -148,7 +148,7 @@ class MyApply extends tsc<{}> {
                       </bk-button>
                     </div>
                   );
-                }
+                },
               }}
             ></bk-table-column>
 
@@ -158,7 +158,7 @@ class MyApply extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return <div v-bk-overflow-tips>{row.approval_step?.[0]?.name || '--'}</div>;
-                }
+                },
               }}
             ></bk-table-column>
 
@@ -167,7 +167,7 @@ class MyApply extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return <div v-bk-overflow-tips>{row.approvers?.toString?.()}</div>;
-                }
+                },
               }}
             ></bk-table-column>
 
@@ -184,7 +184,7 @@ class MyApply extends tsc<{}> {
                       {ApplyStatus[row.status]}
                     </div>
                   );
-                }
+                },
               }}
             ></bk-table-column>
 
@@ -194,7 +194,7 @@ class MyApply extends tsc<{}> {
               scopedSlots={{
                 default: ({ row }) => {
                   return <div v-bk-overflow-tips>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
-                }
+                },
               }}
             ></bk-table-column>
 
@@ -219,7 +219,7 @@ class MyApply extends tsc<{}> {
                       </bk-button>
                     </div>
                   );
-                }
+                },
               }}
             ></bk-table-column>
           </bk-table>

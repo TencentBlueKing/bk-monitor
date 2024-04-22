@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -45,7 +44,6 @@ interface IBindValue {
   onWidthChange?: Function; // 宽度更新
 }
 interface IDragHtmlElement extends HTMLElement {
-  // eslint-disable-next-line camelcase
   _bk_monitor_drag: {
     el: HTMLDivElement;
     value: IBindValue;
@@ -137,7 +135,7 @@ export const monitorDrag: ObjectDirective = {
     el._bk_monitor_drag = {
       el: dragEle,
       value: bind.value,
-      dragKey: key
+      dragKey: key,
     };
   },
 
@@ -168,5 +166,5 @@ export const monitorDrag: ObjectDirective = {
     delete insertedElMap[dragKey];
 
     delete el._bk_monitor_drag;
-  }
+  },
 };

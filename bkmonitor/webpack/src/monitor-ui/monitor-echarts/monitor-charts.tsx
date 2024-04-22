@@ -54,7 +54,7 @@ interface IMonitorEchartsProps {
   // 图表系列数据
   series: MonitorEchartSeries | IStatusSeries | ITextSeries;
   // 背景图
-  backgroundUrl: String;
+  backgroundUrl: string;
   // 获取图标数据
   getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;
   // 获取指标告警状态信息

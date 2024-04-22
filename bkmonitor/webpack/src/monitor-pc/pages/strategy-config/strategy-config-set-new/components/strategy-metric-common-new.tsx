@@ -39,7 +39,7 @@ import {
   IDataSourceItem,
   ISearchObj,
   ISearchOption,
-  IStaticParams
+  IStaticParams,
 } from '../../../../types/strategy-config/strategy-metric';
 import { IScenarioItem, MetricDetail } from '../typings/index';
 
@@ -76,7 +76,7 @@ interface ICache {
 }
 
 @Component({
-  name: 'StrategyMetricCommon'
+  name: 'StrategyMetricCommon',
 })
 class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
@@ -91,7 +91,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   searchObj: ISearchObj = {
     // 键值对搜索数据
     keyWord: [],
-    data: []
+    data: [],
   };
   scenarioCounts = []; // 各监控对象的count值
   sourceType = 'bk_monitor_time_series'; // 数据来源
@@ -104,7 +104,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   oldCheckedMetricTap = {
     // 已选指标的数据来源及监控对象
     sourceType: '',
-    scenarioType: ''
+    scenarioType: '',
   };
   hoverTimer = null; // tip
   popoverInstance = null;
@@ -115,7 +115,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   isCheckedOther = false; // 是否已选择其他数据来源的指标
   tag = {
     value: '',
-    list: []
+    list: [],
   };
   paramsMap = {
     bk_monitor_time_series: 'fromMonitor', // 监控采集指标
@@ -123,7 +123,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     custom_time_series: 'fromCustomRreporting', // 自定义指标
     custom_event: 'fromCustomRreporting', // 自定义事件
     bk_monitor_event: 'homeLink', // 系统事件
-    log_time_series: 'formLogPlatform' // 日志平台指标
+    log_time_series: 'formLogPlatform', // 日志平台指标
   };
   isSingleChoice = ['bk_data_time_series', 'log_time_series']; // 数据来源单选列表
   isSpecialCMDBDimension = false; // 已选指标维度包含已选维度 bk_inst_id bk_obj_id 则只能进行单选
@@ -230,7 +230,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'bk_monitor_time_series',
         sourceName: this.$tc('监控采集指标'),
-        list: []
+        list: [],
       },
       bk_data_time_series: {
         count: 0,
@@ -238,7 +238,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'bk_data_time_series',
         sourceName: this.$tc('计算平台指标'),
-        list: []
+        list: [],
       },
       custom_time_series: {
         count: 0,
@@ -246,7 +246,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'custom_time_series',
         sourceName: this.$tc('自定义指标'),
-        list: []
+        list: [],
       },
       log_time_series: {
         count: 0,
@@ -254,7 +254,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'log_time_series',
         sourceName: this.$tc('日志平台指标'),
-        list: []
+        list: [],
       },
       bk_apm_trace_timeseries: {
         count: 0,
@@ -262,8 +262,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'bk_apm_trace_timeseries',
         sourceName: 'APM',
-        list: []
-      }
+        list: [],
+      },
     };
   }
 
@@ -298,7 +298,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
       conditions: this.seachParams,
       page_size: this.pageSize,
       page: this.cache?.[cacheKey]?.page ? this.cache[cacheKey].page : 1,
-      tag: this.tag.value
+      tag: this.tag.value,
     };
     if (!needResultTableLabel) {
       delete params.result_table_label;
@@ -346,7 +346,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
       bk_biz_id: this.$store.getters.bizId,
       data_source_label: Array.isArray(dataSource) ? dataSource : [dataSource],
       data_type_label: dataTypeLabel || this.curData.dataTypeLabel,
-      result_table_label: this.scenarioType
+      result_table_label: this.scenarioType,
     };
   }
   // 刷新按钮
@@ -484,7 +484,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   handleMetricFieldName(row) {
     const obj = {
       id: '',
-      alias: ''
+      alias: '',
     };
     obj.id =
       this.sourceType === 'log_time_series'
@@ -540,7 +540,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
       placement: 'top-end',
       boundary: 'window',
       sticky: true,
-      interactive: true
+      interactive: true,
     });
     this.popoverConfirmInstance?.show(100);
   }
@@ -555,7 +555,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     const typeMap = {
       other: this.$refs.popoverConfirm,
       uptimeCheck: this.$refs.popoverConfirmUptimeCheck, // 如果选中服务拨测相关指标则只能单选
-      CMDB: this.$refs.popoverSpecialCMDBD // 如果选中CMDB节点维度的聚合则不能多选
+      CMDB: this.$refs.popoverSpecialCMDBD, // 如果选中CMDB节点维度的聚合则不能多选
     };
     this.curPopoverMetric = item;
     this.popConfirmMertricUtil(typeMap[type], e.target);
@@ -617,7 +617,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         theme: 'tippy-metric',
         arrow: true,
         placement: 'auto',
-        boundary: 'window'
+        boundary: 'window',
       });
       this.popoverInstance?.show();
     }, 1000);
@@ -642,12 +642,10 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     this.$router.push({
       name: 'uptime-check',
       params: {
-        taskId: this.uptimeCheckTaskId.toString()
-      }
+        taskId: this.uptimeCheckTaskId.toString(),
+      },
     });
   }
-
-  /* eslint-disable camelcase */
 
   //  监听滚动加载 到底触发加载
   async handleScroll(e: any) {
@@ -668,7 +666,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     const options = [
       // 公共项
       { id: 'metric_field', name: this.$tc('指标名'), children: [] },
-      { id: 'metric_field_name', name: this.$tc('指标别名'), children: [] }
+      { id: 'metric_field_name', name: this.$tc('指标别名'), children: [] },
     ];
     const searchObj = {
       bk_monitor_time_series: [
@@ -679,7 +677,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         { id: 'result_table_id', name: this.$tc('分类ID'), children: [] },
         { id: 'result_table_name', name: this.$tc('分类名'), children: [] },
         { id: 'description', name: this.$tc('含义'), children: [] },
-        { id: 'collect_config', name: this.$tc('采集配置'), children: [] }
+        { id: 'collect_config', name: this.$tc('采集配置'), children: [] },
       ],
       log_time_series: [
         // 日志平台指标
@@ -688,19 +686,19 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         { id: 'related_id', name: this.$tc('索引集ID'), children: [] },
         { id: 'result_table_id', name: this.$tc('索引'), children: [] },
         { id: 'scenario_name', name: this.$tc('数据源类别'), children: [] },
-        { id: 'storage_cluster_name', name: this.$tc('数据源名'), children: [] }
+        { id: 'storage_cluster_name', name: this.$tc('数据源名'), children: [] },
       ],
       bk_data_time_series: [
         // 计算平台指标
         ...options,
-        { id: 'result_table_id', name: this.$tc('表名'), children: [] }
+        { id: 'result_table_id', name: this.$tc('表名'), children: [] },
       ],
       custom_time_series: [
         // 自定义指标
         ...options,
         { id: 'bk_data_id', name: this.$tc('数据ID'), children: [] },
-        { id: 'result_table_name', name: this.$tc('数据名'), children: [] }
-      ]
+        { id: 'result_table_name', name: this.$tc('数据名'), children: [] },
+      ],
     };
     return searchObj[this.sourceType];
   }
@@ -771,7 +769,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     const className = [
       'content-card',
       { 'card-active': this.handleDetermineMetric(this.checkedMetric, item) },
-      { 'card-disabled': item.disabled }
+      { 'card-disabled': item.disabled },
     ];
     if (alias) {
       dom = (
@@ -974,7 +972,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         >
           <span>{`${this.$t('只能同时选择同一数据来源下的指标')}。 ${this.$t('已选【{0}-{1}】指标', [
             scenarioName,
-            sourceName
+            sourceName,
           ])}，`}</span>
           <span
             on-click={this.handleToCheckedMetric}
@@ -1047,7 +1045,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
             {this.$t('前往设置')}{' '}
           </span>
         </div>
-      </div>
+      </div>,
     ];
   }
 }

@@ -44,8 +44,8 @@ export const commonLegendProps = {
   // 图例数据
   legendData: {
     type: Array as PropType<ILegendItem[]>,
-    required: true
-  }
+    required: true,
+  },
 };
 export const commonLegendEmits = ['selectLegend'];
 
@@ -56,7 +56,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { handleLegendEvent } = useCommonLegend(emit);
     return {
-      handleLegendEvent
+      handleLegendEvent,
     };
   },
   render() {
@@ -87,5 +87,5 @@ export default defineComponent({
         })}
       </div>
     );
-  }
+  },
 });

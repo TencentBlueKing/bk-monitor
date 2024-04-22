@@ -33,27 +33,27 @@ export default defineComponent({
   props: {
     title: {
       type: String,
-      default: '标题'
+      default: '标题',
     },
     visible: {
       type: Boolean,
-      required: true
+      required: true,
     },
     list: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     onChange: {
       type: Function,
-      default: _v => {}
-    }
+      default: _v => {},
+    },
   },
   setup(props) {
     function valueChange(v) {
       props.onChange(v);
     }
     return {
-      valueChange
+      valueChange,
     };
   },
   render() {
@@ -90,5 +90,5 @@ export default defineComponent({
         )}
       </Dialog>
     );
-  }
+  },
 });

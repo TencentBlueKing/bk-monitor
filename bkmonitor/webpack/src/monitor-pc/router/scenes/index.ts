@@ -36,5 +36,5 @@ export default [
   ...performanceRoutes,
   ...uptimeCheckRoutes,
   ...k8sRoutes,
-  ...CustomScenes
+  ...CustomScenes,
 ] as RouteConfig[];

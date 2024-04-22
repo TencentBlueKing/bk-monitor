@@ -315,7 +315,10 @@ export default {
     }
 
     .time-field {
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
       font-weight: 700;
+      color: var(--table-fount-color);
       white-space: nowrap;
     }
 
@@ -326,7 +329,7 @@ export default {
         line-height: 20px;
 
         &.is-limit {
-          max-height: 116px;
+          max-height: 106px;
         }
       }
 
@@ -338,13 +341,13 @@ export default {
       }
 
       .origin-str {
-        line-height: 24px;
+        line-height: 20px;
         color: #313238;
       }
 
       .show-whole-btn {
         position: absolute;
-        top: 93px;
+        top: 84px;
         width: 100%;
         height: 24px;
         font-size: 12px;
@@ -363,7 +366,7 @@ export default {
     }
 
     .original-time {
-      padding-top: 14px;
+      padding-top: 12px;
 
       .cell {
         padding-left: 2px;
@@ -410,7 +413,7 @@ export default {
     .visiable-field {
       .str-content {
         &.is-limit {
-          max-height: 100px;
+          max-height: 106px;
         }
       }
 
@@ -423,7 +426,7 @@ export default {
       }
 
       .show-whole-btn {
-        top: 83px;
+        top: 84px;
       }
     }
 
@@ -437,7 +440,7 @@ export default {
     }
 
     &.original-table .bk-table-column-expand .bk-icon {
-      top: 20px;
+      top: 19px;
     }
   }
 

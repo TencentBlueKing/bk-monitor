@@ -40,7 +40,7 @@ import './log-info.scss';
 const collectorScenarioIdMap = {
   log: window.i18n.tc('采集接入'),
   bkdata: window.i18n.tc('计算平台'),
-  es: window.i18n.tc('第三方ES')
+  es: window.i18n.tc('第三方ES'),
 };
 
 type TStatus = 'RUNNING' | 'SUCCESS' | 'FAILED' | 'PARTFAILED' | 'TERMINATED' | 'UNKNOWN' | 'PREPARE';
@@ -50,7 +50,7 @@ const logTableColumns: ITableColumn[] = [
   { id: 'index_set_scenario_id', name: window.i18n.tc('索引来源'), type: 'scoped_slots' },
   { id: 'status', name: window.i18n.tc('数据状态'), type: 'scoped_slots' },
   { id: 'retention', name: window.i18n.tc('过期时间'), type: 'scoped_slots' },
-  { id: 'operate', name: window.i18n.tc('操作'), type: 'scoped_slots' }
+  { id: 'operate', name: window.i18n.tc('操作'), type: 'scoped_slots' },
 ];
 
 interface IProps {
@@ -73,7 +73,7 @@ export default class LogInfo extends tsc<IProps> {
   pagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   loading = false;
 
@@ -97,7 +97,7 @@ export default class LogInfo extends tsc<IProps> {
     this.allData = await listIndexByHost({
       ip: this.ip,
       bk_cloud_id: cloudId,
-      bk_biz_id: this.detail.bk_biz_id
+      bk_biz_id: this.detail.bk_biz_id,
     }).catch(() => []);
     this.pagination.count = this.allData.length;
     this.pagination.limit = 10;
@@ -110,7 +110,7 @@ export default class LogInfo extends tsc<IProps> {
   getTableData() {
     this.tableData = this.allData.slice(
       (this.pagination.current - 1) * this.pagination.limit,
-      this.pagination.current * this.pagination.limit
+      this.pagination.current * this.pagination.limit,
     );
   }
 
@@ -129,7 +129,7 @@ export default class LogInfo extends tsc<IProps> {
   handleClick(row) {
     const startTime = encodeURIComponent(dayjs.tz(this.detail.begin_time * 1000).format('YYYY-MM-DD HH:mm:ss'));
     const endTime = encodeURIComponent(
-      dayjs.tz(this.detail.end_time ? this.detail.end_time * 1000 : new Date().getTime()).format('YYYY-MM-DD HH:mm:ss')
+      dayjs.tz(this.detail.end_time ? this.detail.end_time * 1000 : new Date().getTime()).format('YYYY-MM-DD HH:mm:ss'),
     );
     const host = window.bk_log_search_url || window.bklogsearch_host;
     let hostScopes = null;
@@ -139,10 +139,10 @@ export default class LogInfo extends tsc<IProps> {
           {
             ip: this.ip,
             bk_cloud_id: this.cloudId,
-            bk_supplier_id: ''
-          }
+            bk_supplier_id: '',
+          },
         ],
-        target_node_type: 'INSTANCE'
+        target_node_type: 'INSTANCE',
       };
     }
     const url = `${host}#/retrieve/${row.index_set_id}?bizId=${
@@ -196,7 +196,7 @@ export default class LogInfo extends tsc<IProps> {
                 >
                   {this.$t('检索')}
                 </span>
-              )
+              ),
             }}
             onPageChange={this.handlePageChange}
             onLimitChange={this.handleLimitChange}

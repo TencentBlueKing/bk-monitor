@@ -96,7 +96,7 @@ export default function transformTraceTree(data: TraceData & { spans: SpanData[]
   const spanIdCounts = new Map();
   const spanMap = new Map<string, Span>();
   // filter out spans with empty start times
-  // eslint-disable-next-line no-param-reassign
+
   data.spans = data.spans.filter(span => Boolean(span.startTime));
 
   const max = data.spans.length;
@@ -116,10 +116,8 @@ export default function transformTraceTree(data: TraceData & { spans: SpanData[]
     // make sure span IDs are unique
     const idCount = spanIdCounts.get(spanID);
     if (idCount != null) {
-      // eslint-disable-next-line no-console
       console.warn(`Dupe spanID, ${idCount + 1} x ${spanID}`, span, spanMap.get(spanID));
       if (_isEqual(span, spanMap.get(spanID))) {
-        // eslint-disable-next-line no-console
         console.warn('\t two spans with same ID have `isEqual(...) === true`');
       }
       spanIdCounts.set(spanID, idCount + 1);
@@ -159,7 +157,6 @@ export default function transformTraceTree(data: TraceData & { spans: SpanData[]
     span.references.forEach((ref, index) => {
       const refSpan = spanMap.get(ref.spanID) as Span;
       if (refSpan) {
-        // eslint-disable-next-line no-param-reassign
         ref.span = refSpan;
         if (index > 0) {
           // Don't take into account the parent, just other references.
@@ -168,7 +165,7 @@ export default function transformTraceTree(data: TraceData & { spans: SpanData[]
             spanID,
             traceID,
             span,
-            refType: ref.refType
+            refType: ref.refType,
           });
         }
       }
@@ -188,6 +185,6 @@ export default function transformTraceTree(data: TraceData & { spans: SpanData[]
     processes: data.processes,
     duration: traceEndTime - traceStartTime,
     startTime: traceStartTime,
-    endTime: traceEndTime
+    endTime: traceEndTime,
   };
 }

@@ -47,7 +47,7 @@ interface IGroupSelectEvent {
   onChange?: string | number;
 }
 @Component({
-  name: 'GroupSelect'
+  name: 'GroupSelect',
 })
 export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
   @Prop({ type: Array, default: () => [] }) list: IGroupItem[];
@@ -67,8 +67,8 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
 
   get filterList() {
     if (!this.keyword) return this.list;
-    return this.list.filter(
-      item => item?.children?.some(child => child.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()))
+    return this.list.filter(item =>
+      item?.children?.some(child => child.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase())),
     );
   }
   get activeList() {
@@ -118,7 +118,7 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
       interactive: true,
       onHide: () => {
         this.isShow = false;
-      }
+      },
     });
     this.popoverInstance?.show?.(100);
   }
@@ -233,22 +233,22 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
                           >
                             {item.name.slice(
                               0,
-                              item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase())
+                              item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()),
                             )}
                             <span style='color: #FF9C00'>
                               {item.name.slice(
                                 item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()),
                                 item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()) +
-                                  this.keyword.length
+                                  this.keyword.length,
                               )}
                             </span>
                             {item.name.slice(
                               item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()) +
                                 this.keyword.length,
-                              item.name.length
+                              item.name.length,
                             )}
                           </li>
-                        )
+                        ),
                     )}
                   </ul>
                 )}

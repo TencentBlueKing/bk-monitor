@@ -42,16 +42,16 @@ export default defineComponent({
   props: {
     interfaceTypeList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     sourceTypeList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     filterList: {
       type: Object as PropType<TraceListType>,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   setup(props) {
     const route = useRoute();
@@ -74,9 +74,9 @@ export default defineComponent({
         field: 'span_name',
         filter: {
           list: props.filterList.span_name,
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: string }) => (
           <div>
             <span
@@ -86,7 +86,7 @@ export default defineComponent({
               {cell}
             </span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -102,9 +102,9 @@ export default defineComponent({
         field: 'service_name',
         filter: {
           list: props.filterList['resource.service.name'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: string }) => (
           <div>
             <span
@@ -114,7 +114,7 @@ export default defineComponent({
               {cell}
             </span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -127,7 +127,7 @@ export default defineComponent({
             <span class='th-label'>{t('来源类型')}</span>
           </Popover>
         ),
-        field: 'source'
+        field: 'source',
         // 只有一个 OTel ，不需要过滤
         // filter: {
         //   // list: traceListFilter.span_name,
@@ -149,14 +149,14 @@ export default defineComponent({
         width: 160,
         filter: {
           list: props.filterList.kind,
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: string }) => (
           <div>
             <span title={SPAN_KIND_MAPS[cell]}>{SPAN_KIND_MAPS[cell]}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -173,8 +173,8 @@ export default defineComponent({
         field: 'span_count',
         sort: {
           sortScope: 'all',
-          value: ''
-        }
+          value: '',
+        },
       },
       {
         label: () => (
@@ -191,8 +191,8 @@ export default defineComponent({
         field: 'error_count',
         sort: {
           sortScope: 'all',
-          value: ''
-        }
+          value: '',
+        },
       },
       {
         label: () => (
@@ -208,8 +208,8 @@ export default defineComponent({
         field: 'error_rate',
         sort: {
           sortScope: 'all',
-          value: ''
-        }
+          value: '',
+        },
       },
       {
         label: () => (
@@ -226,13 +226,13 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
+          value: '',
         },
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -249,13 +249,13 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
+          value: '',
         },
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -272,13 +272,13 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
+          value: '',
         },
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: t('操作'),
@@ -314,8 +314,8 @@ export default defineComponent({
               <i class='icon-monitor icon-fenxiang'></i>
             </div>
           </div>
-        )
-      }
+        ),
+      },
     ];
 
     const filteredTableColumn = computed(() => tableColumn);
@@ -341,24 +341,24 @@ export default defineComponent({
           selectedCondition: { label: '=', value: 'equal' },
           isInclude: true,
           //   读 data
-          selectedConditionValue: [data.kind]
+          selectedConditionValue: [data.kind],
         },
         span_name: {
           // 固定写死
           selectedCondition: { label: '=', value: 'equal' },
           isInclude: true,
           //   读 data
-          selectedConditionValue: [data.span_name]
+          selectedConditionValue: [data.span_name],
         },
         'resource.service.name': {
           // 固定写死
           selectedCondition: { label: '=', value: 'equal' },
           isInclude: true,
           //   读 data
-          selectedConditionValue: [data.service_name]
-        }
+          selectedConditionValue: [data.service_name],
+        },
       };
-      // eslint-disable-next-line no-useless-escape
+
       const hash = `#/trace/home??app_name=${
         route.query.app_name
       }&search_type=scope&listType=trace&conditionList=${JSON.stringify(conditionList)}`;
@@ -401,10 +401,10 @@ export default defineComponent({
     );
     return {
       tableContent,
-      store
+      store,
     };
   },
   render() {
     return this.tableContent();
-  }
+  },
 });

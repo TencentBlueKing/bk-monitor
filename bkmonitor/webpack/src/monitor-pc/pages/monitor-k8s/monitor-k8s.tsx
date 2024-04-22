@@ -41,7 +41,7 @@ import './monitor-k8s.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class MonitorK8s extends tsc<{}> {
+export default class MonitorK8s extends tsc<object> {
   @Prop({ type: String, default: '' }) id: string;
   @InjectReactive('readonly') readonly readonly: boolean;
   viewOptions: IViewOptions = {};
@@ -74,14 +74,14 @@ export default class MonitorK8s extends tsc<{}> {
         {
           id: 'k8s',
           name: 'Kubernetes',
-          subName: ''
-        }
+          subName: '',
+        },
       ];
       const { sceneId = 'kubernetes', sceneType = 'overview' } = to.query;
       vm.sceneId = sceneId;
       vm.sceneType = sceneType;
       vm.viewOptions = {
-        method: 'sum_without_time'
+        method: 'sum_without_time',
       };
     });
   }

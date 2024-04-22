@@ -139,6 +139,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="获取agent信息",
             before_request=get_bk_node_request_before,
+            use_superuser=True
         )
 
 

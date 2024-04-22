@@ -30,7 +30,7 @@ import './notify-box.scss';
 
 interface IStepBoxProps {
   placement: string;
-  hasBorder: Boolean;
+  hasBorder: boolean;
   tipStyles: Record<string, string>;
 }
 

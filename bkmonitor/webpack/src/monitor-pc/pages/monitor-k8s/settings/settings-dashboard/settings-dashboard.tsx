@@ -109,14 +109,14 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
         });
         temporderList.push({
           ...item,
-          panels
+          panels,
         });
       });
     }
     return {
       id: this.tabActive,
       name: this.curPageData.name,
-      data: this.enableAutoGrouping ? temporderList : orderList
+      data: this.enableAutoGrouping ? temporderList : orderList,
     };
   }
 
@@ -130,7 +130,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
     this.orderList.splice(0, this.orderList.length);
     if (curPageData) {
       this.$emit('tab-change', tab);
-      // eslint-disable-next-line no-prototype-builtins
+
       if (!curPageData.isReady) {
         // 未获取页签数据详情，调用接口获取
         this.$emit('getTabDetail', tab);
@@ -174,7 +174,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => {
           this.handleTabChange(tab);
-        }
+        },
       });
       return false;
     }
@@ -223,7 +223,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
       extCls: 'reset-default',
       confirmFn: () => {
         this.handleSave([]);
-      }
+      },
     });
   }
 
@@ -245,7 +245,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
       if (match_type?.length) {
         return {
           match_type,
-          match_rules
+          match_rules,
         };
       }
       const tempRules = [];
@@ -256,7 +256,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
       });
       return {
         match_type: tempRules.length ? ['manual', 'auto'] : ['manual'],
-        match_rules: match_rules?.length ? match_rules : tempRules
+        match_rules: match_rules?.length ? match_rules : tempRules,
       };
     };
     const allPanelsSet = new Set();
@@ -272,9 +272,9 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
         allPanelsSet.add(panel.id);
         return {
           ...panel,
-          ...(autoRuleFn(panel.title, panel.match_type, item.auto_rules, panel.match_rules) as any)
+          ...(autoRuleFn(panel.title, panel.match_type, item.auto_rules, panel.match_rules) as any),
         };
-      })
+      }),
     }));
     this.defaultOrderList = deepClone(this.orderList);
   }
@@ -286,7 +286,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
       if (item.id !== '__UNGROUP__') {
         groupSelectList.push({
           id: item.id,
-          name: item.title
+          name: item.title,
         });
       }
     });
@@ -339,7 +339,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                 return {
                   ...p,
                   match_rules: [],
-                  match_type: p.match_type?.length ? ['manual'] : []
+                  match_type: p.match_type?.length ? ['manual'] : [],
                 };
               }
               return p;
@@ -351,7 +351,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
               tempPanels.unshift({
                 ...tempPanel,
                 match_rules: tempAutoPanels[key],
-                match_type: ['auto']
+                match_type: ['auto'],
               } as any);
             } else {
               const tempPanel = tempPanels.find(t => t.id === key);
@@ -415,7 +415,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
             ...panelData,
             hidden: p.hidden || false,
             match_type: matchRules.length ? ['manual', 'auto'] : ['manual'],
-            match_rules: matchRules
+            match_rules: matchRules,
           };
           oldIds.add(temp.id);
           targetPanels.push(temp);
@@ -433,7 +433,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
             targetPanels.push({
               ...p,
               match_type: ['auto'],
-              match_rules: matchRules
+              match_rules: matchRules,
             });
           }
         }
@@ -459,14 +459,14 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
               id,
               title,
               auto_rules: autoRules,
-              panels: panelsUpdate(panels, autoRules)
+              panels: panelsUpdate(panels, autoRules),
             });
           } else {
             orderList.push({
               id,
               title,
               auto_rules: [],
-              panels: []
+              panels: [],
             });
           }
         }
@@ -489,7 +489,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
           ...p,
           hidden: false,
           match_type: ['manual'],
-          match_rules: []
+          match_rules: [],
         });
       }
     });
@@ -501,7 +501,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
         id: '__UNGROUP__',
         title: this.$t('未分组的指标'),
         panels: unGroupPanels,
-        auto_rules: []
+        auto_rules: [],
       });
     }
     this.orderList = orderList;
@@ -527,7 +527,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
         item.panels.length
           ? JSON.stringify(item.panels.map(p => ({ id: p.id, hidden: p.hidden }))).replace(/,/g, ';')
           : '',
-        item.auto_rules.length ? item.auto_rules.join(';') : ''
+        item.auto_rules.length ? item.auto_rules.join(';') : '',
       ];
       tdArr.push(row);
     });
@@ -539,7 +539,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
     if (this.enableAutoGrouping) {
       this.orderList.unshift({
         ...group,
-        auto_rules: []
+        auto_rules: [],
       });
       this.getGroupSelectList();
     }
@@ -589,7 +589,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                     label={item.name}
                     render-label={tabItemTpl}
                   ></bk-tab-panel>
-                )
+                ),
             )}
           </bk-tab>
         ) : null}

@@ -49,7 +49,7 @@ import {
   INoticeDate,
   Ipv6FieldMap,
   ShieldDetailTargetFieldMap,
-  ShieldDimension2NodeType
+  ShieldDimension2NodeType,
 } from './typing';
 
 import './alarm-shield-config.scss';
@@ -64,12 +64,12 @@ export default defineComponent({
   props: {
     id: {
       type: String,
-      default: ''
+      default: '',
     },
     type: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   setup() {
     const { t } = useI18n();
@@ -91,7 +91,7 @@ export default defineComponent({
       desc: '',
       notificationMethod: [],
       noticeNumber: 5,
-      noticeMember: []
+      noticeMember: [],
     });
     /* 屏蔽时间范围 */
     const noticeDate = ref<INoticeDate>({
@@ -100,20 +100,20 @@ export default defineComponent({
       dateRange: [],
       [EShieldCycle.single]: {
         list: [],
-        range: []
+        range: [],
       },
       [EShieldCycle.day]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
+        range: ['00:00:00', '23:59:59'],
       },
       [EShieldCycle.week]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
+        range: ['00:00:00', '23:59:59'],
       },
       [EShieldCycle.month]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
-      }
+        range: ['00:00:00', '23:59:59'],
+      },
     });
     const tabData = reactive<ITabData>({
       active: EShieldType.Scope,
@@ -121,8 +121,8 @@ export default defineComponent({
         { name: t('基于范围屏蔽'), id: EShieldType.Scope },
         { name: t('基于策略屏蔽'), id: EShieldType.Strategy },
         { name: t('基于告警事件屏蔽'), id: EShieldType.Event },
-        { name: t('基于维度屏蔽'), id: EShieldType.Dimension }
-      ]
+        { name: t('基于维度屏蔽'), id: EShieldType.Dimension },
+      ],
     });
     /* 屏蔽范围数据 */
     const scopeData = ref(scopeDataParams());
@@ -133,7 +133,7 @@ export default defineComponent({
     /* 告警事件数据 */
     const eventShieldData = reactive({
       dimensions: '',
-      eventMessage: ''
+      eventMessage: '',
     });
     /* 屏蔽详情数据 */
     const shieldData = shallowRef(null);
@@ -147,7 +147,7 @@ export default defineComponent({
 
     const errMsg = reactive({
       noticeMember: '',
-      notificationMethod: ''
+      notificationMethod: '',
     });
     async function init() {
       loading.value = true;
@@ -191,7 +191,7 @@ export default defineComponent({
         const targetList = data.dimension_config?.[ShieldDetailTargetFieldMap[data.scope_type]] || [];
         return data.scope_type === 'instance'
           ? {
-              [Ipv6FieldMap[data.scope_type]]: targetList.map(id => ({ service_instance_id: id }))
+              [Ipv6FieldMap[data.scope_type]]: targetList.map(id => ({ service_instance_id: id })),
             }
           : transformMonitorToValue(targetList, ShieldDimension2NodeType[data.scope_type]);
       };
@@ -239,7 +239,7 @@ export default defineComponent({
       noticeDate.value.shieldCycle = type;
       noticeDate.value[type] = {
         list: [...cycleConfig.day_list, ...cycleConfig.week_list],
-        range: isSingle ? [data.begin_time, data.end_time] : [cycleConfig.begin_time, cycleConfig.end_time]
+        range: isSingle ? [data.begin_time, data.end_time] : [cycleConfig.begin_time, cycleConfig.end_time],
       };
       noticeDate.value.dateRange = isSingle ? [] : [data.begin_time, data.end_time];
       noticeDate.value.key = random(8);
@@ -320,7 +320,7 @@ export default defineComponent({
         [EShieldCycle.single]: 1,
         [EShieldCycle.day]: 2,
         [EShieldCycle.week]: 3,
-        [EShieldCycle.month]: 4
+        [EShieldCycle.month]: 4,
       };
       const cycleParams = {
         begin_time: isSingle ? cycleDate.range[0] : dateRange[0],
@@ -331,8 +331,8 @@ export default defineComponent({
           day_list:
             noticeDate.value.shieldCycle === EShieldCycle.month ? noticeDate.value[EShieldCycle.month].list : [],
           week_list: noticeDate.value.shieldCycle === EShieldCycle.week ? noticeDate.value[EShieldCycle.week].list : [],
-          type: cycleMap[noticeDate.value.shieldCycle]
-        }
+          type: cycleMap[noticeDate.value.shieldCycle],
+        },
       };
       // 通知设置参数
       const groupList = defaultGroupList.value.find(item => item.id === 'group')?.children || [];
@@ -342,7 +342,7 @@ export default defineComponent({
           logo: '',
           display_name: '',
           type: isGroup ? 'group' : 'user',
-          id
+          id,
         };
       });
       // 所有参数
@@ -351,7 +351,7 @@ export default defineComponent({
         ...cycleParams,
         shield_notice: showNoticeConfig.value,
         notice_config: {},
-        description: formData.desc
+        description: formData.desc,
       };
       // 编辑状态
       if (isEdit.value) {
@@ -362,7 +362,7 @@ export default defineComponent({
         params.notice_config = {
           notice_time: formData.noticeNumber,
           notice_way: formData.notificationMethod,
-          notice_receiver: memberParams
+          notice_receiver: memberParams,
         };
       }
       // 范围屏蔽
@@ -371,7 +371,7 @@ export default defineComponent({
         const dimensionConfig = { scope_type: dimension } as any;
         dimensionConfig.target = transformValueToMonitor(
           scopeData.value.ipv6Value,
-          ShieldDimension2NodeType[dimension]
+          ShieldDimension2NodeType[dimension],
         );
         params.dimension_config = dimensionConfig;
       } else if (tabData.active === EShieldType.Strategy) {
@@ -379,11 +379,11 @@ export default defineComponent({
         const dimensionConfig: any = {
           id: strategyShieldData.value.id,
           level: strategyShieldData.value.level,
-          dimension_conditions: strategyShieldData.value.dimension_conditions
+          dimension_conditions: strategyShieldData.value.dimension_conditions,
         };
         const target = transformValueToMonitor(
           strategyShieldData.value.scopeData.ipv6Value,
-          ShieldDimension2NodeType[strategyShieldData.value.scopeData.bkGroup.value]
+          ShieldDimension2NodeType[strategyShieldData.value.scopeData.bkGroup.value],
         );
         if (target.length) {
           dimensionConfig.scope_type = strategyShieldData.value.scopeData.bkGroup.value;
@@ -395,7 +395,7 @@ export default defineComponent({
         // 维度屏蔽
         const dimensionConfig = {
           dimension_conditions: dimensionShieldData.value.dimension_conditions,
-          strategy_id: dimensionShieldData.value.strategy_id
+          strategy_id: dimensionShieldData.value.strategy_id,
         };
         params.dimension_config = dimensionConfig;
       } else if (tabData.active === EShieldType.Event) {
@@ -420,11 +420,11 @@ export default defineComponent({
       }
       api(params).then(() => {
         router.push({
-          name: 'alarm-shield'
+          name: 'alarm-shield',
         });
         Message({
           theme: 'success',
-          message: msg
+          message: msg,
         });
       });
     }
@@ -454,7 +454,7 @@ export default defineComponent({
 
     function handleCancel() {
       router.push({
-        name: 'alarm-shield'
+        name: 'alarm-shield',
       });
     }
     function handleShowNoticeConfig(v) {
@@ -497,7 +497,7 @@ export default defineComponent({
       handleNotificationMethod,
       handleNoticeNumberChange,
       handleSubmit,
-      handleCancel
+      handleCancel,
     };
   },
   render() {
@@ -704,5 +704,5 @@ export default defineComponent({
         </Loading>
       </>
     );
-  }
+  },
 });

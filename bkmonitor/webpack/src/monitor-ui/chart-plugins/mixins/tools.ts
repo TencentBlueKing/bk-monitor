@@ -113,17 +113,17 @@ export default class ToolsMixin extends Vue {
         data_source_label,
         // eslint-disable-next-line @typescript-eslint/naming-convention
         data_type_label,
-        where
+        where,
       } = variablesService.transformVariables(panel.options.alert_filterable.data);
       const query = {
         result_table_id: '',
         data_source_label,
         data_type_label,
-        where
+        where,
       };
       getDataSourceConfig({
         data_source_label,
-        data_type_label
+        data_type_label,
       }).then(res => {
         query.result_table_id = res.find(item => item.name.includes(bcs_cluster_id))?.id;
         const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
@@ -138,12 +138,12 @@ export default class ToolsMixin extends Vue {
     targets.forEach(target => {
       target.data.query_configs =
         target?.data?.query_configs.map(queryConfig =>
-          queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars)
+          queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars),
         ) || [];
     });
     /** 判断跳转日志检索 */
     const isLog = targets.some(item =>
-      item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log')
+      item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log'),
     );
     if (!autoNavTo) return targets;
     if (isLog) {
@@ -156,7 +156,7 @@ export default class ToolsMixin extends Vue {
         addition: queryConfig.where || [],
         start_time: startTime * 1000,
         end_time: endTime * 1000,
-        time_range: 'customized'
+        time_range: 'customized',
       };
       const indexSetId = queryConfig.index_set_id;
       // eslint-disable-next-line vue/max-len
@@ -185,7 +185,7 @@ export default class ToolsMixin extends Vue {
     panel: PanelModel,
     metric: IExtendMetricData,
     scopedVars: IViewOptions & Record<string, any>,
-    isAll = false
+    isAll = false,
   ) {
     try {
       let result: any = null;
@@ -194,13 +194,13 @@ export default class ToolsMixin extends Vue {
       const interval = reviewInterval(
         scopedVars.interval,
         dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-        panel.collect_interval
+        panel.collect_interval,
       );
       const variablesService = new VariablesService({ ...scopedVars, interval });
       if (isAll) {
         result = {
           expression: '',
-          query_configs: []
+          query_configs: [],
         };
         targets.forEach(target => {
           target.data?.query_configs?.forEach(queryConfig => {
@@ -220,7 +220,7 @@ export default class ToolsMixin extends Vue {
               config = variablesService.transformVariables(config);
               result = {
                 ...target.data,
-                query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)]
+                query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
               };
             }
           });

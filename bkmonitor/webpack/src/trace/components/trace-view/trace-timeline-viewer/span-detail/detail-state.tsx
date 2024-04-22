@@ -41,7 +41,7 @@ export default class DetailState {
       isProcessOpen,
       isReferencesOpen,
       isWarningsOpen,
-      logs
+      logs,
     }: DetailState | Record<string, undefined> = oldState || {};
     this.isTagsOpen = Boolean(isTagsOpen);
     this.isProcessOpen = Boolean(isProcessOpen);
@@ -50,7 +50,7 @@ export default class DetailState {
     this.logs = {
       // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
       isOpen: Boolean(logs && logs.isOpen),
-      openedItems: logs?.openedItems ? new Set(logs.openedItems) : new Set()
+      openedItems: logs?.openedItems ? new Set(logs.openedItems) : new Set(),
     };
   }
 

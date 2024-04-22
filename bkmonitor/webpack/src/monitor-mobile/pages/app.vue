@@ -66,8 +66,8 @@ import DragLabel from '../components/drag-label/drag-label.vue';
     [Loading.name]: Loading,
     [Overlay.name]: Overlay,
     DragLabel,
-    [PullRefresh.name]: PullRefresh
-  }
+    [PullRefresh.name]: PullRefresh,
+  },
 })
 export default class App extends Vue {
   routeKey: string = random(10);
@@ -92,8 +92,8 @@ export default class App extends Vue {
     this.$router.push({
       name: 'event-center',
       query: {
-        title: this.$store.state.app.bkBizName + this.$tc('事件中心')
-      }
+        title: this.$store.state.app.bkBizName + this.$tc('事件中心'),
+      },
     });
   }
 

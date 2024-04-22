@@ -36,11 +36,11 @@ export default defineComponent({
   props: {
     list: {
       type: Array as PropType<ISelectMenuOption[]>,
-      default: () => []
+      default: () => [],
     },
     onSelect: {
-      type: Function as PropType<(item: ISelectMenuOption) => void>
-    }
+      type: Function as PropType<(item: ISelectMenuOption) => void>,
+    },
   },
   setup(props, { emit }) {
     const isShow = ref(false);
@@ -52,7 +52,7 @@ export default defineComponent({
 
     return {
       isShow,
-      handleSelect
+      handleSelect,
     };
   },
   render() {
@@ -76,5 +76,5 @@ export default defineComponent({
         </SelectMenu>
       </span>
     );
-  }
+  },
 });

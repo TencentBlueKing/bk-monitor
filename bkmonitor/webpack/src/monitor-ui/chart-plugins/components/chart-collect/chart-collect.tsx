@@ -59,7 +59,7 @@ interface IChartCollectEvent {
 }
 
 @Component({
-  name: 'ChartCollect'
+  name: 'ChartCollect',
 })
 export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectEvent> {
   @Prop({ type: Array, default: () => [] }) localPanels: PanelModel[];
@@ -84,7 +84,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
       const interval = reviewInterval(
         this.viewOptions.interval,
         dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-        panel.collect_interval
+        panel.collect_interval,
       );
       return {
         ...panel,
@@ -97,10 +97,10 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
               ...(this.viewOptions.filters?.current_target || {}),
               ...this.viewOptions,
               ...this.viewOptions.variables,
-              interval
-            })
-          }
-        }))
+              interval,
+            }),
+          },
+        })),
       };
     };
     const checkList = [];
@@ -169,13 +169,13 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
         ...this.viewOptions,
-        ...this.viewOptions.variables
-      })
+        ...this.viewOptions.variables,
+      }),
     );
     window.open(
       `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(
-        JSON.stringify(targets)
-      )}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
+        JSON.stringify(targets),
+      )}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`,
     );
   }
 
@@ -183,7 +183,6 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
   handleViewDetail() {
     const config = this.checkList.reduce((config, item) => {
       if (!config) {
-        // eslint-disable-next-line no-param-reassign
         config = item;
       } else {
         config.targets.push(...item.targets);
@@ -197,13 +196,13 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
       compareValue: {
         compare: {
           type: this.compareType,
-          value: this.compareType === 'time' ? this.timeOffset : ''
+          value: this.compareType === 'time' ? this.timeOffset : '',
         },
         tools: {
-          timeRange: this.timeRange
+          timeRange: this.timeRange,
         },
-        type: ['time', 'metric'].includes(this.compareType) ? this.compareType : 'none'
-      }
+        type: ['time', 'metric'].includes(this.compareType) ? this.compareType : 'none',
+      },
     };
     this.showDetail = true;
   }

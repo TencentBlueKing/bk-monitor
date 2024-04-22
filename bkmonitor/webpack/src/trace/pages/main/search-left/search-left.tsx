@@ -53,20 +53,20 @@ export default defineComponent({
   props: {
     showBottom: {
       type: Boolean,
-      default: true
+      default: true,
     },
     app: {
       type: String,
-      default: ''
+      default: '',
     },
     appList: {
       type: Array as PropType<IAppItem[]>,
-      default: () => []
+      default: () => [],
     },
     searchType: {
       type: String as PropType<SearchType>,
-      default: 'scope'
-    }
+      default: 'scope',
+    },
   },
   emits: ['update:app', 'update:searchType', 'appChange', 'searchTypeChange', 'addCondition'],
   setup(props, { slots, emit }) {
@@ -75,7 +75,7 @@ export default defineComponent({
     const { t } = useI18n();
     const searchTypeList: ISearchTypeItem[] = [
       { id: 'accurate', name: t('ID 精准查询') },
-      { id: 'scope', name: t('范围查询') }
+      { id: 'scope', name: t('范围查询') },
     ];
 
     function handleSearchTypeChange(id: string) {
@@ -118,7 +118,7 @@ export default defineComponent({
                     <span class='icon-monitor icon-jia'></span>
                     <span>{t('新建应用')}</span>
                   </div>
-                )
+                ),
               }}
             >
               {props.appList.map((item, index) => (
@@ -150,7 +150,7 @@ export default defineComponent({
                   </div>
                 </Select.Option>
               ))}
-            </Select>
+            </Select>,
           ),
           formItem(
             t('查询方式'),
@@ -164,9 +164,9 @@ export default defineComponent({
                   {item.name}
                 </Button>
               ))}
-            </Button.ButtonGroup>
+            </Button.ButtonGroup>,
           ),
-          slots.query?.()
+          slots.query?.(),
         ]}
       </div>
     );
@@ -195,7 +195,7 @@ export default defineComponent({
                       />
                     </div>
                   </div>
-                ) : undefined
+                ) : undefined,
             }}
           ></ResizeLayout>
         ) : (
@@ -203,5 +203,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable new-cap */
+
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
 import {
@@ -32,7 +32,7 @@ import {
   getPlugins,
   getPluginTemplates,
   getTemplateDetail,
-  getVariables
+  getVariables,
 } from 'monitor-api/modules/action';
 import { createActionConfig, retrieveActionConfig, updateActionConfig } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
@@ -74,13 +74,13 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   // 变量列表数据
   variableData = {
     variablePanels: [],
-    variableTable: {}
+    variableTable: {},
   };
 
   levelList = [
     { id: 1, name: i18n.t('致命') },
     { id: 2, name: i18n.t('预警') },
-    { id: 3, name: i18n.t('提醒') }
+    { id: 3, name: i18n.t('提醒') },
   ];
 
   // 变量数据
@@ -230,11 +230,11 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
         name: opt.name,
         desc: opt.desc,
         example: opt.example,
-        tip: '变量示例：未恢复 &#91点击复制变量]'
+        tip: '变量示例：未恢复 &#91点击复制变量]',
       }));
       variablePanels.push({
         name: item.group,
-        label: item.name
+        label: item.name,
       });
     });
     this.setVariableTable(variableTable);
@@ -280,7 +280,7 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
       id: item.name,
       name: item.desc,
       example: item.example,
-      group: item.group
+      group: item.group,
     }));
     this.messageTemplateList = res;
   }
@@ -295,17 +295,17 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
         icon: item.icon,
         tip: undefined,
         channel: item.channel,
-        width: undefined
+        width: undefined,
       };
       if (item.type === 'wxwork-bot') {
         data.tip = i18n.t(
           "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔",
-          { name: item.name }
+          { name: item.name },
         );
       }
       if (item.type === 'bkchat') {
         data.tip = i18n.tc(
-          '支持将告警信息发送至外部，包括企业微信群机器人、QQ、Slack、钉钉、飞书、微信公众号以及外部邮箱等多种告警通知方式。'
+          '支持将告警信息发送至外部，包括企业微信群机器人、QQ、Slack、钉钉、飞书、微信公众号以及外部邮箱等多种告警通知方式。',
         );
         data.width = 240;
       }
@@ -331,8 +331,8 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
       items: item.items.map(child => ({
         description: child.example,
         id: child.name,
-        name: child.desc
-      }))
+        name: child.desc,
+      })),
     }));
     this.variables = res;
   }

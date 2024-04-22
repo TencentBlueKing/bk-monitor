@@ -31,14 +31,14 @@ export enum EStatus {
   RUNNING = 'RUNNING',
   WARNING = 'WARNING',
   STOPPED = 'STOPPED',
-  PENDING = 'PENDING'
+  PENDING = 'PENDING',
 }
 
 export const FILTER_TYPE_LIST = [
   { id: EStatus.ALL, name: window.i18n.t('全部') },
   { id: EStatus.SUCCESS, color: ['#3fc06d29', '#3FC06D'], name: window.i18n.t('正常') },
   { id: EStatus.FAILED, color: ['#ea363629', '#EA3636'], name: window.i18n.t('异常') },
-  { id: EStatus.RUNNING, name: window.i18n.t('执行中') }
+  { id: EStatus.RUNNING, name: window.i18n.t('执行中') },
 ];
 
 export const colorMap = {
@@ -48,60 +48,60 @@ export const colorMap = {
   RUNNING: ['#3fc06d29', '#3FC06D'],
   DEPLOYING: ['#3fc06d29', '#3FC06D'],
   STARTING: ['#3fc06d29', '#3FC06D'],
-  STOPPING: ['#ea363629', '#EA3636']
+  STOPPING: ['#ea363629', '#EA3636'],
 };
 
 export const labelMap = {
   ADD: {
     color: '#3A84FF',
-    name: window.i18n.t('新增')
+    name: window.i18n.t('新增'),
   },
   REMOVE: {
     color: '#6C3AFF',
-    name: window.i18n.t('删除')
+    name: window.i18n.t('删除'),
   },
   UPDATE: {
     color: '#FF9C01',
-    name: window.i18n.t('变更')
+    name: window.i18n.t('变更'),
   },
   RETRY: {
     color: '#414871',
-    name: window.i18n.t('重试')
-  }
+    name: window.i18n.t('重试'),
+  },
 };
 
 export const statusMap = {
   SUCCESS: {
     color: '#94F5A4',
     border: '#2DCB56',
-    name: window.i18n.t('正常')
+    name: window.i18n.t('正常'),
   },
   FAILED: {
     color: '#FD9C9C',
     border: '#EA3636',
-    name: window.i18n.t('异常')
+    name: window.i18n.t('异常'),
   },
   PENDING: {
     color: '#3A84FF',
-    name: window.i18n.t('等待中')
+    name: window.i18n.t('等待中'),
   },
   RUNNING: {
     color: '#3A84FF',
-    name: window.i18n.t('执行中')
+    name: window.i18n.t('执行中'),
   },
   DEPLOYING: {
     color: '#3A84FF',
-    name: window.i18n.t('部署中')
+    name: window.i18n.t('部署中'),
   },
   STARTING: {
     color: '#3A84FF',
-    name: window.i18n.t('启用中')
+    name: window.i18n.t('启用中'),
   },
   STOPPING: {
     color: '#F0F1F5',
     border: '#C4C6CC',
-    name: window.i18n.t('停用中')
-  }
+    name: window.i18n.t('停用中'),
+  },
 };
 
 export interface IContentsItem {
@@ -126,5 +126,5 @@ export const operatorMap = {
   ADD_DEL: window.i18n.t('增删目标'),
   START: window.i18n.t('启用'),
   STOP: window.i18n.t('停用'),
-  AUTO_DEPLOYING: window.i18n.t('自动执行')
+  AUTO_DEPLOYING: window.i18n.t('自动执行'),
 };

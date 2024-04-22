@@ -49,9 +49,9 @@ const IconFont = (props: IIconFontProps) => {
         props.icon,
         {
           'icon-hover-style': props.hoverStyle ?? false,
-          'icon-active-style': props.activeStyle ?? false
+          'icon-active-style': props.activeStyle ?? false,
         },
-        ...localClasses
+        ...localClasses,
       ]}
       style={`--height: ${localHeight}px; --width: ${localWidth}px; --font-size: ${localFontSize}px;`}
     />

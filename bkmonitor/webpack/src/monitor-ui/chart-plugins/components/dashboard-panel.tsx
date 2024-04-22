@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -171,7 +170,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
             x: 0,
             y: prePanel ? prePanel.gridPos.h + prePanel.gridPos.y : 0,
             h: 1,
-            w: 24
+            w: 24,
           };
           prePanel = item;
           if (item.panels?.length) {
@@ -184,10 +183,10 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           item.gridPos = {
             ...item.gridPos,
             x: !panelIndex ? 0 : panelIndex * w,
-            // eslint-disable-next-line no-nested-ternary
+
             y: !panelIndex ? (prePanel ? prePanel.gridPos.h + prePanel.gridPos.y : 0) : prePanel.gridPos.y,
             h: this.customHeightFn?.(this.column) || (this.column === 1 ? 5 : 7),
-            w: isStaticWidth ? 24 : w
+            w: isStaticWidth ? 24 : w,
           };
           // event-log类型图表，最小高度占比为22
           if (item.type === 'event-log' && item.gridPos.h < 22) item.gridPos.h = 22;
@@ -195,8 +194,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
             ...item.options,
             legend: {
               displayMode: this.column === 1 ? 'table' : 'list',
-              placement: this.column === 1 ? 'right' : 'bottom'
-            }
+              placement: this.column === 1 ? 'right' : 'bottom',
+            },
           } as any;
           prePanel = item;
           index += 1;
@@ -211,7 +210,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
         x: 0,
         y,
         w: 24,
-        h: 1
+        h: 1,
       },
       id: random(10),
       options: {},
@@ -220,14 +219,14 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
       title: '',
       type: 'row',
       collapsed: true,
-      subTitle: ''
+      subTitle: '',
     };
   }
   getTransformPanel(panel: IPanelModel) {
     const item = new PanelModel({
       ...panel,
       dashboardId: this.id,
-      panelIds: panel?.panels?.map(item => item.id) || []
+      panelIds: panel?.panels?.map(item => item.id) || [],
     });
     return item;
   }
@@ -253,7 +252,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           curPanel.panels?.length && updateLayout(curPanel.panels);
         } else {
           const curGrid = curPanel.gridPos;
-          // eslint-disable-next-line prefer-const
+
           let { x, y, w } = curGrid;
           const { x: preX, y: preY, h: preH, w: preW } = preGrid;
           if (x !== preX) {
@@ -319,8 +318,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
               this.getTransformPanel({
                 ...item,
                 show: !!panel.collapsed,
-                groupId: rowPanel.id
-              })
+                groupId: rowPanel.id,
+              }),
             );
           list[list.length - 1].panels = childList;
         }
@@ -401,7 +400,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           if (item.id === panel.id) return;
           const maxY = (panel.panels || []).reduce(
             (pre, cur) => Math.max(cur.gridPos.y + cur.gridPos.h, pre),
-            panel.gridPos.y + panel.gridPos.h
+            panel.gridPos.y + panel.gridPos.h,
           );
           if (item.type !== 'row') {
             const rowPanel = panels
@@ -582,9 +581,9 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
               margin={[16, 8]}
               draggableOptions={{
                 autoScroll: {
-                  container: '#dashboard-panel'
+                  container: '#dashboard-panel',
                 },
-                allowFrom: '.draggable-handle---no'
+                allowFrom: '.draggable-handle---no',
               }}
               on-layout-updated={this.handleLayoutUpdated}
             >
@@ -603,7 +602,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                       key={`${item.i}_${index}__key__`}
                       panel={panel}
                       {...{
-                        attrs: this.$attrs
+                        attrs: this.$attrs,
                       }}
                       needCheck={!this.isClusterOfK8s}
                       onChartCheck={v => this.handleChartCheck(v, panel)}
@@ -624,7 +623,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                 onCheckClose={() => this.handleCheckAll(false)}
                 onShowCollect={(v: boolean) => this.handleShowCollect(v)}
               ></ChartCollect>
-            ) : undefined
+            ) : undefined,
           ]
         )}
       </div>

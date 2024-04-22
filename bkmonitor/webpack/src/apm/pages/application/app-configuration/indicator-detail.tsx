@@ -60,7 +60,7 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
     data_source_label: '', // 来源
     result_table_label_name: '', // 数据对象
     tag_list: [], // 维度信息
-    tags: [] // 标签
+    tags: [], // 标签
   };
   hoverRowIndex = -1; // 当前修改的指标维度索引
   dimensionList: IDimensionItem[] = []; // 指标维度列表
@@ -90,13 +90,13 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
       application_id: this.appId,
       table_id: row.table_id,
       metric_id: row.field_name,
-      dimension_fields: row.tag_list.map(tag => tag.field_name)
+      dimension_fields: row.tag_list.map(tag => tag.field_name),
     };
     const data = await dimensionData(this.appId, params).catch(() => {});
     this.dimensionList = row.tag_list.map(item => ({
       ...item,
       count: data?.count[item.field_name] || 0,
-      data: data?.data[item.field_name] || '--'
+      data: data?.data[item.field_name] || '--',
     }));
     this.tableLoading = false;
   }
@@ -110,7 +110,7 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
     // 处理更新参数格式
     const dimensions = this.dimensionList.map(item => ({
       field: item.field_name,
-      description: item.field_name === row.field_name ? val : item.description
+      description: item.field_name === row.field_name ? val : item.description,
     }));
     return this.handleUpdateValue(dimensions, field);
   }
@@ -128,12 +128,11 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
         this.detailInfo.unit = value;
         break;
       case 'dimensions':
-        // eslint-disable-next-line no-case-declarations
         const dimensionObj = {};
         value.map(val => (dimensionObj[val.field] = val.description));
         this.dimensionList = this.dimensionList.map(item => ({
           ...item,
-          description: dimensionObj[item.field_name]
+          description: dimensionObj[item.field_name],
         }));
         break;
       default:
@@ -150,14 +149,14 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
       const { field_name: fieldName, metric_display_name: metricDisplayName, unit } = this.detailInfo;
       const dimensions = this.dimensionList.map(item => ({
         field: item.field_name,
-        description: item.description
+        description: item.description,
       }));
       const params = {
         application_id: this.appId,
         metric_id: fieldName,
         metric_description: metricDisplayName,
         metric_unit: unit,
-        dimensions
+        dimensions,
       };
       params[field] = value;
       await modifyMetric(this.appId, params);
@@ -178,10 +177,9 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
           showLabel={false}
           authority={this.authority.MANAGE_AUTH}
           authorityName={authorityMap.MANAGE_AUTH}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
           updateValue={val => this.handleDimensionChange(val, 'dimensions', props.row)}
-        />
-      ]
+        />,
+      ],
     };
 
     return (
@@ -197,7 +195,6 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
           formType='input'
           authority={this.authority.MANAGE_AUTH}
           authorityName={authorityMap.MANAGE_AUTH}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
           updateValue={val => this.handleUpdateValue(val, 'metric_description')}
         />
         {/* <EditableFormItem
@@ -216,7 +213,6 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
           unitList={this.unitList}
           authority={this.authority.MANAGE_AUTH}
           authorityName={authorityMap.MANAGE_AUTH}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
           updateValue={val => this.handleUpdateValue(val, 'metric_unit')}
         />
         {/* <EditableFormItem

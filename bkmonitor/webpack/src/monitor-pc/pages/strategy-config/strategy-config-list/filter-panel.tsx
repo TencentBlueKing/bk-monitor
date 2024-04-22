@@ -83,7 +83,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
 
   get filterPanelStyle() {
     return {
-      width: `${this.width}px`
+      width: `${this.width}px`,
     };
   }
 
@@ -116,7 +116,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
               theme='filter'
               defaultActiveName={this.defaultActiveName}
               scopedSlots={{
-                default: ({ item }) => this.collapseItemContentSlot(item)
+                default: ({ item }) => this.collapseItemContentSlot(item),
               }}
             ></Group>
           </div>
@@ -165,7 +165,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
               </span>
               <span class='label-count'>{data.count || 0}</span>
             </span>
-          )
+          ),
         }}
         on-check-change={(id, node) => this.handleTreeCheckChange(id, node, item)}
       ></bk-big-tree>
@@ -212,7 +212,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         this.filterData.push({
           id: item.id,
           name: item.name,
-          values: JSON.parse(JSON.stringify(node.data.children))
+          values: JSON.parse(JSON.stringify(node.data.children)),
         });
       }
     } else {
@@ -224,7 +224,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         this.filterData.push({
           id: item.id,
           name: item.name,
-          values: [node.data]
+          values: [node.data],
         });
       }
     }

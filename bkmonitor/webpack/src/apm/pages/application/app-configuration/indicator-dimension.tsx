@@ -40,7 +40,7 @@ interface IPagination {
 }
 
 @Component
-export default class IndicatorDimension extends tsc<{}> {
+export default class IndicatorDimension extends tsc<object> {
   localTimeValue = '1h'; // 时间对比值
   showCustomTime = false; // 自定义时间输入框展示
   loading = false;
@@ -51,7 +51,7 @@ export default class IndicatorDimension extends tsc<{}> {
   pagination: IPagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   metricList = []; // 全量指标数据
   tableData = []; // 当前页表格数据
@@ -61,19 +61,19 @@ export default class IndicatorDimension extends tsc<{}> {
     { id: '1h', name: this.$t('1 小时前') },
     { id: '1d', name: this.$t('昨天') },
     { id: '1w', name: this.$t('上周') },
-    { id: '1M', name: this.$t('一月前') }
+    { id: '1M', name: this.$t('一月前') },
   ];
   compareTimeCustomList = []; // 自定义添加的时间可选列表
   sideslider = {
     id: 0, // 指标id
     title: '', // 指标名
     data: {}, // 指标详情
-    isShow: false
+    isShow: false,
   };
   /** 启停筛选 */
   statusFilter = [
     { text: '启', value: 'active' },
-    { text: '停', value: 'stop' }
+    { text: '停', value: 'stop' },
   ];
 
   /** 时间可选项的下拉数据 */
@@ -87,7 +87,7 @@ export default class IndicatorDimension extends tsc<{}> {
     if (!allListMap.has(value))
       allList.push({
         id: value,
-        name: value
+        name: value,
       });
     return allList;
   }
@@ -108,7 +108,7 @@ export default class IndicatorDimension extends tsc<{}> {
     this.loading = true;
     const params = {
       keyword: this.keyword,
-      before_time: this.localTimeValue
+      before_time: this.localTimeValue,
     };
     const list = await metricInfo(this.appId, params).catch(() => []);
     this.metricList = list;
@@ -133,7 +133,7 @@ export default class IndicatorDimension extends tsc<{}> {
       group.formats.find(option => {
         txt = option.id === unit ? option.name : '';
         return option.id === unit;
-      })
+      }),
     );
     return target ? txt : '';
   }
@@ -174,7 +174,7 @@ export default class IndicatorDimension extends tsc<{}> {
       isShow: true,
       title: row.field_name,
       data: row,
-      id: row.table_id
+      id: row.table_id,
     };
   }
   /**
@@ -215,7 +215,7 @@ export default class IndicatorDimension extends tsc<{}> {
       this.$bkMessage({
         theme: 'warning',
         message: this.$t('按照提示输入'),
-        offsetY: 40
+        offsetY: 40,
       });
     }
   }
@@ -227,7 +227,7 @@ export default class IndicatorDimension extends tsc<{}> {
     if (this.compareTimeList.every(item => item.id !== str)) {
       this.compareTimeCustomList.push({
         id: str,
-        name: str
+        name: str,
       });
     }
     this.showCustomTime = false;
@@ -257,8 +257,8 @@ export default class IndicatorDimension extends tsc<{}> {
           onClick={() => this.showIndicatirDeatil(props.row)}
         >
           {props.row.field_name}
-        </span>
-      ]
+        </span>,
+      ],
     };
     const operatorSlot = {
       default: props => [
@@ -269,8 +269,8 @@ export default class IndicatorDimension extends tsc<{}> {
           onClick={() => this.handleRetrieve(props.row)}
         >
           {this.$t('检索')}
-        </bk-button>
-      ]
+        </bk-button>,
+      ],
     };
 
     return (

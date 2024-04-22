@@ -60,7 +60,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
         result_table_label_name: resultTableLabelName,
         related_name: relatedName,
         result_table_name: resultTableName,
-        metric_field_name: metricFieldName
+        metric_field_name: metricFieldName,
       } = this.localValue as DataRetrievalQueryItem;
       value = `${resultTableLabelName}/${relatedName}/${resultTableName}/${metricFieldName}`;
     }
@@ -95,7 +95,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
       if (!this.groupByMap.includes(id)) {
         newGroupBy.push({
           id,
-          name: id
+          name: id,
         });
       }
     });
@@ -136,7 +136,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
   emitChange(type?: IDataRetrievalItem.emitType): IDataRetrievalItem.onChange {
     return {
       type,
-      value: this.localValue
+      value: this.localValue,
     };
   }
 
@@ -205,7 +205,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             placement: 'right',
             zIndex: 9999,
             boundary: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {item.name}
@@ -226,7 +226,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             zIndex: 9999,
             offset: '0, 6',
             boundary: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {node.name}
@@ -320,7 +320,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                         dataTypeLabel: this.localValue.data_type_label,
                         metricField: this.localValue.metric_field,
                         resultTableId: this.localValue.result_table_id,
-                        indexSetId: this.localValue.index_set_id
+                        indexSetId: this.localValue.index_set_id,
                       }}
                       isHasNullOption={true}
                       onChange={this.handleConditionChaneg}
@@ -355,7 +355,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                     </div>
                   </div>
                 ) : undefined}
-              </div>
+              </div>,
             ]
           : undefined}
       </div>

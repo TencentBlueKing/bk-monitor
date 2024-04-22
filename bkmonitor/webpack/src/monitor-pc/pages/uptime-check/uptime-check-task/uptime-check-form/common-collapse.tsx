@@ -33,12 +33,12 @@ import './common-collapse.scss';
 const MenuList: CommonItem[] = [
   {
     id: 'clear-all',
-    name: window.i18n.tc('清除所有')
+    name: window.i18n.tc('清除所有'),
   },
   {
     id: 'copy-all',
-    name: window.i18n.tc('复制所有')
-  }
+    name: window.i18n.tc('复制所有'),
+  },
 ];
 interface ICommonCollapseProps {
   menuList?: CommonItem[];
@@ -51,7 +51,7 @@ export default class CommonCollapse extends tsc<ICommonCollapseProps, ICommonCol
   @Prop({
     default() {
       return MenuList;
-    }
+    },
   })
   menuList: CommonItem[];
   actived: string[] = ['common-collapse'];
@@ -86,7 +86,7 @@ export default class CommonCollapse extends tsc<ICommonCollapseProps, ICommonCol
                 ext-cls='domain-select-tips common-collapse-tips'
                 tippy-options={{
                   arrow: false,
-                  trigger: 'click'
+                  trigger: 'click',
                 }}
               >
                 <span class='rigth-tools'>

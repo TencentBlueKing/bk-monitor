@@ -1120,6 +1120,17 @@ export default {
 .finger-container {
   position: relative;
 
+  .monospace-text,
+  %monospace-text {
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
+    line-height: 20px;
+  }
+
+  .monospace-text {
+    color: #313238;
+  }
+
   .auto-height-container {
     padding: 6px 0 6px;
   }
@@ -1129,7 +1140,7 @@ export default {
     display: -webkit-box;
     height: auto; /* 设置元素高度为自动 */
     min-height: 20px; /* 根据需要设置最小高度 */
-    padding: 2px;
+    padding: 0 2px;
     overflow: hidden;
     text-overflow: ellipsis;
     /* stylelint-disable-next-line property-no-vendor-prefix */
@@ -1194,6 +1205,8 @@ export default {
         line-height: 24px;
         text-overflow: ellipsis;
         white-space: nowrap;
+
+        @extend %monospace-text;
       }
     }
 
@@ -1223,10 +1236,10 @@ export default {
       }
     }
 
-    .pattern {
-      display: flex;
-      align-items: center;
-    }
+    // .pattern {
+    // display: flex;
+    // align-items: center;
+    // }
 
     .pattern-content {
       position: relative;
@@ -1236,7 +1249,7 @@ export default {
       overflow: hidden;
 
       &.is-limit {
-        max-height: 96px;
+        max-height: 114px;
       }
     }
 
@@ -1257,7 +1270,7 @@ export default {
 
     .show-whole-btn {
       position: absolute;
-      top: 80px;
+      top: 100px;
       width: 100%;
       height: 24px;
       font-size: 12px;
@@ -1273,11 +1286,6 @@ export default {
       color: #3a84ff;
       cursor: pointer;
     }
-
-    // .monospace-text {
-    //   font-family: monospace;
-    //   color: #000;
-    // }
   }
 }
 
@@ -1321,6 +1329,8 @@ export default {
 .link-color {
   color: #3a84ff;
   cursor: pointer;
+
+  @extend %monospace-text;
 }
 
 .icon-arrows-down {

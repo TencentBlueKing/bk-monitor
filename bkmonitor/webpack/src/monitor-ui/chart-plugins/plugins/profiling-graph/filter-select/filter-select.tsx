@@ -91,11 +91,11 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
             this.isShowAddFilter = false;
             this.isShowAddDiff = false;
             return true;
-          }
+          },
         },
-        searchable: true
+        searchable: true,
       },
-      this.$attrs
+      this.$attrs,
     );
   }
 
@@ -106,7 +106,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
       app_name: this.appName,
       service_name: this.serviceName,
       start: startTime * Math.pow(10, 6),
-      end: endTime * Math.pow(10, 6)
+      end: endTime * Math.pow(10, 6),
     };
     const labels = await queryLabels(params).catch(() => ({ label_keys: [] }));
     this.labelList = (labels.label_keys || []).map(item => ({ id: item, name: item }));
@@ -159,14 +159,14 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
       service_name: this.serviceName,
       start: startTime * Math.pow(10, 6),
       end: endTime * Math.pow(10, 6),
-      label_key: val
+      label_key: val,
     };
     const data = await queryLabelValues(params).catch(() => ({ label_values: [] }));
     const options = (data.label_values || []).map(val => ({ id: val, name: val }));
     (mode === 'filter' ? this.localFilterPanel : this.localDiffPanel).push({
       title: val,
       options,
-      value: []
+      value: [],
     });
   }
 
@@ -204,7 +204,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
             ref={`${mode}KeySelectRef`}
             onChange={val => this.handleAddFilterChange(val, mode)}
             {...{
-              props: this.addKeyprops
+              props: this.addKeyprops,
             }}
           >
             {this.labelList.map(opt => (
@@ -218,7 +218,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
                     placement: 'right',
                     zIndex: 9999,
                     boundary: document.body,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   {opt.name}
@@ -226,7 +226,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
               </bk-option>
             ))}
           </bk-select>
-        </span>
+        </span>,
       ];
     };
 

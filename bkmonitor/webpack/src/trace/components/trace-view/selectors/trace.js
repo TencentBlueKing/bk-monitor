@@ -36,7 +36,7 @@ import {
   getSpanName,
   getSpanProcessId,
   getSpanServiceName,
-  getSpanTimestamp
+  getSpanTimestamp,
 } from './span';
 
 export const getTraceId = trace => trace.traceID;
@@ -50,12 +50,12 @@ const getSpanWithProcess = createSelector(
   state => state.processes,
   (span, processes) => ({
     ...span,
-    process: processes[getSpanProcessId(span)]
-  })
+    process: processes[getSpanProcessId(span)],
+  }),
 );
 
 export const getTraceSpansAsMap = createSelector(getTraceSpans, spans =>
-  spans.reduce((map, span) => map.set(getSpanId(span), span), new Map())
+  spans.reduce((map, span) => map.set(getSpanId(span), span), new Map()),
 );
 
 export const TREE_ROOT_ID = '__root__';
@@ -114,7 +114,7 @@ export const hydrateSpansWithProcesses = trace => {
 
   return {
     ...trace,
-    spans: spans.map(span => getSpanWithProcess({ span, processes }))
+    spans: spans.map(span => getSpanWithProcess({ span, processes })),
   };
 };
 
@@ -123,8 +123,8 @@ export const getTraceSpanCount = createSelector(getTraceSpans, spans => spans.le
 export const getTraceTimestamp = createSelector(getTraceSpans, spans =>
   spans.reduce(
     (prevTimestamp, span) => (prevTimestamp ? Math.min(prevTimestamp, getSpanTimestamp(span)) : getSpanTimestamp(span)),
-    null
-  )
+    null,
+  ),
 );
 
 export const getTraceDuration = createSelector(getTraceSpans, getTraceTimestamp, (spans, timestamp) =>
@@ -133,14 +133,14 @@ export const getTraceDuration = createSelector(getTraceSpans, getTraceTimestamp,
       prevDuration
         ? Math.max(getSpanTimestamp(span) - timestamp + getSpanDuration(span), prevDuration)
         : getSpanDuration(span),
-    null
-  )
+    null,
+  ),
 );
 
 export const getTraceEndTimestamp = createSelector(
   getTraceTimestamp,
   getTraceDuration,
-  (timestamp, duration) => timestamp + duration
+  (timestamp, duration) => timestamp + duration,
 );
 
 export const getParentSpan = createSelector(
@@ -149,7 +149,7 @@ export const getParentSpan = createSelector(
   (tree, spanMap) =>
     tree.children
       .map(node => spanMap.get(node.value))
-      .sort((spanA, spanB) => numberSortComparator(getSpanTimestamp(spanA), getSpanTimestamp(spanB)))[0]
+      .sort((spanA, spanB) => numberSortComparator(getSpanTimestamp(spanA), getSpanTimestamp(spanB)))[0],
 );
 
 export const getTraceDepth = createSelector(getTraceSpanIdsAsTree, spanTree => spanTree.depth - 1);
@@ -157,14 +157,14 @@ export const getTraceDepth = createSelector(getTraceSpanIdsAsTree, spanTree => s
 export const getSpanDepthForTrace = createSelector(
   createSelector(state => state.trace, getTraceSpanIdsAsTree),
   createSelector(state => state.span, getSpanId),
-  (node, spanID) => node.getPath(spanID).length - 1
+  (node, spanID) => node.getPath(spanID).length - 1,
 );
 
 export const getTraceServices = createSelector(getTraceProcesses, processes =>
   Object.keys(processes).reduce(
     (services, processID) => services.add(getProcessServiceName(processes[processID])),
-    new Set()
-  )
+    new Set(),
+  ),
 );
 
 export const getTraceServiceCount = createSelector(getTraceServices, services => services.size);
@@ -173,38 +173,38 @@ export const getTraceServiceCount = createSelector(getTraceServices, services =>
 // for nanosecond-to-millisecond conversions.
 export const DURATION_FORMATTERS = {
   ms: formatMillisecondTime,
-  s: formatSecondTime
+  s: formatSecondTime,
 };
 
 const getDurationFormatterForTrace = createSelector(getTraceDuration, totalDuration =>
-  totalDuration >= ONE_SECOND ? DURATION_FORMATTERS.s : DURATION_FORMATTERS.ms
+  totalDuration >= ONE_SECOND ? DURATION_FORMATTERS.s : DURATION_FORMATTERS.ms,
 );
 
 export const formatDurationForUnit = createSelector(
   ({ duration }) => duration,
   ({ unit }) => DURATION_FORMATTERS[unit],
-  (duration, formatter) => formatter(duration)
+  (duration, formatter) => formatter(duration),
 );
 
 export const formatDurationForTrace = createSelector(
   ({ duration }) => duration,
   createSelector(({ trace }) => trace, getDurationFormatterForTrace),
-  (duration, formatter) => formatter(duration)
+  (duration, formatter) => formatter(duration),
 );
 
 export const getSortedSpans = createSelector(
   ({ trace }) => trace,
   ({ spans }) => spans,
   ({ sort }) => sort,
-  // eslint-disable-next-line max-len
+
   (trace, spans, { dir, comparator, selector }) =>
-    [...spans].sort((spanA, spanB) => dir * comparator(selector(spanA, trace), selector(spanB, trace)))
+    [...spans].sort((spanA, spanB) => dir * comparator(selector(spanA, trace), selector(spanB, trace))),
 );
 
 const getTraceSpansByHierarchyPosition = createSelector(getTraceSpanIdsAsTree, tree => {
   const hierarchyPositionMap = new Map();
   let i = 0;
-  // eslint-disable-next-line no-plusplus
+
   tree.walk(spanID => hierarchyPositionMap.set(spanID, i++));
   return hierarchyPositionMap;
 });
@@ -218,13 +218,13 @@ export const getTreeSizeForTraceSpan = createSelector(
       return -1;
     }
     return node.size - 1;
-  }
+  },
 );
 
 export const getSpanHierarchySortPositionForTrace = createSelector(
   createSelector(({ trace }) => trace, getTraceSpansByHierarchyPosition),
   ({ span }) => span,
-  (hierarchyPositionMap, span) => hierarchyPositionMap.get(getSpanId(span))
+  (hierarchyPositionMap, span) => hierarchyPositionMap.get(getSpanId(span)),
 );
 
 export const getTraceName = createSelector(
@@ -232,10 +232,10 @@ export const getTraceName = createSelector(
     createSelector(hydrateSpansWithProcesses, getParentSpan),
     createStructuredSelector({
       name: getSpanName,
-      serviceName: getSpanServiceName
-    })
+      serviceName: getSpanServiceName,
+    }),
   ),
-  ({ name, serviceName }) => `${serviceName}: ${name}`
+  ({ name, serviceName }) => `${serviceName}: ${name}`,
 );
 
 export const omitCollapsedSpans = createSelector(
@@ -249,7 +249,7 @@ export const omitCollapsedSpans = createSelector(
     }, new Set());
 
     return hiddenSpanIds.size > 0 ? spans.filter(span => !hiddenSpanIds.has(getSpanId(span))) : spans;
-  }
+  },
 );
 
 export const DEFAULT_TICK_INTERVAL = 4;
@@ -261,13 +261,13 @@ export const getTicksForTrace = createSelector(
   (
     trace,
     interval,
-    width
+    width,
     // timestamps will be spaced over the interval, starting from the initial timestamp
   ) =>
     [...Array(interval + 1).keys()].map(num => ({
       timestamp: getTraceTimestamp(trace) + getTraceDuration(trace) * (num / interval),
-      width
-    }))
+      width,
+    })),
 );
 
 // TODO: delete this when the backend can ensure uniqueness
@@ -285,7 +285,6 @@ export const enforceUniqueSpanIds = createSelector(
         const updatedSpan = { ...span, spanID };
 
         if (spanID !== getSpanId(span)) {
-          // eslint-disable-next-line no-console
           console.warn('duplicate spanID in trace replaced', getSpanId(span), 'new:', spanID);
         }
 
@@ -293,9 +292,9 @@ export const enforceUniqueSpanIds = createSelector(
         map.set(getSpanId(span), (map.get(getSpanId(span)) || 0) + 1);
 
         return result.concat([updatedSpan]);
-      }, [])
+      }, []),
     };
-  }
+  },
 );
 
 // TODO: delete this when the backend can ensure uniqueness
@@ -304,6 +303,6 @@ export const dropEmptyStartTimeSpans = createSelector(
   getTraceSpans,
   /* istanbul ignore next */ (trace, spans) => ({
     ...trace,
-    spans: spans.filter(span => !!getSpanTimestamp(span))
-  })
+    spans: spans.filter(span => !!getSpanTimestamp(span)),
+  }),
 );

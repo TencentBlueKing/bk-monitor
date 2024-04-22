@@ -38,8 +38,8 @@ import './panel-tools.scss';
  */
 @Component({
   directives: {
-    resize
-  }
+    resize,
+  },
 })
 export default class PanelsTools extends tsc<PanelToolsType.IProps, PanelToolsType.IEvents> {
   /** 图表布局方式 0: 一栏 1: 二栏 2: 三栏 */
@@ -130,7 +130,7 @@ export default class PanelsTools extends tsc<PanelToolsType.IProps, PanelToolsTy
                     delay: 200,
                     disabled: !!this.showLayoutName,
                     appendTo: 'parent',
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 ></i>
                 {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}

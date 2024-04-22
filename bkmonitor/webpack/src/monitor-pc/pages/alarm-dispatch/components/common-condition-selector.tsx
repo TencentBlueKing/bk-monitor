@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -37,7 +36,7 @@ import './common-condition-selector.scss';
 const nullOptions = {
   // 下拉选项第一为空值
   id: '',
-  name: `- ${window.i18n.tc('空')} -`
+  name: `- ${window.i18n.tc('空')} -`,
 };
 
 interface IListItem {
@@ -100,7 +99,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
       .filter(item => !!item.field)
       .map(item => ({
         ...item,
-        name: this.keyMaps.get(item.field)?.name || item.field
+        name: this.keyMaps.get(item.field)?.name || item.field,
       }));
     if (conditions.length) {
       this.conditions = conditions;
@@ -170,9 +169,9 @@ export default class CommonConditionSelector extends tsc<IProps> {
         field: '',
         name: '',
         value: [],
-        method: 'eq'
+        method: 'eq',
       },
-      needCondition ? { condition: 'and' } : {}
+      needCondition ? { condition: 'and' } : {},
     );
   }
 
@@ -201,7 +200,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
         ret.push({
           id: val,
           name: val,
-          show: true
+          show: true,
         });
       }
     });
@@ -275,7 +274,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
               zIndex: 9999,
               disabled: !item.field,
               boundary: document.body,
-              allowHTML: false
+              allowHTML: false,
             }}
             nodataMsg={window.i18n.t('无选项') as string}
             onChange={v => this.handleKeyChange(item, v)}
@@ -302,9 +301,9 @@ export default class CommonConditionSelector extends tsc<IProps> {
                   value={item.value}
                   paste-fn={v => this.handlePaste(v, item)}
                   on-change={(v: string[]) => this.handleValueChange(item, v)}
-                ></bk-tag-input>
+                ></bk-tag-input>,
               ]
-            : undefined
+            : undefined,
         ])}
         <span
           class='condition-item condition-add'

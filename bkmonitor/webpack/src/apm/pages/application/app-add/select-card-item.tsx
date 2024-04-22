@@ -30,7 +30,7 @@ import './select-card-item.scss';
 
 interface IProps {
   title: string;
-  img: String;
+  img: string;
   checked?: boolean;
   theme?: ThemeType;
   descData?: IDescData;
@@ -72,8 +72,8 @@ export default class SelectCardItem extends tsc<IProps, IEvent> {
           `${this.mode}-mode`,
           {
             checked: this.checked,
-            multiple: this.multiple
-          }
+            multiple: this.multiple,
+          },
         ]}
         onClick={this.handleClick}
       >

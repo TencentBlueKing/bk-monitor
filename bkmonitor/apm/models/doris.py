@@ -53,17 +53,21 @@ class BkDataDorisProvider:
     bk_biz_id: int
     app_name: str
     pure_app_name: str
+    maintainer: str
     operator: str
 
     config: DorisStorageConfig = field(default_factory=DorisStorageConfig.read)
     _obj: Optional["ApmDataSourceConfigBase"] = None
 
     @classmethod
-    def from_datasource_instance(cls, obj: "ApmDataSourceConfigBase", operator: str) -> "BkDataDorisProvider":
+    def from_datasource_instance(
+        cls, obj: "ApmDataSourceConfigBase", maintainer: str, operator: str
+    ) -> "BkDataDorisProvider":
         """从数据源实例中创建数据源提供者"""
         return cls(
             bk_biz_id=obj.bk_biz_id,
             app_name=obj.app_name,
+            maintainer=maintainer,
             operator=operator,
             _obj=obj,
             pure_app_name=obj.app_name.replace("-", "_"),
@@ -330,7 +334,7 @@ class BkDataDorisProvider:
         """通用配置"""
         return {
             "bk_biz_id": self.bk_biz_id,
-            "maintainer": self.operator,
+            "maintainer": self.maintainer,
             "bk_username": self.operator,
             "data_scenario": self.config.data_scenario,
         }

@@ -588,6 +588,8 @@ export default {
     },
     /** 搜索取消请求方法 */
     searchCancelFn() {},
+    /** 字段请求取消方法 */
+    getFieldsCancelFn() {},
     // 子组件改父组件的值或调用方法;
     emitChangeValue({ type, value, isFunction }) {
       if (isFunction) {
@@ -1334,6 +1336,8 @@ export default {
         this.$refs.resultMainRef.reset();
         if (!this.totalFields.length || this.shouldUpdateFields) {
           window.bus.$emit('openChartLoading');
+          this.isThollteField = false;
+          this.getFieldsCancelFn();
           await this.requestFields();
           this.shouldUpdateFields = false;
         }
@@ -1426,11 +1430,19 @@ export default {
             index_set_ids: this.unionIndexList
           });
         }
-        const res = await this.$http.request(urlStr, {
-          params: { index_set_id: this.indexId },
-          query: !this.isUnionSearch ? queryData : undefined,
-          data: this.isUnionSearch ? queryData : undefined
-        });
+        const res = await this.$http.request(
+          urlStr,
+          {
+            params: { index_set_id: this.indexId },
+            query: !this.isUnionSearch ? queryData : undefined,
+            data: this.isUnionSearch ? queryData : undefined
+          },
+          {
+            cancelToken: new CancelToken(c => {
+              this.getFieldsCancelFn = c;
+            })
+          }
+        );
         const notTextTypeFields = [];
         const { data } = res;
         const {

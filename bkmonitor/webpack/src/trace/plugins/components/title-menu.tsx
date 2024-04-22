@@ -37,20 +37,20 @@ export default defineComponent({
   props: {
     list: {
       type: Array as PropType<ChartTitleMenuType[]>,
-      default: () => ['save', 'screenshot', 'explore', 'set', 'area']
+      default: () => ['save', 'screenshot', 'explore', 'set', 'area'],
     },
     drillDownOption: {
       type: Array as PropType<IMenuChildItem[]>,
-      default: () => []
+      default: () => [],
     },
     metrics: {
       type: Array as PropType<IExtendMetricData[]>,
-      default: () => []
+      default: () => [],
     },
     showAddMetric: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   emits: ['select', 'metricSelect', 'selectChild', 'childMenuToggle'],
   setup(props, { emit }) {
@@ -61,26 +61,26 @@ export default defineComponent({
         name: t('保存到仪表盘'),
         checked: false,
         id: 'save',
-        icon: 'mc-mark'
+        icon: 'mc-mark',
       },
       {
         name: t('截图到本地'),
         checked: false,
         id: 'screenshot',
-        icon: 'mc-camera'
+        icon: 'mc-camera',
       },
       {
         name: t('查看大图'),
         checked: false,
         id: 'fullscreen',
-        icon: 'fullscreen'
+        icon: 'fullscreen',
       },
       {
         name: t('检索'),
         checked: false,
         id: 'explore',
         icon: 'mc-retrieval',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: t('下钻'),
@@ -89,21 +89,21 @@ export default defineComponent({
         icon: 'xiazuan',
         hasLink: true,
         childValue: '',
-        children: []
+        children: [],
       },
       {
         name: t('相关告警'),
         checked: false,
         id: 'relate-alert',
         icon: 'mc-menu-alert',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: t('添加策略'),
         checked: false,
         id: 'strategy',
         icon: 'mc-strategy',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: t('Y轴固定最小值为0'),
@@ -111,7 +111,7 @@ export default defineComponent({
         id: 'set',
         nextName: t('Y轴自适应'),
         icon: 'mc-yaxis',
-        nextIcon: 'mc-yaxis-scale'
+        nextIcon: 'mc-yaxis-scale',
       },
       {
         name: t('更多'),
@@ -123,15 +123,15 @@ export default defineComponent({
           {
             id: 'screenshot',
             name: t('截图到本地'),
-            icon: 'mc-camera'
+            icon: 'mc-camera',
           },
           {
             id: 'export-csv',
             name: t('导出CSV'),
-            icon: 'xiazai1'
-          }
-        ]
-      }
+            icon: 'xiazai1',
+          },
+        ],
+      },
     ]);
     watch(
       () => props.drillDownOption,
@@ -150,10 +150,10 @@ export default defineComponent({
           }
           drillDown.children = props.drillDownOption.map(item => ({
             ...item,
-            needTips: true
+            needTips: true,
           }));
         }
-      }
+      },
     );
     function handleMenuClick(item: IMenuItem) {
       emit('select', item);
@@ -177,7 +177,7 @@ export default defineComponent({
       (instance?.refs[key] as any)?.hideHandler?.();
       emit('selectChild', {
         child,
-        menu
+        menu,
       });
     }
     function handleChildMenuToggle(val: boolean) {
@@ -192,7 +192,7 @@ export default defineComponent({
       handleMetricSelect,
       handleSelectChild,
       handleChildMenuToggle,
-      handleGetItemName
+      handleGetItemName,
     };
   },
   render() {
@@ -266,7 +266,7 @@ export default defineComponent({
                 offset={-1}
                 v-slots={{
                   default: () => menuItemTpl,
-                  content: () => childTpl(item)
+                  content: () => childTpl(item),
                 }}
               ></Popover>
             );
@@ -290,12 +290,12 @@ export default defineComponent({
                       class='common-chart-tooltips-wrap'
                       v-html={createMetricTitleTooltips(item)}
                     ></div>
-                  )
+                  ),
                 }}
               </Popover>
             </li>
           ))}
       </ul>
     );
-  }
+  },
 });

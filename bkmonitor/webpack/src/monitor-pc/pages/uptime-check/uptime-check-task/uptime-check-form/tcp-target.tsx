@@ -55,22 +55,22 @@ export interface CommonItem {
 const RecordList: CommonItem[] = [
   {
     id: 'all',
-    name: window.i18n.tc('全部')
+    name: window.i18n.tc('全部'),
   },
   {
     id: 'single',
-    name: window.i18n.tc('随机')
-  }
+    name: window.i18n.tc('随机'),
+  },
 ];
 const IpTypeList: CommonItem[] = [
   {
     id: 'IPv4',
-    name: 'IPv4'
+    name: 'IPv4',
   },
   {
     id: 'IPv6',
-    name: 'IPv6'
-  }
+    name: 'IPv6',
+  },
 ];
 export const OutputFiledsMap = {
   bk_host_innerip: 'ip',
@@ -80,7 +80,7 @@ export const OutputFiledsMap = {
   ip: 'bk_host_innerip',
   ipv6: 'bk_host_innerip_v6',
   outer_ipv6: 'bk_host_outerip_v6',
-  outer_ip: 'bk_host_outerip'
+  outer_ip: 'bk_host_outerip',
 };
 export type TargetIpType = 0 | 4 | 6;
 export type DnsCheckMode = 'all' | 'single';
@@ -88,7 +88,7 @@ export const NodeTypeMap = {
   host_list: 'INSTANCE',
   node_list: 'TOPO',
   service_template_list: 'SERVICE_TEMPLATE',
-  set_template_list: 'SET_TEMPLATE'
+  set_template_list: 'SET_TEMPLATE',
 };
 interface ITcpTargetProps {
   defaultValue: {
@@ -131,7 +131,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
         label: `${this.$t('外网')} IPv4`,
         renderHead: (h: CreateElement) => h('span', `${this.$t('外网')} IPv4`),
         field: 'outer_ip',
-        renderCell: (h: CreateElement, row: Record<string, any>) => h('span', row.outer_ip || '--')
+        renderCell: (h: CreateElement, row: Record<string, any>) => h('span', row.outer_ip || '--'),
       },
       {
         key: 'outer_ipv6',
@@ -140,8 +140,8 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
         label: `${this.$t('外网')} IPv6`,
         renderHead: (h: CreateElement) => h('span', `${this.$t('外网')} IPv6`),
         field: 'outer_ipv6',
-        renderCell: (h: CreateElement, row: Record<string, any>) => h('span', row.outer_ipv6 || '--')
-      }
+        renderCell: (h: CreateElement, row: Record<string, any>) => h('span', row.outer_ipv6 || '--'),
+      },
     ];
   }
   // 初始化值
@@ -161,7 +161,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
     }
     if (this.defaultValue.node_list?.length) {
       this.outputFieldList = (this.defaultValue.output_fields || window.uptimecheck_output_fields).map(
-        key => OutputFiledsMap[key]
+        key => OutputFiledsMap[key],
       );
       const nodeItem = this.defaultValue.node_list.find(item => item.bk_obj_id);
       if (!nodeItem) {
@@ -215,7 +215,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
     return {
       record: this.domainRecord || 'all',
       type: this.domainIpTypes?.slice() || ['IPv4'],
-      value: this.domains?.join('\n') || ''
+      value: this.domains?.join('\n') || '',
     };
   }
   // 点击添加ip
@@ -309,7 +309,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
       copyText(text);
       this.$bkMessage({
         message: this.$t('复制成功'),
-        theme: 'success'
+        theme: 'success',
       });
     }
   }
@@ -488,7 +488,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
               'coludVerdor',
               'osType',
               'hostId',
-              'agentId'
+              'agentId',
             ]}
             hostTableCustomColumnList={this.hostTableCustomColumnList}
             onChange={this.handleIpChange}

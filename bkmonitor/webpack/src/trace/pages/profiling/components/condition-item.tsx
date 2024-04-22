@@ -38,16 +38,16 @@ export default defineComponent({
   props: {
     data: {
       type: Object as PropType<IConditionItem>,
-      default: () => null
+      default: () => null,
     },
     labelList: {
       type: Array as PropType<string[]>,
-      default: () => []
+      default: () => [],
     },
     valueListParams: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   emits: ['change', 'delete'],
   setup(props, { emit }) {
@@ -56,11 +56,11 @@ export default defineComponent({
     const localValue = reactive<IConditionItem>({
       key: '',
       method: 'eq',
-      value: ''
+      value: '',
     });
     const labelStatus = reactive({
       toggle: false,
-      hover: false
+      hover: false,
     });
 
     const scrollLoading = ref(false);
@@ -72,15 +72,15 @@ export default defineComponent({
         newVal && Object.assign(localValue, newVal);
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     watch(
       () => props.labelList,
       () => {
         valueList.value = [];
-      }
+      },
     );
 
     const getLabelValuesDebounce = debounce(getLabelValues, 100);
@@ -97,7 +97,7 @@ export default defineComponent({
         ...props.valueListParams,
         label_key: localValue.key,
         rows,
-        offset
+        offset,
       }).catch(() => ({ label_values: [] }));
       valueList.value = [...valueList.value, ...res.label_values];
       scrollLoading.value = false;
@@ -127,7 +127,7 @@ export default defineComponent({
       getLabelValuesDebounce,
       handleKeyChange,
       handleEmitData,
-      handleDelete
+      handleDelete,
     };
   },
 
@@ -141,7 +141,7 @@ export default defineComponent({
                 label: true,
                 active: this.labelStatus.toggle,
                 hover: this.labelStatus.hover,
-                placeholder: !this.localValue.key
+                placeholder: !this.localValue.key,
               }}
             >
               {this.localValue.key || this.t('选择')}
@@ -193,5 +193,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

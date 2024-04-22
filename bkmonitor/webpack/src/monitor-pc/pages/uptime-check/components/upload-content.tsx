@@ -36,7 +36,7 @@ interface IUploadContentEvents {
 }
 
 @Component({
-  name: 'UploadContent'
+  name: 'UploadContent',
 })
 export default class UploadContent extends tsc<IUploadContentProps, IUploadContentEvents> {
   @Prop({ type: String, default: '' }) imgSrc: string;

@@ -39,7 +39,7 @@ import {
   IMenuItem,
   LegendActionType,
   MonitorEchartOptions,
-  PanelModel
+  PanelModel,
 } from '../../typings';
 import CommonSimpleChart from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
@@ -81,10 +81,10 @@ class PieChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const viewOptions = {
-        ...this.viewOptions
+        ...this.viewOptions,
       };
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
@@ -93,10 +93,10 @@ class PieChart extends CommonSimpleChart {
               ...item.data,
               ...params,
               view_options: {
-                ...viewOptions
-              }
+                ...viewOptions,
+              },
             },
-            { needMessage: false }
+            { needMessage: false },
           )
           .then(res => {
             const seriesData = res.data || [];
@@ -107,7 +107,7 @@ class PieChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          })
+          }),
       );
       const res = await Promise.all(promiseList);
       if (res) {
@@ -144,19 +144,19 @@ class PieChart extends CommonSimpleChart {
           {
             label: {
               show: false,
-              position: 'center'
+              position: 'center',
             },
             labelLine: {
               normal: {
-                show: false
-              }
+                show: false,
+              },
             },
             radius: ['45%', '70%'],
             data: dataList,
-            type: 'pie'
-          }
-        ]
-      })
+            type: 'pie',
+          },
+        ],
+      }),
     ) as MonitorEchartOptions;
   }
   /**

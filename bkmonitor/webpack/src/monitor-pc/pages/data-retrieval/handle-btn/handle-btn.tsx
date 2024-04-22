@@ -72,7 +72,6 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
         >
           {(() => {
             if (this.queryLoading) {
-              /* eslint-disable-next-line @typescript-eslint/no-require-imports */
               return (
                 <img
                   src={require('../../../static/images/svg/spinner.svg')}

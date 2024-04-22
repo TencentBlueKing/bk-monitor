@@ -41,7 +41,7 @@ interface IMonitorDragProps {
   isShow?: boolean;
 }
 interface IMonitorDragEvent {
-  onMove: (left: number, swipeRight: boolean, cancelFn: Function) => void;
+  onMove: (left: number, swipeRight: boolean, cancelFn: () => void) => void;
   onTrigger: boolean;
 }
 @Component
@@ -139,9 +139,9 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
         const left = Math.min(
           Math.max(
             vm.minWidth,
-            vm.startPlacement === 'left' ? rect.width - event.clientX + rect.left : event.clientX - rect.left
+            vm.startPlacement === 'left' ? rect.width - event.clientX + rect.left : event.clientX - rect.left,
           ),
-          vm.maxWidth
+          vm.maxWidth,
         );
         vm.$emit('move', left, swipeRight, handleMouseUp);
         if (left >= vm.maxWidth) {

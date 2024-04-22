@@ -29,5 +29,5 @@ export enum AlarmStatus {
   /** 预警 */
   WarningAlarm = 2,
   /** 提醒 */
-  RemindAlarm = 3
+  RemindAlarm = 3,
 }

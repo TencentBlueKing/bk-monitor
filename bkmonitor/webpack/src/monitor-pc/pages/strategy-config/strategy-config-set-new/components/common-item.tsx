@@ -50,7 +50,7 @@ export default class MyComponent extends tsc<ICommonProps> {
   get tooltips() {
     return {
       content: this.tips,
-      placements: ['top']
+      placements: ['top'],
     };
   }
   render() {
@@ -67,7 +67,7 @@ export default class MyComponent extends tsc<ICommonProps> {
                 content: this.tips,
                 width: 200,
                 placement: 'top-start',
-                allowHTML: false
+                allowHTML: false,
               }}
             ></i>
           )}

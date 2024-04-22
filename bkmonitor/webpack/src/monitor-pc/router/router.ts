@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 // eslint-disable-next-line simple-import-sort/imports
 import Vue from 'vue';
 import VueRouter, { Route, RouteConfig } from 'vue-router';
@@ -67,19 +67,19 @@ const routes = [
   ...emailSubscriptionsRoutes,
   {
     path: '*',
-    redirect: '/exception'
-  }
+    redirect: '/exception',
+  },
 ] as RouteConfig[];
 // #else
 // #code const routes = [...dashboardRoutes,{  path: '*',  redirect: '/grafana'}] as RouteConfig[];
 // #endif
 const router = new VueRouter({
   mode: 'hash',
-  routes
+  routes,
 });
 export const isAuthority = async (page: string | string[]) => {
   const data: { isAllowed: boolean }[] = await authorityStore.checkAllowedByActionIds({
-    action_ids: Array.isArray(page) ? page : [page]
+    action_ids: Array.isArray(page) ? page : [page],
   });
   return !!data.length && data.some(item => item.isAllowed);
 };
@@ -95,7 +95,7 @@ const specialReportRouteList = [
   'new-dashboard',
   'import-dashboard',
   'folder-dashboard',
-  'grafana-datasource'
+  'grafana-datasource',
 ];
 router.beforeEach(async (to, from, next) => {
   // 空闲初始化introduce数据
@@ -128,7 +128,6 @@ router.beforeEach(async (to, from, next) => {
       return;
     }
   }
-
   const { fromUrl, actionId } = to.query;
   if (['no-business', 'error-exception'].includes(to.name) && actionId) {
     let hasAuthority = false;
@@ -158,7 +157,7 @@ router.beforeEach(async (to, from, next) => {
       'event-center',
       'event-center-detail',
       'event-center-action-detail',
-      'share'
+      'share',
     ].includes(to.name)
   ) {
     store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
@@ -177,11 +176,11 @@ router.beforeEach(async (to, from, next) => {
         query: {
           actionId: authority.page || '',
           fromUrl: to.fullPath.replace(/^\//, ''),
-          parentRoute: to.meta.route.parent
+          parentRoute: to.meta.route.parent,
         },
         params: {
-          title: '无权限'
-        }
+          title: '无权限',
+        },
       });
     }
   } else {
@@ -194,7 +193,7 @@ router.afterEach(to => {
   reportLogStore.reportRouteLog({
     route_id: to.name,
     nav_id: to.meta.navId,
-    nav_name: specialReportRouteList.includes(to.meta.navId) ? to.meta?.navName || to.meta?.title : undefined
+    nav_name: specialReportRouteList.includes(to.meta.navId) ? to.meta?.navName || to.meta?.title : undefined,
   });
 });
 

@@ -39,12 +39,12 @@ interface IState {
 const IProps = {
   value: {
     type: Array as PropType<IFavoriteItem[]>,
-    default: () => []
+    default: () => [],
   },
   checkedValue: {
     type: Object,
-    defalut: () => ({})
-  }
+    defalut: () => ({}),
+  },
 };
 
 export default defineComponent({
@@ -58,7 +58,7 @@ export default defineComponent({
       /** 展开更多 */
       isExpand: false,
       /** 允许过多滚动 */
-      allowScroll: false
+      allowScroll: false,
     });
     const favMain = ref<HTMLDivElement>();
     const scroll = ref<HTMLDivElement>();
@@ -155,7 +155,7 @@ export default defineComponent({
       const listWidth = list.offsetWidth;
       let totalWidth = 0;
       await nextTick();
-      // eslint-disable-next-line no-restricted-syntax
+
       for (const i in childs) {
         const item = childs[i] as HTMLDivElement;
         if (!item.className || item.className.indexOf('fav-list-item') === -1) continue;
@@ -186,7 +186,7 @@ export default defineComponent({
         state.localValue = deepClone(newVal);
         handleOverflowDebounce();
       },
-      { immediate: true }
+      { immediate: true },
     );
 
     return {
@@ -199,7 +199,7 @@ export default defineComponent({
       favoritesList,
       handleSelectFav,
       handleDeleteItem,
-      favListRef
+      favListRef,
     };
   },
 
@@ -247,5 +247,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

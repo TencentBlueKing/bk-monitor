@@ -40,7 +40,7 @@ export interface ITaskData {
 export const taskDataInit = (): ITaskData => ({
   group_data: [],
   has_node: false,
-  task_data: []
+  task_data: [],
 });
 
 // 拖拽时的状态
@@ -52,14 +52,14 @@ export interface IDragStatus {
 // 任务组命名校验
 export const groupNameValidate = (
   targetStr: string,
-  allName: string[]
+  allName: string[],
 ): {
   validate: boolean;
   message: string;
 } => {
   const validateStatus = {
     validate: false,
-    message: ''
+    message: '',
   };
   // 字符长度校验
   if (!targetStr.length) {
@@ -70,7 +70,7 @@ export const groupNameValidate = (
   if (/["/[\]':;|=,+*?<>{}.\\]+/g.test(targetStr)) {
     validateStatus.validate = true;
     validateStatus.message = `${window.i18n.t(
-      '不允许包含如下特殊字符：'
+      '不允许包含如下特殊字符：',
     )} " / \\ [ ]' : ; | = , + * ? < > { } ${window.i18n.t('空格')}`;
     return validateStatus;
   }
@@ -95,10 +95,10 @@ export const groupDialogDataInit = (): IGroupDialogData => ({
   show: false,
   data: { name: '', tasks: [], img: '', groupId: '' },
   errMsg: {
-    name: ''
+    name: '',
   },
   validate: true,
-  isEdit: false
+  isEdit: false,
 });
 
 // 点击任务组拿出任务详细数据组
@@ -125,7 +125,7 @@ export const groupDataTaskInit = (): IGroupDataTask => ({
   show: false,
   tasks: [],
   groupName: '',
-  groupId: 0
+  groupId: 0,
 });
 
 // 搜索task
@@ -199,7 +199,7 @@ export const taskStatusMap = {
   stop_failed: window.i18n.tc('停止失败'),
   starting: window.i18n.tc('启动中'),
   stoping: window.i18n.tc('停止中'),
-  new_draft: window.i18n.tc('未保存')
+  new_draft: window.i18n.tc('未保存'),
 };
 export const taskStatusTextColor = (taskStatus: string) => {
   if (taskStatus === 'stoped') {
@@ -241,15 +241,15 @@ export const taskCommonTableProps: ICommonTableProps = {
       name: window.i18n.tc('响应时长'),
       type: 'string',
       props: { minWidth: 113 },
-      sortable: 'custom'
+      sortable: 'custom',
     },
     { id: 'available_progress', name: window.i18n.tc('可用率'), type: 'scoped_slots', header_pre_icon: 'icon-avg' },
     { id: 'groups_str', name: window.i18n.tc('所属分组'), type: 'string' },
     { id: 'create_user', name: window.i18n.tc('创建人'), type: 'string' },
     { id: 'status_text', name: window.i18n.tc('状态'), type: 'scoped_slots' },
     { id: 'enable', name: window.i18n.tc('启/停'), type: 'scoped_slots' },
-    { id: 'operate', name: window.i18n.tc('操作'), type: 'scoped_slots', props: { maxWidth: 80 } }
-  ]
+    { id: 'operate', name: window.i18n.tc('操作'), type: 'scoped_slots', props: { maxWidth: 80 } },
+  ],
 };
 // 任务表格数据初始化
 export const taskTableDataInit = (
@@ -257,14 +257,14 @@ export const taskTableDataInit = (
   pagination = {
     count: tasks.length,
     current: 1,
-    limit: 10
-  }
+    limit: 10,
+  },
 ): ITaskTableData => ({
   ...taskCommonTableProps,
   data: taskDataToTableData(
-    tasks.slice((pagination.current - 1) * pagination.limit, pagination.current * pagination.limit)
+    tasks.slice((pagination.current - 1) * pagination.limit, pagination.current * pagination.limit),
   ),
-  pagination
+  pagination,
 });
 // 任务列表数据转为通用表格数据
 export const taskDataToTableData = (tasks: ITaskCardData[]): ICommonTableProps['data'] => {
@@ -273,22 +273,22 @@ export const taskDataToTableData = (tasks: ITaskCardData[]): ICommonTableProps['
     data.push({
       ...item,
       name_button: {
-        slotId: 'name'
+        slotId: 'name',
       },
       task_duration_text: `${item.task_duration}ms`,
       available_progress: {
-        slotId: 'progress'
+        slotId: 'progress',
       },
       groups_str: item.groups?.length ? item.groups.map(group => group.name).join(',') : '--',
       status_text: {
-        slotId: 'statusText'
+        slotId: 'statusText',
       },
       enable: {
-        slotId: 'enable'
+        slotId: 'enable',
       },
       operate: {
-        slotId: 'operate'
-      }
+        slotId: 'operate',
+      },
     });
   });
   return data as ICommonTableProps['data'];
@@ -335,22 +335,22 @@ export const nodesCommonTableProps: ICommonTableProps = {
     { id: 'carrieroperator', name: window.i18n.tc('运营商'), type: 'string' },
     { id: 'status_text', name: window.i18n.tc('状态'), type: 'scoped_slots' },
     { id: 'version', name: window.i18n.tc('版本'), type: 'string' },
-    { id: 'opreate', name: window.i18n.tc('操作'), type: 'scoped_slots' }
-  ]
+    { id: 'opreate', name: window.i18n.tc('操作'), type: 'scoped_slots' },
+  ],
 };
 export const nodesToTableDataInit = (
   nodes: INodeData[] = [],
   pagination = {
     count: nodes.length,
     current: 1,
-    limit: 10
-  }
+    limit: 10,
+  },
 ): INodesTableData => ({
   ...nodesCommonTableProps,
   data: nodesToTableData(
-    nodes.slice((pagination.current - 1) * pagination.limit, pagination.current * pagination.limit)
+    nodes.slice((pagination.current - 1) * pagination.limit, pagination.current * pagination.limit),
   ),
-  pagination
+  pagination,
 });
 export const transformIpTypeToText = (ipType: number) => {
   if (ipType === 0) return ['IPv4', 'IPv6'];
@@ -366,18 +366,18 @@ export const nodesToTableData = (nodes: INodeData[]): ICommonTableProps['data'] 
       ip_type: transformIpTypeToText(item.ip_type),
       ip: {
         value: item.ip,
-        url: `${location.origin}${location.pathname}?bizId=${item.bk_biz_id}#/performance/detail/${item.bk_host_id}`
+        url: `${location.origin}${location.pathname}?bizId=${item.bk_biz_id}#/performance/detail/${item.bk_host_id}`,
       },
       type: item.is_common ? window.i18n.tc('自建节点(公共)') : window.i18n.tc('自建节点(私有)'),
       task_num_text: {
-        slotId: 'taskNum'
+        slotId: 'taskNum',
       },
       status_text: {
-        slotId: 'statusText'
+        slotId: 'statusText',
       },
       opreate: {
-        slotId: 'opreate'
-      }
+        slotId: 'opreate',
+      },
     });
   });
   return data as ICommonTableProps['data'];
@@ -399,24 +399,24 @@ export const searchNodesData = (searchValue: string, nodes: INodeData[]): INodeD
 export const nodeStatusMap = {
   0: {
     color: '#2dcb56',
-    text: window.i18n.tc('正常')
+    text: window.i18n.tc('正常'),
   },
   1: {
     color: '#63656e',
-    text: window.i18n.tc('初始化中...')
+    text: window.i18n.tc('初始化中...'),
   },
   '-1': {
     color: '#ea3636',
-    text: window.i18n.tc('异常')
+    text: window.i18n.tc('异常'),
   },
   2: {
     color: '#ffeb00',
-    text: window.i18n.tc('升级')
+    text: window.i18n.tc('升级'),
   },
   '-2': {
     color: '#ea3636',
-    text: window.i18n.tc('失效')
-  }
+    text: window.i18n.tc('失效'),
+  },
 };
 
 export const paginationUtil = (pagination, arr) =>

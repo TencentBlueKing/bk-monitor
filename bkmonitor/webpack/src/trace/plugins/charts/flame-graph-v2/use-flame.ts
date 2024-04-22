@@ -1,4 +1,3 @@
-/* eslint-disable no-plusplus */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -44,7 +43,7 @@ import {
   ILineData,
   IOtherData,
   RootId,
-  ThreadPos
+  ThreadPos,
 } from './types';
 
 const usFormat = getValueFormat('µs');
@@ -75,7 +74,7 @@ export class FlameChart<D extends BaseDataType> {
   constructor(
     d: IFlameData<D>,
     options: IFlameChartOptions,
-    public chartDom: HTMLElement
+    public chartDom: HTMLElement,
   ) {
     Object.assign(this, options);
     this.render(d);
@@ -104,7 +103,7 @@ export class FlameChart<D extends BaseDataType> {
       endTime: this.mainData.end_time,
       clickDepth: 0,
       highlightName: '',
-      keywords: this.keywords ?? []
+      keywords: this.keywords ?? [],
     };
     this.renderAxis({});
     const preDepth = this.renderMainThread(main);
@@ -120,7 +119,7 @@ export class FlameChart<D extends BaseDataType> {
       .on('mousemove', (event: MouseEvent) => {
         const left = event.clientX - rect.left - 6;
         this.onMouseMove(event, {
-          xAxisValue: x.invert(left) - startTime
+          xAxisValue: x.invert(left) - startTime,
         });
       })
       .on('mouseout', (event: MouseEvent) => {
@@ -136,12 +135,12 @@ export class FlameChart<D extends BaseDataType> {
     let preDepth = 1;
     preDepth = this.updateSelection(
       select(this.chartDom).select('g.main-thread') as Selection<BaseType, HierarchyNode<D>, null, undefined>,
-      { preDepth, startTime, endTime, clickDepth, highlightName }
+      { preDepth, startTime, endTime, clickDepth, highlightName },
     );
     this.threadsData.forEach(thread => {
       const threadPreDepth = this.updateSelection(
         select(this.chartDom).select(`g.thread-${thread.id}`) as Selection<BaseType, HierarchyNode<D>, null, undefined>,
-        { preDepth: preDepth + 1, startTime, endTime, clickDepth, highlightName }
+        { preDepth: preDepth + 1, startTime, endTime, clickDepth, highlightName },
       );
       if (threadPreDepth === preDepth + 1) {
         preDepth = threadPreDepth - 1;
@@ -159,7 +158,7 @@ export class FlameChart<D extends BaseDataType> {
           .tickFormat((d: NumberValue) => {
             const { text, suffix } = usFormat(d.valueOf() - startTime);
             return text + suffix;
-          })
+          }),
       );
     this.initEvent();
   }
@@ -186,7 +185,7 @@ export class FlameChart<D extends BaseDataType> {
     this.zoomData = {
       ...this.zoomData,
       startTime: start_time + step,
-      endTime: end_time - step
+      endTime: end_time - step,
     };
     this.zoomGraph(this.zoomData);
   }
@@ -202,7 +201,7 @@ export class FlameChart<D extends BaseDataType> {
     this.zoomData = {
       ...this.zoomData,
       startTime: Math.max(x.invert(left), startTime),
-      endTime: Math.min(x.invert(left + width), endTime)
+      endTime: Math.min(x.invert(left + width), endTime),
     };
     this.zoomGraph(this.zoomData);
   }
@@ -224,14 +223,14 @@ export class FlameChart<D extends BaseDataType> {
       startTime: this.mainData.start_time,
       endTime: this.mainData.end_time,
       clickDepth: 0,
-      highlightName: ''
+      highlightName: '',
     };
     this.zoomGraph(this.zoomData);
   }
   filterGraph(keywords: string[] = []) {
     this.zoomData = {
       ...this.zoomData,
-      keywords: keywords.map(k => k?.toLocaleLowerCase())
+      keywords: keywords.map(k => k?.toLocaleLowerCase()),
     };
     this.zoomGraph(this.zoomData);
   }
@@ -244,7 +243,7 @@ export class FlameChart<D extends BaseDataType> {
     this.zoomData.highlightName = highlightName;
     this.zoomGraph({
       ...this.zoomData,
-      highlightName
+      highlightName,
     });
   }
   /**
@@ -301,7 +300,7 @@ export class FlameChart<D extends BaseDataType> {
           .tickFormat((d: NumberValue) => {
             const { text, suffix } = usFormat(d.valueOf() - startTime);
             return text + suffix;
-          })
+          }),
       );
   }
   /**
@@ -317,8 +316,8 @@ export class FlameChart<D extends BaseDataType> {
       startTime = this.mainData.start_time,
       endTime = this.mainData.end_time,
       clickDepth = 0,
-      highlightName = ''
-    }: BaseRect
+      highlightName = '',
+    }: BaseRect,
   ) {
     // const x = scaleLinear([startTime, endTime], [0, this.w]);
     const x = scaleLinear([0, this.w]).domain([startTime, endTime]);
@@ -389,7 +388,7 @@ export class FlameChart<D extends BaseDataType> {
         const getWidth = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
           const width = Math.min(
             Math.max(1, Math.min(x(d.data.end_time), this.w) - Math.max(x(d.data.start_time), 0)),
-            this.w
+            this.w,
           );
           // if (width === 1 && nodeLength < 2) return 2;
           return width;
@@ -414,13 +413,13 @@ export class FlameChart<D extends BaseDataType> {
               threadLine([
                 {
                   x: 0,
-                  y: y(newRoot.depth + preDepth - 1 / 2)
+                  y: y(newRoot.depth + preDepth - 1 / 2),
                 },
                 {
                   x: this.w,
-                  y: y(newRoot.depth + preDepth - 1 / 2)
-                }
-              ])
+                  y: y(newRoot.depth + preDepth - 1 / 2),
+                },
+              ]),
             );
         }
         let g = wrapper.selectAll('g.flame-item').data(descendants, (d: HierarchyRectangularNode<D>) => d?.data?.id);
@@ -463,7 +462,7 @@ export class FlameChart<D extends BaseDataType> {
           .selectAll('g.flame-item')
           .data(
             descendants,
-            ((d: HierarchyRectangularNode<D>) => d?.data?.id) as ValueFn<HTMLElement | BaseType, unknown, KeyType>
+            ((d: HierarchyRectangularNode<D>) => d?.data?.id) as ValueFn<HTMLElement | BaseType, unknown, KeyType>,
           );
         g.attr('height', this.c)
           .attr('class', 'flame-item')
@@ -482,7 +481,7 @@ export class FlameChart<D extends BaseDataType> {
             if (width > this.iconSize * 2) {
               select(groups[index]).attr(
                 'xlink:href',
-                () => traceIcons[w.data.status?.code === 2 ? 'error' : w.data.icon_type] || ''
+                () => traceIcons[w.data.status?.code === 2 ? 'error' : w.data.icon_type] || '',
               );
               return this.iconSize;
             }
@@ -521,7 +520,7 @@ export class FlameChart<D extends BaseDataType> {
             startTime: d.data.start_time,
             endTime: d.data.end_time,
             clickDepth: d.depth,
-            highlightName: d.data.id === RootId ? '' : this.zoomData.highlightName || ''
+            highlightName: d.data.id === RootId ? '' : this.zoomData.highlightName || '',
           };
           this.zoomGraph(this.zoomData);
         });
@@ -530,7 +529,7 @@ export class FlameChart<D extends BaseDataType> {
           const self = this;
           g.on('mousemove', (e: MouseEvent, d) => {
             this.onDetail(e, d, {
-              rootValue: this.mainData.end_time - this.mainData.start_time
+              rootValue: this.mainData.end_time - this.mainData.start_time,
             });
           })
             .on('mouseout', function (e: MouseEvent) {
@@ -550,7 +549,7 @@ export class FlameChart<D extends BaseDataType> {
                   const b = x(node.data.end_time);
                   return !((a <= 0 && b <= 0) || (a >= self.w && b >= self.w));
                 }
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
                 while ((node = list.pop())) {
                   const to = self.lineMap.get(node.data.last_sibling_id);
                   // to.data
@@ -562,7 +561,6 @@ export class FlameChart<D extends BaseDataType> {
                 const valueList = Array.from(self.lineMap.values());
                 list.push(self.lineMap.get(d.data.id));
                 while ((node = list.pop())) {
-                  // eslint-disable-next-line no-loop-func
                   const from = valueList.find(item => item.data.last_sibling_id === node.data.id);
                   if (from && isInView(from)) {
                     drawLine.call(self, from, node);
@@ -613,7 +611,7 @@ export class FlameChart<D extends BaseDataType> {
       name: 'total',
       id: RootId,
       start_time: 0,
-      end_time: 0
+      end_time: 0,
     };
     data.forEach((item, index) => {
       root.start_time = index === 0 ? item.start_time : Math.min(root.start_time, item.start_time);
@@ -622,7 +620,7 @@ export class FlameChart<D extends BaseDataType> {
     root.value = root.end_time - root.start_time;
     return {
       ...root,
-      children: data
+      children: data,
     };
   }
   initData(d: IFlameData<D>) {
@@ -688,7 +686,7 @@ export class FlameChart<D extends BaseDataType> {
     return {
       threads,
       main,
-      maxDepth
+      maxDepth,
     };
   }
 }

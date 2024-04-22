@@ -42,7 +42,7 @@ export const strategyDataProp = () => ({
   scopeData: scopeData(),
   id: [],
   level: [],
-  dimension_conditions: []
+  dimension_conditions: [],
 });
 
 export default defineComponent({
@@ -50,24 +50,24 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     value: {
       type: Object,
-      default: () => strategyDataProp()
+      default: () => strategyDataProp(),
     },
     isEdit: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isClone: {
       type: Boolean,
-      default: false
+      default: false,
     },
     onChange: {
       type: Function,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -85,7 +85,7 @@ export default defineComponent({
       dimensionList: [], // 维度列表
       metricMeta: null, // 获取条件候选值得参数
       conditionList: [], // 维度条件数据
-      allNames: {} // 维度名合集
+      allNames: {}, // 维度名合集
     });
     // 告警级别限制条件
     const levelOptional = ref([]);
@@ -95,16 +95,16 @@ export default defineComponent({
     const levelMap = [
       {
         id: 1,
-        name: t('致命')
+        name: t('致命'),
       },
       {
         id: 2,
-        name: t('预警')
+        name: t('预警'),
       },
       {
         id: 3,
-        name: t('提醒')
-      }
+        name: t('提醒'),
+      },
     ];
     const loading = ref(false);
 
@@ -112,7 +112,7 @@ export default defineComponent({
 
     const errMsg = reactive({
       strategyId: '',
-      level: ''
+      level: '',
     });
 
     /**
@@ -131,8 +131,8 @@ export default defineComponent({
         }
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     /**
@@ -148,7 +148,7 @@ export default defineComponent({
         strategyId.value = localValue.value.id;
         dimensionCondition.conditionList = localValue.value.dimension_conditions.map(item => ({
           ...item,
-          dimensionName: item.name || item.key
+          dimensionName: item.name || item.key,
         }));
         dimensionCondition.conditionList.forEach(item => {
           dimensionCondition.allNames[item.key] = item.name || item.key;
@@ -157,7 +157,7 @@ export default defineComponent({
         dimensionCondition.conditionKey = random(8);
         localValue.value.scopeData.key = random(8);
         handleStrategyChange(true);
-      }
+      },
     );
 
     function handleChange() {
@@ -227,7 +227,7 @@ export default defineComponent({
         const { metric_list: metricList = [] } = await getMetricListV2({
           page: 1,
           page_size: metricIds.length,
-          conditions: [{ key: 'metric_id', value: metricIds }]
+          conditions: [{ key: 'metric_id', value: metricIds }],
         }).catch(() => ({}));
         const [metricItem] = metricList;
         if (metricItem) {
@@ -236,7 +236,7 @@ export default defineComponent({
             dataTypeLabel: metricItem.data_type_label,
             metricField: metricItem.metric_field,
             resultTableId: metricItem.result_table_id,
-            indexSetId: metricItem.index_set_id
+            indexSetId: metricItem.index_set_id,
           };
         } else {
           dimensionCondition.metricMeta = null;
@@ -263,9 +263,9 @@ export default defineComponent({
         conditions: [
           {
             key: 'strategy_id',
-            value: ids
-          }
-        ]
+            value: ids,
+          },
+        ],
       })
         .then(res => res.strategy_config_list)
         .catch(() => []);
@@ -290,7 +290,7 @@ export default defineComponent({
           key: item.key,
           method: item.method,
           value: item.value,
-          name: item.dimensionName
+          name: item.dimensionName,
         }))
         .filter(item => !!item.key);
       handleChange();
@@ -349,7 +349,7 @@ export default defineComponent({
       handleDimensionConditionChange,
       handleScopeChange,
       handleLevelChange,
-      handleClear
+      handleClear,
     };
   },
   render() {
@@ -385,7 +385,7 @@ export default defineComponent({
                           <span style='margin-right: 9px'>{item.name}</span>
                           <span style='color: #c4c6cc'>{`${item.first_label_name}-${item.second_label_name}（#${item.id}）`}</span>
                         </span>
-                      )
+                      ),
                     }}
                   </Select.Option>
                 ))}
@@ -426,8 +426,8 @@ export default defineComponent({
                               );
                             }
                             return '--';
-                          })()
-                      }
+                          })(),
+                      },
                     ]}
                   ></Table>
                 </div>
@@ -477,5 +477,5 @@ export default defineComponent({
         </Loading>
       </div>
     );
-  }
+  },
 });

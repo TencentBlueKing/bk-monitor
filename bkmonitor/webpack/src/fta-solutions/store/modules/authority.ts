@@ -28,7 +28,6 @@ import store from '@store/store';
 import { checkAllowedByActionIds, getAuthorityDetail, getAuthorityMeta } from 'monitor-api/modules/iam';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
-// eslint-disable-next-line new-cap
 @Module({ name: 'authority', dynamic: true, namespaced: true, store })
 class Authority extends VuexModule {
   public authorityMeta: any = [];
@@ -86,7 +85,7 @@ class Authority extends VuexModule {
   @Action
   public async handleGetAuthDetail(actionId: string | string[]) {
     const res = await getAuthorityDetail({
-      action_ids: Array.isArray(actionId) ? actionId : [actionId]
+      action_ids: Array.isArray(actionId) ? actionId : [actionId],
     }).catch(() => ({ applyUrl: '', authorityList: {} }));
     return res;
   }
@@ -103,7 +102,7 @@ class Authority extends VuexModule {
   public async checkAllowedByActionIds(params: any) {
     const data = await checkAllowedByActionIds({
       ...params,
-      bk_biz_id: store.getters.bizId || window.cc_biz_id
+      bk_biz_id: store.getters.bizId || window.cc_biz_id,
     }).catch(() => []);
     return transformDataKey(data);
   }

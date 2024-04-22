@@ -51,7 +51,7 @@ export interface IDetail {
 }
 
 @Component({
-  name: 'QuickShield'
+  name: 'QuickShield',
 })
 export default class MyComponent extends tsc<IQuickShieldProps> {
   /**
@@ -64,7 +64,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   @Inject('authorityFromEventDetail') authorityFromEventDetail;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Inject('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetailFromEventDetail = null;
-  @Prop({ type: Boolean, default: false }) show: Boolean;
+  @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Array, default: () => [] }) details: IDetail[];
   @Prop({ type: Array, default: () => [] }) ids: Array<string>;
   /* 事件中心暂不允许跨业务操作， 此数组只有一个业务 */
@@ -77,7 +77,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
     { name: `1${i18n.t('小时')}`, id: 36 },
     { name: `12${i18n.t('小时')}`, id: 432 },
     { name: `1${i18n.t('天')}`, id: 864 },
-    { name: `7${i18n.t('天')}`, id: 6048 }
+    { name: `7${i18n.t('天')}`, id: 6048 },
   ];
   public timeValue = 18;
   public customTime: any = ['', ''];
@@ -90,7 +90,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         return date.some(item => item.getTime() < today.getTime() || item.getTime() > today.getTime() + 8.64e7 * 181);
       }
       return date.getTime() < today.getTime() || date.getTime() > today.getTime() + 8.64e7 * 181; // 限制用户只能选择半年以内的日期
-    }
+    },
   };
   public levelMap = ['', i18n.t('致命'), i18n.t('提醒'), i18n.t('预警')];
   public desc = '';
@@ -118,10 +118,10 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
       'm+': time.getMinutes(), // 分
       's+': time.getSeconds(), // 秒
       'q+': Math.floor((time.getMonth() + 3) / 3), // 季度
-      S: time.getMilliseconds() // 毫秒
+      S: time.getMilliseconds(), // 毫秒
     };
     if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, `${time.getFullYear()}`.substr(4 - RegExp.$1.length));
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const key in obj) {
       if (new RegExp(`(${key})`).test(fmt)) {
         fmt = fmt.replace(RegExp.$1, RegExp.$1.length === 1 ? obj[key] : `00${obj[key]}`.substr(`${obj[key]}`.length));
@@ -166,8 +166,8 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           type: 1,
           day_list: [],
           week_list: [],
-          end_time: ''
-        }
+          end_time: '',
+        },
       };
       dayjs.locale('en');
       let toTime = `${dayjs(time.begin).to(dayjs(time.end), true)}`;
@@ -179,7 +179,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         ['minutes', 'm'],
         ['minute', 'm'],
         ['years', 'y'],
-        ['year', 'y']
+        ['year', 'y'],
       ];
       tims.forEach(item => {
         toTime = toTime.replace(item[0], item[1]);

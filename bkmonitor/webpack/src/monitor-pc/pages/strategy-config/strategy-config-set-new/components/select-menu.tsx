@@ -96,7 +96,7 @@ export default class SelectMenu extends tsc<ISelectMenuProps> {
           this.handleHidden();
           this.popoverInstance?.destroy();
           this.popoverInstance = null;
-        }
+        },
       });
     }
     this.popoverInstance?.show();

@@ -58,31 +58,30 @@ class StatusListChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
-      const promiseList = this.panel.targets.map(
-        item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc](
-              {
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions
-                }
+      const promiseList = this.panel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc](
+            {
+              ...variablesService.transformVariables(item.data),
+              ...params,
+              view_options: {
+                ...this.viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              this.clearErrorMsg();
-              return res;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
+            },
+            { needMessage: false },
+          )
+          .then(res => {
+            this.clearErrorMsg();
+            return res;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          }),
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item.length)) {

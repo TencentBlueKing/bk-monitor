@@ -45,45 +45,45 @@ export default defineComponent({
   props: {
     isAlreadyAccurateQuery: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isAlreadyScopeQuery: {
       type: Boolean,
-      default: false
+      default: false,
     },
     queryType: {
       type: String as PropType<'accurate' | 'scope'>,
-      default: 'accurate'
+      default: 'accurate',
     },
     // 视图列表
     chartList: {
       type: Array as PropType<IPanelModel[]>,
-      default: () => []
+      default: () => [],
     },
     traceListTabelLoading: {
       type: Boolean,
-      default: false
+      default: false,
     },
     appName: {
       type: String,
-      default: ''
+      default: '',
     },
     emptyApp: {
       type: Boolean,
-      default: false
+      default: false,
     },
     appList: {
       type: Array as PropType<IAppItem[]>,
-      default: () => []
+      default: () => [],
     },
     searchIdType: {
       type: String,
-      default: 'traceID'
+      default: 'traceID',
     },
     spanDetails: {
       type: Object as PropType<Span>,
-      default: () => null
-    }
+      default: () => null,
+    },
   },
   emits: [
     'changeQuery',
@@ -96,12 +96,12 @@ export default defineComponent({
     'traceTypeChange',
     'spanTypeChange',
     'interfaceStatisticsChange',
-    'serviceStatisticsChange'
+    'serviceStatisticsChange',
   ],
   setup(props, { emit }) {
     const { t } = useI18n();
     const emptyTextMap = {
-      'empty-app': t('暂无应用')
+      'empty-app': t('暂无应用'),
     };
 
     const store = useTraceStore();
@@ -181,7 +181,7 @@ export default defineComponent({
       handleSpanTypeChange,
       handleInterfaceStatisticsChange,
       handleServiceStatisticsChange,
-      handleTraceTypeChange
+      handleTraceTypeChange,
     };
   },
   render() {
@@ -193,7 +193,7 @@ export default defineComponent({
       isAlreadyScopeQuery,
       appList,
       searchIdType,
-      spanDetails
+      spanDetails,
     } = this.$props;
 
     /** 精确查询结果 traceInfo or spanDetails */
@@ -320,5 +320,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

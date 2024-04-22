@@ -166,7 +166,7 @@ export enum EListItemType {
   tags = 'Tags',
   events = 'Events',
   stageTime = 'StageTime',
-  process = 'Process'
+  process = 'Process',
 }
 
 export interface ITagContent {

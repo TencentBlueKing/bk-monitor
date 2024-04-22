@@ -1,4 +1,3 @@
-/* eslint-disable no-plusplus */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -43,7 +42,7 @@ import {
   ILineData,
   IOtherData,
   RootId,
-  ThreadPos
+  ThreadPos,
 } from '../../../typings';
 
 import { findChildById, findRegionById, getHashVal } from './utils';
@@ -77,7 +76,7 @@ export class FlameChart<D extends BaseDataType> {
   constructor(
     d: IFlameData<D>,
     options: IFlameChartOptions,
-    public chartDom: HTMLElement
+    public chartDom: HTMLElement,
   ) {
     Object.assign(this, options);
     this.render(d);
@@ -106,7 +105,7 @@ export class FlameChart<D extends BaseDataType> {
       clickDepth: 0,
       highlightName: '',
       highlightId: -1,
-      keywords: this.keywords ?? []
+      keywords: this.keywords ?? [],
     };
     this.getInViewNode();
     // 坐标轴渲染
@@ -121,12 +120,12 @@ export class FlameChart<D extends BaseDataType> {
     let preDepth = 1;
     preDepth = this.updateSelection(
       select(this.chartDom).select('g.main-thread') as Selection<BaseType, HierarchyNode<D>, null, undefined>,
-      { preDepth, value, clickDepth, highlightName, highlightId }
+      { preDepth, value, clickDepth, highlightName, highlightId },
     );
     this.threadsData.forEach(thread => {
       const threadPreDepth = this.updateSelection(
         select(this.chartDom).select(`g.thread-${thread.id}`) as Selection<BaseType, HierarchyNode<D>, null, undefined>,
-        { preDepth: preDepth + 1, value, clickDepth, highlightName, highlightId }
+        { preDepth: preDepth + 1, value, clickDepth, highlightName, highlightId },
       );
       if (threadPreDepth === preDepth + 1) {
         preDepth = threadPreDepth - 1;
@@ -144,7 +143,7 @@ export class FlameChart<D extends BaseDataType> {
           .tickFormat((d: NumberValue) => {
             const { text, suffix } = usFormat(d.valueOf() - 0);
             return text + suffix;
-          })
+          }),
       );
     this.initEvent();
   }
@@ -170,7 +169,7 @@ export class FlameChart<D extends BaseDataType> {
 
     this.zoomData = {
       ...this.zoomData,
-      value: value - scaleValue
+      value: value - scaleValue,
     };
 
     this.zoomGraph(this.zoomData);
@@ -186,7 +185,7 @@ export class FlameChart<D extends BaseDataType> {
     const x = scaleLinear([0, this.w]).domain([0, value]);
     this.zoomData = {
       ...this.zoomData,
-      value: x.invert(width * 2)
+      value: x.invert(width * 2),
     };
     this.zoomGraph(this.zoomData);
   }
@@ -208,14 +207,14 @@ export class FlameChart<D extends BaseDataType> {
       value: this.mainData.value,
       clickDepth: 0,
       highlightName: '',
-      highlightId: -1
+      highlightId: -1,
     };
     this.zoomGraph(this.zoomData);
   }
   filterGraph(keywords: string[] = []) {
     this.zoomData = {
       ...this.zoomData,
-      keywords: keywords.map(k => k?.toLocaleLowerCase())
+      keywords: keywords.map(k => k?.toLocaleLowerCase()),
     };
     this.zoomGraph(this.zoomData);
   }
@@ -228,7 +227,7 @@ export class FlameChart<D extends BaseDataType> {
     this.zoomData.highlightName = highlightName;
     this.zoomGraph({
       ...this.zoomData,
-      highlightName
+      highlightName,
     });
   }
   /**
@@ -240,7 +239,7 @@ export class FlameChart<D extends BaseDataType> {
     this.zoomData.highlightId = highlightId;
     this.zoomGraph({
       ...this.zoomData,
-      highlightId
+      highlightId,
     });
   }
   /**
@@ -287,7 +286,7 @@ export class FlameChart<D extends BaseDataType> {
    */
   updateSelection(
     selection: Selection<BaseType, HierarchyNode<D>, null, undefined>,
-    { preDepth, value = this.mainData.value, clickDepth = 0, highlightName = '', highlightId = -1 }: BaseRect
+    { preDepth, value = this.mainData.value, clickDepth = 0, highlightName = '', highlightId = -1 }: BaseRect,
   ) {
     const x = scaleLinear([0, this.w]).domain([0, value]);
     const y = (x: number) => x * this.c;
@@ -311,7 +310,7 @@ export class FlameChart<D extends BaseDataType> {
             const left = parentNode.left || 0;
             prevTotal += left;
             const childrens = (parentNode.data.children as any).filter(child =>
-              curDepthRow.some(n => n.data.id === child.id)
+              curDepthRow.some(n => n.data.id === child.id),
             );
 
             const index = (childrens as any).findIndex(node => node.id === d.data.id);
@@ -361,7 +360,7 @@ export class FlameChart<D extends BaseDataType> {
         const getWidth = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
           const width = Math.min(
             Math.max(1, x(d.data.value)), // TODO
-            this.w
+            this.w,
           );
 
           return width;
@@ -387,13 +386,13 @@ export class FlameChart<D extends BaseDataType> {
               threadLine([
                 {
                   x: 0,
-                  y: y(newRoot.depth + preDepth - 1 / 2)
+                  y: y(newRoot.depth + preDepth - 1 / 2),
                 },
                 {
                   x: this.w,
-                  y: y(newRoot.depth + preDepth - 1 / 2)
-                }
-              ])
+                  y: y(newRoot.depth + preDepth - 1 / 2),
+                },
+              ]),
             );
         }
 
@@ -437,7 +436,7 @@ export class FlameChart<D extends BaseDataType> {
           .selectAll('g.flame-item')
           .data(
             descendants,
-            ((d: HierarchyRectangularNode<D>) => d?.data?.id) as ValueFn<HTMLElement | BaseType, unknown, KeyType>
+            ((d: HierarchyRectangularNode<D>) => d?.data?.id) as ValueFn<HTMLElement | BaseType, unknown, KeyType>,
           );
         g.attr('height', this.c)
           .attr('class', 'flame-item')
@@ -480,7 +479,7 @@ export class FlameChart<D extends BaseDataType> {
             ...this.zoomData,
             value: d.data.value,
             clickDepth: d.depth,
-            highlightName: d.data.id === RootId ? '' : this.zoomData.highlightName || ''
+            highlightName: d.data.id === RootId ? '' : this.zoomData.highlightName || '',
           };
           this.getInViewNode(d);
           this.zoomGraph(this.zoomData);
@@ -490,7 +489,7 @@ export class FlameChart<D extends BaseDataType> {
           const self = this;
           g.on('mousemove', (e: MouseEvent, d) => {
             this.onDetail(e, d, {
-              rootValue: this.mainData.value
+              rootValue: this.mainData.value,
             });
           })
             .on('mouseout', function (e: MouseEvent) {
@@ -568,7 +567,7 @@ export class FlameChart<D extends BaseDataType> {
     return {
       threads,
       main,
-      maxDepth
+      maxDepth,
     };
   }
 }

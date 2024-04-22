@@ -58,7 +58,7 @@ export default defineComponent({
     const toolsFormData = ref<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefautTimezone(),
-      refreshInterval: -1
+      refreshInterval: -1,
     });
     provide<Ref<ToolsFormData>>('toolsFormData', toolsFormData);
 
@@ -75,11 +75,11 @@ export default defineComponent({
         isComparison: false,
         server: {
           app_name: '',
-          service_name: ''
+          service_name: '',
         },
         where: [],
-        comparisonWhere: []
-      }
+        comparisonWhere: [],
+      },
     });
 
     const searchType = computed(() => searchState.formData.type);
@@ -165,7 +165,7 @@ export default defineComponent({
         start_time: start,
         end_time: end,
         app_name,
-        service_name
+        service_name,
       }).catch(() => ({}));
       searchState.loading = false;
       detailData.value = selectServiceData.value;
@@ -201,8 +201,8 @@ export default defineComponent({
         comparisonWhere: [],
         server: {
           app_name: '',
-          service_name: ''
-        }
+          service_name: '',
+        },
       };
       isEmpty.value = true;
     }
@@ -214,7 +214,7 @@ export default defineComponent({
         profile_id: curFileInfo?.value?.profile_id,
         global_query: true,
         start: startTime,
-        end: endTime
+        end: endTime,
       };
       return {
         is_compared: isComparison,
@@ -227,7 +227,7 @@ export default defineComponent({
           return pre;
         }, {}),
         data_type: dataType.value,
-        ...(type === SearchType.Upload ? uploadParams : profilingParams)
+        ...(type === SearchType.Upload ? uploadParams : profilingParams),
       };
     }
 
@@ -300,7 +300,7 @@ export default defineComponent({
       handleDataTypeChange,
       handleShowDetail,
       handleSelectFile,
-      handleMenuSelect
+      handleMenuSelect,
     };
   },
 
@@ -338,7 +338,7 @@ export default defineComponent({
                       class='empty-image'
                       src={ProfilingQueryImage}
                     />
-                  )
+                  ),
                 }}
               </EmptyCard>
             </div>
@@ -353,7 +353,7 @@ export default defineComponent({
                       class='empty-image'
                       src={ProfilingUploadQueryImage}
                     />
-                  )
+                  ),
                 }}
               </EmptyCard>
             </div>
@@ -410,7 +410,7 @@ export default defineComponent({
               theme: 'simple',
               isShow: this.searchState.isShow,
               onWidthChange: () => {},
-              onHidden: () => this.handleShowTypeChange(PanelType.Search, false)
+              onHidden: () => this.handleShowTypeChange(PanelType.Search, false),
             }}
           >
             <RetrievalSearch
@@ -430,7 +430,7 @@ export default defineComponent({
                     onQuery={this.handleQuery}
                     onClear={this.handleQueryClear}
                   ></HandleBtn>
-                )
+                ),
               }}
             </RetrievalSearch>
           </div>
@@ -460,5 +460,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

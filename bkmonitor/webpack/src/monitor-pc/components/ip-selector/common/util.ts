@@ -69,12 +69,12 @@ export const defaultSearch = (data: any[], keyword: string) => {
         return item[key].indexOf(keyword.trim()) > -1;
       }
       return false;
-    })
+    }),
   );
 };
 
 export default {
   hasOwnProperty,
   Debounce,
-  defaultSearch
+  defaultSearch,
 };

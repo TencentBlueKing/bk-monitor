@@ -61,13 +61,13 @@ export default class TextOverflowCopy extends tsc<IProps, {}> {
     copyText(this.text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 

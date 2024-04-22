@@ -59,12 +59,12 @@ export type IMenuId = 'edit-variate' | 'edit-tab' | 'edit-dashboard' | 'view-dem
 export const COMMON_TAB_LIST: ITabItem[] = [
   {
     id: 'dashboard',
-    name: window.i18n.tc('概览')
+    name: window.i18n.tc('概览'),
   },
   {
     id: 'list',
-    name: window.i18n.tc('主机列表')
-  }
+    name: window.i18n.tc('主机列表'),
+  },
 ];
 export interface IMenuItem extends ITabItem {
   disable?: boolean;
@@ -74,20 +74,20 @@ export interface IMenuItem extends ITabItem {
 export const COMMON_SETTINGS_LIST: IMenuItem[] = [
   {
     id: 'edit-tab',
-    name: window.i18n.tc('编辑页签')
+    name: window.i18n.tc('编辑页签'),
   },
   {
     id: 'edit-variate',
-    name: window.i18n.tc('编辑变量')
+    name: window.i18n.tc('编辑变量'),
   },
   {
     id: 'edit-dashboard',
-    name: window.i18n.tc('编辑视图')
+    name: window.i18n.tc('编辑视图'),
   },
   {
     id: 'view-demo',
-    name: window.i18n.tc('DEMO')
-  }
+    name: window.i18n.tc('DEMO'),
+  },
 ];
 
 export interface IUptimeCheckType {
@@ -96,18 +96,18 @@ export interface IUptimeCheckType {
 }
 export const UPTIME_CHECK_TYPE: IUptimeCheckType = {
   task: 'uptime-check-task',
-  node: 'uptime-check-node'
+  node: 'uptime-check-node',
 };
 
 export const UPTIME_CHECK_LIST: ITabItem[] = [
   {
     name: window.i18n.tc('拨测任务'),
-    id: UPTIME_CHECK_TYPE.task
+    id: UPTIME_CHECK_TYPE.task,
   },
   {
     name: window.i18n.tc('拨测节点'),
-    id: UPTIME_CHECK_TYPE.node
-  }
+    id: UPTIME_CHECK_TYPE.node,
+  },
 ];
 
 export type CommonTabType = 'dashboard' | 'list' | IUptimeCheckType['task'] | IUptimeCheckType['node'] | string;

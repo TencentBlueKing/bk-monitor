@@ -28,7 +28,7 @@ export enum TabEnum {
   StorageState = 'StorageState',
   TargetDetail = 'targetDetail',
   Configuration = 'configuration',
-  FieldDetails = 'fieldDetails'
+  FieldDetails = 'fieldDetails',
 }
 
 export interface DetailData {
@@ -43,5 +43,5 @@ export interface DetailData {
 export enum TCollectorAlertStage {
   collecting = 'collecting',
   transfer = 'transfer',
-  storage = 'storage'
+  storage = 'storage',
 }

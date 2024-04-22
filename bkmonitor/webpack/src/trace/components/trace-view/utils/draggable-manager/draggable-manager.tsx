@@ -183,7 +183,7 @@ export default class DraggableManager {
       value,
       x,
       manager: this,
-      tag: this.tag
+      tag: this.tag,
     });
   };
 
@@ -231,7 +231,7 @@ export default class DraggableManager {
       value,
       x,
       manager: this,
-      tag: this.tag
+      tag: this.tag,
     });
   };
 }

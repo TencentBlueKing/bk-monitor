@@ -35,7 +35,7 @@ export enum IntroduceRouteKey {
   'k8s' = 'k8s',
   'custom-scenes' = 'custom-scenes',
   'collect-config' = 'collect-config',
-  'plugin-manager' = 'plugin-manager'
+  'plugin-manager' = 'plugin-manager',
 }
 export type IntroduceStoreData = Record<
   IntroduceRouteKey,
@@ -48,16 +48,14 @@ class IntroduceStore {
   // 使用一个对象存储介绍数据和加载状态
   data: Partial<IntroduceStoreData> = {};
   constructor() {
-    // eslint-disable-next-line no-restricted-syntax
     for (const key in IntroduceRouteKey) {
       this.data[key] = {
         introduce: null,
-        loading: false
+        loading: false,
       };
     }
   }
   clear() {
-    // eslint-disable-next-line no-restricted-syntax
     for (const key in IntroduceRouteKey) {
       this.data[key].introduce = null;
     }

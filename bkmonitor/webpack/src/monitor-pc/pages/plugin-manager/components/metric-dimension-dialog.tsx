@@ -92,15 +92,15 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     rule_list: [],
     name: '',
     desc: '',
-    index: -1
+    index: -1,
   };
   rule = {
-    isNameEmpty: false
+    isNameEmpty: false,
   };
   tableData = [];
   unitList = [];
   tippyOptions = {
-    distance: 0
+    distance: 0,
   };
   isShowCancel = false;
   isImport = false;
@@ -134,7 +134,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   /* 是否有数据，并且至少有一个启用 */
   get haveData() {
     const nameRes = this.tableData.every(
-      group => group.table_name === GROUP_DEFAULT_NAME || group.fields.some(item => item.monitor_type === 'metric')
+      group => group.table_name === GROUP_DEFAULT_NAME || group.fields.some(item => item.monitor_type === 'metric'),
     );
     const activeRes = this.tableData.some(group => group.fields.some(item => item.is_active));
     return activeRes && nameRes;
@@ -154,7 +154,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           }
           metricExisted.push(item);
           return false;
-        })
+        }),
     );
     // 维度组里唯一
     let isDimensionRepeat = false;
@@ -183,7 +183,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           }
           descExisted.push(item);
           return false;
-        })
+        }),
     );
     return !isMetricRepeat && !isDimensionRepeat && !isDescRepeat;
   }
@@ -200,7 +200,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     const list = [
       //  类别表
       { id: 'double', name: 'double' },
-      { id: 'int', name: 'int' }
+      { id: 'int', name: 'int' },
     ];
     if (
       this.localPluginData &&
@@ -272,14 +272,14 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           showInput: false,
           isFirst: false,
           isDisabled: false,
-          order: item.monitor_type === 'metric' ? 0 : 1
-        }))
+          order: item.monitor_type === 'metric' ? 0 : 1,
+        })),
       }));
       this.localPluginData = {
         plugin_id: detailData.plugin_id,
         plugin_type: detailData.plugin_type,
         config_version: detailData.config_version,
-        info_version: detailData.info_version
+        info_version: detailData.info_version,
       };
     } else {
       this.localMetricData = this.metricJson;
@@ -290,7 +290,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         plugin_id: this.pluginData.plugin_id,
         plugin_type: this.pluginData.plugin_type,
         config_version: this.pluginData.config_version,
-        info_version: this.pluginData.info_version
+        info_version: this.pluginData.info_version,
       };
       this.isAutoCollect = this.pluginData.enable_field_blacklist;
       this.isHiddenTip = this.pluginData.is_split_measurement;
@@ -308,7 +308,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         table_name: GROUP_DEFAULT_NAME,
         table_desc: this.$t('默认分组'),
         rule_list: [],
-        fields: []
+        fields: [],
       });
     }
   }
@@ -333,11 +333,11 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   handleMaxMetircDimMsg() {
     const message = this.$t(
       this.isSnmp ? 'SNMP设置指标数量超过{n}，请删减非必要指标' : '设置指标数量超过{n}，请删减非必要指标',
-      { n: this.isSnmp ? MAX_NUM_METRIC_DIM_SNMP : MAX_NUM_METRIC_DIM }
+      { n: this.isSnmp ? MAX_NUM_METRIC_DIM_SNMP : MAX_NUM_METRIC_DIM },
     );
     this.$bkMessage({
       message,
-      theme: 'error'
+      theme: 'error',
     });
   }
   //  别名列表
@@ -362,7 +362,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         this.unitList = data.map(item => ({
           ...item,
           children: item.formats,
-          id: item.name
+          id: item.name,
         }));
       })
       .catch(() => {});
@@ -377,7 +377,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       value: {
         linux: null,
         windows: null,
-        aix: null
+        aix: null,
       },
       isFirst: false,
       is_active: true,
@@ -388,7 +388,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       reValue: false,
       descReValue: false,
       showInput: false,
-      id: random(10)
+      id: random(10),
     } as any;
     if (type === 'metric') {
       item.order = 1;
@@ -458,7 +458,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         table_name: group.name,
         table_desc: group.desc || group.name,
         rule_list: group.rule_list,
-        fields: []
+        fields: [],
       });
     }
     group.isShow = false;
@@ -527,7 +527,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     if (data.monitor_type === 'dimension') {
       const targetName = type === 'name' ? data.oldName : data.name;
       const keyMap = {
-        field_name: 'name'
+        field_name: 'name',
       };
       group.fields.forEach(field => {
         if (field.monitor_type === 'metric' && field.tag_list?.length) {
@@ -673,7 +673,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     if (!this.canSave) {
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('所有的指标/维度的英文名和别名不能重名或为空')
+        message: this.$t('所有的指标/维度的英文名和别名不能重名或为空'),
       });
       return;
     }
@@ -702,15 +702,15 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           tmpSet.is_manual =
             !item.rule_list.some(rule => matchRuleFn(set.name, rule)) && item.table_name !== GROUP_DEFAULT_NAME;
           return tmpSet;
-        })
-      }))
+        }),
+      })),
     } as any;
     if (this.isRoutePage || !this.isToken) {
       params.need_upgrade = true;
     }
     this.loading = true;
     this.$bkLoading({
-      extCls: 'metric-dimension-confirm-loading'
+      extCls: 'metric-dimension-confirm-loading',
     });
     const data = await saveMetric(params, { needMessage: false }).catch(err => {
       this.$bkMessage({ theme: 'error', message: err.message, ellipsisLine: 0 });
@@ -763,14 +763,14 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           if (!Array.isArray(contents)) {
             this.$bkMessage({
               theme: 'error',
-              message: this.$t('文件内容不符合规范')
+              message: this.$t('文件内容不符合规范'),
             });
           } else {
             contents.forEach(item => {
               result.push({
                 fields: Array.isArray(item.fields) ? item.fields : [],
                 table_name: item.table_name || '',
-                table_desc: item.table_desc || ''
+                table_desc: item.table_desc || '',
               });
             });
           }
@@ -805,7 +805,6 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   handleExportMetric(cb) {
     typeof cb === 'function' &&
       cb(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.tableData
           .filter(item => item.table_name)
           .map(item => ({
@@ -822,9 +821,8 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   unit,
                   is_active,
                   dimensions = [],
-                  tag_list = []
+                  tag_list = [],
                 }) => {
-                  // eslint-disable-next-line camelcase
                   if (monitor_type === 'metric') {
                     return {
                       description,
@@ -835,7 +833,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                       type,
                       unit,
                       dimensions,
-                      tag_list
+                      tag_list,
                     };
                   }
                   return {
@@ -844,12 +842,12 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     name,
                     type,
                     unit,
-                    is_active
+                    is_active,
                   };
-                }
-              )
+                },
+              ),
           })),
-        `${this.localPluginData.plugin_id}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`
+        `${this.localPluginData.plugin_id}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`,
       );
   }
   handleImportMetric(data) {
@@ -869,7 +867,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
             table_name: item.table_name,
             table_desc: item.table_desc || item.table_name,
             rule_list: item.rule_list || [],
-            fields: []
+            fields: [],
           };
           const fieldList = [];
           const oldTableItem = this.tableData.find(set => set.table_name === item.table_name);
@@ -878,16 +876,16 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               errorList.push(
                 this.$t('分组：{tableName} 第{index}个字段未填写名称', {
                   tableName: item.table_name,
-                  index: childIndex + 1
-                })
+                  index: childIndex + 1,
+                }),
               );
             }
             if (fieldList.some(set => set.description !== '' && set.description === field.description)) {
               errorList.push(
                 this.$t('分组：{tableName} 别名：{fieldName}重复', {
                   tableName: item.table_name,
-                  fieldName: field.description
-                })
+                  fieldName: field.description,
+                }),
               );
             }
             if (field.monitor_type === 'metric') {
@@ -895,13 +893,13 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 errorList.push(
                   this.$t('分组：{tableName} 指标名：{fieldName}重复', {
                     tableName: item.table_name,
-                    fieldName: field.name
-                  })
+                    fieldName: field.name,
+                  }),
                 );
               }
               const metricItem = this.getDefaultMetric(field);
               const oldMetricItem = oldTableItem?.fields.find(
-                set => set.name === metricItem.name && set.monitor_type === metricItem.monitor_type
+                set => set.name === metricItem.name && set.monitor_type === metricItem.monitor_type,
               );
               if (oldMetricItem?.value) {
                 metricItem.value = oldMetricItem.value;
@@ -913,13 +911,13 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 errorList.push(
                   this.$t('分组：{tableName} 指标名：{fieldName}重复', {
                     tableName: item.table_name,
-                    fieldName: field.name
-                  })
+                    fieldName: field.name,
+                  }),
                 );
               }
               const dimensionItem = this.getDefaultDimension(field);
               const oldDimensionItem = oldTableItem?.fields.find(
-                set => set.name === dimensionItem.name && set.monitor_type === dimensionItem.monitor_type
+                set => set.name === dimensionItem.name && set.monitor_type === dimensionItem.monitor_type,
               );
               if (oldDimensionItem?.value) {
                 dimensionItem.value = oldDimensionItem.value;
@@ -930,8 +928,8 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               errorList.push(
                 this.$t('分组：{tableName} 字段：{fieldName}填写字段分类错误', {
                   tableName: item.table_name,
-                  fieldName: field.name
-                })
+                  fieldName: field.name,
+                }),
               );
             }
           });
@@ -944,7 +942,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     } else {
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('未检测到需要导入的指标和维度')
+        message: this.$t('未检测到需要导入的指标和维度'),
       });
       return;
     }
@@ -954,10 +952,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         message: this.$createElement(
           'ul',
           {},
-          errorList.map(message => this.$createElement('li', {}, message))
+          errorList.map(message => this.$createElement('li', {}, message)),
         ),
         delay: 10000,
-        ellipsisLine: 0
+        ellipsisLine: 0,
       });
       return;
     }
@@ -970,15 +968,15 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   }
   getDefaultMetric({
     description = '',
-    // eslint-disable-next-line camelcase
+
     is_active = true,
-    // eslint-disable-next-line camelcase
+
     is_diff_metric = false,
     name,
     type = 'double',
     unit = 'none',
     dimensions = [],
-    tag_list = []
+    tag_list = [],
   }) {
     return {
       dimensions,
@@ -997,17 +995,17 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       value: {
         linux: null,
         windows: null,
-        aix: null
+        aix: null,
       },
       order: 1,
-      id: random(10)
+      id: random(10),
     };
   }
   getDefaultDimension({
     description = '',
-    // eslint-disable-next-line camelcase
+
     is_active = true,
-    name
+    name,
   }) {
     return {
       description,
@@ -1024,10 +1022,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       value: {
         linux: null,
         windows: null,
-        aix: null
+        aix: null,
       },
       order: 3,
-      id: random(10)
+      id: random(10),
     };
   }
 
@@ -1064,14 +1062,14 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         extCls: 'auto-collect-info',
         title: this.$t('此操作存在危险'),
         subTitle: this.$t(
-          '因为当前是旧的存储模式，开启采集新增指标后会切换成新的存储模式，旧的历史数据会丢失，请确认是否继续。'
+          '因为当前是旧的存储模式，开启采集新增指标后会切换成新的存储模式，旧的历史数据会丢失，请确认是否继续。',
         ),
         confirmFn: () => {
           this.isHiddenTip = true;
         },
         cancelFn: () => {
           this.isAutoCollect = false;
-        }
+        },
       });
     }
   }
@@ -1085,7 +1083,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               class='mr-8'
               icon='plus'
               v-authority={{
-                active: !this.authority.MANAGE_AUTH
+                active: !this.authority.MANAGE_AUTH,
               }}
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleAddGroup() : this.handleShowAuthorityDetail())}
             >
@@ -1189,7 +1187,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     v-model={this.dataPreview}
                     size='small'
                     theme='primary'
-                  ></bk-switcher>
+                  ></bk-switcher>,
                 ];
               }
               return [
@@ -1225,7 +1223,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     size='small'
                     theme='primary'
                   ></bk-switcher>
-                </span>
+                </span>,
               ];
             })()}
           </div>
@@ -1331,7 +1329,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               class='mr-8'
               theme='primary'
               v-authority={{
-                active: !this.authority.MANAGE_AUTH
+                active: !this.authority.MANAGE_AUTH,
               }}
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleSave() : this.handleShowAuthorityDetail())}
             >
@@ -1384,7 +1382,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   >
                     <span class='icon-monitor icon-zhuanhuan'></span>
                     <span>{this.$t('一键转换')}</span>
-                  </span>
+                  </span>,
                 ]
               : undefined}
           </span>

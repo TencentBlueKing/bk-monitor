@@ -71,16 +71,16 @@ export default class TimeSeriesForecastingChart extends tsc<IProps> {
 
   async initPanel() {
     const thresholdOptions = await handleThreshold(this.detectionConfig);
-    // eslint-disable-next-line max-len
+
     const { startTime, endTime } = createAutoTimerange(
       this.detail.begin_time,
       this.detail.end_time,
-      this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval
+      this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval,
     );
-    // eslint-disable-next-line max-len
+
     const forecastTimeRange = [
       this.detail.latest_time,
-      this.detail.latest_time + this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval
+      this.detail.latest_time + this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval,
     ];
     this.timeRange = [startTime, endTime];
     const panelSrcData = this.detail.graph_panel;
@@ -94,8 +94,8 @@ export default class TimeSeriesForecastingChart extends tsc<IProps> {
         time_series_forecast: {
           need_hover_style: false,
           duration: this.duration,
-          ...thresholdOptions
-        }
+          ...thresholdOptions,
+        },
       },
       targets: targets.map((item, index) => ({
         ...item,
@@ -103,16 +103,16 @@ export default class TimeSeriesForecastingChart extends tsc<IProps> {
         options: {
           time_series_forecast: {
             forecast_time_range: !!index ? forecastTimeRange : undefined,
-            no_result: !!index
-          }
+            no_result: !!index,
+          },
         },
         data: {
           ...item.data,
           id: this.detail.id,
-          function: undefined
+          function: undefined,
         },
-        api: 'alert.alertGraphQuery'
-      }))
+        api: 'alert.alertGraphQuery',
+      })),
     };
     this.panel = new PanelModel(panelData);
   }

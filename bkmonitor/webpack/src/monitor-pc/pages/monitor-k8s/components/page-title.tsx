@@ -335,7 +335,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                             show-select-all={true}
                             behavior='simplicity'
                             popoverOptions={{
-                              onHidden: this.handleSearchToggle
+                              onHidden: this.handleSearchToggle,
                             }}
                             on-change={this.handleSearchChange}
                           >
@@ -351,7 +351,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                             <i class='bk-icon icon-search'></i>
                           )}
                         </span>
-                      )
+                      ),
                     ]
                   : undefined)
               // <ListMenu
@@ -375,7 +375,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
               <i
                 class={[
                   `tool-icon ${this.searchActive ? 'icon-active' : ''}`,
-                  this.bookMarkMode === 'auto' ? 'bk-icon icon-search' : 'icon-monitor'
+                  this.bookMarkMode === 'auto' ? 'bk-icon icon-search' : 'icon-monitor',
                 ]}
                 onMouseenter={this.handleSearch}
               />

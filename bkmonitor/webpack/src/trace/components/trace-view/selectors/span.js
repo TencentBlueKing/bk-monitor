@@ -38,11 +38,11 @@ export const getSpanReferences = span => span.references || [];
 export const getSpanReferenceByType = createSelector(
   createSelector(({ span }) => span, getSpanReferences),
   ({ type }) => type,
-  (references, type) => references.find(ref => ref.refType === type)
+  (references, type) => references.find(ref => ref.refType === type),
 );
 export const getSpanParentId = createSelector(
   span => getSpanReferenceByType({ span, type: 'CHILD_OF' }),
-  childOfRef => (childOfRef ? childOfRef.spanID : null)
+  childOfRef => (childOfRef ? childOfRef.spanID : null),
 );
 
 export const getSpanProcess = span => {
@@ -62,9 +62,9 @@ export const filterSpansForTimestamps = createSelector(
   ({ spans }) => spans,
   ({ leftBound }) => leftBound,
   ({ rightBound }) => rightBound,
-  // eslint-disable-next-line max-len
+
   (spans, leftBound, rightBound) =>
-    spans.filter(span => getSpanTimestamp(span) >= leftBound && getSpanTimestamp(span) <= rightBound)
+    spans.filter(span => getSpanTimestamp(span) >= leftBound && getSpanTimestamp(span) <= rightBound),
 );
 
 export const filterSpansForText = createSelector(
@@ -73,19 +73,19 @@ export const filterSpansForText = createSelector(
   (spans, text) =>
     fuzzy
       .filter(text, spans, {
-        extract: span => `${getSpanServiceName(span)} ${getSpanName(span)}`
+        extract: span => `${getSpanServiceName(span)} ${getSpanName(span)}`,
       })
-      .map(({ original }) => original)
+      .map(({ original }) => original),
 );
 
 const getTextFilterdSpansAsMap = createSelector(filterSpansForText, matchingSpans =>
   matchingSpans.reduce(
     (obj, span) => ({
       ...obj,
-      [getSpanId(span)]: span
+      [getSpanId(span)]: span,
     }),
-    {}
-  )
+    {},
+  ),
 );
 
 export const highlightSpansForTextFilter = createSelector(
@@ -94,6 +94,6 @@ export const highlightSpansForTextFilter = createSelector(
   (spans, textFilteredSpansMap) =>
     spans.map(span => ({
       ...span,
-      muted: !textFilteredSpansMap[getSpanId(span)]
-    }))
+      muted: !textFilteredSpansMap[getSpanId(span)],
+    })),
 );

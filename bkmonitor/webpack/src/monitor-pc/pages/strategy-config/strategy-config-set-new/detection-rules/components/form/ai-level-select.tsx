@@ -50,14 +50,14 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
   /** 告警级别方式 */
   levelTypeList = [
     { id: 'auto', name: this.$t('智能生成'), disabled: true },
-    { id: 'manual', name: this.$t('手动指定'), disabled: false }
+    { id: 'manual', name: this.$t('手动指定'), disabled: false },
   ];
 
   /** 告警级别类型 */
   levelList = [
     { id: 1, name: this.$t('致命'), icon: 'icon-danger' },
     { id: 2, name: this.$t('预警'), icon: 'icon-mind-fill' },
-    { id: 3, name: this.$t('提醒'), icon: 'icon-tips' }
+    { id: 3, name: this.$t('提醒'), icon: 'icon-tips' },
   ];
 
   /** popover实例 */
@@ -103,7 +103,7 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
         theme: 'light al-level-popover',
         arrow: true,
         placement: 'top',
-        hideOnClick: false
+        hideOnClick: false,
       });
     }
     this.popoverInstance?.show();

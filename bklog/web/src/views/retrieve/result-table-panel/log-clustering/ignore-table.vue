@@ -237,7 +237,9 @@ export default {
 <style lang="scss">
 /* stylelint-disable no-descending-specificity */
 .log-cluster-table {
-  color: #313238;
+  font-family: var(--table-fount-family);
+  font-size: var(--table-fount-size);
+  color: var(--table-fount-color);
 
   .bk-table-body td.bk-table-expanded-cell {
     padding: 0;
@@ -269,9 +271,10 @@ export default {
     display: inline-block;
     padding-right: 15px;
     overflow: hidden;
-    // font-family: monospace;
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
     line-height: 20px;
-    // color: #000;
+    color: var(--table-fount-color);
 
     &.is-limit {
       max-height: 96px;

@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/member-ordering */
 /*
  * Tencent is pleased to support the open source community by making
@@ -107,7 +106,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   /* 对比 */
   compare = {
     type: 'none', // 对比类型 目前只支持 时间对比
-    value: [] // 对应对比类型的值
+    value: [], // 对应对比类型的值
   };
   /* 拖拽数据 */
   drag = { height: 550, minHeight: 300, maxHeight: 550 };
@@ -129,7 +128,7 @@ export default class ViewDetailNew extends tsc<IProps> {
     this.compareTypeList = [
       'none',
       !window.__BK_WEWEB_DATA__?.lockTimeRange ? 'time' : undefined,
-      !this.readonly ? 'metric' : undefined
+      !this.readonly ? 'metric' : undefined,
     ];
     this.refleshList = refleshList;
     this.handleQueryConfig(this.viewConfig);
@@ -183,7 +182,7 @@ export default class ViewDetailNew extends tsc<IProps> {
     this.rightData = this.queryconfig.map((item, index) => ({
       ...item,
       show: index === 0,
-      name: str[index]
+      name: str[index],
     }));
     this.panel = new PanelModel({
       ...this.viewConfig.config,
@@ -191,9 +190,9 @@ export default class ViewDetailNew extends tsc<IProps> {
         ...this.viewConfig.config.options,
         legend: {
           displayMode: 'table',
-          placement: 'bottom'
-        }
-      }
+          placement: 'bottom',
+        },
+      },
     });
   }
 
@@ -242,7 +241,7 @@ export default class ViewDetailNew extends tsc<IProps> {
         dimensions,
         datapoints,
         ...setData,
-        target
+        target,
       };
     });
     const dataList = dataSeries.reduce((data, item) => data.concat(item), []);
@@ -255,7 +254,7 @@ export default class ViewDetailNew extends tsc<IProps> {
     const { tableThArr, tableTdArr } = transformSrcData(data);
     this.tableThArr = tableThArr.map(item => ({
       name: item,
-      sort: ''
+      sort: '',
     }));
     this.tableTdArr = tableTdArr;
     this.tableData = [...tableTdArr];
@@ -333,7 +332,7 @@ export default class ViewDetailNew extends tsc<IProps> {
             metric.data_source_label === item.data_source_label &&
             metric.data_type_label === item.data_type_label &&
             metric.result_table_id === item.table &&
-            metric.metric_field === item.metrics[0].field
+            metric.metric_field === item.metrics[0].field,
         );
         const groupByList = metricData?.dimensions?.map(item => item.id);
         if (groupByList?.includes(key)) {
@@ -376,11 +375,11 @@ export default class ViewDetailNew extends tsc<IProps> {
         interval,
         metrics,
         filter_dict,
-        functions: tempFunctions
+        functions: tempFunctions,
       };
       target.data.query_configs = target.data.query_configs.map(qc => ({
         ...qc,
-        ...queryConfig
+        ...queryConfig,
       }));
     });
     this.chartKey = random(8);
@@ -393,7 +392,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   handleExportCsv() {
     const csvString = transformTableDataToCsvStr(
       this.tableThArr.map(item => item.name),
-      this.tableTdArr
+      this.tableTdArr,
     );
     downCsvFile(csvString, this.viewConfig?.config?.title);
   }
@@ -618,8 +617,8 @@ export default class ViewDetailNew extends tsc<IProps> {
                       group-index={index}
                       compare-value={{
                         tools: {
-                          timeRange: this.timeRange
-                        }
+                          timeRange: this.timeRange,
+                        },
                       }}
                       on-change-status={this.handleChangeStatus}
                       on-query-change={this.handleQueryChange}
