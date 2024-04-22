@@ -7,78 +7,53 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections import defaultdict
-from datetime import datetime
-
-from apm_web.profile.constants import DESCRIBING_SAMPLE_UNIT
-from apm_web.profile.converter import Converter
-
-
-def merge_timestamp(original_dict):
-    """合并相同时间戳的字典"""
-    group_dict = {}
-    final_dict = {}
-
-    for timestamp, value in original_dict.items():
-        dt = datetime.fromtimestamp(timestamp / 1000)  # 转换为秒
-        min_sec_key = dt.strftime('%M:%S')
-        if min_sec_key not in group_dict:
-            group_dict[min_sec_key] = []
-        group_dict[min_sec_key].append((timestamp, value))
-
-    for min_sec, tuples in group_dict.items():
-        min_timestamp = min([t[0] for t in tuples])
-        sum_values = sum([t[1] for t in tuples])
-        final_dict[min_timestamp] = sum_values
-
-    return final_dict
-
-
-def get_statistics(c: Converter) -> dict:
-    statistics = defaultdict(int)
-    for s in c.raw_data:
-        if s["sample_type"].split("/")[-1] != DESCRIBING_SAMPLE_UNIT:
-            continue
-        statistics[s["dtEventTimeStamp"]] += int(s["value"])
-
-    return merge_timestamp(statistics)
 
 
 class TendencyDiagrammer:
-    def draw(self, c: Converter, **options) -> dict:
+    field_key = "(round((cast(dtEventTimeStamp as DOUBLE) / cast(60000 as DOUBLE))) * cast(60 as DOUBLE))"
+    value_key = "sum(value)"
+
+    def draw(self, c: dict, **options) -> dict:
         """statistics profile data by time"""
-        statistics = get_statistics(c)
 
         # follow the structure of bk-ui plugin
         return {
             "series": [
                 {
                     "alias": "_result_",
-                    "datapoints": [[v, k] for k, v in sorted(statistics.items())],
+                    "datapoints": [
+                        [int(i[self.field_key]), i[self.value_key]] for i in c.get("list", []) if self.field_key in i
+                    ],
                     "type": "line",
                     "unit": "",
                 }
             ]
         }
 
-    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
+    def diff(self, base_doris_converter: dict, diff_doris_converter: dict, **options) -> dict:
         """diff two profile data by time"""
-        base_statistics = get_statistics(base_doris_converter)
-        diff_statistics = get_statistics(diff_doris_converter)
 
         # follow the structure of bk-ui plugin
         return {
             "series": [
                 {
                     "alias": "_result_",
-                    "datapoints": [[v, k] for k, v in sorted(base_statistics.items())],
+                    "datapoints": [
+                        [int(i[self.field_key]), i[self.value_key]]
+                        for i in base_doris_converter.get("list", [])
+                        if self.field_key in i
+                    ],
                     "type": "line",
                     "unit": "",
                     "dimensions": {"device_name": '查询项'},
                 },
                 {
                     "alias": "_result_",
-                    "datapoints": [[v, k] for k, v in sorted(diff_statistics.items())],
+                    "datapoints": [
+                        [int(i[self.field_key]), i[self.value_key]]
+                        for i in diff_doris_converter.get("list", [])
+                        if self.field_key in i
+                    ],
                     "type": "line",
                     "unit": "",
                     "dimensions": {"device_name": '对比项'},
