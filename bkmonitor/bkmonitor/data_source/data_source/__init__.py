@@ -1021,11 +1021,36 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
 
     DEFAULT_TIME_FIELD = "dtEventTimeStamp"
 
+    @classmethod
+    def using_unify_query(cls, bk_biz_id):
+        # 灰度状态： 灰度业务列表不包含0业务表示灰度中
+        grayscale = 0 not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
+        if grayscale:
+            # 灰度数据源基于业务进行灰度
+            return bk_biz_id in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
+        # 不灰度就是全量(灰度列表包含 0 业务)
+        return True
+
+    def _update_params_by_advance_method(self):
+        if len(self.metrics) > 1 and not self.functions:
+            # 如果使用了查询函数，会走统一查询模块
+            # 只有多指标情况下, bksql，需要高级过滤转换。
+            self.ADVANCE_CONDITION_METHOD = AdvanceConditionMethod
+
+        return super(BkdataTimeSeriesDataSource, self)._update_params_by_advance_method()
+
     def __init__(self, *args, **kwargs):
+        # datasource初始化部分基于 init_by_query_config， 部分是直接初始化
+        # 风险： 初始化参数中可能不存在业务id信息
+        bk_biz_id = kwargs.get("bk_biz_id")
+        if bk_biz_id and self.using_unify_query(bk_biz_id):
+            # 当计算平台查询走unify-query的时候，不额外处理高级过滤方法
+            # 影响函数： _update_params_by_advance_method
+            self.ADVANCE_CONDITION_METHOD = []
         super(BkdataTimeSeriesDataSource, self).__init__(*args, **kwargs)
 
         # 对用户的请求进行鉴权
-        if "bk_biz_id" in kwargs:
+        if bk_biz_id:
             bk_biz_id = str(kwargs["bk_biz_id"])
             table_prefix = re.match(r"^(\d*)", self.table).groups()[0]
             if not table_prefix or table_prefix == str(settings.BK_DATA_BK_BIZ_ID):

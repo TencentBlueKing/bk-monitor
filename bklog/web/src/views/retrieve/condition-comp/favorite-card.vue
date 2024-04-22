@@ -116,7 +116,7 @@ export default {
     }
   },
   created() {
-    this.handleOverflowDebounce = debounce(300, false, this.handleOverflow);
+    this.handleOverflowDebounce = debounce(300, this.handleOverflow);
   },
   mounted() {
     this.handleOverflowDebounce();

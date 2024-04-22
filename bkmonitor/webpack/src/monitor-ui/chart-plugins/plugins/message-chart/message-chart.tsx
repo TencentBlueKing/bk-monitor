@@ -152,7 +152,7 @@ export default class MessageChart extends CommonSimpleChart {
               <span class='pagination-list'>
                 {this.$t('当前为第')}
                 <span class='bold-num'>
-                  {this.pagination.current}/{this.pagination.limit}
+                  {this.pagination.current} / {Math.ceil(this.pagination.count / this.pagination.limit)}
                 </span>
                 {this.$t('页')}
               </span>

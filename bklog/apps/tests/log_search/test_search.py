@@ -94,7 +94,8 @@ class TestSearchHandler(TestCase):
         "apps.log_search.handlers.search.mapping_handlers.MappingHandlers.is_nested_field",
         lambda _, __: False,
     )
-    def test_search_after_result(self):
+    @patch.object(SearchHandler, "_init_filter", return_value=[])
+    def test_search_after_result(self, mock_init_filter):
         search_after_result = self.search_handler.search_after_result(
             search_result=SEARCH_RESULT, sorted_fields=LOG_ASYNC_FIELDS
         )

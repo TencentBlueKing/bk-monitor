@@ -221,7 +221,7 @@ export default {
     }
   },
   created() {
-    this.handleBizSearchDebounce = debounce(300, false, this.handleBizSearch);
+    this.handleBizSearchDebounce = debounce(300, this.handleBizSearch);
 
     // this.spaceBgColor = this.$store.getters.spaceBgColor || this.getRandomColor();
     const spaceTypeMap = {};

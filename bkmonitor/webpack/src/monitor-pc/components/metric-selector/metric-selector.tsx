@@ -275,6 +275,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     this.pagination.total = 0;
     this.tag.value = '';
     this.isRefreshSuccess = false;
+    if (!this.metricId) {
+      this.selectedMetric = null;
+    }
   }
 
   @Debounce(300)
@@ -875,15 +878,17 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               <div class='metric-selector-tags'>
                 <HorizontalScrollContainer key={String(this.tag.list?.length || 0)}>
                   <div class='built-in'>
-                    {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(item => (
-                      <div
-                        key={item.id}
-                        class={['built-in-item', { active: this.tag.value === item.id }]}
-                        on-click={() => this.handleTagClick(item.id)}
-                      >
-                        {item.name}
-                      </div>
-                    ))}
+                    {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(
+                      (item, index) => (
+                        <div
+                          key={`${item.id}_${index}`}
+                          class={['built-in-item', { active: this.tag.value === item.id }]}
+                          on-click={() => this.handleTagClick(item.id)}
+                        >
+                          {item.name}
+                        </div>
+                      )
+                    )}
                   </div>
                 </HorizontalScrollContainer>
               </div>
@@ -897,6 +902,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               >
                 {!!this.selectedMetric && (
                   <div
+                    key={`__${this.selectedMetric?.metric_id || '--'}__`}
                     class={[
                       'metric-item',
                       'pin-top-top',
@@ -921,7 +927,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   [
                     this.metricList.map((item, index) => (
                       <div
-                        id={`_metric_id_${item.metric_field}_${index}`.replace(/\./g, '_')}
+                        key={`${item.metric_id}_${index}`}
                         class={[
                           'metric-item',
                           {

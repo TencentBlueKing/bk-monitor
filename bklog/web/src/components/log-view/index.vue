@@ -282,7 +282,8 @@ export default {
       min-height: 16px;
       padding: 0 15px 0 55px;
       margin: 0;
-      font-size: 12px;
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
       flex-direction: row;
 
       &.log-init {

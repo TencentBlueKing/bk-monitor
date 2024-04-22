@@ -365,7 +365,7 @@ export default {
   },
   created() {
     this.showCollectIntroGuide = this.userGuideData?.function_guide?.search_favorite ?? false;
-    this.handleRefreshDebounce = debounce(300, false, this.handleRefresh);
+    this.handleRefreshDebounce = debounce(300, this.handleRefresh);
   },
   mounted() {
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
