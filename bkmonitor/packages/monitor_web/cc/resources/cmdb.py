@@ -608,8 +608,7 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
         node_query_func = api.cmdb.get_host_by_topo_node
         template_query_func = api.cmdb.get_host_by_template
 
-    instance_nodes: List[Optional[ServiceInstance, Host]] = []
-
+    instance_nodes: List[Union[ServiceInstance, Host]] = []
     # 根据拓扑节点查询实例
     if topo_nodes:
         instance_nodes.extend(node_query_func(bk_biz_id=bk_biz_id, topo_nodes=topo_nodes))
@@ -641,23 +640,24 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
     # 处理返回值
     instances = []
     if is_host_id:
-        instances = [{"bk_host_id": result["bk_host_id"]}]
+        instances = [{"bk_host_id": list(result["bk_host_id"])}]
     elif is_service_instance:
         if "bk_target_service_instance_id" in dimensions:
-            instances = [{"bk_target_service_instance_id": result["service_instance_id"]}]
+            instances = [{"bk_target_service_instance_id": list(result["service_instance_id"])}]
         else:
-            instances = [{"service_instance_id": result["service_instance_id"]}]
+            instances = [{"service_instance_id": list(result["service_instance_id"])}]
     elif is_ip:
         for bk_cloud_id, ips in result["ip"].items():
             if "bk_target_ip" in dimensions:
-                instance = {"bk_target_ip": ips}
+                instance = {"bk_target_ip": list(ips)}
             else:
-                instance = {"ip": ips}
+                instance = {"ip": list(ips)}
 
             if "bk_target_cloud_id" in dimensions:
                 instance["bk_target_cloud_id"] = bk_cloud_id
             elif "bk_cloud_id" in dimensions:
                 instance["bk_cloud_id"] = bk_cloud_id
+            instances.append(instance)
     else:
         instances = []
 
