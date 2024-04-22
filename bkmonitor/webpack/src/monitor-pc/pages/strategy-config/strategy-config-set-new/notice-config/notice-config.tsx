@@ -37,8 +37,8 @@ import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-d
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import TemplateInput from '../../strategy-config-set/strategy-template-input/strategy-template-input';
-import StrategyTemplatePreview from '../../strategy-config-set/strategy-template-preview/strategy-template-preview';
+import TemplateInput from '../../strategy-config-set/strategy-template-input/strategy-template-input.vue';
+import StrategyTemplatePreview from '../../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import AlarmGroup from '../components/alarm-group';
 import CommonItem from '../components/common-form-item';
@@ -119,6 +119,7 @@ interface INoticeConfigNewProps {
   value?: INoticeValue;
   allAction?: IGroupItem[]; // 套餐列表
   userList?: IAlarmGroupList[]; // 告警组
+  alarmGroupLoading?: boolean;
   readonly?: boolean;
   strategyId?: number | string;
   isExecuteDisable?: boolean;
@@ -141,6 +142,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
   @Prop({ default: '', type: [Number, String] }) strategyId: number;
   @Prop({ default: false, type: Boolean }) isExecuteDisable: boolean;
   @Prop({ default: () => [], type: Array }) legalDimensionList: ICommonItem[];
+  @Prop({ default: false, type: Boolean }) alarmGroupLoading: boolean;
   /* dataTypeLabel === time_series 才显示降噪设置 */
   @Prop({ default: '', type: String }) dataTypeLabel: string;
 
@@ -679,15 +681,19 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 show-semicolon
               >
                 <VerifyItem errorMsg={this.errMsg.user_groups}>
-                  <AlarmGroup
-                    class='alarm-group'
-                    list={this.userList}
-                    readonly={this.readonly}
-                    showAddTip={false}
-                    strategyId={this.strategyId}
-                    value={this.data.user_groups}
-                    onChange={data => this.handleUserGroup(data)}
-                  ></AlarmGroup>
+                  {!this.alarmGroupLoading ? (
+                    <AlarmGroup
+                      class='alarm-group'
+                      list={this.userList}
+                      readonly={this.readonly}
+                      showAddTip={false}
+                      strategyId={this.strategyId}
+                      value={this.data.user_groups}
+                      onChange={data => this.handleUserGroup(data)}
+                    ></AlarmGroup>
+                  ) : (
+                    <div class='skeleton-element alarm-group-skeleton'></div>
+                  )}
                 </VerifyItem>
               </CommonItem>
               <CommonItem
@@ -743,17 +749,21 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                       </i18n>
                     )}
                   </div>
-                  {this.data.options.upgrade_config.is_enabled && (
-                    <AlarmGroup
-                      class='alarm-group'
-                      v-model={this.data.options.upgrade_config.user_groups}
-                      list={this.userList}
-                      readonly={this.readonly}
-                      showAddTip={false}
-                      strategyId={this.strategyId}
-                      onChange={this.clearError}
-                    ></AlarmGroup>
-                  )}
+                  {this.data.options.upgrade_config.is_enabled ? (
+                    !this.alarmGroupLoading ? (
+                      <AlarmGroup
+                        class='alarm-group'
+                        v-model={this.data.options.upgrade_config.user_groups}
+                        list={this.userList}
+                        readonly={this.readonly}
+                        showAddTip={false}
+                        strategyId={this.strategyId}
+                        onChange={this.clearError}
+                      ></AlarmGroup>
+                    ) : (
+                      <div class='skeleton-element alarm-group-skeleton'></div>
+                    )
+                  ) : undefined}
                 </VerifyItem>
               </CommonItem>
             </NoticeItem>

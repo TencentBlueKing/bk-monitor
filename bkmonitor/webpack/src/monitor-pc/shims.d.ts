@@ -124,6 +124,7 @@ declare global {
     bk_paas_host: string;
     docUrlMap: Record<string, string>;
     page_title: string;
+    wxwork_bot_send_image?: boolean;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;
