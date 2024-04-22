@@ -245,8 +245,8 @@ class AsyncExportUtils(object):
         """
         if not (os.path.exists(ASYNC_DIR) and os.path.isdir(ASYNC_DIR)):
             os.makedirs(ASYNC_DIR)
-
-        result = self.search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=MAX_RESULT_WINDOW)
+        max_result_window = self.search_handler.index_set_obj.result_window or MAX_RESULT_WINDOW
+        result = self.search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
         # 判断是否成功
         if result["_shards"]["total"] != result["_shards"]["successful"]:
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
