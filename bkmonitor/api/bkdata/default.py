@@ -291,6 +291,18 @@ class GetReleaseModelInfo(DataAccessAPIResource):  # noqa
         node_type = serializers.CharField(required=False, label="节点类型")
 
 
+class GetSceneServiceApplicationInfo(DataAccessAPIResource):
+    """
+    场景方案应用信息
+    """
+
+    action = "/v3/aiops/scene_service/application/processing/{result_table_id}/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        result_table_id = serializers.CharField(required=True)
+
+
 class GetServingResultTableInfo(DataAccessAPIResource):
     """
     应用模型结果表信息
