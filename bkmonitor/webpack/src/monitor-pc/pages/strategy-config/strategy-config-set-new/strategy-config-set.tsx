@@ -2727,10 +2727,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           targetId={this.metricSelectorTargetId}
           scenarioList={this.scenarioAllList}
           type={this.metricSelector.type}
-          metricKey={this.metricSelector.key}
           // defaultScenario={this.baseConfig.scenario}
-          onShowChange={val => (this.metricSelector.show = val)}
           onSelected={this.handleAddMetric}
+          metricKey={this.metricSelector.key}
+          onShowChange={val => (this.metricSelector.show = val)}
         ></MetricSelector>
         {/* <StrategyMetricSelector
           type={this.metricSelector.type}

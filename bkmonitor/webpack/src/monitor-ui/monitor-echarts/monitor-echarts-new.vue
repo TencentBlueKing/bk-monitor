@@ -213,6 +213,7 @@
         <bk-table-column
           prop="date"
           min-width="180"
+          sortable
           :label="$t('时间')"
         />
         <bk-table-column
