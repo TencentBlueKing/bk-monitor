@@ -230,6 +230,28 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
     });
   }
 
+  getMetricData(params: Record<string, any>) {
+    return new Promise((resolve, reject) => {
+      try {
+        const search = params.search || '';
+        let metrics = [];
+        if (!params.tag.length) {
+          metrics = this.metrics
+            .filter(
+              item =>
+                item.metric_field_name.indexOf(search) >= 0 ||
+                item.metric_field.indexOf(search) >= 0 ||
+                item.metric_id.toString().indexOf(search) >= 0,
+            )
+            .map(item => new MetricDetail(item));
+        }
+        resolve({ metricList: metrics });
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
   render() {
     return (
       <span
@@ -261,7 +283,7 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
           targetId={`#${this.selectTargetId}`}
           type={MetricType.TimeSeries}
           scenarioList={this.scenarioList}
-          customMetrics={this.metrics}
+          getMetricData={this.getMetricData}
           multiple={true}
           metricIds={this.localValue}
           defaultScenario={this.defaultScenario}

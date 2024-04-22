@@ -37,13 +37,13 @@ import { handleGotoLink } from '../../common/constant';
 import { isEn } from '../../i18n/i18n';
 import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from '../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
-import { IMetricDetail, MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
+import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import EmptyStatus from '../empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../empty-status/types';
 
 import CheckedboxList from './checkedbox-list';
 import MetricPopover from './metric-popover';
-import { CheckedboxListVlaue, MetricSelectorEvents, MetricSelectorProps } from './typings';
+import { CheckedboxListVlaue, MetricSelectorEvents, MetricSelectorProps, TGetMetricData } from './typings';
 
 import './metric-selector.scss';
 
@@ -84,7 +84,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   /* 默认选择的监控对象 */
   @Prop({ type: String, default: '' }) defaultScenario: string;
   /* 使用指定的指标列表 */
-  @Prop({ type: Array, default: () => null }) customMetrics: IMetricDetail[];
+  @Prop({ type: Function, default: null }) getMetricData: TGetMetricData;
   /* 是否多选 */
   @Prop({ type: Boolean, default: false }) multiple: boolean;
   /* 指标唯一id(多选) */
@@ -242,7 +242,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
 
   /* 是否使用指定指标数据 */
   get isCustomMetrics() {
-    return !!this.customMetrics;
+    return !!this.getMetricData;
   }
 
   beforeDestroy() {
@@ -327,7 +327,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
    * 获取指标数据
    * @param page 分页
    */
-  getMetricList(page = 1) {
+  async getMetricList(page = 1) {
     page === 1 && (this.currentIndex = !!this.search ? 0 : null);
     const { pageSize, total } = this.pagination;
     if (page > 1 && (page - 1) * pageSize >= total) return;
@@ -340,19 +340,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     params.page = page;
     /* 自定义指标列表 */
     if (this.isCustomMetrics) {
-      this.metricList = this.customMetrics.map(item => new MetricDetail(item));
-      const search = this.search.trim();
-      if (!!search) {
-        this.metricList = this.metricList.filter(
-          item =>
-            item.metric_field_name.indexOf(search) >= 0 ||
-            item.metric_field.indexOf(search) >= 0 ||
-            item.metric_id.toString().indexOf(search) >= 0,
-        );
-      }
-      if (params.tag.length) {
-        this.metricList = [];
-      }
+      const { metricList } = await this.getMetricData({
+        ...params,
+        search: this.search.trim(),
+      }).catch(() => ({ metricList: [] }));
+      this.metricList = metricList;
       const sourceObj = {};
       const scenarioObj = {};
       this.metricList.forEach(item => {
