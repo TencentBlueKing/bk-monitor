@@ -23,59 +23,52 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './integrated-card-skeleton.scss';
+import './app-list-skeleton.scss';
 
-const list = [
-  {
-    name: window.i18n.t('已安装'),
-    child: 6
-  },
-  {
-    name: window.i18n.t('已停用'),
-    child: 6
-  },
-  {
-    name: window.i18n.t('可用'),
-    child: 6
-  }
-];
+interface IProps {
+  count?: number;
+}
 
 @Component
-export default class IntegratedCardSkeleton extends tsc<{}> {
+export default class AppListSkeleton extends tsc<IProps> {
+  @Prop({ type: Number, default: 10 }) count: number;
   render() {
     return (
-      <div class='integrated-card-skeleton'>
-        {list.map((item, index) => (
+      <div class='app-list-skeleton'>
+        {new Array(this.count).fill(null).map((_item, index) => (
           <div
-            class='wrap-item'
+            class='expan-header'
             key={index}
           >
-            <div class='header-wrap'>
-              <span class='bk-icon icon-angle-right'></span>
-              <span class='name'>{item.name}</span>
-              <span class='group-number'>(0)</span>
+            <div class='header-left'>
+              <span class='icon-monitor icon-mc-triangle-down'></span>
+              <div class='skeleton-01 skeleton-element'></div>
+              <div class='skeleton-02 skeleton-element'></div>
+              <div class='skeleton-03 skeleton-element'></div>
+              <div class='skeleton-04 skeleton-element'></div>
+              <div class='skeleton-05 skeleton-element'></div>
             </div>
-            <div class='content-title'>
-              <span class='title-tip'></span>
-              {this.$t('事件插件')}
-            </div>
-            <div class='content-wrap'>
-              {new Array(item.child).fill(null).map((_item, cindex) => (
-                <div
-                  class='card-item'
-                  key={cindex}
-                >
-                  <div class='skeleton-element w-48 h-48 mt-28'></div>
-                  <div class='skeleton-element w-86 h-20 mt-8'></div>
-                  <div class='bottom'>
-                    <div class='skeleton-element w-39 h-16 mr-98'></div>
-                    <div class='skeleton-element w-39 h-16'></div>
-                  </div>
-                </div>
-              ))}
+            <div class='header-right'>
+              <bk-button
+                class='mr-8'
+                size='small'
+                theme='primary'
+                outline
+              >
+                {this.$t('查看详情')}
+              </bk-button>
+              <bk-button
+                class='mr-8'
+                size='small'
+              >
+                {this.$t('配置')}
+              </bk-button>
+              <div class='more-btn'>
+                <span class='icon-monitor icon-mc-more'></span>
+              </div>
             </div>
           </div>
         ))}
