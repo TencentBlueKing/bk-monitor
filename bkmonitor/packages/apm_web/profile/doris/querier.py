@@ -32,7 +32,7 @@ class APIType(Enum):
     QUERY_SAMPLE_BY_JSON = "query_sample_by_json"
     COL_TYPE = "col_type"
     SERVICE_NAME = "service_name"
-    SELECT_COUNT = "select_count"
+    SELECT_COUNT = "select_aggregate"
 
 
 @dataclass
@@ -48,6 +48,12 @@ class APIParams:
     label_filter: Optional[dict] = None
     limit: dict = None
     order: dict = None
+    # dimension_fields: 仅在 select_count / query_sample_by_json 接口生效
+    dimension_fields: str = None
+    # general_filters:  仅在 select_count / query_sample_by_json 接口生效
+    general_filters: Optional[dict] = None
+    # metric_fields:  仅在 select_count / query_sample_by_json 接口生效
+    metric_fields: str = None
 
     def to_dict(self):
         r = {
@@ -72,6 +78,12 @@ class APIParams:
             r["start"] = self.start
         if self.end:
             r["end"] = self.end
+        if self.dimension_fields:
+            r["dimension_fields"] = self.dimension_fields
+        if self.general_filters:
+            r["general_filters"] = self.general_filters
+        if self.metric_fields:
+            r["metric_fields"] = self.metric_fields
         return r
 
 
@@ -183,12 +195,14 @@ class QueryTemplate:
                 start=start,
                 end=end,
                 limit={"offset": 0, "rows": 1},
+                metric_fields="count(*)",
+                dimension_fields="app",
             ),
             result_table_id=self.result_table_id,
         ).execute()
         if not res or not res.get("list", []):
             return False
-        count = next((i["count(1)"] for i in res["list"] if i.get("count(1)")), None)
+        count = next((i["count(*)"] for i in res["list"] if i.get("app") == self.app_name), None)
         return bool(count)
 
     def list_services_request_info(self, start: int, end: int):
@@ -222,20 +236,25 @@ class QueryTemplate:
         信息包含:
         1. profiling_data_count 上报数据量
         """
-        count_response = Query(
+        res = Query(
             api_type=APIType.SELECT_COUNT,
             api_params=APIParams(
-                biz_id=self.bk_biz_id, app=self.app_name, start=start, end=end, service_name=service_name
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                start=start,
+                end=end,
+                service_name=service_name,
+                dimension_fields="service",
+                metric_fields="count(*)",
             ),
             result_table_id=self.result_table_id,
         ).execute()
 
-        if not count_response:
+        if not res:
             return {}
 
         # 计算平台 select_count 时, 固定的列名称为 count(1) . 所以这里这样写
-        count = next((i["count(1)"] for i in count_response.get("list", []) if i.get("count(1)")), None)
-
+        count = next((i["count(*)"] for i in res["list"] if i.get("service_name") == service_name), None)
         return {service_name: {"profiling_data_count": count}} if count else {}
 
     def get_count(
@@ -253,13 +272,15 @@ class QueryTemplate:
                 type=data_type,
                 label_filter=label_filter,
                 service_name=service_name,
+                metric_fields="count(*)",
+                dimension_fields="(ROUND(dtEventTimeStamp / 60000) * 60)",
             ),
             result_table_id=self.result_table_id,
         ).execute()
         if not res or not res.get("list", []):
             return None
-
-        return res["list"][0].get("count(1)", None)
+        field_key = "((round((CAST(`dtEventTimeStamp` AS DOUBLE) / 60000)) * 60))"
+        return [[i["count(*)"], int(i[field_key]) * 1000] for i in res["list"] if field_key in i]
 
     def list_labels(
         self,
