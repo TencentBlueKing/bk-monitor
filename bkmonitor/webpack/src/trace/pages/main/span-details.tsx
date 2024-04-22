@@ -923,263 +923,269 @@ export default defineComponent({
         name: 'Profiling'
       });
     }
-    const detailsMain = () => (
-      <Loading
-        loading={props.isPageLoading}
-        style='height: 100%;'
-      >
-        {props.withSideSlider && showOriginalData.value ? (
-          <div class='json-text-style'>
-            <VueJsonPretty data={originalData.value} />
-          </div>
-        ) : (
-          <div class={`span-details-sideslider-content ${!props.withSideSlider ? 'is-main' : ''}`}>
-            {!props.withSideSlider && (
-              <div class='header-tool'>
-                <Switcher
-                  v-model={showOriginalData.value}
-                  class='switcher'
-                  theme='primary'
-                  size='small'
-                  onChange={handleOriginalDataChange}
-                />
-                <span>{t('原始数据')}</span>
-                <Button
-                  class='download-btn'
-                  size='small'
-                  onClick={handleExportOriginData}
-                >
-                  <i class='icon-monitor icon-xiazai1'></i>
-                  <span>{t('下载')}</span>
-                </Button>
-              </div>
-            )}
-            {showOriginalData.value ? (
-              <div class='accurate-original-panel'>
-                {titleInfoElem()}
-                <div class='json-text-style'>
-                  <VueJsonPretty data={originalData.value} />
+    const detailsMain = () => {
+      // profiling 查询起始时间根据 span 开始时间前后各推半小时
+      const halfHour = 18 * Math.pow(10, 8);
+      const profilingRerieveStartTime = originalData.value.start_time - halfHour;
+      const profilingRerieveEndTime = originalData.value.start_time + halfHour;
+      return (
+        <Loading
+          loading={props.isPageLoading}
+          style='height: 100%;'
+        >
+          {props.withSideSlider && showOriginalData.value ? (
+            <div class='json-text-style'>
+              <VueJsonPretty data={originalData.value} />
+            </div>
+          ) : (
+            <div class={`span-details-sideslider-content ${!props.withSideSlider ? 'is-main' : ''}`}>
+              {!props.withSideSlider && (
+                <div class='header-tool'>
+                  <Switcher
+                    v-model={showOriginalData.value}
+                    class='switcher'
+                    theme='primary'
+                    size='small'
+                    onChange={handleOriginalDataChange}
+                  />
+                  <span>{t('原始数据')}</span>
+                  <Button
+                    class='download-btn'
+                    size='small'
+                    onClick={handleExportOriginData}
+                  >
+                    <i class='icon-monitor icon-xiazai1'></i>
+                    <span>{t('下载')}</span>
+                  </Button>
                 </div>
-              </div>
-            ) : (
-              [
-                <div class='header'>
-                  {props.withSideSlider ? (
-                    <div class='title'>
-                      <span
-                        class='name'
-                        title={info.header.title}
-                      >
-                        {info.header.title}
-                      </span>
-                      <span class='tag'>{info.header.timeTag}</span>
-                    </div>
-                  ) : (
-                    titleInfoElem()
-                  )}
-                  <div class='others'>
-                    {info.header.others.map(item => (
-                      <span class='other-item'>
-                        <span class='label'>{`${item.label}: `}</span>
-                        <span
-                          class='content'
-                          title={item.title}
-                        >
-                          {item.content}
-                        </span>
-                      </span>
-                    ))}
+              )}
+              {showOriginalData.value ? (
+                <div class='accurate-original-panel'>
+                  {titleInfoElem()}
+                  <div class='json-text-style'>
+                    <VueJsonPretty data={originalData.value} />
                   </div>
-                </div>,
-
-                <MonitorTab
-                  active={activeTab.value}
-                  onTabChange={v => {
-                    activeTab.value = v;
-                    handleActiveTabChange();
-                  }}
-                  class='info-tab'
-                >
-                  {tabList.map(item => (
-                    <Tab.TabPanel
-                      name={item.name}
-                      v-slots={{
-                        label: () => (
-                          <div style='display: flex;'>
-                            <span>{item.label}</span>
-                            {countOfInfo.value?.[item.name] ? (
-                              <span
-                                class={{
-                                  'num-badge': true,
-                                  'num-badge-active': activeTab.value === item.name
-                                }}
-                              >
-                                {countOfInfo.value[item.name]}
-                              </span>
-                            ) : (
-                              ''
-                            )}
-                          </div>
-                        )
-                      }}
-                    />
-                  ))}
-                </MonitorTab>,
-
-                <div
-                  class={{
-                    'content-list': true,
-                    // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
-                    'is-log-tab': activeTab.value === 'Log',
-                    'is-host-tab': activeTab.value === 'Host'
-                  }}
-                >
-                  {info.list.map((item, index) => {
-                    if (item.type === EListItemType.tags && activeTab.value === 'BasicInfo') {
-                      const content = item[EListItemType.tags];
-                      return expanItem(
-                        item.isExpan,
-                        item.title,
-                        tagsTemplate(content.list),
-                        <span class='expan-item-subtitle'>
-                          {item.isExpan ? '' : content.list.map(kv => `${kv.label} = ${kv.content}`).join('  |  ')}
-                        </span>,
-                        isExpan => handleExpanChange(isExpan, index)
-                      );
-                    }
-                    if (item.type === EListItemType.events && activeTab.value === 'Event') {
-                      const content = item[EListItemType.events];
-                      const isException =
-                        content?.list.some(val => val.header?.name === 'exception') && props.spanDetails?.error;
-                      return (
-                        <div>
-                          {isException && (
-                            <Button
-                              onClick={handleEventErrLink}
-                              style='margin-top: 16px;'
-                            >
-                              {t('错误分析')}
-                              <span
-                                class='icon-monitor icon-fenxiang'
-                                style='margin-left: 8px;'
-                              ></span>
-                            </Button>
-                          )}
-                          {content.list.map((child, childIndex) => {
-                            // 默认开启第一个
-                            if (childIndex === 0 && isInvokeOnceFlag) {
-                              isInvokeOnceFlag = false;
-                              handleSmallExpanChange(false, index, childIndex);
-                            }
-                            return (
-                              <div style='margin-top: 16px;'>
-                                {expanItemSmall(
-                                  child.isExpan,
-                                  child.header.name,
-                                  tagsTemplate(child.content),
-                                  [
-                                    <span class='time'>{child.header.date}</span>,
-                                    child.header.duration ? <span class='tag'>{child.header.duration}</span> : ''
-                                  ],
-                                  isExpan => handleSmallExpanChange(isExpan, index, childIndex)
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    }
-                    if (item.type === EListItemType.stageTime && activeTab.value === 'BasicInfo') {
-                      const content = item[EListItemType.stageTime];
-                      return expanItem(
-                        item.isExpan,
-                        item.title,
-                        stageTimeTemplate(
-                          content.active,
-                          content.list,
-                          content.content[content.active]
-                          // stageItem => handleStageTimeChange(stageItem, index)
-                        ),
-                        '',
-                        isExpan => handleExpanChange(isExpan, index)
-                      );
-                    }
-                    return undefined;
-                  })}
-                  {
-                    // 日志 部分
-                    activeTab.value === 'Log' && (
-                      <Loading
-                        loading={isTabPanelLoading.value}
-                        style='height: 100%;'
-                      >
-                        {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
-                        {!isTabPanelLoading.value && (
-                          <div>
-                            <FlexDashboardPanel
-                              isSingleChart={isSingleChart.value}
-                              needOverviewBtn={!!sceneData.value?.list?.length}
-                              id={random(10)}
-                              dashboardId={random(10)}
-                              panels={sceneData.value.overview_panels}
-                              column={0}
-                            ></FlexDashboardPanel>
-                          </div>
-                        )}
-                      </Loading>
-                    )
-                  }
-                  {
-                    // 主机 部分
-                    activeTab.value === 'Host' && (
-                      <Loading
-                        loading={isTabPanelLoading.value}
-                        style='height: 100%;'
-                      >
-                        {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
-                        {!isTabPanelLoading.value && (
-                          <div>
-                            <FlexDashboardPanel
-                              isSingleChart={isSingleChart.value}
-                              needOverviewBtn={!!sceneData.value?.list?.length}
-                              id={random(10)}
-                              dashboardId={random(10)}
-                              panels={sceneData.value.overview_panels}
-                              column={3}
-                            ></FlexDashboardPanel>
-                          </div>
-                        )}
-                      </Loading>
-                    )
-                  }
-                  {
-                    // 火焰图 部分
-                    activeTab.value === 'Profiling' && (
-                      <Loading
-                        loading={isTabPanelLoading.value}
-                        style='height: 100%;'
-                      >
-                        <ProfilingFlameGraph
-                          appName={appName.value}
-                          serviceName={serviceNameProvider.value}
-                          profileId={originalData.value.span_id}
-                          start={originalData.value.start_time}
-                          end={originalData.value.end_time}
-                          bizId={bizId.value}
-                          textDirection={ellipsisDirection.value}
-                          onUpdate:loading={val => (isTabPanelLoading.value = val)}
-                        />
-                      </Loading>
-                    )
-                  }
-                  {showEmptyGuide() && <ExceptionGuide guideInfo={guideInfoData[activeTab.value]} />}
                 </div>
-              ]
-            )}
-          </div>
-        )}
-      </Loading>
-    );
+              ) : (
+                [
+                  <div class='header'>
+                    {props.withSideSlider ? (
+                      <div class='title'>
+                        <span
+                          class='name'
+                          title={info.header.title}
+                        >
+                          {info.header.title}
+                        </span>
+                        <span class='tag'>{info.header.timeTag}</span>
+                      </div>
+                    ) : (
+                      titleInfoElem()
+                    )}
+                    <div class='others'>
+                      {info.header.others.map(item => (
+                        <span class='other-item'>
+                          <span class='label'>{`${item.label}: `}</span>
+                          <span
+                            class='content'
+                            title={item.title}
+                          >
+                            {item.content}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>,
+
+                  <MonitorTab
+                    active={activeTab.value}
+                    onTabChange={v => {
+                      activeTab.value = v;
+                      handleActiveTabChange();
+                    }}
+                    class='info-tab'
+                  >
+                    {tabList.map(item => (
+                      <Tab.TabPanel
+                        name={item.name}
+                        v-slots={{
+                          label: () => (
+                            <div style='display: flex;'>
+                              <span>{item.label}</span>
+                              {countOfInfo.value?.[item.name] ? (
+                                <span
+                                  class={{
+                                    'num-badge': true,
+                                    'num-badge-active': activeTab.value === item.name
+                                  }}
+                                >
+                                  {countOfInfo.value[item.name]}
+                                </span>
+                              ) : (
+                                ''
+                              )}
+                            </div>
+                          )
+                        }}
+                      />
+                    ))}
+                  </MonitorTab>,
+
+                  <div
+                    class={{
+                      'content-list': true,
+                      // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
+                      'is-log-tab': activeTab.value === 'Log',
+                      'is-host-tab': activeTab.value === 'Host'
+                    }}
+                  >
+                    {info.list.map((item, index) => {
+                      if (item.type === EListItemType.tags && activeTab.value === 'BasicInfo') {
+                        const content = item[EListItemType.tags];
+                        return expanItem(
+                          item.isExpan,
+                          item.title,
+                          tagsTemplate(content.list),
+                          <span class='expan-item-subtitle'>
+                            {item.isExpan ? '' : content.list.map(kv => `${kv.label} = ${kv.content}`).join('  |  ')}
+                          </span>,
+                          isExpan => handleExpanChange(isExpan, index)
+                        );
+                      }
+                      if (item.type === EListItemType.events && activeTab.value === 'Event') {
+                        const content = item[EListItemType.events];
+                        const isException =
+                          content?.list.some(val => val.header?.name === 'exception') && props.spanDetails?.error;
+                        return (
+                          <div>
+                            {isException && (
+                              <Button
+                                onClick={handleEventErrLink}
+                                style='margin-top: 16px;'
+                              >
+                                {t('错误分析')}
+                                <span
+                                  class='icon-monitor icon-fenxiang'
+                                  style='margin-left: 8px;'
+                                ></span>
+                              </Button>
+                            )}
+                            {content.list.map((child, childIndex) => {
+                              // 默认开启第一个
+                              if (childIndex === 0 && isInvokeOnceFlag) {
+                                isInvokeOnceFlag = false;
+                                handleSmallExpanChange(false, index, childIndex);
+                              }
+                              return (
+                                <div style='margin-top: 16px;'>
+                                  {expanItemSmall(
+                                    child.isExpan,
+                                    child.header.name,
+                                    tagsTemplate(child.content),
+                                    [
+                                      <span class='time'>{child.header.date}</span>,
+                                      child.header.duration ? <span class='tag'>{child.header.duration}</span> : ''
+                                    ],
+                                    isExpan => handleSmallExpanChange(isExpan, index, childIndex)
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      }
+                      if (item.type === EListItemType.stageTime && activeTab.value === 'BasicInfo') {
+                        const content = item[EListItemType.stageTime];
+                        return expanItem(
+                          item.isExpan,
+                          item.title,
+                          stageTimeTemplate(
+                            content.active,
+                            content.list,
+                            content.content[content.active]
+                            // stageItem => handleStageTimeChange(stageItem, index)
+                          ),
+                          '',
+                          isExpan => handleExpanChange(isExpan, index)
+                        );
+                      }
+                      return undefined;
+                    })}
+                    {
+                      // 日志 部分
+                      activeTab.value === 'Log' && (
+                        <Loading
+                          loading={isTabPanelLoading.value}
+                          style='height: 100%;'
+                        >
+                          {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
+                          {!isTabPanelLoading.value && (
+                            <div>
+                              <FlexDashboardPanel
+                                isSingleChart={isSingleChart.value}
+                                needOverviewBtn={!!sceneData.value?.list?.length}
+                                id={random(10)}
+                                dashboardId={random(10)}
+                                panels={sceneData.value.overview_panels}
+                                column={0}
+                              ></FlexDashboardPanel>
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {
+                      // 主机 部分
+                      activeTab.value === 'Host' && (
+                        <Loading
+                          loading={isTabPanelLoading.value}
+                          style='height: 100%;'
+                        >
+                          {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
+                          {!isTabPanelLoading.value && (
+                            <div>
+                              <FlexDashboardPanel
+                                isSingleChart={isSingleChart.value}
+                                needOverviewBtn={!!sceneData.value?.list?.length}
+                                id={random(10)}
+                                dashboardId={random(10)}
+                                panels={sceneData.value.overview_panels}
+                                column={3}
+                              ></FlexDashboardPanel>
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {
+                      // 火焰图 部分
+                      activeTab.value === 'Profiling' && (
+                        <Loading
+                          loading={isTabPanelLoading.value}
+                          style='height: 100%;'
+                        >
+                          <ProfilingFlameGraph
+                            appName={appName.value}
+                            serviceName={serviceNameProvider.value}
+                            profileId={originalData.value.span_id}
+                            start={profilingRerieveStartTime}
+                            end={profilingRerieveEndTime}
+                            bizId={bizId.value}
+                            textDirection={ellipsisDirection.value}
+                            onUpdate:loading={val => (isTabPanelLoading.value = val)}
+                          />
+                        </Loading>
+                      )
+                    }
+                    {showEmptyGuide() && <ExceptionGuide guideInfo={guideInfoData[activeTab.value]} />}
+                  </div>
+                ]
+              )}
+            </div>
+          )}
+        </Loading>
+      );
+    };
 
     const renderDom = () => (
       <Sideslider
