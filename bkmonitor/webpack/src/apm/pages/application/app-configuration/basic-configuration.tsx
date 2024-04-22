@@ -1067,7 +1067,7 @@ export default class BasicInfo extends tsc<IProps> {
                         >
                           <div
                             class='underline-text'
-                            v-bk-tooltips='说明文案'
+                            // v-bk-tooltips='说明文案'
                           >
                             {this.pluginIdMapping[this.appInfo.plugin_id]}
                           </div>
