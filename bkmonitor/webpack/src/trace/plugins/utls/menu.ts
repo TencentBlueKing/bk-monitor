@@ -77,7 +77,7 @@ export const handleTimeRange = (timeRange: number | string | string[]): { startT
   }
   return {
     startTime,
-    endTime
+    endTime,
   };
 };
 
@@ -91,7 +91,7 @@ export const queryConfigTransform = (queryConfig: any, viewOptions: IViewOptions
   ...queryConfig,
   group_by: viewOptions?.group_by?.length ? viewOptions?.group_by : queryConfig?.group_by,
   interval: viewOptions?.interval || queryConfig?.interval,
-  method: viewOptions?.method || queryConfig?.method
+  method: viewOptions?.method || queryConfig?.method,
 });
 /**
  * @description: 转换跳转日志平台所需的url参数
@@ -108,13 +108,13 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
       addition?.map(set => ({
         field: set.key,
         operator: set.method,
-        value: (set.value || []).join(',')
+        value: (set.value || []).join(','),
       })) || [],
-    // eslint-disable-next-line camelcase
+
     start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    // eslint-disable-next-line camelcase
+
     end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    time_range
+    time_range,
   };
   queryStr = Object.keys(queryObj).reduce((str, key, i) => {
     const itemVal = (queryObj as any)[key];
@@ -137,22 +137,22 @@ export function handleExplore(
   panel: PanelModel,
   scopedVars: IViewOptions & Record<string, any>,
   timeRange: string[],
-  autoNavTo = true
+  autoNavTo = true,
 ) {
   const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
   const variablesService = new VariablesService(scopedVars);
   targets.forEach(target => {
     target.data.query_configs =
       target?.data?.query_configs.map((queryConfig: string | Record<string, any>) =>
-        queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars)
+        queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars),
       ) || [];
   });
   /** 判断跳转日志检索 */
   const isLog = targets.some(item =>
     item.data.query_configs.some(
       (set: { data_source_label: string; data_type_label: string }) =>
-        set.data_source_label === 'bk_log_search' && set.data_type_label === 'log'
-    )
+        set.data_source_label === 'bk_log_search' && set.data_type_label === 'log',
+    ),
   );
   if (!autoNavTo) return targets;
   if (isLog) {
@@ -165,7 +165,7 @@ export function handleExplore(
       addition: queryConfig.where || [],
       start_time: startTime * 1000,
       end_time: endTime * 1000,
-      time_range: 'customized'
+      time_range: 'customized',
     };
     const indexSetId = queryConfig.index_set_id;
     const queryStr = transformLogUrlQuery(retrieveParams);
@@ -175,7 +175,7 @@ export function handleExplore(
     window.open(
       `${commOpenUrl('#/data-retrieval/')}?targets=${encodeURIComponent(JSON.stringify(targets))}&from=${
         timeRange[0]
-      }&to=${timeRange[1]}`
+      }&to=${timeRange[1]}`,
     );
   }
 }
@@ -201,7 +201,7 @@ export const getMetricId = (
   index_set_id?: string,
   bkmonitor_strategy_id?: string,
   custom_event_name?: string,
-  alert_name?: string
+  alert_name?: string,
 ) => {
   const metaId = `${data_source_label}|${data_type_label}`;
   switch (metaId) {
@@ -237,7 +237,7 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
           item.data_type_label,
           item.metrics?.[0]?.field,
           item.table,
-          item.index_set_id
+          item.index_set_id,
         );
         metricIdMap[metricId] = 'true';
       });
@@ -284,8 +284,8 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   tableTdArr = data[0].datapoints.map(set => [
     {
       value: dayjs.tz(set[1]).format('YYYY-MM-DD HH:mm:ss'),
-      originValue: set[1]
-    }
+      originValue: set[1],
+    },
   ]);
   data.forEach(item => {
     item.datapoints.forEach((set, index) => {
@@ -293,14 +293,14 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
         max: false,
         min: false,
         value: set[0],
-        originValue: set[0]
+        originValue: set[0],
       });
     });
   });
   // 计算极值
   const maxMinMap = tableThArr.map(() => ({
     max: null,
-    min: null
+    min: null,
   }));
   tableThArr.forEach((th, index) => {
     if (index > 0) {
@@ -331,7 +331,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   });
   return {
     tableThArr,
-    tableTdArr
+    tableTdArr,
   };
 };
 
@@ -373,7 +373,7 @@ export function handleAddStrategy(
   panel: PanelModel,
   metric: IExtendMetricData | null,
   scopedVars: IViewOptions & Record<string, any>,
-  timeRange: string[]
+  timeRange: string[],
 ) {
   try {
     let result: any = null;
@@ -382,18 +382,18 @@ export function handleAddStrategy(
     const interval = reviewInterval(
       scopedVars.interval!,
       dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-      panel.collect_interval
+      panel.collect_interval,
     );
     const variablesService = new VariablesService({ ...scopedVars, interval });
     if (!metric) {
       result = {
         expression: '',
-        query_configs: []
+        query_configs: [],
       };
       targets.forEach(target => {
         target.data?.query_configs?.forEach((queryConfig: any) => {
           const resultMetrics = result.query_configs.map(
-            (item: { metrics: { field: any }[] }) => item.metrics[0].field
+            (item: { metrics: { field: any }[] }) => item.metrics[0].field,
           );
           if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
             let config = deepClone(queryConfig);
@@ -410,7 +410,7 @@ export function handleAddStrategy(
             config = variablesService.transformVariables(config);
             result = {
               ...target.data,
-              query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)]
+              query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
             };
           }
         });

@@ -31,7 +31,7 @@ import '@blueking/bk-weweb';
 const wewebId = 'report';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class TraceNewReport extends tsc<{}> {
+export default class TraceNewReport extends tsc<object> {
   get newReportHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -43,7 +43,7 @@ export default class TraceNewReport extends tsc<{}> {
   get newReportData() {
     return JSON.stringify({
       host: this.newReportHost,
-      baseroute: '/trace/'
+      baseroute: '/trace/',
     });
   }
   render() {

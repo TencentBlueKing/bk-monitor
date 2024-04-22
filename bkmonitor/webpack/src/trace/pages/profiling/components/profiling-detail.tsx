@@ -37,16 +37,16 @@ export default defineComponent({
   props: {
     detailType: {
       type: String as PropType<DetailType>,
-      default: DetailType.Application
+      default: DetailType.Application,
     },
     detailData: {
       type: Object as PropType<ServicesDetail | FileDetail>,
-      default: () => null
+      default: () => null,
     },
     show: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['showChange'],
   setup(props, { emit }) {
@@ -55,24 +55,24 @@ export default defineComponent({
     const statusMap = {
       uploaded: {
         type: 'success',
-        name: t('已上传')
+        name: t('已上传'),
       },
       parsing_failed: {
         type: 'error',
-        name: t('解析失败')
+        name: t('解析失败'),
       },
       parsing_succeed: {
         type: 'success',
-        name: t('解析成功')
+        name: t('解析成功'),
       },
       store_succeed: {
         type: 'success',
-        name: t('已存储')
+        name: t('已存储'),
       },
       store_failed: {
         type: 'error',
-        name: t('存储失败')
-      }
+        name: t('存储失败'),
+      },
     };
 
     const { handleGotoLink } = useDocumentLink();
@@ -92,7 +92,7 @@ export default defineComponent({
       statusMap,
       handleShowChange,
       handleViewAppDetail,
-      handleGotoLink
+      handleGotoLink,
     };
   },
   render() {
@@ -175,10 +175,10 @@ export default defineComponent({
               <Loading loading={!this.detailData}>
                 <div class='profiling-detail-content'>{renderContent()}</div>
               </Loading>
-            )
+            ),
           }}
         </Sideslider>
       </>
     );
-  }
+  },
 });

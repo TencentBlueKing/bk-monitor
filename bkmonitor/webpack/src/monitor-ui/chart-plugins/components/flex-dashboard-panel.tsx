@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -168,8 +167,8 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
             ...item.options,
             legend: {
               displayMode: this.column === 1 ? 'table' : 'list',
-              placement: this.column === 1 ? 'right' : 'bottom'
-            }
+              placement: this.column === 1 ? 'right' : 'bottom',
+            },
           } as any;
         }
       });
@@ -182,7 +181,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
         x: 0,
         y,
         w: 24,
-        h: 1
+        h: 1,
       },
       id: random(10),
       options: {},
@@ -191,14 +190,14 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
       title: '',
       type: 'row',
       collapsed: true,
-      subTitle: ''
+      subTitle: '',
     };
   }
   getTransformPanel(panel: IPanelModel) {
     const item = new PanelModel({
       ...panel,
       dashboardId: this.id,
-      panelIds: panel?.panels?.map(item => item.id) || []
+      panelIds: panel?.panels?.map(item => item.id) || [],
     });
     return item;
   }
@@ -235,8 +234,8 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
             this.getTransformPanel({
               ...item,
               show: !!panel.collapsed,
-              groupId: rowPanel.id
-            })
+              groupId: rowPanel.id,
+            }),
           );
           list.push(...childList);
         }
@@ -381,7 +380,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
                     display: this.getPanelDisplay(panel),
                     height: this.customHeightFn
                       ? this.customHeightFn(this.column)
-                      : panel.realHeight || (this.column === 1 ? '182px' : '256px')
+                      : panel.realHeight || (this.column === 1 ? '182px' : '256px'),
                   }}
                   key={`${panel.id}__key__`}
                   id={`${panel.id}__key__`}
@@ -409,7 +408,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
                 onCheckClose={() => this.handleCheckAll(false)}
                 onShowCollect={(v: boolean) => this.handleShowCollect(v)}
               ></ChartCollect>
-            ) : undefined
+            ) : undefined,
           ]
         )}
       </div>

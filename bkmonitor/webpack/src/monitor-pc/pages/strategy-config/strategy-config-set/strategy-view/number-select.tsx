@@ -78,7 +78,7 @@ export default class NumberSelect extends tsc<IProps> {
         trigger='click'
         ref='pop'
         tippyOptions={{
-          appendTo: document.body
+          appendTo: document.body,
         }}
       >
         <slot

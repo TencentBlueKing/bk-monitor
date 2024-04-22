@@ -49,7 +49,7 @@ const configFiled = {
   actionId: window.i18n.tc('修改流程套餐'),
   upgradeConfig: window.i18n.tc('批量设置通知升级'),
   notice: window.i18n.tc('是否开启通知'),
-  isEnabled: window.i18n.tc('批量修改状态')
+  isEnabled: window.i18n.tc('批量修改状态'),
 };
 
 interface IEvent {
@@ -82,7 +82,7 @@ interface IAlarmBatchEditProps {
 }
 
 @Component({
-  name: 'AlarmBatchEdit'
+  name: 'AlarmBatchEdit',
 })
 export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
   @Prop({ default: 'level', type: String }) filed: FiledType;
@@ -117,7 +117,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
     userGroups: '',
     upgradeInterval: '',
     addTag: '',
-    priorityErrorMsg: ''
+    priorityErrorMsg: '',
   };
 
   @Emit('submit')
@@ -133,7 +133,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
         noticeIsEnabled: true,
         userGroups: [],
         upgradeInterval: 30,
-        isEnabled: false
+        isEnabled: false,
       };
     } else if (this.filed === 'userGroups') {
       defaultValue = [];
@@ -307,7 +307,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
   handleFindReplace() {
     return {
       findData: this.conditionFindReplaceRef.findData,
-      replaceData: this.conditionFindReplaceRef.replaceData
+      replaceData: this.conditionFindReplaceRef.replaceData,
     };
   }
 
@@ -318,7 +318,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
       userGroups: '',
       upgradeInterval: '',
       addTag: '',
-      priorityErrorMsg: ''
+      priorityErrorMsg: '',
     };
   }
 
@@ -472,7 +472,6 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
                 onClick={this.refreshProcess}
               >
                 {this.processLoading ? (
-                  /* eslint-disable-next-line @typescript-eslint/no-require-imports */
                   <img
                     alt=''
                     src={require('../../../static/images/svg/spinner.svg')}

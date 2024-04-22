@@ -43,7 +43,7 @@ interface IBusinessInfo {
 }
 
 @Component
-export default class AccessRequestDialog extends tsc<{}> {
+export default class AccessRequestDialog extends tsc<object> {
   // 原先跳转到 权限申请 的链接
   @Prop({ type: String, default: '' })
   originAccessURL: string;
@@ -68,7 +68,7 @@ export default class AccessRequestDialog extends tsc<{}> {
   @Watch('originAccessURL')
   handleOriginAccessURLChange() {
     fetchBusinessInfo({
-      bk_biz_id: this.bizId || window.cc_biz_id
+      bk_biz_id: this.bizId || window.cc_biz_id,
     })
       .then((response: IBusinessInfo) => {
         this.administrators = response.operator;

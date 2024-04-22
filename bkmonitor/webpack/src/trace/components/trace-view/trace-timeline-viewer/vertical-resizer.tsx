@@ -33,24 +33,24 @@ import './vertical-resizer.scss';
 const VerticalResizerProps = {
   max: {
     type: Number,
-    default: 0
+    default: 0,
   },
   min: {
     type: Number,
-    default: 0
+    default: 0,
   },
   onChange: Function as PropType<(newSize: number) => void>,
   position: {
     type: Number,
-    default: 0
+    default: 0,
   },
   rightSide: {
     required: false,
-    type: Boolean
+    type: Boolean,
   },
   columnResizeHandleHeight: {
-    type: Number
-  }
+    type: Number,
+  },
 };
 
 export default defineComponent({
@@ -59,7 +59,7 @@ export default defineComponent({
   setup(props) {
     const verticalResizerRef = ref<HTMLDivElement>();
     const state = reactive({
-      dragPosition: null
+      dragPosition: null,
     });
 
     const getDraggingBounds = (): DraggableBounds => {
@@ -74,7 +74,7 @@ export default defineComponent({
         clientXLeft,
         width,
         maxValue: max,
-        minValue: min
+        minValue: min,
       };
     };
 
@@ -94,7 +94,7 @@ export default defineComponent({
       getBounds: getDraggingBounds,
       onDragEnd: handleDragEnd,
       onDragMove: handleDragUpdate,
-      onDragStart: handleDragUpdate
+      onDragStart: handleDragUpdate,
     });
 
     onBeforeUnmount(() => {
@@ -104,7 +104,7 @@ export default defineComponent({
     return {
       ...toRefs(state),
       verticalResizerRef,
-      dragManager
+      dragManager,
     };
   },
 
@@ -118,7 +118,6 @@ export default defineComponent({
     left = `${position * 100}%`;
     const gripStyle = { left };
 
-    // eslint-disable-next-line eqeqeq
     if (this.dragManager.isDragging() && this.verticalResizerRef && dragPosition != null) {
       isDraggingLeft = dragPosition < position;
       isDraggingRight = dragPosition > position;
@@ -144,8 +143,8 @@ export default defineComponent({
           {
             isDraggingLeft,
             isDraggingRight,
-            'is-flipped': rightSide
-          }
+            'is-flipped': rightSide,
+          },
         ]}
       >
         <div
@@ -160,5 +159,5 @@ export default defineComponent({
         />
       </div>
     );
-  }
+  },
 });

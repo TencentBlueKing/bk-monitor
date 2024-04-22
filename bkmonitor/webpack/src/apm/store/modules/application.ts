@@ -28,7 +28,7 @@
  * @LastEditTime: 2021-06-26 11:33:00
  * @Description:
  */
-/* eslint-disable new-cap */
+
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import store from '@store/store';
 import { applicationInfoByAppName, metaConfigInfo } from 'monitor-api/modules/apm_meta';
@@ -79,8 +79,8 @@ class ApplicationStore extends VuexModule implements IApplicationState {
         id: item.id,
         name: item.name,
         icon: item.icon || '',
-        desc: item.short_description || ''
-      })
+        desc: item.short_description || '',
+      }),
     );
     this.setPluginsList(pluginsList);
   }

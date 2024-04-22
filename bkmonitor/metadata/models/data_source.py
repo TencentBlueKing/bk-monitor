@@ -628,7 +628,8 @@ class DataSource(models.Model):
                 etl_config,
                 DataSourceOption.OPTION_TIMESTAMP_UNIT,
             )
-        else:
+        # 非事件的etl配置，则统一使用毫秒作为时间单位，避免丢掉某些类型
+        if etl_config != "bk_standard_v2_event":
             # 时间单位统一为毫秒
             DataSourceOption.create_option(
                 bk_data_id=bk_data_id,

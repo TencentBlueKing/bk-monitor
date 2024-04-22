@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from apps.api import CCApi, GseApi
+from django.conf import settings
+
+from apps.api import CCApi
 from bkm_ipchooser.api import AbstractBkApi
 from bkm_ipchooser.constants import CommonEnum, ObjectType
 from bkm_ipchooser.tools.batch_request import request_multi_thread
-from django.conf import settings
 
 
 class BkApi(AbstractBkApi):
@@ -39,14 +40,6 @@ class BkApi(AbstractBkApi):
     @staticmethod
     def list_host_total_mainline_topo(params: dict = None):
         return CCApi.list_host_total_mainline_topo(params)
-
-    @staticmethod
-    def get_agent_status(params: dict = None):
-        return GseApi.get_agent_status_raw(params)
-
-    @staticmethod
-    def get_agent_status_v2(params: dict = None):
-        return GseApi.get_agent_status_raw_v2(params)
 
     @staticmethod
     def list_service_template(params: dict = None):

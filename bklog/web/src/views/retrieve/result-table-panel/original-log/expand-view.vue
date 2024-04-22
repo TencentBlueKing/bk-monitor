@@ -154,11 +154,12 @@ export default {
     background-color: #fafbfd;
 
     :deep(.vjs-tree) {
-      // font-family: monospace;
+      font-family: var(--table-fount-family);
       /* stylelint-disable-next-line declaration-no-important */
-      font-size: 12px !important;
+      font-size: var(--table-fount-size) !important;
 
-      .vjs-value__string {
+      .vjs-value__string,
+      .vjs-value__number {
         line-height: 24px;
         white-space: pre-wrap;
         tab-size: 3;

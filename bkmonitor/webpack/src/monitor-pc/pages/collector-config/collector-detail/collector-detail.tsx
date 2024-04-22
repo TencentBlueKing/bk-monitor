@@ -28,7 +28,7 @@ import { Route } from 'vue-router';
 import {
   collectConfigList,
   // collectInstanceStatus,
-  frontendCollectConfigDetail
+  frontendCollectConfigDetail,
 } from 'monitor-api/modules/collecting';
 import { collectingTargetStatus, storageStatus } from 'monitor-api/modules/datalink';
 import { listUserGroup } from 'monitor-api/modules/model';
@@ -66,7 +66,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     metric_list: [],
     runtime_params: [],
     subscription_id: undefined,
-    target_info: {}
+    target_info: {},
   };
 
   loading = false;
@@ -78,19 +78,19 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       pollingCount: 1,
       needPolling: true,
       timer: null,
-      topicKey: ''
+      topicKey: '',
     },
     [TabEnum.StorageState]: {
       loading: false,
       data: null,
-      topicKey: ''
+      topicKey: '',
     },
     [TabEnum.Configuration]: {
-      renderKey: random(8)
+      renderKey: random(8),
     },
     [TabEnum.DataLink]: {
-      topicKey: ''
-    }
+      topicKey: '',
+    },
   };
 
   // 告警组
@@ -114,7 +114,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     this.getDetails();
     this.$store.commit('app/SET_NAV_ROUTE_LIST', [
       { name: this.$t('route-数据采集'), id: 'collect-config' },
-      { name: this.$t('route-采集详情'), id: 'collect-config-detail' }
+      { name: this.$t('route-采集详情'), id: 'collect-config-detail' },
     ]);
     const tab = String(this.$route.query?.tab || '') as TabEnum;
     if (
@@ -124,7 +124,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
         TabEnum.DataLink,
         TabEnum.FieldDetails,
         TabEnum.StorageState,
-        TabEnum.TargetDetail
+        TabEnum.TargetDetail,
       ].includes(tab)
     ) {
       this.handleTabChange(tab, true);
@@ -148,7 +148,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       Object.keys(this.$route.query)?.length &&
         this.$router.replace({
           name: this.$route.name,
-          query: {}
+          query: {},
         });
     }
   }
@@ -161,14 +161,13 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       refresh_status: false,
       order: '-create_time',
       search: {
-        fuzzy: this.collectId
+        fuzzy: this.collectId,
       },
       page: 1,
-      limit: 10
+      limit: 10,
     };
     collectConfigList(params).then(data => {
       if (data.config_list?.length) {
-        // eslint-disable-next-line prefer-destructuring
         this.collectConfigData = data.config_list[0];
       }
     });
@@ -208,7 +207,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           name: item.name,
           needDuty: item.need_duty,
           receiver:
-            item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || []
+            item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || [],
         }));
       })
       .catch(e => {
@@ -222,7 +221,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
         if (count !== this.allData[TabEnum.TargetDetail].pollingCount) return;
         this.allData[TabEnum.TargetDetail].data = data;
         this.allData[TabEnum.TargetDetail].needPolling = data.contents.some(item =>
-          item.child.some(set => STATUS_LIST.includes(set.status))
+          item.child.some(set => STATUS_LIST.includes(set.status)),
         );
         if (!this.allData[TabEnum.TargetDetail].needPolling) {
           window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
@@ -268,15 +267,15 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       name: 'collect-config-view',
       params: {
         id: this.collectConfigData.id,
-        title: this.collectConfigData.name
+        title: this.collectConfigData.name,
       },
       query: {
         name: this.collectConfigData.name,
         customQuery: JSON.stringify({
           pluginId: this.collectConfigData.plugin_id,
-          bizId: this.collectConfigData.bk_biz_id
-        })
-      }
+          bizId: this.collectConfigData.bk_biz_id,
+        }),
+      },
     });
     window.open(url.href);
   }
@@ -292,7 +291,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       <div
         class='collector-detail-page'
         v-bkloading={{
-          isLoading: this.loading
+          isLoading: this.loading,
         }}
       >
         <MonitorTab

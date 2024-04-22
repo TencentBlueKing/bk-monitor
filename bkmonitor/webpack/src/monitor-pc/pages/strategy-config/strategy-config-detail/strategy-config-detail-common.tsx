@@ -37,7 +37,7 @@ import {
   getScenarioList,
   getStrategyV2,
   getTargetDetail,
-  strategyLabelList
+  strategyLabelList,
 } from 'monitor-api/modules/strategies';
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
 
@@ -60,7 +60,7 @@ import { IFunctionsValue } from '../strategy-config-set-new/monitor-data/functio
 import {
   hasExcludeNoticeWayOptions,
   INoticeValue,
-  intervalModeNames
+  intervalModeNames,
 } from '../strategy-config-set-new/notice-config/notice-config';
 import { levelList, noticeMethod } from '../strategy-config-set-new/type';
 import {
@@ -68,7 +68,7 @@ import {
   IDetectionConfig,
   IScenarioItem,
   MetricDetail,
-  MetricType
+  MetricType,
 } from '../strategy-config-set-new/typings';
 
 import DetectionRulesDisplay from './components/detection-rules-display';
@@ -113,10 +113,10 @@ type EditModeType = 'Source' | 'Edit';
 
 @Component({
   components: {
-    StrategyTargetTable
-  }
+    StrategyTargetTable,
+  },
 })
-export default class StrategyConfigDetailCommon extends tsc<{}> {
+export default class StrategyConfigDetailCommon extends tsc<object> {
   // 策略Id
   @Prop({ type: [String, Number] }) readonly id: string | number;
 
@@ -129,19 +129,19 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     rightWidth: '33%',
     range: [300, 1200],
     isActive: false,
-    show: true
+    show: true,
   };
 
   /** 导航面包屑 */
   routeList = [
     {
       id: 'strategy-config',
-      name: window.i18n.tc('策略配置')
+      name: window.i18n.tc('策略配置'),
     },
     {
       id: '',
-      name: 'loading...'
-    }
+      name: 'loading...',
+    },
   ];
   /* 告警组 */
   alarmGroupList = [];
@@ -160,7 +160,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   /** 监控目标数据 */
   targetsDesc = {
     message: '',
-    subMessage: ''
+    subMessage: '',
   };
 
   /** 告警等级 */
@@ -169,7 +169,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   levelList = [
     { id: 1, name: window.i18n.tc('致命'), icon: 'icon-danger' },
     { id: 2, name: window.i18n.tc('预警'), icon: 'icon-mind-fill' },
-    { id: 3, name: window.i18n.tc('提醒'), icon: 'icon-tips' }
+    { id: 3, name: window.i18n.tc('提醒'), icon: 'icon-tips' },
   ];
 
   /** 基本信息 */
@@ -179,31 +179,31 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     enabled: '',
     scenario: '',
     labels: [],
-    priority: null
+    priority: null,
   };
   /** 自定义标签数据 */
   customLabelsList: string[] = [];
   baseInfoRequireList: BaseInfoRequire[] = [
     {
       key: 'bizName',
-      name: window.i18n.tc('所属')
+      name: window.i18n.tc('所属'),
     },
     {
       key: 'scenario',
-      name: window.i18n.tc('监控对象')
+      name: window.i18n.tc('监控对象'),
     },
     {
       key: 'name',
-      name: window.i18n.tc('策略名称')
+      name: window.i18n.tc('策略名称'),
     },
     {
       key: 'priority',
-      name: window.i18n.tc('优先级')
+      name: window.i18n.tc('优先级'),
     },
     {
       key: 'enabled',
-      name: window.i18n.tc('是否启用')
-    }
+      name: window.i18n.tc('是否启用'),
+    },
   ];
   /** 监控对象列表 */
   scenarioList: IScenarioItem[] = [];
@@ -221,7 +221,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     unitType: '', // 单位类型
     unitList: [],
     connector: 'and',
-    data: []
+    data: [],
   };
   // 判断条件数据
   analyzingConditions: IAnalyzingConditions = {
@@ -229,19 +229,19 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       // 触发条件
       count: 1,
       checkWindow: 5,
-      checkType: 'total'
+      checkType: 'total',
     },
     recoveryConfig: {
       // 恢复条件
-      checkWindow: 5
+      checkWindow: 5,
     },
     noDataConfig: {
       continuous: 10,
       isEnabled: true,
       dimensions: [],
-      level: 2
+      level: 2,
     },
-    timeRange: ['00:00:00', '23:59:59']
+    timeRange: ['00:00:00', '23:59:59'],
   };
   // 告警处理
   actionsData: IAlarmItem[] = [];
@@ -252,13 +252,13 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     signal: ['abnormal'], // 触发信号
     options: {
       converge_config: {
-        need_biz_converge: true // 告警风暴开关
+        need_biz_converge: true, // 告警风暴开关
       },
       noise_reduce_config: {
         dimensions: [],
         count: 0,
-        is_enabled: false
-      }
+        is_enabled: false,
+      },
     },
     config: {
       // 高级配置
@@ -269,9 +269,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
         { signal: 'abnormal', message_tmpl: '', title_tmpl: '' },
         { signal: 'recovered', message_tmpl: '', title_tmpl: '' },
         { signal: 'closed', message_tmpl: '', title_tmpl: '' },
-        { signal: 'ack', message_tmpl: '', title_tmpl: '' }
-      ]
-    }
+        { signal: 'ack', message_tmpl: '', title_tmpl: '' },
+      ],
+    },
   };
 
   localExpress = '';
@@ -280,7 +280,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   strategyStatusMap = {
     UPDATED: window.i18n.t('（已修改）'),
     DELETED: window.i18n.t('（已删除）'),
-    UNCHANGED: ''
+    UNCHANGED: '',
   };
   strategyStatus = '';
   // 套餐列表
@@ -297,7 +297,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   // 告警组想详情
   alarmGroupDetail: { id: number; show: boolean } = {
     id: 0,
-    show: false
+    show: false,
   };
   variateListShow = false;
   isShowTemplate = false;
@@ -330,7 +330,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     /* promql */
     sourceCode: '',
     /* agg_interval */
-    step: 'auto'
+    step: 'auto',
   };
   editMode: EditModeType = 'Edit';
   /* 是否为场景智能检测 */
@@ -339,15 +339,15 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   /** 预览图描述文档  智能检测算法 | 时序预测 需要展示算法说明 */
   get aiopsModelDescMdGetter() {
     const needMdDesc = this.detectionConfig.data.some(item =>
-      ['IntelligentDetect', 'TimeSeriesForecasting', 'AbnormalCluster'].includes(item.type)
+      ['IntelligentDetect', 'TimeSeriesForecasting', 'AbnormalCluster'].includes(item.type),
     );
     return needMdDesc
       ? [
           {
             name: this.aiopsModelName,
             instruction: this.aiopsModelDescMd,
-            document: this.aiopsModelDocMd
-          }
+            document: this.aiopsModelDocMd,
+          },
         ]
       : [];
   }
@@ -367,11 +367,10 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
         cur.agg_dimension?.length > pre.length
           ? cur.dimensions.filter(set => cur.agg_dimension.includes(set.id as any))
           : pre,
-      []
+      [],
     );
   }
   get rightWidth() {
-    // eslint-disable-next-line no-nested-ternary
     return this.strategyView.show
       ? typeof this.strategyView.rightWidth === 'string'
         ? this.strategyView.rightWidth
@@ -384,7 +383,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       { label: this.$t('创建人'), value: this.detailData.create_user || '--' },
       { label: this.$t('创建时间'), value: this.detailData.create_time || '--' },
       { label: this.$t('最近更新人'), value: this.detailData.update_user || '--' },
-      { label: this.$t('修改时间'), value: this.detailData.update_time || '--' }
+      { label: this.$t('修改时间'), value: this.detailData.update_time || '--' },
     ];
   }
 
@@ -393,7 +392,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     return (
       this.noticeData.config.template?.map(item => ({
         key: item.signal,
-        label: templateSignalName[item.signal]
+        label: templateSignalName[item.signal],
       })) || []
     );
   }
@@ -454,7 +453,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.alarmGroupList = data.map(item => ({
       id: item.id,
       name: item.name,
-      receiver: item.users?.map(rec => rec.display_name) || []
+      receiver: item.users?.map(rec => rec.display_name) || [],
     }));
   }
 
@@ -484,13 +483,13 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   async getCalendarList() {
     const params = {
       page: 1,
-      page_size: 1000
+      page_size: 1000,
     };
     const data = await listCalendar(params).catch(() => null);
     if (data) {
       this.calendarList = data.data.map(item => ({
         id: item.id,
-        name: item.name
+        name: item.name,
       }));
     }
     return data;
@@ -507,13 +506,13 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       this.metricData[0]?.targetType || this.targetDetail?.node_type || '',
       this.metricData[0]?.objectType || this.targetDetail?.instance_type || '',
       this.checkedTarget.node_count,
-      this.checkedTarget.instance_count
+      this.checkedTarget.instance_count,
     );
     /** 监控目标数据 */
     this.targetsTableData = !!this.targetDetail.detail ? transformDataKey(this.targetDetail.detail) : null;
     /** 同级别算法关系 */
     const {
-      detects: [{ connector, level }]
+      detects: [{ connector, level }],
     } = this.detailData;
     this.detectionConfig.connector = connector;
     /** 告警等级 */
@@ -523,7 +522,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   /** 获取标签列表数据 */
   getLabelListApi() {
     const params = {
-      strategy_id: 0
+      strategy_id: 0,
     };
     strategyLabelList(params).then(res => {
       this.customLabelsList = res.custom.map(item => item.id.replace(/\//g, ''));
@@ -543,8 +542,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
         objectType: this.targetDetail?.instance_type,
         sceneConfig: {
           algorithms,
-          query_configs: queryConfigs
-        }
+          query_configs: queryConfigs,
+        },
       } as any);
       this.metricData.push(curMetricData);
       this.isMultivariateAnomalyDetection = true;
@@ -564,7 +563,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     const { metric_list: metricList = [] } = await getMetricListV2({
       // page: 1,
       // page_size: queryConfigs.length,
-      conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }]
+      conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }],
     }).catch(() => ({}));
     this.metricData = queryConfigs.map(
       ({
@@ -575,7 +574,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
         index_set_id,
         functions,
         intelligent_detect,
-        // eslint-disable-next-line camelcase
+
         metric_field,
         metric_id,
         agg_method,
@@ -585,9 +584,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
         alias,
         query_string,
         custom_event_name,
-        bkmonitor_strategy_id
+        bkmonitor_strategy_id,
       }) => {
-        // eslint-disable-next-line camelcase
         const curMetric = metricList?.find(set => set.metric_id === metric_id) || {
           data_source_label,
           data_type_label,
@@ -600,9 +598,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
           query_string,
           custom_event_name,
           bkmonitor_strategy_id,
-          dimensions: []
+          dimensions: [],
         };
-        // eslint-disable-next-line camelcase
+
         this.dataMode =
           agg_method === 'REAL_TIME' || (data_type_label === 'event' && data_source_label === 'bk_monitor')
             ? 'realtime'
@@ -621,9 +619,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
           functions: functions || [],
           intelligent_detect,
           metric_type,
-          logMetricList: metricList
+          logMetricList: metricList,
         });
-      }
+      },
     );
     this.detectionConfig.unitType = this.metricData[0]?.unit || '';
     /* 获取维度名称（无数据维度） */
@@ -636,7 +634,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   // 获取套餐数据
   async getActionConfigList() {
     const data = await listActionConfig({
-      with_advance_fields: 'no'
+      with_advance_fields: 'no',
     }).catch(() => []);
     data.forEach(item => {
       this.actionConfigMap[item.id] = item;
@@ -696,7 +694,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     await this.handleQueryConfigData();
     await this.handleProcessData({
       ...strategyDetail,
-      targetDetail: this.targetDetail
+      targetDetail: this.targetDetail,
     });
   }
 
@@ -718,7 +716,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       enabled: this.$tc(data.is_enabled ? '是' : '否'),
       labels: data.labels.map(item => item.replace(/\//g, ' : ')),
       scenario: this.findTreeItem(this.scenarioList, data.scenario)?.name ?? '',
-      priority: data.priority ?? null
+      priority: data.priority ?? null,
     };
     if (!this.strategyStatus) {
       this.navName = `${this.$t('策略名')}: ${this.baseInfo.name}`;
@@ -760,16 +758,16 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.analyzingConditions.triggerConfig = {
       ...this.analyzingConditions.triggerConfig,
       count: detect.trigger_config.count || 0,
-      checkWindow: detect.trigger_config.check_window || 0
+      checkWindow: detect.trigger_config.check_window || 0,
     };
     this.analyzingConditions.recoveryConfig = {
-      checkWindow: detect.recovery_config.check_window || 0
+      checkWindow: detect.recovery_config.check_window || 0,
     };
     this.analyzingConditions.noDataConfig = {
       continuous: item.no_data_config.continuous || 0,
       isEnabled: item.no_data_config.is_enabled || false,
       dimensions: item.no_data_config.agg_dimension || [],
-      level: item.no_data_config.level || 2
+      level: item.no_data_config.level || 2,
     };
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { time_ranges, calendars } = detect.trigger_config.uptime || {};
@@ -787,9 +785,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       options: {
         converge_config: {
           ...item.options.converge_config,
-          timedelta: item.options.converge_config.timedelta / 60
-        }
-      }
+          timedelta: item.options.converge_config.timedelta / 60,
+        },
+      },
     }));
   }
 
@@ -800,25 +798,25 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       ...notice,
       config: {
         ...notice.config,
-        notify_interval: notice.config.notify_interval / 60
+        notify_interval: notice.config.notify_interval / 60,
       },
       options: {
         ...notice.options,
         converge_config: {
-          need_biz_converge: notice.options.converge_config.need_biz_converge
+          need_biz_converge: notice.options.converge_config.need_biz_converge,
         },
         exclude_notice_ways: {
           closed: [],
           recovered: [],
-          ...notice.options?.exclude_notice_ways
+          ...notice.options?.exclude_notice_ways,
         },
         noise_reduce_config: {
           dimensions: notice.options?.noise_reduce_config?.dimensions || [],
           is_enabled: notice.options?.noise_reduce_config?.is_enabled || false,
-          count: notice.options?.noise_reduce_config?.count || 10
+          count: notice.options?.noise_reduce_config?.count || 10,
         },
-        chart_image_enabled: !!notice.options?.chart_image_enabled
-      }
+        chart_image_enabled: !!notice.options?.chart_image_enabled,
+      },
     };
     this.templateActive = this.noticeData.config.template[0].signal;
     this.templateData = deepClone(this.noticeData.config.template[0]);
@@ -881,8 +879,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       name: 'alarm-group-edit',
       params: {
         id,
-        strategyId: `${this.strategyId}`
-      }
+        strategyId: `${this.strategyId}`,
+      },
     });
   }
 
@@ -897,8 +895,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.$router.push({
       name: 'strategy-config-edit',
       params: {
-        id: String(this.strategyId || this.id)
-      }
+        id: String(this.strategyId || this.id),
+      },
     });
   }
 
@@ -960,12 +958,12 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       abnormal: window.i18n.t('当告警触发时'),
       recovered: window.i18n.t('当告警恢复时'),
       closed: window.i18n.t('当告警关闭时'),
-      ack: window.i18n.t('告警确认时')
+      ack: window.i18n.t('告警确认时'),
     };
     const actionOptions = {
       execute: window.i18n.t('执行前'),
       execute_success: window.i18n.t('执行成功'),
-      execute_failed: window.i18n.t('执行失败')
+      execute_failed: window.i18n.t('执行失败'),
     };
 
     return (
@@ -984,7 +982,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
             v-bk-tooltips={{
               content: this.$t(this.strategyView.show ? '收起' : '展开'),
               delay: 200,
-              appendTo: () => document.body
+              appendTo: () => document.body,
             }}
             onClick={() => (this.strategyView.show = !this.strategyView.show)}
           />
@@ -1007,7 +1005,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     ))}
                   </div>
                   <div class='base-info-row'>
-                    <span class='base-info-item lables-item'>
+                    <span class='base-info-item labels'>
                       <span class='base-info-label'>{this.$t('标签')} :</span>
                       <span class='labels-list'>
                         {!!this.baseInfo.labels.length
@@ -1037,8 +1035,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                   >
                     {this.$t('编辑')}
                   </bk-button>,
-                  <HistoryDialog list={this.historyList} />
-                ]
+                  <HistoryDialog list={this.historyList} />,
+                ],
               )}
               {panelItem(
                 this.$tc('数据查询'),
@@ -1060,7 +1058,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                                 expression={this.expression}
                                 expFunctions={this.expFunctions}
                               />
-                            ) : undefined
+                            ) : undefined,
                           ];
                         }
                         return (
@@ -1094,7 +1092,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                                     class='icon-monitor icon-hint'
                                     v-bk-tooltips={{
                                       content: this.$t('数据步长'),
-                                      placements: ['top']
+                                      placements: ['top'],
                                     }}
                                   ></span>
                                 </div>
@@ -1125,7 +1123,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                             class={[
                               'icon-monitor',
                               this.currentAlertLevel.icon,
-                              `level-icon-${this.currentAlertLevel.id}`
+                              `level-icon-${this.currentAlertLevel.id}`,
                             ]}
                           ></i>
                           <span class='level-text'>{this.currentAlertLevel.name}</span>
@@ -1133,7 +1131,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                       </div>
                     ) : undefined}
                   </div>
-                )
+                ),
               )}
               {this.showDetectionConfig
                 ? panelItem(
@@ -1153,7 +1151,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                           onAiopsTypeChange={this.handleAiopsChartType}
                         />
                       ))}
-                    </div>
+                    </div>,
                   )
                 : undefined}
               {panelItem(
@@ -1165,7 +1163,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                       <span class='bold-span'>{triggerConfig.checkWindow}</span>
                       <span class='bold-span'>{aggList.find(item => triggerConfig.checkType === item.id).name}</span>
                       <span class='bold-span'>{triggerConfig.count}</span>
-                    </i18n>
+                    </i18n>,
                   )}
                   {commonItem(
                     this.$t('恢复条件'),
@@ -1174,7 +1172,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                       class='i18n-path'
                     >
                       <span class='bold-span'>{recoveryConfig.checkWindow}</span>
-                    </i18n>
+                    </i18n>,
                   )}
                   {commonItem(
                     this.$t('无数据'),
@@ -1199,32 +1197,31 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                       </i18n>
                     ) : (
                       '--'
-                    )
+                    ),
                   )}
                   {commonItem(
                     this.$t('生效时间段'),
                     this.timeRanges.length
                       ? this.timeRanges.reduce((str, timeRange, index) => {
-                          // eslint-disable-next-line no-param-reassign
                           str += `${timeRange.start}~${timeRange.end}${
                             index !== this.timeRanges.length - 1 ? ', ' : ''
                           }`;
                           return str;
                         }, '')
-                      : '--'
+                      : '--',
                   )}
                   {commonItem(
                     this.$t('关联日历'),
                     !!this.calendars.length
                       ? this.calendars.reduce((str, item, index) => {
                           const target = this.calendarList.find(set => set.id === item);
-                          // eslint-disable-next-line no-param-reassign
+
                           str += `${target?.name || item}${index !== this.calendars.length - 1 ? ', ' : ''}`;
                           return str;
                         }, '')
-                      : '--'
+                      : '--',
                   )}
-                </div>
+                </div>,
               )}
               {panelItem(
                 this.$tc('告警处理'),
@@ -1269,7 +1266,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                   ) : (
                     <span>{this.$t('空')}</span>
                   )}
-                </div>
+                </div>,
               )}
               {panelItem(
                 this.$tc('通知设置'),
@@ -1304,7 +1301,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                             {noticeOptions[key]}
                           </span>
                         );
-                      })
+                      }),
                     // this.noticeData.signal.map(key => noticeOptions[key] || '').filter(item => !!item)
                     //   .join(',') || '--'
                   )}
@@ -1313,7 +1310,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     this.noticeData.signal
                       .map(key => actionOptions[key] || '')
                       .filter(item => !!item)
-                      .join(',') || '--'
+                      .join(',') || '--',
                   )}
                   {commonItem(
                     this.$t('通知方式'),
@@ -1323,7 +1320,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         &nbsp;
                         {this.getNoticeMethodName(
                           this.noticeData.options?.assign_mode || [],
-                          this.noticeData?.user_group_list
+                          this.noticeData?.user_group_list,
                         )}
                       </div>
                       <div class='user-groups-container mb10'>
@@ -1376,7 +1373,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                       </div>
                     </div>,
                     {},
-                    { width: '100%' }
+                    { width: '100%' },
                   )}
                   {commonItem(
                     this.$t('通知间隔'),
@@ -1386,13 +1383,13 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         <span class='bold-span'>{this.noticeData.config.notify_interval}</span>
                       </i18n>
                     </span>,
-                    { marginTop: 0 }
+                    { marginTop: 0 },
                   )}
                   {commonItem(
                     this.$t('告警风暴'),
                     <span>
                       {this.noticeData.options.converge_config.need_biz_converge ? this.$t('开启') : this.$t('关闭')}
-                    </span>
+                    </span>,
                   )}
                   {this.metricData?.[0]?.data_type_label === 'time_series'
                     ? commonItem(
@@ -1407,13 +1404,13 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                                       .map(id => this.dimensionsMap?.[id]?.name || id)
                                       .join(',')
                                   : '--',
-                                this.noticeData.options.noise_reduce_config.count
+                                this.noticeData.options.noise_reduce_config.count,
                               ])}
                             </span>
                           ) : (
                             this.$t('关闭')
                           )}
-                        </span>
+                        </span>,
                       )
                     : undefined}
                   <div class='content-wraper'>
@@ -1481,7 +1478,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     onEditGroup={this.handleEditAlarmGroup}
                     onShowChange={val => !val && (this.alarmGroupDetail.id = 0)}
                   ></AlarmGroupDetail>
-                </div>
+                </div>,
               )}
             </div>
             <div style='padding-top: 16px;'></div>

@@ -398,8 +398,9 @@ export default {
     }
 
     .field-value {
-      // font-family: monospace;
-      // color: #000;
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
+      color: var(--table-fount-color);
       word-break: break-all;
     }
 

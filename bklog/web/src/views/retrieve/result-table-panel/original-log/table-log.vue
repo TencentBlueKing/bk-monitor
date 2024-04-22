@@ -138,6 +138,7 @@ export default {
     }),
     ...mapState('globals', ['fieldTypeMap'])
   },
+  inject: ['changeShowUnionSource'],
   methods: {
     // 滚动到顶部
     scrollToTop() {
@@ -222,6 +223,7 @@ export default {
         }
         this.openLogDialog(dialogNewParams, event);
       } else if (event === 'webConsole') this.openWebConsole(row);
+      else if (event === 'logSource') this.changeShowUnionSource();
     },
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {
@@ -324,7 +326,7 @@ export default {
         line-height: 20px;
 
         &.is-limit {
-          max-height: 116px;
+          max-height: 106px;
         }
       }
 
@@ -336,13 +338,13 @@ export default {
       }
 
       .origin-str {
-        line-height: 24px;
+        line-height: 20px;
         color: #313238;
       }
 
       .show-whole-btn {
         position: absolute;
-        top: 93px;
+        top: 84px;
         width: 100%;
         height: 24px;
         font-size: 12px;
@@ -361,7 +363,7 @@ export default {
     }
 
     .original-time {
-      padding-top: 14px;
+      padding-top: 13px;
 
       .cell {
         padding-left: 2px;
@@ -408,7 +410,7 @@ export default {
     .visiable-field {
       .str-content {
         &.is-limit {
-          max-height: 100px;
+          max-height: 106px;
         }
       }
 
@@ -421,7 +423,7 @@ export default {
       }
 
       .show-whole-btn {
-        top: 83px;
+        top: 84px;
       }
     }
 
@@ -440,6 +442,8 @@ export default {
   }
 
   .render-header {
+    display: inline;
+
     .field-type-icon {
       width: 12px;
       margin: 0 4px 0 0;
@@ -466,6 +470,11 @@ export default {
 
     .timer-formatter {
       transform: translateY(-1px);
+    }
+
+    .lack-index-filed {
+      padding-bottom: 2px;
+      border-bottom: 1px dashed #63656e;
     }
   }
 

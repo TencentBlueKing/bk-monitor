@@ -38,23 +38,23 @@ export default defineComponent({
   props: {
     activeMode: {
       type: String as PropType<ViewModeType>,
-      required: true
+      required: true,
     },
     textDirection: {
       type: String as PropType<DirectionType>,
-      default: 'ltr'
+      default: 'ltr',
     },
     isCompared: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['modeChange', 'textDirectionChange', 'keywordChange', 'download'],
   setup(props, { emit }) {
     const downloadTypeMaps = [
       'png',
       //  'json',
-      'pprof'
+      'pprof',
       //  'html'
     ];
 
@@ -64,7 +64,7 @@ export default defineComponent({
       const list = [
         { id: ViewModeType.Table, icon: 'table' },
         { id: ViewModeType.Combine, icon: 'mc-fenping' },
-        { id: ViewModeType.Flame, icon: 'mc-flame' }
+        { id: ViewModeType.Flame, icon: 'mc-flame' },
       ];
 
       if (!props.isCompared) {
@@ -95,7 +95,7 @@ export default defineComponent({
       handleModeChange,
       handleEllipsisDirectionChange,
       handleKeywordChange,
-      menuClick
+      menuClick,
     };
   },
   render() {
@@ -148,7 +148,7 @@ export default defineComponent({
                   </Dropdown.DropdownItem>
                 ))}
               </Dropdown.DropdownMenu>
-            )
+            ),
           }}
         >
           <div class='download-button'>
@@ -157,5 +157,5 @@ export default defineComponent({
         </Dropdown>
       </div>
     );
-  }
+  },
 });

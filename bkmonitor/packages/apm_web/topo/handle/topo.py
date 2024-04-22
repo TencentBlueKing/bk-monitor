@@ -499,7 +499,18 @@ class TopoHandler:
             instance_count_mapping[instance["topo_node_key"]] += 1
 
         for node in nodes:
-            node_metric = list(self.get_node_metric(node).values())
+            node_metric_map = self.get_node_metric(node)
+            # 保证指标顺序request_count、avg_duration、error_count、error_rate、instance_count
+            node_metric = [
+                node_metric_map[metric]
+                for metric in [
+                    CalculationMethod.REQUEST_COUNT,
+                    CalculationMethod.AVG_DURATION,
+                    CalculationMethod.ERROR_COUNT,
+                    CalculationMethod.ERROR_RATE,
+                ]
+                if metric in node_metric_map
+            ]
             if not node_metric:
                 node_metric = [
                     asdict(TopoNodeTip(id=CalculationMethod.REQUEST_COUNT, name=_("请求数量"), value="--")),

@@ -92,7 +92,7 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
       bk_biz_id: this.$store.getters.bizId,
       alert_ids: this.alertIds,
       content_type: this.contentType,
-      chat_members: this.localValue
+      chat_members: this.localValue,
     };
     this.isLoading = true;
     createChatGroup(params)
@@ -100,7 +100,7 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
         if (data) {
           this.$bkMessage({
             message: this.$t('拉群成功'),
-            theme: 'success'
+            theme: 'success',
           });
           this.handleShowChange(false);
         }

@@ -38,14 +38,14 @@ export default defineComponent({
       type: Array as PropType<ExistedReportListItem[]>,
       default: () => {
         return [];
-      }
-    }
+      },
+    },
   },
   emits: ['ReportNameClick'],
   setup(props, { emit }) {
     return {
       props,
-      emit
+      emit,
     };
   },
   render() {
@@ -73,14 +73,14 @@ export default defineComponent({
                           </span>
                         );
                       });
-                    }
+                    },
                   }}
                 />
               </div>
             );
-          }
+          },
         }}
       ></Alert>
     );
-  }
+  },
 });

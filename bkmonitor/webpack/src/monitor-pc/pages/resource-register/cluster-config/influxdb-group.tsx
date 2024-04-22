@@ -36,7 +36,7 @@ import './influxdb-group.scss';
 enum ConnectionStatus {
   default = '',
   success = 'success',
-  fail = 'fail'
+  fail = 'fail',
 }
 // 表单模板，用于初始化数据
 const formDataTemplate = {
@@ -48,14 +48,14 @@ const formDataTemplate = {
       host: '', // 主机IP
       port: '', // 端口
       userName: '', // 用户名
-      password: '' // 密码
-    }
+      password: '', // 密码
+    },
   ],
   backupRecoverySpeed: '', // 备份恢复速率
   disabled: true, // 禁用
   readonly: true, // 只读
   responsible: '', // 负责人
-  description: '' // 描述
+  description: '', // 描述
 };
 // 错误信息模板
 const formErrMsgTemplate = {
@@ -66,13 +66,13 @@ const formErrMsgTemplate = {
       host: '',
       port: '',
       userName: '',
-      password: ''
-    }
-  ]
+      password: '',
+    },
+  ],
 };
 
 @Component
-export default class InfluxdbTest extends tsc<{}> {
+export default class InfluxdbTest extends tsc<object> {
   @Prop({ type: Boolean, default: false }) isShow;
   @Prop({ type: String, default: '新增' }) influxdbGroupTitle;
   connectionStatus = ConnectionStatus.default; // 当前资源类别下进行连通性测试的状态，空字符串为初始状态（未进行连通性测试）
@@ -89,10 +89,10 @@ export default class InfluxdbTest extends tsc<{}> {
     host: [{ validator: value => !!value, message: window.i18n.tc('必填项') }],
     port: [
       { validator: value => !!value, message: window.i18n.tc('必填项') },
-      { validator: value => validatePort.test(value), message: window.i18n.tc('请输入合法端口') }
+      { validator: value => validatePort.test(value), message: window.i18n.tc('请输入合法端口') },
     ],
     userName: [{ validator: value => !!value, message: window.i18n.tc('必填项') }],
-    password: [{ validator: value => !!value, message: window.i18n.tc('必填项') }]
+    password: [{ validator: value => !!value, message: window.i18n.tc('必填项') }],
   };
   @Emit('show-change')
   emitShowChange(val: boolean) {
@@ -190,14 +190,14 @@ export default class InfluxdbTest extends tsc<{}> {
           host: '', // 主机IP
           port: '', // 端口
           userName: '', // 用户名
-          password: '' // 密码
+          password: '', // 密码
         });
         this.localFormErrMsg.formList.push({
           instanceName: '',
           host: '',
           port: '',
           userName: '',
-          password: ''
+          password: '',
         });
         break;
       case 'delete':
@@ -207,7 +207,7 @@ export default class InfluxdbTest extends tsc<{}> {
         this.localGroupCount += 1;
         this.localFormData.influxdbGroupList.push({
           ...this.localFormData.influxdbGroupList[index],
-          title: `组${this.localGroupCount}`
+          title: `组${this.localGroupCount}`,
         });
         this.localFormErrMsg.formList.push(this.localFormErrMsg.formList[index]);
     }
@@ -236,7 +236,7 @@ export default class InfluxdbTest extends tsc<{}> {
     setTimeout(() => {
       this.$bkMessage({
         message: this.$t('提交成功'),
-        theme: 'success'
+        theme: 'success',
       });
       this.submitButtonLoading = false;
       this.emitShowChange(false);
@@ -311,7 +311,7 @@ export default class InfluxdbTest extends tsc<{}> {
                               'icon-monitor',
                               'icon-mc-delete-line',
                               'operation-icon',
-                              !index && this.localFormData.influxdbGroupList.length < 2 && 'disabled-icon'
+                              !index && this.localFormData.influxdbGroupList.length < 2 && 'disabled-icon',
                             ]}
                             onClick={e => this.handleGroupOperation('delete', index, e)}
                           />
@@ -328,7 +328,7 @@ export default class InfluxdbTest extends tsc<{}> {
                               this.singleFieldValidate(
                                 this.localFormData.influxdbGroupList[index].instanceName,
                                 'instanceName',
-                                index
+                                index,
                               )
                             }
                             onChange={() => (this.localFormErrMsg.formList[index].instanceName = '')}
@@ -348,7 +348,7 @@ export default class InfluxdbTest extends tsc<{}> {
                                 this.singleFieldValidate(
                                   this.localFormData.influxdbGroupList[index].host,
                                   'host',
-                                  index
+                                  index,
                                 )
                               }
                               onChange={() => (this.localFormErrMsg.formList[index].host = '')}
@@ -365,7 +365,7 @@ export default class InfluxdbTest extends tsc<{}> {
                                 this.singleFieldValidate(
                                   this.localFormData.influxdbGroupList[index].port,
                                   'port',
-                                  index
+                                  index,
                                 )
                               }
                               onChange={() => (this.localFormErrMsg.formList[index].port = '')}
@@ -384,7 +384,7 @@ export default class InfluxdbTest extends tsc<{}> {
                                 this.singleFieldValidate(
                                   this.localFormData.influxdbGroupList[index].userName,
                                   'userName',
-                                  index
+                                  index,
                                 )
                               }
                               onChange={() => (this.localFormErrMsg.formList[index].userName = '')}
@@ -402,7 +402,7 @@ export default class InfluxdbTest extends tsc<{}> {
                                 this.singleFieldValidate(
                                   this.localFormData.influxdbGroupList[index].password,
                                   'password',
-                                  index
+                                  index,
                                 )
                               }
                               onChange={() => (this.localFormErrMsg.formList[index].password = '')}
@@ -444,7 +444,7 @@ export default class InfluxdbTest extends tsc<{}> {
                           this.connectionStatus === ConnectionStatus.success
                             ? 'icon-mc-check-fill'
                             : 'icon-mc-close-fill',
-                          `${this.connectionStatus}-icon`
+                          `${this.connectionStatus}-icon`,
                         ]}
                       />
                       <span

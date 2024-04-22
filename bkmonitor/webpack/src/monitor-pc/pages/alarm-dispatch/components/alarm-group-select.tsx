@@ -70,7 +70,7 @@ export default class AlarmGroupSelect extends tsc<IProps> {
         if (value.includes(item.id)) {
           tags.push({
             id: item.id,
-            name: item.name
+            name: item.name,
           });
         }
       });
@@ -154,7 +154,6 @@ export default class AlarmGroupSelect extends tsc<IProps> {
               onClick={this.handleRefresh}
             >
               {this.loading ? (
-                /* eslint-disable-next-line @typescript-eslint/no-require-imports */
                 <img
                   alt=''
                   src={require('../../../static/images/svg/spinner.svg')}

@@ -41,7 +41,7 @@ import { AiSetting, SchemeItem } from './types';
 import './ai-settings.scss';
 
 @Component
-export default class AiSettings extends tsc<{}> {
+export default class AiSettings extends tsc<object> {
   @Ref('single-indicator') readonly singleIndicatorEl: SingleIndicator;
   @Ref('single-host') readonly singleIndicatorHostEl: SingleIndicator;
 
@@ -56,7 +56,7 @@ export default class AiSettings extends tsc<{}> {
   // ai设置数据
   aiSetting: AiSetting = {
     kpi_anomaly_detection: {
-      default_plan_id: 0
+      default_plan_id: 0,
     },
     multivariate_anomaly_detection: {
       host: {
@@ -64,9 +64,9 @@ export default class AiSettings extends tsc<{}> {
         default_sensitivity: 0,
         is_enabled: true,
         exclude_target: [],
-        intelligent_detect: {}
-      }
-    }
+        intelligent_detect: {},
+      },
+    },
   };
 
   excludeTargetDetail = {
@@ -78,7 +78,7 @@ export default class AiSettings extends tsc<{}> {
     nodeCount: 0,
     instanceCount: 0,
     info: null,
-    show: false
+    show: false,
   };
 
   /**
@@ -136,14 +136,14 @@ export default class AiSettings extends tsc<{}> {
           ...this.aiSetting.multivariate_anomaly_detection,
           host: {
             ...this.aiSetting.multivariate_anomaly_detection.host,
-            exclude_target: excludeTargetValue.length ? excludeTarget : []
-          }
+            exclude_target: excludeTargetValue.length ? excludeTarget : [],
+          },
         },
         kpi_anomaly_detection: {
           ...this.aiSetting.kpi_anomaly_detection,
           is_enabled: undefined, // 单指标异常检测需去除是否启用
-          default_sensitivity: undefined
-        }
+          default_sensitivity: undefined,
+        },
       };
       await saveAiSetting(params).catch(() => (this.loading = false));
       this.btnLoading = false;
@@ -151,7 +151,7 @@ export default class AiSettings extends tsc<{}> {
       this.isEdit = false;
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('保存成功！')
+        message: this.$t('保存成功！'),
       });
     }
   }
@@ -174,7 +174,7 @@ export default class AiSettings extends tsc<{}> {
   async getTargetDetail() {
     if (this.aiSetting.multivariate_anomaly_detection.host.exclude_target?.[0]?.[0]?.value?.length) {
       const data = await getBusinessTargetDetail({
-        target: this.aiSetting.multivariate_anomaly_detection.host.exclude_target
+        target: this.aiSetting.multivariate_anomaly_detection.host.exclude_target,
       }).catch(() => null);
       if (data) {
         this.excludeTargetDetail = {
@@ -184,7 +184,7 @@ export default class AiSettings extends tsc<{}> {
           targetType: data.node_type,
           objType: data.instance_type,
           nodeCount: data.node_count,
-          instanceCount: data.instance_count
+          instanceCount: data.instance_count,
         };
         this.excludeTargetDetail.desc = '';
         const info = handleSetTargetDesc(
@@ -192,7 +192,7 @@ export default class AiSettings extends tsc<{}> {
           this.excludeTargetDetail.targetType as any,
           this.excludeTargetDetail.objType,
           this.excludeTargetDetail.nodeCount,
-          this.excludeTargetDetail.instanceCount
+          this.excludeTargetDetail.instanceCount,
         );
         this.excludeTargetDetail.info = info;
       }
@@ -201,7 +201,7 @@ export default class AiSettings extends tsc<{}> {
         message: '',
         messageCount: 0,
         subMessage: '',
-        subMessageCount: 0
+        subMessageCount: 0,
       };
     }
   }

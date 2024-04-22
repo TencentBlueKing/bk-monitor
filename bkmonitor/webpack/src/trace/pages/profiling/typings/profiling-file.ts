@@ -28,25 +28,25 @@ export enum EFileStatus {
   parsingFailed = 'parsing_failed',
   parsingSucceed = 'parsing_succeed',
   storeSucceed = 'store_succeed',
-  storeFailed = 'store_failed'
+  storeFailed = 'store_failed',
 }
 
 export const fileStatusMap = {
   [EFileStatus.uploaded]: {
-    name: window.i18n.t('已上传')
+    name: window.i18n.t('已上传'),
   },
   [EFileStatus.parsingFailed]: {
-    name: window.i18n.t('解析失败')
+    name: window.i18n.t('解析失败'),
   },
   [EFileStatus.parsingSucceed]: {
-    name: window.i18n.t('已解析')
+    name: window.i18n.t('已解析'),
   },
   [EFileStatus.storeSucceed]: {
-    name: window.i18n.t('已存储')
+    name: window.i18n.t('已存储'),
   },
   [EFileStatus.storeFailed]: {
-    name: window.i18n.t('存储失败')
-  }
+    name: window.i18n.t('存储失败'),
+  },
 };
 
 // export const FILES_TYPE = ['json', 'perf_script', 'prof'];

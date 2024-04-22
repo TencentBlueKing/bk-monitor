@@ -30,7 +30,7 @@ import AlarmShieldSet from './alarm-shield-set/alarm-shield-set.vue';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class MonitorAlarmShieldSet extends tsc<{}> {
+export default class MonitorAlarmShieldSet extends tsc<object> {
   needCheck = true;
   async beforeRouteLeave(to, from, next) {
     if (!to.params.refresh) {
@@ -48,7 +48,7 @@ export default class MonitorAlarmShieldSet extends tsc<{}> {
           needBack && this.$router.back();
           resolve(true);
         },
-        cancelFn: () => resolve(false)
+        cancelFn: () => resolve(false),
       });
     });
   }

@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -58,7 +57,7 @@ import {
   useChartIntersection,
   useRefleshImmediateInject,
   useRefleshIntervalInject,
-  useTimeRanceInject
+  useTimeRanceInject,
 } from '../../hooks';
 import { ITableDataItem } from '../../typings/table-chart';
 
@@ -70,7 +69,7 @@ const option: MonitorEchartOptions = {
   color: ['#A3C5FD'],
   xAxis: {
     show: true,
-    type: 'time'
+    type: 'time',
   },
   yAxis: {
     type: 'value',
@@ -78,11 +77,11 @@ const option: MonitorEchartOptions = {
       show: true,
       lineStyle: {
         color: '#F0F1F5',
-        type: 'solid'
-      }
-    }
+        type: 'solid',
+      },
+    },
   },
-  series: []
+  series: [],
 };
 
 export default defineComponent({
@@ -93,7 +92,7 @@ export default defineComponent({
     // 结束
 
     // 继承自 ErrorMsgMixins
-    clearErrorMsg: { default: () => {}, type: Function }
+    clearErrorMsg: { default: () => {}, type: Function },
     // 结束
   },
   emits: ['loading', 'errorMsg'],
@@ -124,8 +123,8 @@ export default defineComponent({
     /** 柱状图配置 */
     const customOptions = ref<MonitorEchartOptions>(
       deepmerge(MONITOR_BAR_OPTIONS, option, {
-        arrayMerge: (_, srcArr) => srcArr
-      })
+        arrayMerge: (_, srcArr) => srcArr,
+      }),
     );
     /** 汇聚周期 */
     const chartInterval = ref<number | 'auto'>('auto');
@@ -135,7 +134,7 @@ export default defineComponent({
       { id: '1m', name: '1m' },
       { id: '15m', name: '5m' },
       { id: '1h', name: '1h' },
-      { id: '1d', name: '1d' }
+      { id: '1d', name: '1d' },
     ]);
     /** 表格数据 */
     const tableData = ref<ITableDataItem[]>([]);
@@ -144,7 +143,7 @@ export default defineComponent({
     const pagination = reactive({
       value: 1,
       count: 0,
-      limit: 20
+      limit: 20,
     });
 
     // 以下是继承自 common-simple-chart 的属性
@@ -182,8 +181,8 @@ export default defineComponent({
         app_name: appName,
         category: 'http',
         kind: 'service',
-        predicate_value: 'POST'
-      }
+        predicate_value: 'POST',
+      },
     });
 
     const refleshImmediate = useRefleshImmediateInject();
@@ -202,7 +201,7 @@ export default defineComponent({
       ...(viewOptions.value?.variables || {}),
       ...(viewOptions.value?.current_target || []),
       ...(viewOptions.value?.variables?.current_target || {}),
-      ...{ current_target: viewOptions.value?.filters || {} }
+      ...{ current_target: viewOptions.value?.filters || {} },
     }));
 
     watch(viewOptions, (val: IViewOptions, old: IViewOptions) => {
@@ -276,7 +275,7 @@ export default defineComponent({
       const predicateLogTarget = props.panel.targets.find(item => item.dataType === 'log_predicate');
       if (predicateLogTarget) {
         const variablesService = new VariablesService({
-          ...viewOptions.value
+          ...viewOptions.value,
         });
         const params = variablesService.transformVariables(predicateLogTarget.data);
         api[predicateLogTarget.apiModule]
@@ -291,7 +290,7 @@ export default defineComponent({
                 const payload = variablesService.transformVariables(conditionTarget.data);
                 api[conditionTarget.apiModule]
                   [conditionTarget.apiFunc](payload, {
-                    needMessage: false
+                    needMessage: false,
                   })
                   .then(res => {
                     if (res.length) {
@@ -346,10 +345,10 @@ export default defineComponent({
           end_time: end_time ? dayjs.tz(end_time).unix() : formattedEndTime,
           interval: chartInterval.value,
           index_set_id: relatedIndexSetId.value,
-          keyword: keyword.value
+          keyword: keyword.value,
         };
         const variablesService = new VariablesService({
-          ...scopedVars.value
+          ...scopedVars.value,
         });
         await props.panel.targets
           .filter(item => item.dataType === 'time_series')
@@ -361,10 +360,10 @@ export default defineComponent({
                   ...params,
                   view_options: {
                     // 在继承组件
-                    ...viewOptions.value
-                  }
+                    ...viewOptions.value,
+                  },
                 },
-                { needMessage: false }
+                { needMessage: false },
               )
               .then(res => {
                 if (res.series?.[0].datapoints?.length) {
@@ -376,9 +375,9 @@ export default defineComponent({
                         type: 'bar',
                         colorBy: 'data',
                         name: 'COUNT ',
-                        zlevel: 100
-                      }
-                    ]
+                        zlevel: 100,
+                      },
+                    ],
                   };
                   const updateOption = deepmerge(option, data);
                   customOptions.value = deepmerge(customOptions.value, updateOption);
@@ -386,7 +385,7 @@ export default defineComponent({
                 } else {
                   emptyChart.value = true;
                 }
-              })
+              }),
           );
       } catch (error) {
         handleErrorMsgChange(error.msg || error.message);
@@ -412,10 +411,10 @@ export default defineComponent({
           keyword: keyword.value,
           limit: pagination.limit,
           offset: (pagination.value - 1) * pagination.limit,
-          index_set_id: relatedIndexSetId.value
+          index_set_id: relatedIndexSetId.value,
         };
         const variablesService = new VariablesService({
-          ...scopedVars.value
+          ...scopedVars.value,
         });
         await props.panel.targets
           .filter(item => item.dataType === 'table-chart')
@@ -425,8 +424,8 @@ export default defineComponent({
                 ...variablesService.transformVariables(item.data),
                 ...params,
                 view_options: {
-                  ...viewOptions.value
-                }
+                  ...viewOptions.value,
+                },
               })
               .then(data => {
                 if (isScrollLoadTableData) {
@@ -439,7 +438,7 @@ export default defineComponent({
               })
               .finally(() => {
                 isScrollLoading.value = false;
-              })
+              }),
           );
       } catch (e) {}
       setTimeout(() => {
@@ -552,14 +551,13 @@ export default defineComponent({
       // 需要留个位置做折叠 json 数据展示。
       result.unshift({
         width: 30,
-        type: 'expand'
+        type: 'expand',
       });
       return result;
     });
 
     const selectedOptionAlias = computed(() => {
       const target = relatedIndexSetList.value.find(item => {
-        // eslint-disable-next-line eqeqeq
         return item.index_set_id == relatedIndexSetId.value;
       });
       return target?.index_set_name ?? '';
@@ -598,7 +596,7 @@ export default defineComponent({
       relatedIndexSetId,
       isScrollLoading,
       selectedOptionAlias,
-      handleQueryTable
+      handleQueryTable,
     };
   },
   render() {
@@ -634,7 +632,7 @@ export default defineComponent({
                         </span>
                       )}
                     </div>
-                  )
+                  ),
                 }}
               ></Alert>
             </div>
@@ -747,7 +745,7 @@ export default defineComponent({
                             <JsonPretty data={row.source}></JsonPretty>
                           </div>
                         );
-                      }
+                      },
                     }}
                   ></Table>
                 </div>
@@ -776,5 +774,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

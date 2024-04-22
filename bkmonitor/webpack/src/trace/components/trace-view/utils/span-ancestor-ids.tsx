@@ -32,10 +32,10 @@ function getFirstAncestor(span: Span): Span | TNil {
   return _get(
     _find(
       span.references,
-      // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
-      ({ span: ref, refType }) => ref && ref.spanID && (refType === 'CHILD_OF' || refType === 'FOLLOWS_FROM')
+
+      ({ span: ref, refType }) => ref && ref.spanID && (refType === 'CHILD_OF' || refType === 'FOLLOWS_FROM'),
     ),
-    'span'
+    'span',
   );
 }
 

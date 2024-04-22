@@ -74,13 +74,13 @@ export default class HttpEditor extends tsc<IHttpEditor> {
 
   httpData: IHttpData = {
     method: 'GET',
-    url: ''
+    url: '',
   };
 
   tabActive: THeaderType = 'Params';
 
   errorMsg = {
-    url: ''
+    url: '',
   };
   rawErrorMsg = '';
 
@@ -92,7 +92,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
       desc: '',
       value: [
         // { isEnabled: false, key: '', value: '', desc: '' }
-      ]
+      ],
     },
     {
       key: 'Authorization',
@@ -102,7 +102,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
       type: 'none',
       bearer_token: { token: '' },
       basic_auth: { username: '', password: '' },
-      insecure_skip_verify: false
+      insecure_skip_verify: false,
     },
     {
       key: 'Headers',
@@ -114,7 +114,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
         // { isBuiltin: true, isEnabled: true, key: '默认1', value: '默认1', desc: '' },
         // { isBuiltin: true, isEnabled: true, key: '默认2', value: '默认2', desc: '' },
         // { isEnabled: false, key: '', value: '', desc: '' }
-      ]
+      ],
     },
     {
       key: 'Body',
@@ -128,7 +128,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
       x_www_form_urlencoded: [
         // { isEnabled: false, key: '', value: '', desc: '' }
       ],
-      raw: { type: 'text', content: '' }
+      raw: { type: 'text', content: '' },
     },
     {
       key: 'Seting',
@@ -141,21 +141,21 @@ export default class HttpEditor extends tsc<IHttpEditor> {
         retryInterval: 2,
         maxRetryTimes: 2,
         needPoll: false,
-        notifyInterval: 120
-      }
-    }
+        notifyInterval: 120,
+      },
+    },
   ];
 
   authRadioList: ISelectListItem[] = [
     { id: 'none', name: `${i18n.t('无需认证')}` },
     { id: 'bearer_token', name: 'Bearer Token' },
-    { id: 'basic_auth', name: 'Basic Auth' }
+    { id: 'basic_auth', name: 'Basic Auth' },
   ];
   bodyRadioList: ISelectListItem[] = [
     { id: 'default', name: `${i18n.t('默认')}` },
     { id: 'form_data', name: 'form-data' },
     { id: 'x_www_form_urlencoded', name: 'x-www-form-urlencoded' },
-    { id: 'raw', name: 'raw' }
+    { id: 'raw', name: 'raw' },
   ];
   setingInputList: ISelectListItem[] = [
     // { id: 'interval', name: `${i18n.t('求间隔')}`, unit: 's' },
@@ -163,7 +163,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
     { id: 'retryInterval', name: `${i18n.t('重试间隔')}`, unit: 's' },
     { id: 'maxRetryTimes', name: `${i18n.t('重试次数')}`, unit: `${i18n.t('次')}` },
     { id: 'needPoll', name: `${i18n.t('是否周期回调')}`, unit: '' },
-    { id: 'notifyInterval', name: `${i18n.t('回调间隔')}`, unit: `${i18n.t('分钟')}` }
+    { id: 'notifyInterval', name: `${i18n.t('回调间隔')}`, unit: `${i18n.t('分钟')}` },
   ];
   paramTableColumns: any = [
     // { label: '', prop: '', width: 27 },
@@ -171,25 +171,25 @@ export default class HttpEditor extends tsc<IHttpEditor> {
     { label: `${i18n.t('字段名')}`, prop: 'key' },
     { label: `${i18n.t('值')}`, prop: 'value' },
     { label: `${i18n.t('描述')}`, prop: 'desc' },
-    { label: '', prop: 'handle', width: 48 }
+    { label: '', prop: 'handle', width: 48 },
   ];
   headersTableColumns: any = [
     { label: '', prop: 'isEnabled', width: 31, type: 'selection' },
     { label: `${i18n.t('字段名')}`, prop: 'key' },
     { label: `${i18n.t('值')}`, prop: 'value' },
     { label: `${i18n.t('描述')}`, prop: 'desc' },
-    { label: '', prop: 'handle', width: 48 }
+    { label: '', prop: 'handle', width: 48 },
   ];
 
   headerHideTips = {
     true: {
       placement: 'top',
-      content: `${i18n.t('点击展开全部')}`
+      content: `${i18n.t('点击展开全部')}`,
     },
     false: {
       placement: 'top',
-      content: `${i18n.t('点击隐藏默认')}`
-    }
+      content: `${i18n.t('点击隐藏默认')}`,
+    },
   };
 
   get localMethodList(): MethodListType {
@@ -224,7 +224,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
     const res = {
       method: this.httpData.method,
       url: this.httpData.url,
-      ...this.oldValue
+      ...this.oldValue,
     };
     return res;
   }
@@ -415,7 +415,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
     const typeNameMap = {
       json: 'JSON',
       xml: 'XML',
-      html: 'HTML'
+      html: 'HTML',
     };
     if (content && type === 'json') {
       try {
@@ -434,7 +434,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
   }
 
   //  表格输入的作用域插槽
-  paramInputScopedSlots(data, changeFn?: Function, deleteFn?) {
+  paramInputScopedSlots(data: any, changeFn?: (data: any) => void, deleteFn?: () => void) {
     return {
       default: props => {
         const index = props.$index;
@@ -483,7 +483,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
             )}
           </span>
         );
-      }
+      },
     };
   }
 
@@ -609,7 +609,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
             <i
               v-bk-tooltips={{
                 content: this.headerHideTips[`${isHide}`],
-                allowHTML: false
+                allowHTML: false,
               }}
               class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
               onClick={() => (this.curHeaderData.hide = !isHide)}
@@ -643,7 +643,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
       { id: 'text', name: 'Text' },
       { id: 'json', name: 'JSON' },
       { id: 'html', name: 'HTML' },
-      { id: 'xml', name: 'XML' }
+      { id: 'xml', name: 'XML' },
     ];
     const { curHeaderData } = this;
     const radioChange = () => {
@@ -765,7 +765,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 disabled={!this.isEdit}
                 vModel={valueKeyMap[item.id]}
                 on-change={this.setingChange}
-              />
+              />,
             );
           }
           if (item.id === 'notifyInterval') {
@@ -780,7 +780,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 vModel={valueKeyMap[item.id]}
                 disabled={!(valueKeyMap as ISetingValue).needPoll || !this.isEdit}
                 v-bk-tooltips={{ content: this.$t('开启周期回调'), disabled: (valueKeyMap as ISetingValue).needPoll }}
-              />
+              />,
             );
           }
           return content(
@@ -793,7 +793,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               showControls={false}
               disabled={!this.isEdit}
               vModel={valueKeyMap[item.id]}
-            />
+            />,
           );
         })}
       </div>
@@ -834,8 +834,8 @@ export default class HttpEditor extends tsc<IHttpEditor> {
           'http-editor-wrap',
           {
             'http-editor-is-edit': this.isEdit,
-            'http-editor-has-label': this.label
-          }
+            'http-editor-has-label': this.label,
+          },
         ]}
       >
         {

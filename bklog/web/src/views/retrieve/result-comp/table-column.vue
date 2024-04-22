@@ -112,15 +112,16 @@ export default {
 <style lang="scss" scoped>
 .td-log-container {
   position: relative;
-  line-height: 21px;
+  line-height: 20px;
 
   &.is-wrap {
     padding-bottom: 3px;
   }
 
   .field-container {
-    // font-family: monospace;
-    // color: #000;
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
+    color: var(--table-fount-color);
 
     &.active:hover {
       color: #3a84ff;

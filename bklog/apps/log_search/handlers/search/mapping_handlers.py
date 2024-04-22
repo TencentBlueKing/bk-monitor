@@ -49,7 +49,6 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import (
     FieldsDateNotExistException,
     IndexSetNotHaveConflictIndex,
-    SearchNotTimeFieldType,
 )
 from apps.log_search.models import (
     IndexSetFieldsConfig,
@@ -210,6 +209,9 @@ class MappingHandlers(object):
     def get_final_fields(self):
         """获取最终字段"""
         mapping_list: list = self._get_mapping()
+        # 未获取到mapping信息 提前返回
+        if not mapping_list:
+            return []
         property_dict: dict = self.find_merged_property(mapping_list)
         fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
         built_in_fields = FieldBuiltInEnum.get_choices()
@@ -327,6 +329,8 @@ class MappingHandlers(object):
     ):
         """默认字段排序规则"""
         time_field = cls.get_time_field(index_set_id)
+        if not time_field:
+            return []
 
         # 先看索引集有没有配排序字段
         log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
@@ -377,7 +381,7 @@ class MappingHandlers(object):
         for time_field in time_field_list:
             if time_field:
                 return time_field
-        raise SearchNotTimeFieldType()
+        return
 
     def _get_object_field(self, final_fields_list):
         """获取对象字段"""

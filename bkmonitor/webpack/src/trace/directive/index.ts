@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -35,7 +34,7 @@ const directives: Record<string, any> = {
   // 指令对象
   authority,
   bkTooltips,
-  watermark
+  watermark,
 };
 
 export default {
@@ -43,5 +42,5 @@ export default {
     Object.keys(directives).forEach(key => {
       app.directive(key, directives[key]);
     });
-  }
+  },
 };

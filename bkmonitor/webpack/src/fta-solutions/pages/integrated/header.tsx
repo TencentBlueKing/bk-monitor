@@ -57,15 +57,15 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
       {
         id: 'card',
         icon: 'icon-monitor icon-card',
-        tips: this.$t('卡片视图')
+        tips: this.$t('卡片视图'),
       },
       {
         id: 'list',
         icon: 'icon-monitor icon-biaoge',
-        tips: this.$t('列表视图')
-      }
+        tips: this.$t('列表视图'),
+      },
     ],
-    active: 'card'
+    active: 'card',
   };
 
   fileLoading = false;
@@ -76,25 +76,24 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
   async fileChange(e): void {
     this.fileLoading = true;
     if (e.target.files[0]) {
-      // eslint-disable-next-line prefer-destructuring
       const file = e.target.files[0];
       const isTarGz = /^[\u4E00-\u9FA5A-Za-z0-9_]+(.tar.gz)$/g.test(file.name);
       if (isTarGz) {
         const data = await importEventPlugin({
           file_data: file,
-          force_update: true
+          force_update: true,
         }).catch(() => null);
         if (data) {
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('导入成功')
+            message: this.$t('导入成功'),
           });
           this.$emit('importSuccess');
         }
       } else {
         this.$bkMessage({
           theme: 'warning',
-          message: this.$t('上传tar.gz文件')
+          message: this.$t('上传tar.gz文件'),
         });
       }
     }
@@ -138,7 +137,7 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
                 v-bk-tooltips={{
                   placement: 'top',
                   content: item.tips,
-                  allowHTML: false
+                  allowHTML: false,
                 }}
                 onClick={() => this.handleChangeViewType(item)}
               >

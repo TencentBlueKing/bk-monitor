@@ -68,7 +68,7 @@ export default class List extends tsc<IListProps, IListEvents> {
     NO_DATA: this.$t('无数据'),
     REMOVE_SOON: this.$t('将下架'),
     REMOVED: this.$t('已下架'),
-    DISABLED: this.$t('已停用')
+    DISABLED: this.$t('已停用'),
   };
 
   @Emit('emptyOperate')
@@ -120,7 +120,7 @@ export default class List extends tsc<IListProps, IListEvents> {
                   </span>
                 </div>
               </div>
-            )
+            ),
           }}
         ></bk-table-column>
         <bk-table-column
@@ -141,7 +141,7 @@ export default class List extends tsc<IListProps, IListEvents> {
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <div class='col-tag'>{row?.tags?.map(tag => <span class='tag'>{tag}</span>) || '--'}</div>
-            )
+            ),
           }}
         ></bk-table-column>
         <bk-table-column
@@ -150,7 +150,7 @@ export default class List extends tsc<IListProps, IListEvents> {
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <span class={`col-status ${row.status.toLocaleLowerCase()}`}>{this.statusMap[row.status]}</span>
-            )
+            ),
           }}
         ></bk-table-column>
         <bk-table-column
@@ -169,7 +169,7 @@ export default class List extends tsc<IListProps, IListEvents> {
                   '--'
                 )}
               </span>
-            )
+            ),
           }}
         ></bk-table-column>
         <bk-table-column
@@ -180,7 +180,7 @@ export default class List extends tsc<IListProps, IListEvents> {
                 <div>{row.create_user}</div>
                 <div>{row.create_time}</div>
               </div>
-            )
+            ),
           }}
         ></bk-table-column>
         <bk-table-column
@@ -191,7 +191,7 @@ export default class List extends tsc<IListProps, IListEvents> {
                 <div>{row.update_user}</div>
                 <div>{row.update_time}</div>
               </div>
-            )
+            ),
           }}
         ></bk-table-column>
         <bk-table-column
@@ -206,7 +206,7 @@ export default class List extends tsc<IListProps, IListEvents> {
               >
                 {this.$t('配置')}
               </bk-button>
-            )
+            ),
           }}
         ></bk-table-column>
       </bk-table>
@@ -221,7 +221,7 @@ export default class List extends tsc<IListProps, IListEvents> {
   handleGotoDetail(row: IPluginDetail): IOperateData {
     return {
       type: 'detail',
-      item: row
+      item: row,
     };
   }
 
@@ -229,7 +229,7 @@ export default class List extends tsc<IListProps, IListEvents> {
   handleConfig(row: IPluginDetail): IOperateData {
     return {
       type: 'config',
-      item: row
+      item: row,
     };
   }
 }

@@ -128,7 +128,7 @@ export interface ITemplateDataOptions {
  *layout组件搜索函数的类型
  * @param params 接口参数
  */
-// eslint-disable-next-line max-len
+
 export type SearchDataFuncType = (params: any, type?: string) => Promise<{ total: number; data: any[] }>;
 
 export interface IipListParams {

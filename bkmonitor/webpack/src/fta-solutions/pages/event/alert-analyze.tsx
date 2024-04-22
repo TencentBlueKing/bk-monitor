@@ -90,7 +90,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
       strategy_id: this.$t('策略ID'),
       assignee: this.$t('通知人'),
       bk_service_instance_id: this.$t('服务实例ID'),
-      plugin_id: this.$t('告警来源')
+      plugin_id: this.$t('告警来源'),
     };
   }
   get actionFieldMap(): Record<ActionAnlyzeField, VueI18n.TranslateResult> {
@@ -100,7 +100,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
       operator: this.$t('负责人'),
       duration: this.$t('处理时长'),
       action_plugin_type: this.$t('套餐类型'),
-      operate_target_string: this.$t('执行对象')
+      operate_target_string: this.$t('执行对象'),
     };
   }
 
@@ -119,12 +119,12 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
     this.panelList = [
       {
         id: 'field',
-        name: this.$t('button-字段')
+        name: this.$t('button-字段'),
       },
       {
         id: 'tag',
-        name: this.$t('维度')
-      }
+        name: this.$t('维度'),
+      },
     ];
     this.mockFieldList = this.analyzeFields;
     this.mockTagList = this.analyzeFields;
@@ -158,7 +158,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
     return this.searchType === 'alert'
       ? [
           ...this.mockFieldList.filter(id => this.alertFieldMap[id]),
-          ...this.mockTagList.filter(id => !this.alertFieldMap[id])
+          ...this.mockTagList.filter(id => !this.alertFieldMap[id]),
         ]
       : [...this.mockFieldList.filter(id => this.actionFieldMap[id])];
   }
@@ -206,13 +206,13 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
     copyText(value, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -446,7 +446,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                     class='icon-monitor icon-mc-close-fill delete-icon'
                   />
                 </li>
-              ) : undefined
+              ) : undefined,
             )}
           </ul>
         ) : (

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -60,11 +59,11 @@ class EventLogChart extends CommonSimpleChart {
   pagination = {
     current: 1,
     count: 100,
-    limit: 10
+    limit: 10,
   };
   /* 此变量值用于点击图例时更新表格数据 */
   variables = {
-    dimensions: []
+    dimensions: [],
   };
 
   get timeSeriesPanel(): IPanelModel {
@@ -77,27 +76,26 @@ class EventLogChart extends CommonSimpleChart {
         legend: {
           ...(this.panel?.options?.legend || {}),
           ...(this.panel.options?.dashboard_common?.static_width ? { displayMode: 'table' } : {}),
-          placement: 'bottom'
+          placement: 'bottom',
         },
         time_series: {
           type: 'bar',
           echart_option: {
-            color: ['#689DF3', '#4051A3']
-          }
-        }
-      }
+            color: ['#689DF3', '#4051A3'],
+          },
+        },
+      },
     };
   }
 
   get tablePanel() {
     return {
       ...this.panel,
-      targets: this.panel.targets.filter(target => target.datasource !== 'time_series')
+      targets: this.panel.targets.filter(target => target.datasource !== 'time_series'),
     };
   }
 
   async getPanelData(start_time?: string, end_time?: string): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return new Promise(async (resolve, reject) => {
       this.beforeGetPanelData(start_time, end_time);
       this.handleLoadingChange(true);
@@ -111,7 +109,7 @@ class EventLogChart extends CommonSimpleChart {
           limit: this.pagination.limit,
           offset: (this.pagination.current - 1) * this.pagination.limit,
           start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-          end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+          end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
         };
         const variablesService = new VariablesService({
           ...this.scopedVars,
@@ -119,8 +117,8 @@ class EventLogChart extends CommonSimpleChart {
           interval: reviewInterval(
             this.viewOptions.interval,
             params.end_time - params.start_time,
-            this.panel.collect_interval
-          )
+            this.panel.collect_interval,
+          ),
         });
         const promiseList = this.tablePanel.targets.map(item =>
           (this as any).$api[item.apiModule]
@@ -129,10 +127,10 @@ class EventLogChart extends CommonSimpleChart {
                 ...variablesService.transformVariables(item.data),
                 ...params,
                 view_options: {
-                  ...this.viewOptions
-                }
+                  ...this.viewOptions,
+                },
               },
-              { needMessage: false }
+              { needMessage: false },
             )
             .then(res => {
               this.series = res;
@@ -141,7 +139,7 @@ class EventLogChart extends CommonSimpleChart {
             })
             .catch(error => {
               this.handleErrorMsgChange(error.msg || error.message);
-            })
+            }),
         );
         const res = await Promise.all(promiseList).catch(() => false);
         if (!!res) {
@@ -256,7 +254,7 @@ class EventLogChart extends CommonSimpleChart {
                 onPageChange={this.handlePageChange}
                 onLimitChange={this.handleLimitChange}
               ></CommonTable>
-            )
+            ),
           ]}
         </div>
       </div>

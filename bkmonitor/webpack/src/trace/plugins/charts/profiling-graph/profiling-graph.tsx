@@ -50,9 +50,9 @@ export default defineComponent({
       default: () => ({
         app_name: '',
         service_name: '',
-        data_type: ''
-      })
-    }
+        data_type: '',
+      }),
+    },
   },
   setup(props) {
     // 自动刷新定时任务
@@ -71,7 +71,7 @@ export default defineComponent({
     const flameData = ref<BaseDataType>({
       name: '',
       children: undefined,
-      id: ''
+      id: '',
     });
     const unit = ref('');
     const highlightId = ref(-1);
@@ -86,8 +86,8 @@ export default defineComponent({
       debounce(16, async () => handleQuery()),
       {
         immediate: true,
-        deep: true
-      }
+        deep: true,
+      },
     );
     watch(
       () => toolsFormData.value.timeRange,
@@ -96,7 +96,7 @@ export default defineComponent({
           handleQuery();
         }
       },
-      { deep: true }
+      { deep: true },
     );
     watch(
       () => toolsFormData.value.refreshInterval,
@@ -108,7 +108,7 @@ export default defineComponent({
         refleshIntervalInstance = window.setInterval(() => {
           handleQuery();
         }, toolsFormData.value.refreshInterval);
-      }
+      },
     );
 
     const getParams = (args: Record<string, any> = {}) => {
@@ -120,9 +120,9 @@ export default defineComponent({
         ...(searchType.value === SearchType.Profiling
           ? {
               start: start * Math.pow(10, 6),
-              end: end * Math.pow(10, 6)
+              end: end * Math.pow(10, 6),
             }
-          : {})
+          : {}),
       };
     };
     const handleQuery = async () => {
@@ -190,7 +190,7 @@ export default defineComponent({
     const handleSortChange = async (sortKey: string) => {
       const params = getParams({
         diagram_types: ['table'],
-        sort: sortKey
+        sort: sortKey,
       });
       const data = await query(params).catch(() => false);
       if (data) {
@@ -207,7 +207,7 @@ export default defineComponent({
         case 'pprof': {
           const params = getParams({ export_format: 'pprof' });
           const downloadUrl = `/apm/profile_api/query/export/?bk_biz_id=${window.bk_biz_id}${getUrlParamsString(
-            params
+            params,
           )}`;
           const a = document.createElement('a');
           a.style.display = 'none';
@@ -228,8 +228,8 @@ export default defineComponent({
           if (obj[key]) {
             ary.push(
               `${encodeURIComponent(key)}=${encodeURIComponent(
-                typeTools.isObject(obj[key]) ? JSON.stringify(obj[key]) : obj[key]
-              )}`
+                typeTools.isObject(obj[key]) ? JSON.stringify(obj[key]) : obj[key],
+              )}`,
             );
           }
           return ary;
@@ -256,7 +256,7 @@ export default defineComponent({
       handleSortChange,
       handleDownload,
       topoSrc,
-      isCompared
+      isCompared,
     };
   },
   render() {
@@ -312,5 +312,5 @@ export default defineComponent({
         )}
       </Loading>
     );
-  }
+  },
 });

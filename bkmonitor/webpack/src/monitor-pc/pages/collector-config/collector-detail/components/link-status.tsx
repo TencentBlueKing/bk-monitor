@@ -57,12 +57,12 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
   minuteChartConfig: ChartConfigModel = {
     timeRange: ['now-1h', 'now'],
-    data: []
+    data: [],
   };
 
   hourChartConfig: ChartConfigModel = {
     timeRange: ['now-6h', 'now'],
-    data: []
+    data: [],
   };
 
   tableList = [];
@@ -70,7 +70,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
   sideslider = {
     isShow: false,
-    data: ''
+    data: '',
   };
 
   @Watch('show')
@@ -94,13 +94,13 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
   async getChartData(type: 'minute' | 'hour') {
     const [startTime, endTime] = handleTransformToTimestamp(
-      type === 'minute' ? this.minuteChartConfig.timeRange : this.hourChartConfig.timeRange
+      type === 'minute' ? this.minuteChartConfig.timeRange : this.hourChartConfig.timeRange,
     );
     const res = await transferCountSeries({
       collect_config_id: this.collectId,
       interval_option: type,
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     }).catch(() => [{ datapoints: [] }]);
     if (res.length) {
       if (type === 'minute') {
@@ -114,7 +114,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   async getTableData() {
     this.tableLoading = true;
     const res = await transferLatestMsg({
-      collect_config_id: this.collectId
+      collect_config_id: this.collectId,
     }).catch(() => []);
     this.tableList = res;
     this.tableLoading = false;
@@ -128,13 +128,13 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -225,8 +225,8 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                       onClick={() => this.handleViewData(row)}
                     >
                       {this.$t('查看上报数据')}
-                    </bk-button>
-                  ]
+                    </bk-button>,
+                  ],
                 }}
               ></bk-table-column>
             </bk-table>

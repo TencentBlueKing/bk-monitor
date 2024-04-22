@@ -31,7 +31,7 @@ import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
 import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
 import ConditionInput, {
-  IConditionItem
+  IConditionItem,
 } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import Editor from 'monitor-ui/markdown-editor/editor';
 
@@ -45,12 +45,12 @@ import './handle-experiences.scss';
 
 enum EType {
   METRIC = 'metric',
-  DIMENSION = 'dimension'
+  DIMENSION = 'dimension',
 }
 
 const bindList = [
   { id: EType.METRIC, name: window.i18n.tc('指标') },
-  { id: EType.DIMENSION, name: window.i18n.tc('维度') }
+  { id: EType.DIMENSION, name: window.i18n.tc('维度') },
 ];
 
 interface IHandleExperienceProps {
@@ -72,7 +72,7 @@ interface IExperience {
 }
 
 @Component({
-  name: 'HandleExperience'
+  name: 'HandleExperience',
 })
 export default class HandleExperience extends tsc<IHandleExperienceProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -155,7 +155,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       bk_biz_id: this.detail.bk_biz_id,
       page: 1,
       page_size: metricIds.length,
-      conditions: [{ key: 'metric_id', value: metricIds }]
+      conditions: [{ key: 'metric_id', value: metricIds }],
     }).catch(() => []);
     metricList.forEach(item => {
       if (!dataSourceType) dataSourceType = item.data_source_label;
@@ -180,17 +180,17 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
           id: item.key,
           name: item.display_key,
           is_dimension: true,
-          type: 'string'
+          type: 'string',
         })) || [];
     }
     this.metricMeta = {
       data_source_label: dataSourceType,
       data_type_label: dataTypeLabel,
       metric_field: metricField,
-      result_table_id: resultTableId
+      result_table_id: resultTableId,
     };
     this.experienceList = await getExperience({
-      alert_id: this.detail.id
+      alert_id: this.detail.id,
     }).catch(() => []);
     this.isLoading = false;
   }
@@ -244,7 +244,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         },
         cancelFn: () => {
           this.selectKey = random(8);
-        }
+        },
       });
       return;
     }
@@ -279,7 +279,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   /* 切换至维度类型回填数据 */
   dimensionDataChange() {
     const index = this.experienceList.findIndex(
-      item => this.conditionCompare(item.conditions, this.conditionList) && item.type === EType.DIMENSION
+      item => this.conditionCompare(item.conditions, this.conditionList) && item.type === EType.DIMENSION,
     );
     const confirm = () => {
       this.curDescription = this.experienceList[index].description;
@@ -292,7 +292,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         title: window.i18n.tc('已命中一条已有维度，是否填入其经验'),
         maskClose: true,
         escClose: true,
-        confirmFn: () => confirm()
+        confirmFn: () => confirm(),
       });
     }
   }
@@ -331,7 +331,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   handleDelete(v: IExperience, index: number) {
     const titleMap = {
       [EType.METRIC]: v.metric.length ? this.$tc('指标') : this.$tc('告警名称'),
-      [EType.DIMENSION]: this.$tc('维度')
+      [EType.DIMENSION]: this.$tc('维度'),
     };
     const h = this.$createElement;
     this.$bkInfo({
@@ -345,10 +345,10 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                 props: {
                   value: v.conditions,
                   groupByList: this.dimensionList,
-                  metric: this.metricMeta
-                }
-              })
-        ])
+                  metric: this.metricMeta,
+                },
+              }),
+        ]),
       ]),
       maskClose: true,
       escClose: true,
@@ -361,7 +361,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
             }
           })
           .catch(() => false);
-      }
+      },
     });
   }
 
@@ -383,7 +383,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       alert_id: this.detail.id,
       description: this.curDescription,
       type: this.curBind,
-      conditions: this.curBind === EType.METRIC ? undefined : JSON.parse(JSON.stringify(this.conditionList))
+      conditions: this.curBind === EType.METRIC ? undefined : JSON.parse(JSON.stringify(this.conditionList)),
     };
     const item = await saveExperience(params).catch(() => false);
     if (!item) return;
@@ -391,7 +391,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     const index = this.experienceList.findIndex(item =>
       this.curBind === EType.METRIC
         ? item.type === EType.METRIC
-        : this.conditionCompare(item.conditions, this.conditionList) && item.type === EType.DIMENSION
+        : this.conditionCompare(item.conditions, this.conditionList) && item.type === EType.DIMENSION,
     );
     if (index > -1) {
       this.experienceList.splice(index, 1);
@@ -525,7 +525,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                     placements: ['top'],
                     boundary: 'window',
                     disabled: this.mode !== 'edit',
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   <bk-select

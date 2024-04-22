@@ -89,7 +89,7 @@ export default class AiopsTabtitle extends tsc<IProps> {
                 isLoading: this.dimensionDrillDownLoading,
                 theme: 'primary',
                 size: 'mini',
-                extCls: 'metric_loading'
+                extCls: 'metric_loading',
               }}
             >
               {!this.showDimensionDrill ? (
@@ -118,7 +118,7 @@ export default class AiopsTabtitle extends tsc<IProps> {
                   >
                     {this.$t('异常维度值')}
                     <font> {this.dimensionInfo.anomaly_dimension_value_count}</font>
-                  </span>
+                  </span>,
                 ]
               )}
             </span>
@@ -145,7 +145,7 @@ export default class AiopsTabtitle extends tsc<IProps> {
                   isLoading: this.metricRecommendationLoading,
                   theme: 'primary',
                   size: 'mini',
-                  extCls: 'metric_loading'
+                  extCls: 'metric_loading',
                 }}
               >
                 {this.metricRecommendationErr && (

@@ -77,8 +77,8 @@ export default defineComponent({
   props: {
     data: {
       type: Object as PropType<ReplaceItemDataModel>,
-      default: undefined
-    }
+      default: undefined,
+    },
   },
   emits: ['change', 'drop'],
   setup(props, { emit }) {
@@ -93,7 +93,7 @@ export default defineComponent({
       { label: t('每月'), value: RotationSelectTypeEnum.Monthly },
       { label: t('每工作日(周一至周五)'), value: RotationSelectTypeEnum.WorkDay },
       { label: t('每周末(周六、周日)'), value: RotationSelectTypeEnum.Weekend },
-      { label: t('自定义'), value: RotationSelectTypeEnum.Custom }
+      { label: t('自定义'), value: RotationSelectTypeEnum.Custom },
     ];
 
     const localValue = reactive<ReplaceItemDataModel>({
@@ -106,15 +106,15 @@ export default defineComponent({
         customWorkDays: [],
         periodSettings: {
           unit: 'day',
-          duration: 1
+          duration: 1,
         },
-        value: [createDefaultDate(RotationSelectTypeEnum.WorkDay)]
+        value: [createDefaultDate(RotationSelectTypeEnum.WorkDay)],
       },
       users: {
         groupType: 'specified',
         groupNumber: 1,
-        value: [{ key: random(8, true), value: [], orderIndex: 0 }]
-      }
+        value: [{ key: random(8, true), value: [], orderIndex: 0 }],
+      },
     });
 
     /** 轮值类型 */
@@ -135,7 +135,7 @@ export default defineComponent({
         }
         localValue.date.value = [createDefaultDate(val)];
         handleEmitData();
-      }
+      },
     });
 
     watch(
@@ -146,8 +146,8 @@ export default defineComponent({
         }
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
 
     function createDefaultDate(type: RotationSelectTypeEnum): ReplaceRotationDateModel {
@@ -172,7 +172,7 @@ export default defineComponent({
       return {
         key: random(8, true),
         workTime: [],
-        workDays: days
+        workDays: days,
       };
     }
 
@@ -238,7 +238,7 @@ export default defineComponent({
               class='icon-monitor icon-mc-delete-line del-icon'
               onClick={() => handleClassesItemChange('del', ind)}
             />
-          )
+          ),
         ];
       }
       function dataTimeSelectChange(val: string[], item: ReplaceRotationDateModel, type: 'start' | 'end') {
@@ -273,7 +273,7 @@ export default defineComponent({
               class='icon-monitor icon-mc-delete-line del-icon'
               onClick={() => handleClassesItemChange('del', ind)}
             />
-          )
+          ),
         ];
       }
 
@@ -311,7 +311,7 @@ export default defineComponent({
                   ? renderTimeRangeItem(item, ind)
                   : renderDateTimeRangeItem(item, ind)}
               </div>,
-              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>,
             ])}
             <Button
               class='add-btn'
@@ -323,7 +323,7 @@ export default defineComponent({
               {t('新增值班')}
             </Button>
           </div>
-        </FormItem>
+        </FormItem>,
       ];
     }
     /**
@@ -452,7 +452,7 @@ export default defineComponent({
                   />
                 )}
               </div>,
-              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>,
             ])}
             {localValue.date.customTab === 'classes' && (
               <Button
@@ -466,7 +466,7 @@ export default defineComponent({
               </Button>
             )}
           </div>
-        </FormItem>
+        </FormItem>,
       ];
     }
     /**
@@ -502,7 +502,7 @@ export default defineComponent({
                       />
                     )}
                   </div>,
-                  validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+                  validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>,
                 ])}
                 <Button
                   class='add-btn'
@@ -546,7 +546,7 @@ export default defineComponent({
           return pre;
         }, new Map());
         localValue.users.value = [
-          { key: localValue.users.value[0].key, value: Array.from(res.values()), orderIndex: 0 }
+          { key: localValue.users.value[0].key, value: Array.from(res.values()), orderIndex: 0 },
         ];
       }
       handleEmitData();
@@ -587,7 +587,7 @@ export default defineComponent({
         <span
           class='icon-monitor icon-mc-close'
           onClick={e => handleCloseTag(e)}
-        ></span>
+        ></span>,
       ];
     }
 
@@ -673,7 +673,7 @@ export default defineComponent({
       handleAutoGroupDrop,
       handleEmitDrop,
       handleEmitData,
-      handleGroupTabChange
+      handleGroupTabChange,
     };
   },
   render() {
@@ -744,7 +744,7 @@ export default defineComponent({
                             >
                               <span class='icon-monitor icon-mc-tuozhuai'></span>
                             </div>
-                          )
+                          ),
                         }}
                       </MemberSelect>
                       {this.localValue.users.value.length > 1 && (
@@ -806,5 +806,5 @@ export default defineComponent({
         {this.$slots.default?.()}
       </tr>
     );
-  }
+  },
 });

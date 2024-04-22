@@ -39,7 +39,7 @@ export default [
     path: '/email-subscriptions',
     name: 'email-subscriptions',
     components: {
-      noCache: EmailSubscriptions
+      noCache: EmailSubscriptions,
     },
     meta: {
       title: '邮件订阅',
@@ -47,16 +47,16 @@ export default [
       navName: '邮件订阅',
       needTitle: true, // 显示侧栏选中的导航标题
       route: {
-        parent: 'dashboard'
+        parent: 'dashboard',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/email-subscriptions/history',
     name: 'email-subscriptions-history',
     components: {
-      noCache: EmailSubscriptionsHistory
+      noCache: EmailSubscriptionsHistory,
     },
     meta: {
       title: window.i18n.tc('route-发送历史'),
@@ -64,15 +64,15 @@ export default [
       navName: '邮件订阅',
       needTitle: true,
       route: {
-        parent: 'dashboard'
-      }
-    }
+        parent: 'dashboard',
+      },
+    },
   },
   {
     path: '/email-subscriptions/add',
     name: 'email-subscriptions-add',
     components: {
-      noCache: EmailSubscriptionsSet
+      noCache: EmailSubscriptionsSet,
     },
     meta: {
       title: '新建订阅',
@@ -80,18 +80,18 @@ export default [
       navName: '邮件订阅',
       needBack: true,
       route: {
-        parent: 'email-subscriptions'
-      }
-    }
+        parent: 'email-subscriptions',
+      },
+    },
   },
   {
     path: '/email-subscriptions/edit/:id',
     name: 'email-subscriptions-edit',
     components: {
-      noCache: EmailSubscriptionsSet
+      noCache: EmailSubscriptionsSet,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: {
       title: '编辑订阅',
@@ -99,8 +99,8 @@ export default [
       navName: '邮件订阅',
       needBack: true,
       route: {
-        parent: 'email-subscriptions'
-      }
-    }
-  }
+        parent: 'email-subscriptions',
+      },
+    },
+  },
 ] as RouteConfig[];

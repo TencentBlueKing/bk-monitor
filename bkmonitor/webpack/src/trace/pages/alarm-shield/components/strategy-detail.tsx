@@ -35,16 +35,16 @@ export default defineComponent({
   props: {
     strategyData: {
       type: Object as PropType<any>,
-      default: () => null
+      default: () => null,
     },
     detects: {
       type: Object as PropType<any>,
-      default: () => null
+      default: () => null,
     },
     simple: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -70,7 +70,7 @@ export default defineComponent({
                   <div
                     class='column-agg-dimension mb-2'
                     key={index}
-                  >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>
+                  >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
                 ])}
               </div>
             </div>
@@ -92,7 +92,7 @@ export default defineComponent({
                   <div class='column-item'>
                     <div class='column-label'> {t('检索语句')} : </div>
                     <div class='column-center'>{queryConfig.keywords_query_string}</div>
-                  </div>
+                  </div>,
                 ]
               : undefined,
             [
@@ -112,7 +112,7 @@ export default defineComponent({
                     <div class='item-font'>{queryConfig.agg_method}</div>
                   )}
                 </div>
-              </div>
+              </div>,
             ],
             queryConfig.agg_method !== 'REAL_TIME' ? (
               <div class='column-item'>
@@ -145,10 +145,10 @@ export default defineComponent({
                   <div
                     class='column-agg-dimension mb-2'
                     key={index}
-                  >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>
+                  >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
                 ])}
               </div>
-            </div>
+            </div>,
           ]}
         </div>
       );
@@ -175,7 +175,7 @@ export default defineComponent({
                 <div
                   class='column-agg-dimension mb-2'
                   key={index}
-                >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>
+                >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
               ])}
             </div>
           </div>
@@ -200,5 +200,5 @@ export default defineComponent({
         ))}
       </div>
     );
-  }
+  },
 });

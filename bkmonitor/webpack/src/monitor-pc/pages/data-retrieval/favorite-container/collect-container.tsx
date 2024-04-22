@@ -61,7 +61,7 @@ export default class CollectContainer extends tsc<FavoriteIndexType.IContainerPr
   handleValueChange(type: string, value: any) {
     return {
       type,
-      value
+      value,
     };
   }
 

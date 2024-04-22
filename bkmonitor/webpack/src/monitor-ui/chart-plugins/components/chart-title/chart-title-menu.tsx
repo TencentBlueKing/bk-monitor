@@ -58,26 +58,26 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
         name: window.i18n.tc('保存到仪表盘'),
         checked: false,
         id: 'save',
-        icon: 'mc-mark'
+        icon: 'mc-mark',
       },
       {
         name: window.i18n.tc('截图到本地'),
         checked: false,
         id: 'screenshot',
-        icon: 'mc-camera'
+        icon: 'mc-camera',
       },
       {
         name: window.i18n.tc('查看大图'),
         checked: false,
         id: 'fullscreen',
-        icon: 'fullscreen'
+        icon: 'fullscreen',
       },
       {
         name: window.i18n.tc('检索'),
         checked: false,
         id: 'explore',
         icon: 'mc-retrieval',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: window.i18n.tc('下钻'),
@@ -86,21 +86,21 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
         icon: 'xiazuan',
         hasLink: true,
         childValue: '',
-        children: []
+        children: [],
       },
       {
         name: window.i18n.tc('相关告警'),
         checked: false,
         id: 'relate-alert',
         icon: 'mc-menu-alert',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: window.i18n.tc('添加策略'),
         checked: false,
         id: 'strategy',
         icon: 'mc-strategy',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: window.i18n.tc('Y轴固定最小值为0'),
@@ -108,7 +108,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
         id: 'set',
         nextName: window.i18n.tc('Y轴自适应'),
         icon: 'mc-yaxis',
-        nextIcon: 'mc-yaxis-scale'
+        nextIcon: 'mc-yaxis-scale',
       },
       {
         name: window.i18n.tc('更多'),
@@ -121,15 +121,15 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
           {
             id: 'screenshot',
             name: window.i18n.tc('截图到本地'),
-            icon: 'mc-camera'
+            icon: 'mc-camera',
           },
           {
             id: 'export-csv',
             name: window.i18n.tc('导出CSV'),
-            icon: 'xiazai1'
-          }
-        ]
-      }
+            icon: 'xiazai1',
+          },
+        ],
+      },
       // {
       //   name: window.i18n.tc('面积图'),
       //   checked: false,
@@ -156,7 +156,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
       }
       drillDown.children = this.drillDownOption.map(item => ({
         ...item,
-        needTips: true
+        needTips: true,
       }));
     }
   }
@@ -187,7 +187,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
     (this.$refs[key] as any)?.hideHandler?.();
     return {
       child,
-      menu
+      menu,
     };
   }
 
@@ -221,7 +221,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                     placement: 'right',
                     boundary: document.body,
                     disabled: !child.needTips,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                   class={['child-list-item', { active: child.id === item.childValue }]}
                   onClick={() => this.handleSelectChild(item, child)}

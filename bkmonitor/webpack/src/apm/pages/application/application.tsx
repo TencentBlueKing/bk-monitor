@@ -91,20 +91,20 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   menuList: IMenuItem[] = [
     {
       id: 'basicConfiguration',
-      name: window.i18n.tc('基础配置')
+      name: window.i18n.tc('基础配置'),
     },
     {
       id: 'customService',
-      name: window.i18n.tc('自定义服务')
+      name: window.i18n.tc('自定义服务'),
     },
     {
       id: 'storageState',
-      name: window.i18n.tc('存储状态')
+      name: window.i18n.tc('存储状态'),
     },
     {
       id: 'dataStatus',
-      name: window.i18n.tc('数据状态')
-    }
+      name: window.i18n.tc('数据状态'),
+    },
   ];
 
   get pluginsList() {
@@ -115,11 +115,9 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     return { application_name: this.$route.query?.['filter-app_name'] || '' };
   }
   get positonText() {
-    // eslint-disable-next-line no-nested-ternary
     const value =
       this.sceneType === 'overview'
-        ? // eslint-disable-next-line no-nested-ternary
-          this.tabName === window.i18n.tc('服务')
+        ? this.tabName === window.i18n.tc('服务')
           ? window.i18n.tc('列表')
           : this.tabId === 'topo'
             ? window.i18n.tc('拓扑')
@@ -135,13 +133,13 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       vm.routeList = [
         {
           id: 'home',
-          name: 'APM'
+          name: 'APM',
         },
         {
           id: 'application',
           name: `${window.i18n.tc('应用')}：${appName}`,
-          subName: ''
-        }
+          subName: '',
+        },
       ];
       vm.viewOptions = {};
       const { query } = to;
@@ -174,7 +172,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     const params = {
       app_name: this.appName,
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     };
     const data = await applicationStore.getAppInfo(params);
 
@@ -189,8 +187,8 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     this.$router.push({
       name: 'service-add',
       params: {
-        appName: this.appName
-      }
+        appName: this.appName,
+      },
     });
   }
   handleSecendTypeChange(type) {
@@ -212,11 +210,11 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     this.$router.push({
       name: 'application-config',
       params: {
-        id: this.appInfo.application_id
+        id: this.appInfo.application_id,
       },
       query: {
-        active: option.id
-      }
+        active: option.id,
+      },
     });
   }
   handleCloseGuideDialog() {

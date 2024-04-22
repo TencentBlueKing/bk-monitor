@@ -49,14 +49,14 @@ import {
   intervalModeTips,
   templateSignalName,
   timeRangeValidate,
-  timeTransform
+  timeTransform,
 } from './meal-content-data';
 
 import './alert-notice.scss';
 
 const intervalModeList = [
   { id: 'standard', name: window.i18n.t('固定') },
-  { id: 'increasing', name: window.i18n.t('递增') }
+  { id: 'increasing', name: window.i18n.t('递增') },
 ];
 
 interface IAlertNoticeProps {
@@ -68,7 +68,7 @@ interface IAlertNoticeEvent {
 }
 
 @Component({
-  name: 'AlertNotice'
+  name: 'AlertNotice',
 })
 export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEvent> {
   @Prop({ type: Object, default: () => ({}) }) noticeData: INotice;
@@ -95,7 +95,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
       this.noticeData.alert
         ?.map(item => ({
           key: item.key,
-          timeValue: item.timeRange
+          timeValue: item.timeRange,
         }))
         .sort((a, b) => (timeTransform(a.timeValue[0]) as number) - (timeTransform(b.timeValue[0]) as number)) || []
     );
@@ -105,7 +105,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
     return (
       this.noticeData.template.map(item => ({
         key: item.signal,
-        label: templateSignalName[item.signal]
+        label: templateSignalName[item.signal],
       })) || []
     );
   }
@@ -113,7 +113,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
   get executionTypes() {
     return this.noticeData.execution.map(item => ({
       key: `${item.riskLevel}`,
-      label: `${executionName[item.riskLevel]}`
+      label: `${executionName[item.riskLevel]}`,
     }));
   }
   // 通知方式
@@ -193,7 +193,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
     if (!defaultTimeRange.length) {
       this.$bkMessage({
         theme: 'warning',
-        message: window.i18n.tc('时间段重叠了')
+        message: window.i18n.tc('时间段重叠了'),
       });
       return;
     }
@@ -218,12 +218,12 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
     if (
       !timeRangeValidate(
         this.data.alert.filter(item => item.key !== v.key).map(item => item.timeRange),
-        v.value
+        v.value,
       )
     ) {
       this.$bkMessage({
         theme: 'warning',
-        message: window.i18n.tc('时间段重叠了')
+        message: window.i18n.tc('时间段重叠了'),
       });
       this.alertData.timeRange = curTimeRange;
       this.handleChange();
@@ -233,7 +233,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
       if (item.key === v.key) {
         return {
           ...item,
-          timeRange: v.value
+          timeRange: v.value,
         };
       }
       return { ...item };
@@ -411,7 +411,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
         <TipMsg
           class='storm-item-msg'
           msg={`${this.$t(
-            '除了通知套餐外其他都是可以设置套餐的敏感度，通知套餐基于不同的敏感度可以配置不同的通知方式。'
+            '除了通知套餐外其他都是可以设置套餐的敏感度，通知套餐基于不同的敏感度可以配置不同的通知方式。',
           )}`}
           style={{ marginTop: '10px' }}
         ></TipMsg>

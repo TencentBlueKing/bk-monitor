@@ -48,9 +48,9 @@ export const RELATED_MENU_LIST: IRelateItem[] = [
         id: 'kubernetes',
         name: window.i18n.t('Kubernetes监控') as string,
         contentType: 'dashboard',
-        queryType: ['filter']
-      }
-    ]
+        queryType: ['filter'],
+      },
+    ],
   },
   {
     id: 'event',
@@ -62,10 +62,10 @@ export const RELATED_MENU_LIST: IRelateItem[] = [
         id: 'custom_event',
         name: window.i18n.t('自定义事件') as string,
         contentType: 'dashboard',
-        queryType: ['input']
-      }
-    ]
-  }
+        queryType: ['input'],
+      },
+    ],
+  },
 ];
 
 export class SplitPanelModel {
@@ -99,7 +99,7 @@ export interface ISplitPanelItem {
 export const SPLIT_PANEL_LIST: ISplitPanelItem[] = RELATED_MENU_LIST.reduce((pre, cur) => {
   pre.push({
     ...cur,
-    children: cur.children.map(item => new SplitPanelModel(item))
+    children: cur.children.map(item => new SplitPanelModel(item)),
   });
   return pre;
 }, []);

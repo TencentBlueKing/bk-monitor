@@ -70,7 +70,7 @@ export const colorList = [
   '#6FBCEA',
   '#FFC685',
   '#6EDAC1',
-  '#E787CB'
+  '#E787CB',
 ];
 
 export const randomColor = (index: number) => {
@@ -163,11 +163,11 @@ export function replaceRotationTransform(originData, type) {
             pre.customWorkDays = cur.work_days;
             const { window_unit, duration } = cur.period_settings || {
               window_unit: 'day',
-              duration: 1
+              duration: 1,
             };
             pre.periodSettings = {
               unit: window_unit,
-              duration
+              duration,
             };
           }
           const time = cur.work_time.map(item => item.split('--'));
@@ -184,12 +184,12 @@ export function replaceRotationTransform(originData, type) {
                 pre.value.push({
                   key: random(8, true),
                   workDays: cur.work_days,
-                  workTime: time
+                  workTime: time,
                 });
               } else {
                 pre.value.push({
                   key: random(8, true),
-                  workTime: cur.work_time.map(item => item.split('--').map(item => item.split(' ')))[0] || []
+                  workTime: cur.work_time.map(item => item.split('--').map(item => item.split(' ')))[0] || [],
                 });
               }
               break;
@@ -197,7 +197,7 @@ export function replaceRotationTransform(originData, type) {
             case RotationSelectTypeEnum.Custom: {
               pre.value.push({
                 key: random(8, true),
-                workTime: time
+                workTime: time,
               });
             }
           }
@@ -209,8 +209,8 @@ export function replaceRotationTransform(originData, type) {
           isCustom: false,
           customWorkDays: [],
           customTab: 'duration',
-          value: []
-        }
+          value: [],
+        },
       );
       const obj: ReplaceItemDataModel = {
         id: data.id,
@@ -221,9 +221,9 @@ export function replaceRotationTransform(originData, type) {
           value: data.duty_users.map(item => ({
             key: random(8, true),
             value: item,
-            orderIndex: 0
-          }))
-        }
+            orderIndex: 0,
+          })),
+        },
       };
       return obj;
     });
@@ -244,7 +244,7 @@ export function replaceRotationTransform(originData, type) {
             work_type: data.type,
             work_time: item.workTime.map(val => val.join('--')),
             work_days: item.workDays,
-            work_time_type: 'time_range'
+            work_time_type: 'time_range',
           }))
           .filter(item => item.work_time.length);
         break;
@@ -257,7 +257,7 @@ export function replaceRotationTransform(originData, type) {
               work_type: data.type,
               work_time_type: data.workTimeType,
               work_days: item.workDays,
-              work_time: item.workTime.map(val => val.join('--'))
+              work_time: item.workTime.map(val => val.join('--')),
             }))
             .filter(item => item.work_days.length);
         } else {
@@ -266,7 +266,7 @@ export function replaceRotationTransform(originData, type) {
               work_type: data.type,
               work_time_type: data.workTimeType,
               work_days: item.workDays,
-              work_time: [item.workTime.length && item.workTime.map(item => item.join(' ')).join('--')]
+              work_time: [item.workTime.length && item.workTime.map(item => item.join(' ')).join('--')],
             }))
             .filter(item => item.work_time.length);
         }
@@ -280,8 +280,8 @@ export function replaceRotationTransform(originData, type) {
               ? {
                   period_settings: {
                     window_unit: unit,
-                    duration
-                  }
+                    duration,
+                  },
                 }
               : {};
           return {
@@ -290,7 +290,7 @@ export function replaceRotationTransform(originData, type) {
             work_days: data.customWorkDays,
             work_time: item.workTime.map(val => val.join('--')),
             work_time_type: 'time_range',
-            ...periodSetting
+            ...periodSetting,
           };
         });
         break;
@@ -302,7 +302,7 @@ export function replaceRotationTransform(originData, type) {
       duty_time: dutyTime,
       duty_users: item.users.value.filter(item => item.value.length).map(item => item.value),
       group_type: item.users.groupType,
-      group_number: item.users.groupNumber
+      group_number: item.users.groupNumber,
     };
   });
 }
@@ -324,7 +324,7 @@ export function fixedRotationTransform(data, type) {
         workDateRange: [],
         workTime: (item.duty_time?.[0]?.work_time || []).map(item => item.split('--')),
         users: item.duty_users[0] || [],
-        orderIndex: 0
+        orderIndex: 0,
       };
       const dateRange = item.duty_time?.[0]?.work_date_range || [];
       if (dateRange.length) {
@@ -341,7 +341,7 @@ export function fixedRotationTransform(data, type) {
       case RotationSelectTypeEnum.Daily: {
         dutyTimeItem = {
           work_type: item.type,
-          work_time: item.workTime.map(item => item.join('--'))
+          work_time: item.workTime.map(item => item.join('--')),
         };
         break;
       }
@@ -350,7 +350,7 @@ export function fixedRotationTransform(data, type) {
         dutyTimeItem = {
           work_type: item.type,
           work_days: item.workDays,
-          work_time: item.workTime.map(item => item.join('--'))
+          work_time: item.workTime.map(item => item.join('--')),
         };
         break;
       }
@@ -360,7 +360,7 @@ export function fixedRotationTransform(data, type) {
           work_type: item.type,
           work_date_range: dateRange ? [dateRange] : [],
           work_time: item.workTime.map(item => item.join('--')),
-          work_time_type: 'time_range'
+          work_time_type: 'time_range',
         };
         break;
       }
@@ -368,7 +368,7 @@ export function fixedRotationTransform(data, type) {
     const obj = {
       id: item.id,
       duty_time: [dutyTimeItem],
-      duty_users: item.users.length ? [item.users] : []
+      duty_users: item.users.length ? [item.users] : [],
     };
     return obj;
   });
@@ -388,7 +388,7 @@ export function transformWeeklyName(data: number[]) {
     window.i18n.t('四'),
     window.i18n.t('五'),
     window.i18n.t('六'),
-    window.i18n.t('日')
+    window.i18n.t('日'),
   ];
   return data?.length ? `${window.i18n.t('每周')}${data.map(item => week[item]).join('、')}` : '';
 }
@@ -422,14 +422,14 @@ export function transformRulesDetail(data: any[], type: 'handoff' | 'regular'): 
         const { duration, window_unit } = time.period_settings;
         periodSettings = window.i18n.t('单班 {num} {type}', {
           num: duration,
-          type: window.i18n.t(window_unit === 'day' ? '天' : '小时')
+          type: window.i18n.t(window_unit === 'day' ? '天' : '小时'),
         });
       }
 
       return {
         day,
         timer: time.work_time,
-        periodSettings
+        periodSettings,
       };
     });
     return {
@@ -453,7 +453,7 @@ export function transformRulesDetail(data: any[], type: 'handoff' | 'regular'): 
         return res;
       }),
       isAuto: rule.group_type === 'auto',
-      groupNumber: rule.group_number
+      groupNumber: rule.group_number,
     };
   });
 }

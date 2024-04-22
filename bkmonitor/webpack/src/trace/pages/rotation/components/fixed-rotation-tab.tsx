@@ -58,8 +58,8 @@ export default defineComponent({
   props: {
     data: {
       type: Array as PropType<FixedDataModel[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: ['change'],
   setup(props, { emit }) {
@@ -72,7 +72,7 @@ export default defineComponent({
       { label: t('每天'), value: RotationSelectTypeEnum.Daily },
       { label: t('按周'), value: RotationSelectTypeEnum.Weekly },
       { label: t('按月'), value: RotationSelectTypeEnum.Monthly },
-      { label: t('指定时间'), value: RotationSelectTypeEnum.DateRange }
+      { label: t('指定时间'), value: RotationSelectTypeEnum.DateRange },
     ];
     function createDefaultData(): FixedDataModel {
       return {
@@ -83,7 +83,7 @@ export default defineComponent({
         orderIndex: 0,
         workDateRange: [],
         workTime: [],
-        users: []
+        users: [],
       };
     }
 
@@ -99,8 +99,8 @@ export default defineComponent({
         }
       },
       {
-        immediate: true
-      }
+        immediate: true,
+      },
     );
     const handleDateTypeChange = (item: FixedDataModel) => {
       if (item.type !== RotationSelectTypeEnum.DateRange) {
@@ -136,7 +136,7 @@ export default defineComponent({
       handleDateTypeChange,
       handleAddItem,
       handleDelItem,
-      handleEmitData
+      handleEmitData,
     };
   },
   render() {
@@ -242,7 +242,7 @@ export default defineComponent({
                       class='member-select-prefix'
                       style={{ 'border-left-color': this.colorList.value[item.orderIndex] }}
                     ></div>
-                  )
+                  ),
                 }}
               </MemberSelect>
             </td>
@@ -273,5 +273,5 @@ export default defineComponent({
         </tr>
       </table>
     );
-  }
+  },
 });

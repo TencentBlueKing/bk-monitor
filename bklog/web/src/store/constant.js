@@ -55,6 +55,10 @@ export const fieldTypeMap = {
     name: i18n.t('时间'),
     icon: 'bk-icon icon-clock'
   },
+  date_nanos: {
+    name: i18n.t('时间'),
+    icon: 'bk-icon icon-clock'
+  },
   boolean: {
     name: i18n.t('布尔'),
     icon: 'log-icon icon-boolean'

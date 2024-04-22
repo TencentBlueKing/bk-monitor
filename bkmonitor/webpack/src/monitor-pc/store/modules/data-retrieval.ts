@@ -34,12 +34,11 @@ import {
   IAggMethodList,
   IGetQueryConfigParams,
   IHistoryListItem,
-  IQueryConfigsItem
+  IQueryConfigsItem,
 } from '../../pages/data-retrieval/index';
 import { handleTimeRange } from '../../utils/index';
 import store from '../store';
 
-// eslint-disable-next-line new-cap
 @Module({ name: 'data-retrieval', dynamic: true, namespaced: true, store })
 class DataRetrieval extends VuexModule {
   // 页面loading
@@ -53,10 +52,10 @@ class DataRetrieval extends VuexModule {
     targetType: 'INSTANCE',
     tools: {
       timeRange: 1 * 60 * 60 * 1000,
-      refleshInterval: -1
+      refleshInterval: -1,
     },
     startTime: 0,
-    endTime: 0
+    endTime: 0,
   };
   // 指标数据选项
   public timeSeriesMetricMap: any = {};
@@ -80,24 +79,24 @@ class DataRetrieval extends VuexModule {
   public defaultMethodList: IAggMethodList[] = [
     {
       id: 'SUM',
-      name: 'SUM'
+      name: 'SUM',
     },
     {
       id: 'AVG',
-      name: 'AVG'
+      name: 'AVG',
     },
     {
       id: 'MAX',
-      name: 'MAX'
+      name: 'MAX',
     },
     {
       id: 'MIN',
-      name: 'MIN'
+      name: 'MIN',
     },
     {
       id: 'COUNT',
-      name: 'COUNT'
-    }
+      name: 'COUNT',
+    },
   ];
 
   // 查询耗时
@@ -187,7 +186,7 @@ class DataRetrieval extends VuexModule {
       dataSourceLabel: data.dataSourceLabel || '',
       dataTypeLabel: data.dataTypeLabel || '',
       groupBy: data.groupBy || null,
-      where: data.where || null
+      where: data.where || null,
     });
   }
 
@@ -202,10 +201,10 @@ class DataRetrieval extends VuexModule {
       targetType: 'INSTANCE',
       tools: {
         timeRange: 1 * 60 * 60 * 1000,
-        refleshInterval: -1
+        refleshInterval: -1,
       },
       startTime: 0,
-      endTime: 0
+      endTime: 0,
     };
     this.queryConfigsResult = {};
     this.labelCache = 'service_module';
@@ -281,7 +280,7 @@ class DataRetrieval extends VuexModule {
     this.historyList.unshift({
       bkBizId: store.getters.bizId,
       name: '',
-      config: deepClone(this.queryData)
+      config: deepClone(this.queryData),
     });
     this.curTab = 'data-query-history';
   }
@@ -338,18 +337,18 @@ class DataRetrieval extends VuexModule {
       INSTANCE: 'ip',
       TOPO: 'host_topo_node',
       SERVICE_TEMPLATE: 'host_template_node',
-      SET_TEMPLATE: 'host_template_node'
+      SET_TEMPLATE: 'host_template_node',
     };
     const value =
       this.queryData.targetType === 'INSTANCE'
         ? temp.target.map((item: any) => ({
             ip: item.ip,
             bk_cloud_id: item.bk_cloud_id,
-            bk_supplier_id: item.bk_supplier_id
+            bk_supplier_id: item.bk_supplier_id,
           }))
         : temp.target.map((item: any) => ({
             bk_inst_id: item.bk_inst_id,
-            bk_obj_id: item.bk_obj_id
+            bk_obj_id: item.bk_obj_id,
           }));
     // 监控目标格式转换
     temp.target = [
@@ -357,9 +356,9 @@ class DataRetrieval extends VuexModule {
         {
           field: targetFieldMap[this.queryData.targetType],
           method: 'eq',
-          value
-        }
-      ]
+          value,
+        },
+      ],
     ];
     if (!temp.queryConfigs.length) {
       this.setData({ expr: 'queryConfigsResult', value: {} });
@@ -381,7 +380,7 @@ class DataRetrieval extends VuexModule {
     if (tips?.length) {
       Vue.prototype.$bkMessage({
         theme: 'warning',
-        message: tips
+        message: tips,
       });
     }
     return data;
@@ -393,7 +392,7 @@ class DataRetrieval extends VuexModule {
     const mapList = [
       { expr: 'queryData', value: deepClone(this.historyList[index].config) },
       { expr: 'curTab', value: 'data-query-conditions' },
-      { expr: 'queryConfigsResult', value: {} }
+      { expr: 'queryConfigsResult', value: {} },
     ];
     this.setDataList(mapList);
     await Vue.nextTick();
@@ -406,7 +405,7 @@ class DataRetrieval extends VuexModule {
     const params = {
       name,
       bk_biz_id: store.getters.bizId,
-      config: this.historyList[0].config
+      config: this.historyList[0].config,
     };
     const data = await createQueryHistory(params).catch(() => {});
     this.setData({ expr: 'historyList.0.name', value: name });

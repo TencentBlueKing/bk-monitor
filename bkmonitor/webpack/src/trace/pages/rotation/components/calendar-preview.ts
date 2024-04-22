@@ -96,7 +96,7 @@ export function getCalendar() {
       month: currentMonth,
       day: currentDay,
       isOtherMonth: currentMonth !== month,
-      isCurDay: currentDay === today.getDate() && currentMonth === month
+      isCurDay: currentDay === today.getDate() && currentMonth === month,
     });
 
     // 每周有7天，将一周的日期添加到日历表，并重置一周数组
@@ -141,7 +141,7 @@ export function getCalendarNew() {
       month: currentMonth,
       day: currentDay,
       isOtherMonth: currentMonth !== month,
-      isCurDay: currentDay === today.getDate() && currentMonth === month
+      isCurDay: currentDay === today.getDate() && currentMonth === month,
     });
 
     // 每周有7天，将一周的日期添加到日历表，并重置一周数组
@@ -181,7 +181,7 @@ export function getPreviewParams(effectiveTime: string) {
   });
   return {
     begin_time: beginTime,
-    days: max - indexNum
+    days: max - indexNum,
   };
 }
 
@@ -196,7 +196,7 @@ function timeStampToTimeStr(num: number) {
     minutes: date.getMinutes(),
     seconds: date.getSeconds(),
     hoursStr: date.getHours() < 10 ? `${0}${date.getHours()}` : date.getHours(),
-    minutesStr: date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes()
+    minutesStr: date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes(),
   };
 }
 /* 根据时间戳段 获取百分比并输出字符串时间格式 */
@@ -218,7 +218,7 @@ export function getDateStrAndRange(timeRange: number[], totalRange: number[]) {
   return {
     range,
     isStartBorder,
-    timeStr
+    timeStr,
   };
 }
 /**
@@ -231,7 +231,7 @@ function setRowYOfOverlap(data: ICalendarDataDataItem[]) {
   // data.sort((a, b) => new Date(a.timeRange[0]).getTime() - new Date(b.timeRange[0]).getTime());
   const tempData: (ICalendarDataDataItem & { timeRangeNum: number[] })[] = data.map(item => ({
     ...item,
-    timeRangeNum: item.timeRange.map(t => new Date(t).getTime())
+    timeRangeNum: item.timeRange.map(t => new Date(t).getTime()),
   }));
   tempData.sort((a, b) => a.timeRangeNum[0] - b.timeRangeNum[0]);
   let maxRow = 0;
@@ -245,7 +245,7 @@ function setRowYOfOverlap(data: ICalendarDataDataItem[]) {
         if (preItem.timeRangeNum[1] <= item.timeRangeNum[0]) {
           result.push({
             ...item,
-            row: i
+            row: i,
           });
           break;
         }
@@ -253,7 +253,7 @@ function setRowYOfOverlap(data: ICalendarDataDataItem[]) {
           maxRow += 1;
           result.push({
             ...item,
-            row: maxRow
+            row: maxRow,
           });
           break;
         }
@@ -261,13 +261,13 @@ function setRowYOfOverlap(data: ICalendarDataDataItem[]) {
     } else {
       result.push({
         ...item,
-        row: 0
+        row: 0,
       });
     }
   });
   return {
     maxRow,
-    result
+    result,
   };
 }
 /**
@@ -281,7 +281,7 @@ export function calendarDataConversion(data: ICalendarData) {
     const { dates } = row;
     const rowTotalTimeRange = [
       `${dates[0].year}-${dates[0].month + 1}-${dates[0].day} 00:00`,
-      `${dates[6].year}-${dates[6].month + 1}-${dates[6].day} 23:59`
+      `${dates[6].year}-${dates[6].month + 1}-${dates[6].day} 23:59`,
     ];
     const temp = [];
     users.forEach(u => {
@@ -304,8 +304,8 @@ export function calendarDataConversion(data: ICalendarData) {
           isStartBorder: rangeStr.isStartBorder,
           other: {
             time: rangeStr.timeStr,
-            users: u.users.map(user => `${user.id}(${user.name})`).join(', ')
-          }
+            users: u.users.map(user => `${user.id}(${user.name})`).join(', '),
+          },
         });
       }
     });
@@ -313,7 +313,7 @@ export function calendarDataConversion(data: ICalendarData) {
     return {
       ...row,
       maxRow: rowData.maxRow,
-      data: rowData.result
+      data: rowData.result,
     };
   });
   return calendarData;
@@ -387,7 +387,7 @@ export function timeRangeMerger(timePeriods: { start_time: string; end_time: str
 export function setPreviewDataOfServer(
   params: IDutyPlans[],
   autoOrders?: { [key: number]: number },
-  colorList?: string[]
+  colorList?: string[],
 ) {
   const hasColorList = !!colorList;
   const data = [];
@@ -407,7 +407,7 @@ export function setPreviewDataOfServer(
         data.push({
           users,
           color: colorFn(item.user_index === undefined ? index : item.user_index),
-          timeRange: [work.start_time, work.end_time]
+          timeRange: [work.start_time, work.end_time],
         });
       });
     }
@@ -442,7 +442,7 @@ export function userIndexResetOfpreviewData(params: IDutyPlans[], autoOrders?: {
   return params.map(plan => {
     return {
       ...plan,
-      user_index: userIndexCount(temp, plan.user_index, plan?.order || 0)
+      user_index: userIndexCount(temp, plan.user_index, plan?.order || 0),
     };
   });
 }
@@ -464,6 +464,6 @@ export function getAutoOrderList(data) {
 export function noOrderDutyData(data: IDutyPlans[]) {
   return data.map(item => ({
     ...item,
-    order: 0
+    order: 0,
   }));
 }

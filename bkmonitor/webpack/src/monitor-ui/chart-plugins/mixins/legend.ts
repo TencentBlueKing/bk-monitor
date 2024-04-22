@@ -41,7 +41,7 @@ export default class ResizeMixin extends Vue {
     if (actionType === 'shift-click') {
       chartInstance.dispatchAction({
         type: !item.show ? 'legendSelect' : 'legendUnSelect',
-        name: item.name
+        name: item.name,
       });
       item.show = !item.show;
       this.$emit('selectLegend', this.legendData);
@@ -55,7 +55,7 @@ export default class ResizeMixin extends Vue {
             (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
               ? 'legendSelect'
               : 'legendUnSelect',
-          name: legend.name
+          name: legend.name,
         });
         legend.show = legend.name === item.name || !hasOtherShow;
       });
@@ -78,7 +78,7 @@ export default class ResizeMixin extends Vue {
       // item && (item.show = e.type === 'legendselected');
       const chartInstance = this.$refs.baseChart as any;
       chartInstance.instance.dispatchAction({
-        type: 'restore'
+        type: 'restore',
       });
     }
   }
@@ -112,10 +112,10 @@ export default class ResizeMixin extends Vue {
             return `${ratio}%\n${params.name}`;
           }
           return '';
-        }
+        },
       };
       targetOption.series[0].emphasis.label = {
-        show: !hideLabel
+        show: !hideLabel,
       };
     }
 
@@ -127,7 +127,7 @@ export default class ResizeMixin extends Vue {
     item,
     option,
     needResetChart = false,
-    hideLabel = false
+    hideLabel = false,
   }: {
     actionType: LegendActionType;
     item: ILegendItem;
@@ -139,7 +139,7 @@ export default class ResizeMixin extends Vue {
     if (['highlight', 'downplay'].includes(actionType)) {
       chartInstance.dispatchAction({
         type: actionType,
-        name: item.name
+        name: item.name,
       });
     }
 
@@ -148,13 +148,11 @@ export default class ResizeMixin extends Vue {
     }
 
     if (actionType === 'shift-click') {
-      // eslint-disable-next-line no-param-reassign
       item.show = !item.show;
       this.handleResetPieChart(option, needResetChart, hideLabel);
     } else if (actionType === 'click') {
       const hasOtherShow = this.legendData.some(set => set.name !== item.name && set.show);
       this.legendData.forEach(legend => {
-        // eslint-disable-next-line no-param-reassign
         legend.show = legend.name === item.name || !hasOtherShow;
       });
       this.handleResetPieChart(option, needResetChart, hideLabel);

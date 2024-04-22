@@ -234,8 +234,7 @@ class ClusterInfo(models.Model):
             "cluster_type": self.mq_cluster.cluster_type
         }
         """
-
-        return {
+        _config = {
             "cluster_config": {
                 "domain_name": self.domain_name,
                 "port": self.port,
@@ -265,6 +264,13 @@ class ClusterInfo(models.Model):
             "cluster_type": self.cluster_type,
             "auth_info": {"password": self.password, "username": self.username},
         }
+
+        # NOTE: 针对kafka类型添加认证字段；现阶段先不添加模型存储sasl的认证信息，后续需要再补充
+        if self.cluster_type == self.TYPE_KAFKA and self.username and self.password:
+            _config["auth_info"]["sasl_mechanisms"] = config.KAFKA_SASL_MECHANISM
+            _config["auth_info"]["security_protocol"] = config.KAFKA_SASL_PROTOCOL
+
+        return _config
 
     @property
     def cluster_detail(self):

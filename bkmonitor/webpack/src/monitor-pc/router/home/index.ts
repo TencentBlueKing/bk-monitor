@@ -31,16 +31,16 @@ export default [
     path: '/',
     name: 'home',
     components: {
-      noCache: Home
+      noCache: Home,
     },
     meta: {
       title: '首页',
       navId: 'home',
       pageCls: 'home-page',
-      noNavBar: true
+      noNavBar: true,
       // authority: {
       //   page: homeAuth.VIEW_AUTH
       // }
-    }
-  }
+    },
+  },
 ] as RouteConfig[];

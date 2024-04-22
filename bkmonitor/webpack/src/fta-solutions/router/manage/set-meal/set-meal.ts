@@ -41,14 +41,14 @@ export default [
       title: '处理套餐',
       navId: 'set-meal',
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       authority: {
         map: setMealAuth,
-        page: setMealAuth.VIEW_AUTH
+        page: setMealAuth.VIEW_AUTH,
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/set-meal/:id',
@@ -59,76 +59,76 @@ export default [
       title: '处理套餐详情',
       navId: 'set-meal',
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       authority: {
         map: setMealAuth,
-        page: setMealAuth.VIEW_AUTH
-      }
-    }
+        page: setMealAuth.VIEW_AUTH,
+      },
+    },
   },
   {
     path: '/set-meal-add',
     name: 'set-meal-add',
     props: true,
     components: {
-      noCache: AddSetMeal
+      noCache: AddSetMeal,
     },
     meta: {
       title: '新建套餐',
       navId: 'set-meal',
       route: {
-        parent: 'set-meal'
+        parent: 'set-meal',
       },
       authority: {
         map: setMealAuth,
-        page: setMealAuth.MANAGE_ACTION_CONFIG
+        page: setMealAuth.MANAGE_ACTION_CONFIG,
       },
       customPage: true, // 自定义路由页面
-      needBack: true
-    }
+      needBack: true,
+    },
   },
   {
     path: '/set-meal-edit/:id',
     name: 'set-meal-edit',
     props: true,
     components: {
-      noCache: AddSetMeal
+      noCache: AddSetMeal,
     },
     meta: {
       title: '编辑套餐',
       navId: 'set-meal',
       route: {
-        parent: 'set-meal'
+        parent: 'set-meal',
       },
       authority: {
         map: setMealAuth,
-        page: setMealAuth.MANAGE_ACTION_CONFIG
+        page: setMealAuth.MANAGE_ACTION_CONFIG,
       },
       customPage: true,
       needBack: true,
-      needCopyLink: true
-    }
+      needCopyLink: true,
+    },
   },
   {
     path: '/clone-meal/:id',
     name: 'clone-meal',
     props: true,
     components: {
-      noCache: AddSetMeal
+      noCache: AddSetMeal,
     },
     meta: {
       title: '新建套餐',
       navId: 'set-meal',
       route: {
-        parent: 'set-meal'
+        parent: 'set-meal',
       },
       authority: {
         map: setMealAuth,
-        page: setMealAuth.MANAGE_ACTION_CONFIG
+        page: setMealAuth.MANAGE_ACTION_CONFIG,
       },
       customPage: true,
-      needBack: true
-    }
-  }
+      needBack: true,
+    },
+  },
 ] as RouteConfig[];

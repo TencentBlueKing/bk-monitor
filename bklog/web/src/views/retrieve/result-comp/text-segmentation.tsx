@@ -101,17 +101,21 @@ export default class QueryStatement extends tsc<IProps> {
       .join('|');
 
     // 构建正则表达式以找到分隔符或分隔符周围的文本
-    const regex = new RegExp(`(${this.markRegStr}|${regexPattern})`);
+    const regex = new RegExp(`(${regexPattern})`);
 
-    // 高亮
-    const markRegex = new RegExp(this.markRegStr, 'g');
+    // 先根据高亮标签分割
+    const markSplitRes = str.match(/(<mark>.*?<\/mark>|.+?(?=<mark|$))/gs);
 
-    // 使用正则分割字符串
-    const parts = str
-      .replace(/<mark>/g, '')
-      .replace(/<\/mark>/g, '')
-      .split(regex);
-    const markVal = str.match(markRegex) || [];
+    // 在高亮分割数组基础上再以分隔符分割数组
+    const parts = markSplitRes.reduce((list, item) => {
+      if (/^<mark>.*?<\/mark>$/.test(item)) {
+        list.push(item);
+      } else {
+        const arr = item.split(regex);
+        arr.forEach(i => i && list.push(i));
+      }
+      return list;
+    }, []);
 
     // 转换结果为对象数组，包含分隔符标记
     const result = parts
@@ -120,20 +124,11 @@ export default class QueryStatement extends tsc<IProps> {
         return {
           text: part,
           isNotParticiple: index < this.limitCount ? regex.test(part) : true,
-          isMark: this.checkMark(part, markVal)
+          isMark: /^<mark>.*?<\/mark>$/.test(part)
         };
       });
 
     return result;
-  }
-
-  checkMark(splitItem, markVal) {
-    if (!markVal.length) return false;
-    const filterMarkArr = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
-    // 以句号开头或句号结尾的分词符匹配成功也高亮展示
-    return filterMarkArr.some(
-      item => item === splitItem || splitItem.startsWith(`.${item}`) || splitItem.endsWith(`${item}.`)
-    );
   }
 
   handleClick(e, value) {
@@ -206,7 +201,12 @@ export default class QueryStatement extends tsc<IProps> {
           <span class='segment-content'>
             {this.splitList.map(item => {
               if (item.text === '\n') return <br />;
-              if (item.isMark) return <mark onClick={$event => this.handleClick($event, item.text)}>{item.text}</mark>;
+              if (item.isMark)
+                return (
+                  <mark onClick={$event => this.handleClick($event, item.text)}>
+                    {item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}
+                  </mark>
+                );
               if (!item.isNotParticiple)
                 return (
                   <span

@@ -26,8 +26,8 @@
 import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import dayjs from 'dayjs';
+import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 
-import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
 import { Scenario } from '../mapping';
 import { FrequencyType, Report } from '../types';
 import { getDefaultReportData, getSendFrequencyText } from '../utils';
@@ -43,8 +43,8 @@ export default defineComponent({
       type: Object as PropType<Report>,
       default() {
         return getDefaultReportData();
-      }
-    }
+      },
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -96,7 +96,7 @@ export default defineComponent({
       getYearOnYearHour,
       userChannel,
       emailChannel,
-      wxgroupChannel
+      wxgroupChannel,
     };
   },
   render() {
@@ -264,7 +264,7 @@ export default defineComponent({
                 ) : (
                   this.getSendFrequencyText(this.detailInfo)
                 );
-              }
+              },
             }}
           />
 
@@ -277,5 +277,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

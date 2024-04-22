@@ -78,30 +78,30 @@ const VirtualizedTraceViewProps = {
   setTrace: Function as PropType<(trace: Trace | TNil, uiFind: string | TNil) => void>,
   focusUiFindMatches: Function as PropType<(trace: Trace, uiFind: string | TNil, allowHide?: boolean) => void>,
   shouldScrollToFirstUiFindMatch: {
-    type: Boolean
+    type: Boolean,
   },
   uiFind: {
-    type: String
+    type: String,
   },
   detailStates: {
-    type: Object
+    type: Object,
   },
   hoverIndentGuideIds: {
-    type: Array as PropType<string[]>
+    type: Array as PropType<string[]>,
   },
   spanNameColumnWidth: {
-    type: Number
+    type: Number,
   },
   traceID: {
-    type: String
+    type: String,
   },
-  handleShowSpanDetail: Function as PropType<(span: Span) => void>
+  handleShowSpanDetail: Function as PropType<(span: Span) => void>,
 };
 
 export function generateRowStates(
   spans: Span[] | TNil,
   childrenHiddenIDs: Set<unknown>,
-  detailStates: Record<string, any> | undefined
+  detailStates: Record<string, any> | undefined,
 ): RowState[] {
   if (!spans) {
     return [];
@@ -113,7 +113,7 @@ export function generateRowStates(
     const span = spans[i];
     const { spanID, depth } = span;
     let hidden = false;
-    // eslint-disable-next-line eqeqeq
+
     if (collapseDepth != null) {
       if (depth >= collapseDepth) {
         hidden = true;
@@ -130,13 +130,13 @@ export function generateRowStates(
     rowStates.push({
       span,
       isDetail: false,
-      spanIndex: i
+      spanIndex: i,
     });
     if (detailStates?.has(spanID)) {
       rowStates.push({
         span,
         isDetail: true,
-        spanIndex: i
+        spanIndex: i,
       });
     }
   }
@@ -165,7 +165,7 @@ function handleSetBgColorIndex(list: RowState[]) {
 export const DEFAULT_HEIGHTS = {
   bar: 28,
   detail: 161,
-  detailWithLogs: 197
+  detailWithLogs: 197,
 };
 
 export default defineComponent({
@@ -211,7 +211,7 @@ export default defineComponent({
         trace_id: traceId,
         bk_biz_id: bkBizId,
         permission,
-        bk_app_code: appCode
+        bk_app_code: appCode,
       } = span.cross_relation;
       if (!permission) {
         // 无权限查看跨应用
@@ -223,7 +223,7 @@ export default defineComponent({
         const params = {
           app_name: appName,
           trace_id: traceId,
-          bk_biz_id: bkBizId
+          bk_biz_id: bkBizId,
         };
         const data = await traceDetail(params).catch(() => null);
         if (data) {
@@ -256,7 +256,7 @@ export default defineComponent({
       spanDetails,
       traceTree,
       spans,
-      handleToggleCollapse
+      handleToggleCollapse,
     };
   },
 
@@ -291,5 +291,5 @@ export default defineComponent({
         />
       </div>
     );
-  }
+  },
 });

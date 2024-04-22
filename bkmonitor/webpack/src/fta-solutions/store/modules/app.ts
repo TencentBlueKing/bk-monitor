@@ -28,7 +28,7 @@
  * @LastEditTime: 2021-06-26 11:33:00
  * @Description:
  */
-/* eslint-disable new-cap */
+
 import Vue from 'vue';
 import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
@@ -74,7 +74,7 @@ export default class App extends VuexModule implements IAppState {
           return {
             ...item,
             py_text: pyText,
-            pyf_text: pyfText
+            pyf_text: pyfText,
           };
         });
         return;

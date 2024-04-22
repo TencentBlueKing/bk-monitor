@@ -948,88 +948,200 @@ class FieldDateFormatEnum(ChoicesEnum):
         :return: list[dict{id, name, description}]
         """
         return [
-            {"id": "yyyy-MM-dd HH:mm:ss", "name": "YYYY-MM-DD HH:mm:ss", "description": "2006-01-02 15:04:05"},
+            {
+                "id": "yyyy-MM-dd HH:mm:ss",
+                "name": "YYYY-MM-DD HH:mm:ss",
+                "description": "2006-01-02 15:04:05",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
             {
                 "id": "yyyy-MM-dd HH:mm:ss,SSS",
                 "name": "YYYY-MM-DD HH:mm:ss,SSS",
                 "description": "2006-01-02 15:04:05,000",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
             {
                 "id": "yyyy-MM-dd HH:mm:ss.SSS",
                 "name": "YYYY-MM-DD HH:mm:ss.SSS",
                 "description": "2006-01-02 15:04:05.000",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
             {
                 "id": "yyyy-MM-dd HH:mm:ss.SSSSSS",
                 "name": "YYYY-MM-DD HH:mm:ss.SSSSSS",
                 "description": "2006-01-02 15:04:05.000000",
+                "es_format": "strict_date_optional_time_nanos",
+                "es_type": "date_nanos",
+                "timestamp_unit": "µs",
             },
-            {"id": "yyyy-MM-dd+HH:mm:ss", "name": "YYYY-MM-DD+HH:mm:ss", "description": "2006-01-02+15:04:05"},
-            {"id": "MM/dd/yyyy HH:mm:ss", "name": "MM/DD/YYYY HH:mm:ss", "description": "01/02/2006 15:04:05"},
-            {"id": "yyyyMMddHHmmss", "name": "YYYYMMDDHHmmss", "description": "20060102150405"},
-            {"id": "yyyyMMdd HHmmss", "name": "YYYYMMDD HHmmss", "description": "20060102 150405"},
-            {"id": "yyyyMMdd HHmmss.SSS", "name": "YYYYMMDD HHmmss.SSS", "description": "20060102 150405.000"},
-            {"id": "dd/MMM/yyyy:HH:mm:ss", "name": "DD/MMM/YYYY:HH:mm:ss", "description": "02/Jan/2006:15:04:05"},
+            {
+                "id": "yyyy-MM-dd+HH:mm:ss",
+                "name": "YYYY-MM-DD+HH:mm:ss",
+                "description": "2006-01-02+15:04:05",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
+            {
+                "id": "MM/dd/yyyy HH:mm:ss",
+                "name": "MM/DD/YYYY HH:mm:ss",
+                "description": "01/02/2006 15:04:05",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
+            {
+                "id": "yyyyMMddHHmmss",
+                "name": "YYYYMMDDHHmmss",
+                "description": "20060102150405",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
+            {
+                "id": "yyyyMMdd HHmmss",
+                "name": "YYYYMMDD HHmmss",
+                "description": "20060102 150405",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
+            {
+                "id": "yyyyMMdd HHmmss.SSS",
+                "name": "YYYYMMDD HHmmss.SSS",
+                "description": "20060102 150405.000",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
+            {
+                "id": "dd/MMM/yyyy:HH:mm:ss",
+                "name": "DD/MMM/YYYY:HH:mm:ss",
+                "description": "02/Jan/2006:15:04:05",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
             {
                 "id": "dd/MMM/yyyy:HH:mm:ssZ",
                 "name": "DD/MMM/YYYY:HH:mm:ssZ",
                 "description": "02/Jan/2006:15:04:05-0700",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
             {
                 "id": "dd/MMM/yyyy:HH:mm:ss Z",
                 "name": "DD/MMM/YYYY:HH:mm:ss Z",
                 "description": "02/Jan/2006:15:04:05 -0700",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
             {
                 "id": "dd/MMM/yyyy:HH:mm:ssZZ",
                 "name": "DD/MMM/YYYY:HH:mm:ssZZ",
                 "description": "02/Jan/2006:15:04:05-07:00",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
             {
                 "id": "dd/MMM/yyyy:HH:mm:ss ZZ",
                 "name": "DD/MMM/YYYY:HH:mm:ss ZZ",
                 "description": "02/Jan/2006:15:04:05 -07:00",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
             {
                 "id": ISO_8601_TIME_FORMAT_NAME,
                 "name": ISO_8601_TIME_FORMAT_NAME,
                 "description": "2006-01-02T15:04:05Z07:00",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
-            {"id": "date_hour_minute_second", "name": "YYYY-MM-DDTHH:mm:ss", "description": "2006-01-02T15:04:05"},
+            {
+                "id": "date_hour_minute_second",
+                "name": "YYYY-MM-DDTHH:mm:ss",
+                "description": "2006-01-02T15:04:05",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
             {
                 "id": "date_hour_minute_second_millis",
                 "name": "YYYY-MM-DDTHH:mm:ss.SSS",
                 "description": "2006-01-02T15:04:05.000",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
-            {"id": "basic_date_time_no_millis", "name": "YYYYMMDDTHHmmssZ", "description": "20060102T150405-0700"},
+            {
+                "id": "basic_date_time_no_millis",
+                "name": "YYYYMMDDTHHmmssZ",
+                "description": "20060102T150405-0700",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
             {
                 "id": "basic_date_time_micros",
                 "name": "YYYYMMDDTHHmmss.SSSSSSZ",
                 "description": "20060102T150405.000000-0700",
+                "es_format": "strict_date_optional_time_nanos",
+                "es_type": "date_nanos",
+                "timestamp_unit": "µs",
             },
             {
                 "id": "strict_date_time",
                 "name": "YYYY-MM-DDTHH:mm:ss.SSSZ",
                 "description": "2006-01-02T15:04:05.000-07:00",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
+            {
+                "id": "YYYY-MM-DDTHH:mm:ss.SSSSSSZ",
+                "name": "YYYY-MM-DDTHH:mm:ss.SSSSSSZ",
+                "description": "2006-01-02T15:04:05.000000Z",
+                "es_format": "strict_date_optional_time_nanos",
+                "es_type": "date_nanos",
+                "timestamp_unit": "µs",
             },
             {
                 "id": "ISO8601",
                 "name": "ISO8601",
                 "description": "2006-01-02T15:04:05.000-0700",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
             {
                 "id": "strict_date_time_no_millis",
                 "name": "YYYY-MM-DDTHH:mm:ssZ",
                 "description": "2006-01-02T15:04:05-07:00",
+                "es_format": "epoch_millis",
+                "es_type": "date",
             },
             {
                 "id": "strict_date_time_micros",
-                "name": "YYYY-MM-DDTHH:mm:ss.SSSSSSZ",
+                "name": "YYYY-MM-DDTHH:mm:ss.SSSSSSZZ",
                 "description": "2006-01-02T15:04:05.000000-07:00",
+                "es_format": "strict_date_optional_time_nanos",
+                "es_type": "date_nanos",
+                "timestamp_unit": "µs",
             },
-            {"id": "epoch_micros", "name": "epoch_micros", "description": "1136185445000000"},
-            {"id": "epoch_millis", "name": "epoch_millis", "description": "1136185445000"},
-            {"id": "epoch_second", "name": "epoch_second", "description": "1136185445"},
+            {
+                "id": "epoch_micros",
+                "name": "epoch_micros",
+                "description": "1136185445000000",
+                "es_format": "strict_date_optional_time_nanos",
+                "es_type": "date_nanos",
+                "timestamp_unit": "µs",
+            },
+            {
+                "id": "epoch_millis",
+                "name": "epoch_millis",
+                "description": "1136185445000",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
+            {
+                "id": "epoch_second",
+                "name": "epoch_second",
+                "description": "1136185445",
+                "es_format": "epoch_millis",
+                "es_type": "date",
+            },
         ]
 
 
@@ -1355,10 +1467,10 @@ FULL_TEXT_SEARCH_FIELD_NAME = _("全文检索")
 class OperatorEnum:
     """操作符枚举"""
 
-    EQ = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，逗号分隔")}
-    NE = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，逗号分隔")}
-    EQ_WILDCARD = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，逗号分隔"), "wildcard_operator": "=~"}
-    NE_WILDCARD = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，逗号分隔"), "wildcard_operator": "!=~"}
+    EQ = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔")}
+    NE = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔")}
+    EQ_WILDCARD = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔"), "wildcard_operator": "=~"}
+    NE_WILDCARD = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔"), "wildcard_operator": "!=~"}
     LT = {"operator": "<", "label": "<", "placeholder": _("请选择或直接输入")}
     GT = {"operator": ">", "label": ">", "placeholder": _("请选择或直接输入")}
     LTE = {"operator": "<=", "label": "<=", "placeholder": _("请选择或直接输入")}
@@ -1367,19 +1479,31 @@ class OperatorEnum:
     NOT_EXISTS = {"operator": "does not exists", "label": _("不存在"), "placeholder": _("确认字段不存在")}
     IS_TRUE = {"operator": "is true", "label": "is true", "placeholder": _("字段为true")}
     IS_FALSE = {"operator": "is false", "label": "is false", "placeholder": _("字段为false")}
-    CONTAINS = {"operator": "contains", "label": _("包含"), "placeholder": _("请选择或直接输入，逗号分隔")}
-    NOT_CONTAINS = {"operator": "not contains", "label": _("不包含"), "placeholder": _("请选择或直接输入，逗号分隔")}
+    CONTAINS = {"operator": "contains", "label": _("包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
+    NOT_CONTAINS = {"operator": "not contains", "label": _("不包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
     CONTAINS_MATCH_PHRASE = {
         "operator": "contains match phrase",
         "label": _("包含"),
-        "placeholder": _("请选择或直接输入，逗号分隔"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
         "wildcard_operator": "=~",
     }
     NOT_CONTAINS_MATCH_PHRASE = {
         "operator": "not contains match phrase",
         "label": _("不包含"),
-        "placeholder": _("请选择或直接输入，逗号分隔"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
         "wildcard_operator": "!=~",
+    }
+    ALL_CONTAINS_MATCH_PHRASE = {
+        "operator": "all contains match phrase",
+        "label": _("全部包含"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "&=~",
+    }
+    ALL_NOT_CONTAINS_MATCH_PHRASE = {
+        "operator": "all not contains match phrase",
+        "label": _("全部不包含"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "&!=~",
     }
 
 
@@ -1459,3 +1583,6 @@ DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME = _("默认")
 
 # 压缩indices缓存key的长度
 COMPRESS_INDICES_CACHE_KEY_LENGTH = 256
+
+# 检索选项历史记录API返回数据数量大小
+SEARCH_OPTION_HISTORY_NUM = 10

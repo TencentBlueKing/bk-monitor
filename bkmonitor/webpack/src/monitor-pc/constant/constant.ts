@@ -35,7 +35,7 @@ export const THRESHOLD_METHOD_LIST = [
   { id: 'gte', name: '>=' },
   { id: 'lt', name: '<' },
   { id: 'lte', name: '<=' },
-  { id: 'neq', name: '!=' }
+  { id: 'neq', name: '!=' },
 ];
 // 监控条件方法列表
 export const CONDITION_METHOD_LIST = [
@@ -48,7 +48,7 @@ export const CONDITION_METHOD_LIST = [
   { id: 'include', name: 'include' },
   { id: 'exclude', name: 'exclude' },
   { id: 'reg', name: 'regex' },
-  { id: 'nreg', name: 'nregex' }
+  { id: 'nreg', name: 'nregex' },
 ];
 export const NUMBER_CONDITION_METHOD_LIST = [
   { id: 'eq', name: '=' },
@@ -60,13 +60,13 @@ export const NUMBER_CONDITION_METHOD_LIST = [
   { id: 'include', name: 'include' },
   { id: 'exclude', name: 'exclude' },
   { id: 'reg', name: 'regex' },
-  { id: 'nreg', name: 'nregex' }
+  { id: 'nreg', name: 'nregex' },
 ];
 export const LOG_CONDITION_METHOD_LIST = [
   { id: 'is', name: 'is' },
   { id: 'is one of', name: 'is one of' },
   { id: 'is not', name: 'is not' },
-  { id: 'is not one of', name: 'is not one of' }
+  { id: 'is not one of', name: 'is not one of' },
 ];
 export const STRING_CONDITION_METHOD_LIST = [
   { id: 'eq', name: '=' },
@@ -74,146 +74,146 @@ export const STRING_CONDITION_METHOD_LIST = [
   { id: 'include', name: 'include' },
   { id: 'exclude', name: 'exclude' },
   { id: 'reg', name: 'regex' },
-  { id: 'nreg', name: 'nregex' }
+  { id: 'nreg', name: 'nregex' },
 ];
 export const SIMPLE_METHOD_LIST = [
   {
     id: 'gt',
-    name: '>'
+    name: '>',
   },
   {
     id: 'gte',
-    name: '>='
+    name: '>=',
   },
   {
     id: 'lt',
-    name: '<'
+    name: '<',
   },
   {
     id: 'lte',
-    name: '<='
+    name: '<=',
   },
   {
     id: 'eq',
-    name: '='
-  }
+    name: '=',
+  },
 ];
 
 export const CONDITION = [
   { id: 'or', name: 'OR' },
-  { id: 'and', name: 'AND' }
+  { id: 'and', name: 'AND' },
 ];
 
 export const METHOD_LIST = [
   {
     id: 'SUM',
-    name: 'SUM'
+    name: 'SUM',
   },
   {
     id: 'AVG',
-    name: 'AVG'
+    name: 'AVG',
   },
   {
     id: 'MAX',
-    name: 'MAX'
+    name: 'MAX',
   },
   {
     id: 'MIN',
-    name: 'MIN'
+    name: 'MIN',
   },
   {
     id: 'COUNT',
-    name: 'COUNT'
-  }
+    name: 'COUNT',
+  },
 ];
 
 export const CP_METHOD_LIST = [
   {
     id: 'CP50',
-    name: 'P50'
+    name: 'P50',
   },
   {
     id: 'CP90',
-    name: 'P90'
+    name: 'P90',
   },
   {
     id: 'CP95',
-    name: 'P95'
+    name: 'P95',
   },
   {
     id: 'CP99',
-    name: 'P99'
+    name: 'P99',
   },
   {
     id: 'sum_without_time',
-    name: 'SUM(PromQL)'
+    name: 'SUM(PromQL)',
   },
   {
     id: 'max_without_time',
-    name: 'MAX(PromQL)'
+    name: 'MAX(PromQL)',
   },
   {
     id: 'min_without_time',
-    name: 'MIN(PromQL)'
+    name: 'MIN(PromQL)',
   },
   {
     id: 'count_without_time',
-    name: 'COUNT(PromQL)'
+    name: 'COUNT(PromQL)',
   },
   {
     id: 'avg_without_time',
-    name: 'AVG(PromQL)'
-  }
+    name: 'AVG(PromQL)',
+  },
 ];
 
 export const INTERVAL_LIST = [
   {
     id: 60,
-    name: '1'
+    name: '1',
   },
   {
     id: 120,
-    name: '2'
+    name: '2',
   },
   {
     id: 300,
-    name: '5'
+    name: '5',
   },
   {
     id: 600,
-    name: '10'
+    name: '10',
   },
   {
     id: 900,
-    name: '15'
+    name: '15',
   },
   {
     id: 1200,
-    name: '20'
-  }
+    name: '20',
+  },
 ];
 
 export const CHART_INTERVAL = [
   {
     id: 'auto',
-    name: 'Auto'
+    name: 'Auto',
   },
   {
     id: 60,
-    name: '1 min'
+    name: '1 min',
   },
   {
     id: 5 * 60,
-    name: '5 min'
+    name: '5 min',
   },
   {
     id: 60 * 60,
-    name: '1 h'
+    name: '1 h',
   },
   {
     id: 24 * 60 * 60,
-    name: '1 d'
-  }
+    name: '1 d',
+  },
 ];
 
 /** IPv4 正则匹配规则 */
@@ -224,40 +224,40 @@ export const NO_BUSSINESS_PAGE_HASH = 'NO_BUSSINESS_PAGE_HASH';
 export const PANEL_INTERVAL_LIST = [
   {
     name: 'auto',
-    id: 'auto'
+    id: 'auto',
   },
   {
     name: window.i18n.tc('10 秒'),
-    id: '10s'
+    id: '10s',
   },
   {
     name: window.i18n.tc('30 秒'),
-    id: '30s'
+    id: '30s',
   },
   {
     name: window.i18n.tc('60 秒'),
-    id: '60s'
+    id: '60s',
   },
   {
     name: window.i18n.tc('2 分钟'),
-    id: '2m'
+    id: '2m',
   },
   {
     name: window.i18n.tc('5 分钟'),
-    id: '5m'
+    id: '5m',
   },
   {
     name: window.i18n.tc('10 分钟'),
-    id: '10m'
+    id: '10m',
   },
   {
     name: window.i18n.tc('30 分钟'),
-    id: '30m'
+    id: '30m',
   },
   {
     name: window.i18n.tc('1 小时'),
-    id: '1h'
-  }
+    id: '1h',
+  },
 ];
 
 export const TARGET_TABEL_EXPAND_MAX = 5; /** 采集下发目标默认最大展开表格数量 */

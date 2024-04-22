@@ -30,7 +30,7 @@ import {
   logServiceRelationBkLogIndexSet,
   serviceConfig,
   serviceUrlList,
-  uriregularVerify
+  uriregularVerify,
 } from 'monitor-api/modules/apm_service';
 import ChangeRcord from 'monitor-pc/components/change-record/change-record';
 
@@ -43,7 +43,7 @@ import {
   IIndexSetItem,
   ILocationRelation,
   ILogInfoItem,
-  IServiceInfo
+  IServiceInfo,
 } from '../../../typings';
 import * as authorityMap from '../../home/authority-map';
 
@@ -52,7 +52,7 @@ import DebuggerDialog from './debugger-dialog';
 import './basic-info.scss';
 
 @Component
-export default class BasicInfo extends tsc<{}> {
+export default class BasicInfo extends tsc<object> {
   @Ref() logForm: any;
   @Ref() appForm: any;
   @Ref() apdexForm: any;
@@ -74,13 +74,13 @@ export default class BasicInfo extends tsc<{}> {
     show: boolean;
   } = {
     show: false,
-    data: {}
+    data: {},
   };
   params: IBaseParams = {
     // 全局参数
     app_name: '',
     service_name: '',
-    bk_biz_id: -1
+    bk_biz_id: -1,
   };
   serviceInfo: IServiceInfo = {
     topo_key: '',
@@ -90,9 +90,9 @@ export default class BasicInfo extends tsc<{}> {
       category_icon: '',
       predicate_value: '',
       predicate_value_icon: '',
-      service_language: ''
+      service_language: '',
     },
-    relation: {}
+    relation: {},
   };
   /** cmdb列表 */
   cmdbInfoList: ICmdbInfoItem[] = [];
@@ -107,7 +107,7 @@ export default class BasicInfo extends tsc<{}> {
     relatedBizId: 0,
     bizId: '',
     appId: '',
-    apdex: 0
+    apdex: 0,
   };
   localCmdbRelationTag: ICmdbRelation = {
     id: -1,
@@ -115,12 +115,12 @@ export default class BasicInfo extends tsc<{}> {
     template_name: '',
     first_category: {
       name: '',
-      icon: ''
+      icon: '',
     },
     second_category: {
       name: '',
-      icon: ''
-    }
+      icon: '',
+    },
   };
   /** 索引集列表 */
   indexSetList: IIndexSetItem[] = [];
@@ -132,10 +132,10 @@ export default class BasicInfo extends tsc<{}> {
   /** 拖拽数据 */
   dragData: { from: number; to: number } = {
     from: null,
-    to: null
+    to: null,
   };
   drag = {
-    active: -1
+    active: -1,
   };
   rules = {
     logValue: [
@@ -143,41 +143,41 @@ export default class BasicInfo extends tsc<{}> {
         validator: val => !(this.localRelationInfo.logType && val.trim?.() === ''),
         message:
           this.localRelationInfo.logType === 'bk_log' ? window.i18n.t('输入关联日志') : window.i18n.t('选择索引集'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     relatedBizId: [
       {
         validator: val => !(this.localRelationInfo.logType && val.trim?.() === ''),
         message: window.i18n.t('选择业务'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     appId: [
       {
         validator: val => !(this.localRelationInfo.bizId && !val),
         message: window.i18n.t('选择应用'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     apdex: [
       {
         required: true,
         message: window.i18n.tc('必填项'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: val => /^[0-9]*$/.test(val),
         message: window.i18n.t('仅支持数字'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   get bizSelectList() {
     return this.$store.getters.bizList.map(el => ({
       id: el.id,
-      name: el.text
+      name: el.text,
     }));
   }
 
@@ -186,7 +186,7 @@ export default class BasicInfo extends tsc<{}> {
     this.params = {
       app_name: query.app_name as string,
       service_name: query.service_name as string,
-      bk_biz_id: this.$store.getters.bizId
+      bk_biz_id: this.$store.getters.bizId,
     };
     this.getCMDBSelectList();
     this.getLogSelectList();
@@ -201,7 +201,7 @@ export default class BasicInfo extends tsc<{}> {
     this.urlListLoading = true;
     const data = await serviceUrlList({
       app_name: this.params.app_name,
-      service_name: this.params.service_name
+      service_name: this.params.service_name,
     }).catch(() => []);
     this.urlResource = data.join('\n');
     this.urlListLoading = false;
@@ -251,14 +251,14 @@ export default class BasicInfo extends tsc<{}> {
       created_by: createUser,
       created_at: createTime,
       updated_by: updateUser,
-      updated_at: updateTime
+      updated_at: updateTime,
     } = data;
     this.record.data = { createUser, createTime, updateTime, updateUser };
     this.uriList = (relation.uri_relation || []).map(item => item.uri);
     Object.assign(this.serviceInfo, {
       topo_key: topoKey,
       extra_data: extraData || {},
-      relation
+      relation,
     });
     this.setRelationInfo();
     this.isLoading = false;
@@ -271,7 +271,7 @@ export default class BasicInfo extends tsc<{}> {
       cmdb_relation: cmdbRelation,
       log_relation: logRelation,
       app_relation: appRelation,
-      apdex_relation: apdexRelation
+      apdex_relation: apdexRelation,
     } = this.serviceInfo.relation;
 
     if (cmdbRelation.template_id) {
@@ -307,7 +307,7 @@ export default class BasicInfo extends tsc<{}> {
       if (curRelation) {
         this.localCmdbRelationTag = {
           ...curRelation,
-          template_name: curRelation.name
+          template_name: curRelation.name,
         };
       }
     } else {
@@ -317,12 +317,12 @@ export default class BasicInfo extends tsc<{}> {
         template_name: '',
         first_category: {
           name: '',
-          icon: ''
+          icon: '',
         },
         second_category: {
           name: '',
-          icon: ''
-        }
+          icon: '',
+        },
       };
     }
   }
@@ -346,7 +346,7 @@ export default class BasicInfo extends tsc<{}> {
     this.localRelationInfo.logValue = '';
     this.logForm?.clearError();
     const data = await logServiceRelationBkLogIndexSet({
-      bk_biz_id: v
+      bk_biz_id: v,
     }).catch(() => []);
     this.indexSetList = data;
   }
@@ -376,7 +376,7 @@ export default class BasicInfo extends tsc<{}> {
     const params = {
       ...this.params,
       uris,
-      uris_source: urlSourceList
+      uris_source: urlSourceList,
     };
     this.isDebugging = true;
     this.debugged = true;
@@ -398,7 +398,7 @@ export default class BasicInfo extends tsc<{}> {
    */
   handleDragStart(evt: DragEvent, index: number) {
     this.dragData.from = index;
-    // eslint-disable-next-line no-param-reassign
+
     evt.dataTransfer.effectAllowed = 'move';
   }
 
@@ -451,13 +451,13 @@ export default class BasicInfo extends tsc<{}> {
       ...this.params,
       uri_relation: [],
       apdex_relation: {
-        apdex_value: Number(this.localRelationInfo.apdex)
-      }
+        apdex_value: Number(this.localRelationInfo.apdex),
+      },
     };
     // 关联CMDB
     if (this.localRelationInfo.cmdb) {
       params.cmdb_relation = {
-        template_id: this.localRelationInfo.cmdb
+        template_id: this.localRelationInfo.cmdb,
       };
     }
     // 关联日志
@@ -466,7 +466,7 @@ export default class BasicInfo extends tsc<{}> {
       params.log_relation = {
         log_type: logType,
         value: logValue,
-        related_bk_biz_id: relatedBizId
+        related_bk_biz_id: relatedBizId,
       };
       if (logType !== 'bk_log') delete params.related_bk_biz_id;
     }
@@ -475,7 +475,7 @@ export default class BasicInfo extends tsc<{}> {
       const { bizId, appId } = this.localRelationInfo;
       params.app_relation = {
         relate_bk_biz_id: bizId,
-        relate_app_name: appId
+        relate_app_name: appId,
       };
     }
     // uri 信息
@@ -496,7 +496,7 @@ export default class BasicInfo extends tsc<{}> {
           .then(() => {
             this.$bkMessage({
               message: this.$t('保存成功'),
-              theme: 'success'
+              theme: 'success',
             });
             this.handleEditClick(false);
             this.getServiceInfo();
@@ -514,7 +514,7 @@ export default class BasicInfo extends tsc<{}> {
     const {
       cmdb_relation: cmdbRelation,
       log_relation: logRelation,
-      app_relation: appRelation
+      app_relation: appRelation,
     } = this.serviceInfo.relation;
     const curCmdbRelationTagList = this.isEditing ? this.localCmdbRelationTag : cmdbRelation;
     const getResultContent = () => {
@@ -638,7 +638,7 @@ export default class BasicInfo extends tsc<{}> {
             {this.isEditing && (
               <p class='form-item-tips'>
                 {this.$t(
-                  '默认会进行自动识别，如果识别错误或者未识别到可以手动进行关联，关联后可以查看对应的主机和进程信息。'
+                  '默认会进行自动识别，如果识别错误或者未识别到可以手动进行关联，关联后可以查看对应的主机和进程信息。',
                 )}
               </p>
             )}
@@ -665,8 +665,8 @@ export default class BasicInfo extends tsc<{}> {
                       {...{
                         props: {
                           model: this.localRelationInfo,
-                          rules: this.rules
-                        }
+                          rules: this.rules,
+                        },
                       }}
                     >
                       {this.localRelationInfo.logType === 'bk_log' ? (
@@ -761,8 +761,8 @@ export default class BasicInfo extends tsc<{}> {
                       {...{
                         props: {
                           model: this.localRelationInfo,
-                          rules: this.rules
-                        }
+                          rules: this.rules,
+                        },
                       }}
                     >
                       <bk-form-item property='appId'>
@@ -803,7 +803,7 @@ export default class BasicInfo extends tsc<{}> {
             {this.isEditing && (
               <p class='form-item-tips'>
                 {this.$t(
-                  '当某个服务关联另外一个应用，关联后可以从当前服务跳转到下一个应用，实现在不同的应用拓扑进行问题的定位。'
+                  '当某个服务关联另外一个应用，关联后可以从当前服务跳转到下一个应用，实现在不同的应用拓扑进行问题的定位。',
                 )}
               </p>
             )}
@@ -819,17 +819,17 @@ export default class BasicInfo extends tsc<{}> {
           >
             <div>
               {this.$t(
-                'Apdex（Application Performance Index）是由 Apdex 联盟开发的用于评估应用性能的工业标准。Apdex 标准从用户的角度出发，将对应用响应时间的表现，转为用户对于应用性能的可量化范围为 0-1 的满意度评价。'
+                'Apdex（Application Performance Index）是由 Apdex 联盟开发的用于评估应用性能的工业标准。Apdex 标准从用户的角度出发，将对应用响应时间的表现，转为用户对于应用性能的可量化范围为 0-1 的满意度评价。',
               )}
             </div>
             <div>
               {this.$t(
-                'Apdex 定义了应用响应时间的最优门槛为 T（即 Apdex 阈值，T 由性能评估人员根据预期性能要求确定），根据应用响应时间结合 T 定义了三种不同的性能表现：'
+                'Apdex 定义了应用响应时间的最优门槛为 T（即 Apdex 阈值，T 由性能评估人员根据预期性能要求确定），根据应用响应时间结合 T 定义了三种不同的性能表现：',
               )}
             </div>
             <div class='indentation-text'>{`● Satisfied ${this.$t('（满意）- 应用响应时间低于或等于')} T`}</div>
             <div class='indentation-text'>{`● Tolerating ${this.$t(
-              '（可容忍）- 应用响应时间大于 T，但同时小于或等于'
+              '（可容忍）- 应用响应时间大于 T，但同时小于或等于',
             )} 4T`}</div>
             <div class='indentation-text'>{`● Frustrated ${this.$t('（烦躁期）- 应用响应时间大于')} 4T`}</div>
           </div>
@@ -844,8 +844,8 @@ export default class BasicInfo extends tsc<{}> {
                       {...{
                         props: {
                           model: this.localRelationInfo,
-                          rules: this.rules
-                        }
+                          rules: this.rules,
+                        },
                       }}
                     >
                       <bk-form-item property='apdex'>
@@ -886,7 +886,7 @@ export default class BasicInfo extends tsc<{}> {
             style='position:relative'
           >
             {this.$t(
-              '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html'
+              '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html',
             )}
           </div>
           <div
@@ -895,11 +895,11 @@ export default class BasicInfo extends tsc<{}> {
           >
             <div class='header-tool'>
               <label>{this.$t('URI源')}</label>
-              {/* eslint-disable-next-line @typescript-eslint/no-misused-promises */}
+              {}
               <span
                 class='right-btn-wrap'
                 slot='headerTool'
-                onClick={() => this.getUriSourceData()}
+                onClick={this.getUriSourceData}
               >
                 <i class='icon-monitor icon-shuaxin'></i>
                 {this.$t('button-刷新')}

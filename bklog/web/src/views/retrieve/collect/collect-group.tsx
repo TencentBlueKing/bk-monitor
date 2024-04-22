@@ -25,6 +25,7 @@ import { Component, Prop, Inject } from 'vue-property-decorator';
 import { utcFormatDate } from '../../../common/util';
 import GroupDropdown from './component/group-dropdown';
 import { IGroupItem, IFavoriteItem } from './collect-index';
+import { Popover } from 'bk-magic-vue';
 import './collect-group.scss';
 
 interface ICollectProps {
@@ -54,7 +55,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
     setTimeout(() => {
       this.clickDrop = false;
     }, 100);
-    if (!item.is_active || this.clickDrop) return;
+    if (this.isCannotClickFavorite(item) || this.clickDrop) return;
     this.handleUserOperate('click-favorite', item);
   }
   handleHoverTitle(type: boolean) {
@@ -83,6 +84,21 @@ export default class CollectGroup extends tsc<ICollectProps> {
       });
       this.favoriteMessageInstance.show(500);
     }
+  }
+
+  /** 是否是多索引集 */
+  isMultiIndex(item) {
+    return item.index_set_type === 'union';
+  }
+
+  /** 是否展示失效 */
+  isFailFavorite(item) {
+    return item.index_set_type === 'single' ? !item.is_active : !item.is_actives.every(Boolean);
+  }
+
+  /** 判断是否不能点击收藏 */
+  isCannotClickFavorite(item) {
+    return item.index_set_type === 'single' ? !item.is_active : item.is_actives.some(active => !active);
   }
 
   render() {
@@ -135,7 +151,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
               key={index}
               class={{
                 'group-item': true,
-                'is-disabled': !item.is_active,
+                'is-disabled': this.isFailFavorite(item),
                 active: item.id === this.activeFavoriteID
               }}
               onClick={() => this.handleClickCollect(item)}
@@ -151,9 +167,43 @@ export default class CollectGroup extends tsc<ICollectProps> {
                   onMouseenter={e => this.handleHoverFavoriteName(e, item)}
                 >
                   <span>{item.name}</span>
-                  {!item.is_active ? (
-                    <span v-bk-tooltips={{ content: this.$t('数据源不存在'), placement: 'right' }}>
+                  {this.isFailFavorite(item) ? (
+                    <Popover
+                      theme='light'
+                      placement='bottom'
+                      ext-cls='favorite-data-source'
+                    >
                       <span class='bk-icon log-icon icon-shixiao'></span>
+                      <div slot='content'>
+                        {this.isMultiIndex(item) ? (
+                          <ul>
+                            {item.index_set_names.map((setItem, setIndex) => (
+                              <li
+                                class={{
+                                  'index-fail': !item.is_actives[setIndex]
+                                }}
+                              >
+                                <span>
+                                  <span>{setItem}</span>
+                                  {!item.is_actives[setIndex] ? <span>({this.$t('已失效')})</span> : undefined}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p>{this.$t('数据源不存在')}</p>
+                        )}
+                      </div>
+                    </Popover>
+                  ) : undefined}
+                  {this.isMultiIndex(item) ? (
+                    <span
+                      v-bk-tooltips={{
+                        content: this.$t('多索引集'),
+                        placement: 'right'
+                      }}
+                    >
+                      <span class='bk-icon icon-panels'></span>
                     </span>
                   ) : undefined}
                 </div>

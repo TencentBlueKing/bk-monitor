@@ -80,7 +80,7 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
                 }
                 onChange={(v: string) => this.handleInputChange(v, index)}
               ></bk-input>
-            </div>
+            </div>,
           ])
         ) : (
           <span class='empty'>{this.$t('当前无需填写变量')}</span>

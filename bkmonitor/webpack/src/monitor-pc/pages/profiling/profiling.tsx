@@ -32,7 +32,7 @@ import './profiling.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class Profiling extends tsc<{}> {
+export default class Profiling extends tsc<object> {
   @Prop() a: number;
   get profilingHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
@@ -45,7 +45,7 @@ export default class Profiling extends tsc<{}> {
   get profilingData() {
     return JSON.stringify({
       host: this.profilingHost,
-      baseroute: '/trace/'
+      baseroute: '/trace/',
     });
   }
   mounted() {

@@ -19,10 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import ugettext_lazy as _
+
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
 from config.domains import USER_MANAGE_APIGATEWAY_ROOT
-from django.utils.translation import ugettext_lazy as _
 
 
 def get_all_user_before(params):
@@ -62,6 +63,12 @@ class _BKLoginApi:
             description="获取单个用户",
             before_request=get_user_before,
             after_request=get_user_after,
+        )
+        self.list_department_profiles = DataAPI(
+            method="GET",
+            url=USER_MANAGE_APIGATEWAY_ROOT + "list_profile_departments/",
+            module=self.MODULE,
+            description="查询用户的部门信息 (v2)",
         )
 
 

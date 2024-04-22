@@ -39,7 +39,7 @@ const COLORS_LIST: Array<[string, string]> = [
   ['#85CCA8', '#E7F5EE'],
   ['#D66F6B', '#F7E2E1'],
   ['#FFEC50', '#FFF9CA'],
-  ['#D85FEB', '#F7DFFB']
+  ['#D85FEB', '#F7DFFB'],
 ];
 interface IEvents {
   onCancel: void;
@@ -99,7 +99,7 @@ export default class CalendarAddInput extends tsc<{}, IEvents> {
     const params = {
       name: this.inputText,
       deep_color: colors[0],
-      light_color: colors[1]
+      light_color: colors[1],
     };
     this.loading = true;
     const res = await saveCalendar(params)

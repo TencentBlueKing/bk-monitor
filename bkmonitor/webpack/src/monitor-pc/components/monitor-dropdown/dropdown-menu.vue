@@ -36,8 +36,8 @@
         @click="handleTirrger"
       >
         <div
-          :class="['trigger-name', { 'refresh-name': isRefleshInterval }]"
           v-bk-tooltips="{ content: $t('自动刷新设置'), placement: 'bottom' }"
+          :class="['trigger-name', { 'refresh-name': isRefleshInterval }]"
         >
           <i
             v-if="icon"
@@ -46,26 +46,25 @@
           <span
             v-if="iconTitle"
             class="icon-title"
-          >{{iconTitle}}</span>
+          >
+            {{ iconTitle }}
+          </span>
           <span
-            :class="['trigger-text', { 'text-active': textActive }]"
             v-if="showName"
+            :class="['trigger-text', { 'text-active': textActive }]"
           >
             {{ currentActive.name }}
           </span>
         </div>
         <i
           v-if="!isRefleshInterval && !readonly"
-          :class="[
-            'bk-icon icon-angle-down',
-            { 'icon-flip': isDropdownShow }
-          ]"
+          :class="['bk-icon icon-angle-down', { 'icon-flip': isDropdownShow }]"
         />
         <i
           v-if="isRefleshInterval"
+          v-bk-tooltips="{ content: $t('刷新'), placement: 'bottom' }"
           class="icon-monitor icon-mc-alarm-recovered"
           @click.stop="$emit('on-icon-click')"
-          v-bk-tooltips="{ content: $t('刷新'), placement: 'bottom' }"
         />
       </div>
     </template>
@@ -100,8 +99,8 @@ export default class DropDownMenu extends Vue {
   @Prop({ default: false }) readonly readonly: boolean;
   @Prop({ default: false }) readonly isRefleshInterval: boolean;
 
-  private isDropdownShow = false;
-  private active: string | number = '';
+  isDropdownShow = false;
+  active: string | number = '';
 
   get currentActive() {
     if (this.list.length && this.active) {
@@ -166,7 +165,7 @@ export default class DropDownMenu extends Vue {
   .bk-dropdown-menu.disabled * {
     color: #63656e;
     cursor: inherit;
-    background-color: rgba(0,0,0,0) !important;
+    background-color: rgba(0, 0, 0, 0) !important;
     border-color: none !important;
   }
 }

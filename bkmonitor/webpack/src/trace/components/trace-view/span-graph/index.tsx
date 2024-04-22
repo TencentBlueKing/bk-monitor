@@ -47,13 +47,13 @@ const TIMELINE_TICK_INTERVAL = 4;
 
 const SpanGraphProps = {
   height: {
-    type: Number
+    type: Number,
   },
   viewRange: {
-    type: Object as PropType<IViewRange>
+    type: Object as PropType<IViewRange>,
   },
   updateViewRangeTime: Function as PropType<TUpdateViewRangeTimeFunction>,
-  updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>
+  updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>,
 };
 
 export default defineComponent({
@@ -67,19 +67,19 @@ export default defineComponent({
     const items = computed(() =>
       (spans.value || []).map(item => ({
         valueOffset: item.relativeStartTime,
-        // eslint-disable-next-line max-len
+
         valueWidth:
           item.group_info && item.group_info.id === item.span_id && !item.is_expand
             ? item.group_info.duration
             : item.duration,
         serviceName: item.process.serviceName,
         color: item.color,
-        isVirtual: item.is_virtual
-      }))
+        isVirtual: item.is_virtual,
+      })),
     );
     return {
       items,
-      trace
+      trace,
     };
   },
 
@@ -111,5 +111,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

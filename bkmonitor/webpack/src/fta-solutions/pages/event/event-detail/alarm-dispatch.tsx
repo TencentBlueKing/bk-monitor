@@ -57,7 +57,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
   errorMsg = {
     reason: '',
     users: '',
-    notice: ''
+    notice: '',
   };
 
   get bkUrl() {
@@ -107,12 +107,12 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
         alert_ids: this.alertIds,
         appointees: this.users,
         reason: this.reason,
-        notice_ways: this.noticeWay
+        notice_ways: this.noticeWay,
       }).catch(() => null);
       if (data) {
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('分派成功')
+          message: this.$t('分派成功'),
         });
         this.handleCancel();
         this.handleSuccess();
@@ -125,7 +125,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
   handleSuccess() {
     return {
       ids: this.alertIds,
-      users: this.users
+      users: this.users,
     };
   }
 
@@ -149,7 +149,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
     this.errorMsg = {
       reason: '',
       users: '',
-      notice: ''
+      notice: '',
     };
   }
 

@@ -88,4 +88,5 @@ class TopoNodeFuller(Fuller):
             bk_topo_node = list({node.id for node in chain(*list(host.topo_link.values()))})
         dimensions["bk_topo_node"] = bk_topo_node
         if "bk_host_id" not in dimensions:
+            # 主机对象获取到后，必定补上bk_host_id。 后续模块基于bk_host_id即可确认唯一主机
             dimensions["bk_host_id"] = host.bk_host_id

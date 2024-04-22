@@ -27,8 +27,8 @@ export const allRouteConfig = [
   {
     id: 'home',
     name: 'route-首页',
-    route: 'home'
-  }
+    route: 'home',
+  },
 ];
 
 export const createRouteConfig = () => allRouteConfig;

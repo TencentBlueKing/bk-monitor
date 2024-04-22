@@ -43,7 +43,7 @@ export enum EStatusMap {
   NO_DATA = 'noData', // 无数据
   DISABLED = 'terminated', // 已停用
   REMOVE_SOON = 'willBeRemoved', // 将下架
-  REMOVED = 'removed' // 已下架
+  REMOVED = 'removed', // 已下架
 }
 export const bgColorMap: MapType<string> = {
   notInstalled: '', // 未安装
@@ -52,7 +52,7 @@ export const bgColorMap: MapType<string> = {
   noData: '#FF5656', // 无数据
   terminated: '#979BA4', // 已停用
   willBeRemoved: '#FF9C04', // 将下架
-  removed: '#DCDEE6' // 已下架
+  removed: '#DCDEE6', // 已下架
 };
 
 export const fontColorMap: MapType<string> = {
@@ -62,7 +62,7 @@ export const fontColorMap: MapType<string> = {
   noData: '#FF5656', // 无数据
   terminated: '#989AA5', // 已停用
   willBeRemoved: '#FF9C00', // 将下架
-  removed: '#969BA5' // 已下架
+  removed: '#969BA5', // 已下架
 };
 
 export const textMap: MapType<string> = {
@@ -72,7 +72,7 @@ export const textMap: MapType<string> = {
   noData: i18n.t('无数据'),
   terminated: i18n.t('已停用'),
   willBeRemoved: i18n.t('将下架'),
-  removed: i18n.t('已下架')
+  removed: i18n.t('已下架'),
 };
 
 export interface ITabListItem {
@@ -84,7 +84,7 @@ export interface ITabListItem {
 export enum EPluginType {
   pull = 'http_pull',
   push = 'http_push',
-  email = 'email_pull'
+  email = 'email_pull',
 }
 export type TPluginType = 'http_pull' | 'http_push' | 'email_pull';
 

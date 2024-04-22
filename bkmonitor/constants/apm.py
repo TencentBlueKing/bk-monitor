@@ -148,6 +148,27 @@ class SpanStandardField:
     COMMON_STANDARD_FIELDS = [
         StandardField(
             OtlpKey.ATTRIBUTES,
+            SpanAttributes.HTTP_HOST,
+            _("HTTP Host"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.HTTP,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
+            SpanAttributes.HTTP_URL,
+            _("HTTP URL"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.HTTP,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
+            "server.address",
+            _("服务地址"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.HTTP,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
             SpanAttributes.HTTP_SCHEME,
             _("HTTP协议"),
             StandardFieldDisplayLevel.ADVANCES,
@@ -220,6 +241,20 @@ class SpanStandardField:
             OtlpKey.ATTRIBUTES,
             SpanAttributes.DB_SYSTEM,
             _("数据库类型"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.DB,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
+            SpanAttributes.DB_STATEMENT,
+            _("数据库语句"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.DB,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
+            "db.instance",
+            _("数据库实例ID"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.DB,
         ),
@@ -322,7 +357,14 @@ class SpanStandardField:
             StandardFieldCategory.BASE,
         ),
         StandardField(
-            OtlpKey.RESOURCE, "net.host.ip", _("主机IP"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
+            OtlpKey.RESOURCE,
+            "net.host.ip",
+            _("主机IP(net.host.ip)"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+        ),
+        StandardField(
+            OtlpKey.RESOURCE, "host.ip", _("主机IP(host.ip)"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
         ),
         StandardField(
             OtlpKey.RESOURCE, "net.host.port", _("主机端口"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE

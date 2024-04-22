@@ -35,7 +35,7 @@ import './event-view.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class EventView extends tsc<{}> {
+export default class EventView extends tsc<object> {
   @Prop({ type: [String, Number], default: '' }) id: string;
 
   viewOptions: IViewOptions = {};
@@ -49,8 +49,8 @@ export default class EventView extends tsc<{}> {
     {
       id: 'source-manage',
       name: this.$t('数据源管理') as string,
-      show: true
-    }
+      show: true,
+    },
   ];
 
   handleMenuSelect({ id }) {
@@ -59,8 +59,8 @@ export default class EventView extends tsc<{}> {
         name: 'custom-detail-event',
         params: {
           id: this.$route.params.id || '',
-          type: 'customEvent'
-        }
+          type: 'customEvent',
+        },
       });
     }
   }
@@ -75,8 +75,8 @@ export default class EventView extends tsc<{}> {
         {
           id: '',
           name: '',
-          subName: ''
-        }
+          subName: '',
+        },
       ];
       // vm.routeList[1].name = to.query.name || '';
       vm.viewOptions = {};

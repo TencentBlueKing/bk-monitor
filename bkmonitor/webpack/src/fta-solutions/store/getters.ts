@@ -33,6 +33,6 @@ const getters = {
   siteUrl: (state: IRootState) => state.app.siteUrl,
   bkUrl: (state: IRootState) => state.app.bkUrl,
   navRouteList: (state: IRootState) => state.app.navRouteList,
-  lang: (state: IRootState) => state.app.lang
+  lang: (state: IRootState) => state.app.lang,
 };
 export default getters;

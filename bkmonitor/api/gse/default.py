@@ -73,6 +73,10 @@ class AddStreamTo(GseBaseResource):
                 storage_address = serializers.ListField(
                     required=True, label="kafka的地址和端口配置", child=StorageAddressSerializer()
                 )
+                sasl_username = serializers.CharField(required=False, label="kafka的用户名", allow_blank=True)
+                sasl_passwd = serializers.CharField(required=False, label="kafka的密码", allow_blank=True)
+                sasl_mechanisms = serializers.CharField(required=False, label="kafka的SASL机制", allow_blank=True)
+                security_protocol = serializers.CharField(required=False, label="kafka的SASL协议", allow_blank=True)
 
             class RedisSerializer(serializers.Serializer):
                 storage_address = serializers.ListField(
@@ -130,6 +134,10 @@ class UpdateStreamTo(GseBaseResource):
                     storage_address = serializers.ListField(
                         required=True, label="kafka的地址和端口配置", child=StorageAddressSerializer()
                     )
+                    sasl_username = serializers.CharField(required=False, label="kafka的用户名", allow_blank=True)
+                    sasl_passwd = serializers.CharField(required=False, label="kafka的密码", allow_blank=True)
+                    sasl_mechanisms = serializers.CharField(required=False, label="kafka的SASL机制", allow_blank=True)
+                    security_protocol = serializers.CharField(required=False, label="kafka的SASL协议", allow_blank=True)
 
                 class RedisSerializer(serializers.Serializer):
                     storage_address = serializers.ListField(

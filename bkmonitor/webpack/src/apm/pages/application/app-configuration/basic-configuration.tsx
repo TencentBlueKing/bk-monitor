@@ -35,7 +35,7 @@ import {
   samplingOptions,
   setup,
   start,
-  stop
+  stop,
 } from 'monitor-api/modules/apm_meta';
 import { getFieldOptionValues } from 'monitor-api/modules/apm_trace';
 import { deepClone, typeTools } from 'monitor-common/utils/utils';
@@ -65,7 +65,7 @@ const TIME_CONDITION_METHOD_LIST = [
   { id: 'gt', name: '>' },
   { id: 'gte', name: '>=' },
   { id: 'lt', name: '<' },
-  { id: 'lte', name: '<=' }
+  { id: 'lte', name: '<=' },
 ];
 const STRING_CONDITION_METHOD_LIST = [
   { id: 'eq', name: '=' },
@@ -75,12 +75,12 @@ const STRING_CONDITION_METHOD_LIST = [
   { id: 'lte', name: '<=' },
   { id: 'neq', name: '!=' },
   { id: 'reg', name: 'regex' },
-  { id: 'nreg', name: 'nregex' }
+  { id: 'nreg', name: 'nregex' },
 ];
 const nullOptions = {
   // 下拉选项第一为空值
   id: '',
-  name: `- ${window.i18n.tc('空')} -`
+  name: `- ${window.i18n.tc('空')} -`,
 };
 interface IProps {
   appInfo: IAppInfo;
@@ -132,7 +132,7 @@ export default class BasicInfo extends tsc<IProps> {
     show: boolean;
   } = {
     show: false,
-    data: {}
+    data: {},
   };
   formData: IFormData = {
     app_alias: '', // 别名
@@ -153,57 +153,57 @@ export default class BasicInfo extends tsc<IProps> {
       target_node_type: 'INSTANCE',
       target_object_type: 'HOST',
       bk_data_id: '',
-      bk_biz_id: window.bk_biz_id
-    }
+      bk_biz_id: window.bk_biz_id,
+    },
   };
   rules = {
     app_alias: [
       {
         required: true,
         message: window.i18n.tc('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     sampler_percentage: [
       {
         required: true,
         message: window.i18n.tc('必填项'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: val => /^(?:0|[1-9][0-9]?|100)(\.[0-9]{0,2})?$/.test(val),
         message: window.i18n.t('仅支持0-100的数字'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     sampler_type: [
       {
         required: true,
         message: window.i18n.tc('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     'plugin_config.target_nodes': [
       {
         validator: (val: []) => val?.length,
         message: window.i18n.tc('必填项'),
-        trigger: 'change'
-      }
+        trigger: 'change',
+      },
     ],
     'plugin_config.paths': [
       {
         validator: (val: []) => val.every(item => !!item),
         message: window.i18n.tc('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     'plugin_config.data_encoding': [
       {
         required: true,
         message: window.i18n.tc('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
   apdexOptionList = [
     { id: 'apdex_default', name: window.i18n.tc('默认') },
@@ -211,45 +211,45 @@ export default class BasicInfo extends tsc<IProps> {
     { id: 'apdex_rpc', name: window.i18n.tc('远程调用') },
     { id: 'apdex_db', name: window.i18n.tc('数据库') },
     { id: 'apdex_messaging', name: window.i18n.tc('消息队列') },
-    { id: 'apdex_backend', name: window.i18n.tc('后台任务') }
+    { id: 'apdex_backend', name: window.i18n.tc('后台任务') },
   ];
   samplingTypeList = [
     { id: 'random', name: window.i18n.tc('随机') },
     { id: 'tail', name: window.i18n.tc('尾部采样') },
-    { id: 'empty', name: window.i18n.tc('不采样') }
+    { id: 'empty', name: window.i18n.tc('不采样') },
   ];
   samplingTypeMaps = {
     random: window.i18n.tc('随机'),
     tail: window.i18n.tc('尾部采样'),
-    empty: window.i18n.tc('不采样')
+    empty: window.i18n.tc('不采样'),
   };
   localInstanceList: IInstanceOption[] = [];
   dimessionList = [
     { name: 'kind', alias: '类型' },
     { name: 'status_code', alias: '状态码' },
-    { name: 'service_name', alias: '服务名' }
+    { name: 'service_name', alias: '服务名' },
   ];
   /** 拖拽数据 */
   dragData: { from: number; to: number } = {
     from: null,
-    to: null
+    to: null,
   };
   drag = {
-    active: -1
+    active: -1,
   };
   /** 是否显示实例选择框 */
   showInstanceSelector = false;
   /** 实例配置选项列表 */
   instanceOptionList: IInstanceOption[] = [];
   selectorDialog: { isShow: boolean } = {
-    isShow: false
+    isShow: false,
   };
 
   selectedTargetTips = {
     INSTANCE: '已选择{0}个静态主机',
     TOPO: '已动态选择{0}个节点',
     SERVICE_TEMPLATE: '已选择{0}个服务模板',
-    SET_TEMPLATE: '已选择{0}个集群模板'
+    SET_TEMPLATE: '已选择{0}个集群模板',
   };
 
   logAsciiList = [];
@@ -257,10 +257,9 @@ export default class BasicInfo extends tsc<IProps> {
 
   pluginIdMapping = {
     log_trace: 'Logs to Traces',
-    opentelemetry: 'OpenTelemetry'
+    opentelemetry: 'OpenTelemetry',
   };
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   DBTypeRules = [
     // {
     //   trace_mode: [
@@ -290,7 +289,7 @@ export default class BasicInfo extends tsc<IProps> {
   traceModeMapping = {
     closed: '不储存',
     no_parameters: '无参数命令',
-    origin: '原始命令'
+    origin: '原始命令',
   };
 
   samplingRules: ISamplingRule[] = [];
@@ -349,9 +348,9 @@ export default class BasicInfo extends tsc<IProps> {
           }
           return {
             ...item,
-            value: item.type === 'time' ? Number(item.value[0] / Math.pow(10, 6)) : item.value
+            value: item.type === 'time' ? Number(item.value[0] / Math.pow(10, 6)) : item.value,
           };
-        })
+        }),
       );
       this.handleConditionChange();
     }
@@ -369,23 +368,23 @@ export default class BasicInfo extends tsc<IProps> {
           {
             required: true,
             message: '必填项',
-            trigger: 'change'
-          }
+            trigger: 'change',
+          },
         ],
         threshold: [
           {
             required: item.enabled_slow_sql,
             message: '必填项',
-            trigger: 'blur'
-          }
+            trigger: 'blur',
+          },
         ],
         length: [
           {
             required: true,
             message: '必填项',
-            trigger: 'blur'
-          }
-        ]
+            trigger: 'blur',
+          },
+        ],
       };
     });
     this.getInstanceOptions();
@@ -394,13 +393,13 @@ export default class BasicInfo extends tsc<IProps> {
         {
           required: true,
           message: window.i18n.tc('必填项'),
-          trigger: 'blur'
+          trigger: 'blur',
         },
         {
           validator: val => /^[0-9]*$/.test(val),
           message: window.i18n.t('仅支持数字'),
-          trigger: 'blur'
-        }
+          trigger: 'blur',
+        },
       ];
     });
     this.getSamplingOptions();
@@ -444,7 +443,7 @@ export default class BasicInfo extends tsc<IProps> {
       this.$bkInfo({
         title: val ? this.$t('你确认要停用？') : this.$t('你确认要启用？'),
         confirmLoading: true,
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         confirmFn: async () => {
           const api = val ? stop : start;
           const isPass = await api({ application_id: applicationId, type: eventType })
@@ -457,7 +456,7 @@ export default class BasicInfo extends tsc<IProps> {
         },
         cancelFn: () => {
           reject();
-        }
+        },
       });
     });
   }
@@ -469,12 +468,12 @@ export default class BasicInfo extends tsc<IProps> {
       const { app_alias: appAlias, description, plugin_config, application_sampler_config } = this.appInfo;
       const apdexConfig = this.appInfo.application_apdex_config || {};
       const samplerConfig = Object.assign({}, application_sampler_config, {
-        sampler_percentage: application_sampler_config.sampler_percentage || 0
+        sampler_percentage: application_sampler_config.sampler_percentage || 0,
       });
       Object.assign(this.formData, apdexConfig, samplerConfig, {
         app_alias: appAlias,
         description,
-        plugin_config
+        plugin_config,
       });
     }
     if (!isSubmit) {
@@ -488,7 +487,7 @@ export default class BasicInfo extends tsc<IProps> {
    */
   handleDragStart(evt: DragEvent, index: number) {
     this.dragData.from = index;
-    // eslint-disable-next-line no-param-reassign
+
     evt.dataTransfer.effectAllowed = 'move';
   }
 
@@ -561,7 +560,7 @@ export default class BasicInfo extends tsc<IProps> {
       description,
       sampler_type: samplerType,
       sampler_percentage: samplerPercentage,
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       plugin_config,
       ...apdexConfig
     } = this.formData;
@@ -573,14 +572,14 @@ export default class BasicInfo extends tsc<IProps> {
       app_alias: appAlias,
       description,
       application_sampler_config: {
-        sampler_type: samplerType
+        sampler_type: samplerType,
       },
       application_apdex_config: apdexConfig,
       application_instance_name_config: {
-        instance_name_composition: instanceList
+        instance_name_composition: instanceList,
       },
       application_db_config: this.appInfo.application_db_config,
-      application_db_system: this.appInfo.application_db_system
+      application_db_system: this.appInfo.application_db_system,
     };
 
     // 处理采样配置
@@ -590,7 +589,6 @@ export default class BasicInfo extends tsc<IProps> {
       params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
       params.application_sampler_config.tail_conditions = this.samplingRules
         .map(item => {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           const { key_alias, type, ...rest } = item;
           // 时间类型输入组件默认单位为秒 后端传参要求单位为纳秒
           return { ...rest, value: type === 'time' ? [String(rest.value * Math.pow(10, 6))] : rest.value };
@@ -625,7 +623,7 @@ export default class BasicInfo extends tsc<IProps> {
         if (!this.localInstanceList.length) {
           this.$bkMessage({
             message: this.$t('实例配置不能为空'),
-            theme: 'error'
+            theme: 'error',
           });
           return;
         }
@@ -636,7 +634,7 @@ export default class BasicInfo extends tsc<IProps> {
           .then(async () => {
             this.$bkMessage({
               message: this.$t('保存成功'),
-              theme: 'success'
+              theme: 'success',
             });
             await this.handleBaseInfoChange();
             this.handleEditClick(false, true);
@@ -656,30 +654,30 @@ export default class BasicInfo extends tsc<IProps> {
       trace_mode: 'closed',
       length: 10,
       threshold: 500,
-      enabled_slow_sql: true
+      enabled_slow_sql: true,
     });
     this.DBTypeRules.push({
       trace_mode: [
         {
           required: true,
           message: '必填项',
-          trigger: 'change'
-        }
+          trigger: 'change',
+        },
       ],
       threshold: [
         {
           required: true,
           message: '必填项',
-          trigger: 'blur'
-        }
+          trigger: 'blur',
+        },
       ],
       length: [
         {
           required: true,
           message: '必填项',
-          trigger: 'blur'
-        }
-      ]
+          trigger: 'blur',
+        },
+      ],
     });
   }
 
@@ -692,7 +690,7 @@ export default class BasicInfo extends tsc<IProps> {
     // TODO: 将数据拍平，不知道最后是否用得着
     const value = transformValueToMonitor(data.value, data.nodeType);
     this.formData.plugin_config.target_nodes = value.map(item => ({
-      bk_host_id: item.bk_host_id
+      bk_host_id: item.bk_host_id,
     }));
     // 这里利用 nodeType 控制显示哪种类型的提示文本。
     this.formData.plugin_config.target_node_type = data.nodeType;
@@ -750,7 +748,7 @@ export default class BasicInfo extends tsc<IProps> {
       this.samplingRuleOptions = (data?.tail_sampling_options || []).map(item => {
         return {
           id: item.key,
-          ...item
+          ...item,
         };
       });
     });
@@ -763,7 +761,7 @@ export default class BasicInfo extends tsc<IProps> {
       start_time: dayjs().add(-1, 'h').unix(),
       end_time: dayjs().unix(),
       bk_biz_id: window.bk_biz_id,
-      fields: [keyId]
+      fields: [keyId],
       // mode: 'span' // TODO
     };
     const data = await getFieldOptionValues(params).catch(() => []);
@@ -883,9 +881,9 @@ export default class BasicInfo extends tsc<IProps> {
         method: '',
         value: [],
         key_alias: '',
-        type: ''
+        type: '',
       },
-      condition ? { condition } : {}
+      condition ? { condition } : {},
     );
   }
 
@@ -987,7 +985,6 @@ export default class BasicInfo extends tsc<IProps> {
                       formType='password'
                       showEditable={false}
                       authority={this.authority.MANAGE_AUTH}
-                      // eslint-disable-next-line @typescript-eslint/no-misused-promises
                       updateValue={() => this.handleUpdateValue()}
                     />
                   </div>,
@@ -1004,8 +1001,8 @@ export default class BasicInfo extends tsc<IProps> {
                     {...{
                       props: {
                         model: this.formData,
-                        rules: this.rules
-                      }
+                        rules: this.rules,
+                      },
                     }}
                     label-width={116}
                     ref='editInfoForm'
@@ -1074,7 +1071,7 @@ export default class BasicInfo extends tsc<IProps> {
                         </bk-checkbox>
                       </bk-form-item>
                     </div>
-                  </bk-form>
+                  </bk-form>,
                 ]
               : [
                   <div class='item-row'>
@@ -1106,7 +1103,6 @@ export default class BasicInfo extends tsc<IProps> {
                       formType='password'
                       showEditable={false}
                       authority={this.authority.MANAGE_AUTH}
-                      // eslint-disable-next-line @typescript-eslint/no-misused-promises
                       updateValue={() => this.handleUpdateValue()}
                     />
                   </div>,
@@ -1145,7 +1141,7 @@ export default class BasicInfo extends tsc<IProps> {
                       authorityName={authorityMap.MANAGE_AUTH}
                       showEditable={false}
                     />
-                  </div>
+                  </div>,
                 ]}
           </div>
         </PanelItem>
@@ -1162,8 +1158,8 @@ export default class BasicInfo extends tsc<IProps> {
                       {...{
                         props: {
                           model: this.formData,
-                          rules: this.rules
-                        }
+                          rules: this.rules,
+                        },
                       }}
                       label-width={116}
                       ref='editInfoForm'
@@ -1206,7 +1202,7 @@ export default class BasicInfo extends tsc<IProps> {
                                 display: 'flex',
                                 alignItems: 'center',
                                 marginBottom:
-                                  index > 0 && index < this.formData.plugin_config.paths.length - 1 && '20px'
+                                  index > 0 && index < this.formData.plugin_config.paths.length - 1 && '20px',
                               }}
                             >
                               <bk-input
@@ -1223,7 +1219,7 @@ export default class BasicInfo extends tsc<IProps> {
                                 class={{
                                   'log-path-icon': true,
                                   'log-path-icon-minus': true,
-                                  disabled: this.formData.plugin_config.paths.length <= 1
+                                  disabled: this.formData.plugin_config.paths.length <= 1,
                                 }}
                                 type='minus-circle-shape'
                                 onClick={() =>
@@ -1258,14 +1254,14 @@ export default class BasicInfo extends tsc<IProps> {
                           ))}
                         </bk-select>
                       </bk-form-item>
-                    </bk-form>
+                    </bk-form>,
                   ]
                 : [
                     <div class='item-row'>
                       <EditableFormItem
                         label={this.$t('采集目标')}
                         value={this.$t(this.selectedTargetTips[this.appInfo?.plugin_config?.target_node_type], [
-                          this.appInfo?.plugin_config?.target_nodes?.length || 0
+                          this.appInfo?.plugin_config?.target_nodes?.length || 0,
                         ])}
                         formType='input'
                         authority={this.authority.MANAGE_AUTH}
@@ -1292,7 +1288,7 @@ export default class BasicInfo extends tsc<IProps> {
                         authorityName={authorityMap.MANAGE_AUTH}
                         showEditable={false}
                       />
-                    </div>
+                    </div>,
                   ]}
               <div class='item-row'></div>
             </div>
@@ -1308,17 +1304,17 @@ export default class BasicInfo extends tsc<IProps> {
           >
             <div>
               {this.$t(
-                'Apdex（Application Performance Index）是由 Apdex 联盟开发的用于评估应用性能的工业标准。Apdex 标准从用户的角度出发，将对应用响应时间的表现，转为用户对于应用性能的可量化范围为 0-1 的满意度评价。'
+                'Apdex（Application Performance Index）是由 Apdex 联盟开发的用于评估应用性能的工业标准。Apdex 标准从用户的角度出发，将对应用响应时间的表现，转为用户对于应用性能的可量化范围为 0-1 的满意度评价。',
               )}
             </div>
             <div>
               {this.$t(
-                'Apdex 定义了应用响应时间的最优门槛为 T（即 Apdex 阈值，T 由性能评估人员根据预期性能要求确定），根据应用响应时间结合 T 定义了三种不同的性能表现：'
+                'Apdex 定义了应用响应时间的最优门槛为 T（即 Apdex 阈值，T 由性能评估人员根据预期性能要求确定），根据应用响应时间结合 T 定义了三种不同的性能表现：',
               )}
             </div>
             <div class='indentation-text'>{`● Satisfied ${this.$t('（满意）- 应用响应时间低于或等于')} T`}</div>
             <div class='indentation-text'>{`● Tolerating ${this.$t(
-              '（可容忍）- 应用响应时间大于 T，但同时小于或等于'
+              '（可容忍）- 应用响应时间大于 T，但同时小于或等于',
             )} 4T`}</div>
             <div class='indentation-text'>{`● Frustrated ${this.$t('（烦躁期）- 应用响应时间大于')} 4T`}</div>
           </div>
@@ -1329,8 +1325,8 @@ export default class BasicInfo extends tsc<IProps> {
                 {...{
                   props: {
                     model: this.formData,
-                    rules: this.rules
-                  }
+                    rules: this.rules,
+                  },
                 }}
                 label-width={116}
                 ref='editApdexForm'
@@ -1376,7 +1372,7 @@ export default class BasicInfo extends tsc<IProps> {
             style='position:relative'
           >
             {this.$t(
-              ' 根据应用的数据量情况进行设置，如果应用的trace数据量非常大，不仅影响程序的输出、网络的消耗，也需要更大的集群资源成本。 在这种情况下会考虑进行采集，注意错误的Span默认是会被采集不会被采样。'
+              ' 根据应用的数据量情况进行设置，如果应用的trace数据量非常大，不仅影响程序的输出、网络的消耗，也需要更大的集群资源成本。 在这种情况下会考虑进行采集，注意错误的Span默认是会被采集不会被采样。',
             )}
           </div>
           <div class='form-content'>
@@ -1386,8 +1382,8 @@ export default class BasicInfo extends tsc<IProps> {
                 {...{
                   props: {
                     model: this.formData,
-                    rules: this.rules
-                  }
+                    rules: this.rules,
+                  },
                 }}
                 label-width={116}
                 ref='editSamplerForm'
@@ -1475,7 +1471,7 @@ export default class BasicInfo extends tsc<IProps> {
                                 zIndex: 9999,
                                 disabled: !item.key,
                                 boundary: document.body,
-                                allowHTML: false
+                                allowHTML: false,
                               }}
                               onChange={v => this.handleRuleKeyChange(item, v, gIndex, index)}
                             >
@@ -1517,7 +1513,7 @@ export default class BasicInfo extends tsc<IProps> {
                                   ) : (
                                     <bk-tag-input
                                       key={`value-${gIndex}-${index}-${item.key}-${JSON.stringify(
-                                        this.samplingRuleValueMap[item.key] || []
+                                        this.samplingRuleValueMap[item.key] || [],
                                       )}`}
                                       class='condition-item-value'
                                       list={
@@ -1531,9 +1527,9 @@ export default class BasicInfo extends tsc<IProps> {
                                       // paste-fn={v => this.handlePaste(v, item)}
                                       on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
                                     ></bk-tag-input>
-                                  )
+                                  ),
                                 ]
-                              : undefined
+                              : undefined,
                           ])}
                           <span
                             class='condition-add'
@@ -1646,8 +1642,8 @@ export default class BasicInfo extends tsc<IProps> {
                           'instance-card',
                           {
                             'active-item': index === this.drag.active,
-                            'disabled-item': !this.isEditing
-                          }
+                            'disabled-item': !this.isEditing,
+                          },
                         ]}
                         key={instance.value}
                         draggable={this.isEditing}
@@ -1678,7 +1674,7 @@ export default class BasicInfo extends tsc<IProps> {
                     <div
                       class={[
                         'add-button',
-                        { 'is-disabled': this.instanceOptionList.length === this.localInstanceList.length }
+                        { 'is-disabled': this.instanceOptionList.length === this.localInstanceList.length },
                       ]}
                       onClick={() =>
                         this.instanceOptionList.length === this.localInstanceList.length
@@ -1688,7 +1684,7 @@ export default class BasicInfo extends tsc<IProps> {
                       v-bk-tooltips={{
                         content: this.$t('已经没有可用的维度'),
                         disabled: this.instanceOptionList.length !== this.localInstanceList.length,
-                        allowHTML: false
+                        allowHTML: false,
                       }}
                     >
                       <span class='icon-monitor icon-plus-line'></span>
@@ -1714,7 +1710,7 @@ export default class BasicInfo extends tsc<IProps> {
                               v-bk-tooltips={{
                                 content: this.$t('已经添加'),
                                 disabled: !this.localInstanceList.some(val => val.id === option.id),
-                                allowHTML: false
+                                allowHTML: false,
                               }}
                             >
                               <span class='instance-name'>{option.name}</span>
@@ -1769,8 +1765,8 @@ export default class BasicInfo extends tsc<IProps> {
                             <a
                               class={{
                                 'dropdown-list-item-disabled': !!this.appInfo.application_db_config.find(
-                                  option => s === option.db_system
-                                )
+                                  option => s === option.db_system,
+                                ),
                               }}
                               key={s}
                               href='javascript:;'
@@ -1792,7 +1788,7 @@ export default class BasicInfo extends tsc<IProps> {
                         <div
                           class={{
                             'title-bar': true,
-                            'is-not-default': index > 0
+                            'is-not-default': index > 0,
                           }}
                         >
                           <span class='text'>{card.db_system || this.$t('默认')}</span>
@@ -1812,8 +1808,8 @@ export default class BasicInfo extends tsc<IProps> {
                               {...{
                                 props: {
                                   model: card,
-                                  rules: this.DBTypeRules[index]
-                                }
+                                  rules: this.DBTypeRules[index],
+                                },
                               }}
                               ref={`cardForm${index}`}
                             >
@@ -1860,7 +1856,7 @@ export default class BasicInfo extends tsc<IProps> {
                                     onInput={() => {
                                       // 如果 card.threshold 为 falsy 值时，服务端的校验是不会通过的。（即使不启用慢语句时也是一样）
                                       // 这里手动判断一次，然后给予一个默认值。
-                                      // eslint-disable-next-line no-param-reassign
+
                                       if (!card.threshold) card.threshold = 0;
                                     }}
                                   ></bk-input>
@@ -1901,13 +1897,13 @@ export default class BasicInfo extends tsc<IProps> {
                     <div
                       class='db-config-card-preview-container'
                       style={{
-                        order: this.appInfo.application_db_config.length - index
+                        order: this.appInfo.application_db_config.length - index,
                       }}
                     >
                       <div
                         class={{
                           'db-config-card-preview-title': true,
-                          'is-default': index === 0
+                          'is-default': index === 0,
                         }}
                       >
                         {item.db_system || this.$t('默认')}

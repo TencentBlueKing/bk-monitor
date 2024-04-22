@@ -33,19 +33,19 @@ import './status-tab.scss';
 const IProps = {
   value: {
     type: String,
-    required: false
+    required: false,
   },
   needAll: {
     type: Boolean,
-    required: false
+    required: false,
   },
   statusList: {
-    type: Array as PropType<ITableFilterItem[]>
+    type: Array as PropType<ITableFilterItem[]>,
   },
   disabledClickZero: {
     type: Boolean,
-    required: false
-  }
+    required: false,
+  },
 };
 
 export default defineComponent({
@@ -57,14 +57,13 @@ export default defineComponent({
     const defaultList = [
       {
         id: 'all',
-        name: t('全部')
-      }
+        name: t('全部'),
+      },
     ];
 
-    // eslint-disable-next-line max-len
     const localStatusList = computed<ITableFilterItem[]>(() => [
       ...(props.needAll ? defaultList : []),
-      ...props.statusList
+      ...props.statusList,
     ]);
 
     /** 点击选中 */
@@ -77,7 +76,7 @@ export default defineComponent({
 
     return {
       handleClickItem,
-      localStatusList
+      localStatusList,
     };
   },
   render() {
@@ -111,5 +110,5 @@ export default defineComponent({
         ))}
       </div>
     );
-  }
+  },
 });
