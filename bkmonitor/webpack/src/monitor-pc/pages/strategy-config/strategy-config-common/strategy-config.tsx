@@ -2370,7 +2370,6 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
           <bk-table-column
             label={this.$t('操作')}
             width={this.$store.getters.lang === 'en' ? 220 : 150}
-            fixed='right'
             scopedSlots={operatorSlot}
             key='operator'
           ></bk-table-column>
