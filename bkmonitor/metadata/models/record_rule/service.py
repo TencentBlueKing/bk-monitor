@@ -10,11 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from django.db.transaction import atomic
 
-from metadata import config
+from metadata import config, models
+from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.models.record_rule.constants import DEFAULT_RULE_TYPE, RecordRuleStatus
 from metadata.models.record_rule.rules import RecordRule, ResultTableFlow
 from metadata.models.record_rule.utils import generate_table_id
@@ -51,10 +52,14 @@ class RecordRuleService:
         table_id = generate_table_id(self.space_type, self.space_id, self.record_name)
         dst_rt = RecordRule.get_dst_table_id(table_id)
         # 创建预计算配置
-        self._create_record_rule_record(table_id, bksql_metrics["bksql"], bksql_metrics["metrics"], src_rts, dst_rt)
+        self._create_record_rule_record(
+            table_id, bksql_metrics["bksql"], bksql_metrics["rule_metrics"], src_rts, dst_rt
+        )
+        # 创建结果表对应的指标
+        self._create_table_id_fields(table_id, bksql_metrics["rule_metrics"])
 
     def _create_record_rule_record(
-        self, table_id: str, bksql: List, rule_metrics: List, src_table_ids: List, dst_rt: str
+        self, table_id: str, bksql: List, rule_metrics: Dict, src_table_ids: List, dst_rt: str
     ):
         """创建预计算记录"""
         vm_info = vm_utils.get_vm_cluster_id_name(space_type=self.space_type, space_id=self.space_id)
@@ -78,6 +83,29 @@ class RecordRuleService:
         except Exception as e:
             logger.error("create record rule error: %s", e)
             raise
+
+    def _create_table_id_fields(self, table_id: str, metrics: List):
+        """创建rt的字段"""
+        objs = []
+        for metric in metrics:
+            objs.append(
+                {
+                    "table_id": table_id,
+                    "field_name": metric,
+                    "field_type": models.ResultTableField.FIELD_TYPE_STRING,
+                    "description": metric,
+                    "tag": models.ResultTableField.FIELD_TAG_METRIC,
+                }
+            )
+        models.ResultTableField.objects.bulk_create(objs, batch_size=BULK_CREATE_BATCH_SIZE)
+
+    def _create_vm_storage(self, table_id: str, vm_table_id: str):
+        """创建 vm 存储"""
+        models.AccessVMRecord.objects.create(
+            result_table_id=table_id,
+            bk_base_data_id=0,  # 没有具体的计算平台ID，设置为 0
+            vm_result_table_id=vm_table_id,
+        )
 
 
 class BkDataFlow:

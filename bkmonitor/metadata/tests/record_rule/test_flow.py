@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import pytest
 from django.conf import settings
 
-from metadata.models.record_rule.rules import ResultTableFlow
+from metadata.models.record_rule.rules import RecordRule, ResultTableFlow
 
 from .conftest import TABLE_ID
 
@@ -41,9 +41,31 @@ def test_compose_source_node():
 def test_compose_process_node(create_and_delete_record):
     node = ResultTableFlow.compose_process_node(TABLE_ID, [TABLE_ID])
 
-    print(node)
     assert type(node) == dict
     assert node["node_type"] == "promql_v2"
 
     assert node["outputs"][0]["bk_biz_id"] == settings.DEFAULT_BKDATA_BIZ_ID
     assert node["from_result_table_ids"] == [TABLE_ID]
+
+
+def test_compose_vm_storage(create_and_delete_record):
+    node = ResultTableFlow.compose_vm_storage(TABLE_ID, 4)
+
+    assert type(node) == dict
+    assert node["id"] == 5
+    assert node["node_type"] == "vm_storage"
+    assert node["from_result_table_ids"] == [RecordRule.get_dst_table_id(TABLE_ID)]
+
+
+def test_create_flow(create_and_delete_record, mocker):
+    flow_id = 3079
+    mocker.patch(
+        "core.drf_resource.api.bkdata.apply_data_flow",
+        return_value={"node_ids": [18263, 18264, 18265, 18266, 18267], "flow_id": 3079},
+    )
+    ResultTableFlow.create_flow(TABLE_ID)
+
+    # 校验数据
+    obj = ResultTableFlow.objects.filter(table_id=TABLE_ID).first()
+    assert obj is not None
+    assert obj.flow_id == flow_id

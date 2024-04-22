@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-import re
 from typing import Dict, List, Set, Union
 
 import yaml
@@ -42,7 +41,7 @@ class RecordRule(BaseModelWithTime):
     rule_type = models.CharField("规则类型", max_length=32, default=DEFAULT_RULE_TYPE)
     rule_config = JsonField("原始规则配置", null=True, blank=True)
     bk_sql_config = JsonField("转换后的SQL配置", null=True, blank=True)
-    rule_metrics = JsonField("转换后的指标信息", default=[])
+    rule_metrics = JsonField("指标转换信息", default={})
     src_vm_table_ids = JsonField("源数据VM结果表列表", default=[])
     vm_cluster_id = models.IntegerField("集群ID", null=True, blank=True)
     dst_vm_table_id = models.CharField("VM 结果表rt", max_length=64, help_text="VM 结果表rt")
@@ -64,23 +63,25 @@ class RecordRule(BaseModelWithTime):
         all_rule_record = [rule["record"] for rule in rules]
         # 如果没有设置interval，则使用默认值
         interval = rule_dict.get("interval") or DEFAULT_EVALUATION_INTERVAL
-        bksql_list, metrics, rule_metrics = [], set(), set()
+        bksql_list, metrics, rule_metrics = [], set(), {}
         for rule in rules:
             expr = rule.get("expr")
             if not expr:
                 continue
 
-            _expr = re.sub(r"#.*", "", expr)
-            sql_and_metrics = utils.refine_bk_sql_and_metrics(_expr, all_rule_record)
+            sql_and_metrics = utils.refine_bk_sql_and_metrics(expr, all_rule_record)
             rule_metric = utils.transform_record_to_metric_name(rule["record"])
-            rule_metrics.add(rule_metric)
-            bksql_list.append(
-                {
-                    "count_freq": parse_duration(interval),
-                    "sql": sql_and_metrics["promql"],
-                    "metric_name": rule_metric,
-                }
-            )
+            rule_metrics = {rule["record"]: rule_metric}
+
+            sql = {
+                "count_freq": parse_duration(interval),
+                "sql": sql_and_metrics["promql"],
+                "metric_name": rule_metric,
+            }
+            # 如果label存在追加label信息
+            if rule.get("labels"):
+                sql["label"] = rule["labels"]
+            bksql_list.append(sql)
             metrics.update(sql_and_metrics["metrics"])
         return {"bksql": bksql_list, "metrics": metrics, "rule_metrics": rule_metrics}
 
@@ -207,9 +208,9 @@ class ResultTableFlow(BaseModelWithTime):
         except RecordRule.DoesNotExist:
             logger.error("table_id: %s not found record rule", table_id)
             return False
-        nodes = cls.compose_source_node(rule_obj.vm_table_ids)
+        nodes = cls.compose_source_node(rule_obj.src_vm_table_ids)
         # 添加预计算节点
-        nodes.append(cls.compose_process_node(table_id, rule_obj.vm_table_ids))
+        nodes.append(cls.compose_process_node(table_id, rule_obj.src_vm_table_ids))
         node_len = len(nodes)
         # 添加存储节点
         nodes.append(cls.compose_vm_storage(table_id, node_len))

@@ -22,7 +22,8 @@ def generate_table_id(space_type: str, space_id: str, record_name: str) -> str:
     """生成项目下的结果表"""
     # 处理预计算的名称
     # 替换`.`|`-`|`/`为`_`, 符合标准
-    record_name = record_name.replace(".", "_").replace("-", "_").replace("/", "_").strip("_")
+    # 限制长度为110，因为限制的结果表长度为128
+    record_name = record_name.replace(".", "_").replace("-", "_").replace("/", "_").strip("_")[:110]
     return f"bkmonitor_{space_type}_{space_id}_{record_name}.__default__"
 
 
@@ -31,7 +32,7 @@ def transform_record_to_metric_name(record: str) -> str:
     record: "level:src_metric:operation"
     metric_name: "level_src_metric_operation"
     """
-    return "_".join(record.strip(":").split(":"))
+    return "_".join(record.strip(":").split(":")).strip("_")
 
 
 def refine_bk_sql_and_metrics(promql: str, all_rule_record: List[str]) -> Dict:
@@ -40,12 +41,11 @@ def refine_bk_sql_and_metrics(promql: str, all_rule_record: List[str]) -> Dict:
     promql_without_comment = re.sub(r"#.*", "", promql)
     # 去掉换行符
     _promql = promql_without_comment.replace("\n", "")
-    # 如果`:`存在，则查找替换
-    if ":" in _promql:
-        for record in all_rule_record:
-            if record not in _promql:
-                continue
-            _promql = _promql.replace(record, transform_record_to_metric_name(record))
+    # 查找替换为新的指标
+    for record in all_rule_record:
+        if record not in _promql:
+            continue
+        _promql = _promql.replace(record, transform_record_to_metric_name(record))
     # 转换为结构体
     try:
         rule_dict = api.unify_query.promql_to_struct({"promql": _promql})
