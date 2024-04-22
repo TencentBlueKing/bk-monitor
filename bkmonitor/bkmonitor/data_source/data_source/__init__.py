@@ -1061,6 +1061,7 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
                 raise PermissionDeniedError(action_name=bk_biz_id)
 
     def to_unify_query_config(self) -> List[Dict]:
+        self._update_params_by_advance_method()
         # unify 定义 bkdata 查询配置制定data_source字段
         query_list = super().to_unify_query_config()
         for query in query_list:
