@@ -15,14 +15,7 @@ from typing import Dict, Optional
 
 from jinja2 import Template
 
-from core.drf_resource import api
-from metadata.models.data_link import resource
-from metadata.models.data_link.constants import (
-    DEFAULT_BKDATA_NAMESPACE,
-    MATCH_DATA_NAME_PATTERN,
-    DataLinkKind,
-    DataLinkResourceStatus,
-)
+from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
 
 logger = logging.getLogger("metadata")
 
@@ -34,7 +27,7 @@ def get_bkdata_table_id(table_id: str) -> str:
         table_id = table_id.split(".__default__")[0]
     # 转换中划线为下划线，
     name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
-    # NOTE: 不能以数字，添加一个默认前缀
+    # NOTE: 不能以数字开头，添加一个默认前缀
     return f"bkm_{name}"
 
 
@@ -48,32 +41,8 @@ def compose_config(tpl: str, render_params: Dict, err_msg_prefix: Optional[str] 
         return {}
 
 
-def get_data_id_name_by_data_name(data_name: str) -> str:
+def get_bkdata_data_id_name(data_name: str) -> str:
     # 剔除不符合的字符
     refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, '', data_name)
     # 截取长度为45的字符串，同时拼装前缀
     return f"bkm_{refine_data_name[-45:]}"
-
-
-def apply_data_id(data_name: str) -> bool:
-    """下发 data_id 资源"""
-    data_id_name = get_data_id_name_by_data_name(data_name)
-    data_id_config = resource.DataLinkResourceConfig.compose_data_id_config(data_id_name)
-    if not data_id_config:
-        return False
-    # 调用接口创建 data_id 资源
-    api.bkdata.apply_data_link(data_id_config)
-    return True
-
-
-def get_data_id(data_name: str, namespace: Optional[str] = DEFAULT_BKDATA_NAMESPACE) -> Dict:
-    """获取数据源对应的 data_id"""
-    data_id_name = get_data_id_name_by_data_name(data_name)
-    data_id_config = api.bkdata.get_data_link(kind=DataLinkKind.DATAID.value, namespace=namespace, name=data_id_name)
-    # 解析数据获取到数据源ID
-    phase = data_id_config.get("status", {}).get("phase")
-    # 如果状态不是处于正常的终态，则返回 None
-    if phase == DataLinkResourceStatus.OK.value:
-        return {"status": phase, "data_id": data_id_config.get("metadata", {}).get("annotations", {}).get("dataId")}
-
-    return {"status": phase, "data_id": None}

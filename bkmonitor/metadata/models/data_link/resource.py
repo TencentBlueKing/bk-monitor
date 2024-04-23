@@ -16,25 +16,34 @@ from django.conf import settings
 from django.db import models
 
 from bkmonitor.utils.db import JsonField
-from metadata import config
+from metadata.models.common import BaseModelWithTime
 from metadata.models.data_link import constants, utils
 
 logger = logging.getLogger("__name__")
 
 
-class DataLinkResourceConfig(models.Model):
+class DataLinkResource(BaseModelWithTime):
+    """一条数据链路资源"""
+
+    data_id_name = models.CharField("数据源名称", max_length=64, null=True, blank=True)
+    vm_table_id_name = models.CharField("结果表名称", max_length=64, null=True, blank=True)
+    vm_binding_name = models.CharField("vm 存储绑定名称", max_length=64, null=True, blank=True)
+    data_bus_name = models.CharField("数据总线名称", max_length=64, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "数据链路资源"
+        verbose_name_plural = "数据链路资源表"
+
+
+class DataLinkResourceConfig(BaseModelWithTime):
     """数据链路资源配置"""
 
     kind = models.CharField("资源类型", max_length=32)
     name = models.CharField("资源名称", max_length=48)
-    namespace = models.CharField("命名空间", max_length=64, default=constants.DEFAULT_BKDATA_NAMESPACE)
+    namespace = models.CharField("命名空间", max_length=64, default=settings.DEFAULT_VM_DATA_LINK_NAMESPACE)
     value = JsonField("记录对应的资源信息", null=True, blank=True, help_text="比如针对dataid资源记录申请到的数据源ID")
     status = models.CharField("状态", max_length=32, default="ok")
     content = JsonField("资源配置", null=True, blank=True)
-    updater = models.CharField("更新者", max_length=32, default=config.DEFAULT_USERNAME)
-    creator = models.CharField("创建者", max_length=32, default=config.DEFAULT_USERNAME)
-    created_at = models.DateTimeField("创建时间", auto_now_add=True)
-    updated_at = models.DateTimeField("update time", auto_now=True)
 
     class Meta:
         verbose_name = "数据源资源配置"
@@ -63,7 +72,7 @@ class DataLinkResourceConfig(models.Model):
             tpl=tpl,
             render_params={
                 "name": name,
-                "namespace": constants.DEFAULT_BKDATA_NAMESPACE,
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                 "bk_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,
                 "maintainers": json.dumps(maintainer),
             },
@@ -71,7 +80,7 @@ class DataLinkResourceConfig(models.Model):
         )
 
     @classmethod
-    def compose_bkdata_table_id_config(cls, name: str, data_type: Optional[str] = "metric") -> Dict:
+    def compose_vm_table_id_config(cls, name: str, data_type: Optional[str] = "metric") -> Dict:
         """组装数据源结果表配置"""
         tpl = """
         {
@@ -94,7 +103,7 @@ class DataLinkResourceConfig(models.Model):
             tpl=tpl,
             render_params={
                 "name": name,
-                "namespace": constants.DEFAULT_BKDATA_NAMESPACE,
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                 "bk_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,
                 "data_type": data_type,
                 "maintainers": json.dumps(maintainer),
@@ -136,28 +145,31 @@ class DataLinkResourceConfig(models.Model):
         """
         from metadata.models.vm.utils import get_vm_cluster_id_name
 
-        vm_cluster = get_vm_cluster_id_name(space_type=space_type, space_id=space_id)
+        if not vm_name:
+            vm_cluster = get_vm_cluster_id_name(space_type=space_type, space_id=space_id)
+            vm_name = vm_cluster.get("cluster_name")
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         return utils.compose_config(
             tpl=tpl,
             render_params={
                 "name": name,
-                "namespace": constants.DEFAULT_BKDATA_NAMESPACE,
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                 "rt_name": rt_name,
-                "vm_name": vm_name or vm_cluster.get("cluster_name"),
+                "vm_name": vm_name,
                 "maintainers": json.dumps(maintainer),
             },
             err_msg_prefix="compose vm storage binding config",
         )
 
     @classmethod
-    def compose_vm_databus_config(
+    def compose_vm_data_bus_config(
         cls,
         name: str,
         vm_binding_name: str,
         data_id_name: str,
+        transform_kind: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER_KIND,
         transform_name: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER,
-        transform_format: Optional[str] = constants.DEFAULT_METRIC_TRANSFORM_FORMAT,
+        transform_format: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
     ) -> Dict:
         """通过data_id获取资源配置"""
         tpl = """
@@ -185,7 +197,7 @@ class DataLinkResourceConfig(models.Model):
                 ],
                 "transforms": [
                     {
-                        "kind": "PreDefinedLogic",
+                        "kind": "{{transform_kind}}",
                         "name": "{{transform_name}}",
                         "format": "{{transform_format}}"
                     }
@@ -198,9 +210,10 @@ class DataLinkResourceConfig(models.Model):
             tpl=tpl,
             render_params={
                 "name": name,
-                "namespace": constants.DEFAULT_BKDATA_NAMESPACE,
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                 "vm_binding_name": vm_binding_name,
                 "data_id_name": data_id_name,
+                "transform_kind": transform_kind,
                 "transform_name": transform_name,
                 "transform_format": transform_format,
                 "maintainers": json.dumps(maintainer),

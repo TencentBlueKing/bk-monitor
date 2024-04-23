@@ -311,15 +311,18 @@ class DataSource(models.Model):
         """从计算平台申请data_id"""
         # 下发配置
         from metadata.models.data_link.constants import DataLinkResourceStatus
-        from metadata.models.data_link.utils import apply_data_id, get_data_id
+        from metadata.models.data_link.service import apply_data_id, get_data_id
 
         try:
             apply_data_id(data_name)
+            # 写入记录
         except BKAPIError as e:
             logger.error("apply data id from bkdata error: %s", e)
             raise
-        # NOTE: 因为是同步接口，阻塞请求，间隔请求为3s，最大重试7 次，如果超过7次仍然失败，则抛出异常
-        for i in range(7):
+        # NOTE: 因为是同步接口，阻塞请求，间隔请求为3s，最大重试 5 次，如果超过7次仍然失败，则抛出异常
+        for i in range(5):
+            # 等待 3s 后查询一次，减少请求次数
+            time.sleep(3)
             try:
                 data = get_data_id(data_name)
             except BKAPIError as e:
@@ -331,8 +334,6 @@ class DataSource(models.Model):
             # 如果失败，则抛出异常
             if data["status"] == DataLinkResourceStatus.FAILED.value:
                 raise BKAPIError(f"apply data id from bkdata failed, status is {data['status']}")
-            # 等待 3s 后重试
-            time.sleep(3)
 
         raise BKAPIError("apply data id from bkdata timeout")
 
@@ -471,7 +472,7 @@ class DataSource(models.Model):
 
         if bk_data_id is None and settings.IS_ASSIGN_DATAID_BY_GSE:
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
-            if settings.ENABLE_V2_VM_DATA_LINK:
+            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE:
                 bk_data_id = cls.apply_for_data_id_from_bkdata(data_name)
             else:
                 bk_data_id = cls.apply_for_data_id_from_gse(operator)
@@ -1053,8 +1054,20 @@ class DataSource(models.Model):
         3. Consul的配置
         :return: True | raise Exception
         """
-        if not self.is_enable:
-            logger.info("data->[%s] is not enable, nothing will refresh to outer systems.", self.bk_data_id)
+        from metadata.models.data_link.constants import DataLinkKind
+        from metadata.models.data_link.resource import DataLinkResourceConfig
+        from metadata.models.data_link.utils import get_bkdata_data_id_name
+
+        if (
+            not self.is_enable
+            or DataLinkResourceConfig.objects.filter(
+                name=get_bkdata_data_id_name(self.data_name), kind=DataLinkKind.DATAID.value
+            ).exists()
+        ):
+            logger.info(
+                "data->[%s] is not enable or has been moved to new data link, nothing will refresh to outer systems.",
+                self.bk_data_id,
+            )
             return True
 
         # 刷新GSE的zk配置

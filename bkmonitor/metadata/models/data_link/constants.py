@@ -37,10 +37,8 @@ class DataLinkResourceStatus(Enum):
     OK = "Ok"
 
 
-# 默认的监控写入计算平台的资源的命名空间
-DEFAULT_BKDATA_NAMESPACE = "bkmonitor"
-
 # 默认转换器及对应的处理格式
+DEFAULT_METRIC_TRANSFORMER_KIND = "PreDefinedLogic"
 DEFAULT_METRIC_TRANSFORMER = "log_to_metric"
 DEFAULT_METRIC_TRANSFORMER_FORMAT = "bkmonitor_standard_v2"
 
