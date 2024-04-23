@@ -592,7 +592,6 @@ export default {
           }
         })
         .then(response => {
-          console.log(response, !!response.data.length);
           this.isCurrentIndexSetIdCreateSubscription = !!response.data.length;
         })
         .catch(console.log);

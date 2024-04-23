@@ -26,13 +26,13 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 
 import { handleGotoLink } from '../../common/constant';
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
 import { destroyTimezone } from '../../i18n/dayjs';
-
 import CommonNavBar from './components/common-nav-bar';
 import CommonPage from './components/common-page-new';
 import { INavItem, IViewOptions, SceneType } from './typings';
@@ -54,7 +54,7 @@ export default class MonitorK8s extends tsc<object> {
   backToOverviewKey = random(8);
 
   /** 当前tab */
-  tabName: string | TranslateResult = '';
+  tabName: TranslateResult | string = '';
   /** 定位详情文案 */
   subName = '';
 
@@ -110,23 +110,23 @@ export default class MonitorK8s extends tsc<object> {
     return (
       <div class='monitor-k8s'>
         <CommonPage
+          backToOverviewKey={this.backToOverviewKey}
+          defaultViewOptions={this.viewOptions}
           sceneId={this.sceneId}
           sceneType={this.sceneType}
-          defaultViewOptions={this.viewOptions}
-          backToOverviewKey={this.backToOverviewKey}
-          onSceneTypeChange={this.handleSecendTypeChange}
-          tab2SceneType
           toggleTabSearchFilterKeys={['bcs_cluster_id']}
-          onTitleChange={this.handleTitleChange}
+          tab2SceneType
+          onSceneTypeChange={this.handleSecendTypeChange}
           onTabChange={this.handleSceneTabChange}
+          onTitleChange={this.handleTitleChange}
         >
           <CommonNavBar
             slot='nav'
-            routeList={this.routeList}
-            needShadow={true}
             callbackRouterBack={this.handleRouterBack}
-            needCopyLink
+            needShadow={true}
             positionText={this.positonText}
+            routeList={this.routeList}
+            needCopyLink
           />
           {!this.readonly && (
             <bk-button

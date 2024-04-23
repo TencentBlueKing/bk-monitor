@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, ref, watch } from 'vue';
+
 import { Button, Dialog, Loading } from 'bkui-vue';
 
 import lockImg from '../../static/img/lock-radius.svg';
@@ -100,9 +101,9 @@ export default defineComponent({
           <div class='permission-header'>
             <span class='title-icon'>
               <img
-                src={lockImg}
-                alt='permission-lock'
                 class='lock-img'
+                alt='permission-lock'
+                src={lockImg}
               />
             </span>
             <h3>{this.$t('该操作需要以下权限')}</h3>
@@ -125,8 +126,8 @@ export default defineComponent({
                       <td>
                         {this.getResource(action.relatedResourceTypes).map((reItem: string, reIndex: number) => (
                           <p
-                            class='resource-type-item'
                             key={reIndex}
+                            class='resource-type-item'
                           >
                             {reItem}
                           </p>
@@ -168,16 +169,16 @@ export default defineComponent({
     return (
       <Dialog
         width='768'
-        extCls='permission-dialog'
-        isShow={this.isModalShow}
-        headerAlign='left'
-        title=''
         height={380} // todo
-        onClosed={this.handleCloseDialog}
+        extCls='permission-dialog'
         v-slots={{
           default: () => permissionModal(),
           footer: () => modalFooter(),
         }}
+        headerAlign='left'
+        isShow={this.isModalShow}
+        title=''
+        onClosed={this.handleCloseDialog}
       />
     );
   },

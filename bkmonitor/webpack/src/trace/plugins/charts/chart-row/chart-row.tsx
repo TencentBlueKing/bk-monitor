@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType } from 'vue';
+
 import { RightShape } from 'bkui-vue/lib/icon';
 
 import { PanelModel } from '../../typings';

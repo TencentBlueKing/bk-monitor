@@ -68,7 +68,7 @@
           v-if="config.prop === 'name'"
           class="compare-icon"
           :style="{
-            background: colors[index]
+            background: colors[index],
           }"
         />
         <span>{{ row[config.prop] | filterBigNum }}</span>
@@ -86,6 +86,7 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+
 import { transfromNum } from 'monitor-common/utils/utils';
 import { Col, DropdownItem, DropdownMenu, Picker, Popup, Row } from 'vant';
 
@@ -101,14 +102,14 @@ import { ICompare, IConfig, IContent, IDropdownMenu, IOptions } from '../../type
     [DropdownItem.name]: DropdownItem,
     [Popup.name]: Popup,
     [Picker.name]: Picker,
-    BkSelect
+    BkSelect,
   },
   filters: {
     filterBigNum(v) {
       if (!v) return '--';
       return isNaN(v) ? v : transfromNum(v);
-    }
-  }
+    },
+  },
 })
 export default class Table extends Vue {
   // 对比数据
@@ -122,13 +123,13 @@ export default class Table extends Vue {
   // 对比类型（时间对比、维度对比）
   private compareType: IDropdownMenu = {
     value: 1,
-    options: []
+    options: [],
   };
 
   // 对比时间
   private compareData: IDropdownMenu = {
     value: 24,
-    options: []
+    options: [],
   };
 
   // select组件是否显示
@@ -139,7 +140,7 @@ export default class Table extends Vue {
 
   private currentCompare: ICompare = {
     type: '',
-    value: 0
+    value: 0,
   };
 
   created() {
@@ -147,81 +148,81 @@ export default class Table extends Vue {
       {
         label: this.$tc('时间'),
         span: 7,
-        prop: 'name'
+        prop: 'name',
       },
       {
         label: 'min',
         span: 3,
-        prop: 'min'
+        prop: 'min',
       },
       {
         label: 'max',
         span: 3,
-        prop: 'max'
+        prop: 'max',
       },
       {
         label: 'avg',
         span: 3,
-        prop: 'avg'
+        prop: 'avg',
       },
       {
         label: 'current',
         span: 4,
-        prop: 'current'
+        prop: 'current',
       },
       {
         label: 'total',
         span: 4,
-        prop: 'total'
-      }
+        prop: 'total',
+      },
     ];
     this.compareType.options = [
       {
         text: this.$t('时间对比'),
-        value: 1
+        value: 1,
       },
       {
         text: this.$t('不对比'),
-        value: 0
-      }
+        value: 0,
+      },
     ];
     this.compareData.options = [
       {
         text: this.$t('天前', { num: 1 }),
-        value: 24
+        value: 24,
       },
       {
         text: this.$t('天前', { num: 2 }),
-        value: 24 * 2
+        value: 24 * 2,
       },
       {
         text: this.$t('天前', { num: 3 }),
-        value: 24 * 3
+        value: 24 * 3,
       },
       {
         text: this.$t('天前', { num: 4 }),
-        value: 24 * 4
+        value: 24 * 4,
       },
       {
         text: this.$t('天前', { num: 5 }),
-        value: 24 * 5
+        value: 24 * 5,
       },
       {
         text: this.$t('天前', { num: 6 }),
-        value: 24 * 6
+        value: 24 * 6,
       },
       {
         text: this.$t('周前', { num: 1 }),
-        value: 24 * 7
+        value: 24 * 7,
       },
       {
         text: this.$t('周前', { num: 2 }),
-        value: 24 * 7 * 2
+        value: 24 * 7 * 2,
       },
       {
         text: this.$t('月前', { num: 1 }),
-        value: 24 * 30
-      }
+        value: 24 * 30,
+      },
     ];
   }
 
@@ -259,7 +260,7 @@ export default class Table extends Vue {
     this.handleCancel();
     this.currentCompare = {
       type: this.currentPopup,
-      value
+      value,
     };
     return this.currentCompare;
   }
@@ -272,7 +273,7 @@ export default class Table extends Vue {
 <style lang="scss">
 .van-row {
   line-height: 3.125rem;
-  border-bottom: 1px solid rgba(220, 222, 229, .6);
+  border-bottom: 1px solid rgba(220, 222, 229, 0.6);
 
   .van-col:not(:first-child) {
     text-align: right;
@@ -280,7 +281,7 @@ export default class Table extends Vue {
 }
 
 @mixin select-btn {
-  padding: 0 .75rem;
+  padding: 0 0.75rem;
   color: #63656e;
   background: #f0f1f5;
   border-radius: 4px;
@@ -289,7 +290,7 @@ export default class Table extends Vue {
 .table {
   padding: 0 1.5rem 0 1.5rem;
   padding-top: 1rem;
-  font-size: .8rem;
+  font-size: 0.8rem;
   background: #fff;
 
   &-filter {
@@ -301,7 +302,7 @@ export default class Table extends Vue {
       flex: 0 7.5rem;
       align-items: center;
       justify-content: space-between;
-      margin-right: .625rem;
+      margin-right: 0.625rem;
 
       @include select-btn;
     }
@@ -347,8 +348,8 @@ export default class Table extends Vue {
     .compare-icon {
       display: inline-block;
       width: 1rem;
-      height: .8rem;
-      margin-right: .5rem;
+      height: 0.8rem;
+      margin-right: 0.5rem;
     }
   }
 }

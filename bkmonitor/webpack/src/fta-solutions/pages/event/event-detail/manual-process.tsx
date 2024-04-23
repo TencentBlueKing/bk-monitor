@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { batchCreate, getActionParams, getPluginTemplates } from 'monitor-api/modules/action';
 import { listActionConfig } from 'monitor-api/modules/model';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
@@ -72,7 +73,7 @@ interface IFormData {
   formModel: { [propsName: string]: any };
   formRules: { [propsName: string]: IFormRule };
   name: string;
-  templateId: string | number;
+  templateId: number | string;
   timeout: number;
 }
 
@@ -108,7 +109,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
   webhookKey = random(8);
   /* 处理套餐列表 */
   mealList: {
-    id: string | number;
+    id: number | string;
     name: string;
     plugin_type: string;
     plugin_id: number;
@@ -338,7 +339,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
           pluginType: this.curMeal.plugin_type,
           webhook: this.webhookData as any,
         }),
-        true,
+        true
       );
       paramsData = {
         execute_config: webhookParams,
@@ -412,13 +413,13 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
   render() {
     return (
       <bk-dialog
-        ext-cls='manual-process-dialog-wrap'
-        value={this.show}
-        mask-close={true}
-        header-position='left'
         width={800}
-        title={this.$t('手动处理')}
+        ext-cls='manual-process-dialog-wrap'
+        header-position='left'
         loading={this.confirmLoading}
+        mask-close={true}
+        title={this.$t('手动处理')}
+        value={this.show}
         on-value-change={this.handleShowChange}
       >
         <div
@@ -430,9 +431,9 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
             <div class='wrap'>
               <GroupSelect
                 key={this.groupSelectKey}
-                value={this.mealId}
                 list={this.noNoticeActionConfigList}
                 placeholder={this.$tc('选择套餐')}
+                value={this.mealId}
                 onChange={this.handleSelected}
               ></GroupSelect>
               {}
@@ -453,8 +454,8 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
               >
                 {(this.templateData.allList?.[this.curMeal?.plugin_id] || []).map(item => (
                   <bk-option
-                    key={item.id}
                     id={item.id}
+                    key={item.id}
                     name={item.name}
                   ></bk-option>
                 ))}
@@ -464,11 +465,11 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
           <div class='meal-content'>
             {this.curMeal?.plugin_type === 'webhook' ? (
               <HttpCallBack
-                ref='httpCallBack'
                 key={this.webhookKey}
-                value={this.webhookData}
+                ref='httpCallBack'
                 isEdit={true}
                 isOnlyHttp={true}
+                value={this.webhookData}
                 onChange={this.handleWebhookData}
               ></HttpCallBack>
             ) : (
@@ -476,10 +477,10 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
                 {this.formData.formList.length && Object.keys(this.formData.formModel).length ? (
                   <DynamicForm
                     ref='dynamicform'
-                    labelWidth={500}
                     formList={this.formData.formList}
                     formModel={this.formData.formModel}
                     formRules={this.formData.formRules}
+                    labelWidth={500}
                     noAutoInput={true}
                   ></DynamicForm>
                 ) : (
@@ -505,8 +506,8 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             loading={this.confirmLoading}
+            theme='primary'
             onClick={() => !this.confirmLoading && this.handleConfirm()}
           >
             {window.i18n.t('确定')}

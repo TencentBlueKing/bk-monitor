@@ -25,7 +25,6 @@
  * @author  <>
  */
 
-import html2canvas from 'html2canvas';
 import JSONBigNumber from 'json-bignumber';
 import dayjs from 'dayjs';
 
@@ -381,26 +380,6 @@ export function deepAssign(target, ...sources) {
   return target;
 }
 
-/**
- * 将dom解析成png图片并下载
- * @param {Element} element
- * @param {String} filename 默认文件名
- */
-export function convertDomToPng(element, filename = 'download') {
-  let imgUrl;
-  html2canvas(element)
-    .then(canvas => {
-      imgUrl = canvas.toDataURL('image/png');
-    })
-    .finally(() => {
-      const eleLink = document.createElement('a');
-      eleLink.href = imgUrl;
-      eleLink.download = filename;
-      document.body.appendChild(eleLink);
-      eleLink.click();
-      document.body.removeChild(eleLink);
-    });
-}
 export function projectManage(menuProject, projectName, childName) {
   let project = '';
   try {

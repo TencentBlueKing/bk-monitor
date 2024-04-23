@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import { getEventDetail, getEventGraphView } from '../../../monitor-api/modules/mobile_event';
 import store from '../store';

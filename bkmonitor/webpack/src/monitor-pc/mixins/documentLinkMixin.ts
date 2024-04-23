@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
+
 import { jumpToDocsLink } from 'monitor-common/utils';
 
 import { linkMap } from '../common/constant';

@@ -26,27 +26,27 @@
 import { defineComponent, provide, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 
 import EmptyStatus, { EmptyStatusType } from '../../components/empty-status/empty-status';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
-
 import AlarmShieldDetail from './alarm-shield-detail';
 import * as authMap from './authority-map';
 
 import './alarm-shield.scss';
 
 enum EColunm {
-  id = 'id',
-  shieldType = 'shieldType',
-  shieldContent = 'shieldContent',
   beginTime = 'begin_time',
   cycleDuration = 'cycleDuration',
   description = 'description',
-  operate = 'operate',
   failureTime = 'failure_time',
+  id = 'id',
+  operate = 'operate',
+  shieldContent = 'shieldContent',
+  shieldType = 'shieldType',
   status = 'status',
   updateUser = 'update_user',
 }
@@ -578,8 +578,8 @@ export default defineComponent({
         case EColunm.id: {
           return (
             <Button
-              text
               theme='primary'
+              text
               onClick={() => handleToDetail(row)}
             >{`#${row.id}`}</Button>
           );
@@ -613,13 +613,13 @@ export default defineComponent({
             <div>
               {row.category !== 'alert' && (
                 <Button
+                  class='mr-8'
+                  v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                   text={true}
                   theme='primary'
-                  class='mr-8'
                   onClick={() =>
                     authority.auth.MANAGE_AUTH ? handleToClone(row) : authority.showDetail([authority.map.MANAGE_AUTH])
                   }
-                  v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                 >
                   {t('克隆')}
                 </Button>
@@ -627,19 +627,20 @@ export default defineComponent({
               {shieldStatus.value === 0
                 ? [
                     <Button
+                      class='mr-8'
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       text={true}
                       theme='primary'
-                      class='mr-8'
                       onClick={() =>
                         authority.auth.MANAGE_AUTH
                           ? handleToEdit(row)
                           : authority.showDetail([authority.map.MANAGE_AUTH])
                       }
-                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('编辑')}
                     </Button>,
                     <Button
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       text={true}
                       theme='primary'
                       onClick={() =>
@@ -647,7 +648,6 @@ export default defineComponent({
                           ? handleDelete(row)
                           : authority.showDetail([authority.map.MANAGE_AUTH])
                       }
-                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('解除')}
                     </Button>,
@@ -697,13 +697,13 @@ export default defineComponent({
             <div class='left'>
               <Button
                 class='add-btn'
+                v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
                 theme='primary'
                 onClick={() =>
                   this.authority.auth.MANAGE_AUTH
                     ? this.handleAdd()
                     : this.authority.showDetail([this.authority.map.MANAGE_AUTH])
                 }
-                v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
               >
                 <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.t('新增屏蔽')}
@@ -711,8 +711,8 @@ export default defineComponent({
               <div class='shield-status status-tab-wrap'>
                 {this.shieldStatusList.map(item => (
                   <span
-                    class={['status-tab-item', { active: item.id === this.shieldStatus }]}
                     key={item.id}
+                    class={['status-tab-item', { active: item.id === this.shieldStatus }]}
                     onClick={() => this.handleStatusChange(item)}
                   >
                     <span class={['status-point', `status-${item.type}`]}>
@@ -726,18 +726,18 @@ export default defineComponent({
             <div class='right'>
               <DatePicker
                 class='shield-time'
-                type='datetimerange'
-                placeholder={this.t('选择屏蔽时间范围')}
                 format={'yyyy-MM-dd HH:mm:ss'}
                 modelValue={this.dateRange}
+                placeholder={this.t('选择屏蔽时间范围')}
+                type='datetimerange'
                 onChange={v => (this.dateRange = v)}
-                onPick-success={this.handleDatePick}
                 onClear={() => this.handleDatePickClear()}
+                onPick-success={this.handleDatePick}
               ></DatePicker>
               <SearchSelect
                 class='shield-search'
-                modelValue={this.searchValues}
                 data={this.searchData}
+                modelValue={this.searchValues}
                 placeholder={this.t('输入屏蔽内容、ID')}
                 onUpdate:modelValue={v => this.handleSearchCondition(v)}
               ></SearchSelect>
@@ -747,10 +747,6 @@ export default defineComponent({
             <div class='table-wrap'>
               <Table
                 class='shield-table'
-                data={this.tableData.data}
-                settings={this.settings}
-                showOverflowTooltip={true}
-                darkHeader={true}
                 columns={this.tableData.columns
                   .filter(item => {
                     if (this.shieldStatus === 0) {
@@ -768,9 +764,13 @@ export default defineComponent({
                       render: ({ row }) => this.handleSetFormater(row, item.id),
                     };
                   })}
+                darkHeader={true}
+                data={this.tableData.data}
                 pagination={false}
-                onColumnSort={this.handleColumnSort}
+                settings={this.settings}
+                showOverflowTooltip={true}
                 onColumnFilter={this.handleColumnFilter}
+                onColumnSort={this.handleColumnSort}
                 onSettingChange={this.handleSettingChange}
               >
                 {{
@@ -785,12 +785,12 @@ export default defineComponent({
               {!!this.tableData.data.length && (
                 <Pagination
                   class='mt-14'
-                  modelValue={this.tableData.pagination.current}
+                  align={'right'}
                   count={this.tableData.pagination.count}
+                  layout={['total', 'limit', 'list']}
                   limit={this.tableData.pagination.limit}
                   location={'right'}
-                  align={'right'}
-                  layout={['total', 'limit', 'list']}
+                  modelValue={this.tableData.pagination.current}
                   onChange={v => this.handlePageChange(v)}
                   onLimitChange={v => this.handleLimitChange(v)}
                 ></Pagination>

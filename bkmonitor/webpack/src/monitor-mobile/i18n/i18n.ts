@@ -25,12 +25,12 @@
  */
 import Vue from 'vue';
 import VueI18n from 'vue-i18n';
+
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { getCookie } from 'monitor-common/utils/utils';
 import enUS from 'vant/lib/locale/lang/en-US';
 
 import '../../monitor-pc/i18n/dayjs';
-
 import englishJson from '../lang/en.json';
 import chineseJson from '../lang/zh-cn.json';
 

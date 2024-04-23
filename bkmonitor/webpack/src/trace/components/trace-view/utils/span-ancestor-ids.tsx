@@ -33,9 +33,9 @@ function getFirstAncestor(span: Span): Span | TNil {
     _find(
       span.references,
 
-      ({ span: ref, refType }) => ref && ref.spanID && (refType === 'CHILD_OF' || refType === 'FOLLOWS_FROM'),
+      ({ span: ref, refType }) => ref && ref.spanID && (refType === 'CHILD_OF' || refType === 'FOLLOWS_FROM')
     ),
-    'span',
+    'span'
   );
 }
 

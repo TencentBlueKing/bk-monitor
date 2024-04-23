@@ -60,17 +60,17 @@ export default defineComponent({
       <span class='more-tool-wrap'>
         <SelectMenu
           list={this.list}
-          onShowChange={val => (this.isShow = val)}
           onSelect={this.handleSelect}
+          onShowChange={val => (this.isShow = val)}
         >
           {this.$slots.default?.() ?? (
             <IconFont
               width={24}
               height={24}
-              icon='icon-mc-more'
-              hoverStyle
               activeStyle={this.isShow}
               classes={['icon-more']}
+              icon='icon-mc-more'
+              hoverStyle
             ></IconFont>
           )}
         </SelectMenu>

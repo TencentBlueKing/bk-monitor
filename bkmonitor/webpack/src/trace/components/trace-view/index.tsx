@@ -28,13 +28,12 @@ import { computed, defineComponent, nextTick, onMounted, PropType, ref } from 'v
 
 import { useTraceStore } from '../../store/modules/trace';
 import { ITraceTree } from '../../typings';
-
-import filterSpans from './utils/filter-spans';
 import { useFocusMatchesProvide, useSpanBarCurrentProvide, useViewRangeProvide } from './hooks';
 import SpanGraph from './span-graph';
 import TraceTimelineViewer from './trace-timeline-viewer';
 // import { trackRange } from './index.track';
 import { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from './typings';
+import filterSpans from './utils/filter-spans';
 
 import './index.scss';
 
@@ -220,14 +219,14 @@ export default defineComponent({
   render() {
     return (
       <div
-        class='trace-view'
         key={this.traceTree.traceID}
+        class='trace-view'
       >
         <div class='trace-page-header'>
           <SpanGraph
-            viewRange={this.viewRange as IViewRange}
-            updateViewRangeTime={this.updateViewRangeTime}
             updateNextViewRangeTime={this.updateNextViewRangeTime}
+            updateViewRangeTime={this.updateViewRangeTime}
+            viewRange={this.viewRange as IViewRange}
           />
         </div>
         <section class='trace-page-content'>

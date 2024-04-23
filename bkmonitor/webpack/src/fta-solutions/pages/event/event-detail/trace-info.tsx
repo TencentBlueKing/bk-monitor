@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { errorListByTraceIds } from 'monitor-api/modules/apm_metric';
 import { traceListById } from 'monitor-api/modules/apm_trace';
@@ -34,7 +35,6 @@ import { IFilterDict, ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings'
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import { formatDuration } from '../../../../trace/components/trace-view/utils/date';
-
 import { createAutoTimerange } from './aiops-chart';
 import { IDetail } from './type';
 
@@ -161,7 +161,7 @@ export default class TraceInfo extends tsc<IProps> {
   getTraceTableData() {
     this.traceIdTable = this.traceIdSortTable.slice(
       (this.traceTablePagination.current - 1) * this.traceTablePagination.limit,
-      this.traceTablePagination.current * this.traceTablePagination.limit,
+      this.traceTablePagination.current * this.traceTablePagination.limit
     );
   }
 
@@ -295,13 +295,6 @@ export default class TraceInfo extends tsc<IProps> {
           <div class='info-title'>{`Traceid ${this.$t('列表')}`}</div>
           <CommonTable
             class='trace-table'
-            columns={traceTableColumns}
-            checkable={false}
-            data={this.traceIdTable}
-            pagination={this.traceTablePagination}
-            onSortChange={this.handleSortChange}
-            onPageChange={this.handletTracePageChange}
-            onLimitChange={this.handletTraceLimitChange}
             scopedSlots={{
               trace_id: row => (
                 <span
@@ -326,6 +319,13 @@ export default class TraceInfo extends tsc<IProps> {
                 </span>
               ),
             }}
+            checkable={false}
+            columns={traceTableColumns}
+            data={this.traceIdTable}
+            pagination={this.traceTablePagination}
+            onLimitChange={this.handletTraceLimitChange}
+            onPageChange={this.handletTracePageChange}
+            onSortChange={this.handleSortChange}
           ></CommonTable>
         </div>
         <div
@@ -344,15 +344,15 @@ export default class TraceInfo extends tsc<IProps> {
           <CommonTable
             class='err-table'
             checkable={false}
-            data={this.errData.data}
             columns={this.errData.columns}
+            data={this.errData.data}
             defaultSize='small'
-            paginationType='simple'
             pagination={this.errDataPagination}
-            onSortChange={this.handleErrDataSortChange}
+            paginationType='simple'
+            onFilterChange={this.handleErrDataFilterChange}
             onLimitChange={this.handleErrDataLimitChange}
             onPageChange={this.handleErrDataPageChange}
-            onFilterChange={this.handleErrDataFilterChange}
+            onSortChange={this.handleErrDataSortChange}
           ></CommonTable>
           {/* <div class="info-bottom">
           <span>当前仅显示5条数据</span>

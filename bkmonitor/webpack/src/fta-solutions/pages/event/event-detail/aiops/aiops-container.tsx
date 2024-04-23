@@ -25,13 +25,13 @@
  */
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { dimensionDrillDown, metricRecommendation } from 'monitor-api/modules/alert';
 import { frontendReportEvent } from 'monitor-api/modules/commons';
 import { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { IDetail } from '../type';
-
 import DimensionTable from './dimension.table';
 import MetricsCollapse from './metrics-collapse';
 import MetricsView from './metrics-view';
@@ -386,18 +386,18 @@ export default class AiopsContainer extends tsc<IProps> {
     return (
       <div
         ref='aiopsContainer'
-        onClick={this.handleReportClick}
         class={['aiops-container', { 'aiops-container-show': this.displayConditions && this.show }]}
+        onClick={this.handleReportClick}
       >
         <TabTitle
-          dimensionDrillDownLoading={this.dimensionDrillDownLoading}
-          metricRecommendationLoading={this.metricRecommendationLoading}
-          metricRecommendationErr={this.metricRecommendationErr}
-          dimensionDrillDownErr={this.dimensionDrillDownErr}
           active={this.tabActive}
-          tabInfo={this.info}
+          dimensionDrillDownErr={this.dimensionDrillDownErr}
+          dimensionDrillDownLoading={this.dimensionDrillDownLoading}
+          metricRecommendationErr={this.metricRecommendationErr}
+          metricRecommendationLoading={this.metricRecommendationLoading}
           showDimensionDrill={this.showDimensionDrill}
           showMetricRecommendation={this.showMetricRecommendation}
+          tabInfo={this.info}
           {...{
             on: {
               'active-change': this.setTabActive,
@@ -405,11 +405,11 @@ export default class AiopsContainer extends tsc<IProps> {
           }}
         />
         <DimensionTable
+          ref='dimensionTable'
+          class={`aiops-container-${this.isCorrelationMetrics ? 'hide' : 'show'}`}
           v-bkloading={{ isLoading: this.dimensionDrillDownLoading }}
           dimensionDrillDownErr={this.dimensionDrillDownErr}
-          ref='dimensionTable'
           tableData={this.anomalyDimensions}
-          class={`aiops-container-${this.isCorrelationMetrics ? 'hide' : 'show'}`}
           {...{
             on: {
               selectionChange: this.handleSelectionChange,
@@ -419,11 +419,11 @@ export default class AiopsContainer extends tsc<IProps> {
           }}
         ></DimensionTable>
         <MetricsView
+          ref='metricsView'
+          info={this.tabData.index?.info || {}}
           metricRecommendationErr={this.metricRecommendationErr}
           metricRecommendationLoading={this.metricRecommendationLoading}
-          ref='metricsView'
           panelMap={this.panelMap}
-          info={this.tabData.index?.info || {}}
         ></MetricsView>
       </div>
     );

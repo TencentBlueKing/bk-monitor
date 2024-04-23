@@ -25,6 +25,7 @@
  */
 import { defineComponent, ref, toRefs } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Input, Loading, Popover } from 'bkui-vue';
 import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
@@ -131,8 +132,8 @@ export default defineComponent({
             >
               {this.loading ? (
                 <img
-                  src={loadingImg}
                   class='status-loading'
+                  src={loadingImg}
                 />
               ) : (
                 <span class={`icon-monitor icon-${this.autoQuery ? 'weibiaoti519' : 'kaishi11'}`}></span>
@@ -141,8 +142,8 @@ export default defineComponent({
           </Popover>
           <Button
             class='query-button'
-            theme='primary'
             disabled={!this.canQuery || this.loading}
+            theme='primary'
             onClick={this.handleQuery}
           >
             {`${this.autoQuery ? this.t('自动查询') : this.t('查询')}`}
@@ -151,9 +152,6 @@ export default defineComponent({
         {this.hasFavorite && (
           <Popover
             ref='favPopover'
-            theme='light'
-            trigger='click'
-            autoVisibility={false}
             v-slots={{
               content: () => (
                 <div
@@ -186,6 +184,9 @@ export default defineComponent({
                 </div>
               ),
             }}
+            autoVisibility={false}
+            theme='light'
+            trigger='click'
           >
             <Button>
               <i class='icon-monitor icon-mc-uncollect'></i>
@@ -194,8 +195,8 @@ export default defineComponent({
           </Popover>
         )}
         <Popover
-          content={this.t('清空')}
           autoVisibility={false}
+          content={this.t('清空')}
         >
           <Button
             class='clear-button'

@@ -26,6 +26,7 @@
  */
 import { Component, InjectReactive, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone, random } from 'monitor-common/utils';
 import AiopsDimensionLint from 'monitor-ui/chart-plugins/plugins/aiops-dimension-lint/aiops-dimension-lint';
 import PerformanceChart from 'monitor-ui/chart-plugins/plugins/performance-chart/performance-chart';
@@ -43,7 +44,6 @@ import { IRefleshItem } from '../monitor-k8s/components/dashboard-tools';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
 import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
 import { IQueryOption } from '../performance/performance-type';
-
 import QueryCriteriaItem from './query-criteria-item.vue';
 import { downCsvFile, refleshList, transformSrcData, transformTableDataToCsvStr } from './utils';
 
@@ -332,7 +332,7 @@ export default class ViewDetailNew extends tsc<IProps> {
             metric.data_source_label === item.data_source_label &&
             metric.data_type_label === item.data_type_label &&
             metric.result_table_id === item.table &&
-            metric.metric_field === item.metrics[0].field,
+            metric.metric_field === item.metrics[0].field
         );
         const groupByList = metricData?.dimensions?.map(item => item.id);
         if (groupByList?.includes(key)) {
@@ -392,7 +392,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   handleExportCsv() {
     const csvString = transformTableDataToCsvStr(
       this.tableThArr.map(item => item.name),
-      this.tableTdArr,
+      this.tableTdArr
     );
     downCsvFile(csvString, this.viewConfig?.config?.title);
   }
@@ -403,31 +403,31 @@ export default class ViewDetailNew extends tsc<IProps> {
       case 'aiops-dimension-lint':
         return (
           <AiopsDimensionLint
-            panel={this.panel}
             customMenuList={['screenshot', 'set', 'area']}
-            onSeriesData={this.handleGetSeriesData}
+            panel={this.panel}
             showHeaderMoreTool={true}
             needLegend
+            onSeriesData={this.handleGetSeriesData}
           ></AiopsDimensionLint>
         );
       case 'performance-chart':
         return (
           <PerformanceChart
-            panel={this.panel}
             customMenuList={['screenshot', 'set', 'area']}
-            onSeriesData={this.handleGetSeriesData}
+            panel={this.panel}
             showHeaderMoreTool={true}
+            onSeriesData={this.handleGetSeriesData}
           />
         );
       case 'graph':
       default:
         return (
           <LineEcharts
+            customMenuList={['screenshot', 'set', 'area']}
             // onLoading={this.handleChangeLoading}
             panel={this.panel}
-            customMenuList={['screenshot', 'set', 'area']}
-            onSeriesData={this.handleGetSeriesData}
             showHeaderMoreTool={true}
+            onSeriesData={this.handleGetSeriesData}
             // onFullScreen={this.handleFullScreen}
             // onCollectChart={this.handleCollectChart}
             // onDimensionsOfSeries={this.handleDimensionsOfSeries}
@@ -441,14 +441,14 @@ export default class ViewDetailNew extends tsc<IProps> {
       <div class='view-detail-wrap-component'>
         <MonitorDialog
           class='view-detail-wrap-component-dialog'
-          value={this.show}
           append-to-body={true}
+          before-close={this.handleBackStep}
           full-screen={true}
+          header-theme={'header-bar'}
           need-footer={false}
           need-header={true}
-          header-theme={'header-bar'}
           title={this.$t('查看大图')}
-          before-close={this.handleBackStep}
+          value={this.show}
         >
           <div class='view-detail'>
             <div class='view-box'>
@@ -459,15 +459,15 @@ export default class ViewDetailNew extends tsc<IProps> {
                     {/* 对比 */}
                     <div class='compare-panel-left'>
                       <CompareSelect
-                        needMetricSelect={true}
-                        type={this.compare.type as any}
                         compareListEnable={this.compareTypeList as any}
+                        needMetricSelect={true}
                         panel={null}
-                        zIndex={4999}
                         timeValue={this.compare.type === 'time' ? this.compare.value : undefined}
+                        type={this.compare.type as any}
+                        zIndex={4999}
+                        onMetricChange={this.handleMetricChange}
                         onTimeChange={this.handleTimeChange}
                         onTypeChange={this.handleTypeChange}
-                        onMetricChange={this.handleMetricChange}
                       ></CompareSelect>
                     </div>
                     {/* 时间工具栏 */}
@@ -478,21 +478,21 @@ export default class ViewDetailNew extends tsc<IProps> {
                       ) : (
                         <TimeRange
                           class='dashboard-tools-timerange'
-                          value={this.timeRange}
                           timezone={this.timezone}
+                          value={this.timeRange}
                           onChange={this.handleTimeRangeChange}
                           onTimezoneChange={this.handleTimezoneChange}
                         />
                       )}
                       <MonitorDropdown
-                        icon='icon-zidongshuaxin'
                         class='dashboard-tools-interval'
-                        value={this.refleshInterval}
-                        text-active={this.refleshInterval !== -1}
-                        on-on-icon-click={this.handleImmediateReflesh}
-                        on-change={this.handleRefleshChange}
+                        icon='icon-zidongshuaxin'
                         isRefleshInterval={true}
                         list={this.refleshList}
+                        text-active={this.refleshInterval !== -1}
+                        value={this.refleshInterval}
+                        on-change={this.handleRefleshChange}
+                        on-on-icon-click={this.handleImmediateReflesh}
                       />
                     </div>
                   </div>
@@ -510,13 +510,13 @@ export default class ViewDetailNew extends tsc<IProps> {
                 {/* 图表区域 */}
                 <div class={['box-left', { 'box-left-active': !this.rightShow }]}>
                   <div
+                    style={{ height: `${this.drag.height}px` }}
                     class='box-left-chart'
                     data-tag='resizeTarget'
-                    style={{ height: `${this.drag.height}px` }}
                   >
                     <div
-                      style={{ height: `${this.drag.height - 20}px` }}
                       key={this.chartKey}
+                      style={{ height: `${this.drag.height - 20}px` }}
                     >
                       {!!this.panel && this.handlePanel2Chart()}
                     </div>
@@ -544,21 +544,21 @@ export default class ViewDetailNew extends tsc<IProps> {
                     </div>
                     <div class='source-content'>
                       <table
-                        cellspacing='0'
-                        cellpadding='0'
-                        border='0'
                         style='width: 100%'
+                        border='0'
+                        cellpadding='0'
+                        cellspacing='0'
                       >
                         <thead>
                           <tr class='table-head'>
                             {this.tableThArr.map((item, index) => (
                               <th
-                                class='table-content'
                                 key={index}
+                                class='table-content'
                               >
                                 <div
-                                  class='table-item sort-handle'
                                   style={index === 0 ? 'text-align: left' : ''}
+                                  class='table-item sort-handle'
                                   onClick={() => this.handleTableSortAuto(item, index)}
                                 >
                                   <span class='table-header'>
@@ -579,18 +579,18 @@ export default class ViewDetailNew extends tsc<IProps> {
                             <tr key={index}>
                               {row.map((item, tdIndex) => (
                                 <td
-                                  class='table-content'
                                   key={tdIndex}
+                                  class='table-content'
                                 >
                                   <div
-                                    class='table-item'
                                     style={tdIndex === 0 ? 'text-align: left' : ''}
+                                    class='table-item'
                                   >
                                     {item.value === null ? '--' : item.value}
                                     {tdIndex > 0 && (item.max || item.min) && (
                                       <img
-                                        alt=''
                                         class='item-max-min'
+                                        alt=''
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         src={require(`../../static/images/svg/${item.min ? 'min.svg' : 'max.svg'}`)}
                                       ></img>
@@ -607,23 +607,23 @@ export default class ViewDetailNew extends tsc<IProps> {
                 </div>
                 {/* 参数区域 */}
                 <div
-                  class='box-right'
                   style={!this.rightShow && 'display: none'}
+                  class='box-right'
                 >
                   {this.rightData.map((item, index) => (
                     <QueryCriteriaItem
                       key={index}
-                      query-config={item}
-                      group-index={index}
                       compare-value={{
                         tools: {
                           timeRange: this.timeRange,
                         },
                       }}
-                      on-change-status={this.handleChangeStatus}
-                      on-query-change={this.handleQueryChange}
-                      on-checked-change={this.handleCheckedChange}
+                      group-index={index}
+                      query-config={item}
                       on-change-loading={this.handleChangeLoading}
+                      on-change-status={this.handleChangeStatus}
+                      on-checked-change={this.handleCheckedChange}
+                      on-query-change={this.handleQueryChange}
                     ></QueryCriteriaItem>
                   ))}
                 </div>

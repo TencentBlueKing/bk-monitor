@@ -74,9 +74,9 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
             if (this.queryLoading) {
               return (
                 <img
-                  src={require('../../../static/images/svg/spinner.svg')}
                   class='status-loading'
                   alt=''
+                  src={require('../../../static/images/svg/spinner.svg')}
                 ></img>
               );
             }
@@ -89,8 +89,8 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
         </span>
         <span onMousedown={this.handleQuery}>
           <bk-button
-            theme='primary'
             disabled={!this.canQuery}
+            theme='primary'
           >
             {/* { this.autoQuery ? <i class="icon-monitor icon-mc-zidongsousuo"></i> : undefined } */}
             {this.autoQuery ? this.$t('自动查询') : this.$t('查询')}
@@ -103,8 +103,8 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
               v-bk-tooltips={{ content: this.$t('当前收藏有更新，点击保存当前修改'), disabled: !this.isFavoriteUpdate }}
             >
               <bk-button
-                theme='default'
                 disabled={!this.isFavoriteUpdate}
+                theme='default'
                 onClick={() => this.handleEmitFavoriteDialog(true)}
               >
                 <i class={`icon-monitor ${this.isFavoriteUpdate ? 'icon-mc-mark' : 'icon-mc-collect'}`}></i>
@@ -114,8 +114,8 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
           </div>
         ) : (
           <bk-button
-            theme='default'
             disabled={!this.canQuery || !this.canFav}
+            theme='default'
             onClick={() => this.handleEmitFavoriteDialog(false)}
           >
             <i class='icon-monitor icon-mc-uncollect'></i>

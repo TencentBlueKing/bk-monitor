@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import Vuex from 'vuex';
 
 import App, { IAppState } from './modules/app';

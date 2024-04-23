@@ -26,6 +26,7 @@
  */
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
 import { queryCustomEventGroup } from 'monitor-api/modules/custom_report';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
@@ -68,7 +69,7 @@ interface ISplitPanelEvent {
   onDragMove: number;
 }
 
-type IDashbordMode = 'list' | 'chart';
+type IDashbordMode = 'chart' | 'list';
 @Component({
   components: {
     Event: () => import('fta-solutions/pages/event/event'),
@@ -337,11 +338,11 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
             {!!this.sceneData.variables?.length && (
               <FilterVarSelectGroup
                 key={this.sceneData.id + this.refleshVariablesKey}
+                pageId={this.relateTab.replace(/_(detail|overview)$/gim, '')}
+                panelList={this.sceneData.variables}
                 scencId={this.relatePage}
                 sceneType={this.sceneType}
-                pageId={this.relateTab.replace(/_(detail|overview)$/gim, '')}
                 variables={this.variables}
-                panelList={this.sceneData.variables}
                 onChange={this.handleFilterVarChange}
                 onDataReady={this.handleFilterVarDataReady}
               />
@@ -351,10 +352,10 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
                 <div class='split-line'></div>
                 <GroupSelect
                   class='k8s-group-select'
-                  value={this.groupsGroupBy}
-                  scencId={this.relatePage}
                   pageId={this.relateTab.replace(/_(detail|overview)$/gim, '')}
+                  scencId={this.relatePage}
                   sceneType={this.sceneType}
+                  value={this.groupsGroupBy}
                 />
               </div>
             )}
@@ -362,8 +363,8 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         )}
         {this.activePage.hasSearchInput && (
           <bk-input
-            placeholder={this.$t('搜索并筛选')}
             class='filter-content-input'
+            placeholder={this.$t('搜索并筛选')}
             right-icon={'bk-icon icon-search'}
           />
         )}
@@ -378,10 +379,10 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         return (
           this.sceneData && (
             <DashboardPanel
-              isSplitPanel={true}
-              key={this.sceneData.id}
               id={this.dashboardId}
+              key={this.sceneData.id}
               column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
+              isSplitPanel={true}
               panels={this.dashbordMode === 'chart' ? this.localPanels : this.sceneData.list}
             />
           )
@@ -389,8 +390,8 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
       case 'event': // 事件类型 即事件的分屏页面
         return (
           <Event
-            isSplitEventPanel={true}
             defaultParams={this.activePage.defaultParams}
+            isSplitEventPanel={true}
           />
         );
       default:
@@ -409,22 +410,22 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
             <span class='query-label mr10'>{this.$t('关联查看')}</span>
             <bk-select
               class='bk-select-simplicity query-select'
-              ext-popover-cls='associate-view-popover'
-              clearable={false}
-              behavior='simplicity'
               v-model={this.relatePage}
+              behavior='simplicity'
+              clearable={false}
+              ext-popover-cls='associate-view-popover'
               onChange={this.handleRelatePageChange}
             >
               {SPLIT_PANEL_LIST.map((group, index) => (
                 <bk-option-group
-                  name={group.name}
                   key={index}
+                  name={group.name}
                   show-count={false}
                 >
                   {group.children.map(option => (
                     <bk-option
-                      key={option.id}
                       id={option.id}
+                      key={option.id}
                       name={option.name}
                     ></bk-option>
                   ))}
@@ -435,14 +436,14 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
               <bk-select
                 class='bk-select-simplicity query-select'
                 v-model={this.relateMiddlewareId}
-                clearable={false}
                 behavior='simplicity'
+                clearable={false}
                 onChange={this.handleMiddlewareChange}
               >
                 {this.relateMiddlewareList.map(option => (
                   <bk-option
-                    key={option.id}
                     id={option.id}
+                    key={option.id}
                     name={option.name}
                   ></bk-option>
                 ))}
@@ -452,14 +453,14 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
               <bk-select
                 class='bk-select-simplicity query-select'
                 v-model={this.relateTab}
-                clearable={false}
                 behavior='simplicity'
+                clearable={false}
                 onChange={this.handleRelateTabChange}
               >
                 {this.relateTabList.map(option => (
                   <bk-option
-                    key={`${option.id}_${option.type}`}
                     id={`${option.id}_${option.type}`}
+                    key={`${option.id}_${option.type}`}
                     name={option.name}
                   ></bk-option>
                 ))}
@@ -476,9 +477,9 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         </div>
         <div class='split-panel-content'>{this.contentComponent()}</div>
         <MonitorDrag
-          startPlacement='left'
-          minWidth={this.splitMinWidth}
           maxWidth={this.splitMaxWidth}
+          minWidth={this.splitMinWidth}
+          startPlacement='left'
           toggleSet={this.toggleSet}
           on-move={this.handleDragMove}
         />

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import bus from 'monitor-common/utils/event-bus';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -295,7 +296,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   // 维度搜索可用id或者name搜索
   handleSearchDim(searchValue: string) {
     this.curDimensions = this.optionalDimensions.filter(
-      item => String(item.id).includes(searchValue) || String(item.name).includes(searchValue),
+      item => String(item.id).includes(searchValue) || String(item.name).includes(searchValue)
     );
   }
 
@@ -325,8 +326,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           show-semicolon
         >
           <i18n
-            path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'
             class='i18n-path'
+            path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'
           >
             <span class='bold-span'>{triggerConfig.checkWindow}</span>
             <span class='bold-span'>{this.aggList.find(item => triggerConfig.checkType === item.id).name}</span>
@@ -338,8 +339,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           show-semicolon
         >
           <i18n
-            path='连续{0}个周期内不满足条件表示恢复'
             class='i18n-path'
+            path='连续{0}个周期内不满足条件表示恢复'
           >
             <span class='bold-span'>{recoveryConfig.checkWindow}</span>
           </i18n>
@@ -351,14 +352,14 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           <span class='judging-nodata'>
             <bk-switcher
               class='small-switch'
-              disabled={true}
               v-model={this.localData.noDataConfig.isEnabled}
-              theme='primary'
+              disabled={true}
               size='small'
+              theme='primary'
             ></bk-switcher>
             <i18n
-              path='当数据连续丢失{0}个周期时，触发告警通知'
               class='i18n-path'
+              path='当数据连续丢失{0}个周期时，触发告警通知'
             >
               <span class='bold-span'>{noDataConfig.continuous}</span>
             </i18n>
@@ -384,20 +385,20 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           show-semicolon
         >
           <bk-time-picker
-            v-model={this.timeRange}
-            behavior='simplicity'
             class='time-input'
-            type='timerange'
-            clearable={false}
+            v-model={this.timeRange}
             allowCrossDay={true}
+            behavior='simplicity'
+            clearable={false}
             disabled={this.isDetailMode}
+            type='timerange'
             on-change={() => this.handleTimeChange()}
           ></bk-time-picker>
         </CommonItem>
         <StrategyTemplatePreview
           dialogShow={noticeTemplate.previewTemplate}
-          template={noticeTemplate.anomalyTemplate}
           scenario={this.scenario}
+          template={noticeTemplate.anomalyTemplate}
           {...{ on: { 'update:dialogShow': val => (noticeTemplate.previewTemplate = val) } }}
         ></StrategyTemplatePreview>
       </div>
@@ -419,24 +420,24 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         >
           <VerifyItem errorMsg={this.errMsg.triggerConfig}>
             <i18n
-              path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'
               class='i18n-path'
+              path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'
             >
               <bk-input
-                type='number'
-                size='small'
                 class='small-input'
-                behavior='simplicity'
                 v-model={this.localData.triggerConfig.checkWindow}
+                behavior='simplicity'
+                size='small'
+                type='number'
                 on-change={this.emitValueChange}
               ></bk-input>
               {this.$t('累计')}
               <bk-input
-                type='number'
-                size='small'
                 class='small-input'
-                behavior='simplicity'
                 v-model={this.localData.triggerConfig.count}
+                behavior='simplicity'
+                size='small'
+                type='number'
                 on-change={this.emitValueChange}
               ></bk-input>
             </i18n>
@@ -449,15 +450,15 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         >
           <VerifyItem errorMsg={this.errMsg.recoveryConfig}>
             <i18n
-              path='连续{0}个周期内不满足条件表示恢复'
               class='i18n-path'
+              path='连续{0}个周期内不满足条件表示恢复'
             >
               <bk-input
-                type='number'
-                size='small'
                 class='small-input'
-                behavior='simplicity'
                 v-model={this.localData.recoveryConfig.checkWindow}
+                behavior='simplicity'
+                size='small'
+                type='number'
                 on-change={this.emitValueChange}
               ></bk-input>
             </i18n>
@@ -470,40 +471,40 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           <VerifyItem errorMsg={this.errMsg.noDataConfig}>
             <span class='judging-nodata'>
               <i18n
+                class='i18n-path flex-wrap'
                 path={
                   Array.isArray(this.localData.noDataConfig.dimensions) || this.editMode === 'Source'
                     ? '{0}当数据连续丢失{1}个周期时，触发告警通知基于以下维度{2}进行判断，告警级别{3}'
                     : '{0}当数据连续丢失{1}个周期时，触发告警通知，告警级别{2}'
                 }
-                class='i18n-path flex-wrap'
               >
                 <bk-switcher
                   class='small-switch'
-                  v-model={this.localData.noDataConfig.isEnabled}
-                  theme='primary'
-                  size='small'
                   v-bk-tooltips={{
                     content: this.$t('只有监控指标及日志关键字可配置无数据'),
                     placements: ['top'],
                     disabled: !this.isNoDataDisable,
                   }}
+                  v-model={this.localData.noDataConfig.isEnabled}
                   disabled={this.isNoDataDisable}
+                  size='small'
+                  theme='primary'
                   onChange={this.emitNoDataChange}
                 ></bk-switcher>
                 <bk-input
-                  type='number'
-                  size='small'
                   class='small-input'
-                  behavior='simplicity'
-                  min={5}
-                  max={60}
-                  disabled={!this.localData.noDataConfig.isEnabled}
                   v-bk-tooltips={
                     !this.localData.noDataConfig.isEnabled
                       ? { content: this.$t('先打开无数据功能'), showOnInit: false, placements: ['top'] }
                       : { disabled: true }
                   }
                   v-model={this.localData.noDataConfig.continuous}
+                  behavior='simplicity'
+                  disabled={!this.localData.noDataConfig.isEnabled}
+                  max={60}
+                  min={5}
+                  size='small'
+                  type='number'
                   on-change={this.emitValueChange}
                 ></bk-input>
                 {(() => {
@@ -511,34 +512,24 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                     return (
                       <bk-tag-input
                         class='small-select'
-                        v-model={this.promqlDimensions}
-                        placeholder={this.$t('输入')}
-                        list={this.dimensionsOfSeries}
-                        trigger={'focus'}
-                        allow-create={true}
-                        has-delete-icon={true}
-                        disabled={!this.localData.noDataConfig.isEnabled}
                         v-bk-tooltips={
                           !this.localData.noDataConfig.isEnabled
                             ? { content: this.$t('先打开无数据功能'), showOnInit: false, placements: ['top'] }
                             : { disabled: true }
                         }
+                        v-model={this.promqlDimensions}
+                        allow-create={true}
+                        disabled={!this.localData.noDataConfig.isEnabled}
+                        has-delete-icon={true}
+                        list={this.dimensionsOfSeries}
+                        placeholder={this.$t('输入')}
+                        trigger={'focus'}
                       ></bk-tag-input>
                     );
                   }
                   return Array.isArray(this.localData.noDataConfig.dimensions) ? (
                     <bk-select
-                      v-model={this.localData.noDataConfig.dimensions}
-                      popover-min-width={140}
-                      clearable={false}
                       class='small-select'
-                      behavior='simplicity'
-                      size={'small'}
-                      searchable
-                      multiple={true}
-                      disabled={!this.localData.noDataConfig.isEnabled}
-                      remote-method={this.handleSearchDim}
-                      show-select-all
                       v-bk-tooltips={
                         !this.localData.noDataConfig.isEnabled
                           ? { content: this.$t('先打开无数据功能'), showOnInit: false, placements: ['top'] }
@@ -550,13 +541,22 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                               allowHTML: false,
                             }
                       }
+                      v-model={this.localData.noDataConfig.dimensions}
+                      behavior='simplicity'
+                      clearable={false}
+                      disabled={!this.localData.noDataConfig.isEnabled}
+                      multiple={true}
+                      popover-min-width={140}
+                      remote-method={this.handleSearchDim}
+                      size={'small'}
+                      searchable
+                      show-select-all
                       on-change={this.emitValueChange}
                     >
                       {this.curDimensions.map(option => (
                         <bk-option
-                          key={option.id}
                           id={option.id}
-                          name={option.name}
+                          key={option.id}
                           v-bk-tooltips={{
                             content: option.id,
                             placement: 'right',
@@ -565,30 +565,31 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                             appendTo: document.body,
                             allowHTML: false,
                           }}
+                          name={option.name}
                         ></bk-option>
                       ))}
                     </bk-select>
                   ) : undefined;
                 })()}
                 <bk-select
-                  v-model={this.localData.noDataConfig.level}
-                  popover-min-width={80}
-                  clearable={false}
                   class='small-select'
-                  behavior='simplicity'
-                  size={'small'}
-                  disabled={!this.localData.noDataConfig.isEnabled}
                   v-bk-tooltips={
                     !this.localData.noDataConfig.isEnabled
                       ? { content: this.$t('先打开无数据功能'), showOnInit: false, placements: ['top'] }
                       : { disabled: true }
                   }
+                  v-model={this.localData.noDataConfig.level}
+                  behavior='simplicity'
+                  clearable={false}
+                  disabled={!this.localData.noDataConfig.isEnabled}
+                  popover-min-width={80}
+                  size={'small'}
                   on-change={this.emitValueChange}
                 >
                   {this.levelList.map(option => (
                     <bk-option
-                      key={option.id}
                       id={option.id}
+                      key={option.id}
                       name={option.name}
                     ></bk-option>
                   ))}
@@ -603,8 +604,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           show-semicolon
         >
           <VerifyItem
-            errorMsg={this.errMsg.timeRanges}
             class='time-range-row'
+            errorMsg={this.errMsg.timeRanges}
           >
             <TimePickerMultiple
               v-model={this.localData.triggerConfig.timeRanges}
@@ -622,8 +623,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         <StrategyTemplatePreview
           dialogShow={noticeTemplate.previewTemplate}
           {...{ on: { 'update:dialogShow': val => (noticeTemplate.previewTemplate = val) } }}
-          template={noticeTemplate.anomalyTemplate}
           scenario={this.scenario}
+          template={noticeTemplate.anomalyTemplate}
         ></StrategyTemplatePreview>
         <StrategyVariateList
           dialogShow={noticeTemplate.variateListShow}
@@ -641,24 +642,24 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   calendarSelect(placeholder?: string) {
     return (
       <bk-select
-        v-model={this.localData.triggerConfig.calendars}
         ref='calendarSelectRef'
-        behavior='simplicity'
         class='calendar-select simplicity-select'
+        v-model={this.localData.triggerConfig.calendars}
+        behavior='simplicity'
         ext-popover-cls='link-calendar-popover'
-        multiple
         placeholder={placeholder || this.$t('关联日历')}
+        multiple
       >
         {this.calendarList.map(item => (
           <bk-option
-            key={item.id + item.name}
             id={item.id}
+            key={item.id + item.name}
             name={item.name}
           ></bk-option>
         ))}
         <div
-          slot='extension'
           class='calendar-extension'
+          slot='extension'
           onClick={this.handleShowCalendar}
         >
           {this.$t('前往日历服务')}
@@ -677,8 +678,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           show-semicolon
         >
           <VerifyItem
-            errorMsg={this.errMsg.timeRanges}
             class='time-range-row'
+            errorMsg={this.errMsg.timeRanges}
           >
             <TimePickerMultiple
               v-model={this.localData.triggerConfig.timeRanges}

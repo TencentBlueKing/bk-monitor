@@ -59,8 +59,8 @@ export default defineComponent({
     return () => (
       <div class='rotation-config-form-item'>
         <div
-          class={['form-item-label', { require: !!props.require }]}
           style={{ minWidth: `${props.labelWidth}px` }}
+          class={['form-item-label', { require: !!props.require }]}
         >
           {props.label}
           {props.hasColon ? ' : ' : undefined}

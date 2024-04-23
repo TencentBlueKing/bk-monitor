@@ -45,7 +45,7 @@ interface IConvergeConfig {
 interface IMealAdvanceFeature {
   failedRetry: IFailedRetry;
   convergeConfig: IConvergeConfig;
-  mealType: string | number;
+  mealType: number | string;
 }
 @Component({
   name: 'MealAdvanceFeature',
@@ -53,7 +53,7 @@ interface IMealAdvanceFeature {
 export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
   @Prop() public failedRetry: IFailedRetry;
   @Prop() public convergeConfig: IConvergeConfig;
-  @Prop() public mealType: string | number;
+  @Prop() public mealType: number | string;
 
   @Ref('noticeMode') readonly noticeModeEl: NoticeMode;
 
@@ -77,7 +77,7 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
   // 收敛方法
   get getConvergeFunctions() {
     return SetMealAddModule.getConvergeFunctions.filter(item =>
-      this.getMealType === 1 ? item.key === 'collect' : item.key !== 'collect',
+      this.getMealType === 1 ? item.key === 'collect' : item.key !== 'collect'
     );
   }
 
@@ -187,18 +187,18 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
             <div class='select-wrapper-small'>
               <bk-select
                 class='select-inline'
-                search-with-pinyin={true}
-                multiple
-                popover-min-width={140}
                 v-model={this.convergeConfig.dimension}
                 behavior={'simplicity'}
                 clearable={false}
+                popover-min-width={140}
+                search-with-pinyin={true}
+                multiple
                 searchable
               >
                 {this.getDimensions.map(option => (
                   <bk-option
-                    key={option.key}
                     id={option.key}
+                    key={option.key}
                     name={option.name}
                   ></bk-option>
                 ))}
@@ -235,16 +235,16 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
             <div class='select-wrapper-small'>
               <bk-select
                 class='select-inline'
-                popover-min-width={140}
                 v-model={this.convergeConfig.convergeFunc}
                 behavior={'simplicity'}
                 clearable={false}
+                popover-min-width={140}
                 searchable
               >
                 {this.getConvergeFunctions.map(option => (
                   <bk-option
-                    key={option.key}
                     id={option.key}
+                    key={option.key}
                     name={option.name}
                   ></bk-option>
                 ))}
@@ -262,10 +262,10 @@ export default class MealAdvanceFeature extends tsc<IMealAdvanceFeature> {
           <VerifyItem errorMsg={this.errorMsg.notifyConfig}>
             <NoticeMode
               ref='noticeMode'
-              on-notice-change={this.onNoticeChange}
+              customName={this.customName}
               noticeWay={this.noticeWayList}
               notifyConfig={this.notifyConfig}
-              customName={this.customName}
+              on-notice-change={this.onNoticeChange}
             ></NoticeMode>
           </VerifyItem>
         ) : undefined}

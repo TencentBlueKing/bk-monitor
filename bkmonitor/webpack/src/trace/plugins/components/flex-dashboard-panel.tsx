@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, provide, ref, toRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { random } from 'monitor-common/utils/utils';
 import { type SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 import { DashboardColumnType, IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -79,7 +80,7 @@ export default defineComponent({
       },
       {
         //   immediate: true
-      },
+      }
     );
 
     watch(
@@ -88,7 +89,7 @@ export default defineComponent({
         echarts.disconnect(props.id.toString());
         handleInitPanelsGridpos(localPanels.value);
         handleConentEcharts();
-      },
+      }
     );
 
     onMounted(() => {
@@ -198,7 +199,7 @@ export default defineComponent({
                 ...item,
                 show: !!panel.collapsed,
                 groupId: rowPanel.id,
-              }),
+              })
             );
             list.push(...childList);
           }
@@ -279,11 +280,8 @@ export default defineComponent({
               <div class='flex-dashboard'>
                 {localPanels.value.map(panel => (
                   <div
-                    class={{
-                      'flex-dashboard-item': true,
-                      'row-panel': panel.type === 'row',
-                      'exception-panel': panel.type === 'exception-guide',
-                    }}
+                    id={`${panel.id}__key__`}
+                    key={`${panel.id}__key__`}
                     style={{
                       width: `calc(${(1 / +props.column) * 100}% - 16px)`,
                       maxWidth: `calc(${(1 / +props.column) * 100}% - 16px)`,
@@ -291,8 +289,11 @@ export default defineComponent({
                       display: getPanelDisplay(panel),
                       height: ['related-log-chart', 'exception-guide'].includes(panel.type) && 'calc(100vh - 240px)',
                     }}
-                    key={`${panel.id}__key__`}
-                    id={`${panel.id}__key__`}
+                    class={{
+                      'flex-dashboard-item': true,
+                      'row-panel': panel.type === 'row',
+                      'exception-panel': panel.type === 'exception-guide',
+                    }}
                   >
                     <ChartWrapper
                       key={`${panel.id}__key__`}

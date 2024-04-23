@@ -26,6 +26,7 @@
 
 import { Component, Emit, InjectReactive, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 import { random } from 'monitor-common/utils/utils';
 
@@ -138,14 +139,14 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
     (this.$refs[refKey] as HTMLInputElement).focus();
   }
   // 选中函数参数列表值时触发
-  handleSelectParamValue(v: string | number) {
+  handleSelectParamValue(v: number | string) {
     this.curFuncParam.value = v;
     this.destroyPopoverInstance();
     this.handleValueChange();
   }
   // 手动修改函数参数值时触发
   @debounceDecorator(100)
-  handleParamValueChange(e: { target: { value: string | number } }, param) {
+  handleParamValueChange(e: { target: { value: number | string } }, param) {
     const { value } = e.target;
     if (`${value}` === `${param.value}`) return;
     this.curFuncParam.value = typeof value === 'number' ? value : value.trim();
@@ -191,17 +192,17 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
         ]}
       >
         <span
-          data-type='func'
           class='func-label'
+          data-type='func'
         >
           {this.$t('函数')}
         </span>
         {this.localValue.map((item, index) => (
           <span
-            data-type='func'
             key={item.key}
             ref={`target-${item.key}`}
             class='func-item'
+            data-type='func'
           >
             <span
               class={['is-hover', 'func-name', { 'is-readonly': this.readonly }]}
@@ -212,23 +213,23 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
             {item?.params?.length ? <span class='brackets'>&nbsp;(&nbsp;</span> : undefined}
             {item?.params?.map((param, pIndex) => (
               <span
-                class='params-item'
                 key={`${item.key}-${pIndex}`}
+                class='params-item'
               >
                 <span
-                  class={['params-text', 'is-hover', { 'is-readonly': this.readonly }]}
                   style={{ display: !param.edit ? 'inline-block' : 'none' }}
+                  class={['params-text', 'is-hover', { 'is-readonly': this.readonly }]}
                   on-click={e => this.handleClickParam(e, param, `input-${item.key}-${pIndex}`)}
                 >
                   {param.value || `-${this.$t('空')}-`}
                 </span>
                 <input
+                  ref={`input-${item.key}-${pIndex}`}
                   style={{ display: param.edit ? 'inline-block' : 'none' }}
+                  class={['params-input', { 'is-edit': param.edit }]}
+                  data-focus={param.edit}
                   value={param.value}
                   on-blur={evt => this.handleParamValueChange(evt, param)}
-                  ref={`input-${item.key}-${pIndex}`}
-                  data-focus={param.edit}
-                  class={['params-input', { 'is-edit': param.edit }]}
                 />
                 {pIndex !== item.params.length - 1 && <span>,&nbsp;</span>}
               </span>
@@ -238,23 +239,23 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
         ))}
         <FunctionMenu
           class='init-add'
-          list={this.metricFunctions}
           isExpSupport={this.isExpSupport}
+          list={this.metricFunctions}
           onFuncSelect={this.handleFuncSelect}
         >
           {!this.localValue?.length && <span class='init-add-input'>{this.placeholder}</span>}
         </FunctionMenu>
         <div style='display: none'>
           <div
-            class='select-panel'
             ref='menuList'
+            class='select-panel'
           >
             <ul class='select-list'>
               {this.curFuncParam?.shortlist?.length > 0 &&
                 this.curFuncParam.shortlist.map(val => (
                   <li
-                    class={['select-list-item', { 'item-active': String(val) === String(this.curFuncParam.value) }]}
                     key={val}
+                    class={['select-list-item', { 'item-active': String(val) === String(this.curFuncParam.value) }]}
                     on-click={() => this.handleSelectParamValue(val)}
                   >
                     {val || `-${this.$t('空')}-`}

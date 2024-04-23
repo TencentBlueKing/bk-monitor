@@ -50,11 +50,11 @@ export default class TraceNewReport extends tsc<object> {
     return (
       <div>
         <bk-weweb
-          setShodowDom={true}
-          url={this.newReportUrl}
-          showSourceCode={true}
           id={wewebId}
           data={this.newReportData}
+          setShodowDom={true}
+          showSourceCode={true}
+          url={this.newReportUrl}
         />
       </div>
     );

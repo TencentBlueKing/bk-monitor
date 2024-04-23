@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Provide, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import BusinessItem, { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
 import { monitorInfo } from 'monitor-api/modules/overview';
 
@@ -139,8 +140,8 @@ export default class BusinessItemBig extends tsc<IProps, IEvent> {
             // v-bkloading={{ isLoading: this.businessAlarmLoading }}
           >
             <BusinessAlarmOverview
-              homeDays={this.homeDays}
               businessAlarm={this.businessAlarm}
+              homeDays={this.homeDays}
             ></BusinessAlarmOverview>
           </div>
         )}

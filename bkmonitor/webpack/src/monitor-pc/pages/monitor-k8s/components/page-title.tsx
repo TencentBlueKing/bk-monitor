@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, random } from 'monitor-common/utils/utils';
 // import ListMenu from './list-menu';
 import { throttle } from 'throttle-debounce';
@@ -251,8 +252,8 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
       const item = this.tabList.find(item => item.id === id);
       return (
         <span
-          class={['tab-item-name', { active: id === this.activeTab }]}
           key={item.id}
+          class={['tab-item-name', { active: id === this.activeTab }]}
         >
           <span class='tab-label-text'>{item.name}</span>
           {item.show_panel_count && (
@@ -270,30 +271,30 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
         </div>
         <div class='page-filters'>
           <div
-            class='page-filters-tab'
             style={{ width: `calc(100% - ${this.searchActive ? '360px' : '130px'})` }}
+            class='page-filters-tab'
           >
             {!this.readonly && this.tabList.length ? (
               <bk-tab
                 key={this.isRefreshRandomKey}
-                type='unborder-card'
                 active={this.activeTab}
+                type='unborder-card'
                 {...{ on: { 'update:active': this.handleTabChange } }}
               >
                 {this.tabList.map(item => (
                   <bk-tab-panel
-                    class='tab-item'
-                    name={item.id}
-                    label={item.name}
                     key={item.id}
+                    class='tab-item'
+                    label={item.name}
+                    name={item.id}
                     render-label={tabItemTpl}
                   />
                 ))}
                 <div slot='setting'>{this.$slots.tabSetting}</div>
                 {this.needAddViewBtn && (
                   <span
-                    slot='add'
                     class='add-btn-wrap'
+                    slot='add'
                     onClick={this.handleAddTab}
                   >
                     <i class='icon-monitor icon-mc-add'></i>
@@ -314,35 +315,35 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                           ref='searchSelect'
                           class='filter-search'
                           data={this.searchData}
-                          values={this.searchValue}
                           show-condition={false}
-                          on-input-click-outside={this.handleSearchBlur}
+                          values={this.searchValue}
                           on-change={this.handleSearchChange}
+                          on-input-click-outside={this.handleSearchBlur}
                         />
                       ) : (
                         <span
+                          class='page-filters-select'
                           onMouseenter={() => (this.insideSearchSelect = true)}
                           onMouseleave={() => (this.insideSearchSelect = false)}
-                          class='page-filters-select'
                         >
                           <bk-select
-                            value={this.searchValue}
                             ref='listSearchSelect'
                             class='filter-search'
-                            searchable={true}
-                            multiple={true}
-                            display-tag={true}
-                            show-select-all={true}
-                            behavior='simplicity'
                             popoverOptions={{
                               onHidden: this.handleSearchToggle,
                             }}
+                            behavior='simplicity'
+                            display-tag={true}
+                            multiple={true}
+                            searchable={true}
+                            show-select-all={true}
+                            value={this.searchValue}
                             on-change={this.handleSearchChange}
                           >
                             {this.searchData.map(item => (
                               <bk-option
-                                key={item.id}
                                 id={item.id}
+                                key={item.id}
                                 name={item.name}
                               ></bk-option>
                             ))}
@@ -401,8 +402,8 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
             )}
             {this.showInfo && (
               <i
-                v-bk-tooltips={{ content: this.$t('详情'), delay: 200, boundary: 'window' }}
                 class={`icon-monitor icon-mc-detail tool-icon ${this.infoActive ? 'icon-active' : ''}`}
+                v-bk-tooltips={{ content: this.$t('详情'), delay: 200, boundary: 'window' }}
                 onClick={this.handleInfo}
               />
             )}

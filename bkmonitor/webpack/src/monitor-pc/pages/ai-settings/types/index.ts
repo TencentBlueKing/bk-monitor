@@ -26,9 +26,9 @@
 
 export type SceneType = 'host'; // host | k8s
 
-export type NotificationType = 'TOPO' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE';
+export type NotificationType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
 
-export type FieldType = 'ip' | 'host_topo_node' | 'host_service_template' | 'host_set_template';
+export type FieldType = 'host_service_template' | 'host_set_template' | 'host_topo_node' | 'ip';
 
 export interface SchemeItem {
   id: number;

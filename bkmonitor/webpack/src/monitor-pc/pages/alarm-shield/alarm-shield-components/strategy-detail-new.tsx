@@ -80,8 +80,8 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
               {queryConfig.agg_condition.map((item, index) => [
                 item.condition && <div class='column-agg-dimension mb-2'>{item.condition}</div>,
                 <div
-                  class='column-agg-dimension mb-2'
                   key={index}
+                  class='column-agg-dimension mb-2'
                 >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
               ])}
             </div>
@@ -140,8 +140,8 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
               <div class='column-agg-condition'>
                 {queryConfig.agg_dimension.map((item, index) => (
                   <div
-                    class='column-agg-dimension mb-2'
                     key={index}
+                    class='column-agg-dimension mb-2'
                   >
                     {item}
                   </div>
@@ -155,8 +155,8 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
               {queryConfig.agg_condition.map((item, index) => [
                 item.condition && <div class='column-agg-dimension mb-2'>{item.condition}</div>,
                 <div
-                  class='column-agg-dimension mb-2'
                   key={index}
+                  class='column-agg-dimension mb-2'
                 >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
               ])}
             </div>
@@ -185,8 +185,8 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
             {queryConfig.agg_condition.map((item, index) => [
               item.condition && <div class='column-agg-dimension mb-2'>{item.condition}</div>,
               <div
-                class='column-agg-dimension mb-2'
                 key={index}
+                class='column-agg-dimension mb-2'
               >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
             ])}
           </div>

@@ -26,6 +26,7 @@
 
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getStorageClusterDetail, listClusters } from 'monitor-api/modules/commons';
 import { random } from 'monitor-common/utils';
 
@@ -245,7 +246,7 @@ export default class ResourceRegister extends tsc<object> {
       this.setTableData();
     }
   }
-  handleDetailsToEdit(clusterId: string | number) {
+  handleDetailsToEdit(clusterId: number | string) {
     const data = this.tableData.data.find(item => item.cluster_id === clusterId);
     this.detailsShow = false;
     if (data) {
@@ -254,7 +255,7 @@ export default class ResourceRegister extends tsc<object> {
   }
 
   /* 状态 */
-  statusContent(status: 'normal' | 'failure') {
+  statusContent(status: 'failure' | 'normal') {
     return (
       <div class='status-info'>
         <div class={['status-point', status]}>
@@ -339,8 +340,8 @@ export default class ResourceRegister extends tsc<object> {
           <div class='header-wrap-01'>
             <bk-button
               class='mr8'
-              theme='primary'
               icon='plus'
+              theme='primary'
               onClick={() => this.handleOpenSideSlider({ operationType: 'add' })}
             >
               {this.$tc('新增')}
@@ -369,8 +370,8 @@ export default class ResourceRegister extends tsc<object> {
             <div class='header-filter'>
               {FILTER_LIST.map(item => (
                 <div
-                  class={['header-filter-item', { active: item.id === this.filterType }]}
                   key={item.id}
+                  class={['header-filter-item', { active: item.id === this.filterType }]}
                   onClick={() => this.handleFilterChange(item.id)}
                 >
                   {!!item.icon && <span class={[`icon-monitor ${item.icon} item-icon`]}></span>}
@@ -380,10 +381,10 @@ export default class ResourceRegister extends tsc<object> {
             </div>
             <div class='search-wrap'>
               <bk-input
-                value={this.searchValue}
                 right-icon='bk-icon icon-search'
-                onEnter={this.handleSearchChange}
+                value={this.searchValue}
                 onBlur={this.handleSearchChange}
+                onEnter={this.handleSearchChange}
               ></bk-input>
             </div>
           </div>
@@ -393,8 +394,8 @@ export default class ResourceRegister extends tsc<object> {
           v-bkloading={{ isLoading: this.loading }}
         >
           <bk-table
-            outer-border={false}
             header-border={false}
+            outer-border={false}
             size={this.tableSize}
             {...{
               props: {
@@ -404,12 +405,11 @@ export default class ResourceRegister extends tsc<object> {
                 pagination: this.tableData.pagination,
               },
             }}
-            on-row-click={this.handleRowClick}
             on-page-change={this.handlePageChange}
             on-page-limit-change={this.handlePageLimitChange}
+            on-row-click={this.handleRowClick}
           >
             <bk-table-column
-              type='expand'
               width={0}
               scopedSlots={{
                 default: ({ row }) => {
@@ -420,12 +420,12 @@ export default class ResourceRegister extends tsc<object> {
                   }
                   return (
                     <div
-                      class='child-table'
                       key={`${row.key}_child`}
+                      class='child-table'
                     >
                       <bk-table
-                        outer-border={false}
                         header-border={false}
+                        outer-border={false}
                         {...{
                           props: {
                             data: row.childData?.data || [],
@@ -437,10 +437,6 @@ export default class ResourceRegister extends tsc<object> {
                           return (
                             <bk-table-column
                               key={key}
-                              prop={column.id}
-                              label={column.name}
-                              column-key={column.id}
-                              sortable={column.sortable}
                               formatter={(_row, _column, _cellValue, _index) => {
                                 if (column.id === 'ip') {
                                   return _row.host;
@@ -451,10 +447,10 @@ export default class ResourceRegister extends tsc<object> {
                                 if (column.id === 'trend') {
                                   return (
                                     <span
+                                      class='icon-monitor icon-trend'
                                       v-bk-tooltips={{
                                         content: this.$t('查看趋势'),
                                       }}
-                                      class='icon-monitor icon-trend'
                                     ></span>
                                   );
                                 }
@@ -468,6 +464,10 @@ export default class ResourceRegister extends tsc<object> {
                                   return '--';
                                 })();
                               }}
+                              column-key={column.id}
+                              label={column.name}
+                              prop={column.id}
+                              sortable={column.sortable}
                             ></bk-table-column>
                           );
                         })}
@@ -476,16 +476,17 @@ export default class ResourceRegister extends tsc<object> {
                   );
                 },
               }}
+              type='expand'
             ></bk-table-column>
             <bk-table-column type='setting'>
               <bk-table-setting-content
                 key={'__settings'}
                 class='event-table-setting'
                 fields={this.tableData.columns}
-                value-key='id'
                 label-key='name'
-                size={this.tableSize}
                 selected={this.tableData.columns.filter(item => item.checked || item.disabled)}
+                size={this.tableSize}
+                value-key='id'
                 on-setting-change={this.handleSettingChange}
               />
             </bk-table-column>
@@ -496,13 +497,13 @@ export default class ResourceRegister extends tsc<object> {
                 return (
                   <bk-table-column
                     key={key}
-                    prop={column.id}
-                    label={column.name}
-                    column-key={column.id}
                     width={column.width}
                     formatter={(row, _column, _cellValue, index) =>
                       this.handleSetFormatter(column.id as ETableColumn, row, index)
                     }
+                    column-key={column.id}
+                    label={column.name}
+                    prop={column.id}
                   ></bk-table-column>
                 );
               })}
@@ -510,15 +511,15 @@ export default class ResourceRegister extends tsc<object> {
         </div>
         <ClusterConfig
           ref='clusterOperation'
-          show={this.show}
           row-config={this.rowConfig}
+          show={this.show}
           on-show-change={this.handleShowChange}
         ></ClusterConfig>
         <ClusterDetails
-          show={this.detailsShow}
           data={this.detailsData}
-          onShowChange={this.handleDetailShowChange}
+          show={this.detailsShow}
           onEdit={this.handleDetailsToEdit}
+          onShowChange={this.handleDetailShowChange}
         ></ClusterDetails>
       </div>
     );

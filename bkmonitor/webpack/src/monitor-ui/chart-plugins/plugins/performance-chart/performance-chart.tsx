@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
@@ -86,7 +87,7 @@ export default class PerformanceChart extends TimeSeries {
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval,
+        this.panel.collect_interval
       );
       const variablesService = new VariablesService({
         ...this.viewOptions,
@@ -107,12 +108,12 @@ export default class PerformanceChart extends TimeSeries {
             down_sample_range: this.downSampleRangeComputed(
               this.downSampleRange as string,
               [params.start_time, params.end_time],
-              item.apiFunc,
+              item.apiFunc
             ),
           };
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
-              cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
+              cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
             .then(res => {
@@ -125,7 +126,7 @@ export default class PerformanceChart extends TimeSeries {
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
                   }`,
-                })),
+                }))
               );
               this.clearErrorMsg();
               return true;
@@ -185,7 +186,7 @@ export default class PerformanceChart extends TimeSeries {
               markArea: this.createMarkArea(item, index),
               z: 2,
             };
-          }) as any,
+          }) as any
         );
         seriesList = seriesList.map((item: any) => {
           if (item.markArea && !this.markArea?.data) {
@@ -238,7 +239,7 @@ export default class PerformanceChart extends TimeSeries {
         const echartOptions: MonitorEchartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
-          { arrayMerge: (_, newArr) => newArr },
+          { arrayMerge: (_, newArr) => newArr }
         );
         this.options = Object.freeze(
           deepmerge(echartOptions, {
@@ -272,7 +273,7 @@ export default class PerformanceChart extends TimeSeries {
               min: 'dataMin',
             },
             series: seriesList,
-          }),
+          })
         );
         this.metrics = metrics || [];
         this.handleDrillDownOption(this.metrics);
@@ -364,38 +365,38 @@ export default class PerformanceChart extends TimeSeries {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            title={this.panel.title}
-            showMore={this.showHeaderMoreTool}
-            inited={this.inited}
-            menuList={this.menuList}
-            drillDownOption={this.drillDownOptions}
-            showAddMetric={this.showAddMetric}
             draging={this.panel.draging}
-            metrics={this.metrics}
-            subtitle={this.panel.subTitle || ''}
+            drillDownOption={this.drillDownOptions}
+            inited={this.inited}
             isInstant={this.panel.instant}
+            menuList={this.menuList}
+            metrics={this.metrics}
+            showAddMetric={this.showAddMetric}
+            showMore={this.showHeaderMoreTool}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
-            onMenuClick={this.handleMenuToolsSelect}
-            onSelectChild={this.handleSelectChildMenu}
-            onMetricClick={this.handleMetricClick}
             onAllMetricClick={this.handleAllMetricClick}
+            onMenuClick={this.handleMenuToolsSelect}
+            onMetricClick={this.handleMetricClick}
+            onSelectChild={this.handleSelectChildMenu}
+            onUpdateDragging={() => this.panel.updateDraging(false)}
           />
         )}
         {!this.empty ? (
           <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
-              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
               ref='chart'
+              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChart'
-                  showRestore={this.showRestore}
-                  height={this.height}
                   width={this.width}
-                  options={this.options}
+                  height={this.height}
                   groupId={this.panel.dashboardId}
+                  options={this.options}
+                  showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
@@ -406,13 +407,13 @@ export default class PerformanceChart extends TimeSeries {
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
                 {legend?.displayMode === 'table' ? (
                   <TableLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 ) : (
                   <ListLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 )}
               </div>

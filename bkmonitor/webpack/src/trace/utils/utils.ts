@@ -58,7 +58,7 @@ export const isShadowEqual = (v: Record<string, any>, o: Record<string, any>) =>
 export const MAX_PONIT_COUNT = 2880;
 export const MIN_PONIT_COUNT = 1440;
 export const INTERVAL_CONTANT_LIST = [10, 30, 60, 2 * 60, 5 * 60, 10 * 60, 30 * 60, 60 * 60];
-export const reviewInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const reviewInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     reviewInterval = interval;
@@ -73,7 +73,7 @@ export const reviewInterval = (interval: number | 'auto' | string, timeRange: nu
   return reviewInterval;
 };
 
-export const recheckInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const recheckInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     const minInterval = (timeRange / (step || 60) / MAX_PONIT_COUNT) * 60;
@@ -143,7 +143,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   if (resultTableLabel === 'uptimecheck' && !relatedId) {
     const list = elList.bk_monitor_time_series;
     elList.bk_monitor_time_series = list.filter(
-      item => item.label !== window.i18n.t('插件ID') && item.label !== window.i18n.t('插件名'),
+      item => item.label !== window.i18n.t('插件ID') && item.label !== window.i18n.t('插件名')
     );
   }
   const curElList = (elList as any)[curActive] || [...options];

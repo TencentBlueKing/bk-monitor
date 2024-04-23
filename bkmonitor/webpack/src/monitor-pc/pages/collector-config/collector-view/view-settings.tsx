@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deleteScenePanelConfig, saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 import { random } from 'monitor-common/utils/utils';
 
@@ -187,19 +188,19 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
       >
         {this.sceneList?.length ? (
           <bk-tab
-            active={this.active}
-            addable
             key={this.tabKey}
-            sortable
+            active={this.active}
             sort-type='insert'
+            addable
+            sortable
+            on-add-panel={this.tabAdd}
             on-sort-change={this.handleSortChange}
             on-tab-change={this.tabChange}
-            on-add-panel={this.tabAdd}
           >
             {this.sceneList.map((item, index) => (
               <bk-tab-panel
-                name={item.name}
                 key={item.name}
+                name={item.name}
               >
                 <template slot='label'>
                   <div class='custom-tab-panel'>
@@ -209,11 +210,11 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
                     <span>{item.name}</span>
                     <div class='panel-right'>
                       <span
+                        class={['icon-monitor', 'icon-mc-delete-line', { show: item.name !== this.sceneList[0].name }]}
                         onClick={e => {
                           e.stopPropagation();
                           this.tabDel(index);
                         }}
-                        class={['icon-monitor', 'icon-mc-delete-line', { show: item.name !== this.sceneList[0].name }]}
                       ></span>
                     </div>
                   </div>
@@ -223,16 +224,16 @@ export default class ViewSettings extends tsc<IViewSettings, IViewSettingsEvent>
           </bk-tab>
         ) : undefined}
         <ViewSettingsSide
-          show={this.sideShow}
-          orderList={this.orderList}
           id={this.id}
-          routeType={this.routeType}
-          viewSettingParams={this.viewSettingParams}
-          sceneList={this.sceneList}
           dimensions={this.dimensions}
+          orderList={this.orderList}
+          routeType={this.routeType}
+          sceneList={this.sceneList}
+          show={this.sideShow}
+          viewSettingParams={this.viewSettingParams}
           viewSortHide={this.viewSortHide}
-          onChange={this.sideChange}
           onAddScene={this.handleAddScene}
+          onChange={this.sideChange}
         ></ViewSettingsSide>
       </div>
     );

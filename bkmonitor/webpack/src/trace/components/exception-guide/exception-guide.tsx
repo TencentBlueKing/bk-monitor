@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, PropType } from 'vue';
+
 import { Button, Exception } from 'bkui-vue';
 import { type ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
@@ -57,20 +58,20 @@ export default defineComponent({
     return (
       <div class='exception-guide-wrap'>
         <Exception
-          type={guideInfo.type}
           v-slots={
             guideInfo.icon
               ? {
                   type: () => (
                     <img
                       class='custom-icon'
-                      src={guideInfo.icon}
                       alt=''
+                      src={guideInfo.icon}
                     />
                   ),
                 }
               : null
           }
+          type={guideInfo.type}
         >
           <div class='title'>{guideInfo.title}</div>
           <div class='text-wrap'>

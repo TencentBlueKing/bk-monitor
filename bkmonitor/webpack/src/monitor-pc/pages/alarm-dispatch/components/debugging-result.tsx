@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { batchUpdate, matchDebug } from 'monitor-api/modules/assign';
 import { destroyAssignGroup } from 'monitor-api/modules/model';
 import { random } from 'monitor-common/utils';
@@ -33,7 +34,6 @@ import TimeRange, { TimeRangeType } from '../../../components/time-range/time-ra
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import emptyImageSrc from '../../../static/images/png/empty.png';
 import { GROUP_KEYS, IConditionProps } from '../typing/condition';
-
 import CommonCondition from './common-condition-new';
 
 import './debugging-result.scss';
@@ -43,7 +43,7 @@ interface IResultGroupItem {
   group_name: string;
   priority: string;
   alerts_count?: number;
-  rules: any[] | { is_enabled: boolean }[];
+  rules: { is_enabled: boolean }[] | any[];
   key?: string;
   isExpand: boolean;
 }
@@ -196,14 +196,14 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
         width={960}
       >
         <div
-          slot='header'
           class='debug-header'
+          slot='header'
         >
           <span class='left'>{this.$t('调试结果')}</span>
           <TimeRange
             class='right'
-            value={this.curTimeRange}
             needTimezone={false}
+            value={this.curTimeRange}
             onChange={this.handleTimeRangeChange}
           ></TimeRange>
         </div>
@@ -215,8 +215,8 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
             {this.resultsGroup.length ? (
               this.resultsGroup.map((item, index) => (
                 <div
-                  class='expand-item'
                   key={item.key}
+                  class='expand-item'
                 >
                   <div
                     class='expand-item-header'
@@ -248,6 +248,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                   </div>
                   {(item.rules || []).map((config, num) => (
                     <div
+                      key={num}
                       class={[
                         'expand-item-content',
                         { 'is-expand': item.isExpand },
@@ -265,7 +266,6 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                         },
                         { mb1: !config.alerts.length },
                       ]}
-                      key={num}
                     >
                       <div class='alarm-group-header'>
                         <div class='header-left'>
@@ -285,12 +285,12 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                             <span class='rule-wrap'>
                               {!!config.conditions?.length ? (
                                 <CommonCondition
-                                  value={config.conditions}
-                                  keyList={this.conditionProps?.keys}
                                   groupKey={GROUP_KEYS}
                                   groupKeys={this.conditionProps.groupKeys}
-                                  valueMap={this.conditionProps.valueMap}
+                                  keyList={this.conditionProps?.keys}
                                   readonly={true}
+                                  value={config.conditions}
+                                  valueMap={this.conditionProps.valueMap}
                                 ></CommonCondition>
                               ) : (
                                 '--'
@@ -309,12 +309,10 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                       {!!config.alerts.length && (
                         <bk-table
                           data={config.alerts || []}
-                          stripe
                           maxHeight={523}
+                          stripe
                         >
                           <bk-table-column
-                            label='ID'
-                            prop='id'
                             scopedSlots={{
                               default: ({ row }) => (
                                 <span
@@ -325,15 +323,15 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                 </span>
                               ),
                             }}
+                            label='ID'
+                            prop='id'
                           ></bk-table-column>
                           <bk-table-column
                             label={this.$t('告警名称')}
-                            show-overflow-tooltip
                             prop='alert_name'
+                            show-overflow-tooltip
                           ></bk-table-column>
                           <bk-table-column
-                            label={this.$t('告警指标')}
-                            prop='metric'
                             scopedSlots={{
                               default: ({ row }) => {
                                 const isEmpt = !row?.metrics?.length;
@@ -361,6 +359,8 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                                 );
                               },
                             }}
+                            label={this.$t('告警指标')}
+                            prop='metric'
                           ></bk-table-column>
                           <bk-table-column
                             label={this.$t('告警内容')}
@@ -378,8 +378,8 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                 {/* 空样式 */}
                 <div>
                   <img
-                    src={emptyImageSrc}
                     alt=''
+                    src={emptyImageSrc}
                   />
                 </div>
                 <span class='empty-dispatch-text'>{this.$t('暂无调试结果')}</span>
@@ -390,9 +390,9 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
         <div slot='footer'>
           {(!!this.ruleGroupsData.length || !!this.excludeGroups.length) && (
             <bk-button
+              class='mr10'
               theme='primary'
               onClick={this.handleSave}
-              class='mr10'
             >
               {this.$t('保存')}
             </bk-button>

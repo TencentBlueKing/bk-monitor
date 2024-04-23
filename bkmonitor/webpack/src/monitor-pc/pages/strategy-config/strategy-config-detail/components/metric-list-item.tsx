@@ -27,10 +27,9 @@ import { Component, Mixins, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import { secToString } from '../../../../components/cycle-input/utils';
-import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
+import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixinTsx';
 import { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
 import { MetricDetail } from '../../strategy-config-set-new/typings';
-
 import WhereDisplay from './where-display';
 
 import './metric-list-item.scss';
@@ -42,10 +41,10 @@ interface IProps {
 }
 
 interface IConfigsItem {
-  key: 'metricName' | 'method' | 'groupBy' | 'function' | 'where' | 'interval' | 'localQueryString' | 'logMetricName';
+  key: 'function' | 'groupBy' | 'interval' | 'localQueryString' | 'logMetricName' | 'method' | 'metricName' | 'where';
   label: string;
-  value: string | VueTsxSupport.JSX.Element | VueTsxSupport.JSX.Element[];
-  format?: Function;
+  value: VueTsxSupport.JSX.Element | VueTsxSupport.JSX.Element[] | string;
+  format?: (val: any) => any;
   enabled: boolean;
 }
 
@@ -127,6 +126,12 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
     !this.expression && this.handleConfigsList();
   }
 
+  beforeDestroy() {
+    this.popoverInstance?.hide?.();
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
+  }
+
   /** 处理指标展示数据 */
   handleConfigsList() {
     const { metric } = this;
@@ -147,17 +152,14 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
         switch (item.key) {
           case 'metricName':
             item.value = (
-              <span
-                onMouseenter={e => this.handleMetricMouseenter(e)}
-                onMouseleave={this.handleMetricMouseleave}
-              >
+              <span onMouseenter={e => this.handleMetricMouseenter(e)}>
                 {metric.metric_field_name || (metric.metric_id as any)}
               </span>
             );
             item.label = this.metricNameLabel();
             break;
           case 'logMetricName':
-            item.value = metric.curRealMetric?.metric_field_name || metric.curRealMetric?.metric_id;
+            item.value = metric.curRealMetric?.metric_field_name || String(metric.curRealMetric?.metric_id);
             break;
           case 'localQueryString':
             item.value = metric.localQueryString;
@@ -191,28 +193,17 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
   }
 
   handleMetricMouseenter(e) {
-    let content = '';
-    try {
-      content = this.handleGetMetricTipsContent(this.metric);
-    } catch (error) {
-      // content = `${this.$t('指标不存在')}`;
-    }
-    if (content) {
+    if (this.$refs.metricTipsContent) {
       this.popoverInstance = this.$bkPopover(e.target, {
-        content,
+        content: this.$refs.metricTipsContent,
         placement: 'right',
         theme: 'monitor-metric-popover',
         arrow: true,
+        interactive: true,
         flip: false,
       });
       this.popoverInstance?.show?.(100);
     }
-  }
-
-  handleMetricMouseleave() {
-    this.popoverInstance?.hide?.();
-    this.popoverInstance?.destroy?.();
-    this.popoverInstance = null;
   }
 
   /** 指标名label */
@@ -279,9 +270,9 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
   handleWhereTps() {
     return this.metric.agg_condition?.length ? (
       <WhereDisplay
-        value={this.metric.agg_condition}
         groupByList={this.metric.dimensions}
         metric={this.metric}
+        value={this.metric.agg_condition}
       />
     ) : undefined;
   }
@@ -317,6 +308,10 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
               <span class='flex-item'></span>
             </div>
           )}
+        </div>
+
+        <div style='display:none'>
+          {this.metric && <div ref='metricTipsContent'>{this.handleGetMetricTipsContent(this.metric)}</div>}
         </div>
       </div>
     );

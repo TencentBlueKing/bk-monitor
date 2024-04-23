@@ -25,15 +25,14 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { INavItem } from '@/pages/monitor-k8s/typings';
 import { DateRange } from '@blueking/date-picker/vue2';
 import dayjs from 'dayjs';
 import { deleteShareToken, getShareTokenList } from 'monitor-api/modules/share';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
-import { INavItem } from '@/pages/monitor-k8s/typings';
-
 import { shortcuts } from '../time-range/utils';
-
 import MiddleOmitted from './middle-omitted';
 
 import './history-share-manage.scss';
@@ -60,9 +59,9 @@ const periodStrFormat = (str: string) =>
     : str;
 
 enum EStatus {
+  isDeleted = 'is_deleted',
   isEnabled = 'is_enabled',
   isExpired = 'is_expired',
-  isDeleted = 'is_deleted',
 }
 
 const statusMap = {
@@ -207,7 +206,7 @@ export default class HistoryShareManage extends tsc<IProps> {
       this.pathName = `${this.$t('事件中心')}${pathFn(this.$t('事件详情'))}${pathFn(this.pageInfo?.alertName || '')}`;
     } else if (/^\/performance\/detail\/.+$/.test(path)) {
       this.pathName = `${this.$t('主机监控')}${pathFn(this.$t('主机详情'))}${pathFn(
-        query?.['filter-bk_target_ip'] || '',
+        query?.['filter-bk_target_ip'] || ''
       )}`;
     } else if (path === '/k8s') {
       this.pathName = `${this.$t('Kubernetes')}${pathFn(this.positionText || '')}`;
@@ -215,25 +214,25 @@ export default class HistoryShareManage extends tsc<IProps> {
       this.pathName = `${this.$t('综合拨测')}${pathFn(this.$t('任务详情'))}${pathFn(this.navList?.[0]?.name || '')}`;
     } else if (/^\/custom-scenes\/view\/.+$/.test(path)) {
       this.pathName = `${this.$t('自定义场景')}${pathFn(this.navList?.[0]?.name || '')}${pathFn(
-        this.navList?.[0]?.subName || '',
+        this.navList?.[0]?.subName || ''
       )}`;
     } else if (/^\/collect-config\/view\/.+$/.test(path)) {
       this.pathName = `${this.$t('数据采集')}${pathFn(this.$t('可视化'))}${pathFn(
-        this.navList?.[0]?.name || '',
+        this.navList?.[0]?.name || ''
       )}${pathFn(this.navList?.[0]?.subName || '')}`;
     } else if (/^\/custom-escalation-view\/.+$/.test(path)) {
       this.pathName = `${this.$t('自定义指标')}${pathFn(this.$t('可视化'))}${pathFn(
-        this.navList?.[0]?.name || '',
+        this.navList?.[0]?.name || ''
       )}${pathFn(this.navList?.[0]?.subName || '')}`;
     } else if (/^\/custom-escalation-event-view\/.+$/.test(path)) {
       this.pathName = `${this.$t('自定义事件')}${pathFn(this.$t('可视化'))}${pathFn(
-        this.navList?.[0]?.name || '',
+        this.navList?.[0]?.name || ''
       )}${pathFn(this.navList?.[0]?.subName || '')}`;
     } else if (/^\/application/.test(path) || /^\/apm\/application/.test(path)) {
       this.pathName = `APM${pathFn(this.navList?.[1]?.name)}${pathFn(this.positionText || '')}`;
     } else if (/^\/service/.test(path) || /^\/apm\/service/.test(path)) {
       this.pathName = `APM${pathFn(this.navList?.[1]?.name)}${pathFn(this.navList?.[2]?.name)}${pathFn(
-        this.positionText || '',
+        this.positionText || ''
       )}`;
     }
     const filterParams = {};
@@ -524,24 +523,24 @@ export default class HistoryShareManage extends tsc<IProps> {
   render() {
     const statusPoint = (color1: string, color2: string) => (
       <div
-        class='status-point'
         style={{ background: color2 }}
+        class='status-point'
       >
         <div
-          class='point'
           style={{ background: color1 }}
+          class='point'
         ></div>
       </div>
     );
     return (
       <MonitorDialog
-        value={this.show}
-        zIndex={this.zIndex}
+        width={1280}
+        class='history-share-manage'
         appendToBody={true}
         needFooter={false}
-        width={1280}
         title={this.$tc('管理历史分享')}
-        class='history-share-manage'
+        value={this.show}
+        zIndex={this.zIndex}
         onChange={this.handleHideDialog}
       >
         <div
@@ -572,9 +571,9 @@ export default class HistoryShareManage extends tsc<IProps> {
           </span>
           <div class='opreate-wrap'>
             <bk-button
+              class='mr18'
               disabled={!Array.from(this.selected).length}
               theme={'primary'}
-              class='mr18'
               onClick={this.handleBatchRecycle}
             >
               {this.$t('批量回收')}
@@ -582,12 +581,12 @@ export default class HistoryShareManage extends tsc<IProps> {
             <div class='status-list'>
               {STATUS_LIST.map((item: any, index) => (
                 <div
+                  key={item.id}
                   class={[
                     'status-list-item',
                     { active: this.statusActive === item.id },
                     { 'not-border': this.statusActive === item.id || STATUS_LIST[index + 1]?.id === this.statusActive },
                   ]}
-                  key={item.id}
                   onClick={() => this.handleStatusChange(item)}
                 >
                   {index !== 0 && statusPoint(item.color1, item.color2)}
@@ -598,8 +597,8 @@ export default class HistoryShareManage extends tsc<IProps> {
           </div>
           <div class='url-table-wrap'>
             <bk-table
-              size={this.tableSize}
               pagination={this.pagination}
+              size={this.tableSize}
               {...{
                 props: {
                   data: this.tableData,
@@ -622,8 +621,8 @@ export default class HistoryShareManage extends tsc<IProps> {
                           renderHeader={() => (
                             <div>
                               <bk-checkbox
-                                indeterminate={this.isIndeterminate}
                                 v-model={this.isAll}
+                                indeterminate={this.isIndeterminate}
                                 onChange={this.handleSelectAll}
                               ></bk-checkbox>
                               <span class='ml8'>{item.name}</span>
@@ -644,9 +643,9 @@ export default class HistoryShareManage extends tsc<IProps> {
                                     duration: [300, 20],
                                     allowHTML: false,
                                   }}
-                                  value={row.link}
-                                  lengthNum={row.token.length + 1}
                                   click={() => this.handleToLink(row)}
+                                  lengthNum={row.token.length + 1}
+                                  value={row.link}
                                 ></MiddleOmitted>
                               </div>
                             ),
@@ -658,10 +657,6 @@ export default class HistoryShareManage extends tsc<IProps> {
                       return (
                         <bk-table-column
                           key={item.id}
-                          label={item.name}
-                          sortable={'custom'}
-                          prop={'accessCount'}
-                          align={'right'}
                           scopedSlots={{
                             default: ({ row }: { row: ITableItem }) => (
                               <span class={['access-count-wrap', { active: row.isShowAccess }]}>
@@ -673,6 +668,10 @@ export default class HistoryShareManage extends tsc<IProps> {
                               </span>
                             ),
                           }}
+                          align={'right'}
+                          label={item.name}
+                          prop={'accessCount'}
+                          sortable={'custom'}
                         ></bk-table-column>
                       );
                     }
@@ -680,7 +679,6 @@ export default class HistoryShareManage extends tsc<IProps> {
                       return (
                         <bk-table-column
                           key={item.id}
-                          label={this.$t('状态')}
                           scopedSlots={{
                             default: ({ row }: { row: ITableItem }) => (
                               <span class='status-wrap'>
@@ -689,6 +687,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                               </span>
                             ),
                           }}
+                          label={this.$t('状态')}
                         ></bk-table-column>
                       );
                     }
@@ -696,16 +695,16 @@ export default class HistoryShareManage extends tsc<IProps> {
                       return (
                         <bk-table-column
                           key={item.id}
-                          label={this.$t('产生时间')}
-                          sortable={'custom'}
                           width={150}
-                          prop={'create_time'}
-                          show-overflow-tooltip
                           scopedSlots={{
                             default: ({ row }: { row: ITableItem }) => (
                               <span>{dayjs.tz(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</span>
                             ),
                           }}
+                          label={this.$t('产生时间')}
+                          prop={'create_time'}
+                          sortable={'custom'}
+                          show-overflow-tooltip
                         ></bk-table-column>
                       );
                     }
@@ -714,8 +713,8 @@ export default class HistoryShareManage extends tsc<IProps> {
                         <bk-table-column
                           key={item.id}
                           label={this.$t('分享人')}
-                          sortable={'custom'}
                           prop={'create_user'}
+                          sortable={'custom'}
                         ></bk-table-column>
                       );
                     }
@@ -723,25 +722,24 @@ export default class HistoryShareManage extends tsc<IProps> {
                       return (
                         <bk-table-column
                           key={item.id}
-                          label={this.$t('链接有效期')}
-                          prop={'expire_time'}
                           scopedSlots={{
                             default: ({ row }: { row: ITableItem }) => <span>{row.expireTimeStr}</span>,
                           }}
+                          label={this.$t('链接有效期')}
+                          prop={'expire_time'}
                         ></bk-table-column>
                       );
                     }
                   }
                 })}
               <bk-table-column
-                label={this.$t('操作')}
                 scopedSlots={{
                   default: ({ row }: { row: ITableItem }) => (
                     <div>
                       <bk-button
+                        class='mr16'
                         disabled={row.status !== EStatus.isEnabled}
                         text
-                        class='mr16'
                         onClick={() => this.handleRecycle(row)}
                       >
                         {this.$t('回收')}
@@ -755,14 +753,15 @@ export default class HistoryShareManage extends tsc<IProps> {
                     </div>
                   ),
                 }}
+                label={this.$t('操作')}
               ></bk-table-column>
               <bk-table-column type='setting'>
                 <bk-table-setting-content
                   fields={this.tableColumns}
-                  value-key='id'
                   label-key='name'
-                  size={this.tableSize}
                   selected={this.tableColumns.filter(item => item.checked || item.disabled)}
+                  size={this.tableSize}
+                  value-key='id'
                   on-setting-change={this.handleSettingChange}
                 ></bk-table-setting-content>
               </bk-table-column>
@@ -772,8 +771,8 @@ export default class HistoryShareManage extends tsc<IProps> {
         <div style={{ display: 'none' }}>
           {/* 访问详情 */}
           <div
-            class='history-share-manage-access-count-detail'
             ref='accessDetail'
+            class='history-share-manage-access-count-detail'
           >
             <bk-table
               {...{
@@ -799,8 +798,8 @@ export default class HistoryShareManage extends tsc<IProps> {
           </div>
           {/* 变量详情 */}
           <div
-            class='history-share-manage-variable-detail'
             ref='variableDetail'
+            class='history-share-manage-variable-detail'
           >
             <bk-table
               {...{
@@ -814,16 +813,16 @@ export default class HistoryShareManage extends tsc<IProps> {
                 prop={'name'}
               ></bk-table-column>
               <bk-table-column
-                label={this.$t('是否可更改')}
-                prop={'isUpdate'}
                 scopedSlots={{
                   default: ({ row }) => <span>{this.$t(row.isUpdate ? '是' : '否')}</span>,
                 }}
+                label={this.$t('是否可更改')}
+                prop={'isUpdate'}
               ></bk-table-column>
               <bk-table-column
+                width={280}
                 label={this.$t('默认选项')}
                 prop={'timeRange'}
-                width={280}
               ></bk-table-column>
             </bk-table>
           </div>

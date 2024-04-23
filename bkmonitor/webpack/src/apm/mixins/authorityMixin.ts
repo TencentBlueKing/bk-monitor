@@ -50,7 +50,7 @@ export default (authMap: { [propsName: string]: string }) =>
             vm.handleInitPageAuthority(
               Array.from(new Set(Object.values(authorityMap).flat(2))),
               resource,
-              isSpecialEvent,
+              isSpecialEvent
             );
         });
       }
@@ -58,7 +58,7 @@ export default (authMap: { [propsName: string]: string }) =>
       public async handleInitPageAuthority(
         actionList: string[],
         resource: { [key: string]: string },
-        isSpecialEvent: boolean,
+        isSpecialEvent: boolean
       ) {
         const data: { actionId: string; isAllowed: boolean }[] = await authorityStore.checkAllowedByApmApplication({
           action_ids: actionList,
@@ -83,5 +83,5 @@ export default (authMap: { [propsName: string]: string }) =>
       public handleShowAuthorityDetail(actionId: string) {
         authorityStore.getAuthorityDetail(actionId || this.$route.meta.authority?.map?.MANAGE_AUTH);
       }
-    },
+    }
   );

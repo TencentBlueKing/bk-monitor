@@ -131,7 +131,7 @@ export function formatDuration(duration: number, split = ''): string {
   // Drop all units that are too large except the last one
   const [primaryUnit, secondaryUnit] = _dropWhile(
     UNIT_STEPS,
-    ({ microseconds }, index) => index < UNIT_STEPS.length - 1 && microseconds > duration,
+    ({ microseconds }, index) => index < UNIT_STEPS.length - 1 && microseconds > duration
   );
 
   if (primaryUnit.ofPrevious === 1000) {

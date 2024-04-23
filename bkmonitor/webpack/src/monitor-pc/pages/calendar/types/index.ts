@@ -37,26 +37,26 @@ export interface ICalendarTypeListItem {
 
 /** 日历列表数据 */
 export interface ICalendarListItem {
-  id: string | number;
+  id: number | string;
   name: string;
   checked: boolean;
   color: string;
 }
 
 export interface IOptionsItem {
-  id: string | number;
+  id: number | string;
   name: string;
   disabled?: boolean;
 }
 
 export enum ERepeatKey {
-  noRepeat = 'no-repeat',
-  everyDay = 'every-day',
-  everyWorkingDay = 'every-working-day',
-  everyWeek = 'every-week',
-  everyMonth = 'every-month',
-  everyYear = 'every-year',
   custom = 'custom',
+  everyDay = 'every-day',
+  everyMonth = 'every-month',
+  everyWeek = 'every-week',
+  everyWorkingDay = 'every-working-day',
+  everyYear = 'every-year',
+  noRepeat = 'no-repeat',
 }
 
 export interface IRepeatParams {
@@ -70,8 +70,8 @@ export interface IRepeatParams {
 /** 自定义类型id */
 export enum ERepeatTypeId {
   days = 'day', // 天
-  weeks = 'week', // 周
   months = 'month', // 月
+  weeks = 'week', // 周
   years = 'year', // 年
 }
 
@@ -99,7 +99,7 @@ export interface IRepeatConfig {
 }
 
 /** 重复选项的接口参数 */
-export const repeatParamsMap: Record<ERepeatKey, IRepeatConfig | {}> = {
+export const repeatParamsMap: Record<ERepeatKey, {} | IRepeatConfig> = {
   [ERepeatKey.noRepeat]: {},
   [ERepeatKey.everyDay]: {
     freq: 'day',

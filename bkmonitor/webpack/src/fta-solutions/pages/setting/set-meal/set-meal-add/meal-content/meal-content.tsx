@@ -25,13 +25,13 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { createDemoAction, getDemoActionDetail } from 'monitor-api/modules/action';
 import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
 import CommonItem from '../components/common-item';
 import SimpleForm from '../components/simple-form';
-
 import AlertNotice from './alert-notice';
 import HttpCallBack from './http-callback';
 import {
@@ -110,7 +110,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   };
   // 调试状态数据
   debugStatusData: {
-    status?: '' | 'success' | 'failure' | 'received' | 'running';
+    status?: '' | 'failure' | 'received' | 'running' | 'success';
     is_finished?: boolean;
     content?: { text: string; url: string; action_plugin_type: string };
   } = {};
@@ -236,7 +236,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   }
 
   /* 调试内容start */
-  handleDebug(type: 'webhook' | 'peripheral') {
+  handleDebug(type: 'peripheral' | 'webhook') {
     switch (type) {
       case 'peripheral':
         this.debugData.peripheral = deepClone(this.data.peripheral);
@@ -352,7 +352,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             pluginType: 'webhook',
             webhook: this.debugData.webhook as any,
           }),
-          true,
+          true
         );
         break;
       case 'peripheral':
@@ -387,7 +387,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         pluginType: 'peripheral',
         peripheral: this.debugData.peripheral,
       }),
-      true,
+      true
     );
     executeConfigData.template_detail = templateDetail;
     return executeConfigData;
@@ -463,13 +463,13 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             required
           >
             <bk-select
-              value={this.data.id}
-              placeholder={this.$tc('选择')}
               class='select input-width'
-              clearable={false}
-              searchable={true}
-              ext-popover-cls='meal-select-popover-warp'
               behavior='simplicity'
+              clearable={false}
+              ext-popover-cls='meal-select-popover-warp'
+              placeholder={this.$tc('选择')}
+              searchable={true}
+              value={this.data.id}
               onSelected={this.mealTypeChange}
             >
               {this.mealTypeList.map(group => (
@@ -479,8 +479,8 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                 >
                   {group.children.map(option => (
                     <bk-option
-                      key={option.id}
                       id={option.id}
+                      key={option.id}
                       name={option.name}
                     >
                       <div class='meal-options'>
@@ -488,11 +488,11 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                         {option.pluginSource === 'peripheral' && option?.newInfo?.url && (
                           <span
                             class='icon-monitor icon-fenxiang icon-meal'
+                            v-bk-tooltips={{ content: option?.newInfo?.tips, allowHTML: false }}
                             onClick={(e: Event) => {
                               e.stopPropagation();
                               this.handleJumpToSurrounding(option?.newInfo?.url);
                             }}
-                            v-bk-tooltips={{ content: option?.newInfo?.tips, allowHTML: false }}
                           ></span>
                         )}
                       </div>
@@ -521,10 +521,10 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                   <HttpCallBack
                     ref='httpCallBackRef'
                     isEdit={true}
+                    pluginId={this.data.id}
+                    validatorHasVariable={true}
                     value={this.data.webhook}
                     variableList={this.getMessageTemplateList}
-                    validatorHasVariable={true}
-                    pluginId={this.data.id}
                     onChange={data => this.handleHttpCallBackChange(data)}
                     onDebug={() => this.handleDebug('webhook')}
                   ></HttpCallBack>
@@ -533,11 +533,11 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
               if (this.data.pluginType !== '') {
                 return (
                   <PeripheralSystem
-                    ref='peripheralSystemRef'
-                    type={this.type}
-                    isInit={this.isInit}
                     id={this.data.id}
+                    ref='peripheralSystemRef'
+                    isInit={this.isInit}
                     peripheralData={this.data.peripheral}
+                    type={this.type}
                     onChange={data => this.handlePeripheralChange(data)}
                     onDebug={() => this.handleDebug('peripheral')}
                     onInit={(v: boolean) => (this.isInit = v)}
@@ -645,21 +645,21 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   getDebugDialog() {
     return [
       <bk-dialog
-        value={this.isShowDebug}
         width={this.debugData.type === 'webhook' ? 766 : 480}
         extCls={'meal-content-debug-dialog'}
-        renderDirective={'if'}
-        maskClose={false}
         headerPosition={'left'}
+        maskClose={false}
+        renderDirective={'if'}
         title={this.$t('输入变量')}
+        value={this.isShowDebug}
         on-cancel={this.handleCloseDebug}
       >
         <div>
           {this.debugData.type === 'webhook' && (
             <HttpCallBack
               isEdit={true}
-              value={this.debugData.webhook}
               isOnlyHttp={true}
+              value={this.debugData.webhook}
               onChange={data => this.handleDebugWebhookDataChange(data)}
             ></HttpCallBack>
           )}
@@ -672,9 +672,9 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             style={{ marginRight: '8px' }}
             loading={this.debugActionLoading}
+            theme='primary'
             onClick={() => this.handleDebugStart()}
           >
             {this.$t('调试')}
@@ -683,12 +683,12 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         </div>
       </bk-dialog>,
       <bk-dialog
-        extCls={'meal-content-running-dialog'}
-        value={!!this.debugStatusData?.status}
         width={400}
-        renderDirective={'if'}
+        extCls={'meal-content-running-dialog'}
         maskClose={false}
+        renderDirective={'if'}
         showFooter={false}
+        value={!!this.debugStatusData?.status}
         on-cancel={() => this.handleStopDebug()}
       >
         <div class='status-content'>

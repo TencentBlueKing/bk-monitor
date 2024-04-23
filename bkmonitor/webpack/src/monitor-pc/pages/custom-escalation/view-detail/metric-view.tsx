@@ -106,22 +106,22 @@ export default class MetricView extends tsc<object> {
       <div class='metric-view'>
         {this.sceneId && (
           <CommonPage
+            defaultViewOptions={this.viewOptions}
+            isMergeMenuList={true}
+            menuList={this.menuList}
             sceneId={this.sceneId}
             sceneType={'detail'}
-            defaultViewOptions={this.viewOptions}
             title={this.$tc('自定义指标')}
-            menuList={this.menuList}
             onMenuSelect={this.handleMenuSelect}
-            isMergeMenuList={true}
             // onPageTitleChange={this.handlePageTitleChange}
             onTitleChange={this.headerTitleChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             />
           </CommonPage>
         )}

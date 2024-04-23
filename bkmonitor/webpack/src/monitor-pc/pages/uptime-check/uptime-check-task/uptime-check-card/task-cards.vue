@@ -26,8 +26,8 @@
 <template>
   <div class="task-cards">
     <div
-      class="task-cards-header"
       v-if="taskList.length"
+      class="task-cards-header"
     >
       <span
         :class="[!taskDetail.show ? 'header-name' : 'header-title']"
@@ -38,43 +38,49 @@
       <span
         v-if="taskDetail.show"
         class="header-detail"
-      >> </span>
+        >>
+      </span>
       <span
         v-if="taskDetail.show"
         class="header-name"
-      >{{ taskDetail.name }}</span>
+        >{{ taskDetail.name }}</span
+      >
     </div>
     <div class="task-cards-container">
       <div
-        class="card-list"
         ref="cardList"
+        class="card-list"
       >
         <div
-          draggable
           v-for="(item, index) in taskList"
           :ref="'card-' + index"
           :key="index"
+          draggable
           :class="['card-list-item', { 'drag-active': drag.active === index, 'is-disabled': isDisabled(item) }]"
           @drag="handleDrag(index, $event)"
-          @dragstart="handleDragStart(index,item, $event)"
+          @dragstart="handleDragStart(index, item, $event)"
           @dragend="handleDragEnd(index, $event)"
           @click.stop="handleItemClick(item)"
           @mouseenter="hoverActive = index"
           @mouseleave="handleTaskMouseLeave(item, index)"
         >
           <div class="item-title">
-            <div class="item-title-name">{{item.name}}<span
-              v-if="isDisabled(item)"
-              class="stoped-icon"
-            >{{$t('已停用')}}</span></div>
+            <div class="item-title-name">
+              {{ item.name
+              }}<span
+                v-if="isDisabled(item)"
+                class="stoped-icon"
+                >{{ $t('已停用') }}</span
+              >
+            </div>
             <div class="item-title-url">
-              {{item.url}}
+              {{ item.url }}
             </div>
             <span
-              class="item-title-icon"
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               v-if="hoverActive === index"
               :ref="'popover-' + index"
+              v-authority="{ active: !authority.MANAGE_AUTH }"
+              class="item-title-icon"
               :class="{ 'hover-active': popover.hover }"
               @click.stop="authority.MANAGE_AUTH ? handlePopoverShow(item, index, $event) : handleShowAuthorityDetail()"
               @mouseleave="handleTaskPopoverLeave"
@@ -88,7 +94,9 @@
               <div
                 v-if="isDisabled(item)"
                 class="disabled-label-item-name"
-              >--</div>
+              >
+                --
+              </div>
               <div
                 v-else
                 class="label-item-name"
@@ -97,8 +105,8 @@
                   class="label-num"
                   :style="{ color: filterAvailableAlarm(item.available, item.available_alarm) }"
                 >
-                  {{ item.available !== null ? item.available : '--'}}
-                </span><span style="color: #63656e">{{item.available !== null ? '%' : ''}}</span>
+                  {{ item.available !== null ? item.available : '--' }} </span
+                ><span style="color: #63656e">{{ item.available !== null ? '%' : '' }}</span>
               </div>
               <div class="label-item-title">
                 {{ $t('可用率') }}
@@ -108,7 +116,9 @@
               <div
                 v-if="isDisabled(item)"
                 class="disabled-label-item-name"
-              >--</div>
+              >
+                --
+              </div>
               <div
                 v-else
                 class="label-item-name"
@@ -118,7 +128,8 @@
                     class="label-num"
                     :style="{ color: filterTaskDurationAlarm(item.task_duration, item.task_duration_alarm) }"
                   >
-                    {{ item.task_duration }} </span><span style="color: #63656e">{{ item.task_duration !== null ? 'ms' : '' }}</span>
+                    {{ item.task_duration }} </span
+                  ><span style="color: #63656e">{{ item.task_duration !== null ? 'ms' : '' }}</span>
                 </template>
                 <template v-else>
                   <span
@@ -139,32 +150,40 @@
         </div>
       </div>
       <div
-        class="card-loading"
         v-show="scroll.show"
+        class="card-loading"
       >
         <span class="icon-monitor icon-loading" /> {{ $t('加载更多...') }}
       </div>
       <div v-show="false">
         <div
-          class="popover-desc"
           ref="popoverContent"
+          class="popover-desc"
         >
           <div
             class="popover-desc-btn"
             @click.stop="handleEditTask"
-          > {{ $t('button-编辑') }} </div>
+          >
+            {{ $t('button-编辑') }}
+          </div>
           <div
             class="popover-desc-btn"
             @click.stop="handleDeleteTask"
-          > {{ $t('删除') }} </div>
+          >
+            {{ $t('删除') }}
+          </div>
           <div
             class="popover-desc-btn"
             @click.stop="handleCloneTask"
-          > {{ $t('克隆') }} </div>
+          >
+            {{ $t('克隆') }}
+          </div>
           <div
             class="popover-desc-btn"
             @click.stop="handleChangeStatus"
-          > {{ taskList[hoverActive] && $t(taskList[hoverActive].switch ? '停用' : '启用') }} </div>
+          >
+            {{ taskList[hoverActive] && $t(taskList[hoverActive].switch ? '停用' : '启用') }}
+          </div>
         </div>
       </div>
     </div>
@@ -185,37 +204,37 @@ export default {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     taskDetail: {
       type: Object,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
       task: {
-        list: []
+        list: [],
       },
       scroll: {
-        show: false
+        show: false,
       },
       drag: {
-        active: -1
+        active: -1,
       },
       popover: {
         hover: false,
         instance: null,
-        active: -1
+        active: -1,
       },
-      hoverActive: -1
+      hoverActive: -1,
     };
   },
   computed: {
     ...mapGetters({ taskList: 'groupTaskList' }),
     hasTaskList() {
       return !!this.taskList.length;
-    }
+    },
   },
   watch: {
     'taskList.length': {
@@ -223,8 +242,8 @@ export default {
         this.$nextTick().then(() => {
           this.handleWindowResize();
         });
-      }
-    }
+      },
+    },
   },
   beforeDestroy() {
     this.handlePopoverHide();
@@ -235,8 +254,7 @@ export default {
     },
     handleWindowResize() {
       const len = this.taskList.length;
-      const width = this.$refs['card-0']?.length
-        ? this.$refs['card-0'][0].getBoundingClientRect().width : 400;
+      const width = this.$refs['card-0']?.length ? this.$refs['card-0'][0].getBoundingClientRect().width : 400;
       if (len > 0) {
         let i = 0;
         while (i < len) {
@@ -251,8 +269,8 @@ export default {
     handleWindowScroll() {
       const scrollHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
-      const clientHeight = window.innerHeight
-      || Math.min(document.documentElement.clientHeight, document.body.clientHeight);
+      const clientHeight =
+        window.innerHeight || Math.min(document.documentElement.clientHeight, document.body.clientHeight);
       if (clientHeight + scrollTop >= scrollHeight && !this.scroll.show) {
         this.scroll.show = true;
         setTimeout(() => {
@@ -278,7 +296,7 @@ export default {
           show: false,
           name: '',
           tasks: [],
-          id: -1
+          id: -1,
         });
       }
     },
@@ -302,7 +320,7 @@ export default {
         appendTo: () => this.$refs[`popover-${index}`][0],
         onHidden: () => {
           this.popover.hover = false;
-        }
+        },
       });
       // .instances[0]
       this.popover.active = index;
@@ -353,8 +371,8 @@ export default {
     // 任务停用状态
     isDisabled(item) {
       return !item?.switch;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -414,7 +432,7 @@ export default {
         cursor: pointer;
 
         &:hover {
-          box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, .1);
+          box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.1);
         }
 
         &.is-disabled {
@@ -486,7 +504,7 @@ export default {
             align-items: center;
             border-radius: 50%;
             cursor: pointer;
-            transition: background-color .2s ease-in-out;
+            transition: background-color 0.2s ease-in-out;
 
             &.hover-active {
               background-color: #f0f1f5;
@@ -550,7 +568,7 @@ export default {
           top: 0;
           bottom: 0;
           background: #fafbfd;
-          opacity: .6;
+          opacity: 0.6;
         }
       }
     }

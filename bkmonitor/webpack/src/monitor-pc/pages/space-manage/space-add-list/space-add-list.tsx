@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { fetchBusinessInfo, listSpaces } from 'monitor-api/modules/commons';
 
 import { handleGotoLink } from '../../../common/constant';
@@ -65,7 +66,7 @@ export default class SpaceAddList extends tsc<IProps> {
       name: i18n.tc('研发项目'),
       icon: 'icon-mc-space-paas',
       desc: window.i18n.tc(
-        '研发项目主要是满足日常的研发代码提交和构建， 在研发项目中提供了构建机监控、APM、自定义指标上报等功能。 研发项目与蓝盾项目直接建立绑定关系，新建研发项目会同步到蓝盾项目。',
+        '研发项目主要是满足日常的研发代码提交和构建， 在研发项目中提供了构建机监控、APM、自定义指标上报等功能。 研发项目与蓝盾项目直接建立绑定关系，新建研发项目会同步到蓝盾项目。'
       ),
     },
     {
@@ -73,7 +74,7 @@ export default class SpaceAddList extends tsc<IProps> {
       name: i18n.tc('容器项目'),
       icon: 'icon-mc-space-bcs',
       desc: window.i18n.tc(
-        '容器项目当前主要指 kubernetes，基于容器管理平台(TKEx-IEG), 接入容器项目后能够满足容器相关的监控和日志采集等。同时蓝盾的研发项目，可以直接开启容器项目能力。',
+        '容器项目当前主要指 kubernetes，基于容器管理平台(TKEx-IEG), 接入容器项目后能够满足容器相关的监控和日志采集等。同时蓝盾的研发项目，可以直接开启容器项目能力。'
       ),
     },
     {
@@ -81,7 +82,7 @@ export default class SpaceAddList extends tsc<IProps> {
       name: i18n.tc('业务'),
       icon: 'icon-mc-space-biz',
       desc: window.i18n.tc(
-        '业务是最终服务的对象，业务可以理解是对外提供的一个站点、游戏、平台服务等。包含了各种资源，物理主机、容器集群、服务模块、业务程序、运营数据等等。所以也包含了不同的角色和不同的研发项目，站在业务的整体视角可以观测到方方面面。',
+        '业务是最终服务的对象，业务可以理解是对外提供的一个站点、游戏、平台服务等。包含了各种资源，物理主机、容器集群、服务模块、业务程序、运营数据等等。所以也包含了不同的角色和不同的研发项目，站在业务的整体视角可以观测到方方面面。'
       ),
     },
     {
@@ -192,8 +193,8 @@ export default class SpaceAddList extends tsc<IProps> {
           return (
             <ResearchForm
               spaceList={this.bkciSpaceList}
-              onSuccess={this.handleResearchFormSuccess}
               onCancel={this.handleResearchFormCancel}
+              onSuccess={this.handleResearchFormSuccess}
             ></ResearchForm>
           );
         case SpaceAddType.container:
@@ -205,19 +206,19 @@ export default class SpaceAddList extends tsc<IProps> {
     };
     return (
       <bk-dialog
-        value={this.show}
         width={640}
+        ext-cls='space-dialog'
+        header-position='left'
         show-footer={false}
         title={this.$tc('新增')}
-        header-position='left'
-        ext-cls='space-dialog'
+        value={this.show}
         onCancel={this.handleCancel}
       >
         <div class='space-add-list'>
           {this.addListData.map(item => (
             <SpaceAddItem
-              data={item}
               checked={item.id === this.acitveType}
+              data={item}
               disabled={item.id === SpaceAddType.other}
               onChecked={() => this.handleChecked(item.id)}
             >

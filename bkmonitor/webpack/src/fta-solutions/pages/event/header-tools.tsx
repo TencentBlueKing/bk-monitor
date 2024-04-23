@@ -31,6 +31,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import MonitorDateRange from 'monitor-pc/components/monitor-date-range/monitor-date-range.vue';
 import DropDownMenu from 'monitor-pc/components/monitor-dropdown/dropdown-menu.vue';
 
@@ -45,7 +46,7 @@ interface IRefleshItem {
   id: number | string;
 }
 interface IHeadToolProps {
-  timeRange: number | string[] | string;
+  timeRange: number | string | string[];
   refleshInterval: number;
 }
 
@@ -56,7 +57,7 @@ interface IHeadToolEvent {
 }
 @Component
 export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
-  @Prop({ default: 1 * 60 * 60 * 1000, type: [Number, Array, String] }) timeRange: number | string[] | string;
+  @Prop({ default: 1 * 60 * 60 * 1000, type: [Number, Array, String] }) timeRange: number | string | string[];
   @Prop({ default: -1 }) refleshInterval: number;
   timerangeList: ITimeRangeItem[] = [];
   refleshList: IRefleshItem[] = [];
@@ -186,23 +187,23 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
       <div class='header-tools'>
         <MonitorDateRange
           class='header-date'
-          icon='icon-mc-time-shift'
-          on-add-option={this.handleAddOption}
-          dropdown-width={100}
           v-model={this.timeRangeValue}
-          on-change={this.handleTimeRangeChange}
+          dropdown-width={100}
+          icon='icon-mc-time-shift'
           options={this.timerangeList}
           z-index={2500}
+          on-add-option={this.handleAddOption}
+          on-change={this.handleTimeRangeChange}
         />
         <DropDownMenu
-          icon={'icon-zidongshuaxin'}
           class='time-interval'
           v-model={this.refleshIntervalValue}
-          text-active={this.refleshInterval !== -1}
-          on-on-icon-click={() => this.$emit('immediateReflesh')}
-          on-change={this.handleRefleshChange}
+          icon={'icon-zidongshuaxin'}
           is-reflesh-interval={true}
           list={this.refleshList}
+          text-active={this.refleshInterval !== -1}
+          on-change={this.handleRefleshChange}
+          on-on-icon-click={() => this.$emit('immediateReflesh')}
         ></DropDownMenu>
       </div>
     );

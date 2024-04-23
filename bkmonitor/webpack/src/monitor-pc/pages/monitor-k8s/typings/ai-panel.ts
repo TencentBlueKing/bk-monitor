@@ -32,9 +32,9 @@ export type FieldHeaderArray = FieldHeaderObj[];
 
 export interface DataObj {
   ip?: string;
-  source: string | number;
+  source: number | string;
   status?: string;
-  value: string | number;
+  value: number | string;
   create_time?: string;
   id?: string;
   label?: string;

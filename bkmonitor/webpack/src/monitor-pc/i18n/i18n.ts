@@ -25,13 +25,13 @@
  */
 import Vue from 'vue';
 import VueI18n from 'vue-i18n';
+
 import { lang, locale } from 'bk-magic-vue';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { docCookies } from 'monitor-common/utils/utils';
 
-import './dayjs';
-
 import { mergeI18nJson } from './commmon';
+import './dayjs';
 // 获取语言偏好设置
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
 

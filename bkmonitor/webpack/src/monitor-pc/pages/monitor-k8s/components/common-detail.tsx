@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
 import { CancelToken } from 'monitor-api/index';
 import { copyText, Debounce, random } from 'monitor-common/utils/utils';
@@ -46,11 +47,10 @@ import { Storage } from '../../../utils/index';
 import IndexList, { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 import { ITableItem } from '../typings';
 import { IDetailItem } from '../typings/common-detail';
-
 import Aipanel from './ai-panel/ai-panel';
+import { type ShowModeType } from './common-page-new';
 import HostDetailView from './host-detail-view/host-detail-view';
 import ShowModeButton, { ShowModeButtonType } from './show-mode-button/show-mode-button';
-import { type ShowModeType } from './common-page-new';
 
 import './common-detail.scss';
 
@@ -557,8 +557,8 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
           {this.needShrinkBtn ?? (
             <i
               class='bk-icon icon-minus detail-shrink'
-              onClick={() => this.handleClickShrink()}
               v-bk-tooltips={{ content: this.$t('收起'), delay: 200, boundary: 'window' }}
+              onClick={() => this.handleClickShrink()}
             ></i>
           )}
         </div>
@@ -567,15 +567,15 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
             this.$scopedSlots.default?.({ contentHeight: this.contentHeight, width: this.width })
           ) : (
             <HostDetailView
-              data={this.data}
               width={this.width}
+              data={this.data}
               onLinkToDetail={v => this.$emit('linkToDetail', v)}
             ></HostDetailView>
           )}
           {this.aiPanel && (
             <Aipanel
-              panel={this.aiPanel}
               allPanelId={this.allPanelId}
+              panel={this.aiPanel}
             />
           )}
         </div>
@@ -588,6 +588,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     }
     return (
       <div
+        style={{ width: this.isShow ? `${this.width}px` : 0, ...styles }}
         class={[
           'common-detail',
           {
@@ -595,7 +596,6 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
             'hide-aside': this.showMode === 'list' || !this.indexList.length,
           },
         ]}
-        style={{ width: this.isShow ? `${this.width}px` : 0, ...styles }}
         v-bkloading={{ isLoading: this.isShow && this.loading }}
         v-resize={{ disabled: !this.enableResizeListener, handler: this.handleResize }}
       >
@@ -604,27 +604,27 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
             // && !!this.indexList.length
             <MonitorResizeLayout
               ref='resizeLayoutRef'
-              disabled={!this.expandIndexList}
-              min={INDEX_LIST_MIN_HEIGHT}
-              max={this.maxIndexListHeight}
               default={!!this.indexList.length ? this.indexListHeight || ASIDE_DEFAULT_HEIGHT : 0}
+              disabled={!this.expandIndexList}
+              max={this.maxIndexListHeight}
+              min={INDEX_LIST_MIN_HEIGHT}
               placement={this.indexListPlacement}
               toggleBefore={() => this.expandIndexList}
-              onUpdateHeight={this.handleResizeContentHeight}
+              onAfterResize={this.handleResizeContentHeightImmediately}
               onResizing={this.hanldeResizing}
               onTogglePlacement={this.handleTogglePlacement}
               onTriggerMin={this.handleTriggerMinIndexList}
-              onAfterResize={this.handleResizeContentHeightImmediately}
+              onUpdateHeight={this.handleResizeContentHeight}
             >
               <div
-                slot='main'
                 class='selector-list-slot'
+                slot='main'
               >
                 {mainTpl}
               </div>
               <div
-                slot='aside'
                 class='index-tree-wrap'
+                slot='aside'
               >
                 {/* 拉到顶 出现浅阴影 */}
                 {this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar'></div>}
@@ -640,37 +640,37 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                   >
                     {this.showIndexSearchInput ? (
                       <bk-input
+                        class='index-search-input'
                         v-model={this.indexSearchKeyword}
                         behavior='simplicity'
                         right-icon='bk-icon icon-search'
-                        class='index-search-input'
                         clearable
-                        onInput={this.handleInputSearch}
                         onBlur={this.handleBlurSearch}
+                        onInput={this.handleInputSearch}
                       />
                     ) : (
                       <i
-                        slot='prefix'
                         class='bk-icon icon-search'
+                        slot='prefix'
                         onClick={() => (this.showIndexSearchInput = true)}
                       ></i>
                     )}
                   </div>
                 </div>
                 <div
-                  class='index-tree-main'
                   style={{
                     height: `${this.indexListHeight - 40}px`,
                   }}
+                  class='index-tree-main'
                 >
                   {this.indexList.length ? (
                     <IndexList
                       ref='indexListRef'
+                      emptyStatusType={this.indexListEmptyStatusType}
                       list={this.indexList}
                       type={this.indexListType}
-                      onSelect={this.handleScrollToIndex}
-                      emptyStatusType={this.indexListEmptyStatusType}
                       onEmptyStatusOperation={this.handleIndexListEmptyOperation}
+                      onSelect={this.handleScrollToIndex}
                       // height="100%"
                     />
                   ) : (
@@ -685,14 +685,14 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         </div>
         {!this.showAminate && (
           <MonitorDrag
-            theme={this.specialDrag ? 'line-round' : 'line'}
-            lineText={this.lineText}
             isShow={this.isShow}
-            minWidth={this.minWidth}
+            lineText={this.lineText}
             maxWidth={this.maxWidthVal}
-            toggleSet={this.toggleSet}
+            minWidth={this.minWidth}
             resetPosKey={this.resetDragPosKey}
             startPlacement={this.startPlacement}
+            theme={this.specialDrag ? 'line-round' : 'line'}
+            toggleSet={this.toggleSet}
             onMove={this.handleDragChange}
             onTrigger={() => this.handleClickShrink()}
           >

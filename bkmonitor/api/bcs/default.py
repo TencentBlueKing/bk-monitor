@@ -8,13 +8,10 @@ from typing import List
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _lazy
-from requests.exceptions import HTTPError, ReadTimeout
 from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
 from core.drf_resource.contrib.api import APIResource
-from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -93,44 +90,20 @@ class BcsApiBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     def get_request_url(self, validated_request_data):
         return super(BcsApiBaseResource, self).get_request_url(validated_request_data).format(**validated_request_data)
 
-    def perform_request(self, validated_request_data, request_url=None):
-        if not request_url:
-            request_url = self.get_request_url(validated_request_data)
-        try:
-            # NOTE: 蓝鲸应用信息放到 header 中，供蓝鲸网关校验
-            result = self.session.get(
-                params=validated_request_data,
-                url=request_url,
-                headers={
-                    "Authorization": f"Bearer {settings.BCS_API_GATEWAY_TOKEN}",
-                    "X-Bkapi-Authorization": json.dumps(
-                        {"bk_app_code": settings.APP_CODE, "bk_app_secret": settings.SECRET_KEY}
-                    ),
-                },
-                verify=False,
-                timeout=self.TIMEOUT,
-            )
-        except ReadTimeout:
-            raise BKAPIError(system_name=self.module_name, url=self.action, result="request bcs apigw api timeout")
-        try:
-            result.raise_for_status()
-        except HTTPError as err:
-            logger.exception(
-                _lazy("【模块：{}】请求 BCS API 服务错误：{}，请求url: {}，参数: {}").format(
-                    self.module_name, err, request_url, json.dumps(validated_request_data)
-                )
-            )
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
-        result_json = result.json()
+    def get_headers(self):
+        headers = super(BcsApiBaseResource, self).get_headers()
+        headers["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
+        return headers
+
+    def render_response_data(self, validated_request_data, response_data):
         # 如果 code 非 0 时，记录对应的 request id，不做异常处理
-        if result_json.get("code") != 0:
+        if response_data.get("code") != 0:
             logger.error(
                 "request bcs api error, params: %s, response: %s",
                 json.dumps(validated_request_data),
-                json.dumps(result_json),
+                json.dumps(response_data),
             )
-
-        return result_json.get("data", {})
+        return response_data.get("data", {})
 
 
 class FetchSharedClusterNamespacesResource(BcsApiBaseResource):
@@ -142,9 +115,9 @@ class FetchSharedClusterNamespacesResource(BcsApiBaseResource):
         project_code = serializers.CharField(required=False, label="project code", default="-")
         cluster_id = serializers.CharField(label="cluster id")
 
-    def perform_request(self, validated_request_data):
-        ns_list = super(FetchSharedClusterNamespacesResource, self).perform_request(validated_request_data)
-        return self._refine_ns(ns_list, validated_request_data["cluster_id"])
+    def render_response_data(self, validated_request_data, response_data):
+        # 对响应数据进行额外处理
+        return self._refine_ns(response_data, validated_request_data["cluster_id"])
 
     def _refine_ns(self, ns_list: List, cluster_id: str) -> List:
         """处理返回的命名空间"""

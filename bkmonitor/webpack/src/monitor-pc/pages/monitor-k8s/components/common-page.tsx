@@ -26,6 +26,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import bus from 'monitor-common/utils/event-bus';
 import { deepClone, random } from 'monitor-common/utils/utils';
@@ -38,7 +39,6 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
-import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { PANEL_INTERVAL_LIST } from '../../../constant/constant';
 import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
@@ -77,12 +77,13 @@ import {
   SPLIT_MIN_WIDTH,
 } from '../typings';
 import { SETTINGS_POP_ZINDEX } from '../utils';
-
 import CommonList from './common-list/common-list';
 import CommonListK8s from './common-list-k8s/common-list-k8s';
 import CommonSelectTable from './common-select-table/common-select-table';
 import CommonTree from './common-tree/common-tree';
 import ApmApiPanel from './select-panel/apm-api-panel';
+
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 import './common-page.scss';
 
@@ -205,7 +206,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   /** 设置弹窗显示状态 */
   showSetting = false;
   /** 当前设置弹窗 */
-  activeSettingId: string | number = '';
+  activeSettingId: number | string = '';
   /** 设置弹窗关闭时判断当前页签内容是否发生变更需要重新请求 */
   isPanelChange = false;
   // 搜索的值
@@ -223,7 +224,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 汇聚方法
   method = DEFAULT_METHOD;
   // 汇聚周期
-  interval: string | number = 'auto';
+  interval: number | string = 'auto';
   // 对比数据
   compares: Record<string, any> = {};
   // 默认对比数据
@@ -503,7 +504,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 表格图表搜索条件数据
   @ProvideReactive('queryData') queryData: IQueryData = DEFAULT_QUERY_DATA;
   // 粒度
-  @ProvideReactive('downSampleRange') downSampleRange: string | number = 'auto';
+  @ProvideReactive('downSampleRange') downSampleRange: number | string = 'auto';
   /** 图表的告警状态接口是否需要加入$current_target作为请求参数 */
   @ProvideReactive('alertFilterable') alertFilterable = false;
   // 是否展示复位
@@ -776,7 +777,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     let hasDefaultSelectPanelValue = true;
     if (this.targetFields && !this.filters.bk_inst_id) {
       hasDefaultSelectPanelValue = Object.values(this.targetFields).every(
-        key => variables[key] !== undefined || this.filters[key] !== undefined,
+        key => variables[key] !== undefined || this.filters[key] !== undefined
       );
     }
     /** 支持数据总览情况 */
@@ -998,7 +999,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
               set =>
                 set.title?.includes?.(item.id) ||
                 set.subTitle?.includes(item.id) ||
-                set.id.toString()?.includes(item.id),
+                set.id.toString()?.includes(item.id)
             );
             const listPanels = listPanel?.panels || [];
             panels.length &&
@@ -1024,8 +1025,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                 val =>
                   set.title?.includes?.(val.id) ||
                   set.subTitle?.includes?.(val.id) ||
-                  set.id.toString().includes(val.id),
-              ),
+                  set.id.toString().includes(val.id)
+              )
             ),
           });
           return true;
@@ -1163,11 +1164,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
       currentTarget = selectortTarget?.handleCreateFilterDictValue(
         this.filters,
         true,
-        selectortTarget.compareFieldsSort,
+        selectortTarget.compareFieldsSort
       );
 
       compareTargets = targets?.map(item =>
-        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort),
+        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
       );
     }
     const variables: Record<string, any> = {
@@ -1502,19 +1503,19 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
       case 'topo_tree': // topo类型展示
         return (
           <HostTree
-            viewOptions={this.localViewOptions}
-            panel={this.sceneData.selectorPanel}
+            width={width}
+            height={contentHeight}
             checkedNode={this.localViewOptions.filters}
             isTargetCompare={this.compareType === 'target'}
-            height={contentHeight}
-            width={width}
-            tabActive={this.sceneData.id}
+            panel={this.sceneData.selectorPanel}
             statusMapping={this.sceneData.statusMapping}
+            tabActive={this.sceneData.id}
+            viewOptions={this.localViewOptions}
+            onChange={this.handleViewOptionsChange}
             onCheckedChange={this.handleCheckedNode}
             onListChange={this.compareHostchange}
-            onTitleChange={this.headerTitleChange}
-            onChange={this.handleViewOptionsChange}
             onOverviewChange={this.handleOverviewChange}
+            onTitleChange={this.headerTitleChange}
           />
         );
       case 'apm_topo': // 接口
@@ -1522,82 +1523,82 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         return (
           <ApmApiPanel
             height={contentHeight}
-            viewOptions={this.localViewOptions}
             panel={this.sceneData.selectorPanel}
+            viewOptions={this.localViewOptions}
+            onChange={this.handleSelectorPanelChange}
             onListChange={this.compareHostchange}
             onTitleChange={this.headerTitleChange}
-            onChange={this.handleSelectorPanelChange}
           />
         );
       case 'apm_service_topo': // 接口
         return (
           <CommonTree
-            viewOptions={this.localViewOptions}
-            panel={this.sceneData.selectorPanel}
             height={contentHeight}
             checkedNode={this.localViewOptions.filters}
             condition={this.selectorSearchCondition}
-            onListChange={this.compareHostchange}
-            onTitleChange={this.headerTitleChange}
+            panel={this.sceneData.selectorPanel}
+            viewOptions={this.localViewOptions}
             onChange={this.handleSelectorPanelChange}
+            onListChange={this.compareHostchange}
             onSearchChange={this.handleSelectorPanelSearch}
+            onTitleChange={this.headerTitleChange}
           />
         );
 
       case 'list-cluster': // list类型展示 k8s集群侧栏
         return (
           <CommonListK8s
-            viewOptions={this.localViewOptions}
             height={contentHeight}
-            panel={this.sceneData.selectorPanel}
-            isTargetCompare={this.compareType === 'target'}
             isOverview={this.localSceneType === 'overview'}
-            onListChange={this.compareHostchange}
-            onTitleChange={this.headerTitleChange}
+            isTargetCompare={this.compareType === 'target'}
+            panel={this.sceneData.selectorPanel}
+            viewOptions={this.localViewOptions}
             onChange={this.handleToClusterDetail}
+            onListChange={this.compareHostchange}
             onOverviewChange={this.handleClusterOverviewChange}
+            onTitleChange={this.headerTitleChange}
           />
         );
       case 'list': // list类型展示
         return (
           <CommonList
             ref='commonListRef'
-            sceneId={this.sceneId}
             height={contentHeight}
-            viewOptions={this.localViewOptions}
-            panel={this.sceneData.selectorPanel}
-            onCheckedChange={() => this.handleCheckedNode(false)}
             isTargetCompare={this.compareType === 'target'}
+            panel={this.sceneData.selectorPanel}
+            sceneId={this.sceneId}
+            viewOptions={this.localViewOptions}
+            onChange={this.handleSelectorPanelChange}
+            onCheckedChange={() => this.handleCheckedNode(false)}
             onListChange={this.compareHostchange}
             onTitleChange={this.headerTitleChange}
-            onChange={this.handleSelectorPanelChange}
           />
         );
       case 'target_list': // 含有对比功能的列表 如主机列表
         return (
           <HostList
+            width={width}
+            height={contentHeight}
+            isTargetCompare={this.compareType === 'target'}
             panel={this.sceneData.selectorPanel}
             viewOptions={this.localViewOptions}
-            height={contentHeight}
-            width={width}
+            onChange={this.handleViewOptionsChange}
             onCheckedChange={this.handleCheckedNode}
-            onTitleChange={this.headerTitleChange}
-            isTargetCompare={this.compareType === 'target'}
             onListChange={this.compareHostchange}
             onOverviewChange={this.handleOverviewChange}
-            onChange={this.handleViewOptionsChange}
+            onTitleChange={this.headerTitleChange}
           ></HostList>
         );
       case 'table': // 宽窄表
         // case 'apm_topo': // 测试 TODO
         return (
           <CommonSelectTable
+            isOverview={this.localSceneType === 'overview'}
             panel={this.sceneData.selectorPanel}
             viewOptions={this.localViewOptions}
-            isOverview={this.localSceneType === 'overview'}
-            onTitleChange={this.headerTitleChange}
             onChange={this.handleViewOptionsChange}
             onOverviewChange={this.handleSelectorTableOverviewChange}
+            onTitleChange={this.headerTitleChange}
           />
         );
       default:
@@ -1614,63 +1615,63 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
           <PageTitle
             class='common-page-title'
             activeTab={this.dashboardId}
-            needAddViewBtn={this.sceneData.viewEditable}
-            tabList={this.tabList}
-            searchData={this.sceneData.searchData}
-            searchValue={this.searchValue}
-            showSearch={this.sceneData.panelCount > 1 && this.sceneData.searchData.length > 0}
             bookMarkMode={this.sceneData.mode}
-            showFilter={!!this.sceneData.variables.length || this.sceneData.enableGroup}
-            // showSelectPanel={this.sceneData.showSelectPanel}
-            showSelectPanel={false}
             // listPanelActive={this.dashbordMode === 'list'}
             filterActive={this.filterActive}
-            // showInfo={this.sceneData.showInfoPanel}
-            showInfo={false}
-            // showListPanel={this.sceneData.hasListPanels}
+            filterCount={this.filterCount}
+            needAddViewBtn={this.sceneData.viewEditable}
+            searchData={this.sceneData.searchData}
+            searchValue={this.searchValue}
             // infoActive={this.infoActive}
             selectPanelActive={this.isSelectPanelActive}
-            filterCount={this.filterCount}
+            showFilter={!!this.sceneData.variables.length || this.sceneData.enableGroup}
+            // showInfo={this.sceneData.showInfoPanel}
+            showInfo={false}
+            showSearch={this.sceneData.panelCount > 1 && this.sceneData.searchData.length > 0}
+            // showListPanel={this.sceneData.hasListPanels}
+            // showSelectPanel={this.sceneData.showSelectPanel}
+            showSelectPanel={false}
+            tabList={this.tabList}
+            onAddTab={() => this.handleAddTab('edit-tab')}
             onFilterChange={val => (this.filterActive = val)}
-            onSelectPanelChange={this.handleSelectPanelActive}
-            onSearchChange={this.handleSearchChange}
-            onTabChange={this.handleMenuTabChange}
             // onInfoChange={this.handleInfoActive}
             onListPanelChange={this.handleDashboardModeChange}
-            onAddTab={() => this.handleAddTab('edit-tab')}
+            onSearchChange={this.handleSearchChange}
+            onSelectPanelChange={this.handleSelectPanelActive}
+            onTabChange={this.handleMenuTabChange}
           >
             <div slot='title'>{this.$slots.nav}</div>
             <div slot='tabSetting'>{this.$slots.tabSetting}</div>
             {!this.readonly && !!this.sceneData.alarmPanel && (
               <AlarmTools
                 key={this.alarmToolsKey}
+                style={{ marginRight: '4px' }}
+                slot='tools'
                 filters={this.filters}
                 panel={this.sceneData.alarmPanel}
-                slot='tools'
-                style={{ marginRight: '4px' }}
               />
             )}
             <div
-              slot='tools'
               class='tools-wrap'
+              slot='tools'
             >
               <DashboardTools
+                downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
+                menuList={this.mergeMenuList}
                 refleshInterval={this.refleshInterval}
+                showDownSampleRange={false}
+                showListMenu={this.showListMenu && !this.readonly && this.localSceneType !== 'overview'}
+                showSplitPanel={!this.readonly && this.isShowSplitPanel}
                 timeRange={this.timeRange}
                 timezone={this.timezone}
-                showSplitPanel={!this.readonly && this.isShowSplitPanel}
-                showListMenu={this.showListMenu && !this.readonly && this.localSceneType !== 'overview'}
-                menuList={this.mergeMenuList}
-                downSampleRange={this.downSampleRange}
-                showDownSampleRange={false}
+                onDownSampleRangeChange={this.handleDownSampleRangeChange}
+                onFullscreenChange={this.handleFullscreen}
                 onImmediateReflesh={this.handleImmediateReflesh}
                 onRefleshChange={this.handleRefleshChange}
-                onTimeRangeChange={this.handleTimeRangeChange}
-                onFullscreenChange={this.handleFullscreen}
-                onSplitPanelChange={this.handleSplitPanel}
                 onSelectedMenu={this.handleShowSettingModel}
-                onDownSampleRangeChange={this.handleDownSampleRangeChange}
+                onSplitPanelChange={this.handleSplitPanel}
+                onTimeRangeChange={this.handleTimeRangeChange}
                 onTimezoneChange={this.handleTimezoneChange}
               >
                 {this.$slots.dashboardTools && <span>{this.$slots.dashboardTools}</span>}
@@ -1679,23 +1680,13 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
             </div>
           </PageTitle>,
           <div
-            class='common-page-container'
             key={this.selectorPanelKey}
+            class='common-page-container'
           >
             <keep-alive>
               {!this.readonly && this.sceneData.showSelectPanel && (this.showListAnimate || this.showSelectPanel) && (
                 <CommonDetail
                   ref='hostTreeContainerRef'
-                  lineText={this.$t('列表').toString()}
-                  title={this.$t('列表').toString()}
-                  showAminate={this.showListAnimate}
-                  enableResizeListener={true}
-                  onShrink={() => (this.isSelectPanelActive = !this.isSelectPanelActive)}
-                  onShowChange={show => !show && (this.isSelectPanelActive = false)}
-                  toggleSet={this.toggleSet}
-                  resetDragPosKey={this.resetDragPosKey}
-                  indexList={this.indexList}
-                  needOverflow={false}
                   scopedSlots={{
                     default: ({ contentHeight, width }) => (
                       <div class={['host-tree-container', 'no-padding']}>
@@ -1704,11 +1695,21 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                       </div>
                     ),
                   }}
+                  enableResizeListener={true}
+                  indexList={this.indexList}
+                  lineText={this.$t('列表').toString()}
+                  needOverflow={false}
+                  resetDragPosKey={this.resetDragPosKey}
+                  showAminate={this.showListAnimate}
+                  title={this.$t('列表').toString()}
+                  toggleSet={this.toggleSet}
+                  onShowChange={show => !show && (this.isSelectPanelActive = false)}
+                  onShrink={() => (this.isSelectPanelActive = !this.isSelectPanelActive)}
                 >
                   {!this.showListAnimate && this.isShowCompleteList() ? (
                     <span
-                      slot='titleEnd'
                       class='selector-list-btn-wrap'
+                      slot='titleEnd'
                       onClick={this.handleToCompleteList}
                     >
                       <span class='all-list-text'>{this.$t('完整列表')}</span>
@@ -1721,16 +1722,16 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
             {this.selectorReady ? (
               [
                 <div
-                  class='dashboard-panel-wrap'
                   ref='dashboardPanelWrap'
+                  class='dashboard-panel-wrap'
                 >
                   <div class='dashboard-panel-tools'>
                     {
                       // 变量筛选
                       (!!this.sceneData.variables.length || this.sceneData.enableGroup) && (
                         <div
-                          class='dashboard-panel-filter-wrap'
                           style={{ display: !window.__BK_WEWEB_DATA__?.lockTimeRange ? 'blok' : 'none' }}
+                          class='dashboard-panel-filter-wrap'
                         >
                           <Collapse
                             ref='collapseRef'
@@ -1741,27 +1742,27 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                             <div class='dashboard-panel-filter-content'>
                               {!!this.sceneData.variables.length && (
                                 <FilterVarSelectGroup
-                                  ref='filterVarSelectGroupRef'
                                   key={this.sceneData.id + this.refleshVariablesKey}
-                                  scencId={this.sceneId}
-                                  sceneType={this.localSceneType}
+                                  ref='filterVarSelectGroupRef'
+                                  needAddBtn={this.sceneData.variableEditable}
                                   pageId={this.dashboardId}
                                   panelList={this.sceneData.variables}
+                                  scencId={this.sceneId}
+                                  sceneType={this.localSceneType}
                                   variables={this.variables}
-                                  needAddBtn={this.sceneData.variableEditable}
+                                  onAddFilter={() => this.handleAddTab('edit-variate')}
                                   onChange={this.handleFilterVarChange}
                                   onDataReady={this.handleFilterVarDataReady}
-                                  onAddFilter={() => this.handleAddTab('edit-variate')}
                                 />
                               )}
                               {this.sceneData.enableGroup ? (
                                 <GroupSelect
                                   class='k8s-group-select'
-                                  value={Array.isArray(this.groups) ? this.groups : [this.groups]}
+                                  pageId={this.dashboardId}
                                   panel={this.sceneData.groupPanel}
                                   scencId={this.sceneId}
-                                  pageId={this.dashboardId}
                                   sceneType={this.localSceneType}
+                                  value={Array.isArray(this.groups) ? this.groups : [this.groups]}
                                   onChange={this.handleGroupsChange}
                                 />
                               ) : undefined}
@@ -1779,46 +1780,46 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                         onLayoutChange={this.handleChartChange}
                       >
                         <span
-                          slot='prepend'
                           class='panel-tools-prepend'
+                          slot='prepend'
                         >
                           {this.isEnableIntervalSelect && (
                             <FilterVarSelectSimple
-                              value={this.interval}
-                              options={PANEL_INTERVAL_LIST}
                               field={'interval'}
                               label={this.$t('汇聚周期')}
+                              options={PANEL_INTERVAL_LIST}
+                              value={this.interval}
                               onChange={this.handleIntervalChange}
                             />
                           )}
                           {this.isEnableMethodSelect && (
                             <FilterVarSelectSimple
-                              value={this.method}
-                              options={METHOD_LIST}
                               field={'method'}
                               label={this.$t('汇聚方法')}
+                              options={METHOD_LIST}
+                              value={this.method}
                               onChange={this.handleMethodChange}
                             />
                           )}
                           {!window.__BK_WEWEB_DATA__?.lockTimeRange && this.isShowCompareTool && (
                             <CompareSelect
-                              needTargetSelect
-                              targetOptions={this.compareHostList}
-                              type={this.compareType}
                               compareListEnable={this.compareTypeMap}
-                              panel={this.sceneData.selectorPanel}
                               curTarget={this.currentTitle}
-                              timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
+                              panel={this.sceneData.selectorPanel}
+                              targetOptions={this.compareHostList}
                               targetValue={this.compareType === 'target' ? this.localViewOptions : undefined}
+                              timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
+                              type={this.compareType}
+                              needTargetSelect
+                              onTargetChange={this.handleCompareTargetChange}
                               onTimeChange={this.handleCompareTimeChange}
                               onTypeChange={this.handleCompareTypeChange}
-                              onTargetChange={this.handleCompareTargetChange}
                             />
                           )}
                           {this.sceneData.isShowPreciseFilter && (
                             <bk-checkbox
-                              v-model={this.isPreciseFilter}
                               class='precise-filtering'
+                              v-model={this.isPreciseFilter}
                               onChange={this.handlePreciseFilteringChange}
                             >
                               {this.$t('精准过滤')}
@@ -1834,25 +1835,25 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                     (this.filtersReady ? (
                       this.sceneData.mode === 'custom' ? (
                         <DashboardPanel
+                          id={this.dashboardPanelId}
+                          key={this.sceneData.id}
+                          column={'custom'}
+                          dashboardId={this.dashboardId}
                           isSingleChart={this.isSingleChart}
                           needOverviewBtn={!!this.sceneData?.list?.length}
-                          key={this.sceneData.id}
-                          id={this.dashboardPanelId}
-                          dashboardId={this.dashboardId}
-                          column={'custom'}
                           panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
                           onBackToOverview={this.handleBackToOverview}
                           onLintToDetail={this.handleLinkToDetail}
                         />
                       ) : (
                         <FlexDashboardPanel
-                          isSingleChart={this.isSingleChart}
-                          needOverviewBtn={!!this.sceneData?.list?.length}
-                          key={this.sceneData.id}
                           id={this.dashboardPanelId}
-                          dashboardId={this.dashboardId}
+                          key={this.sceneData.id}
                           column={this.columns + 1}
+                          dashboardId={this.dashboardId}
+                          isSingleChart={this.isSingleChart}
                           matchFields={this.matchFields}
+                          needOverviewBtn={!!this.sceneData?.list?.length}
                           panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
                           onBackToOverview={this.handleBackToOverview}
                           onLintToDetail={this.handleLinkToDetail}
@@ -1863,20 +1864,20 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                     ))}
                 </div>,
                 <div
-                  class='split-panel-wrapper'
                   style={{
                     width: `${this.splitPanelWidth}px`,
                     display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
                   }}
+                  class='split-panel-wrapper'
                 >
                   {!this.readonly && this.isSplitPanel ? (
                     <SplitPanel
                       columns={this.columns}
                       dashboardId={this.dashboardPanelId}
+                      defaultViewOptions={this.viewOptions}
                       splitMaxWidth={Math.max(this.splitPanelWidth + 300, SPLIT_MAX_WIDTH)}
                       splitWidth={this.splitPanelWidth}
                       toggleSet={this.toggleSet}
-                      defaultViewOptions={this.viewOptions}
                       onDragMove={this.handleDragMove}
                     />
                   ) : undefined}
@@ -1884,20 +1885,20 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                 <keep-alive>
                   {!this.showListAnimate && this.enableDetail && this.infoActive && (
                     <CommonDetail
-                      panel={this.sceneData.detailPanel}
                       aiPanel={this.sceneData.aiPanel}
                       allPanelId={this.sceneData.allPanelId}
+                      needShrinkBtn={false}
+                      panel={this.sceneData.detailPanel}
+                      placement={'right'}
+                      sceneId={this.sceneId}
+                      selectorPanelType={this.sceneData?.selectorPanel?.type || ''}
+                      startPlacement={'left'}
                       title={this.$tc('详情')}
                       toggleSet={this.toggleSet}
-                      startPlacement={'left'}
-                      needShrinkBtn={false}
-                      placement={'right'}
-                      selectorPanelType={this.sceneData?.selectorPanel?.type || ''}
-                      sceneId={this.sceneId}
                       // onShowChange={show => !show && (this.infoActive = false)}
+                      onLinkToDetail={this.handleLinkToDetail}
                       // onShrink={ () => this.infoActive = !this.infoActive}
                       onTitleChange={this.headerTitleChange}
-                      onLinkToDetail={this.handleLinkToDetail}
                     />
                   )}
                 </keep-alive>,
@@ -1911,25 +1912,25 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
           </div>,
           !this.readonly ? (
             <SettingModal
-              show={this.showSetting}
-              menuList={this.sceneData.settingMenuList as any}
               activeMenu={this.activeSettingId as string}
               beforeClose={this.handleBeforeCloseSettings}
+              menuList={this.sceneData.settingMenuList as any}
+              show={this.showSetting}
+              zIndex={1999}
               onChange={this.toggleSettingModel}
               onMenuChange={this.handleMenuChange}
-              zIndex={1999}
             >
               {this.showSetting && (
                 <settings-wrapper
                   ref='settingsWrapRef'
-                  initAddSetting={this.initAddSetting}
                   active={this.activeSettingId}
                   activeTab={this.dashboardId}
-                  viewType={this.localSceneType}
-                  sceneId={this.sceneId}
                   bookMarkData={this.tabList}
-                  title={this.title}
                   enableAutoGrouping={this.enableAutoGrouping}
+                  initAddSetting={this.initAddSetting}
+                  sceneId={this.sceneId}
+                  title={this.title}
+                  viewType={this.localSceneType}
                   onActiveChange={val => (this.activeSettingId = val)}
                   onPanelChange={val => (this.isPanelChange = val)}
                 />

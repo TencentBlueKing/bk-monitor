@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+
 import { checkDuplicateName, getDataEncoding } from 'monitor-api/modules/apm_meta';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
@@ -32,7 +33,6 @@ import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strateg
 
 import documentLinkMixin from '../../../mixins/documentLinkMixin';
 import { ICreateAppFormData } from '../../home/app-list';
-
 import { IDescData, ThemeType } from './select-card-item';
 
 import './select-system.scss';
@@ -253,7 +253,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
       row =>
         !!row.list?.length ||
         (row.other?.checked && !!row.other?.value) ||
-        row.children?.some?.(child => !!child.list.length),
+        row.children?.some?.(child => !!child.list.length)
     );
   }
 
@@ -387,7 +387,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
           </div>
           <div class='app-add-answer'>
             {this.$t(
-              '从技术方面来说应用是Trace数据的存储隔离，在同一个应用内的数据将进行统计和观测。更多请查看产品文档。',
+              '从技术方面来说应用是Trace数据的存储隔离，在同一个应用内的数据将进行统计和观测。更多请查看产品文档。'
             )}
           </div>
         </div>
@@ -464,14 +464,14 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
               rules: this.rules,
             },
           }}
-          label-width={104}
           ref='addForm'
+          label-width={104}
         >
           <bk-form-item
-            label={this.$t('应用名')}
-            required
-            property='name'
             error-display-type='normal'
+            label={this.$t('应用名')}
+            property='name'
+            required
           >
             <bk-input
               v-model={this.formData.name}
@@ -481,10 +481,10 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
             />
           </bk-form-item>
           <bk-form-item
-            label={this.$t('应用别名')}
-            required
-            property='enName'
             error-display-type='normal'
+            label={this.$t('应用别名')}
+            property='enName'
+            required
           >
             <bk-input
               v-model={this.formData.enName}
@@ -494,8 +494,8 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
           </bk-form-item>
           <bk-form-item label={this.$t('描述')}>
             <bk-input
-              type='textarea'
               v-model={this.formData.desc}
+              type='textarea'
             ></bk-input>
           </bk-form-item>
           <bk-form-item
@@ -503,14 +503,14 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
             required
           >
             <bk-switcher
-              theme='primary'
               v-model={this.formData.enableProfiling}
+              theme='primary'
             ></bk-switcher>
             <span class='form-item-tips'>
               <i class='icon-monitor icon-tishi'></i>
               <i18n
-                path='如何开启持续 Profiling ，请查看 {0}'
                 class='flex-center'
+                path='如何开启持续 Profiling ，请查看 {0}'
               >
                 <span
                   class='link-text'
@@ -527,9 +527,9 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
             required
           >
             <bk-switcher
+              v-model={this.formData.enableTracing}
               theme='primary'
               disabled
-              v-model={this.formData.enableTracing}
             ></bk-switcher>
           </bk-form-item>
           <bk-form-item label={this.$t('支持插件')}>
@@ -563,24 +563,24 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
           {this.isShowLog2TracesFormItem && (
             <div class='log2Trace-container'>
               <bk-form-item
-                label={this.$t('采集目标')}
-                required
-                property='plugin_config.target_nodes'
                 error-display-type='normal'
+                label={this.$t('采集目标')}
+                property='plugin_config.target_nodes'
+                required
               >
                 <div style='display: flex;align-items: center;'>
                   <bk-button
-                    theme='default'
-                    icon='plus'
                     class='btn-target-collect'
+                    icon='plus'
+                    theme='default'
                     onClick={() => (this.selectorDialog.isShow = true)}
                   >
                     {this.$t('选择目标')}
                   </bk-button>
                   {this.formData.plugin_config.target_nodes.length > 0 && (
                     <i18n
-                      path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
                       style='margin-left: 8px;'
+                      path={this.selectedTargetTips[this.formData.plugin_config.target_node_type]}
                     >
                       <span style='color: #4e99ff;'>{this.formData.plugin_config.target_nodes.length}</span>
                     </i18n>
@@ -588,10 +588,10 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                 </div>
               </bk-form-item>
               <bk-form-item
-                label={this.$t('日志路径')}
-                required
-                property='plugin_config.paths'
                 error-display-type='normal'
+                label={this.$t('日志路径')}
+                property='plugin_config.paths'
+                required
               >
                 {this.formData.plugin_config.paths.map((path, index) => (
                   <div>
@@ -629,10 +629,10 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                 ))}
               </bk-form-item>
               <bk-form-item
-                label={this.$t('日志字符集')}
-                required
-                property='plugin_config.data_encoding'
                 error-display-type='normal'
+                label={this.$t('日志字符集')}
+                property='plugin_config.data_encoding'
+                required
               >
                 <bk-select
                   v-model={this.formData.plugin_config.data_encoding}
@@ -640,8 +640,8 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                 >
                   {this.logAsciiList.map(item => (
                     <bk-option
-                      key={item.id}
                       id={item.id}
+                      key={item.id}
                       name={item.name}
                     ></bk-option>
                   ))}
@@ -668,10 +668,10 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
         </bk-form>
 
         <StrategyIpv6
-          showDialog={this.selectorDialog.isShow}
+          checkedNodes={this.formData.plugin_config.target_nodes}
           nodeType={this.formData.plugin_config.target_node_type}
           objectType={this.formData.plugin_config.target_object_type}
-          checkedNodes={this.formData.plugin_config.target_nodes}
+          showDialog={this.selectorDialog.isShow}
           onChange={this.handleSelectorChange}
           onCloseDialog={v => (this.selectorDialog.isShow = v)}
         ></StrategyIpv6>

@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import type { App } from 'vue';
 import { bkTooltips } from 'bkui-vue';
 
 import authority from './authority';
 import watermark from './watermark';
+
+import type { App } from 'vue';
 
 const directives: Record<string, any> = {
   // 指令对象

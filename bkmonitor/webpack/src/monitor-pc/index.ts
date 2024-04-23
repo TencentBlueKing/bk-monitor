@@ -23,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// eslint-disable-next-line simple-import-sort/imports
+
 import './public-path';
 import 'monitor-common/polyfill';
-import Vue from 'vue';
+
 import i18n from './i18n/i18n';
+import Vue from 'vue';
 
 import './common/import-magicbox-ui';
-import 'monitor-ui/directive/index';
-import './common/global';
 import 'monitor-static/svg-icons';
+import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
@@ -40,13 +40,15 @@ import { setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
+import './common/global-login';
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
-import 'monitor-static/icons/monitor-icons.css';
-import './static/css/reset.scss';
+
 import './static/css/global.scss';
+import './static/css/reset.scss';
+import 'monitor-static/icons/monitor-icons.css';
 // todo: 子应用externals
 // import './common/externals';
 // app 标识

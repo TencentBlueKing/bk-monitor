@@ -82,9 +82,9 @@ export default class StrategyMetricItemTips extends tsc<StrategyMetricItemTipsPr
     return (
       <div style={{ display: 'none' }}>
         <div
-          on-mouseleave={this.handleTipsLeave}
-          class='uptimecheck-tips'
           ref='uptimecheckTips'
+          class='uptimecheck-tips'
+          on-mouseleave={this.handleTipsLeave}
         >
           {this.$t('该指标需设置期望返回码/期望响应信息后才可选取')}
           <span
@@ -168,7 +168,7 @@ export default class StrategyMetricItemTips extends tsc<StrategyMetricItemTipsPr
     if (resultTableLabel === 'uptimecheck' && !relatedId) {
       const list = elList.bk_monitor_time_series;
       elList.bk_monitor_time_series = list.filter(
-        item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名'),
+        item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名')
       );
     }
     const curElList = elList[this.sourceType];

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception } from 'bkui-vue';
 import { traceDiagram } from 'monitor-api/modules/apm_trace';
@@ -35,9 +36,8 @@ import { debounce } from 'throttle-debounce';
 
 import traceIcons from '../../utls/icons';
 import { storeImage } from '../../utls/store-img';
-
-import GraphTools from './graph-tools/graph-tools';
 import DiffColorList from './diff-color-list';
+import GraphTools from './graph-tools/graph-tools';
 
 import './flame-graph.scss';
 
@@ -64,7 +64,7 @@ interface IJsonItem {
 }
 interface IDataItem {
   name: string;
-  value: Array<string | number | Record<string, any>>;
+  value: Array<Record<string, any> | number | string>;
   itemStyle: {
     color: string;
   };
@@ -529,7 +529,7 @@ export default defineComponent({
             },
             {
               needCancel: true,
-            },
+            }
           ).catch(() => false);
           if (data.diagram_data) {
             emit('update:loading', true);
@@ -616,7 +616,7 @@ export default defineComponent({
                       chartInstance.setOption(
                         getEchartsOptions(recursionJson(chartData, clickSpanId.value || undefined)),
                         true,
-                        false,
+                        false
                       );
                       activeDataZoom();
                     }
@@ -667,7 +667,7 @@ export default defineComponent({
           showException.value = true;
         }
       }),
-      { immediate: true },
+      { immediate: true }
     );
     onMounted(() => {
       addListener(chartWrapRef.value!, handleResize);
@@ -753,7 +753,7 @@ export default defineComponent({
         chartInstance.setOption(
           getEchartsOptions(recursionJson(chartData, clickSpanId.value || undefined)),
           true,
-          false,
+          false
         );
         activeDataZoom();
       }
@@ -801,53 +801,53 @@ export default defineComponent({
     if (this.showException)
       return (
         <Exception
-          type='empty'
           description={this.$t('暂无数据')}
+          type='empty'
         />
       );
     return (
       <div class='flame-graph-wrap'>
         {false && <DiffColorList />}
         <div
-          class='flame-graph'
           ref='chartWrapRef'
+          class='flame-graph'
           tabindex={0}
           onBlur={this.handleGraphWarpBlur}
-          onMouseover={this.handleGraphWarpOver}
-          onMousemove={this.handleGraphWarpMove}
           onMouseleave={this.handleGraphWarpLeave}
+          onMousemove={this.handleGraphWarpMove}
+          onMouseover={this.handleGraphWarpOver}
         >
           <div
-            class='flame-graph-chart'
             ref='chartRef'
-            onContextmenu={e => e.preventDefault()}
             style={{ height: `${this.height.value}px` }}
+            class='flame-graph-chart'
+            onContextmenu={e => e.preventDefault()}
           />
           <div
-            class='flame-graph-blur'
             style={{ height: `${Math.max(30 * this.clickLevel, 0)}px` }}
+            class='flame-graph-blur'
           />
           <div
-            class='flame-graph-axis'
             style={{
               left: `${this.axisLeft}px`,
               visibility: this.axisLeft < 14 || this.axisLeft > this.wrapRefWidth + 14 ? 'hidden' : 'visible',
             }}
+            class='flame-graph-axis'
           >
             <span class='axis-label'>{this.axisLabelValue}</span>
           </div>
           <ul
-            class='flame-graph-menu'
             style={{
               left: `${this.contextMenuRect.left}px`,
               top: `${this.contextMenuRect.top}px`,
               visibility: this.showContextMenu ? 'visible' : 'hidden',
             }}
+            class='flame-graph-menu'
           >
             {CommonMenuList.map(item => (
               <li
-                class='menu-item'
                 key={item.id}
+                class='menu-item'
                 onClick={() => this.handleContextMenuClick(item)}
               >
                 <i class={`menu-item-icon icon-monitor ${item.icon}`} />
@@ -856,13 +856,13 @@ export default defineComponent({
             ))}
           </ul>
           <GraphTools
-            scaleValue={this.scaleValue}
             maxScale={MaxScale}
             minScale={MinScale}
             scaleStep={scaleStep}
+            scaleValue={this.scaleValue}
             showThumbnail={false}
-            onStoreImg={this.handleStoreImg}
             onScaleChange={this.handlesSaleValueChange}
+            onStoreImg={this.handleStoreImg}
           />
         </div>
       </div>

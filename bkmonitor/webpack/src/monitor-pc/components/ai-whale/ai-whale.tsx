@@ -26,6 +26,7 @@
 
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
@@ -281,7 +282,7 @@ export default class AiWhale extends tsc<object> {
       () => {
         this.handleGetData();
       },
-      2 * 60 * 1000,
+      2 * 60 * 1000
     );
   }
 
@@ -434,22 +435,22 @@ export default class AiWhale extends tsc<object> {
       <div class='ai-small-whale'>
         {!!this.data && (
           <div
-            class={['robot-img', this.type]}
             ref='robot'
             style={{
               top: `${this.whalePostion.top}px`,
               left: `${this.whalePostion.left}px`,
             }}
+            class={['robot-img', this.type]}
+            onClick={this.handleClick}
             onMousedown={event => this.handleMousedown(event)}
             onMouseenter={event => this.handlePopoverShow(event)}
-            onClick={this.handleClick}
           ></div>
         )}
         <div style={{ display: 'none' }}>
           {!!this.data && (
             <div
-              class={tipClassName}
               ref='tips'
+              class={tipClassName}
             >
               {(() => {
                 if (this.type === 'blue') {

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
 import {
@@ -38,7 +39,6 @@ import {
 } from '../../typings';
 import { createMetricTitleTooltips } from '../../utils';
 import { VariablesService } from '../../utils/variable';
-
 import ChartMenu, { IChartTitleMenuEvents } from './chart-title-menu';
 
 import './chart-title.scss';
@@ -86,10 +86,10 @@ interface IChartTitleEvent {
 }
 
 enum AlarmStatus {
-  /** 没有配置策略 */
-  not_confit_strategy = 0,
   /** 已经配置策略 */
   already_config_strategy = 1,
+  /** 没有配置策略 */
+  not_confit_strategy = 0,
   /** 告警中 */
   on_warning = 2,
 }
@@ -318,7 +318,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           <div class='main-title'>
             {this.showMetricAlarm && this.showTitleIcon ? (
               <i
-                v-bk-tooltips={this.alarmTips}
                 class={[
                   'icon-monitor',
                   'alarm-icon',
@@ -328,6 +327,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                     'icon-mc-strategy status-strategy-not-config',
                   this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3',
                 ]}
+                v-bk-tooltips={this.alarmTips}
                 onClick={modifiers.stop(this.handleAlarmClick)}
               />
             ) : undefined}
@@ -356,8 +356,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               (this.$scopedSlots as any)?.customSlot?.(),
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
-                  class='bk-icon icon-info-circle tips-icon'
                   style={{ display: this.showMore ? 'flex' : 'none' }}
+                  class='bk-icon icon-info-circle tips-icon'
                   onMouseenter={this.handleShowTips}
                   onMouseleave={this.handleHideTips}
                 />
@@ -377,10 +377,10 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               <span class='title-center'></span>,
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
-                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   style={{
                     display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
+                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   v-bk-tooltips={{
                     content: this.$t('添加策略'),
                     delay: 200,
@@ -389,37 +389,37 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 ></i>
               ) : undefined,
               <span
-                onClick={this.customArea ? this.handleShowMenu.bind(this, 'customArea') : () => {}}
                 style={{
                   marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
                   display: this.showMore ? 'flex' : 'none',
                 }}
+                class='icon-monitor icon-mc-more more-icon icon-btn'
                 v-bk-tooltips={{
                   content: this.$t('更多'),
                   delay: 200,
                 }}
                 tabindex='undefined'
-                class='icon-monitor icon-mc-more more-icon icon-btn'
+                onClick={this.customArea ? this.handleShowMenu.bind(this, 'customArea') : () => {}}
               />,
             ]}
           </div>
           {this.subtitle && <div class='sub-title'>{(this.$scopedSlots as any)?.subTitle?.() || this.subtitle}</div>}
         </div>
         <ChartMenu
-          list={this.menuList}
-          drillDownOption={this.drillDownOption}
-          onShowChildren={this.handleShowChildren}
-          onSelect={this.handleMenuClick}
-          onMetricSelect={this.handleMetricSelect}
-          onChildMenuToggle={this.handleChildMenuToggle}
-          metrics={this.metrics}
-          showAddMetric={this.showAddMetric && this.showMenuAddMetric}
           style={{
             left: `${this.menuLeft}px`,
             display: this.showMenu ? 'flex' : 'none',
             ...this.menuPosition,
           }}
+          drillDownOption={this.drillDownOption}
+          list={this.menuList}
+          metrics={this.metrics}
+          showAddMetric={this.showAddMetric && this.showMenuAddMetric}
+          onChildMenuToggle={this.handleChildMenuToggle}
+          onMetricSelect={this.handleMetricSelect}
+          onSelect={this.handleMenuClick}
           onSelectChild={this.handleMenuChildClick}
+          onShowChildren={this.handleShowChildren}
         ></ChartMenu>
       </div>
     );

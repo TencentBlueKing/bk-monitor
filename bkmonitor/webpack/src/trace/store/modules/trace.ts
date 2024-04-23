@@ -25,6 +25,7 @@
  */
 
 import { ref, shallowRef } from 'vue';
+
 import { deepClone } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
@@ -50,7 +51,7 @@ import {
 } from '../../typings';
 import { DEFAULT_TRACE_DATA } from '../constant';
 
-export type ListType = 'trace' | 'span' | 'interfaceStatistics' | 'serviceStatistics' | string;
+export type ListType = 'interfaceStatistics' | 'serviceStatistics' | 'span' | 'trace' | string;
 export type TraceListMode = 'origin' | 'pre_calculation';
 
 export type IInterfaceStatisticsType = {

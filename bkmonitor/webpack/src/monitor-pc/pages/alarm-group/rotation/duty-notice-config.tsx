@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 
 import { isEnFn } from '../../../utils/index';
 import SimpleDayPick from '../duty-arranges/simple-day-pick';
-
 import { IDutyListItem } from './typing';
 
 import './duty-notice-config.scss';
@@ -143,7 +143,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
   }
 
   render() {
-    function formItemBig(label: string | any, content: any, cls?: string) {
+    function formItemBig(label: any | string, content: any, cls?: string) {
       return (
         <div class={['form-item-big', cls]}>
           <span class='form-item-label'>{label}</span>
@@ -151,7 +151,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
         </div>
       );
     }
-    function formItem(label: string | any, content: any, cls?: string, err?) {
+    function formItem(label: any | string, content: any, cls?: string, err?) {
       return (
         <div class={['form-item', cls]}>
           <span class={['form-item-label', { en: isEnFn() }]}>{label}</span>
@@ -171,44 +171,44 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             size='small'
             theme='primary'
             onChange={() => this.handleChange()}
-          ></bk-switcher>,
+          ></bk-switcher>
         )}
         {formItem(
           this.$t('发送时间'),
           [
             <bk-select
+              class='mr-8'
               v-model={this.formData.sendType}
               clearable={false}
-              class='mr-8'
               onChange={() => this.handleChange()}
             >
               {typeList.map(item => (
                 <bk-option
-                  key={item.value}
                   id={item.value}
+                  key={item.value}
                   name={item.label}
                 ></bk-option>
               ))}
             </bk-select>,
             this.formData.sendType === 'week' ? (
               <bk-select
-                v-model={this.formData.week}
                 class='width-200 mr-8'
+                v-model={this.formData.week}
                 clearable={false}
                 onChange={() => this.handleChange()}
               >
                 {weekList.map(item => (
                   <bk-option
-                    key={item.value}
                     id={item.value}
+                    key={item.value}
                     name={item.label}
                   ></bk-option>
                 ))}
               </bk-select>
             ) : (
               <SimpleDayPick
-                multiple={false}
                 class='width-200 mr-8'
+                multiple={false}
                 value={this.formData.month as any}
                 onChange={v => {
                   this.formData.month = v as any;
@@ -228,21 +228,21 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             ></bk-time-picker>,
           ],
           'mt-16',
-          this.errrMsg.sendTime,
+          this.errrMsg.sendTime
         )}
         {formItem(
           this.$t('发送内容'),
           [
             <bk-input
-              v-model={this.formData.nearDay}
               class='width-148 mr-8'
-              type='number'
+              v-model={this.formData.nearDay}
               min={0}
+              type='number'
               onInput={() => this.handleChange()}
             >
               <div
-                slot='prepend'
                 class='input-left'
+                slot='prepend'
               >
                 {this.$t('未来')}
               </div>
@@ -250,7 +250,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             <span class='content-text'>{this.$t('天的排班结果')}</span>,
           ],
           'mt-16',
-          this.errrMsg.sendContent,
+          this.errrMsg.sendContent
         )}
         {formItem(
           this.$t('企业微信群ID'),
@@ -265,7 +265,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               v-bk-tooltips={{
                 content: this.$t(
                   "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔",
-                  { name: this.chatTipName },
+                  { name: this.chatTipName }
                 ),
                 boundary: 'window',
                 placements: ['top'],
@@ -274,7 +274,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             ></span>,
           ],
           'mt-16',
-          this.errrMsg.sendChat,
+          this.errrMsg.sendChat
         )}
         {formItemBig(
           this.$t('个人轮值通知'),
@@ -284,21 +284,21 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             theme='primary'
             onChange={() => this.handleChange()}
           ></bk-switcher>,
-          'mt-24',
+          'mt-24'
         )}
         {formItem(
           this.$t('值班开始前'),
           [
             <bk-input
-              v-model={this.formData.startNum}
               class='mr-8 width-168'
-              type='number'
+              v-model={this.formData.startNum}
               min={0}
+              type='number'
               onInput={() => this.handleChange()}
             >
               <div
-                slot='append'
                 class='input-right-select'
+                slot='append'
               >
                 <bk-select
                   v-model={this.formData.timeType}
@@ -307,8 +307,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                 >
                   {timeTypeList.map(item => (
                     <bk-option
-                      key={item.value}
                       id={item.value}
+                      key={item.value}
                       name={item.label}
                     ></bk-option>
                   ))}
@@ -317,15 +317,15 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             </bk-input>,
             <span class='content-text'>{this.$t('收到通知')}</span>,
           ],
-          'mt-16',
+          'mt-16'
         )}
         {formItem(
           this.$t('指定轮值规则'),
           <bk-select
             class='width-305'
             v-model={this.formData.rotationId}
-            multiple
             clearable={false}
+            multiple
             searchable
             onChange={() => this.handleChange()}
           >
@@ -348,7 +348,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             ))}
           </bk-select>,
           'mt-16',
-          this.errrMsg.rules,
+          this.errrMsg.rules
         )}
       </div>
     );

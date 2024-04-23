@@ -99,7 +99,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   if (resultTableLabel === 'uptimecheck' && !relatedId) {
     const list = elList.bk_monitor_time_series;
     elList.bk_monitor_time_series = list.filter(
-      item => item.label !== window.i18n.tc('插件ID') && item.label !== window.i18n.tc('插件名'),
+      item => item.label !== window.i18n.tc('插件ID') && item.label !== window.i18n.tc('插件名')
     );
   }
   const curElList = elList[curActive] || [...options];

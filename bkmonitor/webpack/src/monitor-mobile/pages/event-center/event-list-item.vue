@@ -25,18 +25,28 @@
 -->
 <template>
   <div class="event-item">
-    <div :class="['event-item-title', { 'event-item-show': showTarget }]" @click="handleShowTarget">
+    <div
+      :class="['event-item-title', { 'event-item-show': showTarget }]"
+      @click="handleShowTarget"
+    >
       <span :class="['text', 'color-' + itemData.level]">
         <span class="ellipsis">{{ itemData.target ? itemData.target : itemData.name }}</span>
         <i :class="['icon-monitor', 'icon-arrow-down', { 'icon-show': showTarget }]"></i>
       </span>
     </div>
     <transition name="count-fade">
-      <div v-show="showCount" :class="['event-item-count']">
+      <div
+        v-show="showCount"
+        :class="['event-item-count']"
+      >
         {{ $t('异常事件: ', { num: itemData.events.length }) }}
       </div>
     </transition>
-    <ul ref="event-list" :data-show="showTarget" :class="['event-item-target']">
+    <ul
+      ref="event-list"
+      :data-show="showTarget"
+      :class="['event-item-target']"
+    >
       <li
         v-for="(item, index) in itemData.events"
         :key="item.eventId + '-' + index"
@@ -69,10 +79,11 @@
 </template>
 <script lang="ts">
 import { Vue, Component, Prop, Ref } from 'vue-property-decorator';
+
 import { IListItem } from './event-center.vue';
 
 @Component({
-  name: 'event-item'
+  name: 'event-item',
 })
 export default class EventListItem extends Vue {
   // 类型配置
@@ -108,8 +119,8 @@ export default class EventListItem extends Vue {
     this.$router.push({
       name: 'alarm-detail',
       params: {
-        id: eventId
-      }
+        id: eventId,
+      },
     });
   }
 
@@ -120,146 +131,174 @@ export default class EventListItem extends Vue {
 }
 </script>
 <style lang="scss" scoped>
-@import "../../static/scss/variate.scss";
-@import "../../static/scss/mixin.scss";
+@import '../../static/scss/variate.scss';
+@import '../../static/scss/mixin.scss';
 
 .event-item {
   min-height: 66px;
-  border-radius: 4px;
-  box-shadow: 0px 1px 0px 0px rgba(99, 101, 110, .05);
   background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0px 1px 0px 0px rgba(99, 101, 110, 0.05);
+
   &:not(:last-child) {
     margin-bottom: 10px;
   }
+
   .ellipsis {
     @include ellipsis;
   }
+
   &-title {
     padding: 11px 16px 4px 16px;
     border-bottom: 1px solid #fff;
-    transition: all .3s ease-in-out;
+    transition: all 0.3s ease-in-out;
+
     .text {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
       position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       font-size: 16px;
       line-height: 22px;
+
       &::before {
         position: absolute;
-        content: "";
         top: 50%;
         left: -16px;
-        transform: translate(0, -50%);
         width: 4px;
         height: 16px;
+        content: '';
+        transform: translate(0, -50%);
       }
+
       .icon-arrow-down {
         display: flex;
-        justify-content: center;
         align-items: center;
-        height: 22px;
+        justify-content: center;
         width: 22px;
-        color: #dcdee5;
-        font-size: 28px;
+        height: 22px;
         overflow: hidden;
+        font-size: 28px;
+        color: #dcdee5;
+        transition: transform 0.3s ease-in-out;
         transform: rotate(0);
         transform-origin: 50% 50%;
-        transition: transform .3s ease-in-out;
       }
+
       .icon-show {
         transform: rotate(-180deg);
       }
     }
+
     .color-1 {
       &::before {
         background-color: $deadlyColor;
       }
     }
+
     .color-2 {
       &::before {
         background-color: #ff9c01;
       }
     }
+
     .color-3 {
       &::before {
         background-color: #ffd000;
       }
     }
   }
+
   &-show {
     padding-bottom: 11px;
     border-bottom: 1px solid #eaebef;
   }
+
   &-count {
     padding: 0px 16px 0 16px;
-    color: #979ba5;
-    font-size: 14px;
     overflow: hidden;
+    font-size: 14px;
+    color: #979ba5;
   }
   // count-fade
   .count-fade-enter {
     opacity: 0;
   }
+
   .count-fade-leave-to {
     height: 0;
   }
+
   .count-fade-leave {
     height: 20px;
   }
+
   .count-fade-enter-to {
     opacity: 1;
   }
+
   .count-fade-enter-active,
   .count-fade-leave-active {
-    transition: all .2s ease-in-out;
+    transition: all 0.2s ease-in-out;
   }
+
   &-target {
-    padding: 0 16px;
     max-height: 0;
+    padding: 0 16px;
     overflow: hidden;
+    transition: max-height 0.5s ease-in-out;
     will-change: max-height;
-    transition: max-height .5s ease-in-out;
+
     .target-item {
       padding: 16px 0 17px 0;
       font-size: 14px;
       color: $defaultFontColor;
+
       &:not(:last-child) {
         margin-bottom: 2px;
         border-bottom: 1px solid #eaebef;
       }
+
       .text-row {
         display: flex;
         align-items: center;
         line-height: 20px;
+
         .row-label {
-          flex-shrink: 0;
           display: inline-block;
+          flex-shrink: 0;
           width: 42px;
         }
       }
+
       .text-row:not(:last-child) {
         margin-bottom: 2px;
       }
+
       .msg-item {
         display: flex;
         align-items: center;
+        font-size: 14px;
         font-weight: 400;
         line-height: 20px;
-        font-size: 14px;
+
         .level-text {
           flex-shrink: 0;
           margin-right: 4px;
         }
+
         .msg {
           color: #63656e;
         }
+
         .level-color-1 {
           color: #ea3636;
         }
+
         .level-color-2 {
           color: #ffd000;
         }
+
         .level-color-3 {
           color: #ff9c01;
         }

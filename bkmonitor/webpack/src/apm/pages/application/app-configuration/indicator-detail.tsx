@@ -26,11 +26,11 @@
 
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { dimensionData, modifyMetric } from 'monitor-api/modules/apm_meta';
 
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import * as authorityMap from '../../home/authority-map';
-
 import { IDimensionItem, IMetricData, IUnitItme } from './type';
 
 interface IndicatorDetailProps {
@@ -172,12 +172,12 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
     const aliasNameSlot = {
       default: props => [
         <EditableFormItem
-          value={props.row.description}
-          showEditable={props.$index === this.hoverRowIndex}
-          showLabel={false}
           authority={this.authority.MANAGE_AUTH}
           authorityName={authorityMap.MANAGE_AUTH}
+          showEditable={props.$index === this.hoverRowIndex}
+          showLabel={false}
           updateValue={val => this.handleDimensionChange(val, 'dimensions', props.row)}
+          value={props.row.description}
         />,
       ],
     };
@@ -186,16 +186,16 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
       <div class='indicator-detail-wrap'>
         <EditableFormItem
           label={this.$t('指标名')}
-          value={this.detailInfo.field_name}
           showEditable={false}
+          value={this.detailInfo.field_name}
         />
         <EditableFormItem
-          label={this.$t('指标别名')}
-          value={this.detailInfo.metric_display_name}
-          formType='input'
           authority={this.authority.MANAGE_AUTH}
           authorityName={authorityMap.MANAGE_AUTH}
+          formType='input'
+          label={this.$t('指标别名')}
           updateValue={val => this.handleUpdateValue(val, 'metric_description')}
+          value={this.detailInfo.metric_display_name}
         />
         {/* <EditableFormItem
         label={this.$t('数值类型')}
@@ -203,17 +203,17 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
         showEditable={false} /> */}
         <EditableFormItem
           label={this.$t('指标类型')}
-          value={this.detailInfo.type}
           showEditable={false}
+          value={this.detailInfo.type}
         />
         <EditableFormItem
-          label={this.$t('单位')}
-          value={this.detailInfo.unit}
-          formType='unit'
-          unitList={this.unitList}
           authority={this.authority.MANAGE_AUTH}
           authorityName={authorityMap.MANAGE_AUTH}
+          formType='unit'
+          label={this.$t('单位')}
+          unitList={this.unitList}
           updateValue={val => this.handleUpdateValue(val, 'metric_unit')}
+          value={this.detailInfo.unit}
         />
         {/* <EditableFormItem
         label="数据步长"
@@ -227,42 +227,42 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
         <div class='divider'></div>
         <EditableFormItem
           label={this.$t('来源')}
-          value={this.detailInfo.data_source_label}
           showEditable={false}
+          value={this.detailInfo.data_source_label}
         />
         <EditableFormItem
           label={this.$t('数据对象')}
-          value={this.detailInfo.result_table_label_name}
           showEditable={false}
+          value={this.detailInfo.result_table_label_name}
         />
         <EditableFormItem
           class='tag-form-item'
-          label={this.$t('标签')}
-          value={this.detailInfo.tags}
           formType='tag'
+          label={this.$t('标签')}
           showEditable={false}
+          value={this.detailInfo.tags}
         />
         <div class='divider'></div>
         <bk-table
-          outer-border={false}
-          data={this.dimensionList}
           v-bkloading={{ isLoading: this.tableLoading }}
+          data={this.dimensionList}
+          outer-border={false}
           on-row-mouse-enter={index => (this.hoverRowIndex = index)}
           on-row-mouse-leave={() => (this.hoverRowIndex = -1)}
         >
           <bk-table-column
-            label={this.$t('维度名')}
             width='120'
+            label={this.$t('维度名')}
             scopedSlots={{ default: props => props.row.field_name }}
           ></bk-table-column>
           <bk-table-column
-            label={this.$t('维度别名')}
             width='240'
+            label={this.$t('维度别名')}
             scopedSlots={aliasNameSlot}
           ></bk-table-column>
           <bk-table-column
-            label={this.$t('数量')}
             width='60'
+            label={this.$t('数量')}
             scopedSlots={{ default: props => props.row.count }}
           ></bk-table-column>
           <bk-table-column

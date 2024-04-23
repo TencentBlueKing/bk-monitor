@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
 import { initUnit } from 'fta-solutions/pages/home/home';
@@ -36,11 +37,10 @@ import { throttle } from 'throttle-debounce';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import NoBussiness from '../no-business/no-business.vue';
-
-import BusinessItemBigSkeleton from './skeleton/business-item-big-skeleton';
 import BusinessItemBig from './business-item-big';
 import NoBusinessItem from './no-business-item';
 import OverviewContent, { IData as IDataOverviewData } from './overview-content';
+import BusinessItemBigSkeleton from './skeleton/business-item-big-skeleton';
 
 import './home.scss';
 
@@ -197,7 +197,7 @@ export default class Home extends tsc<object> {
   oldSearchValue = '';
 
   showGuide = false;
-  throttledScroll: throttle<(e: any) => Promise<void> | void> | (() => void) = () => {};
+  throttledScroll: (() => void) | throttle<(e: any) => Promise<void> | void> = () => {};
 
   get homeDays() {
     return this.dataOverview.timeChecked;
@@ -431,16 +431,16 @@ export default class Home extends tsc<object> {
                 </span>
                 <span class='right'>
                   <bk-select
-                    v-model={this.dataOverview.timeChecked}
                     ext-cls='time-select'
+                    v-model={this.dataOverview.timeChecked}
                     clearable={false}
                     popover-width={70}
                     on-change={() => this.init(true)}
                   >
                     {this.dataOverview.timeOption.map(option => (
                       <bk-option
-                        key={option.id}
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       ></bk-option>
                     ))}
@@ -463,23 +463,23 @@ export default class Home extends tsc<object> {
                 </span>
                 <span class='right'>
                   <bk-input
+                    v-model={this.businessOverview.searchValue}
                     placeholder={this.$t('输入空间ID、空间名')}
                     right-icon='bk-icon icon-search'
-                    v-model={this.businessOverview.searchValue}
-                    on-right-icon-click={() => this.isCanSearch() && this.init()}
-                    on-enter={() => this.isCanSearch() && this.init()}
                     on-blur={() => this.isCanSearch() && this.init()}
+                    on-enter={() => this.isCanSearch() && this.init()}
+                    on-right-icon-click={() => this.isCanSearch() && this.init()}
                   ></bk-input>
                   <bk-select
+                    ext-cls='filter-select'
                     v-model={this.businessOverview.filterItem}
                     clearable={false}
-                    ext-cls='filter-select'
                     on-change={() => this.init()}
                   >
                     {this.businessOverview.filterList.map(option => (
                       <bk-option
-                        key={option.id}
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       ></bk-option>
                     ))}
@@ -508,7 +508,7 @@ export default class Home extends tsc<object> {
                         ></BusinessItemBig>
                       ) : (
                         <NoBusinessItem data={{ ...item }}></NoBusinessItem>
-                      ),
+                      )
                     );
                   })()}
                   {/* {this.businessOverview.data.map(item =>
@@ -540,10 +540,10 @@ export default class Home extends tsc<object> {
         ></div>
         <MonitorDialog
           class='no-business-guide'
+          fullScreen={true}
+          needFooter={false}
           value={this.showGuide}
           onChange={v => (this.showGuide = v)}
-          needFooter={false}
-          fullScreen={true}
         >
           <div class='no-business-guide-body'>
             <NoBussiness />

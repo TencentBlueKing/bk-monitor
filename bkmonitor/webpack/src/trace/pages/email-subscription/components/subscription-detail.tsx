@@ -25,13 +25,13 @@
  */
 import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 
 import { Scenario } from '../mapping';
 import { FrequencyType, Report } from '../types';
 import { getDefaultReportData, getSendFrequencyText } from '../utils';
-
 import DetailRow from './detail-row';
 
 import './subscription-detail.scss';
@@ -164,21 +164,21 @@ export default defineComponent({
 
           {/* 特殊节点 订阅人里有其他要展示的内容 */}
           <div
-            class='row subscribers'
             style='padding-bottom: 13px;'
+            class='row subscribers'
           >
             <div class='label'>
               <span>{this.t('订阅人')}</span>
             </div>
             <span
-              class='value'
               style='display: flex;flex-direction: column;row-gap: 13px;'
+              class='value'
             >
               {this.userChannel?.is_enabled && (
                 <div class='subscribers-row'>
                   <span
-                    class='subscribers-label'
                     style='margin-bottom: 7px;'
+                    class='subscribers-label'
                   >
                     {this.t('内部用户')}
                   </span>
@@ -205,8 +205,8 @@ export default defineComponent({
               {this.emailChannel?.is_enabled && (
                 <div class='subscribers-row'>
                   <span
-                    class='subscribers-label'
                     style='margin-bottom: 7px;'
+                    class='subscribers-label'
                   >
                     {this.t('外部邮件')}
                   </span>
@@ -214,8 +214,8 @@ export default defineComponent({
                     {this.emailChannel?.subscribers?.map?.(item => {
                       return (
                         <span
-                          class='email'
                           style='display: inline-flex;height: 16px;align-items: center;margin-bottom: 7px;'
+                          class='email'
                         >
                           {item.id}
                         </span>
@@ -228,8 +228,8 @@ export default defineComponent({
               {this.wxgroupChannel?.is_enabled && (
                 <div class='subscribers-row'>
                   <span
-                    class='subscribers-label'
                     style='margin-bottom: 7px;'
+                    class='subscribers-label'
                   >
                     {this.t('企业微信群')}
                   </span>
@@ -237,8 +237,8 @@ export default defineComponent({
                     {this.wxgroupChannel?.subscribers?.map?.(item => {
                       return (
                         <span
-                          class='group-id'
                           style='display: inline-flex;height: 16px;align-items: center;margin-bottom: 7px;'
+                          class='group-id'
                         >
                           {item.id}
                         </span>
@@ -251,7 +251,6 @@ export default defineComponent({
           </div>
 
           <DetailRow
-            label={this.t('发送频率')}
             v-slots={{
               value: () => {
                 return this.detailInfo.frequency.type === FrequencyType.onlyOnce ? (
@@ -266,6 +265,7 @@ export default defineComponent({
                 );
               },
             }}
+            label={this.t('发送频率')}
           />
 
           {this.detailInfo.frequency.type !== FrequencyType.onlyOnce && (

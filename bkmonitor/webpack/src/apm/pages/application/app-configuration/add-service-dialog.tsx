@@ -26,6 +26,7 @@
 
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { customServiceConfig, customServiceDataSource, customServiceMatchList } from 'monitor-api/modules/apm_meta';
 
 import { ICustomServiceInfo } from './type';
@@ -99,7 +100,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
     ],
   };
   /** 调试结果列表 */
-  debuggerResult: string[] | null = null;
+  debuggerResult: null | string[] = null;
   /** uri源 */
   urlResource = '';
 
@@ -310,8 +311,8 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
       return (
         <bk-exception
           class='empty-result'
-          type='empty'
           scene='part'
+          type='empty'
         >
           <span>{this.$t('暂无匹配')}</span>
         </bk-exception>
@@ -320,13 +321,13 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
 
     return (
       <bk-dialog
-        value={this.value}
-        title={this.$t('新建自定义服务')}
-        header-position='left'
-        close-icon={false}
-        ext-cls='add-service-dialog'
-        mask-close={false}
         width={640}
+        ext-cls='add-service-dialog'
+        close-icon={false}
+        header-position='left'
+        mask-close={false}
+        title={this.$t('新建自定义服务')}
+        value={this.value}
         value-change={() => this.handleShowChange}
       >
         <span
@@ -354,15 +355,15 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
             <div class='source-box'>
               <bk-input
                 class='source-input'
-                type='textarea'
-                placeholder=' '
                 v-model={this.urlResource}
+                placeholder=' '
+                type='textarea'
               />
             </div>
           </div>
           <bk-form
-            class='add-form'
             ref='addServiceForm'
+            class='add-form'
             form-type='vertical'
             {...{
               props: {
@@ -372,20 +373,20 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
             }}
           >
             <bk-form-item
-              label={this.$t('远程服务类型')}
-              required
-              property='type'
               error-display-type='normal'
+              label={this.$t('远程服务类型')}
+              property='type'
+              required
             >
               <bk-select
-                z-index={3001}
                 vModel={this.formData.type}
                 clearable={false}
+                z-index={3001}
               >
                 {this.serviceTypeList.map(option => (
                   <bk-option
-                    key={option.id}
                     id={option.id}
+                    key={option.id}
                     name={option.name}
                   ></bk-option>
                 ))}
@@ -410,27 +411,27 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
             {this.formData.match_type === 'manual' ? (
               <div class='manual-match-wrap'>
                 <bk-form-item
-                  label={this.$t('服务名')}
-                  required
-                  property='name'
                   error-display-type='normal'
+                  label={this.$t('服务名')}
+                  property='name'
+                  required
                 >
                   <bk-input vModel={this.formData.name} />
                 </bk-form-item>
                 <bk-form-item label={this.$t('域名')}>
                   <bk-input vModel={this.formData.rules.host.value}>
                     <bk-dropdown-menu
-                      class='group-text'
-                      onShow={() => this.handleDropdownShow('domain', true)}
-                      onHide={() => this.handleDropdownShow('domain', false)}
                       ref='domainDropdown'
-                      trigger='click'
+                      class='group-text'
                       slot='prepend'
                       font-size="'medium'"
+                      trigger='click'
+                      onHide={() => this.handleDropdownShow('domain', false)}
+                      onShow={() => this.handleDropdownShow('domain', true)}
                     >
                       <bk-button
-                        type='primary'
                         slot='dropdown-trigger'
+                        type='primary'
                       >
                         <span>{this.operatorMaps[this.formData.rules.host.operator]}</span>
                         <i class={['bk-icon icon-angle-down', { 'icon-flip': this.isDomainDropdownShow }]} />
@@ -456,17 +457,17 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                 <bk-form-item label='PATH'>
                   <bk-input vModel={this.formData.rules.path.value}>
                     <bk-dropdown-menu
-                      class='group-text'
-                      onShow={() => this.handleDropdownShow('path', true)}
-                      onHide={() => this.handleDropdownShow('path', false)}
                       ref='uriDropdown'
-                      trigger='click'
+                      class='group-text'
                       slot='prepend'
                       font-size="'medium'"
+                      trigger='click'
+                      onHide={() => this.handleDropdownShow('path', false)}
+                      onShow={() => this.handleDropdownShow('path', true)}
                     >
                       <bk-button
-                        type='primary'
                         slot='dropdown-trigger'
+                        type='primary'
                       >
                         <span>{this.operatorMaps[this.formData.rules.path.operator]}</span>
                         <i class={['bk-icon icon-angle-down', { 'icon-flip': this.isUriDropdownShow }]} />
@@ -492,8 +493,8 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                 <bk-form-item label={this.$t('参数')}>
                   {paramsList.map((param, index) => (
                     <div
-                      class='params-list'
                       key={index}
+                      class='params-list'
                     >
                       <bk-input
                         class='name-input'
@@ -505,8 +506,8 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                       >
                         {Object.keys(this.operatorMaps).map(operator => (
                           <bk-option
-                            key={operator}
                             id={operator}
+                            key={operator}
                             name={this.operatorMaps[operator]}
                           />
                         ))}
@@ -531,10 +532,10 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
               <div class='auto-match-wrap'>
                 <div class='desc-contnet'>{this.$t('说明文案')}</div>
                 <bk-form-item
-                  label={this.$t('匹配规则')}
-                  required
-                  property='regex'
                   error-display-type='normal'
+                  label={this.$t('匹配规则')}
+                  property='regex'
+                  required
                 >
                   <bk-input vModel={this.formData.regex} />
                 </bk-form-item>
@@ -544,9 +545,9 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
           <div class='debugging-content'>
             <div class='header-tool'>
               <bk-button
-                outline
-                theme='primary'
                 loading={this.isDebugging}
+                theme='primary'
+                outline
                 onClick={() => this.handlDebugger()}
               >
                 {this.$t('调试')}
@@ -574,9 +575,9 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             class='mr10'
             loading={this.isLoading}
+            theme='primary'
             onClick={() => this.handleConfirm()}
           >
             {this.$t('确定')}

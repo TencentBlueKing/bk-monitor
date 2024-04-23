@@ -26,6 +26,7 @@
 import { computed, defineComponent, Ref, ref, VNode } from 'vue';
 import { TranslateResult, useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+
 import { bkTooltips, Button, Dialog, InfoBox, Message, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-api/modules/share';
@@ -56,7 +57,7 @@ export default defineComponent({
     const store = useAppStore();
     // 分享链接
     const shareUrl = computed(
-      () => `${location.origin}${location.pathname}?bizId=${store.bizId}/#/share/${token.value || ''}`,
+      () => `${location.origin}${location.pathname}?bizId=${store.bizId}/#/share/${token.value || ''}`
     );
 
     async function handleShowDialog() {
@@ -112,7 +113,7 @@ export default defineComponent({
                   from: dayjs.tz(timeRange.value[0]).format(MomentFormater),
                   to: dayjs.tz(timeRange.value[1]).format(MomentFormater),
                 }
-              : {},
+              : {}
           ),
           name: route.name,
           params: route.params,
@@ -163,8 +164,8 @@ export default defineComponent({
     function commonItem(title: TranslateResult, child: VNode, style?: Record<string, any>) {
       return (
         <div
-          class='share-item'
           style={style}
+          class='share-item'
         >
           <span class='share-item-title'>{title}</span>
           <div class='share-item-content'>{child}</div>
@@ -199,8 +200,8 @@ export default defineComponent({
       return (
         <div class='lock-timerange'>
           <Switcher
-            value={isLockSearch.value}
             theme='primary'
+            value={isLockSearch.value}
             onChange={handleLockSearchChange}
           ></Switcher>
         </div>
@@ -255,24 +256,24 @@ export default defineComponent({
     return (
       <div class='temporary-share'>
         <span
-          v-bk-tooltips={tipsOpts}
-          class={['icon-monitor', this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share']}
           style='font-size: 16px;'
+          class={['icon-monitor', this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share']}
+          v-bk-tooltips={tipsOpts}
           onClick={this.handleShowDialog}
         ></span>
         {!this.onlyCopy && (
           <Dialog
-            isShow={this.show}
-            dialogType='show'
             width={700}
-            title={this.$t('临时分享').toString()}
-            appendToBody={true}
             class='temporary-share'
+            appendToBody={true}
+            dialogType='show'
+            isShow={this.show}
+            title={this.$t('临时分享').toString()}
             onClosed={this.handleHideDialog}
           >
             <div
-              class='share-wrap'
               style='margin-top: 18px'
+              class='share-wrap'
             >
               {this.commonItem(this.$t('分享链接'), this.shareLink())}
             </div>

@@ -211,11 +211,12 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
            */
           const childTpl = item => (
             <ul
-              slot='content'
               class='child-list'
+              slot='content'
             >
               {item.children.map(child => (
                 <li
+                  class={['child-list-item', { active: child.id === item.childValue }]}
                   v-bk-tooltips={{
                     content: child.id,
                     placement: 'right',
@@ -223,7 +224,6 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                     disabled: !child.needTips,
                     allowHTML: false,
                   }}
-                  class={['child-list-item', { active: child.id === item.childValue }]}
                   onClick={() => this.handleSelectChild(item, child)}
                 >
                   {child.icon && <i class={`child-icon icon-monitor ${`icon-${child.icon}`}`}></i>}
@@ -237,24 +237,25 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
            */
           const menuItemTpl = (
             <li
-              class='chart-menu-item'
               key={item.id}
+              class='chart-menu-item'
               onClick={() => this.handleMenuClick(item)}
             >
               <i
                 class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`}
               ></i>
-              {!item.checked ? item.name : item.nextName || item.name}
+              <span class='menu-item-name'>{!item.checked ? item.name : item.nextName || item.name}</span>
               {!!item.children?.length && item.hasLink && (
                 <bk-popover
                   ref={`${item.id}-popover`}
+                  class='menu-item-trigger-popover'
+                  animation='slide-toggle'
+                  arrow={false}
+                  disabled={item.children.length < 2}
+                  distance={12}
+                  offset={-1}
                   placement='bottom-start'
                   theme='light cycle-list-wrapper child-list-popover'
-                  animation='slide-toggle'
-                  disabled={item.children.length < 2}
-                  arrow={false}
-                  offset={-1}
-                  distance={12}
                 >
                   <span class='menu-item-trigger'>{this.handleGetItemName(item.children, item.childValue)}</span>
                   {childTpl(item)}
@@ -267,12 +268,12 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
           if (item.children?.length && !item.hasLink) {
             return (
               <bk-popover
-                class='chart-menu-item-more'
                 ref={`${item.id}-popover`}
-                placement='right-start'
-                theme='light cycle-list-wrapper child-list-popover more'
+                class='chart-menu-item-more'
                 animation='slide-toggle'
                 arrow={false}
+                placement='right-start'
+                theme='light cycle-list-wrapper child-list-popover more'
               >
                 {menuItemTpl}
                 {childTpl(item)}
@@ -291,7 +292,12 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 onClick={() => this.handleMetricSelect(item)}
               >
                 <i class='icon-monitor icon-mc-add-strategy strategy-icon'></i>
-                <span class='field-name'>{item.metric_field_name}</span>
+                <span
+                  class='field-name'
+                  v-bk-overflow-tips
+                >
+                  {item.metric_field_name}
+                </span>
                 <i
                   class='bk-icon icon-info-circle tips-icon'
                   v-bk-tooltips={{ content: createMetricTitleTooltips(item), allowHTML: true }}

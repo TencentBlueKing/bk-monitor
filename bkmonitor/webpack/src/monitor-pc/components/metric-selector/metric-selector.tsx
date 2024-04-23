@@ -26,6 +26,7 @@
 
 import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
 import { addCustomMetric } from 'monitor-api/modules/custom_report';
 import { getMetricListV2, updateMetricListByBiz } from 'monitor-api/modules/strategies';
@@ -40,10 +41,9 @@ import HorizontalScrollContainer from '../../pages/strategy-config/strategy-conf
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import EmptyStatus from '../empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../empty-status/types';
-
 import CheckedboxList from './checkedbox-list';
 import MetricPopover from './metric-popover';
-import { CheckedboxListVlaue, MetricSelectorEvents, MetricSelectorProps } from './typings';
+import { CheckedboxListVlaue, MetricSelectorEvents, MetricSelectorProps, TGetMetricData } from './typings';
 
 import './metric-selector.scss';
 
@@ -83,6 +83,12 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Boolean, default: false }) isPromql: boolean;
   /* 默认选择的监控对象 */
   @Prop({ type: String, default: '' }) defaultScenario: string;
+  /* 使用指定的指标列表 */
+  @Prop({ type: Function, default: null }) getMetricData: TGetMetricData;
+  /* 是否多选 */
+  @Prop({ type: Boolean, default: false }) multiple: boolean;
+  /* 指标唯一id(多选) */
+  @Prop({ type: Array, default: () => [] }) metricIds: string[];
   @Ref() metricScrollWrap: HTMLElement;
 
   loading = false;
@@ -196,7 +202,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         children:
           this.dataSourceCheckedList[this.type]?.map(item => {
             const target = this.dataSourceList.find(
-              set => set.data_type_label === this.currentDataTypeLabel && set.data_source_label === item.id,
+              set => set.data_type_label === this.currentDataTypeLabel && set.data_source_label === item.id
             );
             item.count = (() => {
               if (this.isPromql) {
@@ -234,6 +240,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     return page * pageSize >= total;
   }
 
+  /* 是否使用指定指标数据 */
+  get isCustomMetrics() {
+    return !!this.getMetricData;
+  }
+
   beforeDestroy() {
     clearTimeout(this.timer);
   }
@@ -266,7 +277,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     } else {
       this.checkededValue = {};
     }
-    this.metricList = [];
+    if (!this.isCustomMetrics) {
+      this.metricList = [];
+    }
     if (!this.isRefreshSuccess) {
       this.search = '';
     }
@@ -275,6 +288,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     this.pagination.total = 0;
     this.tag.value = '';
     this.isRefreshSuccess = false;
+    if (!this.metricId) {
+      this.selectedMetric = null;
+    }
   }
 
   @Debounce(300)
@@ -311,7 +327,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
    * 获取指标数据
    * @param page 分页
    */
-  getMetricList(page = 1) {
+  async getMetricList(page = 1) {
     page === 1 && (this.currentIndex = !!this.search ? 0 : null);
     const { pageSize, total } = this.pagination;
     if (page > 1 && (page - 1) * pageSize >= total) return;
@@ -322,29 +338,71 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     }
     const params = this.handleMetricParams();
     params.page = page;
-    getMetricListV2(params)
-      .then(({ metric_list = [], tag_list = [], scenario_list = [], data_source_list = [], count = 0 }) => {
-        const metricList = metric_list.map(item => new MetricDetail(item));
-        this.metricList = page === 1 ? metricList : [...this.metricList, ...metricList];
-        this.getSelectedMetric();
-        page > 1 && (this.pagination.page += 1);
-        this.pagination.total = count;
-        if (this.tag.value) {
-          if (tag_list.findIndex(item => item.id === this.tag.value) < 0) {
-            const activeItem = this.tag.list.find(item => item.id === this.tag.value);
-            if (activeItem) this.tag.activeItem = deepClone(activeItem);
-          } else {
-            this.tag.activeItem = null;
-          }
-        }
-        this.tag.list = tag_list;
-        this.localScenarioList = scenario_list;
-        this.dataSourceList = data_source_list;
-      })
-      .finally(() => {
+    /* 自定义指标列表 */
+    if (this.isCustomMetrics) {
+      const { metricList } = await this.getMetricData({
+        ...params,
+        search: this.search.trim(),
+      }).catch(() => ({ metricList: [] }));
+      this.metricList = metricList;
+      const sourceObj = {};
+      const scenarioObj = {};
+      this.metricList.forEach(item => {
+        sourceObj[item.data_source_label] = (sourceObj?.[item.data_source_label] || 0) + 1;
+        scenarioObj[item.result_table_label] = (scenarioObj?.[item.result_table_label] || 0) + 1;
+        const metricIds = new Set(this.metricIds);
+        item.setChecked(metricIds.has(item.metric_id as string));
+      });
+      if (this.localScenarioList.length) {
+        this.localScenarioList = this.localScenarioList.map(item => ({
+          ...item,
+          count: scenarioObj?.[item.id] || 0,
+        }));
+        this.dataSourceList = this.dataSourceList.map(item => ({
+          ...item,
+          count: sourceObj?.[item.data_source_label] || 0,
+        }));
         this.loading = false;
         this.nextPageLoading = false;
-      });
+      } else {
+        getMetricListV2(params).then(({ tag_list = [], scenario_list = [], data_source_list = [] }) => {
+          this.tag.list = tag_list;
+          this.localScenarioList = scenario_list.map(item => ({
+            ...item,
+            count: scenarioObj?.[item.id] || 0,
+          }));
+          this.dataSourceList = data_source_list.map(item => ({
+            ...item,
+            count: sourceObj?.[item.data_source_label] || 0,
+          }));
+          this.loading = false;
+          this.nextPageLoading = false;
+        });
+      }
+    } else {
+      getMetricListV2(params)
+        .then(({ metric_list = [], tag_list = [], scenario_list = [], data_source_list = [], count = 0 }) => {
+          const metricList = metric_list.map(item => new MetricDetail(item));
+          this.metricList = page === 1 ? metricList : [...this.metricList, ...metricList];
+          page > 1 && (this.pagination.page += 1);
+          this.pagination.total = count;
+          if (this.tag.value) {
+            if (tag_list.findIndex(item => item.id === this.tag.value) < 0) {
+              const activeItem = this.tag.list.find(item => item.id === this.tag.value);
+              if (activeItem) this.tag.activeItem = deepClone(activeItem);
+            } else {
+              this.tag.activeItem = null;
+            }
+          }
+          this.tag.list = tag_list;
+          this.localScenarioList = scenario_list;
+          this.dataSourceList = data_source_list;
+        })
+        .finally(() => {
+          this.loading = false;
+          this.nextPageLoading = false;
+        });
+    }
   }
 
   /* 关键字高亮 */
@@ -582,7 +640,11 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
 
   @Emit('selected')
   handleSelectMetric(metric: MetricDetail) {
-    this.handleShowChange(false);
+    if (this.multiple) {
+      this.handleCheckMetric(metric, !metric.checked);
+    } else {
+      this.handleShowChange(false);
+    }
     return {
       ...metric,
       dimensions: metric.rawDimensions || [],
@@ -610,6 +672,14 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     this.pagination.page = 1;
     this.metricScrollWrap.scrollTo({ top: 0 });
     this.getMetricList();
+  }
+
+  handleCheckMetric(item: MetricDetail, v: boolean) {
+    item.setChecked(v);
+    this.$emit('checked', {
+      checked: item.checked,
+      id: item.metric_id,
+    });
   }
 
   /* 跳转到文档 */
@@ -725,12 +795,23 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       this.dataSourceCheckedList[MetricType.TimeSeries].find(d => d.id === item.data_source_label)?.name || '--';
     return (
       <div
-        class='metric-item-common'
+        class={['metric-item-common', { 'multiple-style': this.multiple }]}
         on-mouseenter={event => this.handleMetricNameEnter(event, item)}
         on-mouseleave={this.handleMetricNameLeave}
       >
         <div class='top'>
-          <span class='title'>{this.highLightContent(this.search, item.readable_name)}</span>
+          <span class='title'>
+            {this.multiple && (
+              <span onClick={e => e.stopPropagation()}>
+                <bk-checkbox
+                  class='metric-checkbox'
+                  value={item.checked}
+                  onChange={v => this.handleCheckMetric(item, v)}
+                ></bk-checkbox>
+              </span>
+            )}
+            <span>{this.highLightContent(this.search, item.readable_name)}</span>
+          </span>
           <span class='subtitle'>{this.highLightContent(this.search, obj.alias)}</span>
         </div>
         <div class='bottom'>{`${item.result_table_label_name} / ${dataSourceLabel}${
@@ -775,7 +856,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     }
   }
 
-  handleEmptyOperation(type: EmptyStatusOperationType | 'create-custom-metric') {
+  handleEmptyOperation(type: 'create-custom-metric' | EmptyStatusOperationType) {
     if (type === 'refresh') {
       this.getMetricList();
       return;
@@ -845,10 +926,10 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   render() {
     return (
       <MetricPopover
+        width={this.type === MetricType.TimeSeries ? 718 : 558}
         show={this.show}
         targetId={this.targetId}
         onShowChange={this.handleShowChange}
-        width={this.type === MetricType.TimeSeries ? 718 : 558}
       >
         <div class='metric-selector-main'>
           <div class={['metric-selector-header', { 'no-border': this.type === MetricType.TimeSeries }]}>
@@ -861,9 +942,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             ></bk-input>
             <bk-button
               class='refresh-btn'
-              text
-              icon={this.refreshLoading ? 'loading' : 'refresh'}
               disabled={this.refreshLoading}
+              icon={this.refreshLoading ? 'loading' : 'refresh'}
+              text
               onClick={this.handleRefreshClick}
             ></bk-button>
           </div>
@@ -875,28 +956,31 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               <div class='metric-selector-tags'>
                 <HorizontalScrollContainer key={String(this.tag.list?.length || 0)}>
                   <div class='built-in'>
-                    {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(item => (
-                      <div
-                        class={['built-in-item', { active: this.tag.value === item.id }]}
-                        key={item.id}
-                        on-click={() => this.handleTagClick(item.id)}
-                      >
-                        {item.name}
-                      </div>
-                    ))}
+                    {(this.tag.activeItem ? [this.tag.activeItem, ...this.tag.list] : this.tag.list).map(
+                      (item, index) => (
+                        <div
+                          key={`${item.id}_${index}`}
+                          class={['built-in-item', { active: this.tag.value === item.id }]}
+                          on-click={() => this.handleTagClick(item.id)}
+                        >
+                          {item.name}
+                        </div>
+                      )
+                    )}
                   </div>
                 </HorizontalScrollContainer>
               </div>
             ) : undefined}
             <div class={['metric-selector-content', this.type, { 'has-tag': this.type === MetricType.TimeSeries }]}>
               <div
-                class='content-main'
                 ref='metricScrollWrap'
-                onScroll={this.handleScrollContent}
+                class='content-main'
                 onMousemove={this.handleMousemove}
+                onScroll={this.handleScrollContent}
               >
                 {!!this.selectedMetric && (
                   <div
+                    key={`__${this.selectedMetric?.metric_id || '--'}__`}
                     class={[
                       'metric-item',
                       'pin-top-top',
@@ -921,6 +1005,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                   [
                     this.metricList.map((item, index) => (
                       <div
+                        key={`${item.metric_id}_${index}`}
                         class={[
                           'metric-item',
                           {
@@ -929,7 +1014,6 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                             'common-type': this.type === MetricType.TimeSeries,
                           },
                         ]}
-                        id={`_metric_id_${item.metric_field}_${index}`.replace(/\./g, '_')}
                         onClick={() => this.handleSelectMetric(item)}
                         onMouseenter={() => this.handleHoverItem(index)}
                       >
@@ -950,9 +1034,9 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
                       <div class='search-empty-msg'>
                         <p class='tip-text'>{this.$t('你可以将该搜索内容直接自定义为指标选项')}</p>
                         <bk-button
-                          text
-                          title='primary'
                           class='create-custom-metric'
+                          title='primary'
+                          text
                           onClick={() => this.handleEmptyOperation('create-custom-metric')}
                         >
                           {this.$t('生成自定义指标')}
@@ -964,8 +1048,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               </div>
               <div class='content-aside'>
                 <CheckedboxList
-                  value={this.checkededValue}
                   list={this.checkedboxList}
+                  value={this.checkededValue}
                   onChange={this.handleCheckedboxListChange}
                 />
               </div>

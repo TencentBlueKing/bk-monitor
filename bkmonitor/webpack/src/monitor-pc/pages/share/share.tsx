@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 // import { activated, loadApp, deactivated } from '../../../bk-weweb/src/index';
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
 import { getShareParams } from 'monitor-api/modules/share';
@@ -52,7 +53,7 @@ export default class SharePage extends tsc<object> {
       {
         token: this.token,
       },
-      { needMessage: false },
+      { needMessage: false }
     )
       // .then(data => ({ ...data, has_permission: false }))
       .catch(err => {
@@ -80,7 +81,7 @@ export default class SharePage extends tsc<object> {
       const path = !has_permission && process.env.NODE_ENV === 'production' ? `${location.pathname}apm/` : '';
       url = `${host}${path}?bizId=${this.$store.getters.bizId}/#${data?.path || '/'}?${route.href.replace(
         /^#\/([^?]*)\?/g,
-        '',
+        ''
       )}`;
     } else {
       const route = this.$router.resolve({
@@ -140,8 +141,8 @@ export default class SharePage extends tsc<object> {
       >
         {!this.isEmpty ? (
           <div
-            class='share-wrap-iframe'
             ref='sharePageWrap'
+            class='share-wrap-iframe'
           />
         ) : (
           <div class='share-wrap-empty'>

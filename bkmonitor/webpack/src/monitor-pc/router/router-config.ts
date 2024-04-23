@@ -519,7 +519,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
         ...item,
         children: item.children.reduce(
           (pre, cur) => (cur.children?.length ? [...pre, ...cur.children.filter(set => set.canStore)] : [...pre, cur]),
-          [],
+          []
         ),
       };
     }

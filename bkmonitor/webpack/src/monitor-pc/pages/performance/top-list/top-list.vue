@@ -26,9 +26,9 @@
 <template>
   <transition name="top-list">
     <ul
-      class="top-list"
       v-if="list && list.length"
       v-show="show"
+      class="top-list"
     >
       <li
         v-for="(item, index) in list"
@@ -47,54 +47,54 @@
 export default {
   name: 'TopList',
   props: {
-    show: Boolean
+    show: Boolean,
   },
   data() {
     return {
       list: [
         {
           name: 'hell1',
-          percent: '12%'
+          percent: '12%',
         },
         {
           name: 'hell2',
-          percent: '12%'
+          percent: '12%',
         },
         {
           name: 'hell3',
-          percent: '12%'
+          percent: '12%',
         },
         {
           name: 'hell4',
-          percent: '12%'
+          percent: '12%',
         },
         {
           name: 'hell5',
-          percent: '12%'
+          percent: '12%',
         },
         {
           name: 'hell6',
-          percent: '12%'
+          percent: '12%',
         },
         {
           name: 'hell7',
-          percent: '12%'
+          percent: '12%',
         },
         {
           name: 'hell8',
-          percent: '12%'
+          percent: '12%',
         },
         {
           name: 'hell9',
-          percent: '12%'
+          percent: '12%',
         },
         {
           name: 'hell10',
-          percent: '12%'
-        }
-      ]
+          percent: '12%',
+        },
+      ],
     };
-  }
+  },
 };
 </script>
 

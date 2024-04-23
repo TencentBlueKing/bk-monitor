@@ -25,6 +25,7 @@
  */
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -37,7 +38,6 @@ import PageTitle from '../monitor-k8s/components/page-title';
 import SplitPanel from '../monitor-k8s/components/split-panel';
 import { DashboardMode, IMenuItem, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH } from '../monitor-k8s/typings';
 import { ITabItem, IUptimeCheckType, UPTIME_CHECK_LIST } from '../monitor-k8s/typings/tools';
-
 import * as uptimeAuth from './authority-map';
 import UptimeCheckNode from './uptime-check-node';
 import UptimeCheckTask from './uptime-check-task';
@@ -247,13 +247,13 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
         return (
           <UptimeCheckTask
             ref='uptimeCheckTaskRef'
-            refreshKey={`${this.refreshKeys[UPTIME_CHECK_LIST[0].id]}__${this.$store.getters.bizId}`}
             isCard={this.dashboardMode === 'chart'}
             nodeName={this.nodeName}
-            onLoading={(v: boolean) => (this.loading = v)}
+            refreshKey={`${this.refreshKeys[UPTIME_CHECK_LIST[0].id]}__${this.$store.getters.bizId}`}
             onGroupStatus={(v: boolean) => this.fetchTaskGroupTask(v)}
-            onRefresh={this.handleRefreshData}
+            onLoading={(v: boolean) => (this.loading = v)}
             onNodeNameChange={this.handleNodeNameChange}
+            onRefresh={this.handleRefreshData}
           ></UptimeCheckTask>
         );
     }
@@ -267,36 +267,36 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
         v-bkloading={{ isLoading: this.loading }}
       >
         <PageTitle
-          tabList={UPTIME_CHECK_LIST}
           activeTab={this.active}
-          showInfo={false}
-          showSearch={false}
-          showFilter={false}
-          showSelectPanel={false}
-          showListPanel={true}
           disableOverview={this.active === 'uptime-check-node'}
           listPanelActive={this.dashboardMode === 'list'}
+          showFilter={false}
+          showInfo={false}
+          showListPanel={true}
+          showSearch={false}
+          showSelectPanel={false}
+          tabList={UPTIME_CHECK_LIST}
           onListPanelChange={this.handlePanelModeChange}
           onTabChange={this.handleTabChangeProxy}
         >
           <span slot='title'>{this.$t('综合拨测')}</span>
           <AlarmTools
-            slot='tools'
             style={{ marginRight: '8px' }}
+            slot='tools'
             panel={this.alarmToolsPanel}
           />
           <HeaderTool
             slot='tools'
             isSplitPanel={this.isSplitPanel}
-            showListMenu={isShowMenuList}
             refleshInterval={-1}
-            showTimeRange={false}
             showDownSampleRange={false}
+            showListMenu={isShowMenuList}
+            showTimeRange={false}
             onFullscreenChange={this.handleFullscreen}
-            onSplitPanelChange={this.handleSplitPanel}
-            onSelectedMenu={v => this.handleMenuSelect(v)}
-            onRefleshChange={v => this.handleRefleshChange(v)}
             onImmediateReflesh={() => this.handleImmediateReflesh()}
+            onRefleshChange={v => this.handleRefleshChange(v)}
+            onSelectedMenu={v => this.handleMenuSelect(v)}
+            onSplitPanelChange={this.handleSplitPanel}
           />
         </PageTitle>
         <div class='uptime-check-page-container'>
@@ -304,11 +304,11 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
             <keep-alive>{this.isActiveSet && this.getContent(this.active)}</keep-alive>
           </div>
           <div
-            class='split-panel-wrapper'
             style={{
               width: `${this.splitPanelWidth}px`,
               display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
             }}
+            class='split-panel-wrapper'
           >
             {this.isSplitPanel && (
               <SplitPanel

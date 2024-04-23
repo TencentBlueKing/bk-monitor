@@ -27,7 +27,7 @@ export default function (miliseconds = 100, timeoutPropertyName = 'timeoutFn'): 
   return function (
     target: object,
     propertyKey: string | symbol,
-    descriptor: TypedPropertyDescriptor<any>,
+    descriptor: TypedPropertyDescriptor<any>
   ): TypedPropertyDescriptor<any> {
     Object.defineProperty(target, timeoutPropertyName, {
       value: 0,
@@ -49,7 +49,7 @@ export function asyncDebounceDecorator(miliseconds = 100, timeoutPropertyName = 
   return function (
     target: object,
     propertyKey: string | symbol,
-    descriptor: TypedPropertyDescriptor<any>,
+    descriptor: TypedPropertyDescriptor<any>
   ): TypedPropertyDescriptor<any> {
     Object.defineProperty(target, timeoutPropertyName, {
       value: 0,

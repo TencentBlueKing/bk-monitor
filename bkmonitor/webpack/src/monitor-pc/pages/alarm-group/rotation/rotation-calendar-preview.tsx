@@ -115,8 +115,8 @@ export default class RotationCalendarPreview extends tsc<IProps> {
   render() {
     return (
       <div
-        class='rotation-calendar-preview-component'
         ref='content'
+        class='rotation-calendar-preview-component'
       >
         <div class='calendar-header'>
           {this.weekList.map(item => (
@@ -131,16 +131,16 @@ export default class RotationCalendarPreview extends tsc<IProps> {
         <div class='calendar-content'>
           {this.curCalendarData.data.map((item, index) => (
             <div
-              class='week-row'
+              key={index}
               style={{
                 height: `${120 + (item.maxRow >= 2 ? item.maxRow - 2 : 0) * 22}px`,
               }}
-              key={index}
+              class='week-row'
             >
               {item.dates.map(date => (
                 <div
-                  class='day-col'
                   key={date.day}
+                  class='day-col'
                 >
                   <div
                     class={[
@@ -158,7 +158,6 @@ export default class RotationCalendarPreview extends tsc<IProps> {
               {item.data.map((data, _index) =>
                 !!data.users.length ? (
                   <div
-                    class='user-item'
                     style={{
                       top: `${48 + data.row * 22}px`,
                       width: `${
@@ -166,39 +165,40 @@ export default class RotationCalendarPreview extends tsc<IProps> {
                       }px`,
                       left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`,
                     }}
+                    class='user-item'
                     onMouseenter={(event: Event) => this.handleMouseenter(event, data.other)}
                   >
                     <div
-                      class='user-header'
                       style={{ background: data.color }}
+                      class='user-header'
                     ></div>
                     <div
-                      class='user-content'
                       style={{ color: data.color }}
+                      class='user-content'
                     >
                       <span>{data.users.map(u => u.name || u.id).join(',')}</span>
                     </div>
                   </div>
                 ) : (
                   <div
-                    class='user-item no-user'
-                    onMouseenter={(event: Event) => this.handleMouseenter(event, data.other)}
                     style={{
                       width: `${
                         (data?.isStartBorder ? -1 : 0) + this.containerWidth * (data.range[1] - data.range[0])
                       }px`,
                       left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`,
                     }}
+                    class='user-item no-user'
+                    onMouseenter={(event: Event) => this.handleMouseenter(event, data.other)}
                   ></div>
-                ),
+                )
               )}
             </div>
           ))}
         </div>
         <div style={{ display: 'none' }}>
           <div
-            class='rotation-calendar-preview-component-user-item-pop'
             ref='userTip'
+            class='rotation-calendar-preview-component-user-item-pop'
           >
             <div class='user-item'>
               <div class='time'>{this.popover.time}</div>

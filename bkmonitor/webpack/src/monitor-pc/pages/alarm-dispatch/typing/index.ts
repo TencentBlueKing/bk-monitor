@@ -25,6 +25,7 @@
  */
 
 import { TranslateResult } from 'vue-i18n';
+
 import { random } from 'monitor-common/utils';
 
 import {
@@ -35,10 +36,10 @@ import {
   topNDataStrTransform,
 } from './condition';
 
-export type ActionType = 'copy' | 'add' | 'delete' | 'reset' | 'batchDelete' | 'batchReset';
+export type ActionType = 'add' | 'batchDelete' | 'batchReset' | 'copy' | 'delete' | 'reset';
 export type TContionType = 'and' | 'or';
-export type TMthodType = 'eq' | 'neq' | 'include' | 'exclude' | 'reg' | 'nreg';
-export type RuleStatusType = 'initial' | 'common' | 'change' | 'add' | 'verification';
+export type TMthodType = 'eq' | 'exclude' | 'include' | 'neq' | 'nreg' | 'reg';
+export type RuleStatusType = 'add' | 'change' | 'common' | 'initial' | 'verification';
 
 export const CONDITIONS = [
   { id: 'and', name: 'AND' },
@@ -106,7 +107,7 @@ interface IRuleDataItem {
 }
 
 interface IActionTtem {
-  actionType: 'notice' | 'itsm';
+  actionType: 'itsm' | 'notice';
   upgradeConfig?: {
     isEnabled: boolean;
     userGroups: number[];
@@ -126,34 +127,34 @@ export interface IRuleGroup {
 
 export interface LevelItem {
   value: number;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
   icon?: string;
   color?: string;
 }
 
 export enum EColumn {
-  select = 'select',
-  userGroups = 'userGroups',
+  actionId = 'actionId',
+  additionalTags = 'additionalTags',
+  alertSeverity = 'alertSeverity',
   conditions = 'conditions',
+  isEnabled = 'isEnabled',
+  levelTag = 'levelTag',
+  noticeProgress = 'noticeProgress',
+  operate = 'operate',
+  select = 'select',
   // notice = 'notice',
   upgradeConfig = 'upgradeConfig',
-  actionId = 'actionId',
-  alertSeverity = 'alertSeverity',
-  additionalTags = 'additionalTags',
-  isEnabled = 'isEnabled',
-  operate = 'operate',
-  noticeProgress = 'noticeProgress',
-  levelTag = 'levelTag',
+  userGroups = 'userGroups',
 }
 
 export class RuleGroupData {
-  isExpan = true;
+  editAllowed = false;
   id = 0; // 规则组ID
-  name = ''; // 规则名
+  isExpan = true; // 规则名
+  name = '';
   priority = 0;
   ruleData = [];
   settings = {};
-  editAllowed = false;
   constructor(data: IRuleGroup) {
     const TEMP_THIS = JSON.parse(JSON.stringify(this));
     Object.keys(TEMP_THIS).forEach(key => {
@@ -177,12 +178,7 @@ export class RuleGroupData {
 }
 
 export class RuleData {
-  key = random(8);
-  id = 0;
-  isCheck = false; // 是否选中
-  userGroups = []; // 告警组
-  conditions = []; // 匹配规则
-  conditionsRenderKey = random(8); // 主动刷新匹配规则
+  actionId = undefined;
   actions: IActionTtem[] = [
     {
       actionType: 'notice',
@@ -194,21 +190,12 @@ export class RuleData {
       },
     },
   ];
-  upgradeConfig = {
-    // 通知
-    noticeIsEnabled: true, // 关闭通知开关
-    isEnabled: false, // 通知升级开关
-    userGroups: [], // 通知升级告警组
-    upgradeInterval: undefined, // 时长
-  };
-  actionId = undefined; // 套餐id
-  alertSeverity = 0; // 等级调整
-  additionalTags = []; // 追加标签
-  tag = [];
-  isEnabled = false; // 开启
-  tooltipsDisabled = false; // 操作栏Tooltips是否禁用
-  addId = null;
-  copyId = null;
+  addId = null; // 是否选中
+  additionalTags = []; // 告警组
+  alertSeverity = 0; // 匹配规则
+  conditions = []; // 主动刷新匹配规则
+  conditionsRenderKey = random(8);
+  conditionsRepeat = false;
   config = {
     userGroups: false,
     isEnabled: false,
@@ -217,7 +204,27 @@ export class RuleData {
     actionId: false,
     additionalTags: false,
     alertSeverity: false,
+  }; // 套餐id
+  copyId = null; // 等级调整
+  id = 0; // 追加标签
+  isCheck = false;
+  isEnabled = false; // 开启
+  key = random(8); // 操作栏Tooltips是否禁用
+  replaceData = [];
+  tag = [];
+  tooltipsDisabled = false;
+  upgradeConfig = {
+    // 通知
+    noticeIsEnabled: true, // 关闭通知开关
+    isEnabled: false, // 通知升级开关
+    userGroups: [], // 通知升级告警组
+    upgradeInterval: undefined, // 时长
   };
+  userGroups = [];
+  validateTips = {
+    userGroups: '',
+    additionalTags: '',
+  }; // 条件是否重复
   verificatory = {
     userGroups: false,
     isEnabled: false,
@@ -227,12 +234,6 @@ export class RuleData {
     additionalTags: false,
     alertSeverity: false,
   };
-  validateTips = {
-    userGroups: '',
-    additionalTags: '',
-  };
-  conditionsRepeat = false; // 条件是否重复
-  replaceData = [];
 
   constructor(data: any) {
     const TEMP_THIS = JSON.parse(JSON.stringify(this));
@@ -260,7 +261,7 @@ export class RuleData {
             ({
               ...c,
               value: c.value.map(v => topNDataStrTransform(String(v))),
-            }),
+            })
           );
         } else {
           this[key] = data[key];
@@ -301,10 +302,53 @@ export class RuleData {
     return !(this.verificatory.userGroups || this.verificatory.conditions || this.verificatory.additionalTags);
   }
 
-  setCheck(value: boolean) {
-    this.isCheck = value;
+  /* 刷新条件 */
+  conditionsRefresh() {
+    this.conditionsRenderKey = random(8);
   }
-  setActions(value, actionType: 'notice' | 'itsm') {
+  /* 调试前校验一次（告警组与匹配规则） */
+  debugVerificatory() {
+    if (!this.isNullData) {
+      this.verificatory.userGroups = !this.userGroups.length;
+      this.verificatory.conditions = !this.conditions.length;
+      return this.verificatory.userGroups || this.verificatory.conditions;
+    }
+    return false;
+  }
+
+  /* 传给后台的参数  */
+  getSubmitParams(params = {}) {
+    return {
+      ...params,
+      id: this.id || undefined,
+      user_groups: this.userGroups,
+      conditions: this.conditions,
+      actions: this.actions
+        .map(a => {
+          if (a.actionType === 'notice') {
+            return {
+              action_type: a.actionType,
+              is_enabled: a.isEnabled,
+              upgrade_config: {
+                is_enabled: !!a.upgradeConfig?.isEnabled,
+                user_groups: a.upgradeConfig?.userGroups || [],
+                upgrade_interval: +(a.upgradeConfig?.upgradeInterval || 0),
+              },
+            };
+          }
+          return {
+            action_type: a.actionType,
+            action_id: a.actionId,
+          };
+        })
+        .filter(item => !(item.action_type === 'itsm' && !item.action_id)),
+      alert_severity: this.alertSeverity,
+      additional_tags: this.additionalTags.map(item => ({ key: item.key, value: item.value })),
+      is_enabled: this.isEnabled,
+    };
+  }
+
+  setActions(value, actionType: 'itsm' | 'notice') {
     if (actionType === 'notice') {
       const index = this.actions.findIndex(item => item.actionType === 'notice');
       index > -1
@@ -339,7 +383,6 @@ export class RuleData {
           });
     }
   }
-
   setAdditionalTags(list: string[]) {
     // 兼容key:value 和key=value两种模式
     this.additionalTags = list.map(item => {
@@ -355,40 +398,21 @@ export class RuleData {
       };
     });
   }
-
+  setCheck(value: boolean) {
+    this.isCheck = value;
+  }
   setConditions(v) {
     this.conditions = v;
   }
-  /* 传给后台的参数  */
-  getSubmitParams(params = {}) {
-    return {
-      ...params,
-      id: this.id || undefined,
-      user_groups: this.userGroups,
-      conditions: this.conditions,
-      actions: this.actions
-        .map(a => {
-          if (a.actionType === 'notice') {
-            return {
-              action_type: a.actionType,
-              is_enabled: a.isEnabled,
-              upgrade_config: {
-                is_enabled: !!a.upgradeConfig?.isEnabled,
-                user_groups: a.upgradeConfig?.userGroups || [],
-                upgrade_interval: +(a.upgradeConfig?.upgradeInterval || 0),
-              },
-            };
-          }
-          return {
-            action_type: a.actionType,
-            action_id: a.actionId,
-          };
-        })
-        .filter(item => !(item.action_type === 'itsm' && !item.action_id)),
-      alert_severity: this.alertSeverity,
-      additional_tags: this.additionalTags.map(item => ({ key: item.key, value: item.value })),
-      is_enabled: this.isEnabled,
-    };
+  setConditionsRepeat(v: boolean) {
+    this.conditionsRepeat = v;
+  }
+  setConfig(field: string, v: boolean) {
+    this.config[field] = v;
+  }
+  /** 设置复制规则id */
+  setCopyID() {
+    this.copyId = random(8);
   }
   /* 匹配规则查找替换 */
   setFindReplace(findData: ICondtionItem[], replaceData: ICondtionItem[], isUnshift = false) {
@@ -407,12 +431,21 @@ export class RuleData {
       this.replaceData = [];
     }
   }
+
+  setIsEnabled(v: boolean) {
+    this.isEnabled = v;
+  }
+
+  setTooltipsDisabled(v: boolean) {
+    this.tooltipsDisabled = v;
+  }
+
   setUnifiedSettings(findData: ICondtionItem[], replaceData: ICondtionItem[], curConditions: ICondtionItem[]) {
     if (findData.length) {
       // 判断finddata 是否完整无差异包含在this.condition
       if (findData.every(item => conditionsInclues(item, curConditions))) {
         this.conditions = conditionsDeduplication(
-          mergeConditions(conditionFindReplace(this.conditions, findData, replaceData, true)),
+          mergeConditions(conditionFindReplace(this.conditions, findData, replaceData, true))
         );
       } else {
         // 如果有差异就执行合并处理
@@ -425,49 +458,17 @@ export class RuleData {
       this.replaceData = [];
     }
   }
+  setVerificatory(field: string, v: boolean, tips?: TranslateResult | string) {
+    this.verificatory[field] = v;
+    this.validateTips[field] = tips ? tips : '';
+  }
+
   /* 统一设置时没有重复条件需往前添加新的条件 */
   unshiftConditions(conditions) {
     this.conditions.unshift(...conditions);
     this.conditions = conditionsDeduplication(this.conditions);
     this.conditions = mergeConditions(this.conditions);
     this.conditionsRenderKey = random(8);
-  }
-  /* 刷新条件 */
-  conditionsRefresh() {
-    this.conditionsRenderKey = random(8);
-  }
-  /** 设置复制规则id */
-  setCopyID() {
-    this.copyId = random(8);
-  }
-  setConfig(field: string, v: boolean) {
-    this.config[field] = v;
-  }
-
-  setVerificatory(field: string, v: boolean, tips?: string | TranslateResult) {
-    this.verificatory[field] = v;
-    this.validateTips[field] = tips ? tips : '';
-  }
-
-  setConditionsRepeat(v: boolean) {
-    this.conditionsRepeat = v;
-  }
-
-  setTooltipsDisabled(v: boolean) {
-    this.tooltipsDisabled = v;
-  }
-  /* 调试前校验一次（告警组与匹配规则） */
-  debugVerificatory() {
-    if (!this.isNullData) {
-      this.verificatory.userGroups = !this.userGroups.length;
-      this.verificatory.conditions = !this.conditions.length;
-      return this.verificatory.userGroups || this.verificatory.conditions;
-    }
-    return false;
-  }
-
-  setIsEnabled(v: boolean) {
-    this.isEnabled = v;
   }
 }
 

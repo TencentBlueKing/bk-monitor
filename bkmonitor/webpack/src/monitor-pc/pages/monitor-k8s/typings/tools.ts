@@ -28,7 +28,7 @@ import { TranslateResult } from 'vue-i18n';
 import { type SceneType } from '../components/common-page';
 
 export interface ITabItem {
-  id: string | number;
+  id: number | string;
   name: string;
   show_panel_count?: boolean;
   panel_count?: number;
@@ -41,7 +41,7 @@ export interface ITabItem {
 // nav 导航栏设置数据item
 export interface INavItem {
   id: string;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
   subName?: string;
   query?: Record<string, any>;
 }
@@ -54,7 +54,7 @@ export interface IRouteBackItem {
   isBack?: boolean;
 }
 /** 更多菜单id */
-export type IMenuId = 'edit-variate' | 'edit-tab' | 'edit-dashboard' | 'view-demo';
+export type IMenuId = 'edit-dashboard' | 'edit-tab' | 'edit-variate' | 'view-demo';
 
 export const COMMON_TAB_LIST: ITabItem[] = [
   {
@@ -110,7 +110,7 @@ export const UPTIME_CHECK_LIST: ITabItem[] = [
   },
 ];
 
-export type CommonTabType = 'dashboard' | 'list' | IUptimeCheckType['task'] | IUptimeCheckType['node'] | string;
+export type CommonTabType = 'dashboard' | 'list' | IUptimeCheckType['node'] | IUptimeCheckType['task'] | string;
 
 // 平铺模式下 dashboard panel 列数的localstorage key值
 export const DASHBOARD_PANEL_COLUMN_KEY = '__chart_view_type__';

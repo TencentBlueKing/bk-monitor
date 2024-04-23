@@ -163,13 +163,12 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
 import { deleteNoticeGroup } from 'monitor-api/modules/notice_group';
 import { debounce } from 'throttle-debounce';
+import { mapActions } from 'vuex';
 
 import { commonPageSizeMixin } from '../../common/mixins';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
 import alarmGroupDetail from './alarm-group-detail/alarm-group-detail-bak.vue';
 import * as alarmGroupAuth from './authority-map';
 import TableStore from './store.ts';

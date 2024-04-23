@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="config-delivery"
     v-bkloading="{ isLoading: loading }"
+    class="config-delivery"
     :class="{ 'need-loading': loading }"
   >
     <template v-if="taskReady.show">
@@ -52,9 +52,8 @@
           theme="primary"
           :disabled="hasRunning"
           @click="!hasRunning && $emit('next')"
-        >{{
-          hasRunning ? $t('下发中...') : $t('button-完成')
-        }}</bk-button>
+          >{{ hasRunning ? $t('下发中...') : $t('button-完成') }}</bk-button
+        >
         <bk-button
           v-if="showRollBack && allowRollBack"
           :disabled="hasRunning"
@@ -67,14 +66,10 @@
   </div>
 </template>
 <script>
-import {
-  collectTargetStatus,
-  isTaskReady,
-  rollbackDeploymentConfig } from 'monitor-api/modules/collecting';
+import { collectTargetStatus, isTaskReady, rollbackDeploymentConfig } from 'monitor-api/modules/collecting';
 
 import { TARGET_TABEL_EXPAND_MAX } from '../../../../constant/constant';
 import ConfigDeploy from '../../config-deploy/config-deploy';
-
 import EmptyTarget from './empty-target';
 import TaskReady from './task-ready';
 
@@ -83,14 +78,14 @@ export default {
   components: {
     ConfigDeploy,
     EmptyTarget,
-    TaskReady
+    TaskReady,
   },
   props: {
     config: {
       type: Object,
-      default: () => {}
+      default: () => {},
     },
-    hosts: Object
+    hosts: Object,
   },
   data() {
     return {
@@ -106,9 +101,9 @@ export default {
       taskReady: {
         show: true,
         status: {
-          msg: this.$t('准备中...')
-        }
-      }
+          msg: this.$t('准备中...'),
+        },
+      },
     };
   },
   computed: {
@@ -117,7 +112,7 @@ export default {
         return !!this.config.select.others.allowRollback;
       }
       return true;
-    }
+    },
   },
   watch: {
     'taskReady.show': {
@@ -126,8 +121,8 @@ export default {
           this.init();
         }
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   async created() {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -163,27 +158,25 @@ export default {
     },
     handleRefreshData(id) {
       collectTargetStatus({ id })
-        .then((data) => {
+        .then(data => {
           this.tables = this.handleData(data);
           this.$emit('update:hosts', this.tables);
         })
-        .catch((err) => {
+        .catch(err => {
           this.bkMsg('error', err.message || this.$t('出错了'));
         });
     },
     getHosts(id) {
       this.ajaxMark = false;
-      return collectTargetStatus(
-        { id },
-        { needMessage: false }
-      )
-        .then((data) => {
+      return collectTargetStatus({ id }, { needMessage: false })
+        .then(data => {
           this.tables = this.handleData(data);
-          this.hasRunning = data.contents.some(item => item.child
-            .some(set => ['RUNNING', 'PENDING'].includes(set.status)));
+          this.hasRunning = data.contents.some(item =>
+            item.child.some(set => ['RUNNING', 'PENDING'].includes(set.status))
+          );
           this.$emit('update:hosts', this.tables);
         })
-        .catch((error) => {
+        .catch(error => {
           this.bkMsg('error', error.message || this.$t('出错了'));
         })
         .finally(() => {
@@ -194,14 +187,14 @@ export default {
       return new Promise((resolve, reject) => {
         this.ajaxMark = false;
         collectTargetStatus({ id })
-          .then((data) => {
+          .then(data => {
             if (this.ajaxMark) {
               reject(data);
             } else {
               resolve(data);
             }
           })
-          .catch((err) => {
+          .catch(err => {
             reject(err);
           })
           .finally(() => {
@@ -214,17 +207,17 @@ export default {
       const sumData = {
         failed: {},
         pending: {},
-        success: {}
+        success: {},
       };
       const content = data.contents;
       content.forEach((item, index) => {
         item.failedNum = 0;
         item.successNum = 0;
         item.pendingNum = 0;
-        item.expand = item.child.length > 0 ? (index <= TARGET_TABEL_EXPAND_MAX - 1) : false;
-        item.expand =  oldContent?.length && oldContent[index] ? oldContent[index].expand : item.expand;
+        item.expand = item.child.length > 0 ? index <= TARGET_TABEL_EXPAND_MAX - 1 : false;
+        item.expand = oldContent?.length && oldContent[index] ? oldContent[index].expand : item.expand;
         item.table = [];
-        item.child.forEach((set) => {
+        item.child.forEach(set => {
           if (set.status === 'SUCCESS') {
             sumData.success[set.instance_id] = set.instance_id;
             item.successNum += 1;
@@ -249,7 +242,7 @@ export default {
       this.$bkMessage({
         theme,
         message,
-        ellipsisLine: 0
+        ellipsisLine: 0,
       });
     },
     async handleRollback() {
@@ -271,12 +264,12 @@ export default {
                 this.pollingStatus();
               }
             })
-            .catch((err) => {
+            .catch(err => {
               this.showRollBack = true;
               this.loading = false;
               this.bkMsg('error', err.message || this.$t('出错了'));
             });
-        }
+        },
       });
     },
     pollingStatus() {
@@ -295,10 +288,12 @@ export default {
       if (v) {
         clearTimeout(this.timer);
         await this.getHostData(this.config.data.id)
-          .then((data) => {
+          .then(data => {
             if (this.ajaxMark) {
               this.tables = this.handleData(data);
-              this.hasRunning = data.contents.some(item => item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING'));
+              this.hasRunning = data.contents.some(item =>
+                item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING')
+              );
               this.$emit('update:hosts', this.tables);
             }
           })
@@ -313,20 +308,20 @@ export default {
       clearTimeout(timer);
       let timer = null;
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      return new Promise(async (resolve) => {
+      return new Promise(async resolve => {
         const isShow = await isTaskReady({ collect_config_id: id }).catch(() => false);
         if (isShow) {
           resolve(true);
           return undefined;
         }
         timer = setTimeout(() => {
-          this.taskReadyStatusPromise(id).then((res) => {
+          this.taskReadyStatusPromise(id).then(res => {
             resolve(res);
           });
         }, 2000);
       });
-    }
-  }
+    },
+  },
 };
 </script>
 

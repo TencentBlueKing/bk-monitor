@@ -27,9 +27,9 @@
   <div class="alarm-detail">
     <!-- 趋势图 -->
     <monitor-echarts
+      v-if="eventDetail.dataTypeLabel === 'time_series'"
       :height="210"
       :style="{ backgroundColor: '#f0f1f5' }"
-      v-if="eventDetail.dataTypeLabel === 'time_series'"
       class="alarm-detail-chart"
       :series="series"
       :options="options"
@@ -108,6 +108,7 @@
 <script lang="ts">
 // eslint-disable
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import { Cell, CellGroup, Col, Collapse, CollapseItem, Row } from 'vant';
 
@@ -115,7 +116,6 @@ import MonitorEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-e
 import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
 import EventModule from '../../store/modules/event-detail';
-
 import Icon from './icon.vue';
 
 type Level = 1 | 2 | 3;
@@ -124,7 +124,7 @@ type LevelMap = {
   [k in Level]: string;
 };
 
-type AlarmStatus = 'RECOVERED' | 'ABNORMAL' | 'CLOSED';
+type AlarmStatus = 'ABNORMAL' | 'CLOSED' | 'RECOVERED';
 
 type StatusMap = {
   [k in AlarmStatus]: string;
@@ -137,8 +137,8 @@ interface IEventDetail {
   createTime: string;
   duration: string;
   anomalyMessage: string;
-  currentValue: string | number;
-  id: string | number;
+  currentValue: number | string;
+  id: number | string;
   dimensionMessage: string;
   status?: AlarmStatus;
   level?: Level;
@@ -158,12 +158,12 @@ interface IEventDetail {
     [Row.name]: Row,
     [Col.name]: Col,
     Icon,
-    MonitorEcharts
-  }
+    MonitorEcharts,
+  },
 })
 export default class AlarmDetail extends Vue {
   // 事件ID
-  @Prop({ default: 0 }) readonly id!: string | number;
+  @Prop({ default: 0 }) readonly id!: number | string;
   @Prop() readonly routeKey: string;
 
   // 事件详情数据
@@ -181,7 +181,7 @@ export default class AlarmDetail extends Vue {
     status: 'ABNORMAL',
     noticeStatus: '',
     isShield: false,
-    dataTypeLabel: 'time_series'
+    dataTypeLabel: 'time_series',
   };
 
   // 事件详情展示字段Map
@@ -189,9 +189,9 @@ export default class AlarmDetail extends Vue {
   // 图表series
   private series: any[] = null;
   // 折叠面板当前激活项
-  private active: Array<string | number> = ['anomalyMessage', 'dimensionMessage'];
+  private active: Array<number | string> = ['anomalyMessage', 'dimensionMessage'];
   // 可以折叠的字段
-  private expand: Array<string | number> = ['anomalyMessage', 'dimensionMessage'];
+  private expand: Array<number | string> = ['anomalyMessage', 'dimensionMessage'];
   // 事件级别Map
   private levelNameMap: LevelMap = null;
   // 事件状态Map
@@ -199,14 +199,14 @@ export default class AlarmDetail extends Vue {
   // 图表默认options
   private options = {
     legend: {
-      show: false
+      show: false,
     },
     tooltip: {
-      show: false
+      show: false,
     },
     toolbox: {
-      show: false
-    }
+      show: false,
+    },
   };
 
   @Watch('id')
@@ -229,17 +229,17 @@ export default class AlarmDetail extends Vue {
       anomalyMessage: this.$tc('检测算法'),
       dimensionMessage: this.$tc('维度信息'),
       currentValue: this.$tc('当前值'),
-      id: this.$tc('事件ID')
+      id: this.$tc('事件ID'),
     };
     this.levelNameMap = {
       1: this.$tc('致命'),
       2: this.$tc('预警'),
-      3: this.$tc('提醒')
+      3: this.$tc('提醒'),
     };
     this.statusMap = {
       ABNORMAL: this.$tc('未恢复'),
       CLOSED: this.$tc('已关闭'),
-      RECOVERED: this.$tc('已恢复')
+      RECOVERED: this.$tc('已恢复'),
     };
     this.handleGetData();
   }
@@ -267,7 +267,7 @@ export default class AlarmDetail extends Vue {
       noticeStatus,
       isShield,
       dataTypeLabel,
-      dimensionMessage
+      dimensionMessage,
     } = await EventModule.getEventDetail({ id: this.id });
 
     this.eventDetail = {
@@ -284,37 +284,38 @@ export default class AlarmDetail extends Vue {
       noticeStatus,
       isShield,
       dataTypeLabel,
-      dimensionMessage
+      dimensionMessage,
     };
   }
 
   async handleGetSeriesData() {
     const data = await EventModule.getChartData({
       event_id: this.id,
-      start_time: dayjs().add(-1, 'h')
-        .unix(),
-      end_time: dayjs().unix()
-    });
+      start_time: dayjs().add(-1, 'h').unix(),
+      end_time: dayjs().unix(),
+    }).catch(() => []);
     let chartData = [];
     const chartSeries = data?.find(item => item?.metric?.metric_field === 'value');
     if (chartSeries) {
       const coverList = [];
-      const upBoundary =        data
-        .find(item => item.metric.metric_field.includes('upper_bound'))
-        ?.datapoints?.map(item => [item[1], item[0]]) || [];
-      const lowBoundary =        data
-        .find(item => item.metric.metric_field.includes('lower_bound'))
-        ?.datapoints?.map(item => [item[1], item[0]]) || [];
+      const upBoundary =
+        data
+          ?.find(item => item.metric.metric_field.includes('upper_bound'))
+          ?.datapoints?.map(item => [item[1], item[0]]) || [];
+      const lowBoundary =
+        data
+          ?.find(item => item.metric.metric_field.includes('lower_bound'))
+          ?.datapoints?.map(item => [item[1], item[0]]) || [];
       const coverData = data.find(item => item.metric.metric_field.includes('is_anomaly'))?.datapoints || [];
       if (coverData.length) {
         coverList.push({
           data: coverData.map((item, index) => [
             chartSeries?.datapoints[index][1],
-            item[0] > 0 ? chartSeries?.datapoints[index][0] : null
+            item[0] > 0 ? chartSeries?.datapoints[index][0] : null,
           ]),
           color: '#ea3636',
           z: 11,
-          name: '1-cover'
+          name: '1-cover',
         });
       }
       chartData = data
@@ -329,10 +330,10 @@ export default class AlarmDetail extends Vue {
               lowBoundary,
               color: '#ccc',
               stack: `1-boundary-${target}`,
-              z: 5
-            }
+              z: 5,
+            },
           ],
-          coverSeries: coverList.map(set => ({ ...set, name: `${set.name}-${target}` }))
+          coverSeries: coverList.map(set => ({ ...set, name: `${set.name}-${target}` })),
         }));
     } else if (data?.length) {
       chartData = data.filter(item => item?.metric?.metric_field === 'value');
@@ -340,7 +341,7 @@ export default class AlarmDetail extends Vue {
         chartData = data;
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     this.series = chartData.map(({ markTimeRange, markPoints, ...item }) => item);
   }
 
@@ -350,8 +351,8 @@ export default class AlarmDetail extends Vue {
     this.$router.push({
       name: 'quick-alarm-shield',
       params: {
-        eventId: this.id as string
-      }
+        eventId: this.id as string,
+      },
     });
   }
 
@@ -360,8 +361,8 @@ export default class AlarmDetail extends Vue {
     this.$router.push({
       name: 'tendency-chart',
       params: {
-        id: this.id as string
-      }
+        id: this.id as string,
+      },
     });
   }
 }
@@ -389,7 +390,7 @@ export default class AlarmDetail extends Vue {
       justify-content: center;
       height: 32px;
       color: #63656e;
-      background-color: rgba(240, 241, 245, .6);
+      background-color: rgba(240, 241, 245, 0.6);
       border-radius: 2px;
     }
   }

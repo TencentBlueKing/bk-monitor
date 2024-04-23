@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getHostInfo } from 'monitor-api/modules/scene_view';
 
 import introduce from '../../../common/introduce';
@@ -129,20 +130,20 @@ export default class PerformanceDetail extends tsc<object> {
       >
         {!this.loading && (
           <CommonPage
+            defalutMethod={'MAX'}
+            defaultViewOptions={this.viewOptions}
             sceneId={this.viewOptions.variables?.display_name ? 'process' : 'host'}
             sceneType={'detail'}
-            defaultViewOptions={this.viewOptions}
-            defalutMethod={'MAX'}
             onTitleChange={this.headerTitleChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
-              needBack={true}
-              navMode={'share'}
               callbackRouterBack={this.handleBack}
+              navMode={'share'}
+              needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             />
           </CommonPage>
         )}

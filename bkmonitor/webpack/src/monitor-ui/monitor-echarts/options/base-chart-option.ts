@@ -28,11 +28,11 @@ import dayjs from 'dayjs';
 import { ChartType, IChartOptionPorps } from './type-interface';
 
 export default class EchartsSeries {
-  public lineWidth = 1;
+  public chartOption = {};
   public chartType: ChartType;
   public colors: string[] = [];
+  public lineWidth = 1;
   public showExtremum = false;
-  public chartOption = {};
   public constructor({ chartType, colors, showExtremum, chartOption, lineWidth }: IChartOptionPorps) {
     this.chartType = chartType;
     this.colors = colors;
@@ -69,9 +69,6 @@ export default class EchartsSeries {
       });
     return formatterFunc;
   }
-  public overwriteMerge(destinationArray: any, sourceArray: any) {
-    return sourceArray;
-  }
   public handleYxisLabelFormatter(num: number): string {
     const si = [
       { value: 1, symbol: '' },
@@ -90,5 +87,8 @@ export default class EchartsSeries {
       }
     }
     return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+  }
+  public overwriteMerge(destinationArray: any, sourceArray: any) {
+    return sourceArray;
   }
 }

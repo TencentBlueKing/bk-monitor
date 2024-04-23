@@ -25,11 +25,11 @@
  */
 import { VNode } from 'vue';
 import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
+
 import { random } from 'monitor-common/utils/utils';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import * as authorityMap from '../alarm-group/authority-map';
-
 import AlarmGroupList from './alarm-group-common/alarm-group';
 
 Component.registerHooks(['beforeRouteEnter']);
@@ -55,9 +55,9 @@ export default class AlarmGroupListMonitor extends Mixins(authorityMixinCreate(a
     return (
       <AlarmGroupList
         style={{ margin: '24px' }}
-        type='monitor'
         fromRouterName={this.fromRouterName}
         needReflesh={this.needReflesh}
+        type='monitor'
       ></AlarmGroupList>
     );
   }

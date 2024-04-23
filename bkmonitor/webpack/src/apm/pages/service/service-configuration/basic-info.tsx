@@ -25,6 +25,7 @@
  */
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
 import {
   logServiceRelationBkLogIndexSet,
@@ -46,7 +47,6 @@ import {
   IServiceInfo,
 } from '../../../typings';
 import * as authorityMap from '../../home/authority-map';
-
 import DebuggerDialog from './debugger-dialog';
 
 import './basic-info.scss';
@@ -128,7 +128,7 @@ export default class BasicInfo extends tsc<object> {
   /** uri源数据 */
   urlResource = '';
   /** 调试结果列表 */
-  debuggerResult: string[] | null = null;
+  debuggerResult: null | string[] = null;
   /** 拖拽数据 */
   dragData: { from: number; to: number } = {
     from: null,
@@ -531,8 +531,8 @@ export default class BasicInfo extends tsc<object> {
       return (
         <bk-exception
           class='empty-result'
-          type='empty'
           scene='part'
+          type='empty'
         >
           <span>{this.$t('暂无匹配')}</span>
         </bk-exception>
@@ -593,8 +593,8 @@ export default class BasicInfo extends tsc<object> {
                     >
                       {this.cmdbInfoList.map(option => (
                         <bk-option
-                          key={option.id}
                           id={option.id}
+                          key={option.id}
                           name={option.name}
                         ></bk-option>
                       ))}
@@ -611,8 +611,8 @@ export default class BasicInfo extends tsc<object> {
                       <span class='tag-label'>{this.$t('一级分类 :')}</span>
                       {curCmdbRelationTagList?.first_category?.icon && (
                         <img
-                          alt=''
                           class='icon'
+                          alt=''
                           src={curCmdbRelationTagList?.first_category?.icon}
                         />
                       )}
@@ -624,8 +624,8 @@ export default class BasicInfo extends tsc<object> {
                       <span class='tag-label'>{this.$t('二级分类 :')}</span>
                       {curCmdbRelationTagList?.second_category?.icon && (
                         <img
-                          alt=''
                           class='icon'
+                          alt=''
                           src={curCmdbRelationTagList?.second_category?.icon}
                         />
                       )}
@@ -638,7 +638,7 @@ export default class BasicInfo extends tsc<object> {
             {this.isEditing && (
               <p class='form-item-tips'>
                 {this.$t(
-                  '默认会进行自动识别，如果识别错误或者未识别到可以手动进行关联，关联后可以查看对应的主机和进程信息。',
+                  '默认会进行自动识别，如果识别错误或者未识别到可以手动进行关联，关联后可以查看对应的主机和进程信息。'
                 )}
               </p>
             )}
@@ -654,8 +654,8 @@ export default class BasicInfo extends tsc<object> {
                     >
                       {this.logsInfoList.map(option => (
                         <bk-option
-                          key={option.id}
                           id={option.id}
+                          key={option.id}
                           name={option.name}
                         ></bk-option>
                       ))}
@@ -679,8 +679,8 @@ export default class BasicInfo extends tsc<object> {
                             >
                               {this.bizSelectList.map(option => (
                                 <bk-option
-                                  key={option.id}
                                   id={option.id}
+                                  key={option.id}
                                   name={option.name}
                                 ></bk-option>
                               ))}
@@ -693,8 +693,8 @@ export default class BasicInfo extends tsc<object> {
                             >
                               {this.indexSetList.map(option => (
                                 <bk-option
-                                  key={option.id}
                                   id={option.id}
+                                  key={option.id}
                                   name={option.name}
                                 ></bk-option>
                               ))}
@@ -750,8 +750,8 @@ export default class BasicInfo extends tsc<object> {
                     >
                       {this.bizSelectList.map(option => (
                         <bk-option
-                          key={option.id}
                           id={option.id}
+                          key={option.id}
                           name={option.name}
                         ></bk-option>
                       ))}
@@ -773,8 +773,8 @@ export default class BasicInfo extends tsc<object> {
                         >
                           {this.appList.map(option => (
                             <bk-option
-                              key={option.id}
                               id={option.id}
+                              key={option.id}
                               name={option.name}
                             ></bk-option>
                           ))}
@@ -803,33 +803,33 @@ export default class BasicInfo extends tsc<object> {
             {this.isEditing && (
               <p class='form-item-tips'>
                 {this.$t(
-                  '当某个服务关联另外一个应用，关联后可以从当前服务跳转到下一个应用，实现在不同的应用拓扑进行问题的定位。',
+                  '当某个服务关联另外一个应用，关联后可以从当前服务跳转到下一个应用，实现在不同的应用拓扑进行问题的定位。'
                 )}
               </p>
             )}
           </div>
         </PanelItem>
         <PanelItem
-          title={this.$t('Apdex设置')}
           flexDirection='column'
+          title={this.$t('Apdex设置')}
         >
           <div
-            class='panel-intro'
             style='position:relative'
+            class='panel-intro'
           >
             <div>
               {this.$t(
-                'Apdex（Application Performance Index）是由 Apdex 联盟开发的用于评估应用性能的工业标准。Apdex 标准从用户的角度出发，将对应用响应时间的表现，转为用户对于应用性能的可量化范围为 0-1 的满意度评价。',
+                'Apdex（Application Performance Index）是由 Apdex 联盟开发的用于评估应用性能的工业标准。Apdex 标准从用户的角度出发，将对应用响应时间的表现，转为用户对于应用性能的可量化范围为 0-1 的满意度评价。'
               )}
             </div>
             <div>
               {this.$t(
-                'Apdex 定义了应用响应时间的最优门槛为 T（即 Apdex 阈值，T 由性能评估人员根据预期性能要求确定），根据应用响应时间结合 T 定义了三种不同的性能表现：',
+                'Apdex 定义了应用响应时间的最优门槛为 T（即 Apdex 阈值，T 由性能评估人员根据预期性能要求确定），根据应用响应时间结合 T 定义了三种不同的性能表现：'
               )}
             </div>
             <div class='indentation-text'>{`● Satisfied ${this.$t('（满意）- 应用响应时间低于或等于')} T`}</div>
             <div class='indentation-text'>{`● Tolerating ${this.$t(
-              '（可容忍）- 应用响应时间大于 T，但同时小于或等于',
+              '（可容忍）- 应用响应时间大于 T，但同时小于或等于'
             )} 4T`}</div>
             <div class='indentation-text'>{`● Frustrated ${this.$t('（烦躁期）- 应用响应时间大于')} 4T`}</div>
           </div>
@@ -851,8 +851,8 @@ export default class BasicInfo extends tsc<object> {
                       <bk-form-item property='apdex'>
                         <bk-input
                           vModel={this.localRelationInfo.apdex}
-                          type='number'
                           show-controls={false}
+                          type='number'
                         >
                           <template slot='append'>
                             <div class='right-unit'>ms</div>
@@ -868,8 +868,8 @@ export default class BasicInfo extends tsc<object> {
             </div>
             {this.isEditing && (
               <p
-                class='form-item-tips'
                 style='top:-10px'
+                class='form-item-tips'
               >
                 {this.$t('默认继承应用的类型设置')}
               </p>
@@ -877,16 +877,16 @@ export default class BasicInfo extends tsc<object> {
           </div>
         </PanelItem>
         <PanelItem
-          title={this.$t('URI规则设置')}
           class='uri-panel'
           flexDirection='column'
+          title={this.$t('URI规则设置')}
         >
           <div
-            class='panel-intro'
             style='position:relative'
+            class='panel-intro'
           >
             {this.$t(
-              '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html',
+              '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html'
             )}
           </div>
           <div
@@ -908,10 +908,10 @@ export default class BasicInfo extends tsc<object> {
             <div class='source-box'>
               <bk-input
                 class='source-input'
-                type='textarea'
-                placeholder=' '
-                disabled={!this.isEditing}
                 v-model={this.urlResource}
+                disabled={!this.isEditing}
+                placeholder=' '
+                type='textarea'
               />
             </div>
           </div>
@@ -923,15 +923,15 @@ export default class BasicInfo extends tsc<object> {
             >
               {this.uriList.map((item, index) => (
                 <li
-                  class={['config-form-item', { 'is-editing': this.isEditing }]}
                   key={index}
+                  class={['config-form-item', { 'is-editing': this.isEditing }]}
                   draggable={this.isEditing}
-                  onDragstart={evt => this.handleDragStart(evt, index)}
                   onDragend={this.handleDragend}
-                  onDrop={this.handleDrop}
                   onDragenter={() => this.handleDragEnter(index)}
-                  onDragover={evt => this.handleDragOver(evt, index)}
                   onDragleave={this.handleDragLeave}
+                  onDragover={evt => this.handleDragOver(evt, index)}
+                  onDragstart={evt => this.handleDragStart(evt, index)}
+                  onDrop={this.handleDrop}
                 >
                   {this.isEditing && <i class='icon-monitor icon-mc-tuozhuai'></i>}
                   <label class='label'>{`URI${index + 1}`}</label>
@@ -963,10 +963,10 @@ export default class BasicInfo extends tsc<object> {
               <div class='debugging-content'>
                 <div class='header-tool'>
                   <bk-button
-                    outline
-                    theme='primary'
-                    size='small'
                     loading={this.isDebugging}
+                    size='small'
+                    theme='primary'
+                    outline
                     onClick={() => this.handlDebugger()}
                   >
                     {this.$t('调试')}
@@ -995,8 +995,8 @@ export default class BasicInfo extends tsc<object> {
             {!this.isEditing && !this.uriList.length && (
               <bk-exception
                 class='empty-uri-info'
-                type='empty'
                 scene='part'
+                type='empty'
               >
                 <span>{this.$t('当前未配置URI信息')}</span>
               </bk-exception>
@@ -1007,10 +1007,10 @@ export default class BasicInfo extends tsc<object> {
           {!this.isEditing && (
             <bk-button
               class='edit-btn'
-              theme='primary'
-              size='normal'
-              outline
               v-authority={{ active: !this.authority }}
+              size='normal'
+              theme='primary'
+              outline
               onClick={() => {
                 this.authority ? this.handleEditClick(true) : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
               }}
@@ -1030,8 +1030,8 @@ export default class BasicInfo extends tsc<object> {
           <div class='submit-handle'>
             <bk-button
               class='mr10'
-              theme='primary'
               loading={this.isSubmitLoading}
+              theme='primary'
               onClick={() => this.handleSubmit()}
             >
               {this.$t('保存')}

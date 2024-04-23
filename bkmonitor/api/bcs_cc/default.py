@@ -77,11 +77,10 @@ class GetClusterList(BcsCcBaseResource):
     class RequestSerializer(serializers.Serializer):
         cluster_ids = serializers.ListField(label="集群ID列表")
 
-    def perform_request(self, params):
+    def request(self, request_data=None, **kwargs):
         if not settings.BCS_CC_API_URL:
             return []
-        clusters = super(GetClusterList, self).perform_request(params)
-        return clusters
+        return super(GetClusterList, self).request(request_data, **kwargs)
 
 
 class GetAreaList(BcsCcBaseResource):
@@ -89,14 +88,16 @@ class GetAreaList(BcsCcBaseResource):
     method = "GET"
     backend_cache_type = CacheType.BCS
 
-    def perform_request(self, validated_request_data):
+    def request(self, request_data=None, **kwargs):
         if not settings.BCS_CC_API_URL:
             return {"results": []}
-        areas = super(GetAreaList, self).perform_request(validated_request_data)
-        areas["results"].append(
+        return super(GetAreaList, self).request(request_data, **kwargs)
+
+    def render_response_data(self, validated_request_data, response_data):
+        response_data["results"].append(
             {"id": 0, "name": "default", "chinese_name": "默认", "configuration": "", "description": ""}
         )
-        return areas
+        return response_data
 
 
 class GetProjectList(BcsCcBaseResource):
@@ -111,11 +112,13 @@ class GetProjectList(BcsCcBaseResource):
             self._blueking_biz_id = api.cmdb.get_blueking_biz()
         return self._blueking_biz_id
 
-    def perform_request(self, params):
+    def request(self, request_data=None, **kwargs):
         if not settings.BCS_CC_API_URL:
             return {"results": []}
-        projects = super(GetProjectList, self).perform_request(params)
-        projects["results"].append(
+        return super(GetProjectList, self).request(request_data, **kwargs)
+
+    def render_response_data(self, validated_request_data, response_data):
+        response_data["results"].append(
             {
                 "approval_status": 2,
                 "approval_time": "1970-01-01T00:00:00+00:00",
@@ -149,7 +152,7 @@ class GetProjectList(BcsCcBaseResource):
                 "use_bk": False,
             }
         )
-        return projects
+        return response_data
 
 
 class GetSharedClusterNamespaces(BcsCcBaseResource):
@@ -171,19 +174,18 @@ class GetSharedClusterNamespaces(BcsCcBaseResource):
         project_id = serializers.CharField(label="项目 ID", default="")
         desire_all_data = serializers.CharField(label="查询全量数据", default="1", help_text="根据服务方提供，字符串`1`为拉取全量数据标识")
 
-    def perform_request(self, validated_request_data):
-        namespaces = super(GetSharedClusterNamespaces, self).perform_request(validated_request_data)
+    def render_response_data(self, validated_request_data, response_data):
         # 过滤项目下的空间
         if validated_request_data.get("project_id"):
             return [
                 {"project_id": n["project_id"], "cluster_id": n["cluster_id"], "namespace": n["name"]}
-                for n in (namespaces.get("results") or [])
+                for n in (response_data.get("results") or [])
                 if n["project_id"] == validated_request_data["project_id"]
             ]
 
         return [
             {"project_id": n["project_id"], "cluster_id": n["cluster_id"], "namespace": n["name"]}
-            for n in (namespaces.get("results") or [])
+            for n in (response_data.get("results") or [])
         ]
 
 

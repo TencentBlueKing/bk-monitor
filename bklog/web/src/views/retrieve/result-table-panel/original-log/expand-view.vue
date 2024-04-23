@@ -160,11 +160,8 @@ export default {
       /* stylelint-disable-next-line declaration-no-important */
       font-size: var(--table-fount-size) !important;
 
-      .vjs-value__string,
-      .vjs-value__number {
-        line-height: 24px;
-        white-space: pre-wrap;
-        tab-size: 3;
+      .vjs-tree__node {
+        line-height: 22px;
       }
     }
   }

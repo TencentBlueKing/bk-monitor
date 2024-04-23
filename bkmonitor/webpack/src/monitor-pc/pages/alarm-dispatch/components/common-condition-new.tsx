@@ -26,6 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { listUsersUser } from 'monitor-api/modules/model';
 import { Debounce, deepClone, random } from 'monitor-common/utils';
 
@@ -82,12 +83,12 @@ interface IListItem {
 }
 
 enum TypeEnum {
+  condition = 'condition',
   input = 'input',
   key = 'key',
-  value = 'value',
   method = 'method',
-  condition = 'condition',
   null = '',
+  value = 'value',
 }
 
 interface ITag {
@@ -213,7 +214,7 @@ export default class CommonCondition extends tsc<IProps> {
   focusType = '';
 
   /* 校验提示 */
-  errorMsg: string | TranslateResult = '';
+  errorMsg: TranslateResult | string = '';
   /* 二级选项搜索 */
   secondSearch = '';
   /* 当前key选项分类标签 */
@@ -572,7 +573,7 @@ export default class CommonCondition extends tsc<IProps> {
         name: keyItem.name,
         type: TypeEnum.key,
       },
-      !!keyItem?.alias ? { alias: keyItem.alias } : {},
+      !!keyItem?.alias ? { alias: keyItem.alias } : {}
     );
     if (this.clickType === TypeEnum.key) {
       /* 通过点击keytag触发的 */
@@ -751,7 +752,7 @@ export default class CommonCondition extends tsc<IProps> {
       /* 剔除空选项 空选项与其他选项互斥 */
       curTags.splice(findNullItemIndex, 1);
       this.tagList[this.curIndex[0]].condition.value = this.tagList[this.curIndex[0]].condition.value.filter(
-        item => !!item,
+        item => !!item
       );
     }
     this.handleChange();
@@ -1020,7 +1021,7 @@ export default class CommonCondition extends tsc<IProps> {
       .filter(
         item =>
           !keySet.has(item.id) &&
-          (this.keyTypeTag === EKeyTags.all ? true : !!KEY_TAG_MAPS[this.keyTypeTag]?.includes(item.id)),
+          (this.keyTypeTag === EKeyTags.all ? true : !!KEY_TAG_MAPS[this.keyTypeTag]?.includes(item.id))
       )
       .map(item => ({
         ...item,
@@ -1040,7 +1041,7 @@ export default class CommonCondition extends tsc<IProps> {
   emitValue() {
     try {
       this.locaLValue = JSON.parse(
-        JSON.stringify(this.tagList.filter(item => !!item.condition?.value?.length).map(item => item.condition)),
+        JSON.stringify(this.tagList.filter(item => !!item.condition?.value?.length).map(item => item.condition))
       );
       if (JSON.stringify(this.locaLValue) !== JSON.stringify(this.value)) {
         this.$emit('change', this.locaLValue);
@@ -1112,7 +1113,7 @@ export default class CommonCondition extends tsc<IProps> {
               /* 清除空选项 */
               const delIndex = this.tagList[index].condition.value.findIndex(v => v === nullOption.id);
               const tagDelIndex = this.tagList[index].tags.findIndex(
-                t => t.type === TypeEnum.value && t.id === nullOption.id,
+                t => t.type === TypeEnum.value && t.id === nullOption.id
               );
               if (delIndex > -1) {
                 this.tagList[index].condition.value.splice(delIndex, 1);
@@ -1264,12 +1265,12 @@ export default class CommonCondition extends tsc<IProps> {
   render() {
     return (
       <div
+        id={this.componentId}
         class={['common-condition-new-component', { 'is-err': this.isErr || this.isRepeat }]}
         v-bkloading={{ isLoading: this.loading, mode: 'spin', size: 'mini', zIndex: 10 }}
-        id={this.componentId}
+        onClick={this.handleComponentClick}
         onMouseenter={this.handleMouseEnter}
         onMouseleave={this.handleMouseLeave}
-        onClick={this.handleComponentClick}
       >
         {/* 校验提示信息 */}
         {this.isRepeat && <div class='repeat-tag'>{this.$t('重复')}</div>}
@@ -1288,8 +1289,8 @@ export default class CommonCondition extends tsc<IProps> {
         {this.tagList.map((item, index) => (
           <div
             key={index}
-            class='line-wrap'
             style={{ height: this.tagList.length > 1 ? 'auto' : '100%' }}
+            class='line-wrap'
             onClick={(event: MouseEvent) => this.handleClickLineWrap(event, index)}
           >
             <div class={['rule-line-item', { 'is-replace': item.isReplace }]}>
@@ -1371,8 +1372,8 @@ export default class CommonCondition extends tsc<IProps> {
                       >
                         <span class='input-value'>{this.inputValue}</span>
                         <input
-                          class='input'
                           ref='input'
+                          class='input'
                           v-model={this.inputValue}
                           onBlur={this.handBlur}
                           onInput={this.handleInput}
@@ -1433,18 +1434,18 @@ export default class CommonCondition extends tsc<IProps> {
         )}
         <div style={'display: none;'}>
           <div
-            class={['common-condition-component-pop-wrap', { 'key-type': this.selectType === TypeEnum.key }]}
-            ref='wrap'
             id={this.componentId}
+            ref='wrap'
+            class={['common-condition-component-pop-wrap', { 'key-type': this.selectType === TypeEnum.key }]}
           >
             {/* value搜索输入框 */}
             {[TypeEnum.value, TypeEnum.key].includes(this.selectType) && (
               <div class='search-wrap'>
                 <bk-input
-                  value={this.searchValue}
+                  behavior={'simplicity'}
                   left-icon='bk-icon icon-search'
                   placeholder={window.i18n.t('输入关键字搜索')}
-                  behavior={'simplicity'}
+                  value={this.searchValue}
                   onChange={this.handleSearchChange}
                 ></bk-input>
               </div>
@@ -1459,8 +1460,8 @@ export default class CommonCondition extends tsc<IProps> {
                   <div class='type-list'>
                     {KEY_FILTER_TAGS.map(tag => (
                       <div
-                        class={['type-list-item', { active: this.keyTypeTag === tag.id }]}
                         key={tag.id}
+                        class={['type-list-item', { active: this.keyTypeTag === tag.id }]}
                         onClick={() => this.handleClickKeyTypeTag(tag)}
                       >
                         {tag.name}
@@ -1475,7 +1476,7 @@ export default class CommonCondition extends tsc<IProps> {
                 /* key可选项列表 */
                 if (this.selectType === TypeEnum.key) {
                   const results = this.curList.filter(
-                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1,
+                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
                   );
                   return results.length ? (
                     results.map((item, index) => (
@@ -1526,7 +1527,7 @@ export default class CommonCondition extends tsc<IProps> {
                   if (this.tagList[this.curIndex[0]]?.condition?.field === strategyField) {
                     /* 策略的样式特殊 */
                     const results = this.curList.filter(
-                      item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1,
+                      item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
                     );
                     return results.length ? (
                       results.map((item, index) => (
@@ -1556,7 +1557,7 @@ export default class CommonCondition extends tsc<IProps> {
                     );
                   }
                   const results = this.curList.filter(
-                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1,
+                    item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
                   );
                   return results.length ? (
                     results.map((item, index) => (
@@ -1597,15 +1598,15 @@ export default class CommonCondition extends tsc<IProps> {
         {/* 二级选项列表 */}
         <div style={'display: none'}>
           <div
-            class='common-condition-component-second-pop-wrap'
             ref='secondWrap'
+            class='common-condition-component-second-pop-wrap'
           >
             <div class='search-wrap'>
               <bk-input
-                value={this.secondSearch}
+                behavior={'simplicity'}
                 left-icon='bk-icon icon-search'
                 placeholder={window.i18n.t('输入关键字搜索')}
-                behavior={'simplicity'}
+                value={this.secondSearch}
                 onChange={this.handleSecondSearchChange}
               ></bk-input>
             </div>
@@ -1617,13 +1618,13 @@ export default class CommonCondition extends tsc<IProps> {
                     <div
                       key={item.id}
                       class='list-item key-type'
-                      onMousedown={() => this.handleClickSecondKey(item)}
                       v-bk-tooltips={{
                         content: item.id,
                         placements: ['right'],
                         delay: [300, 0],
                         allowHTML: false,
                       }}
+                      onMousedown={() => this.handleClickSecondKey(item)}
                     >
                       <span>{item.name}</span>
                     </div>
@@ -1639,8 +1640,8 @@ export default class CommonCondition extends tsc<IProps> {
         {/* 统一设置提示 */}
         <div style={'display: none'}>
           <div
-            class={settingPopClassName}
             ref='settingsMsg'
+            class={settingPopClassName}
           >
             <div class='top'>
               <span class='icon-monitor icon-remind'></span>

@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import './day-picker.scss';
@@ -33,7 +34,7 @@ export default defineComponent({
   name: 'DayPicker',
   props: {
     value: {
-      type: Array as PropType<(string | number)[]>,
+      type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
     onChange: {
@@ -58,7 +59,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     function handleShow() {
@@ -76,11 +77,11 @@ export default defineComponent({
     function renderFn() {
       return (
         <Popover
-          placement='bottom-start'
+          extCls='alarm-shield-day-picker-component-pop-wrap'
           arrow={false}
+          placement='bottom-start'
           theme='light'
           trigger='click'
-          extCls='alarm-shield-day-picker-component-pop-wrap'
           onShow={handleShow}
         >
           {{
@@ -97,9 +98,9 @@ export default defineComponent({
               <div class='list-wrap'>
                 {localList.value.map((item, index) => (
                   <div
-                    onClick={() => handleSelectItem(item, index)}
-                    class={['list-item', { active: item.active }]}
                     key={item.value}
+                    class={['list-item', { active: item.active }]}
+                    onClick={() => handleSelectItem(item, index)}
                   >
                     <span>{item.value}</span>
                   </div>

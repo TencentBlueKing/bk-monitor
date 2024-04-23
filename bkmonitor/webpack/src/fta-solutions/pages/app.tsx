@@ -27,6 +27,7 @@ import Vue from 'vue';
 import { Component, Ref, Watch } from 'vue-property-decorator';
 import {} from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { APP_NAV_COLORS } from 'monitor-common/utils';
 import { getUrlParam } from 'monitor-common/utils/utils';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
@@ -63,7 +64,7 @@ export default class App extends tsc<object> {
       item =>
         item.route === routeId ||
         item.id === routeId ||
-        item?.children?.some(child => child.children.some(set => set.id === routeId)),
+        item?.children?.some(child => child.children.some(set => set.id === routeId))
     )?.id;
   }
   get routeId() {
@@ -75,7 +76,7 @@ export default class App extends tsc<object> {
   // 业务列表
   get bizList() {
     return this.$store.getters.bizList.filter(
-      item => item.text.includes(this.keyword) || String(item.id).includes(this.keyword),
+      item => item.text.includes(this.keyword) || String(item.id).includes(this.keyword)
     );
   }
   get bizName() {
@@ -147,7 +148,7 @@ export default class App extends tsc<object> {
   handleBeforeNavChange(newId, oldId) {
     if (
       ['strategy-config-add', 'strategy-config-edit', 'alarm-shield-add', 'alarm-shield-edit'].includes(
-        this.$route.name,
+        this.$route.name
       )
     ) {
       if (newId !== oldId) {
@@ -206,14 +207,14 @@ export default class App extends tsc<object> {
     return (
       <div class='menu-select'>
         <span
-          tabindex={0}
           class='menu-select-name'
+          tabindex={0}
           on-mousedown={this.handleClickBizSelect}
         >
           {this.bizName}
           <i
-            class='bk-select-angle bk-icon icon-angle-down select-icon'
             style={{ transform: `rotate(${!this.showBizList ? '0deg' : '-180deg'})` }}
+            class='bk-select-angle bk-icon icon-angle-down select-icon'
           />
         </span>
         <ul
@@ -224,18 +225,18 @@ export default class App extends tsc<object> {
             ref='menuSearchInput'
             class='menu-select-search'
             clearable={false}
-            right-icon='bk-icon icon-search'
             placeholder={this.$t('搜索')}
+            right-icon='bk-icon icon-search'
             value={this.keyword}
-            on-clear={() => this.handleBizSearch('')}
-            on-change={this.handleBizSearch}
             on-blur={() => (this.showBizList = false)}
+            on-change={this.handleBizSearch}
+            on-clear={() => this.handleBizSearch('')}
           />
           {this.bizList.length ? (
             this.bizList.map((item: ISpaceItem) => (
               <li
-                class={['list-item', { 'is-select': item.id === this.bizId }]}
                 key={item.id}
+                class={['list-item', { 'is-select': item.id === this.bizId }]}
                 onMousedown={() => this.handleBizChange(item.id)}
               >
                 {item.text}
@@ -252,12 +253,12 @@ export default class App extends tsc<object> {
     return (
       <div class={{ 'fta-solution': true, 'is-micro-app': !this.needMenu }}>
         <bk-navigation
-          navigation-type='top-bottom'
-          on-toggle={this.handleToggle}
-          themeColor='#2c354d'
-          side-title={this.$t('故障自愈')}
-          need-menu={!!this.menuList && this.needMenu}
           default-open={this.menuToggle}
+          navigation-type='top-bottom'
+          need-menu={!!this.menuList && this.needMenu}
+          side-title={this.$t('故障自愈')}
+          themeColor='#2c354d'
+          on-toggle={this.handleToggle}
           on-toggle-click={this.handleToggleClick}
         >
           {this.needMenu && (
@@ -279,13 +280,13 @@ export default class App extends tsc<object> {
             </div>
           )}
           <span
-            slot='side-icon'
             class='app-logo'
+            slot='side-icon'
           ></span>
           {this.menuList?.length ? (
             <div
-              class='fta-menu'
               key='menu'
+              class='fta-menu'
               slot='menu'
             >
               <div class='fta-menu-select'>
@@ -296,9 +297,9 @@ export default class App extends tsc<object> {
                 )}
               </div>
               <bk-navigation-menu
-                toggle-active={this.menuToggle}
-                default-active={this.routeId}
                 before-nav-change={this.handleBeforeNavChange}
+                default-active={this.routeId}
+                toggle-active={this.menuToggle}
                 {...{ props: APP_NAV_COLORS }}
               >
                 {this.menuList.map(item =>
@@ -309,16 +310,16 @@ export default class App extends tsc<object> {
                     >
                       {item.children.map(child => (
                         <bk-navigation-menu-item
-                          onClick={() => this.handleMenuItemClick(child.id)}
                           key={child.id}
                           href={child.href}
+                          onClick={() => this.handleMenuItemClick(child.id)}
                           {...{ props: child }}
                         >
                           <span>{this.$t(`route-${child.name}`)}</span>
                         </bk-navigation-menu-item>
                       ))}
                     </bk-navigation-menu-group>
-                  ) : undefined,
+                  ) : undefined
                 )}
               </bk-navigation-menu>
             </div>
@@ -327,10 +328,10 @@ export default class App extends tsc<object> {
           {this.showNav && (
             <CommonNavBar
               class='common-nav-bar-single'
-              routeList={this.navRouteList}
-              needCopyLink={this.needCopyLink}
               navMode={'copy'}
               needBack={this.needBack}
+              needCopyLink={this.needCopyLink}
+              routeList={this.navRouteList}
             ></CommonNavBar>
           )}
           <div class='page-container'>
@@ -338,8 +339,8 @@ export default class App extends tsc<object> {
               <router-view class='page-wrapper'></router-view>
             </keep-alive>
             <router-view
-              class='page-wrapper'
               key='noCache'
+              class='page-wrapper'
               name='noCache'
             ></router-view>
             <AuthorityModal></AuthorityModal>

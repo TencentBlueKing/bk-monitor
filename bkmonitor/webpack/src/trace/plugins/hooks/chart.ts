@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { inject, onBeforeUnmount, provide, Ref, watch, WatchStopHandle } from 'vue';
+
 import { type PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import { TimeRangeType } from '../../components/time-range/utils';
@@ -54,7 +55,7 @@ export interface IChartProvider {
   // 图表是否立即刷新
   readonly refleshImmediate: Ref<number | string>;
   // 图表对比数据
-  readonly timeOffset: Ref<string[] | number[]>;
+  readonly timeOffset: Ref<number[] | string[]>;
 }
 
 // 通用视图注入数据
@@ -108,7 +109,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
           getPanelData();
         }, refleshInterval.value);
       },
-      { immediate: true },
+      { immediate: true }
     );
   }
   // 图表是否立即刷新
@@ -182,17 +183,17 @@ export const useRefleshImmediateProvider = (refleshImmediate: boolean) => {
 };
 export const useRefleshImmediateInject = () => inject<Ref<boolean>>(REFLESH_IMMEDIATE_KEY);
 
-export const useTimeOffsetProvider = (timeOffset: string | number) => {
+export const useTimeOffsetProvider = (timeOffset: number | string) => {
   provide(TIME_OFFSET_KEY, timeOffset);
 };
-export const useTimeOffsetInject = () => inject<Ref<string[] | number[]>>(TIME_OFFSET_KEY);
+export const useTimeOffsetInject = () => inject<Ref<number[] | string[]>>(TIME_OFFSET_KEY);
 
 // 好像用不着
-export const useQueryDataProvider = (queryData: Ref<Object>) => {
+export const useQueryDataProvider = (queryData: Ref<object>) => {
   provide(QUERY_DATA_KEY, queryData);
 };
 // 好像用不着
-export const useQueryDataInject = () => inject<Ref<Object>>(QUERY_DATA_KEY);
+export const useQueryDataInject = () => inject<Ref<object>>(QUERY_DATA_KEY);
 
 export const useCompareTypeProvider = (compareType: PanelToolsType.CompareId) => {
   provide(COMPARE_TYPE, compareType);

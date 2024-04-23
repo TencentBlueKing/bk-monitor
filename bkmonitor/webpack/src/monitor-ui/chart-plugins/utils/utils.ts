@@ -155,7 +155,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
   /**
    * 根据阈值生成阈值的配置
    */
-  const handleThresholdOption = (list, level, unitConversion, title?: Function) => {
+  const handleThresholdOption = (list, level, unitConversion, title?: () => void) => {
     const result = [];
     list.forEach(cfg => {
       const thresholdVal = unitConversion ? unitConversion.unit_conversion * +cfg.threshold : +cfg.threshold;
@@ -329,7 +329,7 @@ const getMarkArea = (thresholdLine: any[]) => {
  */
 export const filterDictConvertedToWhere = (
   queryConfig: Record<string, any> = {},
-  excludes: string[] = ['bk_biz_id'],
+  excludes: string[] = ['bk_biz_id']
 ): Record<string, any> => {
   try {
     const filterDictTargets = queryConfig.filter_dict?.targets || [];
@@ -363,7 +363,7 @@ export const getMetricId = (
   index_set_id?: string,
   bkmonitor_strategy_id?: string,
   custom_event_name?: string,
-  alert_name?: string,
+  alert_name?: string
 ) => {
   const metaId = `${data_source_label}|${data_type_label}`;
   switch (metaId) {
@@ -488,7 +488,7 @@ export const parseMetricId = (metricId: string) => {
 export const MAX_PONIT_COUNT = 2880;
 export const MIN_PONIT_COUNT = 1440;
 export const INTERVAL_CONTANT_LIST = [10, 30, 60, 2 * 60, 5 * 60, 10 * 60, 30 * 60, 60 * 60];
-export const reviewInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const reviewInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     reviewInterval = interval;
@@ -503,7 +503,7 @@ export const reviewInterval = (interval: number | 'auto' | string, timeRange: nu
   return reviewInterval;
 };
 
-export const recheckInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const recheckInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     const minInterval = (timeRange / (step || 60) / MAX_PONIT_COUNT) * 60;
