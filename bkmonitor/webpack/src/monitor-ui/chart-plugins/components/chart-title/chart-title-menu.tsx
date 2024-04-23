@@ -244,10 +244,11 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
               <i
                 class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`}
               ></i>
-              {!item.checked ? item.name : item.nextName || item.name}
+              <span class='menu-item-name'>{!item.checked ? item.name : item.nextName || item.name}</span>
               {!!item.children?.length && item.hasLink && (
                 <bk-popover
                   ref={`${item.id}-popover`}
+                  class='menu-item-trigger-popover'
                   animation='slide-toggle'
                   arrow={false}
                   disabled={item.children.length < 2}
@@ -291,7 +292,12 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 onClick={() => this.handleMetricSelect(item)}
               >
                 <i class='icon-monitor icon-mc-add-strategy strategy-icon'></i>
-                <span class='field-name'>{item.metric_field_name}</span>
+                <span
+                  class='field-name'
+                  v-bk-overflow-tips
+                >
+                  {item.metric_field_name}
+                </span>
                 <i
                   class='bk-icon icon-info-circle tips-icon'
                   v-bk-tooltips={{ content: createMetricTitleTooltips(item), allowHTML: true }}
