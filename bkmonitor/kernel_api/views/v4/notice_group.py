@@ -388,7 +388,7 @@ class SaveUserGroupResource(Resource):
             except OperationalError as e:
                 if 'Deadlock found' in str(e) and retry < MAX_RETRIES - 1:
                     continue
-                raise
+                raise e
 
     def perform_request(self, validated_request_data):
         user_group = self.save_user_group_with_retry()
