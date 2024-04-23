@@ -195,7 +195,8 @@ def manage_es_storage(es_storages):
         except Exception as e:
             # 记录异常集群的信息
             logger.error(
-                "es_storage: %s lifecycle failed, name: %s, id: %s, domain: %s, error: %s",
+                "es_storage: %s index lifecycle failed, name: %s, id: %s, domain: %s, error: %s",
+                es_storage.table_id,
                 es_storage.storage_cluster.cluster_name,
                 es_storage.storage_cluster.cluster_id,
                 es_storage.storage_cluster.domain_name,
