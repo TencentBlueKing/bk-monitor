@@ -166,11 +166,8 @@ class UnifyQuery:
         if self.data_sources[0].id in GrayUnifyQueryDataSources:
             # 先排除特殊查询： aiops策略定义的特殊查询, 搜索关键字： !!! 特殊逻辑 重要提示 !!!
             # init_by_query_config 逻辑中，metrics列表 正常只有指标(field_name)或者日志关键字(_index)
-            # 当 metrics 有多个时，表示特殊逻辑
-            if len(self.data_sources[0].metrics) > 1:
-                return False
             # 只有开启灰度的数据源需要定义 using_unify_query 判断
-            return self.data_sources[0].using_unify_query(self.bk_biz_id)
+            return self.data_sources[0].switch_unify_query(self.bk_biz_id)
 
         # 使用特殊函数必须走统一查询模块
         for metric in self.data_sources[0].metrics:
