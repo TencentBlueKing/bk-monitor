@@ -240,7 +240,7 @@ class HostIntelligenAnomalyBaseResource(Resource):
         biz_ai_setting = AiSetting(bk_biz_id=bk_biz_id)
 
         if not biz_ai_setting.multivariate_anomaly_detection.host.is_access_aiops():
-            logger.exception("bk_biz_id({}) host scene not access aiops".format(bk_biz_id))
+            logger.error("bk_biz_id({}) host scene not access aiops".format(bk_biz_id))
             return
 
         intelligent_detect = biz_ai_setting.multivariate_anomaly_detection.host.intelligent_detect
