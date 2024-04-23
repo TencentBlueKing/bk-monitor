@@ -29,7 +29,6 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import BkPaasLogin from '@blueking/paas-login';
 import { getFooter, listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
@@ -39,7 +38,6 @@ import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal';
 
 import introduce from '../common/introduce';
-import { loginRefreshIntercept } from '../common/login-refresh-intercept';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
 import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
@@ -237,8 +235,6 @@ export default class App extends tsc<object> {
   }
   mounted() {
     this.handleGetNewUserGuide();
-    window.LoginModal = this.$refs.login;
-    loginRefreshIntercept();
     this.needMenu && this.handleNavHeaderResize();
     this.needMenu && addListener(this.navHeaderRef, this.handleNavHeaderResize);
     addListener(this.navHeaderRef, this.handleNavHeaderResize);
@@ -883,7 +879,6 @@ export default class App extends tsc<object> {
             pageMain
           )}
           <AuthorityModal />
-          <BkPaasLogin ref='login' />
           {
             // #if APP !== 'external'
             !this.readonly && this.$route.name && this.$route.name !== 'share' && (

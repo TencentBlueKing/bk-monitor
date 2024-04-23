@@ -29,6 +29,7 @@ import { getCookie } from 'monitor-common/utils/utils';
 import qs from 'qs';
 
 import { authorityStore, bkMessage, makeMessage } from '../utils/index';
+
 // 错误请求处理 3314001(名称重复)
 const noMessageCode = [3314001, 3310003];
 const errorHandle = (response, config) => {
@@ -63,14 +64,14 @@ const errorHandle = (response, config) => {
               }
               const url = new URL(data.login_url);
               const curl = url.searchParams.get('c_url');
+              url.protocol = location.protocol;
               if (curl) {
                 url.searchParams.set('c_url', curl.replace(/^http:/, location.protocol));
-                window.LoginModal.$props.loginUrl = url.href;
+                window.showLoginModal({ loginUrl: url.href });
               } else {
-                window.LoginModal.$props.loginUrl = data.login_url;
+                window.showLoginModal({ loginUrl: data.login_url.replace(/^http:/, location.protocol) });
               }
             }
-            window.LoginModal.show();
           } catch (_) {
             handleLoginExpire();
           }

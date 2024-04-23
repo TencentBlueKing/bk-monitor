@@ -23,31 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getContext } from 'monitor-api/modules/commons';
-
-function setCsrfToken() {
-  getContext({ context_name: 'csrf_token' }).then((res: any) => {
-    (window as any).csrf_token = res.csrf_token;
-  });
-}
-export function loginRefreshIntercept() {
-  window.addEventListener('beforeunload', event => {
-    if (!!window.LoginModal.loginUrl) {
-      let timer = 0;
-      window.LoginModal.$props.loginUrl = '';
-      event.preventDefault();
-      event.returnValue = '';
-      setTimeout(() => {
-        window.requestIdleCallback(() => {
-          timer = setTimeout(() => {
-            setCsrfToken();
-            clearTimeout(timer);
-          }, 500);
-        });
-      }, 1000);
-      window.addEventListener('unload', () => {
-        clearTimeout(timer);
-      });
-    }
-  });
+import { showLoginModal } from '@blueking/login-modal';
+if (!window.__POWERED_BY_BK_WEWEB__) {
+  window.parent.showLoginModal = showLoginModal;
 }
