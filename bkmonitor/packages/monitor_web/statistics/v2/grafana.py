@@ -74,7 +74,6 @@ class GrafanaCollector(BaseCollector):
                 yield item
 
     def increment_panel_metric(self, panels, biz_id, metric: Metric):
-        import pdb; pdb.set_trace()
         for panel in panels:
             if "type" not in panel:
                 continue
