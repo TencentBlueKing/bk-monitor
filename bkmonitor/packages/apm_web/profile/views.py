@@ -270,55 +270,21 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         compare_tendency_result = {}
         if "tendency" in data["diagram_types"]:
             data["diagram_types"].remove("tendency")
-
-            tendency_data = self._query(
-                api_type=APIType.SELECT_COUNT,
-                bk_biz_id=essentials["bk_biz_id"],
-                app_name=essentials["app_name"],
-                service_name=essentials["service_name"],
+            tendency_result, compare_tendency_result = self._get_tendency_data(
                 data_type=data["data_type"],
+                essentials=essentials,
                 start=start,
                 end=end,
                 profile_id=data.get("profile_id"),
                 filter_labels=data.get("filter_labels"),
-                result_table_id=essentials["result_table_id"],
-                converted=False,
-                dimension_fields="sample_type,(ROUND(dtEventTimeStamp / 60000) * 60)",
-                extra_params={
-                    "metric_fields": "sum(value)",
-                    "general_filters": {
-                        "sample_type": "op_eq|samples/count",
-                    },
-                },
+                is_compared=data.get("is_compared"),
+                diff_profile_id=data.get("diff_profile_id"),
+                diff_filter_labels=data.get("diff_filter_labels"),
             )
 
-            if data["is_compared"]:
-                compare_tendency_data = self._query(
-                    api_type=APIType.SELECT_COUNT,
-                    bk_biz_id=essentials["bk_biz_id"],
-                    app_name=essentials["app_name"],
-                    service_name=essentials["service_name"],
-                    data_type=data["data_type"],
-                    start=start,
-                    end=end,
-                    profile_id=data.get("diff_profile_id"),
-                    filter_labels=data.get("diff_filter_labels"),
-                    result_table_id=essentials["result_table_id"],
-                    converted=False,
-                    dimension_fields="sample_type,(ROUND(dtEventTimeStamp / 60000) * 60)",
-                    extra_params={
-                        "metric_fields": "sum(value)",
-                        "general_filters": {
-                            "sample_type": "op_eq|samples/count",
-                        },
-                    },
-                )
-                compare_tendency_result = get_diagrammer("tendency").diff(tendency_data, compare_tendency_data)
-                if len(data["diagram_types"]) == 1:
-                    return Response(data=compare_tendency_result)
-
-            tendency_result = get_diagrammer("tendency").draw(tendency_data)
             if len(data["diagram_types"]) == 0:
+                if data.get("is_compared"):
+                    return Response(data=compare_tendency_result)
                 return Response(data=tendency_result)
 
         doris_converter = self._query(
@@ -345,9 +311,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                         f"异常信息：{record.content}"
                     )
 
-        if (isinstance(doris_converter, dict) and not doris_converter) or (
-            isinstance(doris_converter, DorisConverter) and not doris_converter.raw_data
-        ):
+        if not doris_converter:
             raise ValueError(_("未查询到有效数据"))
 
         diagram_types = data["diagram_types"]
@@ -378,6 +342,83 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         data.update(doris_converter.get_sample_type())
         data.update(tendency_result)
         return Response(data=data)
+
+    def _get_tendency_data(
+        self,
+        data_type,
+        essentials,
+        start,
+        end,
+        profile_id=None,
+        filter_labels=None,
+        is_compared=False,
+        diff_profile_id=None,
+        diff_filter_labels=None,
+    ):
+        """获取时序表数据"""
+
+        # 需要先获取数据类型的单位
+        service_detail = api.apm_api.query_profile_services_detail(
+            **{
+                "bk_biz_id": essentials["bk_biz_id"],
+                "app_name": essentials["app_name"],
+                "service_name": essentials["service_name"],
+                "data_type": data_type,
+            }
+        )
+
+        if service_detail:
+            service_period = service_detail[0].get("period_type", "samples/count")
+        else:
+            service_period = "samples/count"
+
+        generate_filters = {"sample_type": f"op_eq|{service_period}"}
+
+        tendency_data = self._query(
+            api_type=APIType.SELECT_COUNT,
+            bk_biz_id=essentials["bk_biz_id"],
+            app_name=essentials["app_name"],
+            service_name=essentials["service_name"],
+            data_type=data_type,
+            start=start,
+            end=end,
+            profile_id=profile_id,
+            filter_labels=filter_labels,
+            result_table_id=essentials["result_table_id"],
+            converted=False,
+            dimension_fields="sample_type,(ROUND(dtEventTimeStamp / 60000) * 60)",
+            extra_params={
+                "metric_fields": "sum(value)",
+                "general_filters": generate_filters,
+                "order": {"expr": "(ROUND(dtEventTimeStamp / 60000) * 60)", "sort": "asc"},
+            },
+        )
+
+        compare_tendency_result = {}
+        if is_compared:
+            compare_tendency_data = self._query(
+                api_type=APIType.SELECT_COUNT,
+                bk_biz_id=essentials["bk_biz_id"],
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
+                data_type=data_type,
+                start=start,
+                end=end,
+                profile_id=diff_profile_id,
+                filter_labels=diff_filter_labels,
+                result_table_id=essentials["result_table_id"],
+                converted=False,
+                dimension_fields="sample_type,(ROUND(dtEventTimeStamp / 60000) * 60)",
+                extra_params={
+                    "metric_fields": "sum(value)",
+                    "general_filters": generate_filters,
+                    "order": {"expr": "(ROUND(dtEventTimeStamp / 60000) * 60)", "sort": "asc"},
+                },
+            )
+            compare_tendency_result = get_diagrammer("tendency").diff(tendency_data, compare_tendency_data)
+
+        tendency_data = get_diagrammer("tendency").draw(tendency_data)
+        return tendency_data, compare_tendency_result
 
     @staticmethod
     def _enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:

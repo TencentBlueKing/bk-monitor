@@ -118,5 +118,8 @@ class DorisConverter(Converter):
 
         return location
 
+    def __len__(self):
+        return len(self.raw_data)
+
 
 register_converter(InputType.DORIS.value, DorisConverter)

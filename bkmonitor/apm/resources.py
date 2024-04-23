@@ -1651,6 +1651,5 @@ class QueryProfileServiceDetailResource(Resource):
         if validated_data.get("data_type"):
             params["data_type"] = validated_data["data_type"]
 
-        params["data_type"] = DataType.CPU.value
         # TODO 一期暂时过滤除 CPU 外的数据类型
-        return ProfileService.objects.filter(**params).order_by("created_at")
+        return ProfileService.objects.filter(**params).exclude(~Q(data_type=DataType.CPU.value)).order_by("created_at")
