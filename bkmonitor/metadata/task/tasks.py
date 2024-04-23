@@ -192,7 +192,7 @@ def manage_es_storage(es_storages):
             es_storage.reallocate_index()
 
             logger.debug("es_storage->[{}] cron task success.".format(es_storage.table_id))
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             # 记录异常集群的信息
             logger.error(
                 "es_storage: %s index lifecycle failed, name: %s, id: %s, domain: %s, error: %s",
