@@ -14,7 +14,6 @@ import os
 import subprocess
 import traceback
 from functools import reduce
-from base64 import b64encode
 
 from django.conf import settings
 from django.db import models, transaction
@@ -501,7 +500,7 @@ class UptimeCheckTask(OperateRecordModel):
                 "params": {
                     "context": {
                         "data_id": dataid_map[protocol.upper()],
-                        "max_timeout": str(settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT) + "ms",
+                        "max_timeout": "{}ms".format(timeout),
                         "tasks": resource.uptime_check.generate_sub_config({"task_id": pk}),
                         "config_hosts": self.config.get("hosts", []),
                         # 针对动态节点的情况, 注意，业务ID必须拿当前task的业务ID：
