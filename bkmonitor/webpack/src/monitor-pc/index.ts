@@ -40,7 +40,7 @@ import { setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
-import './common/global';
+import './common/global-login';
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';

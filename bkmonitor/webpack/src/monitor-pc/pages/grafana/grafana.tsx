@@ -223,8 +223,8 @@ export default class MyComponent extends tsc<object> {
         const url = new URL(e.data.login_url);
         const curl = url.searchParams.get('c_url').replace(/^http:/, location.protocol);
         url.searchParams.set('c_url', curl);
-        window.LoginModal.$props.loginUrl = url.href;
-        window.LoginModal.show();
+        url.protocol = location.protocol;
+        window.showLoginModal({ loginUrl: url.href });
       } else {
         location.reload();
       }

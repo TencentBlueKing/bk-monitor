@@ -118,6 +118,9 @@ importers:
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
+      '@blueking/login-modal':
+        specifier: ^1.0.1
+        version: 1.0.1
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -188,6 +191,9 @@ importers:
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
+      '@blueking/login-modal':
+        specifier: ^1.0.1
+        version: 1.0.1
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -334,12 +340,12 @@ importers:
       '@blueking/ip-selector':
         specifier: 0.2.0-beta
         version: 0.2.0-beta
+      '@blueking/login-modal':
+        specifier: ^1.0.1
+        version: 1.0.1
       '@blueking/notice-component-vue2':
         specifier: ^2.0.3
         version: 2.0.3(dompurify@3.1.0)
-      '@blueking/paas-login':
-        specifier: 0.0.6
-        version: 0.0.6(bk-magic-vue@2.5.8)(vue@2.7.16)
       '@blueking/user-selector':
         specifier: ^1.0.12
         version: 1.0.12
@@ -555,6 +561,9 @@ importers:
       '@blueking/ip-selector':
         specifier: 0.2.0-beta
         version: 0.2.0-beta
+      '@blueking/login-modal':
+        specifier: ^1.0.1
+        version: 1.0.1
       apm:
         specifier: workspace:*
         version: link:../apm
@@ -2361,7 +2370,7 @@ packages:
   /@blueking/bkui-library@0.0.0-beta.4:
     resolution: {integrity: sha512-FjrSj+tglFjpy17NvTZidzbtgm3l7nEn5Jyi1pB7lCK6eBkXam66IF+zZYDFE1XeyEeZfTAFUHV/Kil+Q6DmLg==}
     dependencies:
-      '@vue/runtime-dom': 3.4.23
+      '@vue/runtime-dom': 3.4.24
     dev: false
 
   /@blueking/date-picker@2.0.0-beta.10(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.10)(vue@2.7.16):
@@ -2401,22 +2410,16 @@ packages:
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
     dev: false
 
+  /@blueking/login-modal@1.0.1:
+    resolution: {integrity: sha512-Z8TvzJiMqE9T2GXZeht15RA/NlEm+OWH/crylcOEig0+B8NIj5DomRXepQNItX32faOEeUliUgKD+dpkGH9jWA==}
+    dev: false
+
   /@blueking/notice-component-vue2@2.0.3(dompurify@3.1.0):
     resolution: {integrity: sha512-yua97C0Gge3RGmh62I5M2Xssr8f01xDUG/8ygBN7X+EjjnZWuB6WtHRk2ug4RVkuOctcNsXwlsa0gmidK1J1kQ==}
     peerDependencies:
       dompurify: ^3.0.6
     dependencies:
       dompurify: 3.1.0
-    dev: false
-
-  /@blueking/paas-login@0.0.6(bk-magic-vue@2.5.8)(vue@2.7.16):
-    resolution: {integrity: sha512-Zt4PzFIHyVLarul0Ky8p1/Vaq5p359WCkEtBRfo+Esoa7oxDZ8ilVw57VUKa300OgwOX+uD0GSOc4KkPdmSytg==}
-    peerDependencies:
-      bk-magic-vue: 2.5.8
-      vue: ^2.5.22
-    dependencies:
-      bk-magic-vue: 2.5.8(vue@2.7.16)
-      vue: 2.7.16
     dev: false
 
   /@blueking/stylelint-config@0.0.3:
@@ -4303,10 +4306,10 @@ packages:
       '@vue/shared': 3.4.21
     dev: false
 
-  /@vue/reactivity@3.4.23:
-    resolution: {integrity: sha512-GlXR9PL+23fQ3IqnbSQ8OQKLodjqCyoCrmdLKZk3BP7jN6prWheAfU7a3mrltewTkoBm+N7qMEb372VHIkQRMQ==}
+  /@vue/reactivity@3.4.24:
+    resolution: {integrity: sha512-nup3fSYg4i4LtNvu9slF/HF/0dkMQYfepUdORBcMSsankzRPzE7ypAFurpwyRBfU1i7Dn1kcwpYsE1wETSh91g==}
     dependencies:
-      '@vue/shared': 3.4.23
+      '@vue/shared': 3.4.24
     dev: false
 
   /@vue/runtime-core@3.4.21:
@@ -4316,11 +4319,11 @@ packages:
       '@vue/shared': 3.4.21
     dev: false
 
-  /@vue/runtime-core@3.4.23:
-    resolution: {integrity: sha512-FeQ9MZEXoFzFkFiw9MQQ/FWs3srvrP+SjDKSeRIiQHIhtkzoj0X4rWQlRNHbGuSwLra6pMyjAttwixNMjc/xLw==}
+  /@vue/runtime-core@3.4.24:
+    resolution: {integrity: sha512-c7iMfj6cJMeAG3s5yOn9Rc5D9e2/wIuaozmGf/ICGCY3KV5H7mbTVdvEkd4ZshTq7RUZqj2k7LMJWVx+EBiY1g==}
     dependencies:
-      '@vue/reactivity': 3.4.23
-      '@vue/shared': 3.4.23
+      '@vue/reactivity': 3.4.24
+      '@vue/shared': 3.4.24
     dev: false
 
   /@vue/runtime-dom@3.4.21:
@@ -4331,11 +4334,11 @@ packages:
       csstype: 3.1.3
     dev: false
 
-  /@vue/runtime-dom@3.4.23:
-    resolution: {integrity: sha512-RXJFwwykZWBkMiTPSLEWU3kgVLNAfActBfWFlZd0y79FTUxexogd0PLG4HH2LfOktjRxV47Nulygh0JFXe5f9A==}
+  /@vue/runtime-dom@3.4.24:
+    resolution: {integrity: sha512-uXKzuh/Emfad2Y7Qm0ABsLZZV6H3mAJ5ZVqmAOlrNQRf+T5mxpPGZBfec1hkP41t6h6FwF6RSGCs/gd8WbuySQ==}
     dependencies:
-      '@vue/runtime-core': 3.4.23
-      '@vue/shared': 3.4.23
+      '@vue/runtime-core': 3.4.24
+      '@vue/shared': 3.4.24
       csstype: 3.1.3
     dev: false
 
@@ -4352,8 +4355,8 @@ packages:
   /@vue/shared@3.4.21:
     resolution: {integrity: sha512-PuJe7vDIi6VYSinuEbUIQgMIRZGgM8e4R+G+/dQTk0X1NEdvgvvgv7m+rfmDH1gZzyA1OjjoWskvHlfRNfQf3g==}
 
-  /@vue/shared@3.4.23:
-    resolution: {integrity: sha512-wBQ0gvf+SMwsCQOyusNw/GoXPV47WGd1xB5A1Pgzy0sQ3Bi5r5xm3n+92y3gCnB3MWqnRDdvfkRGxhKtbBRNgg==}
+  /@vue/shared@3.4.24:
+    resolution: {integrity: sha512-BW4tajrJBM9AGAknnyEw5tO2xTmnqgup0VTnDAMcxYmqOX0RG0b9aSUGAbEKolD91tdwpA6oCwbltoJoNzpItw==}
     dev: false
 
   /@webassemblyjs/ast@1.12.1:
