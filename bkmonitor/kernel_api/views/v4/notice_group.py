@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.db import transaction
+from django.db.utils import OperationalError
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -30,6 +32,8 @@ from constants.action import ActionSignal, NoticeWay, NotifyStep
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.errors.notice_group import NoticeGroupHasStrategy
+
+MAX_RETRIES = 3  # 最大重试次数
 
 
 class SearchNoticeGroupResource(Resource):
@@ -372,8 +376,22 @@ class SaveUserGroupResource(Resource):
         self._request_serializer.is_valid(raise_exception=True)
         return self._request_serializer.validated_data
 
+    def save_user_group_with_retry(self):
+        """
+        添加重试机制，避免DB死锁问题
+        """
+        for retry in range(MAX_RETRIES):
+            try:
+                with transaction.atomic():
+                    user_group = self._request_serializer.save()
+                    return user_group
+            except OperationalError as e:
+                if 'Deadlock found' in str(e) and retry < MAX_RETRIES - 1:
+                    continue
+                raise
+
     def perform_request(self, validated_request_data):
-        user_group = self._request_serializer.save()
+        user_group = self.save_user_group_with_retry()
         return UserGroupDetailSlz(instance=user_group).data
 
 
