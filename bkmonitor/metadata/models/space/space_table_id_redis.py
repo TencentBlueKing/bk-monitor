@@ -223,7 +223,6 @@ class SpaceTableIDRedis:
                     "db": db,
                     "measurement": measurement,
                     "vm_rt": "",
-                    "index_alias": "",
                 }
             )
         return data
