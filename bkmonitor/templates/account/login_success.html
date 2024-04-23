@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Login Success</title>
+  </head>
+  <body>
+    <h1>登入成功</h1>
+  </body>
+  <script type="text/javascript">
+    // 关闭登录弹出框
+    try {
+      window.parent.location.reload();
+      window.opener && window.opener.location.reload();
+    } catch {
+    } finally {
+      window.close();
+    }
+  </script>
+</html>
