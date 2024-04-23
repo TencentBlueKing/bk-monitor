@@ -77,9 +77,11 @@ export default class PerformanceDetail extends tsc<object> {
         params = { bk_host_id: vm.id };
       }
       vm.loading = true;
-      const { bk_os_type, bk_cloud_id, ip, bk_host_id, display_name } = await getHostInfo(params).catch(() => ({
-        bk_os_type: '',
-      }));
+      const { bk_os_type, bk_cloud_id, ip, bk_host_id, display_name } = await getHostInfo(params)
+        .then(data => ({ ...data }))
+        .catch(() => ({
+          bk_os_type: '',
+        }));
       vm.routeList = [
         {
           id: '',
