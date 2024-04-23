@@ -175,7 +175,9 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
 
   beforeDestroy() {
     this.destroyMonaco();
-    this.roInstance?.disconnect?.();
+  }
+  deactivated() {
+    this.destroyMonaco();
   }
 
   onChange(value: string) {
@@ -358,6 +360,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   destroyMonaco() {
     this.editor?.dispose?.();
     monaco.editor.getModels().forEach(model => model.dispose());
+    this.roInstance?.disconnect?.();
   }
 
   initResize(e: Event) {
