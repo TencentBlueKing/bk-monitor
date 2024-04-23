@@ -29,7 +29,7 @@
     "fta-solutions": "workspace:*",
     "html-to-image": "^1.11.11",
     "minimist": "^1.2.8",
-    "monaco-editor": "^0.47.0",
+    "monaco-editor": "0.40.0",
     "monitor-api": "workspace:*",
     "monitor-common": "workspace:*",
     "monitor-static": "workspace:*",
