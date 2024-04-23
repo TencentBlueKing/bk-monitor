@@ -486,6 +486,18 @@ def append_event_metric_list_cache(bk_event_group_id):
         BkMonitorLogCacheManager().run()
 
 
+@task(ignore_result=True)
+def update_uptime_check_task_status():
+    """
+    定时刷新 starting 状态的拨测任务
+    :return:
+    """
+    from monitor_web.models.uptime_check import UptimeCheckTask
+
+    for task_id in UptimeCheckTask.objects.filter(status=UptimeCheckTask.Status.STARTING).values_list("id", flat=True):
+        update_task_running_status(task_id)
+
+
 @task(ignore_result=True, queue="celery_resource")
 def update_task_running_status(task_id):
     """
