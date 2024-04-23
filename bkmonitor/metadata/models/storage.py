@@ -1930,6 +1930,13 @@ class ESStorage(models.Model, StorageResultTable):
         if enable_create_index:
             new_record.create_es_index(is_sync_db)
 
+        # 针对单个结果表推送数据很快，不用异步处理
+        try:
+            from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+            SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_public=True)
+        except Exception as e:
+            logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
 
     @property
