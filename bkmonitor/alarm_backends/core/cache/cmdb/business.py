@@ -55,7 +55,6 @@ class BusinessManager(CMDBCacheManager):
         for business in business_list:
             pipeline.hset(cls.CACHE_KEY, cls.key_to_internal_value(business.bk_biz_id), cls.serialize(business))
 
-        pipeline.expire(cls.CACHE_KEY, cls.CACHE_TIMEOUT)
         pipeline.execute()
 
         # 差值比对需要删除的业务
