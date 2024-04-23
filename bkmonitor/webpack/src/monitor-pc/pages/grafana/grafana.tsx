@@ -203,7 +203,7 @@ export default class MyComponent extends tsc<object> {
       return;
     }
     // 302跳转
-    if (e?.data?.redirected) {
+    if (e?.data?.redirected && !this.hasLogin) {
       if (this.isAllowedUrl(e.data.href)) {
         const url = new URL(location.href);
         const curl = url.searchParams.get('c_url');
@@ -218,19 +218,16 @@ export default class MyComponent extends tsc<object> {
     }
     // 登录 iframe内登入态失效
     if (e?.data?.status === 'login' && !this.hasLogin) {
-      this.hasLogin = true;
       if (e.data.login_url) {
+        this.hasLogin = true;
         const url = new URL(e.data.login_url);
         const curl = url.searchParams.get('c_url').replace(/^http:/, location.protocol);
         url.searchParams.set('c_url', curl);
-        window.LoginModal.$props.loginUrl = url.href;
-        window.LoginModal.show();
+        url.protocol = location.protocol;
+        window.showLoginModal({ loginUrl: url.href });
       } else {
         location.reload();
       }
-      setTimeout(() => {
-        this.hasLogin = false;
-      }, 1000 * 60);
     }
   }
   render() {

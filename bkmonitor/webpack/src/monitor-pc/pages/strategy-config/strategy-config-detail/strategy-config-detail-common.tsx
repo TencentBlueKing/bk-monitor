@@ -1068,9 +1068,15 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       {(() => {
                         if (this.editMode === 'Edit') {
                           return [
-                            this.metricData.map(metricItem => <MetricListItem metric={metricItem} />),
-                            this.metricData.length > 1 ? (
+                            this.metricData.map((metricItem, index) => (
                               <MetricListItem
+                                key={index}
+                                metric={metricItem}
+                              />
+                            )),
+                            this.expression?.trim()?.length > 2 ? (
+                              <MetricListItem
+                                key='expression'
                                 expFunctions={this.expFunctions}
                                 expression={this.expression}
                               />

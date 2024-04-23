@@ -60,7 +60,13 @@ declare module 'vue/types/vue' {
 }
 declare module '*/store';
 declare module '*.svg';
-
+interface ShowLoginModalOption {
+  loginUrl: string;
+  width?: number;
+  height?: number;
+  maskColor?: string;
+  maskZIndex?: number;
+}
 declare global {
   interface Window {
     site_url: string;
@@ -79,7 +85,6 @@ declare global {
     enable_aiops: boolean;
     enable_apm: boolean;
     ce_url?: string;
-    LoginModal?: any;
     enable_message_queue: boolean;
     is_superuser: boolean;
     job_url: string;
@@ -125,6 +130,7 @@ declare global {
     docUrlMap: Record<string, string>;
     page_title: string;
     wxwork_bot_send_image?: boolean;
+    showLoginModal: (option: ShowLoginModalOption) => void;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;
