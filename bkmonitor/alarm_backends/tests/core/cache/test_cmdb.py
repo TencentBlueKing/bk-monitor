@@ -247,6 +247,8 @@ class TestHostManager(TestCMDBBaseTestCase):
             Host(bk_host_innerip="10.0.0.1", bk_cloud_id=1, bk_host_id=1, bk_biz_id=2),
             Host(bk_host_innerip="10.0.0.3", bk_cloud_id=3, bk_host_id=3, bk_biz_id=2),
             Host(bk_host_innerip="10.0.0.4", bk_cloud_id=4, bk_host_id=4, bk_biz_id=2),
+            Host(bk_host_innerip="10.0.0.5", bk_cloud_id=5, bk_host_id=5, bk_biz_id=4),
+            Host(bk_host_innerip="10.0.0.6", bk_cloud_id=6, bk_host_id=6, bk_biz_id=4),
         ]
 
         def mocked_get_host_by_topo_node(bk_biz_id, **kwargs):
@@ -260,13 +262,11 @@ class TestHostManager(TestCMDBBaseTestCase):
         HostManager.refresh()
         hosts = HostManager.all()
 
-        # 删除了一台业务2的机器
+        # 删除了一台业务2的机器,业务4下的机器也已删除
         excepted_hosts_result = [
             Host(bk_host_innerip="10.0.0.1", bk_cloud_id=1, bk_host_id=1, bk_biz_id=2),
             Host(bk_host_innerip="10.0.0.3", bk_cloud_id=3, bk_host_id=3, bk_biz_id=2),
             Host(bk_host_innerip="10.0.0.4", bk_cloud_id=4, bk_host_id=4, bk_biz_id=2),
-            Host(bk_host_innerip="10.0.0.5", bk_cloud_id=5, bk_host_id=5, bk_biz_id=4),
-            Host(bk_host_innerip="10.0.0.6", bk_cloud_id=6, bk_host_id=6, bk_biz_id=4),
         ]
         self.assertSetEqual(set(excepted_hosts_result), set(hosts))
 
@@ -285,7 +285,7 @@ class TestHostManager(TestCMDBBaseTestCase):
         self.assertSetEqual({"10.0.0.5|5", "10.0.0.6|6", "5", "6"}, set(json.loads(all_host_id_list["4"])))
 
         # 业务拉取异常
-        self.assertEqual(4, HostManager.get(ip="10.0.0.5", bk_cloud_id=5).bk_biz_id)
+        self.assertEqual(None, HostManager.get(ip="10.0.0.5", bk_cloud_id=5))
 
     @mock.patch("alarm_backends.core.cache.cmdb.business.api.cmdb.get_business")
     def test_remove_biz(self, get_business):

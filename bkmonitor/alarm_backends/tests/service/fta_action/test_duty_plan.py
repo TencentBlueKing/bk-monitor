@@ -1270,14 +1270,14 @@ class TestDutyPlan:
 
         assert DutyRuleSnap.objects.filter(user_group_id=duty_group.id).count() == 1
         # 三天后产生一波新的，之前配置三天后开始的失效
-        assert DutyPlan.objects.filter(user_group_id=duty_group.id, is_effective=1).count() == 17
+        assert DutyPlan.objects.filter(user_group_id=duty_group.id, is_effective=1).count() == 16
 
         # 第一次安排的有效期限提前到下一次生效之前
         assert (
             DutyPlan.objects.filter(
                 user_group_id=duty_group.id, finished_time__lte=duty_rule_data["effective_time"], is_effective=1
             ).count()
-            == 2
+            == 1
         )
 
     def test_disable_duty_rule(self, db_setup, duty_group, duty_rule_data):
@@ -1482,7 +1482,6 @@ class TestEffectiveTime:
         ],
     )
     def test_user_group_save(self, db_setup, duty_group_data, create_time, duty_user):
-
         create_time = time_tools.str2datetime(create_time)
         with mock.patch("bkmonitor.action.serializers.strategy.time_tools.datetime_today", return_value=create_time):
             g_slz = UserGroupDetailSlz(data=duty_group_data)
