@@ -26,28 +26,29 @@
 import { defineComponent, provide, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 import { Button, DatePicker, InfoBox, Loading, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 
 import EmptyStatus, { EmptyStatusType } from '../../components/empty-status/empty-status';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
-
 import AlarmShieldDetail from './alarm-shield-detail';
 import * as authMap from './authority-map';
 
 import './alarm-shield.scss';
 
 enum EColunm {
-  id = 'id',
-  shieldType = 'shieldType',
-  shieldContent = 'shieldContent',
   beginTime = 'begin_time',
   cycleDuration = 'cycleDuration',
   description = 'description',
-  operate = 'operate',
   failureTime = 'failure_time',
-  status = 'status'
+  id = 'id',
+  operate = 'operate',
+  shieldContent = 'shieldContent',
+  shieldType = 'shieldType',
+  status = 'status',
+  updateUser = 'update_user',
 }
 export default defineComponent({
   name: 'AlarmShield',
@@ -59,7 +60,7 @@ export default defineComponent({
     const authority = reactive<IAuthority>({
       map: authMap,
       auth: {},
-      showDetail: authorityStore.getAuthorityDetail
+      showDetail: authorityStore.getAuthorityDetail,
     });
     /* 时间范围 */
     const dateRange = ref([]);
@@ -74,24 +75,24 @@ export default defineComponent({
       1: {
         des: t('屏蔽中'),
         className: 'shield',
-        code: 1
+        code: 1,
       },
       2: {
         des: t('已过期'),
         className: 'overdue',
-        code: 2
+        code: 2,
       },
       3: {
         des: t('被解除'),
         className: 'release',
-        code: 3
-      }
+        code: 3,
+      },
     };
     /* 屏蔽状态 */
     const shieldStatus = ref(0);
     const shieldStatusList = [
       { name: t('屏蔽中'), id: 0, type: 'effct' },
-      { name: t('屏蔽失效'), id: 1, type: 'overdue' }
+      { name: t('屏蔽失效'), id: 1, type: 'overdue' },
     ];
     /* 表格数据 */
     const tableData = reactive({
@@ -105,8 +106,8 @@ export default defineComponent({
           disabled: true,
           checked: true,
           sort: {
-            value: ''
-          }
+            value: '',
+          },
         },
         {
           id: EColunm.shieldType,
@@ -121,16 +122,16 @@ export default defineComponent({
               { text: t('告警事件屏蔽'), value: 'alert' },
               { text: t('范围屏蔽'), value: 'scope' },
               { text: t('策略屏蔽'), value: 'strategy' },
-              { text: t('维度屏蔽'), value: 'dimension' }
-            ]
-          }
+              { text: t('维度屏蔽'), value: 'dimension' },
+            ],
+          },
         },
         {
           id: EColunm.shieldContent,
           name: t('屏蔽内容'),
           width: 250,
           disabled: false,
-          checked: true
+          checked: true,
         },
         {
           id: EColunm.beginTime,
@@ -139,8 +140,8 @@ export default defineComponent({
           disabled: false,
           checked: true,
           sort: {
-            value: ''
-          }
+            value: '',
+          },
         },
         {
           id: EColunm.failureTime,
@@ -149,52 +150,59 @@ export default defineComponent({
           disabled: false,
           checked: true,
           sort: {
-            value: ''
-          }
+            value: '',
+          },
         },
         {
           id: EColunm.cycleDuration,
           name: t('持续周期及时长'),
           width: 150,
           disabled: false,
-          checked: true
+          checked: true,
         },
         {
           id: EColunm.description,
           name: t('屏蔽原因'),
           width: 230,
           disabled: false,
-          checked: true
+          checked: true,
         },
         {
           id: EColunm.status,
           name: t('状态'),
           width: 150,
           disabled: false,
-          checked: true
+          checked: true,
+        },
+        {
+          id: EColunm.updateUser,
+          name: t('更新人'),
+          width: 150,
+          disabled: false,
+          checked: true,
         },
         {
           id: EColunm.operate,
           name: t('操作'),
           width: 150,
           disabled: true,
-          checked: true
-        }
+          checked: true,
+        },
       ],
       pagination: {
         current: 1,
         count: 0,
-        limit: 10
+        limit: 10,
       },
       filter: {
         shieldType: {
-          checked: []
-        }
+          checked: [],
+        },
       },
       sort: {
         column: '',
-        type: ''
-      }
+        type: '',
+      },
     });
     const settings = reactive({
       checked: tableData.columns.map(item => item.id),
@@ -209,14 +217,14 @@ export default defineComponent({
         .map(item => ({
           label: item.name,
           field: item.id,
-          disabled: item.disabled
-        }))
+          disabled: item.disabled,
+        })),
     });
     const emptyType = ref<EmptyStatusType>('empty');
     /* 详情数据 */
     const detailData = reactive({
       show: false,
-      id: ''
+      id: '',
     });
 
     provide('authority', authority);
@@ -234,8 +242,8 @@ export default defineComponent({
         id: {
           name: `${t('屏蔽ID')}`,
           value: [],
-          id: 'id'
-        }
+          id: 'id',
+        },
       };
       const res = [];
       const map = backDisplayMap.value;
@@ -245,7 +253,7 @@ export default defineComponent({
           name,
           id,
           multiable: true,
-          children: list || []
+          children: list || [],
         });
       });
       searchData.value = res;
@@ -266,7 +274,7 @@ export default defineComponent({
           router
             .replace({
               ...route,
-              query: { queryString: undefined }
+              query: { queryString: undefined },
             })
             .catch(() => {});
         }
@@ -280,7 +288,7 @@ export default defineComponent({
                   id: item.key,
                   multiable: true,
                   name: backDisplayMap.value[item.key].name,
-                  values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value]
+                  values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value],
                 });
             } else {
               if (item.key) searchValues_.push({ id: item.key, name: item.key });
@@ -312,12 +320,12 @@ export default defineComponent({
           .map(item => ({
             label: item.name,
             field: item.id,
-            disabled: item.disabled
+            disabled: item.disabled,
           }));
         settings.checked = settings.fields.map(item => item.field);
         tableData.sort = {
           column: '',
-          type: ''
+          type: '',
         };
         tableData.columns.forEach(item => {
           if (!!item?.sort) {
@@ -361,13 +369,13 @@ export default defineComponent({
           return undefined;
         })(),
         conditions: searchCondition,
-        is_active: shieldStatus.value === 0
+        is_active: shieldStatus.value === 0,
       };
       const data = await frontendShieldList(params).catch(() => {
         emptyType.value = '500';
         return {
           shield_list: [],
-          count: 0
+          count: 0,
         };
       });
       tableData.data = [...data.shield_list];
@@ -400,8 +408,8 @@ export default defineComponent({
         .replace({
           ...route,
           query: {
-            queryString: query?.length ? queryStr : undefined
-          }
+            queryString: query?.length ? queryStr : undefined,
+          },
         })
         .catch(() => {});
       return query;
@@ -411,7 +419,7 @@ export default defineComponent({
      */
     function handleAdd() {
       router.push({
-        name: 'alarm-shield-add'
+        name: 'alarm-shield-add',
       });
     }
     /**
@@ -434,8 +442,8 @@ export default defineComponent({
       router.push({
         name: 'alarm-shield-edit',
         params: {
-          id: row.id
-        }
+          id: row.id,
+        },
       });
     }
     /**
@@ -446,8 +454,8 @@ export default defineComponent({
       router.push({
         name: 'alarm-shield-clone',
         params: {
-          id: row.id
-        }
+          id: row.id,
+        },
       });
     }
 
@@ -463,10 +471,10 @@ export default defineComponent({
             handleGetShiledList();
             Message({
               theme: 'success',
-              message: t('解除屏蔽成功')
+              message: t('解除屏蔽成功'),
             });
           });
-        }
+        },
       });
     }
     /**
@@ -476,7 +484,7 @@ export default defineComponent({
     function handleColumnSort(opt) {
       const sort = {
         column: '',
-        type: ''
+        type: '',
       };
       if (opt.type !== 'null') {
         sort.column = opt.column.id;
@@ -570,8 +578,8 @@ export default defineComponent({
         case EColunm.id: {
           return (
             <Button
-              text
               theme='primary'
+              text
               onClick={() => handleToDetail(row)}
             >{`#${row.id}`}</Button>
           );
@@ -597,18 +605,21 @@ export default defineComponent({
         case EColunm.status: {
           return <span class={statusMap[row.status].className}>{statusMap[row.status].des}</span>;
         }
+        case EColunm.updateUser: {
+          return <span>{row.update_user || '--'}</span>;
+        }
         case EColunm.operate: {
           return (
             <div>
               {row.category !== 'alert' && (
                 <Button
+                  class='mr-8'
+                  v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                   text={true}
                   theme='primary'
-                  class='mr-8'
                   onClick={() =>
                     authority.auth.MANAGE_AUTH ? handleToClone(row) : authority.showDetail([authority.map.MANAGE_AUTH])
                   }
-                  v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                 >
                   {t('克隆')}
                 </Button>
@@ -616,19 +627,20 @@ export default defineComponent({
               {shieldStatus.value === 0
                 ? [
                     <Button
+                      class='mr-8'
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       text={true}
                       theme='primary'
-                      class='mr-8'
                       onClick={() =>
                         authority.auth.MANAGE_AUTH
                           ? handleToEdit(row)
                           : authority.showDetail([authority.map.MANAGE_AUTH])
                       }
-                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('编辑')}
                     </Button>,
                     <Button
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       text={true}
                       theme='primary'
                       onClick={() =>
@@ -636,10 +648,9 @@ export default defineComponent({
                           ? handleDelete(row)
                           : authority.showDetail([authority.map.MANAGE_AUTH])
                       }
-                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('解除')}
-                    </Button>
+                    </Button>,
                   ]
                 : undefined}
             </div>
@@ -675,7 +686,7 @@ export default defineComponent({
       handlePageChange,
       handleLimitChange,
       handleDetailShowChange,
-      handleDatePickClear
+      handleDatePickClear,
     };
   },
   render() {
@@ -686,13 +697,13 @@ export default defineComponent({
             <div class='left'>
               <Button
                 class='add-btn'
+                v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
                 theme='primary'
                 onClick={() =>
                   this.authority.auth.MANAGE_AUTH
                     ? this.handleAdd()
                     : this.authority.showDetail([this.authority.map.MANAGE_AUTH])
                 }
-                v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
               >
                 <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.t('新增屏蔽')}
@@ -700,8 +711,8 @@ export default defineComponent({
               <div class='shield-status status-tab-wrap'>
                 {this.shieldStatusList.map(item => (
                   <span
-                    class={['status-tab-item', { active: item.id === this.shieldStatus }]}
                     key={item.id}
+                    class={['status-tab-item', { active: item.id === this.shieldStatus }]}
                     onClick={() => this.handleStatusChange(item)}
                   >
                     <span class={['status-point', `status-${item.type}`]}>
@@ -715,18 +726,18 @@ export default defineComponent({
             <div class='right'>
               <DatePicker
                 class='shield-time'
-                type='datetimerange'
-                placeholder={this.t('选择屏蔽时间范围')}
                 format={'yyyy-MM-dd HH:mm:ss'}
                 modelValue={this.dateRange}
+                placeholder={this.t('选择屏蔽时间范围')}
+                type='datetimerange'
                 onChange={v => (this.dateRange = v)}
-                onPick-success={this.handleDatePick}
                 onClear={() => this.handleDatePickClear()}
+                onPick-success={this.handleDatePick}
               ></DatePicker>
               <SearchSelect
                 class='shield-search'
-                modelValue={this.searchValues}
                 data={this.searchData}
+                modelValue={this.searchValues}
                 placeholder={this.t('输入屏蔽内容、ID')}
                 onUpdate:modelValue={v => this.handleSearchCondition(v)}
               ></SearchSelect>
@@ -736,10 +747,6 @@ export default defineComponent({
             <div class='table-wrap'>
               <Table
                 class='shield-table'
-                data={this.tableData.data}
-                settings={this.settings}
-                showOverflowTooltip={true}
-                darkHeader={true}
                 columns={this.tableData.columns
                   .filter(item => {
                     if (this.shieldStatus === 0) {
@@ -754,12 +761,16 @@ export default defineComponent({
                     return {
                       ...item,
                       label: (col: any) => col.name,
-                      render: ({ row, _column }) => this.handleSetFormater(row, item.id)
+                      render: ({ row }) => this.handleSetFormater(row, item.id),
                     };
                   })}
+                darkHeader={true}
+                data={this.tableData.data}
                 pagination={false}
-                onColumnSort={this.handleColumnSort}
+                settings={this.settings}
+                showOverflowTooltip={true}
                 onColumnFilter={this.handleColumnFilter}
+                onColumnSort={this.handleColumnSort}
                 onSettingChange={this.handleSettingChange}
               >
                 {{
@@ -768,18 +779,18 @@ export default defineComponent({
                       type={this.emptyType}
                       onOperation={this.handleEmptyOperation}
                     ></EmptyStatus>
-                  )
+                  ),
                 }}
               </Table>
               {!!this.tableData.data.length && (
                 <Pagination
                   class='mt-14'
-                  modelValue={this.tableData.pagination.current}
+                  align={'right'}
                   count={this.tableData.pagination.count}
+                  layout={['total', 'limit', 'list']}
                   limit={this.tableData.pagination.limit}
                   location={'right'}
-                  align={'right'}
-                  layout={['total', 'limit', 'list']}
+                  modelValue={this.tableData.pagination.current}
                   onChange={v => this.handlePageChange(v)}
                   onLimitChange={v => this.handleLimitChange(v)}
                 ></Pagination>
@@ -794,5 +805,5 @@ export default defineComponent({
         ></AlarmShieldDetail>
       </div>
     );
-  }
+  },
 });

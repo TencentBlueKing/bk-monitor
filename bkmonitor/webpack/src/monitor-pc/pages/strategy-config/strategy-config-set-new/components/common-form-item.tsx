@@ -30,17 +30,17 @@ import { Component as tsc } from 'vue-tsx-support';
 import './common-form-item.scss';
 
 interface ICommonFormItemProp {
-  title: string | TranslateResult;
+  title: TranslateResult | string;
   isRequired?: boolean;
   showSemicolon?: boolean;
-  tips?: string | TranslateResult;
+  tips?: TranslateResult | string;
   topTitle?: boolean;
 }
 @Component({
-  name: 'CommonFormItem'
+  name: 'CommonFormItem',
 })
 export default class CommonFormItem extends tsc<ICommonFormItemProp> {
-  @Prop({ type: String, required: false }) title: string | TranslateResult;
+  @Prop({ type: String, required: false }) title: TranslateResult | string;
   @Prop({ type: Boolean, default: false }) isRequired: boolean;
   @Prop({ type: Boolean, default: false }) showSemicolon: boolean;
   @Prop({ type: String, default: '' }) tips!: string;
@@ -49,7 +49,7 @@ export default class CommonFormItem extends tsc<ICommonFormItemProp> {
   public tooltips = {
     content: this.tips,
     placements: ['top'],
-    allowHTML: false
+    allowHTML: false,
   };
 
   render() {

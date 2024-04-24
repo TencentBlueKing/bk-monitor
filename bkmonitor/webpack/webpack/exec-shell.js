@@ -30,7 +30,7 @@ const getExecShell = () => {
 const execShellFiles = async () => {
   console.log(`【${platform}】 execMode: ${process.env.execMode}`);
   if (['darwin', 'linux'].includes(platform)) {
-    const { stdout, stderr } = await execFile(getExecShell()).catch((err) => {
+    const { stdout, stderr } = await execFile(getExecShell()).catch(err => {
       console.log(`执行${process.env.execMode}出错了`);
       console.error(err);
       process.exit(1);
@@ -40,14 +40,14 @@ const execShellFiles = async () => {
     console.log('执行完成');
   } else if (platform === 'win32') {
     if (process.env.execMode === 'install') {
-      readdirSync(srcUrl).forEach((mod) => {
+      readdirSync(srcUrl).forEach(mod => {
         const packageUrl = resolve(srcUrl, mod, './package.json');
         if (mod && !mod.includes('node_modules') && existsSync(packageUrl)) {
           const cmd = /^win/.test(platform) ? 'npm.cmd' : 'npm';
           cp.spawn(cmd, ['i', '--no-audit', `--prefix ${resolve(srcUrl, mod)}`], {
             env: process.env,
             cwd: resolve(srcUrl, mod),
-            stdio: 'inherit'
+            stdio: 'inherit',
           });
         }
       });

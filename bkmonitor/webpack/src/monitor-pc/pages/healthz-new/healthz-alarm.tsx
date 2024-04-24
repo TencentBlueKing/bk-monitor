@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getAlarmConfig, updateAlarmConfig } from 'monitor-api/modules/healthz';
 
 import MemberSelector from '../alarm-group/alarm-group-add/member-selector';
@@ -32,10 +33,10 @@ import MemberSelector from '../alarm-group/alarm-group-add/member-selector';
 import './healthz-alarm.scss';
 
 @Component
-export default class HealthzAlarm extends tsc<{}> {
+export default class HealthzAlarm extends tsc<object> {
   formData = {
     alarm_role: [],
-    alarm_type: []
+    alarm_type: [],
   };
   rules = {};
   loading = false;
@@ -45,16 +46,16 @@ export default class HealthzAlarm extends tsc<{}> {
         {
           validator: this.checkAlarmRole,
           message: this.$t('必选项'),
-          trigger: 'change'
-        }
+          trigger: 'change',
+        },
       ],
       alarm_type: [
         {
           validator: this.checkAlarmType,
           message: this.$t('必选项'),
-          trigger: 'change'
-        }
-      ]
+          trigger: 'change',
+        },
+      ],
     };
     this.getAlarmConfig();
   }
@@ -63,7 +64,7 @@ export default class HealthzAlarm extends tsc<{}> {
     const data = await getAlarmConfig().catch(() => {
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('获取通知设置失败')
+        message: this.$t('获取通知设置失败'),
       });
       return false;
     });
@@ -84,7 +85,7 @@ export default class HealthzAlarm extends tsc<{}> {
       this.loading = false;
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('校验失败，请检查参数')
+        message: this.$t('校验失败，请检查参数'),
       });
       return;
     }
@@ -92,13 +93,13 @@ export default class HealthzAlarm extends tsc<{}> {
   }
   async setAlarmConfig() {
     const success = await updateAlarmConfig({
-      alarm_config: this.formData
+      alarm_config: this.formData,
     })
       .then(() => true)
       .catch(() => false);
     this.$bkMessage({
       theme: success ? 'success' : 'error',
-      message: success ? this.$t('保存成功') : this.$t('获取通知设置失败')
+      message: success ? this.$t('保存成功') : this.$t('获取通知设置失败'),
     });
     this.loading = false;
   }
@@ -107,20 +108,20 @@ export default class HealthzAlarm extends tsc<{}> {
       <div
         class='healthz-alarm'
         v-bkloading={{
-          isLoading: this.loading
+          isLoading: this.loading,
         }}
       >
         <div class='healthz-alarm-title'>{this.$t('通知设置')}</div>
         <bk-form
+          ref='validateForm'
           labelWidth={200}
           rules={this.rules}
-          ref='validateForm'
         >
           <bk-form-item
+            error-display-type='normal'
             label={this.$t('通知方式')}
             property='alarm_type'
             required
-            error-display-type='normal'
           >
             <bk-checkbox-group
               class='healthz-alarm-type'
@@ -131,8 +132,8 @@ export default class HealthzAlarm extends tsc<{}> {
                 .filter(v => !!window.platform.te || v !== 'rtx')
                 .map(key => (
                   <bk-checkbox
-                    label={key}
                     key={key}
+                    label={key}
                   >
                     <span class={`image-${key}`} />
                   </bk-checkbox>
@@ -140,12 +141,11 @@ export default class HealthzAlarm extends tsc<{}> {
             </bk-checkbox-group>
           </bk-form-item>
           <bk-form-item
-            required
+            class='member-item healthz-alarm-role'
+            error-display-type='normal'
             label={this.$t('通知人员')}
             property='alarm_role'
-            class='member-item'
-            error-display-type='normal'
-            class='healthz-alarm-role'
+            required
           >
             <MemberSelector
               style='width: 300px'
@@ -155,7 +155,7 @@ export default class HealthzAlarm extends tsc<{}> {
             <span
               class='role-tips'
               v-bk-tooltips={{
-                content: this.$t('当蓝鲸监控的进程状态异常或告警队列拥塞时会通知相关人员')
+                content: this.$t('当蓝鲸监控的进程状态异常或告警队列拥塞时会通知相关人员'),
               }}
             >
               <i class='icon-monitor icon-hint' />
@@ -164,11 +164,11 @@ export default class HealthzAlarm extends tsc<{}> {
           <bk-form-item>
             <bk-button
               style='margin-right: 3px;'
+              disabled={!this.formData.alarm_role?.length || !this.formData.alarm_type?.length}
+              loading={this.loading}
               theme='primary'
               title='提交'
               onClick={this.validate}
-              loading={this.loading}
-              disabled={!this.formData.alarm_role?.length || !this.formData.alarm_type?.length}
             >
               {this.$t('保存')}
             </bk-button>

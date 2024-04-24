@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="dialog-update"
     v-bkloading="{ isLoading: loading }"
+    class="dialog-update"
   >
     <div class="dialog-update-left">
       <div class="left-title">
@@ -41,7 +41,12 @@
           v-if="!updateMessage"
           class="left-message-content"
         >
-          {{ $t('插件{name}最新版本{version}可能存在运行参数变动，请检查并确认运行参数！',{ name: pluginName, version: lastVersion }) }}
+          {{
+            $t('插件{name}最新版本{version}可能存在运行参数变动，请检查并确认运行参数！', {
+              name: pluginName,
+              version: lastVersion,
+            })
+          }}
         </span>
         <span
           v-else
@@ -68,7 +73,7 @@
                     :tips-data="[]"
                     :param-type="paramType"
                     :allow-add="false"
-                    @canSave="(bool) => handleSnmpAuthCanSave(bool, item)"
+                    @canSave="bool => handleSnmpAuthCanSave(bool, item)"
                     @triggerData="triggerAuthData"
                   />
                   <div
@@ -77,22 +82,22 @@
                   />
                   <verify-input
                     v-else
-                    class="params-item"
                     :key="index"
+                    class="params-item"
                     :show-validate.sync="item.validate.isValidate"
                     :validator="item.validate"
                     position="right"
                   >
                     <auto-complete-input
-                      class="mb10"
                       :key="index"
+                      v-model.trim="item.default"
+                      class="mb10"
                       :tips-data="[]"
                       :type="item.type"
                       :config="item"
                       @input="handleInput(item)"
-                      @error-message="(msg) => handleErrorMessage(msg, item)"
-                      @file-change="(file) => configJsonFileChange(file, item)"
-                      v-model.trim="item.default"
+                      @error-message="msg => handleErrorMessage(msg, item)"
+                      @file-change="file => configJsonFileChange(file, item)"
                     >
                       <template slot="prepend">
                         <bk-popover
@@ -114,20 +119,21 @@
                 </div>
               </bk-form-item>
               <bk-form-item
-                :label="$t('维度注入')"
                 v-if="hasDmsInsertType"
+                :label="$t('维度注入')"
               >
-                <template v-for="(item,index) in configJson">
+                <template v-for="(item, index) in configJson">
                   <template v-if="item.mode === 'dms_insert'">
                     <template v-if="item.type === 'host'">
                       <div :key="index">
                         <div>{{ $t('主机维度注入') }}</div>
                         <div class="dms-insert-wrap">
                           <bk-tag
-                            v-for="(value,key) in item.default"
-                            :value="item.default[key]"
+                            v-for="(value, key) in item.default"
                             :key="key"
-                          >{{ `${key}:${value}` }}</bk-tag>
+                            :value="item.default[key]"
+                            >{{ `${key}:${value}` }}</bk-tag
+                          >
                         </div>
                       </div>
                     </template>
@@ -136,10 +142,11 @@
                         <div>{{ $t('服务实例维度注入') }}</div>
                         <div class="dms-insert-wrap">
                           <bk-tag
-                            v-for="(value,key) in item.default"
-                            :value="item.default[key]"
+                            v-for="(value, key) in item.default"
                             :key="key"
-                          >{{ `${key}:${value}` }}</bk-tag>
+                            :value="item.default[key]"
+                            >{{ `${key}:${value}` }}</bk-tag
+                          >
                         </div>
                       </div>
                     </template>
@@ -150,15 +157,17 @@
             <div
               v-else
               class="wrap-empty"
-            >{{ $t('该插件未定义参数，如需升级请继续！') }}</div>
+            >
+              {{ $t('该插件未定义参数，如需升级请继续！') }}
+            </div>
           </div>
           <bk-form-item class="update-footer">
             <bk-button
               class="update-footer-btn"
               theme="primary"
               :title="$t('提交')"
-              @click="handleSubmit"
               :loading="updateLoading"
+              @click="handleSubmit"
             >
               {{ $t('提交') }}
             </bk-button>
@@ -166,7 +175,9 @@
               theme="default"
               :title="$t('取消')"
               @click="handleCancel(false)"
-            > {{ $t('取消') }} </bk-button>
+            >
+              {{ $t('取消') }}
+            </bk-button>
           </bk-form-item>
         </bk-form>
       </div>
@@ -178,14 +189,16 @@
       <div class="right-content">
         <ul class="record-list">
           <li
-            class="record-list-item"
             v-for="(item, index) in versionLog"
             :key="index"
+            class="record-list-item"
           >
             <div
               class="item-title"
               :class="{ 'current-item': item.version === version }"
-            >{{ item.version }}</div>
+            >
+              {{ item.version }}
+            </div>
             <div class="item-wrap">
               <div class="item-wrap-content">
                 {{ item.version_log }}
@@ -198,8 +211,6 @@
   </div>
 </template>
 <script>
-
-
 import { pluginUpgradeInfo } from 'monitor-api/modules/plugin';
 
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
@@ -211,18 +222,18 @@ export default {
   components: {
     AutoCompleteInput,
     AutoMulti,
-    VerifyInput
+    VerifyInput,
   },
   props: {
     updateParams: {
       type: Object,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
       tippyOptions: {
-        distance: 0
+        distance: 0,
       },
       show: false,
       loading: false,
@@ -240,23 +251,23 @@ export default {
           {
             required: true,
             message: this.$t('必填项'),
-            trigger: 'blur'
-          }
+            trigger: 'blur',
+          },
         ],
         user: [
           {
             required: true,
             message: this.$t('必填项'),
-            trigger: 'blur'
-          }
+            trigger: 'blur',
+          },
         ],
         password: [
           {
             required: true,
             message: this.$t('必填项'),
-            trigger: 'blur'
-          }
-        ]
+            trigger: 'blur',
+          },
+        ],
       },
       paramType: {
         collector: this.$t('采集器参数'),
@@ -264,8 +275,8 @@ export default {
         pos_cmd: this.$t('位置参数'),
         env: this.$t('环境变量参数'),
         listen_cmd: this.$t('监听参数'),
-        dms_insert: this.$t('维度注入')
-      }
+        dms_insert: this.$t('维度注入'),
+      },
     };
   },
   computed: {
@@ -277,13 +288,13 @@ export default {
     },
     hasDmsInsertType() {
       return this.configJson.some(item => item.mode === 'dms_insert');
-    }
+    },
   },
   watch: {
     updateParams: {
       handler: 'handleConfigUpdate',
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     handleConfigUpdate() {
@@ -296,9 +307,9 @@ export default {
         plugin_id: pluginId,
         config_version: configVersion,
         info_version: infoVersion,
-        config_id: id
+        config_id: id,
       })
-        .then((data) => {
+        .then(data => {
           this.pluginId = data.plugin_id;
           this.pluginName = data.plugin_display_name;
           this.version = data.plugin_version;
@@ -318,18 +329,18 @@ export default {
     validateItem(item) {
       const validate = {
         content: '',
-        isValidate: false
+        isValidate: false,
       };
       const fnMap = {
-        port: (v) => {
+        port: v => {
           const isPass = /^([1-9]\d{0,4}|[1-5]\d{5}|6[0-4]\d{4}|65[0-4]\d{3}|655[0-2]\d{2}|6553[0-5])$/.test(v);
           validate.content = isPass ? '' : this.$t('输入正确的端口号');
           validate.isValidate = !isPass;
         },
-        host: (v) => {
+        host: v => {
           validate.content = v ? '' : this.$t('必填项');
           validate.isValidate = !v;
-        }
+        },
       };
       const fn = fnMap[item.key || item.name];
       fn?.(item.default);
@@ -338,7 +349,7 @@ export default {
     },
     triggerAuthData(v) {
       if (this.configJson) {
-        this.configJson.forEach((item) => {
+        this.configJson.forEach(item => {
           if (item.auth_json) {
             return (item.auth_json = v);
           }
@@ -347,8 +358,8 @@ export default {
       }
     },
     handleConfigJson(runtimeParams) {
-      const handleDefaultValue = (list) => {
-        list.forEach((item) => {
+      const handleDefaultValue = list => {
+        list.forEach(item => {
           if (item.auth_json) {
             handleDefaultValue(item.auth_json);
           }
@@ -357,32 +368,32 @@ export default {
           }
           if (item.type === 'file') {
             item.default = item.value?.filename;
-            item.file_base64 = item.value?.file_base64; // eslint-disable-line
+            item.file_base64 = item.value?.file_base64;
           }
         });
       };
       handleDefaultValue(runtimeParams);
-      const configJson = runtimeParams.map((item) => {
+      const configJson = runtimeParams.map(item => {
         if ((item.key || item.name) === 'auth_json') {
           const temp = [
-            item.auth_json.map((set) => {
+            item.auth_json.map(set => {
               set.validate = {
                 content: '',
-                isValidate: false
+                isValidate: false,
               };
               return set;
-            })
+            }),
           ];
           this.$set(item, 'auth_json', temp);
           item.validate = {
             content: '',
-            isValidate: false
+            isValidate: false,
           };
           return item;
         }
         item.validate = {
           content: '',
-          isValidate: false
+          isValidate: false,
         };
         return item;
       });
@@ -393,15 +404,15 @@ export default {
     },
     handleConfigJsonParams() {
       const formData = {};
-      const fn = (list) => {
-        list.forEach((set) => {
+      const fn = list => {
+        list.forEach(set => {
           if (set.auth_json) {
             fn(set.auth_json[0]);
           } else {
             const value = set.type === 'file' ? { filename: set.default, file_base64: set.file_base64 } : set.default;
             formData[set.key || set.name] = {
               value,
-              mode: set.mode
+              mode: set.mode,
             };
           }
         });
@@ -417,7 +428,7 @@ export default {
       const collector = {};
       const plugin = {};
       const formData = this.handleConfigJsonParams();
-      Object.keys(formData).forEach((key) => {
+      Object.keys(formData).forEach(key => {
         const item = formData[key];
         if (item.mode === 'collector') {
           collector[key] = item.value;
@@ -428,9 +439,9 @@ export default {
       const params = {
         params: {
           collector,
-          plugin
+          plugin,
         },
-        id: this.updateParams.id
+        id: this.updateParams.id,
       };
       this.$emit('on-submit', params);
     },
@@ -449,8 +460,8 @@ export default {
     configJsonFileChange(file, item) {
       item.default = file.name;
       item.file_base64 = file.fileContent;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

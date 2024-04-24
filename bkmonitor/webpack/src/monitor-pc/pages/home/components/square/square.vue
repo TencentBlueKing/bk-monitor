@@ -45,14 +45,14 @@ export default {
   props: {
     status: {
       type: String,
-      default: 'unset'
-    }
+      default: 'unset',
+    },
   },
   methods: {
     clickHandle() {
       this.$emit('click', this.status);
-    }
-  }
+    },
+  },
 };
 </script>
 

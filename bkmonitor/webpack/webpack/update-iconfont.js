@@ -12,7 +12,7 @@ const updateFont = function () {
     // const reg = new RegExp('^@font-face[\\s\\S]*\\.icon-monitor[\\s\\S]*?\\}')
     // 拷贝文件
     const fileMap = ['css', 'ttf', 'woff', 'woff2'];
-    fileMap.forEach((item) => {
+    fileMap.forEach(item => {
       const sourceFile = path.resolve(`${sourcePreFix}/iconfont/iconfont.${item}`);
       const targetFile = path.resolve(`${sourcePreFix}/monitor-icons.${item}`);
       fs.renameSync(sourceFile, targetFile);
@@ -22,7 +22,7 @@ const updateFont = function () {
     const targetCssFile = path.resolve(`${sourcePreFix}/monitor-icons.css`);
     let targetCss = fs.readFileSync(targetCssFile, 'utf-8');
     targetCss = targetCss.replace(/iconfont\./g, 'monitor-icons.');
-    fs.writeFile(targetCssFile, targetCss, 'utf8', (err) => {
+    fs.writeFile(targetCssFile, targetCss, 'utf8', err => {
       if (err) {
         console.log(err);
       } else {

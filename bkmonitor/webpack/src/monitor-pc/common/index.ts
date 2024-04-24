@@ -28,7 +28,7 @@ import { RouteConfig, RouteConfigMultipleViews, RouteConfigSingleView } from 'vu
 import { beforeEnter } from '../router/utils';
 
 export const applyGuidePage = (
-  routes: RouteConfigSingleView[] | RouteConfigMultipleViews[],
+  routes: RouteConfigMultipleViews[] | RouteConfigSingleView[],
   excludes: string[] = []
 ): RouteConfig[] =>
   routes.map(route => {
@@ -40,19 +40,19 @@ export const applyGuidePage = (
       beforeEnter: (to: RouteConfig, from: RouteConfig, next: Function) => beforeEnter(navId, next),
       meta: {
         ...route.meta,
-        noChangeLoading: true
-      }
+        noChangeLoading: true,
+      },
     };
   });
 
-export const applyNoAuthPage = (routes: RouteConfigSingleView[] | RouteConfigMultipleViews[], noAuthPage: any) =>
+export const applyNoAuthPage = (routes: RouteConfigMultipleViews[] | RouteConfigSingleView[], noAuthPage: any) =>
   routes.map((route: RouteConfig) => {
     if (route.path.length < 2) return route;
     return {
       ...route,
       meta: {
         ...(route.meta || {}),
-        noAuthComponent: noAuthPage
-      }
+        noAuthComponent: noAuthPage,
+      },
     };
   });

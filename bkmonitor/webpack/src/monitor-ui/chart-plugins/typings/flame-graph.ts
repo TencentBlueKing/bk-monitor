@@ -36,7 +36,7 @@ export const ColorTypes = {
   redis: '#ea6460',
   async_backend: '#699DF4',
   error: '#d74747',
-  network: '#59c0a3'
+  network: '#59c0a3',
 };
 
 export const RootId = '___root___';
@@ -69,7 +69,7 @@ export interface BaseDataType {
   v?: number;
   children: Iterable<BaseDataType>;
   c?: BaseDataType[];
-  id: string | number;
+  id: number | string;
   hide?: boolean;
   start_time?: number;
   end_time?: number;
@@ -82,7 +82,7 @@ export interface BaseDataType {
   diff_info?: {
     baseline: number;
     comparison: number;
-    mark: 'added' | 'removed' | 'changed' | 'unchanged';
+    mark: 'added' | 'changed' | 'removed' | 'unchanged';
   };
 }
 export interface ILineData<D extends BaseDataType> {
@@ -131,24 +131,24 @@ export const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'reset',
     name: window.i18n.tc('重置图表'),
-    icon: 'icon-menu-view'
+    icon: 'icon-menu-view',
   },
   {
     id: 'highlight',
     name: window.i18n.tc('高亮相似 Span'),
-    icon: 'icon-menu-view'
-  }
+    icon: 'icon-menu-view',
+  },
 ];
 // 用于标识根节点
 export interface ITipsDetail {
   left?: number; // 提示框左边距离画布左边的距离
   top?: number; // 提示框上边距离画布上边的距离
   title?: string;
-  proportion?: string | number;
+  proportion?: number | string;
   duration?: string;
   diffDuration?: string;
   diffValue?: number | string;
-  id?: string | number;
+  id?: number | string;
   mark?: BaseDataType['diff_info']['mark'];
 }
 export interface IAxisRect {
@@ -161,7 +161,7 @@ export interface IAxisRect {
 export interface IContextMenuRect {
   left: number;
   top: number;
-  spanId: string | number;
+  spanId: number | string;
   spanName: string;
 }
 /**

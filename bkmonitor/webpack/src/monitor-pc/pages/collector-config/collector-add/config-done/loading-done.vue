@@ -28,8 +28,8 @@
     <div class="loading-done-body">
       <div class="loading-done-container">
         <div
-          class="loading-container"
           v-if="config.loading"
+          class="loading-container"
         >
           <svg
             class="loading-svg"
@@ -56,16 +56,16 @@
           </svg>
         </div>
         <div
-          class="done-container"
           v-else
+          class="done-container"
         >
           <i
-            class="icon-monitor icon-duihao success"
             v-if="config.status"
+            class="icon-monitor icon-duihao success"
           />
           <i
-            class="icon-monitor icon-chahao error"
             v-else
+            class="icon-monitor icon-chahao error"
           />
         </div>
       </div>
@@ -74,8 +74,8 @@
           {{ config.title }}
         </div>
         <div
-          class="message-text-container"
           v-if="config.showText"
+          class="message-text-container"
         >
           <slot name="text">
             <p class="message-text">
@@ -86,8 +86,8 @@
       </div>
     </div>
     <div
-      class="loading-done-footer"
       v-if="config.showFooter"
+      class="loading-done-footer"
     >
       <slot name="footer" />
     </div>
@@ -100,8 +100,8 @@ export default {
   props: {
     options: {
       type: Object,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   data() {
     return {
@@ -111,8 +111,8 @@ export default {
         title: this.$t('加载中...'),
         text: this.$t('加载中...'),
         showFooter: true,
-        showText: true
-      }
+        showText: true,
+      },
     };
   },
   watch: {
@@ -121,9 +121,9 @@ export default {
         this.config = { ...this.config, ...val };
       },
       deep: true,
-      immediate: true
-    }
-  }
+      immediate: true,
+    },
+  },
 };
 </script>
 
@@ -163,7 +163,7 @@ export default {
             @for $i from 1 through 8 {
               :nth-child(#{$i}) {
                 fill: #3a84ff;
-                opacity: #{$i * .125};
+                opacity: #{$i * 0.125};
               }
             }
           }

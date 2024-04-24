@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="collector-host"
     ref="addDel"
+    class="collector-host"
   >
     <template v-if="taskReady.show">
       <task-ready
@@ -60,23 +60,21 @@
           theme="primary"
           :disabled="hasRunning"
           @click="handleDone"
-        >{{
-          hasRunning ? $t('button-执行中') : $t('button-完成')
-        }}</bk-button>
+          >{{ hasRunning ? $t('button-执行中') : $t('button-完成') }}</bk-button
+        >
         <bk-button
           v-if="showRollBack"
           :disabled="hasRunning"
           @click="handleRollback"
-        > {{ $t('回滚') }} </bk-button>
+        >
+          {{ $t('回滚') }}
+        </bk-button>
       </div>
     </template>
   </div>
 </template>
 <script>
-import {
-  collectTargetStatus,
-  isTaskReady,
-  rollbackDeploymentConfig } from 'monitor-api/modules/collecting';
+import { collectTargetStatus, isTaskReady, rollbackDeploymentConfig } from 'monitor-api/modules/collecting';
 
 import { TARGET_TABEL_EXPAND_MAX } from '../../../../constant/constant';
 import TaskReady from '../../collector-add/config-delivery/task-ready';
@@ -86,35 +84,35 @@ export default {
   name: 'AddDell',
   components: {
     ConfigDeploy,
-    TaskReady
+    TaskReady,
   },
   props: {
     data: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     pageLoading: Boolean,
     openDetail: Boolean,
     step: {
       type: Number,
-      default: 1
+      default: 1,
     },
     type: {
       type: String,
-      default: 'ADD_DEL'
+      default: 'ADD_DEL',
     },
     diffData: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     needRollback: {
       type: Boolean,
-      default: true
+      default: true,
     },
     target: {
       type: Object,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   data() {
     return {
@@ -135,9 +133,9 @@ export default {
       taskReady: {
         show: true,
         status: {
-          msg: this.$t('准备中...')
-        }
-      }
+          msg: this.$t('准备中...'),
+        },
+      },
     };
   },
   computed: {
@@ -146,11 +144,11 @@ export default {
     },
     hostTotal() {
       let total = 0;
-      this.tables.forEach((item) => {
+      this.tables.forEach(item => {
         total += item.len;
       });
       return total;
-    }
+    },
   },
   watch: {
     'taskReady.show': {
@@ -160,8 +158,8 @@ export default {
           this.init();
         }
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   async created() {
     this.$emit('update:pageLoading', false);
@@ -208,16 +206,16 @@ export default {
       const sumData = {
         success: {},
         failed: {},
-        pending: {}
+        pending: {},
       };
       content.forEach((item, index) => {
         item.successNum = 0;
         item.failedNum = 0;
         item.pendingNum = 0;
         item.table = [];
-        item.expand = item.child.length > 0 ? (index <= TARGET_TABEL_EXPAND_MAX - 1) : false;
-        item.expand =  oldContent?.length && oldContent[index] ? oldContent[index].expand : item.expand;
-        item.child.forEach((set) => {
+        item.expand = item.child.length > 0 ? index <= TARGET_TABEL_EXPAND_MAX - 1 : false;
+        item.expand = oldContent?.length && oldContent[index] ? oldContent[index].expand : item.expand;
+        item.child.forEach(set => {
           if (set.status === 'SUCCESS') {
             sumData.success[set.instance_id] = set.instance_id;
             item.successNum += 1;
@@ -265,38 +263,40 @@ export default {
                 this.pollingStatus();
               }
             })
-            .catch((err) => {
+            .catch(err => {
               this.bkMsg('error', err.message || this.$t('出错了'));
               this.$emit('update:pageLoading', false);
             });
-        }
+        },
       });
     },
     bkMsg(theme, message) {
       this.$bkMessage({
         theme,
         message,
-        ellipsisLine: 0
+        ellipsisLine: 0,
       });
     },
     handleRefreshData(id) {
       collectTargetStatus({ id })
-        .then((data) => {
+        .then(data => {
           this.tables = this.handleData(data);
           this.$emit('update:hosts', this.tables);
         })
-        .catch((err) => {
+        .catch(err => {
           this.bkMsg('error', err.message || this.$t('出错了'));
         });
     },
     getHosts(id) {
       return collectTargetStatus({ id }, { needMessage: false })
-        .then((data) => {
+        .then(data => {
           this.tables = this.handleData(data);
-          this.hasRunning = data.contents.some(item => item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING'));
+          this.hasRunning = data.contents.some(item =>
+            item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING')
+          );
           this.$emit('update:hosts', this.tables);
         })
-        .catch((err) => {
+        .catch(err => {
           this.bkMsg('error', err.message || this.$t('出错了'));
         })
         .finally(() => {
@@ -307,14 +307,14 @@ export default {
       return new Promise((resolve, reject) => {
         this.ajaxMark = false;
         collectTargetStatus({ id })
-          .then((data) => {
+          .then(data => {
             if (this.ajaxMark) {
               reject(data);
             } else {
               resolve(data);
             }
           })
-          .catch((data) => {
+          .catch(data => {
             reject(data);
           })
           .finally(() => {
@@ -338,10 +338,12 @@ export default {
       if (v) {
         clearTimeout(this.timer);
         await this.getHostData(this.id, this.nodeType)
-          .then((data) => {
+          .then(data => {
             if (this.ajaxMark) {
               this.tables = this.handleData(data);
-              this.hasRunning = data.contents.some(item => item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING'));
+              this.hasRunning = data.contents.some(item =>
+                item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING')
+              );
               this.$emit('update:hosts', this.tables);
             }
           })
@@ -357,20 +359,20 @@ export default {
       let timer = null;
       clearTimeout(timer);
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      return new Promise(async (resolve) => {
+      return new Promise(async resolve => {
         const show = await isTaskReady({ collect_config_id: id });
         if (show) {
           resolve(true);
         } else {
           timer = setTimeout(() => {
-            this.taskReadyStatusPromise(id).then((res) => {
+            this.taskReadyStatusPromise(id).then(res => {
               resolve(res);
             });
           }, 2000);
         }
       });
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

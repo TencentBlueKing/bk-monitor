@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 import { resize } from 'monitor-pc/components/ip-selector/common/observer-directive';
 
@@ -35,7 +36,7 @@ import './metrics-collapse.scss';
 const DASHBOARD_PANEL_COLUMN_KEY = '__aiops_metrics_chart_view_type__';
 
 interface IProps {
-  layoutActive?: Number;
+  layoutActive?: number;
   needLayout?: boolean;
   showCollapse?: boolean;
   title: string;
@@ -44,8 +45,8 @@ interface IProps {
 
 @Component({
   directives: {
-    resize
-  }
+    resize,
+  },
 })
 export default class AiopsMetricsCollapse extends tsc<IProps> {
   @Prop({ type: Object, default: () => {} }) info: IInfo;
@@ -68,12 +69,12 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
   panelLayoutList = [
     {
       id: 1,
-      name: this.$t('一列')
+      name: this.$t('一列'),
     },
     {
       id: 3,
-      name: this.$t('三列')
-    }
+      name: this.$t('三列'),
+    },
   ];
 
   /** 是否展示布局描述 */
@@ -125,15 +126,15 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
           <div
             class={[
               'correlation-metrics-collapse-head',
-              `correlation-metrics-collapse-head-${!this.showCollapse ? 'hide' : 'show'}`
+              `correlation-metrics-collapse-head-${!this.showCollapse ? 'hide' : 'show'}`,
             ]}
           >
             <i
-              onClick={this.handleToggleCollapse.bind(this, false)}
               class={[
                 'bk-icon bk-card-head-icon collapse-icon',
-                this.isCollapse ? 'icon-right-shape' : 'icon-down-shape'
+                this.isCollapse ? 'icon-right-shape' : 'icon-down-shape',
               ]}
+              onClick={this.handleToggleCollapse.bind(this, false)}
             ></i>
             <span
               class='correlation-metrics-title'
@@ -153,8 +154,8 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
                       delay: 0,
                       theme: 'light',
                       onShow: () => (this.showLayoutPopover = true),
-                      onHide: () => (this.showLayoutPopover = false)
-                    }
+                      onHide: () => (this.showLayoutPopover = false),
+                    },
                   }}
                 >
                   <span
@@ -168,20 +169,20 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
                         delay: 200,
                         disabled: !!this.showLayoutName,
                         appendTo: 'parent',
-                        allowHTML: false
+                        allowHTML: false,
                       }}
                     ></i>
                     {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}
                   </span>
                   <ul
-                    slot='content'
                     class='layout-list'
+                    slot='content'
                   >
                     {this.panelLayoutList.map(item => (
                       <li
+                        key={item.id}
                         class={`layout-list-item ${item.id === this.layoutActive + 1 ? 'item-active' : ''}`}
                         onClick={() => this.handleChangeLayout(item.id)}
-                        key={item.id}
                       >
                         {item.name}
                       </li>
@@ -193,8 +194,8 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
           </div>
           <bk-transition name='collapse'>
             <div
-              v-show={!(this.isCollapse && this.showCollapse)}
               class={['correlation-metrics-collapse-content']}
+              v-show={!(this.isCollapse && this.showCollapse)}
             >
               {(this.$scopedSlots as any)?.default?.({ column: this.layoutActive + 1 })}
             </div>

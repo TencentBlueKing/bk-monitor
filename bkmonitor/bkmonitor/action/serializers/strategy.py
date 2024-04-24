@@ -40,6 +40,7 @@ from bkmonitor.models import (
     StrategyActionConfigRelation,
     UserGroup,
 )
+from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import count_md5
 from common.log import logger
 from constants.action import NoticeChannel
@@ -52,6 +53,7 @@ from constants.common import (
 )
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
+from core.errors.user_group import DutyRuleNameExist, UserGroupNameExist
 
 
 class DateTimeField(serializers.CharField):
@@ -442,7 +444,7 @@ class DutyRuleSlz(serializers.ModelSerializer):
         if self.instance:
             query_result = query_result.exclude(id=self.instance.id)
         if query_result.exists():
-            raise ValidationError(detail=_("当前轮值规则组名称已经存在，请重新确认"))
+            raise DutyRuleNameExist()
         return value
 
 
@@ -802,7 +804,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         if self.instance:
             query_result = query_result.exclude(id=self.instance.id)
         if query_result.exists():
-            raise ValidationError(detail=_("当前告警组名称已经存在，请重新确认"))
+            raise UserGroupNameExist()
         return value
 
     def validate_need_duty(self, value):
@@ -959,8 +961,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         ).data
 
         group_duty_manager = GroupDutyRuleManager(self.instance, duty_rules)
-        group_duty_manager.manage_duty_rule_snap(datetime.today().strftime("%Y-%m-%d 00:00:00"))
-
+        group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d 00:00:00"))
         # 删除掉已经解除绑定的相关的snap和排班信息
         DutyRuleSnap.objects.filter(user_group_id=self.instance.id).exclude(
             duty_rule_id__in=self.instance.duty_rules

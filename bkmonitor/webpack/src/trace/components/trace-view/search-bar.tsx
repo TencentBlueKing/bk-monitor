@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType, ref } from 'vue';
+
 import { TagInput } from 'bkui-vue';
 
 import AngleLeftIcon from './icons/angle-left.svg';
@@ -34,20 +35,20 @@ import './search-bar.scss';
 const SearchBarProps = {
   showResultCount: {
     type: Boolean,
-    default: true
+    default: true,
   },
   resultCount: {
     type: Number,
-    default: 1
+    default: 1,
   },
   limitClassify: {
     type: Boolean,
-    default: false
+    default: false,
   },
   prevResult: Function as PropType<() => void>,
   nextResult: Function as PropType<() => void>,
   clearSearch: Function as PropType<() => void>,
-  trackFilter: Function as PropType<(list: string[]) => void>
+  trackFilter: Function as PropType<(list: string[]) => void>,
 };
 
 export default defineComponent({
@@ -83,7 +84,7 @@ export default defineComponent({
     };
 
     expose({
-      handleChange
+      handleChange,
     });
 
     return {
@@ -93,7 +94,7 @@ export default defineComponent({
       handleClear,
       handlePaste,
       handlePrevResult,
-      handleNextResult
+      handleNextResult,
     };
   },
 
@@ -102,30 +103,30 @@ export default defineComponent({
     return (
       <div class='trace-search-bar'>
         <TagInput
-          v-model={this.searchValue}
           class='trace-search-input'
-          placeholder={this.$t('搜索')}
-          allow-create
-          has-delete-icon
-          allow-auto-match
+          v-model={this.searchValue}
           max-data={limitClassify ? 1 : -1}
           paste-fn={this.handlePaste}
+          placeholder={this.$t('搜索')}
+          allow-auto-match
+          allow-create
+          has-delete-icon
           onChange={this.handleChange}
           onRemoveAll={this.handleClear}
         />
         {showResultCount && resultCount ? (
           <div class='navigable-wrapper'>
             <img
-              src={AngleLeftIcon}
               alt='perv'
+              src={AngleLeftIcon}
               onClick={this.handlePrevResult}
             />
             <span class='count'>
               <span>{this.curFocusIndex}</span>&nbsp;/&nbsp;<span>{resultCount}</span>
             </span>
             <img
-              src={AngleRightIcon}
               alt='next'
+              src={AngleRightIcon}
               onClick={this.handleNextResult}
             />
           </div>
@@ -134,5 +135,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

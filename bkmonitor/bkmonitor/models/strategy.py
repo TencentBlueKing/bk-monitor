@@ -167,12 +167,14 @@ class AlgorithmModel(Model):
         TimeSeriesForecasting = "TimeSeriesForecasting"
         AbnormalCluster = "AbnormalCluster"
         MultivariateAnomalyDetection = "MultivariateAnomalyDetection"
+        HostAnomalyDetection = "HostAnomalyDetection"
 
     AIOPS_ALGORITHMS = [
         AlgorithmChoices.IntelligentDetect,
         AlgorithmChoices.TimeSeriesForecasting,
         AlgorithmChoices.AbnormalCluster,
         AlgorithmChoices.MultivariateAnomalyDetection,
+        AlgorithmChoices.HostAnomalyDetection,
     ]
 
     ALGORITHM_CHOICES = (
@@ -192,6 +194,7 @@ class AlgorithmModel(Model):
         (AlgorithmChoices.TimeSeriesForecasting, _lazy("时序预测算法")),
         (AlgorithmChoices.AbnormalCluster, _lazy("离群检测算法")),
         (AlgorithmChoices.MultivariateAnomalyDetection, _lazy("多指标异常检测算法")),
+        (AlgorithmChoices.HostAnomalyDetection, _lazy("主机异常检测算法")),
     )
 
     strategy_id = models.IntegerField("关联策略ID", db_index=True)

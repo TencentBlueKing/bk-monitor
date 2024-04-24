@@ -33,7 +33,7 @@ export default [
     path: '/grafana',
     name: 'grafana',
     components: {
-      noCache: Grafana
+      noCache: Grafana,
     },
     meta: {
       title: '仪表盘',
@@ -42,24 +42,24 @@ export default [
       noNavBar: true,
       authority: {
         map: grafanaAuth,
-        page: grafanaAuth.VIEW_AUTH
+        page: grafanaAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'dashboard'
+        parent: 'dashboard',
       },
-      pageCls: 'grafana-page'
-    }
+      pageCls: 'grafana-page',
+    },
   },
   {
     path: '/grafana/new',
     name: 'new-dashboard',
     components: {
-      noCache: Grafana
+      noCache: Grafana,
     },
     props: {
       noCache: {
-        url: 'dashboard/new'
-      }
+        url: 'dashboard/new',
+      },
     },
     meta: {
       title: '仪表盘',
@@ -68,24 +68,24 @@ export default [
       noNavBar: true,
       authority: {
         map: grafanaAuth,
-        page: grafanaAuth.NEW_DASHBOARD_AUTH
+        page: grafanaAuth.NEW_DASHBOARD_AUTH,
       },
       route: {
-        parent: 'dashboard'
+        parent: 'dashboard',
       },
-      pageCls: 'grafana-page'
-    }
+      pageCls: 'grafana-page',
+    },
   },
   {
     path: '/grafana/import',
     name: 'import-dashboard',
     components: {
-      noCache: Grafana
+      noCache: Grafana,
     },
     props: {
       noCache: {
-        url: 'dashboard/import'
-      }
+        url: 'dashboard/import',
+      },
     },
     meta: {
       title: '仪表盘',
@@ -94,24 +94,24 @@ export default [
       navName: '仪表盘',
       authority: {
         map: grafanaAuth,
-        page: grafanaAuth.NEW_DASHBOARD_AUTH
+        page: grafanaAuth.NEW_DASHBOARD_AUTH,
       },
       route: {
-        parent: 'dashboard'
+        parent: 'dashboard',
       },
-      pageCls: 'grafana-page'
-    }
+      pageCls: 'grafana-page',
+    },
   },
   {
     path: '/grafana/folder/new',
     name: 'folder-dashboard',
     components: {
-      noCache: Grafana
+      noCache: Grafana,
     },
     props: {
       noCache: {
-        url: 'dashboards/folder/new'
-      }
+        url: 'dashboards/folder/new',
+      },
     },
     meta: {
       title: '仪表盘',
@@ -120,24 +120,24 @@ export default [
       noNavBar: true,
       authority: {
         map: grafanaAuth,
-        page: grafanaAuth.NEW_DASHBOARD_AUTH
+        page: grafanaAuth.NEW_DASHBOARD_AUTH,
       },
       route: {
-        parent: 'dashboard'
+        parent: 'dashboard',
       },
-      pageCls: 'grafana-page'
-    }
+      pageCls: 'grafana-page',
+    },
   },
   {
     path: '/grafana/datasource',
     name: 'grafana-datasource',
     components: {
-      noCache: Grafana
+      noCache: Grafana,
     },
     props: {
       noCache: {
-        url: 'datasources'
-      }
+        url: 'datasources',
+      },
     },
     meta: {
       title: '仪表盘',
@@ -146,19 +146,19 @@ export default [
       noNavBar: true,
       authority: {
         map: grafanaAuth,
-        page: grafanaAuth.DATASOURCE_AUTH
+        page: grafanaAuth.DATASOURCE_AUTH,
       },
       route: {
-        parent: 'dashboard'
+        parent: 'dashboard',
       },
-      pageCls: 'grafana-page'
-    }
+      pageCls: 'grafana-page',
+    },
   },
   {
     path: '/grafana/home',
     name: 'grafana-home',
     components: {
-      noCache: Grafana
+      noCache: Grafana,
     },
     meta: {
       title: '仪表盘',
@@ -167,22 +167,22 @@ export default [
       navId: 'grafana',
       authority: {
         map: grafanaAuth,
-        page: grafanaAuth.VIEW_AUTH
+        page: grafanaAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'dashboard'
+        parent: 'dashboard',
       },
-      pageCls: 'grafana-page'
-    }
+      pageCls: 'grafana-page',
+    },
   },
   {
     path: '/grafana/d/:url',
     name: 'favorite-dashboard',
     components: {
-      noCache: Grafana
+      noCache: Grafana,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: {
       title: '仪表盘',
@@ -191,12 +191,12 @@ export default [
       noNavBar: true,
       authority: {
         map: grafanaAuth,
-        page: grafanaAuth.VIEW_AUTH
+        page: grafanaAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'dashboard'
+        parent: 'dashboard',
       },
-      pageCls: 'grafana-page'
-    }
-  }
+      pageCls: 'grafana-page',
+    },
+  },
 ] as RouteConfig[];

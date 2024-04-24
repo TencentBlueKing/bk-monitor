@@ -25,6 +25,7 @@
  */
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -35,13 +36,12 @@ import DashboardTools from '../monitor-k8s/components/dashboard-tools';
 import PageTitle from '../monitor-k8s/components/page-title';
 import SplitPanel from '../monitor-k8s/components/split-panel';
 import { IBookMark, ITabItem, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH } from '../monitor-k8s/typings';
-
 import Performance from './performance.vue';
 
 import './performance-wrapper.scss';
 
 @Component
-export default class PerformanceWrapper extends tsc<{}> {
+export default class PerformanceWrapper extends tsc<object> {
   // 监控左侧栏是否收缩配置 自愈默认未收缩
   @Prop({ default: false, type: Boolean }) toggleSet: boolean;
   activeTab = 'list';
@@ -66,10 +66,10 @@ export default class PerformanceWrapper extends tsc<{}> {
           dataType: 'dict',
           api: 'scene_view.getStrategyAndEventCount',
           data: {
-            scene_id: 'host'
-          }
-        }
-      ]
+            scene_id: 'host',
+          },
+        },
+      ],
     };
     return new PanelModel(data as any);
   }
@@ -82,8 +82,8 @@ export default class PerformanceWrapper extends tsc<{}> {
     this.tabList = [
       {
         id: 'list',
-        name: window.i18n.tc('主机列表')
-      }
+        name: window.i18n.tc('主机列表'),
+      },
     ];
     this.loading = false;
   }
@@ -113,26 +113,26 @@ export default class PerformanceWrapper extends tsc<{}> {
       <div class='performance-wrapper'>
         <PageTitle
           activeTab={this.activeTab}
-          tabList={this.tabList}
-          showSearch={false}
           showFilter={false}
           showInfo={false}
+          showSearch={false}
           showSelectPanel={false}
+          tabList={this.tabList}
           onTabChange={this.handleTabChange}
         >
           <span slot='title'>{this.$t('主机监控')}</span>
           <AlarmTools
-            slot='tools'
             style={{ marginRight: '8px' }}
+            slot='tools'
             panel={this.alarmToolsPanel}
           />
           <DashboardTools
             slot='tools'
             isSplitPanel={this.isSplitPanel}
             refleshInterval={this.refleshInterval}
+            showDownSampleRange={false}
             showListMenu={false}
             showTimeRange={false}
-            showDownSampleRange={false}
             onImmediateReflesh={this.handleImmediateReflesh}
             onRefleshChange={v => (this.refleshInterval = v)}
             onSplitPanelChange={this.handleSplitPanel}
@@ -141,11 +141,11 @@ export default class PerformanceWrapper extends tsc<{}> {
         <div class='performance-wrapper-container'>
           <Performance class='table-wrapper' />
           <div
-            class='split-panel-wrapper'
             style={{
               width: `${this.splitPanelWidth}px`,
-              display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none'
+              display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
             }}
+            class='split-panel-wrapper'
           >
             {this.isSplitPanel ? (
               <SplitPanel

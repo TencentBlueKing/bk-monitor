@@ -429,8 +429,8 @@ export default {
   name: 'SvgWrap',
   model: {
     props: 'homeLoading',
-    event: 'elMounted'
-  }
+    event: 'elMounted',
+  },
 };
 </script>
 

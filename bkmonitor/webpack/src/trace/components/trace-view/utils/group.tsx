@@ -26,7 +26,7 @@
 
 import { Span } from '../typings';
 
-type IToggleStatus = 'expand' | 'collpase';
+type IToggleStatus = 'collpase' | 'expand';
 
 /** 基于 traceTree 进行折叠分组
  * 折叠条件：
@@ -50,7 +50,7 @@ export const handleToggleCollapse = (spans: Span[], groupID: string, status: ITo
   // 点击切换折叠状态时 只需要更改 is_expand 的值
   list = spans.map(span => ({
     ...span,
-    is_expand: span.group_info?.id === groupID ? status === 'expand' : span.is_expand
+    is_expand: span.group_info?.id === groupID ? status === 'expand' : span.is_expand,
   }));
 
   return list;

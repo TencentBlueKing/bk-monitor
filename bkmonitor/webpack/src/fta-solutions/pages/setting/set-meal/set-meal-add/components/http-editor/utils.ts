@@ -25,7 +25,6 @@
  */
 import { IHeaderInfo, IParamsValueItem } from './types';
 
-// eslint-disable-next-line import/prefer-default-export
 export const localDataConvertToRequest = (data: IHeaderInfo[]) => {
   const headers = data.find(item => item.key === 'Headers');
   const authorize = data.find(item => item.key === 'Authorization');
@@ -38,15 +37,15 @@ export const localDataConvertToRequest = (data: IHeaderInfo[]) => {
     authorize: {
       authConfig: {},
       authType: '',
-      insecure_skip_verify: false
+      insecure_skip_verify: false,
     },
     body: {
       dataType: '',
       contentType: '',
       content: '',
-      params: []
+      params: [],
     },
-    failedRetry: {}
+    failedRetry: {},
   };
   // headers
   res.headers = ((headers.value as IParamsValueItem[]) || []).filter(item => {

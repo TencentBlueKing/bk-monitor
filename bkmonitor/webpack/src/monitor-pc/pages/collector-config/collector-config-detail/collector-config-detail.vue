@@ -27,9 +27,9 @@
   <bk-sideslider
     class="collector-config-detail"
     :is-show="sideShow"
-    @update:isShow="handleHidden"
     :width="900"
     :quick-close="true"
+    @update:isShow="handleHidden"
   >
     <div
       slot="header"
@@ -56,8 +56,8 @@
       </span>
       <span v-else>{{ $t('加载中...') }}</span>
       <div
-        class="operation"
         v-if="sideData && Object.keys(sideData).length"
+        class="operation"
       >
         <bk-button
           v-if="basicInfo && basicInfo.bk_biz_id === $store.getters.bizId"
@@ -65,12 +65,12 @@
           theme="primary"
           :outline="true"
           style="width: 88px; margin-right: 8px"
+          :disabled="sideData.status === 'STOPPED'"
           @click="
             authority.MANAGE_AUTH || sideData.status === 'STOPPED'
               ? sideData.status !== 'STOPPED' && handleToEdit()
               : handleShowAuthorityDetail()
           "
-          :disabled="sideData.status === 'STOPPED'"
         >
           {{ $t('button-编辑') }}
         </bk-button>
@@ -81,45 +81,45 @@
       </div>
     </div>
     <div
-      class="detail-content"
       slot="content"
       v-bkloading="{ isLoading: loading }"
+      class="detail-content"
     >
       <div class="detail-content-tab clearfix">
         <span
           v-en-style="'min-width: 120px'"
           class="tab-item"
-          @click="active = 0"
           :class="{ 'tab-active': active === 0 }"
+          @click="active = 0"
         >
           {{ $t('基本信息') }}
         </span>
         <span
           v-en-style="'min-width: 120px'"
           class="tab-item"
-          @click="active = 1"
           :class="{ 'tab-active': active === 1 }"
+          @click="active = 1"
         >
           {{ $t('采集目标') }}
         </span>
       </div>
       <div class="detail-content-wrap">
         <div
-          class="basic-info"
           v-show="active === 0"
+          class="basic-info"
         >
           <ul
-            class="basic-info-detail"
             v-if="basicInfo"
+            class="basic-info-detail"
           >
             <li
-              class="detail-item"
               v-for="(item, key) in basicInfoMap"
               :key="key"
+              class="detail-item"
             >
               <div
-                class="detail-item-label"
                 v-en-style="'width: 120px'"
+                class="detail-item-label"
                 :class="{ 'detail-item-name': key === 'name' }"
               >
                 {{ item }}：
@@ -136,23 +136,23 @@
                   class="name-wrapper"
                 >
                   <span
-                    class="config-name"
                     v-bk-tooltips.top="basicInfo[key]"
-                  >{{ basicInfo[key] }}
+                    class="config-name"
+                    >{{ basicInfo[key] }}
                   </span>
                   <i
-                    class="icon-monitor icon-bianji col-name-icon"
                     v-if="!input.show"
+                    class="icon-monitor icon-bianji col-name-icon"
                   />
                 </span>
                 <bk-input
                   v-if="input.show"
                   :ref="'input' + key"
+                  v-model="input.copyName"
+                  v-bk-clickoutside="handleTagClickout"
                   style="width: 150px"
                   :maxlength="50"
-                  v-model="input.copyName"
                   @keydown="handleLabelKey"
-                  v-bk-clickoutside="handleTagClickout"
                 />
               </span>
               <span
@@ -176,16 +176,16 @@
               <template v-if="key === 'plugin_display_name'">
                 <template v-if="basicInfo && basicInfo.collect_type !== 'Log'">
                   <span
-                    class="detail-item-val plugin-id"
                     v-bk-tooltips.top="basicInfo['plugin_id'] + '(' + basicInfo[key] + ')'"
+                    class="detail-item-val plugin-id"
                   >
                     {{ basicInfo['plugin_id'] + '(' + basicInfo[key] + ')' }}
                   </span>
                   <i
+                    v-if="!input.show"
                     v-authority="{ active: !authority.PLUGIN_MANAGE_AUTH }"
                     class="icon-monitor icon-bianji col-name-icon"
                     style="margin-top: -4px"
-                    v-if="!input.show"
                     @click="handleToEditPlugin"
                   />
                 </template>
@@ -285,30 +285,30 @@
             </li>
           </ul>
           <div
-            class="param-label"
             v-if="runtimeParams.length"
+            class="param-label"
           >
             {{ $t('运行参数') }} :
           </div>
           <ul
-            class="param-list"
             v-if="runtimeParams.length"
+            class="param-list"
           >
             <li
-              class="param-list-item"
               v-for="(item, index) in runtimeParams"
               :key="index"
+              class="param-list-item"
             >
               <span class="item-name">{{ item.name }}</span>
               <span
-                class="item-content"
                 v-if="['password', 'encrypt'].includes(item.type)"
+                class="item-content"
               >
                 ******
               </span>
               <span
-                class="item-content"
                 v-else
+                class="item-content"
               >
                 {{ (item.type === 'file' ? item.value.filename : item.value) || '--' }}
               </span>
@@ -321,13 +321,13 @@
             {{ $t('预览') }} :
           </div>
           <right-panel
+            v-for="(table, index) in metricList"
+            :key="index"
             class="metric-wrap"
             need-border
-            v-for="(table, index) in metricList"
-            @change="handleCollapseChange(index)"
-            :key="index"
             :class="{ 'no-bottom': table.collapse }"
             :collapse="table.collapse"
+            @change="handleCollapseChange(index)"
           >
             <div
               slot="title"
@@ -384,26 +384,27 @@
           </right-panel>
         </div>
         <div
-          class="collect-target"
           v-show="active === 1"
+          class="collect-target"
         >
           <!-- <right-panel need-border> -->
           <!-- 复制目标 -->
           <div
-            class="copy-target"
             v-if="targetInfo.table_data && targetInfo.table_data.length"
+            class="copy-target"
           >
             <bk-button
               :text="true"
               theme="primary"
               size="small"
               @click="handleCopyTarget"
-            >{{ $t('复制目标') }}</bk-button>
+              >{{ $t('复制目标') }}</bk-button
+            >
           </div>
           <bk-table
+            v-if="['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(targetInfo.target_node_type)"
             :data="targetInfo.table_data"
             :empty-text="$t('无数据')"
-            v-if="['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(targetInfo.target_node_type)"
           >
             <bk-table-column
               :label="$t('节点名称')"
@@ -442,9 +443,9 @@
             </bk-table-column>
           </bk-table>
           <bk-table
+            v-else-if="targetInfo.target_node_type === 'INSTANCE'"
             :data="targetInfo.table_data"
             :empty-text="$t('无数据')"
-            v-else-if="targetInfo.target_node_type === 'INSTANCE'"
           >
             <bk-table-column
               label="IP"
@@ -490,18 +491,18 @@ export default {
   name: 'CollectorConfigDetail',
   components: {
     RightPanel,
-    HistoryDialog
+    HistoryDialog,
   },
+  inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
     sideData: {
       type: Object,
       default() {
         return {};
-      }
+      },
     },
-    sideShow: Boolean
+    sideShow: Boolean,
   },
-  inject: ['authority', 'handleShowAuthorityDetail'],
   data() {
     return {
       active: 0,
@@ -519,17 +520,17 @@ export default {
         period: this.$t('采集周期'),
         update_user: this.$t('操作者'),
         update_time: this.$t('最近更新时间'),
-        bk_biz_id: this.$t('所属')
+        bk_biz_id: this.$t('所属'),
       },
       input: {
         show: false,
-        copyName: ''
+        copyName: '',
       },
       name: '',
       matchType: {
         command: this.$t('命令行匹配'),
-        pid: this.$t('PID文件')
-      }
+        pid: this.$t('PID文件'),
+      },
     };
   },
   computed: {
@@ -542,14 +543,14 @@ export default {
         { label: this.$t('创建人'), value: this.basicInfo.create_user || '--' },
         { label: this.$t('创建时间'), value: this.basicInfo.create_time || '--' },
         { label: this.$t('最近更新人'), value: this.basicInfo.update_user || '--' },
-        { label: this.$t('修改时间'), value: this.basicInfo.update_time || '--' }
+        { label: this.$t('修改时间'), value: this.basicInfo.update_time || '--' },
       ];
-    }
+    },
   },
   watch: {
     sideShow(v) {
       v ? this.getDetailData() : this.handleHidden();
-    }
+    },
   },
   created() {
     // this.getDetailData();
@@ -566,7 +567,7 @@ export default {
       if (!this.sideShow) return;
       this.loading = true;
       frontendCollectConfigDetail({ id: this.sideData.id }, { needMessage: true })
-        .then((data) => {
+        .then(data => {
           const sideDataId = { id: this.sideData.id };
           this.basicInfo = { ...data.basic_info, ...sideDataId };
           if (data.extend_info.log) {
@@ -577,7 +578,7 @@ export default {
               log_path: this.$t('日志路径'),
               filter_patterns: this.$t('排除规则'),
               rules: this.$t('关键字规则'),
-              charset: this.$t('日志字符集')
+              charset: this.$t('日志字符集'),
             };
           }
           if (data.extend_info.process) {
@@ -586,7 +587,7 @@ export default {
               ...this.basicInfoMap,
               match: this.$t('进程匹配'),
               process_name: this.$t('进程名'),
-              port_detect: this.$t('端口探测')
+              port_detect: this.$t('端口探测'),
             };
             const {
               match_type: matchType,
@@ -594,7 +595,7 @@ export default {
               port_detect: portDetect,
               match_pattern: matchPattern,
               exclude_pattern: excludePattern,
-              pid_path: pidPath
+              pid_path: pidPath,
             } = process;
             this.basicInfo = {
               ...this.basicInfo,
@@ -603,7 +604,7 @@ export default {
               exclude_pattern: excludePattern,
               pid_path: pidPath,
               process_name: processName || '--',
-              port_detect: `${portDetect}`
+              port_detect: `${portDetect}`,
             };
           }
           data.metric_list.forEach((item, index) => {
@@ -615,10 +616,10 @@ export default {
           this.input.copyName = data.basic_info.name;
           this.name = data.basic_info.name;
         })
-        .catch((err) => {
+        .catch(err => {
           this.$bkMessage({
             theme: 'error',
-            message: err.message || this.$t('获取数据出错了')
+            message: err.message || this.$t('获取数据出错了'),
           });
           this.$emit('set-hide', false);
         })
@@ -669,13 +670,13 @@ export default {
           this.$emit('update-name', data.id, copyName);
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('修改成功')
+            message: this.$t('修改成功'),
           });
         })
-        .catch((err) => {
+        .catch(err => {
           this.$bkMessage({
             theme: 'error',
-            message: err.message || this.$t('发生错误了')
+            message: err.message || this.$t('发生错误了'),
           });
         })
         .finally(() => {
@@ -702,24 +703,24 @@ export default {
     handleCopyTarget() {
       let copyStr = '';
       if (['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo.target_node_type)) {
-        this.targetInfo.table_data.forEach((item) => {
+        this.targetInfo.table_data.forEach(item => {
           copyStr += `${item.bk_inst_name}\n`;
         });
       } else if (this.targetInfo.target_node_type === 'INSTANCE') {
-        this.targetInfo.table_data.forEach((item) => {
+        this.targetInfo.table_data.forEach(item => {
           copyStr += `${item.display_name || item.ip}\n`;
         });
       }
-      copyText(copyStr, (msg) => {
+      copyText(copyStr, msg => {
         this.$bkMessage({
           message: msg,
-          theme: 'error'
+          theme: 'error',
         });
         return;
       });
       this.$bkMessage({
         message: this.$t('复制成功'),
-        theme: 'success'
+        theme: 'success',
       });
     },
     handleJump() {
@@ -727,24 +728,21 @@ export default {
         name: 'collect-config-view',
         params: {
           id: this.basicInfo.id,
-          title: this.basicInfo.name
+          title: this.basicInfo.name,
         },
         query: {
           name: this.basicInfo.name,
           customQuery: JSON.stringify({
             pluginId: this.basicInfo.pluginId,
-            bizId: this.basicInfo.bk_biz_id
-          })
-        }
+            bizId: this.basicInfo.bk_biz_id,
+          }),
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
-<style
-  lang="scss"
-  scoped
->
+<style lang="scss" scoped>
 .collector-config-detail {
   .detail-header {
     display: flex;

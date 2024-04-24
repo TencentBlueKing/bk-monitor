@@ -35,19 +35,19 @@ export default [
     path: '/external-auth',
     name: 'external-auth',
     components: {
-      noCache: AuthorizationList
+      noCache: AuthorizationList,
     },
     meta: {
       title: '授权列表',
       navId: 'external-auth',
       authority: {
         map: AuthorizationListAuth,
-        page: AuthorizationListAuth.VIEW_AUTH
+        page: AuthorizationListAuth.VIEW_AUTH,
       },
       route: {
-        parent: ''
+        parent: '',
       },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

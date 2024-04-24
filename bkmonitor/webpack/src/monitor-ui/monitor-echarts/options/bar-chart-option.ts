@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/member-ordering */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -30,131 +31,6 @@ import { lineOrBarOptions } from './echart-options-config';
 import { IChartInstance, ILegendItem } from './type-interface';
 
 export default class MonitorLineSeries extends MonitorBaseSeries implements IChartInstance {
-  public defaultOption: any;
-  public constructor(props: any) {
-    super(props);
-    this.defaultOption = deepMerge(
-      deepMerge(
-        lineOrBarOptions,
-        {
-          color: this.colors,
-          yAxis: {
-            axisLabel: {
-              formatter: this.handleYxisLabelFormatter
-            }
-          }
-        },
-        { arrayMerge: this.overwriteMerge }
-      ),
-      this.chartOption,
-      { arrayMerge: this.overwriteMerge }
-    );
-  }
-  public getOptions(data: any, otherOptions = {}): any {
-    let { series } = data || {};
-    series = deepMerge([], series);
-    const hasSeries = series && series.length > 0;
-    const formatterFunc =
-      hasSeries && series[0].data && series[0].data.length ? this.handleSetFormatterFunc(series[0].data) : null;
-
-    const { maxThreshold, minThreshold } = this.handleGetMaxAndMinThreholds(series);
-
-    const legendData: any = [];
-    const options = {
-      xAxis: {
-        axisLabel: {
-          formatter: hasSeries && formatterFunc ? formatterFunc : '{value}'
-        }
-      },
-      yAxis: {
-        max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
-        min: Math.min(0, minThreshold)
-      },
-      legend: {
-        show: false
-      },
-      series: hasSeries
-        ? series.map((item: any, index: number) => {
-            const legendItem: ILegendItem = {
-              name: String(item.name),
-              max: 0,
-              min: 0,
-              avg: 0,
-              total: 0,
-              color: this.colors[index % this.colors.length],
-              show: true
-            };
-            item.data.forEach((seriesItem: any) => {
-              if (seriesItem?.length && seriesItem[1]) {
-                const curValue = +seriesItem[1];
-                legendItem.max = Math.max(legendItem.max, curValue);
-                legendItem.min = Math.min(+legendItem.min, curValue);
-                legendItem.total = legendItem.total + curValue;
-              }
-            });
-            legendItem.avg = +(legendItem.total / item.data.length).toFixed(2);
-            legendItem.total = +legendItem.total.toFixed(2);
-            legendData.push(legendItem);
-
-            let markLine = {};
-            let markArea = {};
-            if (item?.thresholds?.length) {
-              markLine = this.handleSetThresholdLine(item.thresholds);
-              markArea = this.handleSetThresholdArea(item.thresholds);
-            }
-            return {
-              ...item,
-              type: this.chartType,
-              z: 4,
-              markLine,
-              markArea,
-              barMinHeight: 0
-            };
-          })
-        : []
-    };
-    return {
-      options: deepMerge(deepMerge(this.defaultOption, otherOptions, { arrayMerge: this.overwriteMerge }), options, {
-        arrayMerge: this.overwriteMerge
-      }),
-      legendData
-    };
-  }
-
-  // 设置阈值线
-  private handleSetThresholdLine(thresholdLine: any[]) {
-    return {
-      symbol: [],
-      label: {
-        show: true,
-        position: 'insideStartTop'
-      },
-      lineStyle: {
-        color: '#FD9C9C',
-        type: 'dashed',
-        distance: 3,
-        width: 1
-      },
-      emphasis: {
-        label: {
-          show: true,
-          formatter(v: any) {
-            return `${v.name || ''}: ${v.value}`;
-          }
-        }
-      },
-      data: thresholdLine.map((item: any) => ({
-        ...item,
-        label: {
-          show: true,
-          formatter() {
-            return '';
-          }
-        }
-      }))
-    };
-  }
-
   private handleGetMaxAndMinThreholds(series: any[] = []) {
     let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
     thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
@@ -166,20 +42,18 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     }, []);
     return {
       minThreshold: Math.min(...thresholdList),
-      maxThreshold: Math.max(...thresholdList)
+      maxThreshold: Math.max(...thresholdList),
     };
   }
-
   private handleSetThresholdArea(thresholdLine: any[]) {
     const data = this.handleSetThresholdAreaData(thresholdLine);
     return {
       label: {
-        show: false
+        show: false,
       },
-      data
+      data,
     };
   }
-
   private handleSetThresholdAreaData(thresholdLine: any[]) {
     const threshold = thresholdLine.filter(item => item.method && !['eq', 'neq'].includes(item.method));
 
@@ -187,7 +61,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     const closedInterval = ['lte', 'lt']; // 闭区间
 
     const data = [];
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
     for (let index = 0; index < threshold.length; index++) {
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
@@ -220,14 +94,140 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       yAxis !== undefined &&
         data.push([
           {
-            ...current
+            ...current,
           },
           {
             yAxis,
-            y: yAxis === 'max' ? '0%' : ''
-          }
+            y: yAxis === 'max' ? '0%' : '',
+          },
         ]);
     }
     return data;
+  }
+
+  // 设置阈值线
+  private handleSetThresholdLine(thresholdLine: any[]) {
+    return {
+      symbol: [],
+      label: {
+        show: true,
+        position: 'insideStartTop',
+      },
+      lineStyle: {
+        color: '#FD9C9C',
+        type: 'dashed',
+        distance: 3,
+        width: 1,
+      },
+      emphasis: {
+        label: {
+          show: true,
+          formatter(v: any) {
+            return `${v.name || ''}: ${v.value}`;
+          },
+        },
+      },
+      data: thresholdLine.map((item: any) => ({
+        ...item,
+        label: {
+          show: true,
+          formatter() {
+            return '';
+          },
+        },
+      })),
+    };
+  }
+
+  public defaultOption: any;
+
+  public constructor(props: any) {
+    super(props);
+    this.defaultOption = deepMerge(
+      deepMerge(
+        lineOrBarOptions,
+        {
+          color: this.colors,
+          yAxis: {
+            axisLabel: {
+              formatter: this.handleYxisLabelFormatter,
+            },
+          },
+        },
+        { arrayMerge: this.overwriteMerge }
+      ),
+      this.chartOption,
+      { arrayMerge: this.overwriteMerge }
+    );
+  }
+
+  public getOptions(data: any, otherOptions = {}): any {
+    let { series } = data || {};
+    series = deepMerge([], series);
+    const hasSeries = series && series.length > 0;
+    const formatterFunc = hasSeries && series[0].data?.length ? this.handleSetFormatterFunc(series[0].data) : null;
+
+    const { maxThreshold, minThreshold } = this.handleGetMaxAndMinThreholds(series);
+
+    const legendData: any = [];
+    const options = {
+      xAxis: {
+        axisLabel: {
+          formatter: hasSeries && formatterFunc ? formatterFunc : '{value}',
+        },
+      },
+      yAxis: {
+        max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
+        min: Math.min(0, minThreshold),
+      },
+      legend: {
+        show: false,
+      },
+      series: hasSeries
+        ? series.map((item: any, index: number) => {
+            const legendItem: ILegendItem = {
+              name: String(item.name),
+              max: 0,
+              min: 0,
+              avg: 0,
+              total: 0,
+              color: this.colors[index % this.colors.length],
+              show: true,
+            };
+            item.data.forEach((seriesItem: any) => {
+              if (seriesItem?.length && seriesItem[1]) {
+                const curValue = +seriesItem[1];
+                legendItem.max = Math.max(legendItem.max, curValue);
+                legendItem.min = Math.min(+legendItem.min, curValue);
+                legendItem.total = legendItem.total + curValue;
+              }
+            });
+            legendItem.avg = +(legendItem.total / item.data.length).toFixed(2);
+            legendItem.total = +legendItem.total.toFixed(2);
+            legendData.push(legendItem);
+
+            let markLine = {};
+            let markArea = {};
+            if (item?.thresholds?.length) {
+              markLine = this.handleSetThresholdLine(item.thresholds);
+              markArea = this.handleSetThresholdArea(item.thresholds);
+            }
+            return {
+              ...item,
+              type: this.chartType,
+              z: 4,
+              markLine,
+              markArea,
+              barMinHeight: 0,
+            };
+          })
+        : [],
+    };
+    return {
+      options: deepMerge(deepMerge(this.defaultOption, otherOptions, { arrayMerge: this.overwriteMerge }), options, {
+        arrayMerge: this.overwriteMerge,
+      }),
+      legendData,
+    };
   }
 }

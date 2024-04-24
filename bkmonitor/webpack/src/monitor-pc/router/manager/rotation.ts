@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 // import * as rotation from '../../pages/rotation/authority-map';
@@ -35,26 +35,26 @@ export default [
     path: '/trace/rotation',
     name: 'rotation',
     components: {
-      noCache: Rotation
+      noCache: Rotation,
     },
     meta: {
       title: '轮值',
       navId: 'rotation',
       noNavBar: true,
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       authority: {
         map: AlarmGroupAuth,
-        page: [AlarmGroupAuth.VIEW_AUTH]
-      }
-    }
+        page: [AlarmGroupAuth.VIEW_AUTH],
+      },
+    },
   },
   {
     path: '/trace/rotation/add',
     name: 'rotation-add',
     components: {
-      noCache: Rotation
+      noCache: Rotation,
     },
     meta: {
       title: '新增轮值',
@@ -65,16 +65,16 @@ export default [
       //   page: [alarmShieldAuth.MANAGE_AUTH]
       // },
       route: {
-        parent: 'rotation'
+        parent: 'rotation',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/trace/rotation/edit/:id',
     name: 'rotation-edit',
     components: {
-      noCache: Rotation
+      noCache: Rotation,
     },
     meta: {
       title: '编辑轮值',
@@ -86,9 +86,9 @@ export default [
       //   page: [alarmShieldAuth.MANAGE_AUTH]
       // },
       route: {
-        parent: 'rotation'
+        parent: 'rotation',
       },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

@@ -100,7 +100,10 @@ import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
 import MonitorEcharts from '@/components/monitor-echarts/monitor-echarts-new';
 import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
 import { mapGetters } from 'vuex';
-import CancelToken from 'axios/lib/cancel/CancelToken';
+import axios from 'axios';
+import { debounce } from 'throttle-debounce';
+
+const CancelToken = axios.CancelToken;
 
 export default {
   components: {
@@ -182,7 +185,7 @@ export default {
   watch: {
     chartKey: {
       handler() {
-        this.logChartCancel();
+        this.handleLogChartCancel();
         this.localAddition = this.retrieveParams.addition;
         this.$refs.chartRef && this.$refs.chartRef.handleCloseTimer();
         this.totalCount = 0;
@@ -201,6 +204,9 @@ export default {
     'retrieveParams.interval'(newVal) {
       this.chartInterval = newVal;
     }
+  },
+  created() {
+    this.handleLogChartCancel = debounce(300, this.logChartCancel);
   },
   mounted() {
     window.bus.$on('openChartLoading', this.openChartLoading);
@@ -237,8 +243,6 @@ export default {
         this.totalCount = 0;
         // 框选时间范围
         window.bus.$emit('changeTimeByChart', [startTime, endTime], 'customized');
-      } else {
-        // 初始化请求
       }
 
       // 轮循结束
@@ -297,41 +301,46 @@ export default {
             index_set_ids: this.unionIndexList
           });
         }
-        const res = await this.$http.request(
-          urlStr,
-          {
-            params: { index_set_id: this.$route.params.indexId },
-            data: queryData
-          },
-          {
-            cancelToken: new CancelToken(c => {
-              this.logChartCancel = c;
-            })
+        const res = await this.$http
+          .request(
+            urlStr,
+            {
+              params: { index_set_id: this.$route.params.indexId },
+              data: queryData
+            },
+            {
+              cancelToken: new CancelToken(c => {
+                this.logChartCancel = c;
+              })
+            }
+          )
+          .catch(() => false);
+        if (res?.data) {
+          const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
+          const targetArr = originChartData.map(item => {
+            this.totalCount = this.totalCount + item.doc_count;
+            return [item.doc_count, item.key];
+          });
+
+          if (this.pollingStartTime <= this.retrieveParams.start_time) {
+            // 轮询结束
+            this.finishPolling = true;
           }
-        );
-        const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
-        const targetArr = originChartData.map(item => {
-          this.totalCount = this.totalCount + item.doc_count;
-          return [item.doc_count, item.key];
-        });
 
-        if (this.pollingStartTime <= this.retrieveParams.start_time) {
-          // 轮询结束
-          this.finishPolling = true;
-        }
-
-        for (let i = 0; i < targetArr.length; i++) {
-          for (let j = 0; j < this.optionData.length; j++) {
-            if (this.optionData[j][1] === targetArr[i][1] && targetArr[i][0] > 0) {
-              // 根据请求结果匹配对应时间下数量叠加
-              this.optionData[j][0] = this.optionData[j][0] + targetArr[i][0];
+          for (let i = 0; i < targetArr.length; i++) {
+            for (let j = 0; j < this.optionData.length; j++) {
+              if (this.optionData[j][1] === targetArr[i][1] && targetArr[i][0] > 0) {
+                // 根据请求结果匹配对应时间下数量叠加
+                this.optionData[j][0] = this.optionData[j][0] + targetArr[i][0];
+              }
             }
           }
+        } else {
+          this.finishPolling = true;
         }
       } else {
         this.finishPolling = true;
       }
-
       return [
         {
           datapoints: this.optionData,

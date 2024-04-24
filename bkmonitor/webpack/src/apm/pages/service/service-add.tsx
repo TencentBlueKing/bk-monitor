@@ -25,12 +25,12 @@
  */
 import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import NoDataGuide from '../application/app-add/no-data-guide';
-
 import * as authorityMap from './../home/authority-map';
 
 import './service-add.scss';
@@ -63,19 +63,19 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
       vm.routeList = [
         {
           id: 'home',
-          name: 'APM'
+          name: 'APM',
         },
         {
           id: 'application',
           name: `${window.i18n.tc('应用')}：${appName}`,
           query: {
-            'filter-app_name': appName
-          }
+            'filter-app_name': appName,
+          },
         },
         {
           id: 'service-add',
-          name: vm.$t('接入服务')
-        }
+          name: vm.$t('接入服务'),
+        },
       ];
     });
   }
@@ -84,11 +84,11 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
     return (
       <div class='service-add'>
         <CommonNavBar
-          slot='nav'
           class='service-configuration-nav'
-          routeList={this.routeList}
-          needShadow={true}
+          slot='nav'
           needBack={false}
+          needShadow={true}
+          routeList={this.routeList}
         />
         <div class='monitor-k8s-detail service-add-content'>
           <NoDataGuide

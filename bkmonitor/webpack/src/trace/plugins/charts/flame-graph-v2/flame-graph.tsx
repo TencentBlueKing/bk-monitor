@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, watch } from 'vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
@@ -34,7 +35,6 @@ import { debounce } from 'throttle-debounce';
 import { getSingleDiffColor } from '../../../utils/compare';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
-
 import FlameFilterList from './flame-filter-list';
 import {
   BaseDataType,
@@ -46,7 +46,7 @@ import {
   IOtherData,
   ITipsDetail,
   IZoomRect,
-  RootId
+  RootId,
 } from './types';
 import { FlameChart } from './use-flame';
 
@@ -64,28 +64,28 @@ export default defineComponent({
   props: {
     traceId: {
       type: String,
-      required: true
+      required: true,
     },
     appName: {
       type: String,
-      required: true
+      required: true,
     },
     diffTraceId: {
       type: String,
-      default: ''
+      default: '',
     },
     filterKeywords: {
       type: Array as () => string[],
-      default: () => [] as string[]
+      default: () => [] as string[],
     },
     textDirection: {
       type: String as () => 'ltr' | 'rtl',
-      default: 'ltr'
+      default: 'ltr',
     },
     filters: {
       type: Array,
-      required: false
-    }
+      required: false,
+    },
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess'],
   setup(props, { emit }) {
@@ -98,7 +98,7 @@ export default defineComponent({
       left: 0,
       top: 0,
       spanId: '',
-      spanName: ''
+      spanName: '',
     });
     const axisRect = shallowRef<IAxisRect>({ left: 0, bottom: 0, title: '', visibility: 'hidden' });
     const zoomRect = ref<IZoomRect>({ left: 0, width: 0 });
@@ -132,10 +132,10 @@ export default defineComponent({
               diagram_type: 'flamegraph',
               show_attrs: 0,
               diff_trace_id: props.diffTraceId,
-              displays: props.filters.filter(item => item !== 'duration')
+              displays: props.filters.filter(item => item !== 'duration'),
             },
             {
-              needCancel: true
+              needCancel: true,
             }
           ).catch(() => false);
           if (data?.diagram_data?.flame_data?.length) {
@@ -202,7 +202,7 @@ export default defineComponent({
                     duration: text + suffix,
                     diffDuration,
                     diffValue,
-                    mark: d.data.diff_info?.mark
+                    mark: d.data.diff_info?.mark,
                   };
                 },
                 onContextMenu: (e: MouseEvent, d: HierarchyNode<BaseDataType>) => {
@@ -224,7 +224,7 @@ export default defineComponent({
                     top: svgRect.top - paddingLeft,
                     bottom: svgRect.bottom + paddingLeft,
                     title: text + suffix,
-                    visibility: axisLeft < svgRect.x || axisLeft > svgRect.width + svgRect.x ? 'hidden' : 'visible'
+                    visibility: axisLeft < svgRect.x || axisLeft > svgRect.width + svgRect.x ? 'hidden' : 'visible',
                   };
                 },
                 onMouseOut: () => {
@@ -237,12 +237,12 @@ export default defineComponent({
                     if (width > 0) {
                       zoomRect.value = {
                         left: Math.min(event.pageX - svgRect.x, svgRect.width) + paddingLeft,
-                        width: Math.min(width, svgRect.width - event.pageX + svgRect.x)
+                        width: Math.min(width, svgRect.width - event.pageX + svgRect.x),
                       };
                     } else {
                       zoomRect.value = {
                         left: Math.max(e.pageX - svgRect.x, 0) + paddingLeft,
-                        width: Math.min(Math.abs(width), event.pageX - svgRect.x)
+                        width: Math.min(Math.abs(width), event.pageX - svgRect.x),
                       };
                     }
                   }
@@ -253,12 +253,12 @@ export default defineComponent({
                     document.removeEventListener('mouseup', mouseup);
                     zoomRect.value = {
                       left: 0,
-                      width: 0
+                      width: 0,
                     };
                   }
                   document.addEventListener('mousemove', mousemove);
                   document.addEventListener('mouseup', mouseup);
-                }
+                },
               },
               chartRef.value
             );
@@ -311,11 +311,11 @@ export default defineComponent({
         name: 'total',
         id: RootId,
         start_time: minStartTime,
-        end_time: minEndTime
+        end_time: minEndTime,
       };
       return {
         ...root,
-        children: data
+        children: data,
       };
     }
     /**
@@ -332,7 +332,7 @@ export default defineComponent({
       const threads = data.filter(item => item.last_sibling_id);
       return {
         main,
-        threads
+        threads,
       };
     }
     /**
@@ -341,7 +341,7 @@ export default defineComponent({
     function setSvgRect() {
       svgRect = chartRef.value.querySelector('svg').getBoundingClientRect();
       graphToolsRect.value = {
-        left: svgRect.x + 4
+        left: svgRect.x + 4,
       };
     }
     /**
@@ -474,32 +474,32 @@ export default defineComponent({
       handlesSaleValueChange,
       flameToolsPopoverContent,
       showLegend,
-      handleShowLegend
+      handleShowLegend,
     };
   },
   render() {
     if (this.showException)
       return (
         <Exception
-          type='empty'
           description={this.$t('暂无数据')}
+          type='empty'
         />
       );
     return (
       <ResizeLayout
-        placement='right'
         style='height: 100%'
         class={this.filterData ? '' : 'hide-aside'}
         initialDivide={this.filterData ? '350px' : '0px'}
+        placement='right'
       >
         {{
           main: () => (
             <div
+              ref='wrapperRef'
               class='flame-graph-wrapper'
               tabindex={1}
               onBlur={this.handleClickWrapper}
               onClick={this.handleClickWrapper}
-              ref='wrapperRef'
             >
               <div
                 ref='chartRef'
@@ -507,12 +507,12 @@ export default defineComponent({
               />
               <Teleport to='body'>
                 <div
-                  class='flame-graph-tips'
                   style={{
                     left: `${this.tipDetail.left}px`,
                     top: `${this.tipDetail.top + 16}px`,
-                    display: this.tipDetail.title ? 'block' : 'none'
+                    display: this.tipDetail.title ? 'block' : 'none',
                   }}
+                  class='flame-graph-tips'
                 >
                   {this.tipDetail.title && [
                     <div class='funtion-name'>{this.tipDetail.title}</div>,
@@ -543,7 +543,7 @@ export default defineComponent({
                                 ) : (
                                   `${this.tipDetail.diffValue}%`
                                 )}
-                              </td>
+                              </td>,
                             ]}
                         </tr>
                       </tbody>
@@ -551,22 +551,22 @@ export default defineComponent({
                     <div class='tips-info'>
                       <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
                       {this.$t('鼠标右键有更多菜单')}
-                    </div>
+                    </div>,
                   ]}
                 </div>
               </Teleport>
               <ul
-                class='flame-graph-menu'
                 style={{
                   left: `${this.contextMenuRect.left}px`,
                   top: `${this.contextMenuRect.top}px`,
-                  visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden'
+                  visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
                 }}
+                class='flame-graph-menu'
               >
                 {CommonMenuList.map(item => (
                   <li
-                    class='menu-item'
                     key={item.id}
+                    class='menu-item'
                     onClick={() => this.handleContextMenuClick(item)}
                   >
                     <i class={`menu-item-icon icon-monitor ${item.icon}`} />
@@ -576,23 +576,23 @@ export default defineComponent({
               </ul>
               <Teleport to='body'>
                 <div
-                  class='flame-graph-axis'
                   style={{
                     left: `${this.axisRect.left || 0}px`,
                     top: `${this.axisRect.top || 0}px`,
                     bottom: `${this.axisRect.bottom || 0}px`,
-                    visibility: this.axisRect.visibility
+                    visibility: this.axisRect.visibility,
                   }}
+                  class='flame-graph-axis'
                 >
                   <span class='axis-label'>{this.axisRect.title}</span>
                 </div>
               </Teleport>
               <div
-                class='flame-graph-zoom'
                 style={{
                   left: `${this.zoomRect?.left || 0}px`,
-                  width: `${this.zoomRect?.width || 0}px`
+                  width: `${this.zoomRect?.width || 0}px`,
                 }}
+                class='flame-graph-zoom'
               ></div>
               {/* <GraphTools
                 style={{
@@ -608,47 +608,47 @@ export default defineComponent({
                 onScaleChange={this.handlesSaleValueChange}
               /> */}
               <Popover
-                trigger='manual'
-                isShow={this.showLegend}
-                theme='light'
-                placement='top-start'
-                allowHtml={false}
-                arrow={false}
-                zIndex={1001}
-                extCls='flame-graph-tools-popover'
                 width={this.graphToolsRect.width}
                 height={this.graphToolsRect.height}
-                content={this.flameToolsPopoverContent}
+                extCls='flame-graph-tools-popover'
+                allowHtml={false}
+                arrow={false}
                 boundary={'parent'}
+                content={this.flameToolsPopoverContent}
+                isShow={this.showLegend}
+                placement='top-start'
                 renderType='auto'
+                theme='light'
+                trigger='manual'
+                zIndex={1001}
               >
                 {{
                   default: () => (
                     <GraphTools
                       style={{
                         left: `${this.graphToolsRect.left}px`,
-                        display: this.graphToolsRect.left > 0 ? 'flex' : 'none'
+                        display: this.graphToolsRect.left > 0 ? 'flex' : 'none',
                       }}
                       class='topo-graph-tools'
-                      scaleValue={this.scaleValue}
+                      legendActive={this.showLegend}
                       maxScale={MaxScale}
                       minScale={MinScale}
-                      showThumbnail={false}
                       scaleStep={scaleStep}
-                      legendActive={this.showLegend}
-                      onStoreImg={this.handleStoreImg}
+                      scaleValue={this.scaleValue}
+                      showThumbnail={false}
                       onScaleChange={this.handlesSaleValueChange}
                       onShowLegend={this.handleShowLegend}
+                      onStoreImg={this.handleStoreImg}
                     />
                   ),
                   content: () => (
                     <div
-                      class='flame-tools-popover-content'
                       ref='flameToolsPopoverContent'
+                      class='flame-tools-popover-content'
                     >
                       <ViewLegend />
                     </div>
-                  )
+                  ),
                 }}
               </Popover>
             </div>
@@ -656,13 +656,13 @@ export default defineComponent({
           aside: () => (
             <FlameFilterList
               style={{ display: this.filterData ? 'block' : 'none' }}
+              class='flame-graph-aside'
               data={this.filterData}
               maxHeight={this.filterMaxHeight}
-              class='flame-graph-aside'
             />
-          )
+          ),
         }}
       </ResizeLayout>
     );
-  }
+  },
 });

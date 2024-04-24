@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
 import StrategyMetricWrap from './strategy-metric-wrap';
@@ -39,7 +40,7 @@ interface IEventFn {
 }
 
 @Component({
-  name: 'StrategyMetricEvent'
+  name: 'StrategyMetricEvent',
 })
 export default class StrategyMetricEvent extends tsc<IStrategyMetricEvent, IEventFn> {
   @Prop({ default: false, type: Boolean }) isShow: boolean;
@@ -54,7 +55,7 @@ export default class StrategyMetricEvent extends tsc<IStrategyMetricEvent, IEven
       return total;
     }, []);
     const map = {
-      application_check: 10
+      application_check: 10,
     };
     res.forEach(item => {
       this.$set(item, 'count', map[item.id] || 0);
@@ -66,7 +67,7 @@ export default class StrategyMetricEvent extends tsc<IStrategyMetricEvent, IEven
   get getTabList() {
     return [
       { id: 1, name: '系统事件', count: 0 },
-      { id: 2, name: '自定义事件', count: 0 }
+      { id: 2, name: '自定义事件', count: 0 },
     ];
   }
 
@@ -82,10 +83,10 @@ export default class StrategyMetricEvent extends tsc<IStrategyMetricEvent, IEven
       <div>
         <StrategyMetricWrap
           isShow={this.isShow}
+          left-select={this.test}
           leftList={this.getLeftList}
           tabList={this.getTabList}
           onShowChange={this.test}
-          left-select={this.test}
         >
           test
         </StrategyMetricWrap>

@@ -217,7 +217,6 @@ export default {
   前端忽略所有的数字: 'Front-end ignores all numbers',
   输入关键字进行过滤: 'Enter keywords to filter',
   '是否按原配置提交?': 'Submit according to original configuration?',
-  请选择字段提取方法: 'Select field extraction method',
   高级清洗仍在进行中: 'Advanced parsing is still in progress',
   同步计算平台的结果: 'Synchronize the results of the BK-Base',
   '已选择{0}个节点': 'Selected {0} nodes',

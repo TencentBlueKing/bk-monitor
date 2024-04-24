@@ -4,11 +4,11 @@ $alarmColor: #dcdee5 #63656e #ea3636;
   width: 100%;
 
   .chart-title {
-    padding: 3px 19px 3px 16px;
     min-height: 30px;
-    border-radius: 2px;
-    color: #63656e;
+    padding: 3px 19px 3px 16px;
     font-size: 12px;
+    color: #63656e;
+    border-radius: 2px;
 
     &:hover {
       .main-title {
@@ -22,20 +22,20 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
     .main-title {
       display: flex;
-      align-items: center;
       flex-wrap: nowrap;
+      align-items: center;
       min-height: 30px;
 
       .alarm-icon {
-        color: #dcdee5;
-        height: 14px;
-        margin-right: 8px;
+        z-index: 9;
         // display: none;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
+        height: 14px;
         margin-right: 8px;
-        z-index: 9;
+        margin-right: 8px;
+        font-size: 12px;
+        color: #dcdee5;
 
         @for $i from 1 through 3 {
           &.status-#{$i} {
@@ -50,31 +50,31 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       }
 
       .title-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        line-height: 20px;
-        height: 20px;
         display: flex;
         align-items: center;
+        height: 20px;
+        overflow: hidden;
         font-size: 12px;
         font-weight: 400;
+        line-height: 20px;
         color: #313238;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .title-interval {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0 2px;
-        border-radius: 2px;
-        font-weight: normal;
-        margin-left: 8px;
-        color: #63656e;
         height: 16px;
+        padding: 0 2px;
+        margin-left: 8px;
         font-size: 12px;
+        font-weight: normal;
         line-height: 16px;
+        color: #63656e;
         background-color: #f0f1f5;
+        border-radius: 2px;
       }
 
       .title-center {
@@ -83,14 +83,14 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
       .tips-icon,
       %tips-icon {
-        height: 30px;
-        width: 30px;
-        font-size: 16px;
-        margin-left: 6px;
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 30px;
+        height: 30px;
         margin-right: 10px;
+        margin-left: 6px;
+        font-size: 16px;
         color: #c4c6cc;
 
         &::before {
@@ -100,8 +100,8 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
       .strategy-icon {
         margin-right: 0;
-        color: #63656e;
         font-size: 15px;
+        color: #63656e;
 
         @extend %tips-icon;
 
@@ -113,9 +113,9 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
       .more-icon {
         margin-right: 0;
-        color: #63656e;
         font-size: 15px;
         font-weight: 700;
+        color: #63656e;
 
         @extend %tips-icon;
 
@@ -135,20 +135,20 @@ $alarmColor: #dcdee5 #63656e #ea3636;
     }
 
     .sub-title {
-      line-height: 18px;
       height: 18px;
-      color: #979ba5;
       overflow: hidden;
+      line-height: 18px;
+      color: #979ba5;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .bk-popover {
-      height: 30px;
-      width: 30px;
-      display: inline-flex;
+      // display: inline-flex;
       align-items: center;
       justify-content: center;
+      width: 30px;
+      height: 30px;
     }
   }
 }

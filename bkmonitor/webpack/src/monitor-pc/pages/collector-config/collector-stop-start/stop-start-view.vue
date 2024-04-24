@@ -30,8 +30,8 @@
   />
   <div
     v-else
-    class="stop-start-wrapper"
     v-bkloading="{ isLoading: pageLoading }"
+    class="stop-start-wrapper"
   >
     <div class="stop-start">
       <div class="stop-start-steps">
@@ -40,8 +40,8 @@
             v-for="(item, index) in left.stepsMap"
             :key="index"
             class="step-list-item"
-            @click="item.done && handleSetStep(index)"
             :class="['step-list-item-' + (index + 1), { 'is-current': left.step === index, 'is-ok': item.done }]"
+            @click="item.done && handleSetStep(index)"
           >
             <div
               class="step-list-item-content"
@@ -53,23 +53,23 @@
         </ul>
       </div>
       <div
-        class="stop-start-contaner"
-        ref="pluginContaner"
         v-if="initDone"
+        ref="pluginContaner"
+        class="stop-start-contaner"
       >
         <keep-alive>
           <component
-            @refresh="handleRefresh"
-            :step.sync="left.step"
             :is="curStep.component"
+            :step.sync="left.step"
             :type.sync="type"
             :hosts.sync="hosts"
             :data="data"
             :open-detail="openDetail"
             :diff-data.sync="diffData"
             :upgrade-params="upgradeParams"
-            @isRefreshConfigListChange="val => isRefreshConfigList = val"
-            @loadingChange="val => pageLoading = val"
+            @isRefreshConfigListChange="val => (isRefreshConfigList = val)"
+            @loadingChange="val => (pageLoading = val)"
+            @refresh="handleRefresh"
           />
         </keep-alive>
       </div>
@@ -82,7 +82,6 @@ import introduce from '../../../common/introduce';
 import GuidePage from '../../../components/guide-page/guide-page';
 import AddDelDone from '../collector-target-add-del/add-del-done/add-del-done';
 import AddDel from '../collector-target-add-del/target-table/target-table';
-
 import StopDone from './stop-done/stop-done';
 import StopStart from './stop-start-host/stop-start-host';
 
@@ -93,7 +92,7 @@ export default {
     StopDone,
     AddDel,
     AddDelDone,
-    GuidePage
+    GuidePage,
   },
   // props: {
   //     data: {
@@ -119,20 +118,20 @@ export default {
           {
             name: this.$t('采集下发'),
             done: true,
-            component: 'stop-start'
+            component: 'stop-start',
           },
           {
             name: this.$t('完成'),
             done: false,
-            component: 'stop-done'
-          }
+            component: 'stop-done',
+          },
         ],
-        step: 0
+        step: 0,
       },
       diffData: {},
       initDone: false,
       version: '',
-      pageLoading: true
+      pageLoading: true,
     };
   },
   computed: {
@@ -151,7 +150,7 @@ export default {
     // 是否显示引导页
     showGuidePage() {
       return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
-    }
+    },
   },
   async created() {
     this.pageLoading = true;
@@ -188,8 +187,8 @@ export default {
       if (this.$refs.pluginContaner) {
         this.$refs.pluginContaner.scrollTop = 0;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -201,7 +200,7 @@ export default {
     display: flex;
     background: #fff;
     border-radius: 2px;
-    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, .05);
+    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
 
     @include border-1px();
 

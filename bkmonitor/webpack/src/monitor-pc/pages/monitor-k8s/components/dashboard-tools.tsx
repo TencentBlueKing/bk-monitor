@@ -35,7 +35,6 @@ import TimeRange, { TimeRangeType } from '../../../components/time-range/time-ra
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../../components/time-range/utils';
 import { PANEL_INTERVAL_LIST } from '../../../constant/constant';
 import { COMMON_SETTINGS_LIST, IMenuItem } from '../typings';
-
 import ListMenu from './list-menu';
 
 import './dashboard-tools.scss';
@@ -93,8 +92,8 @@ interface IHeadToolEvent {
   // 选择menu触发
   onSelectedMenu: (v: IMenuItem) => void;
   // 选择粒度
-  onDownSampleRangeChange?: (v: string | number) => void;
-  onIntervalChange?: (v: string | number) => void;
+  onDownSampleRangeChange?: (v: number | string) => void;
+  onIntervalChange?: (v: number | string) => void;
   // 选择时区
   onTimezoneChange?: (v: string) => void;
 }
@@ -182,146 +181,146 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
     this.timeRangeList = [
       {
         name: `${this.$t('近{n}分钟', { n: 5 })}`,
-        value: 5 * 60 * 1000
+        value: 5 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}分钟', { n: 15 })}`,
-        value: 15 * 60 * 1000
+        value: 15 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}分钟', { n: 30 })}`,
-        value: 30 * 60 * 1000
+        value: 30 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 1 })}`,
-        value: 1 * 60 * 60 * 1000
+        value: 1 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 3 })}`,
-        value: 3 * 60 * 60 * 1000
+        value: 3 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 6 })}`,
-        value: 6 * 60 * 60 * 1000
+        value: 6 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 12 })}`,
-        value: 12 * 60 * 60 * 1000
+        value: 12 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 24 })}`,
-        value: 24 * 60 * 60 * 1000
+        value: 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近 {n} 天', { n: 2 })}`,
-        value: 2 * 24 * 60 * 60 * 1000
+        value: 2 * 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近 {n} 天', { n: 7 })}`,
-        value: 7 * 24 * 60 * 60 * 1000
+        value: 7 * 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近 {n} 天', { n: 30 })}`,
-        value: 30 * 24 * 60 * 60 * 1000
+        value: 30 * 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('今天')}`,
-        value: 'today'
+        value: 'today',
       },
       {
         name: `${this.$t('昨天')}`,
-        value: 'yesterday'
+        value: 'yesterday',
       },
       {
         name: `${this.$t('前天')}`,
-        value: 'beforeYesterday'
+        value: 'beforeYesterday',
       },
       {
         name: `${this.$t('本周')}`,
-        value: 'thisWeek'
-      }
+        value: 'thisWeek',
+      },
     ];
     // 初始化自动刷新间隔列表
     this.refleshList = [
       // 刷新间隔列表
       {
         name: 'off',
-        id: -1
+        id: -1,
       },
       {
         name: '1m',
-        id: 60 * 1000
+        id: 60 * 1000,
       },
       {
         name: '5m',
-        id: 5 * 60 * 1000
+        id: 5 * 60 * 1000,
       },
       {
         name: '15m',
-        id: 15 * 60 * 1000
+        id: 15 * 60 * 1000,
       },
       {
         name: '30m',
-        id: 30 * 60 * 1000
+        id: 30 * 60 * 1000,
       },
       {
         name: '1h',
-        id: 60 * 60 * 1000
+        id: 60 * 60 * 1000,
       },
       {
         name: '2h',
-        id: 60 * 2 * 60 * 1000
+        id: 60 * 2 * 60 * 1000,
       },
       {
         name: '1d',
-        id: 60 * 24 * 60 * 1000
-      }
+        id: 60 * 24 * 60 * 1000,
+      },
     ];
     this.downSampleRangeList = [
       {
         name: this.$t('自动'),
-        id: 'auto'
+        id: 'auto',
       },
       {
         name: this.$t('原始'),
-        id: 'raw'
+        id: 'raw',
       },
       {
         name: this.$t('10 秒'),
-        id: '10s'
+        id: '10s',
       },
       {
         name: this.$t('20 秒'),
-        id: '20s'
+        id: '20s',
       },
       {
         name: this.$t('30 秒'),
-        id: '30s'
+        id: '30s',
       },
       {
         name: this.$t('1 分钟'),
-        id: '1m'
+        id: '1m',
       },
       {
         name: this.$t('5 分钟'),
-        id: '5m'
+        id: '5m',
       },
       {
         name: this.$t('30 分钟'),
-        id: '30m'
+        id: '30m',
       },
       {
         name: this.$t('1 小时'),
-        id: '1h'
+        id: '1h',
       },
       {
         name: this.$t('12 小时'),
-        id: '12h'
+        id: '12h',
       },
       {
         name: this.$t('1 天'),
-        id: '1d'
-      }
+        id: '1d',
+      },
     ];
     this.intervalList = PANEL_INTERVAL_LIST;
   }
@@ -398,21 +397,21 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
       <div class='dashboard-tools'>
         {this.showInterval && (
           <MonitorDropdown
-            icon={'icon-lidu'}
             class='dashboard-tools-interval'
             v-model={this.intervalValue}
-            list={this.intervalList}
+            icon={'icon-lidu'}
             iconTitle={window.i18n.tc('汇聚周期')}
+            list={this.intervalList}
             on-change={this.handleIntervalChange}
           />
         )}
         {this.showDownSampleRange && (
           <MonitorDropdown
-            icon={'icon-lidu'}
             class='dashboard-tools-interval'
             v-model={this.downSampleRangeValue}
-            list={this.downSampleRangeList}
+            icon={'icon-lidu'}
             iconTitle={window.i18n.tc('粒度')}
+            list={this.downSampleRangeList}
             readonly={true}
             on-change={this.handlDownSampleRangeChange}
           />
@@ -423,22 +422,22 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
           ) : (
             <TimeRange
               class='dashboard-tools-timerange'
-              value={this.curTimeRange}
               timezone={this.timezone}
-              onTimezoneChange={this.handleTimezoneChange}
+              value={this.curTimeRange}
               onChange={this.handleTimeRangeChange}
+              onTimezoneChange={this.handleTimezoneChange}
             />
           ))}
         {<span></span>}
         <MonitorDropdown
-          icon='icon-zidongshuaxin'
           class={`dashboard-tools-interval ${this.readonly ? 'is-readonly' : ''}`}
           v-model={this.refleshIntervalValue}
-          text-active={this.refleshInterval !== -1}
-          on-on-icon-click={() => this.$emit('immediateReflesh')}
-          on-change={this.handleRefleshChange}
+          icon='icon-zidongshuaxin'
           isRefleshInterval={true}
           list={this.refleshList}
+          text-active={this.refleshInterval !== -1}
+          on-change={this.handleRefleshChange}
+          on-on-icon-click={() => this.$emit('immediateReflesh')}
         />
         <span class='dashboard-tools-more'>
           {this.showSplitPanel && (
@@ -457,8 +456,8 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
           {this.showListMenu && !!this.menuList?.length && (
             <ListMenu
               list={this.menuList}
-              onMenuSelect={this.handleSettingsMenuSelect}
               onHidden={this.handleSetSettings}
+              onMenuSelect={this.handleSettingsMenuSelect}
               onShow={this.handleSetSettings}
             >
               <div class='more-button'>

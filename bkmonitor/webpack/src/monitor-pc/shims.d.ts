@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
+
 import VueI18n, { TranslateResult } from 'vue-i18n';
+
 import * as base from 'vue-tsx-support/types/base';
 import * as builtin from 'vue-tsx-support/types/builtin-components';
 
@@ -33,7 +34,7 @@ import { IBizItem, ISpaceItem } from './types';
 interface IBkInfoProps {
   title: unknown;
   zIndex: number;
-  width: string | number;
+  width: number | string;
   type: string;
   maskClose: boolean;
   confirmLoading: boolean;
@@ -42,7 +43,7 @@ interface IBkInfoProps {
   escClose?: any;
   showFooter?: boolean;
   extCls?: string;
-  okText?: string | TranslateResult;
+  okText?: TranslateResult | string;
   cancelText?: string;
   confirmFn: (v: unknown) => void;
   cancelFn: (v: unknown) => void;
@@ -50,7 +51,7 @@ interface IBkInfoProps {
 declare module 'vue/types/vue' {
   interface Vue {
     $bkInfo?: (p: Partial<IBkInfoProps>) => void;
-    $bkMessage?: (p: Partial<{}>) => void;
+    $bkMessage?: (p: Partial<object>) => void;
     $bkPopover?: (...Object) => void;
     $bkToPinyin?: (str: string, lowerCase?: boolean, separator?: string) => string;
     $bkLoading?: any;
@@ -59,7 +60,13 @@ declare module 'vue/types/vue' {
 }
 declare module '*/store';
 declare module '*.svg';
-
+interface ShowLoginModalOption {
+  loginUrl: string;
+  width?: number;
+  height?: number;
+  maskColor?: string;
+  maskZIndex?: number;
+}
 declare global {
   interface Window {
     site_url: string;
@@ -70,15 +77,14 @@ declare global {
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];
     csrf_cookie_name: string;
-    cc_biz_id: string | number;
-    bk_biz_id: string | number;
+    cc_biz_id: number | string;
+    bk_biz_id: number | string;
     space_uid: string;
     Vue?: any;
     i18n: VueI18n;
     enable_aiops: boolean;
     enable_apm: boolean;
     ce_url?: string;
-    LoginModal?: any;
     enable_message_queue: boolean;
     is_superuser: boolean;
     job_url: string;
@@ -110,6 +116,7 @@ declare global {
     source_app: string;
     bk_bcs_url: string;
     __BK_WEWEB_DATA__: Record<string, any>;
+    __POWERED_BY_BK_WEWEB__?: boolean;
     token?: string;
     enable_create_chat_group: boolean;
     __bk_zIndex_manager: {
@@ -122,6 +129,8 @@ declare global {
     bk_paas_host: string;
     docUrlMap: Record<string, string>;
     page_title: string;
+    wxwork_bot_send_image?: boolean;
+    showLoginModal: (option: ShowLoginModalOption) => void;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;
@@ -132,10 +141,10 @@ declare global {
           base.PropsOf<V>,
           base.PrefixedEventsOf<V>,
           base.OnOf<V>,
-          V extends { $scopedSlots: infer X } ? X : {},
+          V extends { $scopedSlots: infer X } ? X : object,
           base.IsPropsObjectAllowed<V>
         > &
-          (V extends { _tsxattrs: infer T } ? T : {})
+          (V extends { _tsxattrs: infer T } ? T : object)
       : P;
 
     interface IntrinsicElements extends base.IntrinsicElements {
@@ -143,9 +152,16 @@ declare global {
       [name: string]: any;
 
       // builtin components
-      transition: base.CombinedTsxComponentAttrs<builtin.TransitionProps, {}, {}, {}, {}, true>;
-      'transition-group': base.CombinedTsxComponentAttrs<builtin.TransitionGroupProps, {}, {}, {}, {}, true>;
-      'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, {}, {}, {}, {}, true>;
+      transition: base.CombinedTsxComponentAttrs<builtin.TransitionProps, object, object, object, object, true>;
+      'transition-group': base.CombinedTsxComponentAttrs<
+        builtin.TransitionGroupProps,
+        object,
+        object,
+        object,
+        object,
+        true
+      >;
+      'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, object, object, object, object, true>;
     }
   }
 }

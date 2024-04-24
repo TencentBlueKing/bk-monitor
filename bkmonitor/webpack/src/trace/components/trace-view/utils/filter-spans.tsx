@@ -49,7 +49,6 @@ export default function filterSpans(textFilter: string, spans: Span[] | TNil) {
       }
     });
 
-  // eslint-disable-next-line max-len
   const isTextInFilters = (filters: Array<string>, text: string) =>
     filters.some(filter => text.toLowerCase().includes(filter));
 

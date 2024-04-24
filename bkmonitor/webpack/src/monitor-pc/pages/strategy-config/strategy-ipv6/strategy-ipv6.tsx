@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { bulkEditStrategy, getTargetDetail } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils';
 
@@ -33,12 +34,12 @@ import {
   CoutIntanceName,
   IIpV6Value,
   INodeType,
-  TargetObjectType
+  TargetObjectType,
 } from '../../../components/monitor-ip-selector/typing';
 import {
   getPanelListByObjectType,
   transformMonitorToValue,
-  transformValueToMonitor
+  transformValueToMonitor,
 } from '../../../components/monitor-ip-selector/utils';
 
 interface IStrategyIpv6Props {
@@ -46,7 +47,7 @@ interface IStrategyIpv6Props {
   strategyIds?: string[];
   objectType?: TargetObjectType;
   nodeType?: INodeType;
-  bizId?: string | number;
+  bizId?: number | string;
   checkedNodes?: any[];
 }
 interface IStrategyIpv6Events {
@@ -58,12 +59,12 @@ const HostTargetFieldMap = {
   TOPO: 'host_topo_node',
   INSTANCE: 'ip',
   SERVICE_TEMPLATE: 'host_service_template',
-  SET_TEMPLATE: 'host_set_template'
+  SET_TEMPLATE: 'host_set_template',
 };
 const ServiceTargetFieldMap = {
   TOPO: 'service_topo_node',
   SERVICE_TEMPLATE: 'service_service_template',
-  SET_TEMPLATE: 'service_set_template'
+  SET_TEMPLATE: 'service_set_template',
 };
 @Component
 export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6Events> {
@@ -75,7 +76,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
 
   @Prop({ type: String }) objectType: TargetObjectType;
   @Prop({ type: String }) nodeType: INodeType;
-  @Prop({ type: [String, Number] }) bizId: string | number;
+  @Prop({ type: [String, Number] }) bizId: number | string;
   ipCheckValue: IIpV6Value = {};
   panelList: string[] = [];
   ipNodeType: INodeType = 'TOPO';
@@ -97,8 +98,8 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
       return [
         {
           renderHead: h => h('span', this.$t('服务实例数')),
-          renderCell: (h, row) => h('span', row.node.count || '--')
-        }
+          renderCell: (h, row) => h('span', row.node.count || '--'),
+        },
       ];
     }
     return undefined;
@@ -162,12 +163,12 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
                     field:
                       this.ipObjectType === 'HOST' ? HostTargetFieldMap[nodeType] : ServiceTargetFieldMap[nodeType],
                     method: 'eq',
-                    value: data
-                  }
-                ]
+                    value: data,
+                  },
+                ],
               ]
-            : []
-        }
+            : [],
+        },
       })
         .then(() => true)
         .catch(() => false);
@@ -182,14 +183,14 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
       <div v-bkloading={{ isLoading: this.loading }}>
         {this.panelList.length > 0 && (
           <MonitorIpSelector
-            panelList={this.panelList}
-            mode={'dialog'}
-            showDialog={this.inited && this.showDialog}
-            value={this.ipCheckValue}
-            countInstanceType={this.countInstanceType}
             class={this.countInstanceType === 'service_instance' ? 'service-instance-selector' : ''}
+            countInstanceType={this.countInstanceType}
+            mode={'dialog'}
             originalValue={this.originValue}
+            panelList={this.panelList}
+            showDialog={this.inited && this.showDialog}
             showViewDiff={!!this.originValue}
+            value={this.ipCheckValue}
             onChange={this.handleIpChange}
             onCloseDialog={this.closeDialog}
             onTargetTypeChange={v => (this.ipNodeType = v)}
