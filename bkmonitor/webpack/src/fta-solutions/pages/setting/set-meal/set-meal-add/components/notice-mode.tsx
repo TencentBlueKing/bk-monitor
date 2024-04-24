@@ -42,6 +42,9 @@ interface INoticeModeProps {
   readonly?: boolean;
   showlevelMark?: boolean;
   showHeader?: boolean;
+  bkchatList?: Record<string, any>[];
+  channels?: string[];
+  refreshKey?: boolean;
 }
 interface INoticeWay {
   type: string;
@@ -63,6 +66,7 @@ interface INoticeWays {
 }
 interface INoticeModeEvent {
   onChange?: INoticeWayValue[];
+  onRefreshKeyChange?: (val: boolean) => void;
 }
 
 @Component({
@@ -133,10 +137,11 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
               // bkchat的情况还要判断数据里的值是否已过期
               // 根据值是否存在bkchatlist里来判断过期
               const newReceivers = [];
-              ways.receivers?.forEach(receiver => {
-                const filter = this.bkchatList.find(bkchat => bkchat.id === receiver);
-                filter && newReceivers.push(filter.id);
-              });
+              Array.isArray(ways.receivers) &&
+                ways.receivers?.forEach(receiver => {
+                  const filter = this.bkchatList.find(bkchat => bkchat.id === receiver);
+                  filter && newReceivers.push(filter.id);
+                });
               obj.receivers = newReceivers;
             }
           }

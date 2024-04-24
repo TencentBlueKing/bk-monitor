@@ -68,6 +68,8 @@
             :diff-data.sync="diffData"
             :upgrade-params="upgradeParams"
             @refresh="handleRefresh"
+            @isRefreshConfigListChange="val => (isRefreshConfigList = val)"
+            @loadingChange="val => (pageLoading = val)"
           />
         </keep-alive>
       </div>
@@ -150,11 +152,6 @@ export default {
       return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
     },
   },
-  beforeDestroy() {
-    if (this.operationCount) {
-      this.$parent.handleGetListData();
-    }
-  },
   async created() {
     this.pageLoading = true;
     this.$store.commit(
@@ -191,37 +188,6 @@ export default {
         this.$refs.pluginContaner.scrollTop = 0;
       }
     },
-    // getUpOperation(id) {
-    //   return configOperationInfo({ id })
-    // },
-    // addProp(obj) {
-    //   const status = {
-    //     START: 'STOPPED',
-    //     STOP: 'STARTED'
-    //   }
-    //   this.data.id = obj.id
-    //   this.data.name = obj.name
-    //   this.data.updateParams = {}
-    //   this.data.updateParams.configVersion = obj.config_version
-    //   this.data.updateParams.infoVersion = obj.info_version
-    //   this.data.objectTypeEn = obj.target_object_type
-    //   this.data.status = obj.status
-    //   this.data.nodeType = obj.target_node_type
-    //   this.data.allowRollback = obj.allow_rollback
-    //   this.type = status[obj.last_operation] || obj.last_operation
-    //   this.operationType = obj.last_operation
-    // }
-    // getDiffData() {
-    //   return deploymentConfigDiff({ id: this.data.id })
-    // },
-    // getAutoDeploy() {
-    //   autoCollectStatus({ id: this.data.id }).then((data) => {
-    //     this.diffData = data.diff_node
-    //   })
-    // }
-    // handleUpgrade () {
-    //     this.$parent.handleCloseUpdate(true)
-    // }
   },
 };
 </script>

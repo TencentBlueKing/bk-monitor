@@ -132,7 +132,7 @@
 import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
 
 import VerifyInput from '../../../components/verify-input/verify-input';
-import MemberSelector from '../../alarm-group/alarm-group-add/member-selector.vue';
+import MemberSelector from '../../alarm-group/alarm-group-add/member-selector';
 
 export default {
   name: 'AlarmShieldNotice',
