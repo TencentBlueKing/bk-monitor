@@ -733,6 +733,11 @@ class AccessBatchDataProcess(AccessDataProcess):
     分批任务处理器
     """
 
+    def __init__(self, *args, **kwargs):
+        super(AccessBatchDataProcess, self).__init__(*args, **kwargs)
+        if self.sub_task_id is None:
+            raise ValueError("sub_task_id is required")
+
     def pull(self):
         client = key.ACCESS_BATCH_DATA_KEY.client
         cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
