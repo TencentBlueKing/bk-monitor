@@ -121,7 +121,7 @@ python-magic==0.4.27
 dataclasses==0.8
 
 # apigw
-apigw-manager==2.0.0
+apigw-manager==3.0.2
 
 # crypto
 bk-crypto-python-sdk==1.0.4
