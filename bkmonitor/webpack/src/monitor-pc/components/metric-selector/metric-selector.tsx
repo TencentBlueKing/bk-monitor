@@ -57,9 +57,9 @@ const { i18n } = window;
 // };
 
 const promqlParams = [
-  ['custom', 'time_series'],
-  ['bk_monitor', 'time_series'],
-  ['bk_data', 'time_series'],
+  ['custom', MetricType.TimeSeries],
+  ['bk_monitor', MetricType.TimeSeries],
+  ['bk_data', MetricType.TimeSeries],
 ];
 
 /**
@@ -312,9 +312,23 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     const params = {
       conditions: this.searchConditions,
       data_source: this.isPromql
-        ? promqlParams
+        ? (() => {
+            if (!!this.checkededValue?.data_source_label?.length) {
+              const promqlParamsSourceLabels = promqlParams.map(p => p[0]);
+              const tempPromqlParams = [];
+              this.checkededValue.data_source_label.forEach(dsl => {
+                if (promqlParamsSourceLabels.includes(dsl)) {
+                  tempPromqlParams.push([dsl, MetricType.TimeSeries]);
+                }
+              });
+              if (tempPromqlParams.length) {
+                return tempPromqlParams;
+              }
+            }
+            return promqlParams;
+          })()
         : this.checkededValue.data_source_label?.map?.(item => [item, this.currentDataTypeLabel]),
-      data_type_label: this.isPromql ? undefined : this.currentDataTypeLabel,
+      data_type_label: this.isPromql ? MetricType.TimeSeries : this.currentDataTypeLabel,
       result_table_label: this.checkededValue.result_table_label,
       tag: this.tag.value,
       page,
@@ -384,6 +398,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
         .then(({ metric_list = [], tag_list = [], scenario_list = [], data_source_list = [], count = 0 }) => {
           const metricList = metric_list.map(item => new MetricDetail(item));
           this.metricList = page === 1 ? metricList : [...this.metricList, ...metricList];
+          this.getSelectedMetric();
           page > 1 && (this.pagination.page += 1);
           this.pagination.total = count;
           if (this.tag.value) {

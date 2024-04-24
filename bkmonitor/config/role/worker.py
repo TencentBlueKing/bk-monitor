@@ -213,6 +213,8 @@ ACTION_TASK_CRONTAB = [
     ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
 ]
 
+LONG_TASK_CRONTAB = []
+
 if os.getenv("DISABLE_METADATA_TASK") != "True":
     DEFAULT_CRONTAB += [
         # metadata
