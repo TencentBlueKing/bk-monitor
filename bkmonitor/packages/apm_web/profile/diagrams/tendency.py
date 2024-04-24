@@ -21,6 +21,9 @@ class TendencyDiagrammer:
         """statistics profile data by time"""
 
         # follow the structure of bk-ui plugin
+        if not c.get("list"):
+            return {"series": []}
+
         return {
             "series": [
                 {
