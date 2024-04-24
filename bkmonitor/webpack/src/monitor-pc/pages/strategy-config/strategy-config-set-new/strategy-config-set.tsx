@@ -2765,7 +2765,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           </div>
         </div>
         <MetricSelector
-          defaultScenario={this.baseConfig.scenario}
           metricId={this.metricSelector.id}
           metricKey={this.metricSelector.key}
           scenarioList={this.scenarioAllList}
