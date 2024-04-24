@@ -25,12 +25,12 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 
 import { isEn } from '../../../../i18n/i18n';
 
 import './log-retrieval-dialog.scss';
-/* eslint-disable camelcase */
 
 interface LogRetrievalDialogProps {
   show: boolean;
@@ -50,7 +50,7 @@ interface indexItem {
 }
 
 @Component({
-  name: 'LogRetrievalDialog'
+  name: 'LogRetrievalDialog',
 })
 export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, LogRetrievalDialogEvent> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -66,12 +66,12 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
     cancelText: window.i18n.t('取消'),
     width: 571,
     title: window.i18n.t('route-日志检索'),
-    autoClose: false
+    autoClose: false,
   };
   public data = {
     indexSet: '',
     time: ['', ''],
-    sql: ''
+    sql: '',
   };
   public indexSetList = [];
   public rules = {
@@ -79,23 +79,23 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     time: [
       {
         validator: () => this.data.time[0] !== '',
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     sql: [
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   @Watch('show')
@@ -141,14 +141,14 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
     return (
       <div>
         <bk-dialog
-          value={this.show}
+          width={this.dialog.width}
+          class='log-retrieval-dialog'
+          auto-close={this.dialog.autoClose}
+          cancel-text={this.dialog.cancelText}
           header-position={this.dialog.headerPosition}
           ok-text={this.dialog.okText}
-          cancel-text={this.dialog.cancelText}
           title={this.dialog.title}
-          width={this.dialog.width}
-          auto-close={this.dialog.autoClose}
-          class='log-retrieval-dialog'
+          value={this.show}
           on-confirm={this.confirm}
           {...{ on: { 'value-change': this.handleClose } }}
         >
@@ -162,20 +162,20 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
             </div>
           ) : undefined}
           <bk-form
-            label-width={isEn ? 110 : 70}
             ref='logForm'
+            label-width={isEn ? 110 : 70}
             {...{
               props: {
                 model: this.data,
-                rules: this.rules
-              }
+                rules: this.rules,
+              },
             }}
           >
             <bk-form-item
-              label={this.$t('索引集')}
-              required={true}
-              property='indexSet'
               error-display-type={'normal'}
+              label={this.$t('索引集')}
+              property='indexSet'
+              required={true}
             >
               <bk-select
                 v-model={this.data.indexSet}
@@ -183,18 +183,18 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
               >
                 {this.indexSetList.map(item => (
                   <bk-option
-                    key={item.id}
                     id={item.id}
+                    key={item.id}
                     name={item.name}
                   ></bk-option>
                 ))}
               </bk-select>
             </bk-form-item>
             <bk-form-item
-              label={this.$t('时间范围')}
-              required={true}
-              property={'time'}
               error-display-type={'normal'}
+              label={this.$t('时间范围')}
+              property={'time'}
+              required={true}
             >
               <bk-date-picker
                 v-model={this.data.time}
@@ -203,26 +203,26 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
               ></bk-date-picker>
             </bk-form-item>
             <bk-form-item
-              label={this.$t('查询语句')}
-              required={true}
-              property={'sql'}
               error-display-type={'normal'}
+              label={this.$t('查询语句')}
+              property={'sql'}
+              required={true}
             >
               <bk-input
-                placeholder={''}
-                type={'textarea'}
-                rows={3}
-                maxlength={255}
                 v-model={this.data.sql}
+                maxlength={255}
+                placeholder={''}
+                rows={3}
+                type={'textarea'}
               ></bk-input>
             </bk-form-item>
           </bk-form>
           <template slot='footer'>
             <bk-button
-              on-click={this.confirm}
+              style='margin-right: 10px'
               disabled={this.showTips}
               theme='primary'
-              style='margin-right: 10px'
+              on-click={this.confirm}
             >
               {this.$t('确定')}
             </bk-button>

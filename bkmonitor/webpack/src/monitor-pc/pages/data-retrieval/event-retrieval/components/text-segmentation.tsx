@@ -88,7 +88,7 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.ITextSegm
       onHidden: () => {
         this.popoverInstance?.destroy();
         this.popoverInstance = null;
-      }
+      },
     });
     this.popoverInstance?.show(10);
   }

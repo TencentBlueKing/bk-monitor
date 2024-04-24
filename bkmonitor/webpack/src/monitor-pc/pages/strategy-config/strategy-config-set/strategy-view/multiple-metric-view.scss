@@ -1,0 +1,19 @@
+.multiple-metric-view-component {
+  .panel-item {
+    position: relative;
+    height: 230px;
+    min-height: 230px;
+    margin: 0 0 32px 0;
+
+    &::before {
+      position: absolute;
+      bottom: -16px;
+      left: 50%;
+      width: calc(100% - 48px);
+      height: 1px;
+      content: '';
+      background: #eaebf0;
+      transform: translate(-50%, 0);
+    }
+  }
+}

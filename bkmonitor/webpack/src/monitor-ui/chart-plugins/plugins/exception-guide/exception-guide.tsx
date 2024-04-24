@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import { ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -51,7 +52,7 @@ class ExceptionGuide extends CommonSimpleChart {
     type: '',
     title: '',
     subTitle: '',
-    link: null
+    link: null,
   };
 
   created() {
@@ -77,7 +78,7 @@ class ExceptionGuide extends CommonSimpleChart {
 
       if (link.target === 'self') {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/')
+          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/'),
         });
         return;
       }

@@ -447,13 +447,6 @@ class UptimeCheckTask(OperateRecordModel):
             api.node_man.run_subscription(subscription_id=subscription.subscription_id, actions={action_name: "START"})
             logger.info(_("订阅任务执行START，ID:%d") % subscription.subscription_id)
 
-    # 外层增加双引号，内层对有双引号的数据增加转义字符
-    def add_escape(self, input_string):
-        if input_string:
-            temp = input_string.replace('"', '\\"')
-            return '"%s"' % temp
-        return input_string
-
     def generate_subscription_configs(self):
         """
         生成订阅参数
@@ -507,7 +500,7 @@ class UptimeCheckTask(OperateRecordModel):
                 "params": {
                     "context": {
                         "data_id": dataid_map[protocol.upper()],
-                        "max_timeout": str(settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT) + "ms",
+                        "max_timeout": "{}ms".format(timeout),
                         "tasks": resource.uptime_check.generate_sub_config({"task_id": pk}),
                         "config_hosts": self.config.get("hosts", []),
                         # 针对动态节点的情况, 注意，业务ID必须拿当前task的业务ID：
@@ -517,8 +510,12 @@ class UptimeCheckTask(OperateRecordModel):
                         "available_duration": "{}ms".format(available_duration),
                         "timeout": "{}ms".format(timeout),
                         "target_port": self.config.get("port"),
-                        "response": self.add_escape(self.config.get("response", "")),
-                        "request": self.add_escape(self.config.get("request", "")),
+                        "response": resource.uptime_check.generate_sub_config.encode_data_with_prefix(
+                            self.config.get("response", "")
+                        ),
+                        "request": resource.uptime_check.generate_sub_config.encode_data_with_prefix(
+                            self.config.get("request", "")
+                        ),
                         "response_format": self.config.get("response_format", "in"),
                         "size": self.config.get("size"),
                         "total_num": self.config.get("total_num"),

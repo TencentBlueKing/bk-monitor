@@ -26,6 +26,7 @@
 
 import { Component, Emit, Prop, PropSync, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Schema from 'async-validator';
 
 import ErrorMsg from '../../../components/error-msg/error-msg';
@@ -55,7 +56,7 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
 
   // eslint-disable-next-line @typescript-eslint/member-ordering
   errorsMsg = {
-    defaultPlanId: ''
+    defaultPlanId: '',
   };
 
   handleFocusStrategyName() {
@@ -66,7 +67,7 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
   public validate(): Promise<any> {
     return new Promise((resolve, reject) => {
       const descriptor = {
-        defaultPlanId: [{ required: true, message: this.$tc('必填项') }]
+        defaultPlanId: [{ required: true, message: this.$tc('必填项') }],
       };
       const validator = new Schema(descriptor);
       validator.validate({ defaultPlanId: this.baseConfig.default_plan_id }, {}, (errors, fields) => {
@@ -88,7 +89,7 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
   // 清除校验
   public clearErrorMsg() {
     this.errorsMsg = {
-      defaultPlanId: ''
+      defaultPlanId: '',
     };
   }
 
@@ -101,11 +102,11 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
             <div class='item-container no-width'>
               {this.isEdit ? (
                 <bk-switcher
-                  behavior='simplicity'
-                  theme='primary'
-                  size='small'
-                  disabled={!this.isEdit}
                   v-model={this.baseConfig.is_enabled}
+                  behavior='simplicity'
+                  disabled={!this.isEdit}
+                  size='small'
+                  theme='primary'
                   on-change={this.handleBaseConfigChange}
                 />
               ) : (
@@ -135,28 +136,28 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
           <div class='item-container'>
             {this.isEdit ? (
               <ErrorMsg
-                message={this.errorsMsg.defaultPlanId}
                 style='width: 100%;'
+                message={this.errorsMsg.defaultPlanId}
               >
                 <bk-select
                   ref='schemeSelect'
-                  searchable
-                  disabled={!this.isEdit}
-                  on-change={this.handleBaseConfigChange}
-                  clearable={false}
-                  ext-popover-cls='scheme-select'
                   v-model={this.baseConfig.default_plan_id}
+                  clearable={false}
+                  disabled={!this.isEdit}
+                  ext-popover-cls='scheme-select'
+                  searchable
+                  on-change={this.handleBaseConfigChange}
                 >
                   {this.schemeList.map(item => (
                     <bk-option
-                      name={item.name}
                       id={item.id}
                       style='width: 100%;'
+                      name={item.name}
                     >
                       <bk-popover
-                        placement='right-end'
                         style='width: 100%;'
                         ext-cls='programme-item-popover'
+                        placement='right-end'
                         theme='light'
                       >
                         <div style='width: 100%;'>{item.name}</div>
@@ -196,14 +197,14 @@ export default class SingleIndicator extends tsc<SingleIndicatorProps> {
                 [
                   <bk-slider
                     v-model={this.baseConfig.default_sensitivity}
-                    max-value={10}
                     disable={!this.isEdit}
+                    max-value={10}
                     on-change={this.handleBaseConfigChange}
                   />,
                   <div class='sensitivity-tips'>
                     <span>{this.$t('较少告警')}</span>
                     <span>{this.$t('较多告警')}</span>
-                  </div>
+                  </div>,
                 ]
               ) : (
                 <span>{this.baseConfig.default_sensitivity}</span>

@@ -29,26 +29,26 @@ export default [
   {
     path: '/alarm-shield',
     name: 'alarm-shield',
-    component: () => import(/* webpackChunkName: "alarm-shield" */ '../../pages/alarm-shield/alarm-shield')
+    component: () => import(/* webpackChunkName: "alarm-shield" */ '../../pages/alarm-shield/alarm-shield'),
   },
   {
     path: '/alarm-shield/add',
     name: 'alarm-shield-add',
     component: () =>
-      import(/* webpackChunkName: "alarm-shield-config" */ '../../pages/alarm-shield/alarm-shield-config')
+      import(/* webpackChunkName: "alarm-shield-config" */ '../../pages/alarm-shield/alarm-shield-config'),
   },
   {
     path: '/alarm-shield/edit/:id',
     name: 'alarm-shield-edit',
     props: true,
     component: () =>
-      import(/* webpackChunkName: "alarm-shield-config" */ '../../pages/alarm-shield/alarm-shield-config')
+      import(/* webpackChunkName: "alarm-shield-config" */ '../../pages/alarm-shield/alarm-shield-config'),
   },
   {
     path: '/alarm-shield/clone/:id',
     name: 'alarm-shield-clone',
     props: true,
     component: () =>
-      import(/* webpackChunkName: "alarm-shield-config" */ '../../pages/alarm-shield/alarm-shield-config')
-  }
+      import(/* webpackChunkName: "alarm-shield-config" */ '../../pages/alarm-shield/alarm-shield-config'),
+  },
 ] as RouteRecordRaw[];

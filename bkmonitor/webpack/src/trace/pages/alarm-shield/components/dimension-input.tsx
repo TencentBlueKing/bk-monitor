@@ -1,4 +1,3 @@
-/* eslint-disable vue/one-component-per-file */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, PropType, ref, watch } from 'vue';
+
 import { Message, Popover, TagInput } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert';
 import { getVariableValue } from 'monitor-api/modules/grafana';
@@ -33,7 +33,6 @@ import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST }
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
 import { IConditionItem, IDimensionItem, IMetricMeta } from '../typing';
-
 import SelectInput, { ALL } from './select-input';
 
 import './dimension-input.scss';
@@ -48,25 +47,25 @@ export default defineComponent({
   props: {
     conditionList: {
       type: Array as PropType<IConditionItem[]>,
-      default: () => []
+      default: () => [],
     },
     dimensionsList: {
       type: Array as PropType<IDimensionItem[]>,
-      default: () => []
+      default: () => [],
     },
     metricMeta: {
       type: Object as PropType<IMetricMeta>,
-      default: () => null
+      default: () => null,
     },
     /* 将维度选择框改为分组(根据策略分组) */
     isDimensionGroup: {
       type: Boolean,
-      default: false
+      default: false,
     },
     onChange: {
       type: Function,
-      default: _v => {}
-    }
+      default: _v => {},
+    },
   },
   setup(props) {
     const store = useAppStore();
@@ -92,7 +91,7 @@ export default defineComponent({
         .filter(item => item.key)
         .map(item => ({
           ...item,
-          dimensionName: item.dimensionName || item.dimension_name || ''
+          dimensionName: item.dimensionName || item.dimension_name || '',
         }));
       conditions.value = conditionList.length ? conditionList : ([handleGetDefaultCondition()] as any);
       if (props.isDimensionGroup) {
@@ -106,7 +105,7 @@ export default defineComponent({
           key: '',
           dimensionName: '',
           value: [],
-          method: 'eq'
+          method: 'eq',
         },
         needCondition ? { condition: 'and' } : {}
       );
@@ -154,8 +153,8 @@ export default defineComponent({
           field: id,
           metric_field: metricField,
           result_table_id: resultTableId || '',
-          where: []
-        }
+          where: [],
+        },
       };
       if (metricMetaTemp.dataSourceLabel === 'bk_log_search') {
         params.params.index_set_id = metricMetaTemp.indexSetId;
@@ -164,7 +163,7 @@ export default defineComponent({
       if (!!tips?.length) {
         Message({
           theme: 'warning',
-          message: tips
+          message: tips,
         });
       }
       const result = Array.isArray(data) ? data.map(item => ({ name: item.label, id: item.value })) : [];
@@ -184,14 +183,14 @@ export default defineComponent({
         fields: [id],
         size: 10,
         start_time: startTime,
-        end_time: endTime
+        end_time: endTime,
       })
         .then(data => {
           const fieldItem = data.fields?.find(item => item.field === id);
           const isChar = !!fieldItem?.is_char;
           const values = fieldItem?.buckets?.map(item => ({
             ...item,
-            id: isChar ? topNDataStrTransform(item.id) : item.id
+            id: isChar ? topNDataStrTransform(item.id) : item.id,
           }));
           dimensionsValueMap.value.set(id, values || []);
         })
@@ -222,7 +221,7 @@ export default defineComponent({
           ret.push({
             id: val,
             name: val,
-            show: true
+            show: true,
           });
         }
       });
@@ -330,7 +329,7 @@ export default defineComponent({
       handleStrategyListInit,
       handleSetDimensionList,
       handleSetMetricMetaSet,
-      handleSelectDimension
+      handleSelectDimension,
     };
   },
   render() {
@@ -340,49 +339,49 @@ export default defineComponent({
           return [
             item.condition && item.key && index > 0 ? (
               <ConditionCondition
+                key={`condition-${index}-${item.key}`}
                 class='mb-8'
                 item={item}
-                key={`condition-${index}-${item.key}`}
                 onChange={v => this.handleConditionConditionChange(item, v)}
               ></ConditionCondition>
             ) : undefined,
             <SelectInput
               class='mb-8'
-              value={item.dimensionName}
-              list={this.dimensionsList as any}
+              dimensionSet={(key, list) => this.handleSetDimensionList(key, list)}
               dimesionKey={item.key}
-              isDimensionGroup={this.isDimensionGroup}
               groupDimensionMap={this.groupDimensionMap}
+              isDimensionGroup={this.isDimensionGroup}
+              list={this.dimensionsList as any}
+              metricMetaSet={(key, obj) => this.handleSetMetricMetaSet(key, obj)}
               strategyList={this.strategyList}
+              value={item.dimensionName}
               onChange={v => this.handleDimensionChange(item, v)}
               onDelete={() => this.handleDeleteKey(index)}
-              dimensionSet={(key, list) => this.handleSetDimensionList(key, list)}
-              metricMetaSet={(key, obj) => this.handleSetMetricMetaSet(key, obj)}
-              onStrategyListInit={list => this.handleStrategyListInit(list)}
               onSelectDimension={(dimensionItem, meta, strategy) =>
                 this.handleSelectDimension(item, dimensionItem, meta, strategy)
               }
+              onStrategyListInit={list => this.handleStrategyListInit(list)}
             ></SelectInput>,
             item.dimensionName
               ? [
                   <ConditionMethod
-                    value={item.method}
-                    dimensionList={this.dimensionsList}
                     dimensionKey={item.key}
+                    dimensionList={this.dimensionsList}
+                    value={item.method}
                     onChange={v => this.handleMehodChange(item, v)}
                   ></ConditionMethod>,
                   <TagInput
-                    modelValue={item.value}
                     class='condition-item condition-item-value mb-8'
-                    list={this.getDimensionValues(item.key)}
-                    trigger={'focus'}
-                    allowCreate={true}
                     allowAutoMatch={true}
+                    allowCreate={true}
+                    list={this.getDimensionValues(item.key)}
+                    modelValue={item.value}
                     pasteFn={v => this.handlePaste(v, item)}
+                    trigger={'focus'}
                     onUpdate:modelValue={v => this.handleDimensionValueChange(item, v)}
-                  ></TagInput>
+                  ></TagInput>,
                 ]
-              : undefined
+              : undefined,
           ];
         })}
         {!!this.showAdd && (
@@ -395,7 +394,7 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });
 
 const ConditionCondition = defineComponent({
@@ -403,12 +402,12 @@ const ConditionCondition = defineComponent({
   props: {
     item: {
       type: Object,
-      default: () => null
+      default: () => null,
     },
     onChange: {
       type: Function as PropType<(v: string) => void>,
-      default: _v => {}
-    }
+      default: _v => {},
+    },
   },
   setup(props) {
     const popoverRef = ref(null);
@@ -420,20 +419,20 @@ const ConditionCondition = defineComponent({
     }
     return () => (
       <Popover
-        placement='bottom-start'
-        arrow={false}
-        theme='light'
-        trigger='click'
         ref={popoverRef}
         extCls='dimension-condition-input-condition-condition-component-pop'
+        arrow={false}
+        placement='bottom-start'
+        theme='light'
+        trigger='click'
       >
         {{
           default: () => (
             <input
               style={{ display: props.item.condition ? 'block' : 'none' }}
               class='condition-item condition-item-condition mb-8'
-              readonly
               value={props.item.condition.toLocaleUpperCase()}
+              readonly
             ></input>
           ),
           content: () => (
@@ -449,11 +448,11 @@ const ConditionCondition = defineComponent({
                 ))}
               </ul>
             </div>
-          )
+          ),
         }}
       </Popover>
     );
-  }
+  },
 });
 
 const ConditionMethod = defineComponent({
@@ -461,20 +460,20 @@ const ConditionMethod = defineComponent({
   props: {
     value: {
       type: String,
-      default: ''
+      default: '',
     },
     dimensionKey: {
       type: String,
-      default: ''
+      default: '',
     },
     dimensionList: {
       type: Array as PropType<any[]>,
-      default: () => []
+      default: () => [],
     },
     onChange: {
       type: Function as PropType<(v: string) => void>,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   setup(props) {
     const popoverRef = ref(null);
@@ -489,14 +488,14 @@ const ConditionMethod = defineComponent({
         methodList.value = handleGetMethodList(type);
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
     function getMethodNameById(id: string) {
       return NUMBER_CONDITION_METHOD_LIST.find(item => item.id === id)?.name || '';
     }
-    function handleGetMethodList(type: 'string' | 'number') {
+    function handleGetMethodList(type: 'number' | 'string') {
       if (type === 'number') {
         return NUMBER_CONDITION_METHOD_LIST;
       }
@@ -510,12 +509,12 @@ const ConditionMethod = defineComponent({
 
     return () => (
       <Popover
-        placement='bottom-start'
-        arrow={false}
-        theme='light'
-        trigger='click'
         ref={popoverRef}
         extCls='dimension-condition-input-condition-method-component-pop'
+        arrow={false}
+        placement='bottom-start'
+        theme='light'
+        trigger='click'
         onAfterHidden={() => (show.value = false)}
         onAfterShow={() => (show.value = true)}
       >
@@ -525,8 +524,8 @@ const ConditionMethod = defineComponent({
               class={[
                 'condition-item condition-item-method mb-8',
                 {
-                  active: show.value
-                }
+                  active: show.value,
+                },
               ]}
             >
               {getMethodNameById(props.value)}
@@ -545,9 +544,9 @@ const ConditionMethod = defineComponent({
                 ))}
               </ul>
             </div>
-          )
+          ),
         }}
       </Popover>
     );
-  }
+  },
 });

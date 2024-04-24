@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 export enum EShieldType {
+  Dimension = 'alarm-shield-dimension',
+  Event = 'alarm-shield-event',
   Scope = 'alarm-shield-scope',
   Strategy = 'alarm-shield-strategy',
-  Event = 'alarm-shield-event',
-  Dimension = 'alarm-shield-dimension'
 }
 
 export const categoryMap = {
   [EShieldType.Scope]: 'scope',
   [EShieldType.Strategy]: 'strategy',
   [EShieldType.Dimension]: 'dimension',
-  [EShieldType.Event]: 'alert'
+  [EShieldType.Event]: 'alert',
 };

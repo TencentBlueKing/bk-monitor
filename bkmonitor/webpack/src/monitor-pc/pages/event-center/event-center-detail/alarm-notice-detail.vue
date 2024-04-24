@@ -26,36 +26,36 @@
 <template>
   <monitor-dialog
     :value="show"
-    @change="handleShowChange"
     :title="$t('通知状态明细')"
     header-position="left"
     :show-footer="false"
     :show-confirm-btn="false"
     width="620"
+    @change="handleShowChange"
   >
     <div
-      class="notice-detail"
       v-bkloading="{ isLoading: loading }"
+      class="notice-detail"
     >
       <div class="notice-detail-select">
         <span class="select-lable"> {{ $t('通知次数:') }} </span>
         <bk-select
-          class="select-input"
           v-model="value"
-          @change="handleSelectChange"
+          class="select-input"
           :clearable="false"
+          @change="handleSelectChange"
         >
           <bk-option
             v-for="(option, index) in list"
-            :key="index"
             :id="option.actionId"
+            :key="index"
             :name="handleNoticeSelectName(option)"
           />
         </bk-select>
       </div>
       <div
-        class="notice-detail-table"
         v-bkloading="{ isLoading: table.loading }"
+        class="notice-detail-table"
       >
         <bk-table
           v-if="table.column.length"
@@ -75,16 +75,17 @@
               >
                 {{ scope.row.receiver }}
                 <span
-                  class="col-notice"
                   v-show="scope.row.noticeGroup"
-                >（{{ scope.row.noticeGroup }}）</span>
+                  class="col-notice"
+                  >（{{ scope.row.noticeGroup }}）</span
+                >
               </div>
               <template v-else>
                 <div v-if="scope.row[column.id]">
                   <bk-popover
+                    v-if="scope.row[column.id].status === 0 && scope.row[column.id].message"
                     placement="top"
                     width="200"
-                    v-if="scope.row[column.id].status === 0 && scope.row[column.id].message"
                   >
                     <div :class="'notice-' + scope.row[column.id].status" />
                     <div
@@ -95,8 +96,8 @@
                     </div>
                   </bk-popover>
                   <div
-                    :class="'notice-' + scope.row[column.id].status"
                     v-else
+                    :class="'notice-' + scope.row[column.id].status"
                   />
                 </div>
                 <div v-else>
@@ -118,36 +119,36 @@
   </monitor-dialog>
 </template>
 <script>
-import { createNamespacedHelpers } from 'vuex';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
+import { createNamespacedHelpers } from 'vuex';
 
 const { mapActions } = createNamespacedHelpers('event-center');
 export default {
   name: 'AlarmNoticeDetail',
   components: {
-    MonitorDialog
+    MonitorDialog,
   },
   model: {
     prop: 'show',
-    event: 'change'
+    event: 'change',
   },
   props: {
     show: {
       type: Boolean,
-      required: true
+      required: true,
     },
     bizId: {
       type: [String, Number],
-      required: true
+      required: true,
     },
     id: {
       type: [String, Number],
-      required: true
+      required: true,
     },
     defaultSelectActionId: {
       type: [String, Number],
-      default: -1
-    }
+      default: -1,
+    },
   },
   data() {
     return {
@@ -156,20 +157,20 @@ export default {
       table: {
         data: [],
         column: [],
-        loading: false
+        loading: false,
       },
       selectedItem: null,
       loading: false,
       popoverInstance: null,
       isShielded: false,
-      isEmptyReceiver: false
+      isEmptyReceiver: false,
     };
   },
   computed: {
     tableAbnormalText() {
       const textMap = {
         SHIELDED: this.$t('已屏蔽'),
-        EMPTY_RECEIVER: this.$t('通知人为空')
+        EMPTY_RECEIVER: this.$t('通知人为空'),
       };
       return this.table.data.length === 0 && !this.isShielded && !this.isEmptyReceiver
         ? this.$t('无数据')
@@ -177,7 +178,7 @@ export default {
     },
     tableAbnormalIcon() {
       return this.table.data.length === 0 && !this.isShielded ? 'icon-empty' : 'icon-monitor icon-mc-notice-shield';
-    }
+    },
   },
   watch: {
     show: {
@@ -186,8 +187,8 @@ export default {
         this.value = this.defaultSelectActionId;
         v ? this.handleNoticeShow() : (this.list = []);
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   beforeDestroy() {
     this.handleMouseLeave();
@@ -198,7 +199,7 @@ export default {
       this.loading = true;
       const list = await this.getNoticeDetail({
         bk_biz_id: this.bizId,
-        id: this.id
+        id: this.id,
       }).catch(() => {
         this.loading = false;
       });
@@ -214,7 +215,7 @@ export default {
     async handleGetTableData(needLoading = true) {
       this.table.loading = needLoading;
       const tableData = await this.getNoticeTableDetail({
-        action_id: this.value
+        action_id: this.value,
       }).catch(() => {
         this.table.loading = false;
       });
@@ -225,12 +226,12 @@ export default {
       }
       this.table.data = tableData.alertDetail.map(item => ({
         ...item,
-        noticeInfo: item.noticeGroup ? `${item.receiver}（${item.noticeGroup}）` : item.receiver
+        noticeInfo: item.noticeGroup ? `${item.receiver}（${item.noticeGroup}）` : item.receiver,
       }));
       this.table.column = tableData.alertWay;
       this.table.column.unshift({
         id: 'notice',
-        name: this.$t('通知对象')
+        name: this.$t('通知对象'),
       });
       this.table.loading = false;
     },
@@ -254,7 +255,7 @@ export default {
         this.popoverInstance = this.$bkPopover(e.target, {
           content: data.message,
           arrow: true,
-          maxWidth: 320
+          maxWidth: 320,
         });
         this.popoverInstance.show(100);
       }
@@ -268,8 +269,8 @@ export default {
     },
     handleNoticeSelectName(option) {
       return `${this.$t('第')}${option.index}${this.$t('次')}（${option.actionTime}）`;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

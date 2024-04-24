@@ -1,3 +1,4 @@
+/* eslint-disable vue/multi-word-component-names */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -25,6 +26,7 @@
  */
 import { defineComponent, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Cascader, Dropdown, Select, Switcher } from 'bkui-vue';
 
 import DurationFilter from '../../pages/main/duration-filter/duration-filter';
@@ -42,49 +44,48 @@ interface IConditionValueList {
 }
 
 export default defineComponent({
-  // eslint-disable-next-line vue/multi-word-component-names
   name: 'Condition',
   props: {
     isInclude: {
       type: Boolean,
-      default: true
+      default: true,
     },
     labelValue: {
       type: String,
-      default: ''
+      default: '',
     },
     labelList: {
       type: Array as () => Array<{ label: string; value: string }>,
-      default: () => []
+      default: () => [],
     },
     selectedCondition: {
       type: Object,
       default: () => ({
         label: '',
-        value: ''
-      })
+        value: '',
+      }),
     },
     // 用作控制显示哪一种类型的 输入框 。（复选，区间，或特殊框）
     conditionType: {
       type: String,
-      default: ''
+      default: '',
     },
     conditionList: {
       type: Array as PropType<Array<IConditionList>>,
-      default: () => []
+      default: () => [],
     },
     conditionValueList: {
       type: Array as PropType<Array<IConditionValueList>>,
-      default: () => []
+      default: () => [],
     },
     durantionRange: {
       type: Array as PropType<Array<number>>,
-      default: () => []
+      default: () => [],
     },
     selectedConditionValue: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: [
     'IncludeChange',
@@ -94,7 +95,7 @@ export default defineComponent({
     'conditionChange',
     'durationRangeChange',
     'itemConditionChange',
-    'conditionValueClear'
+    'conditionValueClear',
   ],
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -146,7 +147,7 @@ export default defineComponent({
                 label: true,
                 'label-hover': labelHoverStatus.value,
                 'label-active': labelActiveStatus.value,
-                'label-disabled': !props.isInclude
+                'label-disabled': !props.isInclude,
               }}
             >
               {label.value}
@@ -154,13 +155,13 @@ export default defineComponent({
             {props.isInclude && (
               <Cascader
                 v-model={hoverArea}
+                clearable={false}
                 list={props.labelList}
                 trigger='hover'
-                clearable={false}
                 onChange={v => cascaderChange(v)}
-                onToggle={v => cascaderToggle(v)}
-                onMouseover={() => setLabelHoverStatus(true)}
                 onMouseout={() => setLabelHoverStatus(false)}
+                onMouseover={() => setLabelHoverStatus(true)}
+                onToggle={v => cascaderToggle(v)}
               ></Cascader>
             )}
             {/* <Select
@@ -184,9 +185,7 @@ export default defineComponent({
           </Select> */}
           </div>
           <Dropdown
-            disabled={!props.isInclude}
-            trigger='click'
-            placement='bottom-start'
+            style='flex-shrink: 0;'
             v-slots={{
               content: () => (
                 <Dropdown.DropdownMenu>
@@ -196,11 +195,13 @@ export default defineComponent({
                     </Dropdown.DropdownItem>
                   ))}
                 </Dropdown.DropdownMenu>
-              )
+              ),
             }}
-            style='flex-shrink: 0;'
-            onShow={() => (conditionTypeActiveStatus.value = true)}
+            disabled={!props.isInclude}
+            placement='bottom-start'
+            trigger='click'
             onHide={() => (conditionTypeActiveStatus.value = false)}
+            onShow={() => (conditionTypeActiveStatus.value = true)}
           >
             {/* 这里是 操作符 选择器 */}
             {props.conditionType === 'select' && (
@@ -209,7 +210,7 @@ export default defineComponent({
                   'condition-type': true,
                   'condition-type-selected': !!props.selectedCondition.value,
                   'condition-type-active': conditionTypeActiveStatus.value,
-                  'condition-type-disabled': !props.isInclude
+                  'condition-type-disabled': !props.isInclude,
                 }}
               >
                 {props.selectedCondition.label}
@@ -227,9 +228,9 @@ export default defineComponent({
             onClick={() => emit('delete', props.labelValue)}
           ></i>
           <Switcher
-            value={props.isInclude}
             size='small'
             theme='primary'
+            value={props.isInclude}
             onChange={() => emit('IncludeChange')}
           ></Switcher>
         </div>
@@ -237,14 +238,14 @@ export default defineComponent({
         {/* 复选框 */}
         {props.conditionType === 'select' && (
           <Select
+            style='margin-top: 4px;'
             modelValue={props.selectedConditionValue}
             placeholder={t('请选择')}
-            multiple
             filterable
-            onChange={v => emit('conditionValueChange', v)}
+            multiple
             onBlur={() => props.isInclude && emit('selectComplete')}
+            onChange={v => emit('conditionValueChange', v)}
             onClear={() => emit('conditionValueClear')}
-            style='margin-top: 4px;'
           >
             {props.conditionValueList.map(item => (
               <Select.Option
@@ -258,9 +259,9 @@ export default defineComponent({
         {/* 区间选择 */}
         {props.conditionType === 'duration' && (
           <DurationFilter
+            style='margin-top: 4px;'
             range={props.durantionRange ?? undefined}
             onChange={(v: number[]) => emit('durationRangeChange', v)}
-            style='margin-top: 4px;'
           />
         )}
 
@@ -270,10 +271,10 @@ export default defineComponent({
     );
 
     return {
-      renderDom
+      renderDom,
     };
   },
   render() {
     return this.renderDom();
-  }
+  },
 });

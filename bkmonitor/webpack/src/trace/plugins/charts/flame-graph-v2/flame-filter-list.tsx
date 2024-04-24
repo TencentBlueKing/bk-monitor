@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref } from 'vue';
+
 import { Select, Table } from 'bkui-vue';
 import random from 'lodash/random';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
@@ -32,7 +33,7 @@ import './flame-filter-list.scss';
 
 const usFormat = getValueFormat('µs');
 
-export type FilterKey = 'servce' | 'source' | 'name' | 'kind';
+export type FilterKey = 'kind' | 'name' | 'servce' | 'source';
 
 /**
  * 定义 FilterValueItem 接口，表示过滤器的值的项
@@ -70,28 +71,28 @@ export interface IFilterColumnItem<D> {
 const FilterValueColumn = [
   {
     id: 'avg_duration',
-    name: window.i18n.t('平均耗时')
+    name: window.i18n.t('平均耗时'),
   },
   {
     id: 'P95',
-    name: 'P95'
+    name: 'P95',
   },
   {
     id: 'count',
-    name: window.i18n.t('调用次数')
+    name: window.i18n.t('调用次数'),
   },
   {
     id: 'max_duration',
-    name: window.i18n.t('最大耗时')
+    name: window.i18n.t('最大耗时'),
   },
   {
     id: 'min_duration',
-    name: window.i18n.t('最小耗时')
+    name: window.i18n.t('最小耗时'),
   },
   {
     id: 'sum_duration',
-    name: window.i18n.t('总耗时')
-  }
+    name: window.i18n.t('总耗时'),
+  },
 ];
 export default defineComponent({
   name: 'FlameFilterList',
@@ -101,15 +102,15 @@ export default defineComponent({
      */
     data: {
       type: Array as () => IFilterData[],
-      required: true
+      required: true,
     },
     /**
      * 最大高度
      */
     maxHeight: {
       type: Number,
-      default: 300
-    }
+      default: 300,
+    },
   },
   setup(props) {
     const columnKey = ref<FilterKey>('name'); // 默认选中第一列
@@ -119,7 +120,7 @@ export default defineComponent({
       const data = props.data.find(item => item.aggregation_key === columnKey.value)?.items;
       if (!data) return [];
       return data.map(item => {
-        let value: string | number = item.values[columnValueKey.value];
+        let value: number | string = item.values[columnValueKey.value];
         if (value && columnValueKey.value.match(/(_duration|P9)/)) {
           const { text, suffix } = usFormat(value);
           value = `${text}${suffix}`;
@@ -128,7 +129,7 @@ export default defineComponent({
           ...item,
           ...item.values,
           value: value ?? '--',
-          raw: item.values[columnValueKey.value]
+          raw: item.values[columnValueKey.value],
         };
       });
     });
@@ -148,7 +149,7 @@ export default defineComponent({
       columnValueKey,
       tableData,
       handleSelectLabelChange,
-      handleColumnValueChange
+      handleColumnValueChange,
     };
   },
   render() {
@@ -158,41 +159,41 @@ export default defineComponent({
         label: () => (
           <div class='col-label'>
             <Select
-              modelValue={this.columnKey}
               behavior='simplicity'
-              size='small'
               clearable={false}
+              modelValue={this.columnKey}
+              size='small'
               onChange={this.handleSelectLabelChange}
             >
               {this.data.map(item => (
                 <Select.Option
                   key={item.aggregation_key}
-                  value={item.aggregation_key}
                   label={item.display_name}
+                  value={item.aggregation_key}
                 />
               ))}
             </Select>
           </div>
         ),
         field: 'display_name',
-        sort: false
+        sort: false,
       },
       {
         label: () => (
           <div class='col-value'>
             <Select
-              modelValue={this.columnValueKey}
               behavior='simplicity'
-              size='small'
               clearable={false}
+              modelValue={this.columnValueKey}
+              size='small'
               onChange={this.handleColumnValueChange}
               onClick={e => e.stopPropagation()}
             >
               {FilterValueColumn.map(item => (
                 <Select.Option
                   key={item.id}
-                  value={item.id}
                   label={item.name}
+                  value={item.id}
                 />
               ))}
             </Select>
@@ -203,22 +204,22 @@ export default defineComponent({
           value: 'asc',
           sortFn: (a, b) => {
             return a.raw - b.raw;
-          }
+          },
         },
-        align: 'right'
-      }
+        align: 'right',
+      },
     ];
     return (
       <div>
         <Table
-          rowKey={random(10).toString()}
-          showOverflowTooltip={true}
           class='flame-filter-list'
           columns={columns}
           data={this.tableData || []}
           maxHeight={this.maxHeight}
+          rowKey={random(10).toString()}
+          showOverflowTooltip={true}
         />
       </div>
     );
-  }
+  },
 });

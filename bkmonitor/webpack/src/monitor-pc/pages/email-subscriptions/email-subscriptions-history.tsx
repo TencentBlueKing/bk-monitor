@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { statusList } from 'monitor-api/modules/report';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
@@ -39,13 +40,13 @@ export interface IPagination {
   limit: number;
 }
 @Component
-export default class EmailSubscriptionsHistory extends tsc<{}> {
+export default class EmailSubscriptionsHistory extends tsc<object> {
   loading = false;
   /** 分页数据 */
   pagination: IPagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   /** 展开发送列表 */
   activeList = ['1'];
@@ -61,9 +62,9 @@ export default class EmailSubscriptionsHistory extends tsc<{}> {
     {
       label: window.i18n.t('接收者'),
       key: 'receivers',
-      formatter: row => (row?.details?.receivers?.length ? row.receivers.join(', ') : '--')
+      formatter: row => (row?.details?.receivers?.length ? row.receivers.join(', ') : '--'),
     },
-    { label: window.i18n.t('发送状态'), key: 'isSuccess' }
+    { label: window.i18n.t('发送状态'), key: 'isSuccess' },
   ];
 
   created() {
@@ -106,20 +107,20 @@ export default class EmailSubscriptionsHistory extends tsc<{}> {
       <div class='email-subscriptions-history-wrap'>
         <ListCollapse
           class='collapse-wrap'
-          title={this.$tc('已发送')}
           active-name={this.activeList}
+          title={this.$tc('已发送')}
           on-item-click={arr => (this.activeList = arr)}
         >
           <div
-            slot='content'
             class='list-content'
+            slot='content'
           >
             <bk-table
-              v-bkloading={{ isLoading: this.loading, zIndex: 1 }}
               style='margin-top: 15px'
+              v-bkloading={{ isLoading: this.loading, zIndex: 1 }}
               data={this.tableData}
-              outer-border={true}
               header-border={false}
+              outer-border={true}
               pagination={this.pagination}
               on-page-change={this.handlePageChange}
               on-page-limit-change={this.handleLimitChange}
@@ -128,22 +129,22 @@ export default class EmailSubscriptionsHistory extends tsc<{}> {
                 item.key === 'isSuccess' ? (
                   <bk-table-column
                     key={index}
-                    label={this.$t('发送状态')}
-                    prop='isSuccess'
                     scopedSlots={{
                       default: scope => (
                         <span class={scope.row.isSuccess ? 'is-success' : 'is-fail'}>
                           {scope.row.isSuccess ? this.$t('成功') : this.$t('失败')}
                         </span>
-                      )
+                      ),
                     }}
+                    label={this.$t('发送状态')}
+                    prop='isSuccess'
                   ></bk-table-column>
                 ) : (
                   <bk-table-column
                     key={index}
+                    formatter={item.formatter}
                     label={item.label}
                     prop={item.key}
-                    formatter={item.formatter}
                   ></bk-table-column>
                 )
               )}

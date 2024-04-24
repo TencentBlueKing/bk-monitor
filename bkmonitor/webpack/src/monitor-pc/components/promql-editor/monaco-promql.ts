@@ -27,5 +27,5 @@ export const promLanguageDefinition = {
   id: 'promql',
   extensions: ['.promql'],
   aliases: ['Prometheus', 'prometheus', 'prom', 'Prom', 'promql', 'Promql', 'promQL', 'PromQL'],
-  mimetypes: []
+  mimetypes: [],
 };

@@ -25,6 +25,7 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Big from 'big.js';
 import dayjs from 'dayjs';
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
@@ -35,10 +36,10 @@ import BusinessItem, { IData } from './business-item';
 
 import './home.scss';
 
-export const initUnit = (num: number, type: 'num' | '%' | 'time') => {
+export const initUnit = (num: number, type: '%' | 'num' | 'time') => {
   const numObj: { num: number | string; unit: string } = {
     num: 0,
-    unit: ''
+    unit: '',
   };
   if (num === null || num === undefined) {
     numObj.num = '--';
@@ -98,7 +99,7 @@ interface IDataOverview {
     icon: string;
     num: number;
     unit: string;
-    type: 'num' | '%' | 'time';
+    type: '%' | 'num' | 'time';
     borderRight?: boolean;
     tip?: string;
     allowHtml?: boolean;
@@ -115,7 +116,7 @@ interface IHomeProps {
 }
 
 @Component({
-  name: 'Home'
+  name: 'Home',
 })
 export default class Home extends tsc<IHomeProps> {
   @Ref('mttaTipRef') mttaTipRef: HTMLDivElement;
@@ -128,7 +129,7 @@ export default class Home extends tsc<IHomeProps> {
     timeChecked: 7,
     timeOption: [
       { id: 7, name: window.i18n.tc('7 天') },
-      { id: 30, name: window.i18n.tc('一个月') }
+      { id: 30, name: window.i18n.tc('一个月') },
     ],
     data: [
       {
@@ -139,7 +140,7 @@ export default class Home extends tsc<IHomeProps> {
         unit: '',
         type: 'num',
         borderRight: true,
-        tip: window.i18n.tc('个人有权限查看的空间数')
+        tip: window.i18n.tc('个人有权限查看的空间数'),
       },
       {
         id: 'event',
@@ -148,7 +149,7 @@ export default class Home extends tsc<IHomeProps> {
         num: 0,
         unit: '',
         type: 'num',
-        tip: window.i18n.tc('所有业务的事件中心里面告警关联的事件的总和')
+        tip: window.i18n.tc('所有业务的事件中心里面告警关联的事件的总和'),
       },
       {
         id: 'alert',
@@ -157,7 +158,7 @@ export default class Home extends tsc<IHomeProps> {
         num: 0,
         unit: '',
         type: 'num',
-        tip: window.i18n.tc('所有业务的事件中心列表中的告警事件的总和')
+        tip: window.i18n.tc('所有业务的事件中心列表中的告警事件的总和'),
       },
       {
         id: 'action',
@@ -167,7 +168,7 @@ export default class Home extends tsc<IHomeProps> {
         unit: '',
         type: 'num',
         borderRight: true,
-        tip: window.i18n.tc('处理记录里面所有的执行记录数量')
+        tip: window.i18n.tc('处理记录里面所有的执行记录数量'),
       },
       {
         id: 'noise_reduction_ratio',
@@ -176,7 +177,7 @@ export default class Home extends tsc<IHomeProps> {
         num: 0,
         unit: '',
         type: '%',
-        tip: window.i18n.tc('(总事件数-总告警数)/总事件数 ， 降噪比越大越好')
+        tip: window.i18n.tc('(总事件数-总告警数)/总事件数 ， 降噪比越大越好'),
       },
       {
         id: 'auto_recovery_ratio',
@@ -186,7 +187,7 @@ export default class Home extends tsc<IHomeProps> {
         unit: '',
         type: '%',
         borderRight: true,
-        tip: window.i18n.tc('执行了处理套餐（除工单）的致命告警/总致命告警数，自愈率越高越好')
+        tip: window.i18n.tc('执行了处理套餐（除工单）的致命告警/总致命告警数，自愈率越高越好'),
       },
       {
         id: 'mtta',
@@ -196,7 +197,7 @@ export default class Home extends tsc<IHomeProps> {
         unit: '',
         type: 'time',
         tip: 'mttaTipRef',
-        allowHtml: true
+        allowHtml: true,
       },
       {
         id: 'mttr',
@@ -206,9 +207,9 @@ export default class Home extends tsc<IHomeProps> {
         unit: '',
         type: 'time',
         tip: 'mttrTipRef',
-        allowHtml: true
-      }
-    ]
+        allowHtml: true,
+      },
+    ],
   };
   // 业务概览
   businessOverview: IBusinessOverview = {
@@ -216,9 +217,9 @@ export default class Home extends tsc<IHomeProps> {
     filterItem: 1,
     filterList: [
       { id: 1, name: window.i18n.tc('全部') },
-      { id: 2, name: window.i18n.tc('收藏') }
+      { id: 2, name: window.i18n.tc('收藏') },
     ],
-    data: []
+    data: [],
   };
 
   pageSize = 3;
@@ -239,7 +240,7 @@ export default class Home extends tsc<IHomeProps> {
   scrollLoading = false;
   businessLoading = false;
   scrollEl = null;
-  throttledScroll: Function = () => {};
+  throttledScroll: (() => void) | throttle<(e: any) => Promise<void>> = () => {};
 
   created() {
     this.throttledScroll = throttle(300, this.handleScroll);
@@ -277,7 +278,7 @@ export default class Home extends tsc<IHomeProps> {
         days: this.dataOverview.timeChecked,
         page: this.page,
         page_size: this.pageSize,
-        favorite_only: this.businessOverview.filterItem === 2
+        favorite_only: this.businessOverview.filterItem === 2,
       };
       const data: any = await this.getStatistics(params);
       this.getUpdataTime(data.update_time);
@@ -311,7 +312,7 @@ export default class Home extends tsc<IHomeProps> {
       days: this.dataOverview.timeChecked,
       page: 1,
       page_size: this.firstPageSize,
-      favorite_only: this.businessOverview.filterItem === 2
+      favorite_only: this.businessOverview.filterItem === 2,
     };
     const data: any = await this.getStatistics(params);
     this.getUpdataTime(data.update_time);
@@ -353,7 +354,7 @@ export default class Home extends tsc<IHomeProps> {
         eventCounts: [
           { id: 'event', name: window.i18n.tc('总事件数'), count: event.num, unit: event.unit },
           { id: 'alert', name: window.i18n.tc('总告警数'), count: alert.num, unit: alert.unit },
-          { id: 'action', name: window.i18n.tc('总执行数'), count: action.num, unit: action.unit }
+          { id: 'action', name: window.i18n.tc('总执行数'), count: action.num, unit: action.unit },
         ],
         seriesData: item.alert.levels,
         countSum: item.alert.levels.reduce((acc, cur) => acc + cur.count, 0),
@@ -362,26 +363,26 @@ export default class Home extends tsc<IHomeProps> {
             id: 'noise_reduction_ratio',
             name: window.i18n.tc('降噪比'),
             count: noiseReductionRatio.num,
-            unit: noiseReductionRatio.unit
+            unit: noiseReductionRatio.unit,
           },
           {
             id: 'auto_recovery_ratio',
             name: window.i18n.tc('自愈覆盖率'),
             count: autoRecoveryRatio.num,
-            unit: autoRecoveryRatio.unit
+            unit: autoRecoveryRatio.unit,
           },
           { id: 'mtta', name: 'MTTA', count: mtta.num, unit: mtta.unit },
-          { id: 'mttr', name: 'MTTR', count: mttr.num, unit: mttr.unit }
+          { id: 'mttr', name: 'MTTR', count: mttr.num, unit: mttr.unit },
         ].map(dataItem => {
           const target = this.dataOverview.data?.find?.(set => set.id === dataItem.id);
           return {
             ...dataItem,
             tip: target?.tip,
-            allowHtml: target.allowHtml
+            allowHtml: target.allowHtml,
           };
         }),
         isFavorite: item.is_favorite,
-        isDemo: item.is_demo
+        isDemo: item.is_demo,
       };
     });
   }
@@ -458,16 +459,16 @@ export default class Home extends tsc<IHomeProps> {
                 </span>
                 <span class='right'>
                   <bk-select
-                    v-model={this.dataOverview.timeChecked}
                     ext-cls='time-select'
+                    v-model={this.dataOverview.timeChecked}
                     clearable={false}
                     popover-width={70}
                     on-change={() => this.init(true)}
                   >
                     {this.dataOverview.timeOption.map(option => (
                       <bk-option
-                        key={option.id}
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       ></bk-option>
                     ))}
@@ -492,7 +493,7 @@ export default class Home extends tsc<IHomeProps> {
                       theme: 'light',
                       placements: ['top'],
                       boundary: 'window',
-                      maxWidth: 250
+                      maxWidth: 250,
                     }}
                   >
                     <span class='item-top'>
@@ -501,8 +502,8 @@ export default class Home extends tsc<IHomeProps> {
                     </span>
                     <span class='item-bottom'>
                       <img
-                        src={this.getSvgIcon(item.icon)}
                         alt=''
+                        src={this.getSvgIcon(item.icon)}
                       />
                       <span class='title'>{item.name}</span>
                     </span>
@@ -518,23 +519,23 @@ export default class Home extends tsc<IHomeProps> {
                 </span>
                 <span class='right'>
                   <bk-input
+                    v-model={this.businessOverview.searchValue}
                     placeholder={this.$t('输入')}
                     right-icon='bk-icon icon-search'
-                    v-model={this.businessOverview.searchValue}
-                    on-right-icon-click={() => this.isCanSearch() && this.init()}
-                    on-enter={() => this.isCanSearch() && this.init()}
                     on-blur={() => this.isCanSearch() && this.init()}
+                    on-enter={() => this.isCanSearch() && this.init()}
+                    on-right-icon-click={() => this.isCanSearch() && this.init()}
                   ></bk-input>
                   <bk-select
+                    ext-cls='filter-select'
                     v-model={this.businessOverview.filterItem}
                     clearable={false}
-                    ext-cls='filter-select'
                     on-change={() => this.init()}
                   >
                     {this.businessOverview.filterList.map(option => (
                       <bk-option
-                        key={option.id}
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       ></bk-option>
                     ))}
@@ -548,9 +549,8 @@ export default class Home extends tsc<IHomeProps> {
                 >
                   {this.businessOverview.data.map((item, index) => (
                     <BusinessItem
-                      data={item}
                       key={index}
-                      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                      data={item}
                       onFavorite={(v: boolean) => this.handleFavorite(v, index)}
                       onToEvent={this.handleToEvent}
                     ></BusinessItem>
@@ -558,9 +558,9 @@ export default class Home extends tsc<IHomeProps> {
                 </div>
               ) : (
                 <bk-exception
+                  ext-cls='home-no-data'
                   v-bkloading={{ isLoading: this.businessLoading }}
                   type='empty'
-                  ext-cls='home-no-data'
                 >
                   <span class='home-no-data-msg'>{this.$t('无数据')}</span>
                 </bk-exception>

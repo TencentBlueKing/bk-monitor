@@ -26,7 +26,7 @@
 export default {
   data() {
     return {
-      logShow: false
+      logShow: false,
     };
   },
   mounted() {
@@ -47,6 +47,6 @@ export default {
         return unescape(data[2]);
       }
       return null;
-    }
-  }
+    },
+  },
 };

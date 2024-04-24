@@ -879,9 +879,7 @@ COLLECTOR_GUIDE_URL = os.environ.get("BKAPP_COLLECTOR_GUIDE_URL", "")
 COLLECTOR_ITSM_SERVICE_ID = int(os.environ.get("BKAPP_COLLECTOR_ITSM_SERVICE_ID", 0))
 ITSM_LOG_DISPLAY_ROLE = "LOG_SEARCH"
 BLUEKING_BK_BIZ_ID = int(os.environ.get("BKAPP_BLUEKING_BK_BIZ_ID", 2))
-BKMONITOR_CUSTOM_PROXY_IP = os.environ.get(
-    "BKAPP_BKMONITOR_CUSTOM_PROXY_IP", "http://report.bkmonitorv3.service.consul:10205"
-)
+BKMONITOR_CUSTOM_PROXY_IP = os.environ.get("BKAPP_BKMONITOR_CUSTOM_PROXY_IP", "")
 # 蓝鲸监控平台的业务ID
 BKMONITOR_BK_BIZ_ID = os.environ.get("BKAPP_BKMONITOR_BK_BIZ_ID", BLUEKING_BK_BIZ_ID)
 TABLE_TRANSFER = os.environ.get("BKAPP_TABLE_TRANSFER", "pushgateway_transfer_metircs.base")
@@ -905,28 +903,29 @@ ES_QUERY_TIMEOUT = int(os.environ.get("BKAPP_ES_QUERY_TIMEOUT", 55))
 ESQUERY_EXTRA_WHITE_LIST = [app for app in os.getenv("BKAPP_ESQUERY_WHITE_LIST", "").split(",") if app]
 
 ESQUERY_WHITE_LIST = [
-                         "bk_log_search",
-                         "hippogriff-4",
-                         "bk_bklog",
-                         "bk_monitor",
-                         "bk_bkmonitor",
-                         "bk_monitorv3",
-                         "bk_bkmonitorv3",
-                         "log-trace",
-                         "log-search-4",
-                         "bkmonitorv3",
-                         "bk-log-search",
-                         "gem3",
-                         "data",
-                         "dataweb",
-                         "bk_bcs",
-                         "bk-dbm",
-                         "bk_dbm",
-                         "bk-audit",
-                         "klc_saas",
-                         "paasv3cli",
-                         "bk_paas3",
-                     ] + ESQUERY_EXTRA_WHITE_LIST
+    "bk_log_search",
+    "hippogriff-4",
+    "bk_bklog",
+    "bk_monitor",
+    "bk_bkmonitor",
+    "bk_monitorv3",
+    "bk_bkmonitorv3",
+    "log-trace",
+    "log-search-4",
+    "bkmonitorv3",
+    "bk-log-search",
+    "gem3",
+    "data",
+    "dataweb",
+    "bk_bcs",
+    "bk-dbm",
+    "bk_dbm",
+    "bk-audit",
+    "klc_saas",
+    "paasv3cli",
+    "bk_paas3",
+    "kingeye-web_saas",
+] + ESQUERY_EXTRA_WHITE_LIST
 
 # BK repo conf
 BKREPO_ENDPOINT_URL = os.getenv("BKREPO_ENDPOINT_URL") or os.getenv("BKAPP_BKREPO_ENDPOINT_URL")
@@ -1197,12 +1196,12 @@ if IS_USE_CELERY:
 
     from celery.signals import setup_logging
 
-
     @setup_logging.connect
     def config_loggers(*args, **kwags):
         from logging.config import dictConfig
 
         dictConfig(LOGGING)
+
 
 # remove disabled apps
 if locals().get("DISABLED_APPS"):

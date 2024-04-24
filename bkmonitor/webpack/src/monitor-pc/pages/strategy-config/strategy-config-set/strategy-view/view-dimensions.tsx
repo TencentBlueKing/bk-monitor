@@ -25,12 +25,13 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils';
 
 import './view-dimensions.scss';
 
 interface IMenu {
-  id: string | number;
+  id: number | string;
   name: string;
   readonly?: boolean;
   disabled?: boolean;
@@ -95,23 +96,23 @@ export default class ViewDimensions extends tsc<IProps> {
           .filter(item => !!item.name)
           .map(item => (
             <div
-              class='dimensions-panel-item'
               key={item.id}
+              class='dimensions-panel-item'
             >
               <div class='item-title'>{item.name}</div>
               <div class='item-content'>
                 <bk-select
                   class='item-content-select'
+                  size='small'
                   value={this.localValues[item.id]}
                   allowCreate
                   searchable
-                  size='small'
                   onChange={v => this.handleItemChange(item, v)}
                 >
                   {item.list.map(l => (
                     <bk-option
-                      key={l.id}
                       id={l.id}
+                      key={l.id}
                       name={l.id}
                     ></bk-option>
                   ))}

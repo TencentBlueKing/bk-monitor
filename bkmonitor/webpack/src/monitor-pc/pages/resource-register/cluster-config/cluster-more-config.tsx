@@ -28,7 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import SpaceSelect from '../../../components/space-select/space-select';
 import { EScopes, EsSpaceScopes } from '../type';
-
 import FormItem from './components/form-item';
 
 import './cluster-more-config.scss';
@@ -36,7 +35,7 @@ import './cluster-more-config.scss';
 const defalutTimes = [
   { id: 1, name: window.i18n.tc('1天') },
   { id: 7, name: window.i18n.tc('7天') },
-  { id: 30, name: window.i18n.tc('30天') }
+  { id: 30, name: window.i18n.tc('30天') },
 ];
 interface IProps {
   data?: any;
@@ -45,12 +44,12 @@ interface IProps {
 }
 @Component
 export default class ClusterMoreConfig extends tsc<IProps> {
-  @Prop({ type: String }) selectedType: String;
+  @Prop({ type: String }) selectedType: string;
   @Prop({ type: Object, default: () => null }) data: any;
   @Prop({ type: Array, default: () => [] }) spaceTypes: { id: string; name: string }[];
   localFormData = {
     kafka: {
-      is_register_gse: false
+      is_register_gse: false,
     },
     elasticsearch: {
       scope: EScopes.currentSpace,
@@ -58,24 +57,24 @@ export default class ClusterMoreConfig extends tsc<IProps> {
       expires: {
         // 过期时间
         default: '',
-        max: ''
+        max: '',
       },
       replica: {
         // 副本数
         default: 0,
-        max: 0
+        max: 0,
       },
       cold_warm_phase_settings: {
         hot: '',
-        cold: ''
+        cold: '',
       },
       hotDataTag: '', // 热数据标签
       coldDataTag: '', // 冷数据标签
-      capacityAssessmentValue: null // 容量评估
+      capacityAssessmentValue: null, // 容量评估
     },
     hotAndColdDataSwitcherValue: false, // 冷热数据开关值
     logArchivingSwitcherValue: false, // 日志归档开关值
-    capacityAssessmentSwitcherValue: false // 容量评估开关值
+    capacityAssessmentSwitcherValue: false, // 容量评估开关值
   };
 
   created() {
@@ -122,8 +121,8 @@ export default class ClusterMoreConfig extends tsc<IProps> {
               return (
                 <FormItem title={this.$tc('是否向GSE注册配置')}>
                   <bk-switcher
-                    theme='primary'
                     v-model={this.localFormData.kafka.is_register_gse}
+                    theme='primary'
                     onChange={this.handleBizIdsChange}
                   ></bk-switcher>
                 </FormItem>
@@ -155,27 +154,27 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                       >
                         {this.spaceTypes.map(item => (
                           <bk-option
-                            key={item.id}
                             id={item.id}
+                            key={item.id}
                             name={item.name}
                           ></bk-option>
                         ))}
                       </bk-select>
                     ) : (
                       <SpaceSelect
-                        value={this.localFormData.elasticsearch.space}
-                        spaceList={this.$store.getters.bizList}
-                        needAuthorityOption={false}
-                        needAlarmOption={false}
                         disabled={this.localFormData.elasticsearch.scope !== EScopes.multiSpace}
+                        needAlarmOption={false}
+                        needAuthorityOption={false}
+                        spaceList={this.$store.getters.bizList}
+                        value={this.localFormData.elasticsearch.space}
                         onChange={this.handleBizIdsChange}
                       ></SpaceSelect>
                     )}
                   </FormItem>
                   <div class='horizontal'>
                     <FormItem
-                      title={this.$tc('过期时间')}
                       width={272}
+                      title={this.$tc('过期时间')}
                     >
                       <div class='time-select-wrap'>
                         <div class='left-wrap'>{this.$tc('默认')}</div>
@@ -186,8 +185,8 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                         >
                           {defalutTimes.map(item => (
                             <bk-option
-                              key={item.id}
                               id={item.id}
+                              key={item.id}
                               name={item.name}
                             ></bk-option>
                           ))}
@@ -195,8 +194,8 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                       </div>
                     </FormItem>
                     <FormItem
-                      title={''}
                       width={272}
+                      title={''}
                     >
                       <div class='time-select-wrap'>
                         <div class='left-wrap'>{this.$tc('最大')}</div>
@@ -207,8 +206,8 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                         >
                           {defalutTimes.map(item => (
                             <bk-option
-                              key={item.id}
                               id={item.id}
+                              key={item.id}
                               name={item.name}
                             ></bk-option>
                           ))}
@@ -218,29 +217,29 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                   </div>
                   <div class='horizontal'>
                     <FormItem
-                      title={this.$tc('副本数')}
                       width={272}
+                      title={this.$tc('副本数')}
                     >
                       <div class='time-select-wrap'>
                         <div class='left-wrap'>{this.$tc('默认')}</div>
                         <bk-input
+                          style={{ flex: 1 }}
                           v-model={this.localFormData.elasticsearch.replica.default}
                           type='number'
-                          style={{ flex: 1 }}
                           onChange={this.handleEmitChange}
                         ></bk-input>
                       </div>
                     </FormItem>
                     <FormItem
-                      title={''}
                       width={272}
+                      title={''}
                     >
                       <div class='time-select-wrap'>
                         <div class='left-wrap'>{this.$tc('默认')}</div>
                         <bk-input
+                          style={{ flex: 1 }}
                           v-model={this.localFormData.elasticsearch.replica.max}
                           type='number'
-                          style={{ flex: 1 }}
                           onChange={this.handleEmitChange}
                         ></bk-input>
                       </div>
@@ -249,8 +248,8 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                   <FormItem title={this.$tc('冷热数据')}>
                     <div class='hint-switcher'>
                       <bk-switcher
-                        theme='primary'
                         v-model={this.localFormData.hotAndColdDataSwitcherValue}
+                        theme='primary'
                         onChange={this.handleBizIdsChange}
                       />
                       {this.localFormData.hotAndColdDataSwitcherValue && (
@@ -266,8 +265,8 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                       <div class='horizontal'>
                         <FormItem width={270}>
                           <div
-                            slot='title'
                             class='hint-lable-title'
+                            slot='title'
                           >
                             <div class='lable'>{this.$tc('热数据标签')}</div>
                             <div class='link'>
@@ -281,8 +280,8 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                           >
                             {[].map(option => (
                               <bk-option
-                                key={option}
                                 id={option}
+                                key={option}
                                 name={option}
                               />
                             ))}
@@ -290,8 +289,8 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                         </FormItem>
                         <FormItem width={270}>
                           <div
-                            slot='title'
                             class='hint-lable-title'
+                            slot='title'
                           >
                             <div class='lable'>{this.$tc('冷数据标签')}</div>
                             <div class='link'>
@@ -305,8 +304,8 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                           >
                             {[].map(option => (
                               <bk-option
-                                key={option}
                                 id={option}
+                                key={option}
                                 name={option}
                               />
                             ))}

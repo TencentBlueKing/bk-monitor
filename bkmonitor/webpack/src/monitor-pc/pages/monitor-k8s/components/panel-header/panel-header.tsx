@@ -32,9 +32,9 @@ import TimeRange, { TimeRangeType } from '../../../../components/time-range/time
 import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import { PANEL_INTERVAL_LIST } from '../../../../constant/constant';
 import { OptionsItem, PanelHeaderType, REFLESH_DEFAULT_LIST, TIME_RANGE_DEFAULT_LIST } from '../../typings/panel-tools';
-import type { IRefleshItem } from '../dashboard-tools';
-
 import FavoritesList, { IFavList } from './favorites-list/favorites-list';
+
+import type { IRefleshItem } from '../dashboard-tools';
 
 import './panel-header.scss';
 
@@ -131,29 +131,29 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
         {!!this.favoritesList.length && (
           <FavoritesList
             class='panel-header-favlist'
-            value={this.favoritesList}
             checkedValue={this.favCheckedValue}
-            onShowChange={val => (this.shwoFav = val)}
-            onSelectFav={this.handleSelectFav}
+            value={this.favoritesList}
             onDeleteFav={this.handleDeleteFav}
+            onSelectFav={this.handleSelectFav}
+            onShowChange={val => (this.shwoFav = val)}
           />
         )}
         <span class='panel-header-center'></span>
         <span class='panel-header-right'>
           {this.showDownSample && (
             <DropDownMenu
-              icon={'icon-lidu'}
               class='tools-interval'
               v-model={this.downSampleRangeValue}
-              list={this.downSampleRangeList}
+              icon={'icon-lidu'}
               iconTitle={window.i18n.tc('粒度')}
+              list={this.downSampleRangeList}
               readonly
               on-change={this.handleIntervalChange}
             />
           )}
           <TimeRange
-            value={this.localTimeRange}
             timezone={this.timezone}
+            value={this.localTimeRange}
             onChange={this.handleTimeRangeChange}
             onTimezoneChange={this.handleTimezoneChange}
           />
@@ -167,14 +167,14 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
             z-index={2500}
             onChange={this.handleTimeRangeChange}/> */}
           <DropDownMenu
-            icon={'icon-zidongshuaxin'}
             class='time-interval right-item'
             v-model={this.localRefleshInterval}
+            icon={'icon-zidongshuaxin'}
+            isRefleshInterval={true}
+            list={this.refleshList}
             text-active={this.localRefleshInterval !== -1}
             on-on-icon-click={this.handleImmediateReflesh}
             onChange={this.handleRefleshChange}
-            isRefleshInterval={true}
-            list={this.refleshList}
           />
         </span>
       </div>

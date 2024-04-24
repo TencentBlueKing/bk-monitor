@@ -34,10 +34,10 @@ export default applyGuidePage([
     path: '/apm/home',
     name: 'apm-home',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: Apm
+      noCache: Apm,
     },
     meta: {
       title: '应用监控',
@@ -45,21 +45,21 @@ export default applyGuidePage([
       customTitle: false,
       noNavBar: true,
       route: {
-        parent: 'scenes'
+        parent: 'scenes',
       },
       authority: {
-        page: VIEW_AUTH
-      }
-    }
+        page: VIEW_AUTH,
+      },
+    },
   },
   {
     path: '/apm/application/add',
     name: 'application-add',
     props: {
-      default: true
+      default: true,
     },
     components: {
-      default: Apm
+      default: Apm,
     },
     meta: {
       title: '应用监控',
@@ -68,21 +68,21 @@ export default applyGuidePage([
       noNavBar: true,
       noSpaceCheck: true,
       route: {
-        parent: 'scenes'
+        parent: 'scenes',
       },
       authority: {
-        page: VIEW_AUTH
-      }
-    }
+        page: VIEW_AUTH,
+      },
+    },
   },
   {
     path: '/apm/*',
     name: 'apm-others',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: Apm
+      noCache: Apm,
     },
     meta: {
       title: '应用监控',
@@ -90,11 +90,11 @@ export default applyGuidePage([
       customTitle: false,
       noNavBar: true,
       route: {
-        parent: 'scenes'
+        parent: 'scenes',
       },
       authority: {
-        page: VIEW_AUTH
-      }
-    }
-  }
+        page: VIEW_AUTH,
+      },
+    },
+  },
 ] as RouteConfig[]);

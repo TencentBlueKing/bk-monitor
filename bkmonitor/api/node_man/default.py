@@ -516,10 +516,11 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
-    def perform_request(self, params):
-        params["_origin_user"] = get_global_user()
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(GetProxiesByBizResource, self).full_request_data(validated_request_data)
+        validated_request_data["_origin_user"] = get_global_user()
         setattr(self, "bk_username", settings.COMMON_USERNAME)
-        return super(GetProxiesByBizResource, self).perform_request(params)
+        return validated_request_data
 
 
 PLUGIN_JOB_TUPLE = (

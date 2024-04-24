@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { connect } from 'echarts/core';
 
 import loadingIcon from '../../icons/spinner.svg';
@@ -102,21 +103,21 @@ export default class AiopsChart extends tsc<IProps> {
             {this.loadingList[index] && (
               <img
                 class='loading-icon'
-                src={loadingIcon}
                 alt=''
+                src={loadingIcon}
               ></img>
             )}
             <LineChart
-              panel={panel}
-              customTimeRange={this.customTimeRange}
-              customMenuList={['screenshot', 'explore', 'set', 'area']}
-              onLoading={val => this.handleChangeLoading(val, index)}
-              onErrorMsg={this.errorMsgFn}
               clearErrorMsg={this.clearErrorMsg}
+              customMenuList={['screenshot', 'explore', 'set', 'area']}
+              customTimeRange={this.customTimeRange}
+              panel={panel}
               showHeaderMoreTool={this.insideList[index]}
               onDataZoom={this.handleDataZoom}
               onDblClick={this.handleDblClick}
               onDimensionsOfSeries={this.handleDimensionsOfSeries}
+              onErrorMsg={this.errorMsgFn}
+              onLoading={val => this.handleChangeLoading(val, index)}
             />
           </div>
         ))}

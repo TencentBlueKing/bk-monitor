@@ -51,14 +51,14 @@ export default class NoticeStatusTable extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) hasColumns: string[];
   classMap = {
     失败: 'failed',
-    成功: 'success'
+    成功: 'success',
   };
   render() {
     return (
       <div class='notice-status-table'>
         <bk-table
-          data={this.tableData}
           border={false}
+          data={this.tableData}
           outer-border={false}
         >
           <bk-table-column
@@ -70,8 +70,6 @@ export default class NoticeStatusTable extends tsc<IProps> {
             this.hasColumns.includes(item.prop) ? (
               <bk-table-column
                 key={i}
-                label={item.label}
-                prop={item.prop}
                 scopedSlots={{
                   default: ({ row }) =>
                     !Object.keys(this.classMap).includes(row?.[item.prop]?.label) ? (
@@ -83,7 +81,7 @@ export default class NoticeStatusTable extends tsc<IProps> {
                           with: 200,
                           content: row[item.prop]?.tip,
                           placements: ['top'],
-                          disabled: !row[item.prop]?.tip
+                          disabled: !row[item.prop]?.tip,
                         }}
                       >
                         {row?.[item.prop]?.label || '--'}
@@ -98,13 +96,15 @@ export default class NoticeStatusTable extends tsc<IProps> {
                           with: 200,
                           content: row[item.prop]?.tip,
                           placements: ['top'],
-                          disabled: !row[item.prop]?.tip
+                          disabled: !row[item.prop]?.tip,
                         }}
                       />
-                    )
+                    ),
                 }}
-                resizable={false}
                 align='center'
+                label={item.label}
+                prop={item.prop}
+                resizable={false}
               ></bk-table-column>
             ) : undefined
           )}

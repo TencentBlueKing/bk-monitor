@@ -31,7 +31,9 @@
           class="start-upgrade"
           :theme="'primary'"
           @click="upgradeAll"
-        > {{ $t('开始升级') }} </bk-button>
+        >
+          {{ $t('开始升级') }}
+        </bk-button>
       </div>
     </div>
     <div class="upgrade-list-wrapper">
@@ -48,8 +50,8 @@
         {{ $t('升级可能需要较长的时间，请耐心等待。') }} <strong> {{ $t('升级过程中，请勿关闭页面。') }} </strong>
       </p>
       <div
-        class="script-collecotr"
         v-bkloading="{ isLoading: script.loading }"
+        class="script-collecotr"
       >
         <h3 class="title">
           {{ $t('脚本采集') }}
@@ -86,10 +88,12 @@
             <template slot-scope="props">
               <ul class="fix-same-code">
                 <li
-                  class="fix-same-code"
                   v-for="(task, index) in props.row.tasks"
                   :key="index"
-                >{{ `${task.title}(${task.desc})` }}</li>
+                  class="fix-same-code"
+                >
+                  {{ `${task.title}(${task.desc})` }}
+                </li>
               </ul>
             </template>
           </bk-table-column>
@@ -101,15 +105,15 @@
             <template slot-scope="props">
               <span :class="props.row.status">{{ statusColor[props.row.status] }}</span>
               <span
-                style="vertical-align: middle"
                 v-if="props.row.status === 'failed'"
-                class="bk-icon icon-exclamation-circle failed"
                 v-bk-tooltips="{
                   content: props.row.errorMsg,
                   showOnInit: false,
                   placements: ['top'],
-                  allowHTML: false
+                  allowHTML: false,
                 }"
+                style="vertical-align: middle"
+                class="bk-icon icon-exclamation-circle failed"
               />
             </template>
           </bk-table-column>
@@ -130,8 +134,8 @@
         </bk-table>
       </div>
       <div
-        class="log-collector"
         v-bkloading="{ isLoading: log.loading }"
+        class="log-collector"
       >
         <h3>{{ $t('日志采集') }}</h3>
         <bk-table
@@ -166,7 +170,9 @@
                 <li
                   v-for="(task, index) in props.row.tasks"
                   :key="index"
-                >{{ `${task.title}(${task.desc})` }}</li>
+                >
+                  {{ `${task.title}(${task.desc})` }}
+                </li>
               </ul>
             </template>
           </bk-table-column>
@@ -178,15 +184,15 @@
             <template slot-scope="props">
               <span :class="props.row.status">{{ statusColor[props.row.status] }}</span>
               <span
-                style="vertical-align: middle"
                 v-if="props.row.status === 'failed'"
-                class="bk-icon icon-exclamation-circle failed"
                 v-bk-tooltips="{
                   content: props.row.errorMsg,
                   showOnInit: false,
                   placements: ['top'],
-                  allowHTML: false
+                  allowHTML: false,
                 }"
+                style="vertical-align: middle"
+                class="bk-icon icon-exclamation-circle failed"
               />
             </template>
           </bk-table-column>
@@ -217,15 +223,15 @@ export default {
     return {
       bizList: {
         value: 0,
-        data: []
+        data: [],
       },
       script: {
         data: [],
-        loading: true
+        loading: true,
       },
       log: {
         data: [],
-        loading: true
+        loading: true,
       },
       waitUpgradeTasks: [],
       upgradingTasks: [],
@@ -233,15 +239,15 @@ export default {
         ready: this.$t('准备升级'),
         pending: this.$t('升级中...'),
         success: this.$t('升级成功'),
-        failed: this.$t('升级失败')
+        failed: this.$t('升级失败'),
       },
       disableProps: {
         ready: false,
         pending: true,
         success: true,
-        failed: false
+        failed: false,
       },
-      bizMapping: {}
+      bizMapping: {},
     };
   },
   computed: {},
@@ -269,7 +275,7 @@ export default {
               this.enterQueue(task);
             }
           });
-        }
+        },
       });
     },
     start(row) {
@@ -289,7 +295,7 @@ export default {
     },
     getUpgradeList() {
       const addStatusProp = (array, type) => {
-        array.forEach((data) => {
+        array.forEach(data => {
           data.status = 'ready';
           data.errorMsg = '';
           data.type = type;
@@ -298,13 +304,13 @@ export default {
       this.script.loading = true;
       this.log.loading = true;
 
-      this.$api.model.listUpgradeHostScriptCollectorConfig({ bk_biz_id: this.$store.getters.bizId }).then((data) => {
+      this.$api.model.listUpgradeHostScriptCollectorConfig({ bk_biz_id: this.$store.getters.bizId }).then(data => {
         addStatusProp(data, 'script');
         this.script.data = data.filter(task => task.upgrade_status !== 'success');
         data.errorMsg = '';
         this.script.loading = false;
       });
-      this.$api.model.listUpgradeHostLogCollector({ bk_biz_id: this.$store.getters.bizId }).then((data) => {
+      this.$api.model.listUpgradeHostLogCollector({ bk_biz_id: this.$store.getters.bizId }).then(data => {
         addStatusProp(data, 'log');
         this.log.data = data.filter(task => task.upgrade_status !== 'success');
         this.log.loading = false;
@@ -313,12 +319,13 @@ export default {
     upgrade(row) {
       const param = {
         ip: row.ip,
-        bk_cloud_id: row.bk_cloud_id
+        bk_cloud_id: row.bk_cloud_id,
       };
-      const ajaxFun =        row.type === 'script'
-        ? this.$api.model.upgradeHostScriptCollectorConfig
-        : this.$api.model.upgradeHostLogCollector;
-      ajaxFun(param).then((res) => {
+      const ajaxFun =
+        row.type === 'script'
+          ? this.$api.model.upgradeHostScriptCollectorConfig
+          : this.$api.model.upgradeHostLogCollector;
+      ajaxFun(param).then(res => {
         if (res.result) {
           row.status = 'success';
         } else {
@@ -331,8 +338,8 @@ export default {
           this.enterQueue(this.waitUpgradeTasks[0]);
         }
       });
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

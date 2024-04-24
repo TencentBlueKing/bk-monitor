@@ -129,8 +129,8 @@ export default class DatePanel extends tsc<IProps> {
                       {
                         'not-this-month': !(day.currentMonthsDay ?? true),
                         'is-today': day.isToday,
-                        selected: this.months.selectedDays.includes(day.timestamp)
-                      }
+                        selected: this.months.selectedDays.includes(day.timestamp),
+                      },
                     ]}
                     onClick={() => this.handleSelectDate(day)}
                   >

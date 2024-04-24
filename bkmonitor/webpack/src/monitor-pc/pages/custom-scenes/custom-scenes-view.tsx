@@ -38,12 +38,12 @@ import './custom-scenes-view.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 enum ESceneType {
-  plugin = 'plugin',
+  customEvent = 'custom_event',
   customMetric = 'custom_metric',
-  customEvent = 'custom_event'
+  plugin = 'plugin',
 }
 @Component
-export default class CustomScenesView extends tsc<{}> {
+export default class CustomScenesView extends tsc<object> {
   @Prop({ type: [String, Number], default: '' }) readonly id: string;
   @Prop({ type: String, default: '' }) readonly title: string;
 
@@ -52,7 +52,7 @@ export default class CustomScenesView extends tsc<{}> {
   routeList: INavItem[] = [
     // { id: 'custom-scenes', name: '自定义场景' },
     // { id: 'custom-scenes', name: '' },
-    { id: '', name: '', subName: '' }
+    { id: '', name: '', subName: '' },
   ];
 
   // sceneId
@@ -63,8 +63,8 @@ export default class CustomScenesView extends tsc<{}> {
     {
       id: 'source-manage',
       name: this.$t('数据源管理') as string,
-      show: true
-    }
+      show: true,
+    },
   ];
   // 是否显示引导页
   get showGuidePage() {
@@ -78,7 +78,7 @@ export default class CustomScenesView extends tsc<{}> {
     next((vm: CustomScenesView) => {
       if (vm.showGuidePage) return;
       vm.viewOptions = {
-        filters: {}
+        filters: {},
       };
       vm.sceneId = to.params.id;
       vm.routeList[0].name = to.query.name || '';
@@ -96,7 +96,7 @@ export default class CustomScenesView extends tsc<{}> {
 
   handleToCollect() {
     const {
-      query: { customQuery }
+      query: { customQuery },
     } = this.$route;
     const pluginTypes = ['snmp_trap', 'log'];
     const { sceneType, sceneId, pluginType } = JSON.parse((customQuery as string) || '{}');
@@ -105,34 +105,34 @@ export default class CustomScenesView extends tsc<{}> {
         this.$router.push({
           name: 'collect-config',
           query: {
-            id: sceneId
-          }
+            id: sceneId,
+          },
         });
       } else {
         this.$router.push({
           name: 'collect-config',
           params: {
-            pluginId: sceneId as string
-          }
+            pluginId: sceneId as string,
+          },
         });
       }
     } else {
       const types = {
         [ESceneType.customMetric]: {
           name: 'custom-detail-timeseries',
-          type: 'customTimeSeries'
+          type: 'customTimeSeries',
         },
         [ESceneType.customEvent]: {
           name: 'custom-detail-event',
-          type: 'customEvent'
-        }
+          type: 'customEvent',
+        },
       };
       this.$router.push({
         name: types[sceneType as ESceneType].name,
         params: {
           id: sceneId as string,
-          type: types[sceneType as ESceneType].type
-        }
+          type: types[sceneType as ESceneType].type,
+        },
       });
     }
   }
@@ -143,22 +143,22 @@ export default class CustomScenesView extends tsc<{}> {
       <div class='custom-scenes-view-page'>
         {this.sceneId && (
           <CommonPage
+            defaultViewOptions={this.viewOptions}
+            isMergeMenuList={true}
+            menuList={this.menuList}
             sceneId={this.sceneId}
             sceneType={'detail'}
-            menuList={this.menuList}
-            isMergeMenuList={true}
             title={this.$tc('自定义场景')}
-            defaultViewOptions={this.viewOptions}
+            onMenuSelect={this.handleMenuSelect}
             // onPageTitleChange={this.handlePageTitleChange}
             onTitleChange={this.headerTitleChange}
-            onMenuSelect={this.handleMenuSelect}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             ></CommonNavBar>
           </CommonPage>
         )}

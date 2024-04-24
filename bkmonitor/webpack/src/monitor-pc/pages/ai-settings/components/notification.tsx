@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 
 import TopoSelector from '../../../components/ip-selector/business/topo-selector-new.vue';
@@ -37,7 +38,7 @@ const targetResult = {
   message: '',
   messageCount: 0,
   subMessage: '',
-  subMessageCount: 0
+  subMessageCount: 0,
 };
 interface NotificationProps {
   isEdit: boolean;
@@ -57,7 +58,7 @@ export default class Notification extends tsc<NotificationProps> {
   targetList: any = [];
   checkedData: CheckedData = {
     type: 'TOPO',
-    data: []
+    data: [],
   };
 
   @Emit('change')
@@ -103,11 +104,11 @@ export default class Notification extends tsc<NotificationProps> {
         ? this.checkedData.data.map(item => ({
             ip: item.ip,
             bk_cloud_id: item.bk_cloud_id,
-            bk_supplier_id: item.bk_supplier_id
+            bk_supplier_id: item.bk_supplier_id,
           }))
         : this.checkedData.data.map(item => ({
             bk_inst_id: item.bk_inst_id,
-            bk_obj_id: item.bk_obj_id
+            bk_obj_id: item.bk_obj_id,
           }));
     // 监控目标格式转换
     const targets: [HostValueItem[]] = [
@@ -115,9 +116,9 @@ export default class Notification extends tsc<NotificationProps> {
         {
           field: targetFieldMap[this.checkedData.type],
           method: 'eq',
-          value
-        }
-      ]
+          value,
+        },
+      ],
     ];
 
     this.valueChange(targets);
@@ -146,48 +147,45 @@ export default class Notification extends tsc<NotificationProps> {
 
     return (
       <span class='ai-settings-notification-component'>
-        {
-          // eslint-disable-next-line no-nested-ternary
-          this.value?.[0]?.[0]?.value?.length > 0 ? (
-            <span
-              class={['target-overview', { overview: !this.isEdit }]}
-              onClick={this.handleShowTargetDetail}
-            >
-              <i class='icon-monitor icon-mc-tv notification-tv'></i>
-              {this.renderHostInfo(messageCount, message) || '--'}
-              {subMessageCount > 0 ? <span>({this.renderHostInfo(subMessageCount, subMessage)})</span> : null}
-              {this.isEdit && (
-                <i
-                  class='icon-monitor icon-mc-edit mc-edit'
-                  onClick={this.handleShowSelect}
-                />
-              )}
-            </span>
-          ) : this.isEdit ? (
-            <span
-              class='add-tag'
-              onClick={this.handleShowSelect}
-            >
-              <span class='icon-monitor icon-mc-add'></span>
-              <span class='add-tag-text'>{this.$t('关闭对象')}</span>
-            </span>
-          ) : (
-            <span class='target-overview no-target'>
-              <i class='icon-monitor icon-mc-tv notification-tv'></i>
-              <span>--</span>
-            </span>
-          )
-        }
+        {this.value?.[0]?.[0]?.value?.length > 0 ? (
+          <span
+            class={['target-overview', { overview: !this.isEdit }]}
+            onClick={this.handleShowTargetDetail}
+          >
+            <i class='icon-monitor icon-mc-tv notification-tv'></i>
+            {this.renderHostInfo(messageCount, message) || '--'}
+            {subMessageCount > 0 ? <span>({this.renderHostInfo(subMessageCount, subMessage)})</span> : null}
+            {this.isEdit && (
+              <i
+                class='icon-monitor icon-mc-edit mc-edit'
+                onClick={this.handleShowSelect}
+              />
+            )}
+          </span>
+        ) : this.isEdit ? (
+          <span
+            class='add-tag'
+            onClick={this.handleShowSelect}
+          >
+            <span class='icon-monitor icon-mc-add'></span>
+            <span class='add-tag-text'>{this.$t('关闭对象')}</span>
+          </span>
+        ) : (
+          <span class='target-overview no-target'>
+            <i class='icon-monitor icon-mc-tv notification-tv'></i>
+            <span>--</span>
+          </span>
+        )}
         <bk-dialog
           width={1000}
           class='ai-settings-notification-component-dialog'
-          value={this.showTopoSelector}
-          render-directive='if'
-          header-position='left'
-          onChange={v => (this.showTopoSelector = v)}
           confirm-fn={this.handleConfirm}
+          header-position='left'
+          render-directive='if'
           show-footer={this.isEdit}
+          value={this.showTopoSelector}
           onCancel={this.handleTargetCancel}
+          onChange={v => (this.showTopoSelector = v)}
         >
           <div slot='header'>
             {this.$t('添加对象')}
@@ -195,16 +193,16 @@ export default class Notification extends tsc<NotificationProps> {
             <span class='sub-title-text'>{this.$t('被选对象将会关闭页面通知')}</span>
           </div>
           <div
-            style='height: 653px'
             ref='targetContainer'
+            style='height: 653px'
           >
             <TopoSelector
-              height='653px'
-              tree-height={this.targetContainerHeight}
               key={this.ipSelectKey}
+              height='653px'
               class='mt15'
-              targetNodeType={this.checkedData.type}
               checked-data={this.checkedData.data || []}
+              targetNodeType={this.checkedData.type}
+              tree-height={this.targetContainerHeight}
               on-check-change={this.handleTopoCheckedChange}
             />
           </div>

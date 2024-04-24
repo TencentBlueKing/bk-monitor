@@ -40,5 +40,5 @@ export default [
   ...CollectRoutes,
   ...CustomEvent,
   ...CustomMetric,
-  ...Fta
+  ...Fta,
 ] as RouteConfig[];

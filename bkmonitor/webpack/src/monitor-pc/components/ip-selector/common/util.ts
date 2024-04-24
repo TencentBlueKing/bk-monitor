@@ -76,5 +76,5 @@ export const defaultSearch = (data: any[], keyword: string) => {
 export default {
   hasOwnProperty,
   Debounce,
-  defaultSearch
+  defaultSearch,
 };

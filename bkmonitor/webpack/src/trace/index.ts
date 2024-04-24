@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// eslint-disable-next-line simple-import-sort/imports
+
 import './public-path';
 import 'monitor-common/polyfill';
-import i18n from './i18n/i18n';
 
+import i18n from './i18n/i18n';
 import { createApp } from 'vue';
+
 import { Message } from 'bkui-vue';
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
@@ -40,8 +41,10 @@ import App from './pages/app';
 import router from './router/router';
 import { useAuthorityStore } from './store/modules/authority';
 import store from './store/store';
-import 'monitor-static/icons/monitor-icons.css';
+import 'monitor-pc/common/global-login';
+
 import './static/scss/global.scss';
+import 'monitor-static/icons/monitor-icons.css';
 
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');
@@ -56,14 +59,14 @@ if (window.__POWERED_BY_BK_WEWEB__) {
   app.config.globalProperties = {
     $api: Api,
     $Message: Message,
-    $authorityStore: useAuthorityStore()
+    $authorityStore: useAuthorityStore(),
   } as any;
 } else {
   Api.model
     .enhancedContext({
       space_uid: spaceUid || undefined,
       bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
-      context_type: 'basic'
+      context_type: 'basic',
     })
     .then(data => {
       Object.keys(data).forEach(key => {
@@ -81,13 +84,13 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       app.config.globalProperties = {
         $api: Api,
         $Message: Message,
-        $authorityStore: useAuthorityStore()
+        $authorityStore: useAuthorityStore(),
       } as any;
       Api.model
         .enhancedContext({
           space_uid: spaceUid || undefined,
           bk_biz_id: window.bk_biz_id,
-          context_type: 'extra'
+          context_type: 'extra',
         })
         .then(data => {
           Object.keys(data).forEach(key => {

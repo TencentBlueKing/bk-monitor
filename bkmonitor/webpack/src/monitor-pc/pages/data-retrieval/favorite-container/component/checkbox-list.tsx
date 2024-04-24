@@ -93,8 +93,8 @@ export default class List extends tsc<IProps, IEvents> {
             <div class={['list-group', { 'no-name': !item.name }]}>
               {
                 <bk-checkbox
-                  checked={this.isSelectAll}
                   ext-cls={'list-item-checkbox'}
+                  checked={this.isSelectAll}
                   onChange={(status: boolean) => this.handleSelectAll(status)}
                 >
                   <div class={['checkbox-item', { checked: this.selectList.includes('*') }]}>
@@ -104,8 +104,8 @@ export default class List extends tsc<IProps, IEvents> {
               }
               {item.children.map(child => (
                 <bk-checkbox
-                  checked={this.selectList.includes(child.bk_biz_id)}
                   ext-cls={'list-item-checkbox'}
+                  checked={this.selectList.includes(child.bk_biz_id)}
                   onChange={() => this.handleCheckBoxChange(child.bk_biz_id)}
                 >
                   <div
@@ -129,8 +129,8 @@ export default class List extends tsc<IProps, IEvents> {
                     <span class='list-item-right'>
                       {child.tags?.map?.(tag => (
                         <span
-                          class='list-item-tag'
                           style={{ ...SPACE_TYPE_MAP[tag.id]?.light }}
+                          class='list-item-tag'
                         >
                           {tag.name}
                         </span>
@@ -144,8 +144,8 @@ export default class List extends tsc<IProps, IEvents> {
         ) : (
           <bk-exception
             class='no-data'
-            type='search-empty'
             scene='part'
+            type='search-empty'
           />
         )}
       </div>

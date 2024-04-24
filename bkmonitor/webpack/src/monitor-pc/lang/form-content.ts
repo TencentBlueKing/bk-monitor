@@ -118,5 +118,5 @@ export default {
   已解析: 'Parsed',
   已存储: 'Stored',
   存储失败: 'Storage Failed',
-  解析成功: 'Parsed Successfully'
+  解析成功: 'Parsed Successfully',
 };

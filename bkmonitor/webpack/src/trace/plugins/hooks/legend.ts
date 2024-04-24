@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Ref } from 'vue';
+
 import { deepClone } from 'monitor-common/utils/utils';
 import { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -43,7 +44,7 @@ export function useChartLegend(
     if (actionType === 'shift-click') {
       chartInstance.dispatchAction({
         type: !item.show ? 'legendSelect' : 'legendUnSelect',
-        name: item.name
+        name: item.name,
       });
       item.show = !item.show;
     } else if (actionType === 'click') {
@@ -58,7 +59,7 @@ export function useChartLegend(
             (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
               ? 'legendSelect'
               : 'legendUnSelect',
-          name: legend.name
+          name: legend.name,
         });
         legend.show = legend.name === item.name || !hasOtherShow;
       });
@@ -68,7 +69,7 @@ export function useChartLegend(
     if (!showHeaderMoreTool.value) {
       const chartInstance = baseChart.value?.instance;
       chartInstance.dispatchAction({
-        type: 'restore'
+        type: 'restore',
       });
     }
   }
@@ -101,10 +102,10 @@ export function useChartLegend(
             return `${ratio}%\n${params.name}`;
           }
           return '';
-        }
+        },
       };
       targetOption.series[0].emphasis.label = {
-        show: true
+        show: true,
       };
     }
     const chartInstance = baseChart.value?.instance;
@@ -115,7 +116,7 @@ export function useChartLegend(
     actionType,
     item,
     option,
-    needResetChart = false
+    needResetChart = false,
   }: {
     actionType: LegendActionType;
     item: ILegendItem;
@@ -126,7 +127,7 @@ export function useChartLegend(
       const chartInstance = baseChart.value?.instance;
       chartInstance.dispatchAction({
         type: actionType,
-        name: item.name
+        name: item.name,
       });
     }
 
@@ -135,13 +136,11 @@ export function useChartLegend(
     }
 
     if (actionType === 'shift-click') {
-      // eslint-disable-next-line no-param-reassign
       item.show = !item.show;
       handleResetPieChart(option, needResetChart);
     } else if (actionType === 'click') {
       const hasOtherShow = legendData.value.some(set => set.name !== item.name && set.show);
       legendData.value.forEach(legend => {
-        // eslint-disable-next-line no-param-reassign
         legend.show = legend.name === item.name || !hasOtherShow;
       });
       handleResetPieChart(option, needResetChart);
@@ -163,6 +162,6 @@ export function useChartLegend(
     handleResetPieChart,
     handleSelectPieLegend,
     handleSetLegendEvent,
-    handleUnSetLegendEvent
+    handleUnSetLegendEvent,
   };
 }

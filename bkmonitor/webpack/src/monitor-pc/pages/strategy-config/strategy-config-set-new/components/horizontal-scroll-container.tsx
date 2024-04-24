@@ -67,7 +67,7 @@ export default class HorizontalScrollContainer extends tsc<IProps> {
     this.canNext = true;
   }
 
-  handleClick(type: 'pre' | 'next') {
+  handleClick(type: 'next' | 'pre') {
     if (this.running) return;
     let course = 120;
     const speed = 5;
@@ -121,7 +121,7 @@ export default class HorizontalScrollContainer extends tsc<IProps> {
         class={[
           'horizontal-scroll-container',
           { 'has-scroll': this.hasScroll },
-          { 'small-btn': this.smallBtn && this.hasScroll }
+          { 'small-btn': this.smallBtn && this.hasScroll },
         ]}
       >
         <div class='scroll-container'>{this.$slots?.default}</div>

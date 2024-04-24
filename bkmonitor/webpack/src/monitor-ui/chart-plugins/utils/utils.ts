@@ -90,7 +90,7 @@ export const queryConfigTransform = (queryConfig: any, viewOptions: IViewOptions
   ...queryConfig,
   group_by: viewOptions?.group_by?.length ? viewOptions?.group_by : queryConfig?.group_by,
   interval: viewOptions?.interval || queryConfig?.interval,
-  method: viewOptions?.method || queryConfig?.method
+  method: viewOptions?.method || queryConfig?.method,
 });
 
 export const isShadowEqual = (v: Record<string, any>, o: Record<string, any>) => {
@@ -126,7 +126,7 @@ const methodMap = {
   lte: '<=',
   lt: '<',
   eq: '=',
-  neq: '!='
+  neq: '!=',
 };
 /** 处理阈值线画图数据 */
 export const handleThreshold = async (detectionsConfig: IDetectionConfig, yAxisNeedUnit = true) => {
@@ -135,7 +135,7 @@ export const handleThreshold = async (detectionsConfig: IDetectionConfig, yAxisN
   const markArea = getMarkArea(thresholdLine);
   return {
     markLine,
-    markArea
+    markArea,
   };
 };
 // 获取阈值信息
@@ -144,7 +144,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
   const lineColor = {
     1: '#ea3636',
     2: '#ffd000',
-    3: '#ff8000'
+    3: '#ff8000',
   };
   let unitSeries = [];
   if (detectionsConfig.unit && yAxisNeedUnit) {
@@ -155,7 +155,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
   /**
    * 根据阈值生成阈值的配置
    */
-  const handleThresholdOption = (list, level, unitConversion, title?: Function) => {
+  const handleThresholdOption = (list, level, unitConversion, title?: () => void) => {
     const result = [];
     list.forEach(cfg => {
       const thresholdVal = unitConversion ? unitConversion.unit_conversion * +cfg.threshold : +cfg.threshold;
@@ -167,15 +167,15 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
         method: cfg.method,
         condition: cfg.condition,
         lineStyle: {
-          color: lineColor[level]
+          color: lineColor[level],
         },
         label: {
-          color: lineColor[level]
+          color: lineColor[level],
         },
         itemStyle: {
           color: lineColor[level],
-          opacity: 0.1
-        }
+          opacity: 0.1,
+        },
       });
     });
     return result;
@@ -191,7 +191,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
         ...handleThresholdOption(config?.thresholds?.[0], level, unitConversion, val => {
           const value = unitConversion ? unitConversion.unit_conversion * val.threshold : val.threshold;
           return `${window.i18n.tc('阈值')}(${methodMap[val.method]}${value})`;
-        })
+        }),
       ];
       // config?.[0].forEach((cfg) => {
       //   const thresholdTitle = methodMap[cfg.method] ? `(${methodMap[cfg.method]}${cfg.threshold})` : '';
@@ -231,21 +231,21 @@ const getMarkLine = (thresholdLine: any[]) => {
     symbol: [],
     label: {
       show: true,
-      position: 'insideStartTop'
+      position: 'insideStartTop',
     },
     lineStyle: {
       color: '#FD9C9C',
       type: 'dashed',
       distance: 3,
-      width: 1
+      width: 1,
     },
     emphasis: {
       label: {
         show: true,
         formatter(v: any) {
           return `${v.name || ''}: ${v.value}`;
-        }
-      }
+        },
+      },
     },
     data: thresholdLine.map((item: any) => ({
       ...item,
@@ -253,9 +253,9 @@ const getMarkLine = (thresholdLine: any[]) => {
         show: true,
         formatter() {
           return '';
-        }
-      }
-    }))
+        },
+      },
+    })),
   };
   return markLine;
 };
@@ -269,7 +269,7 @@ const getMarkArea = (thresholdLine: any[]) => {
     const closedInterval = ['lte', 'lt']; // 闭区间
 
     const data = [];
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
     for (let index = 0; index < threshold.length; index++) {
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
@@ -302,22 +302,22 @@ const getMarkArea = (thresholdLine: any[]) => {
       yAxis !== undefined &&
         data.push([
           {
-            ...current
+            ...current,
           },
           {
             yAxis,
-            y: yAxis === 'max' ? '0%' : ''
-          }
+            y: yAxis === 'max' ? '0%' : '',
+          },
         ]);
     }
     return data;
   };
   const markArea = {
     label: {
-      show: false
+      show: false,
     },
     silent: true,
-    data: handleSetThresholdAreaData(thresholdLine)
+    data: handleSetThresholdAreaData(thresholdLine),
   };
   return markArea;
 };
@@ -342,7 +342,7 @@ export const filterDictConvertedToWhere = (
           key,
           condition: 'and',
           method: 'eq',
-          value: Array.isArray(value) ? value.map(val => `${val}`) : [`${value}`]
+          value: Array.isArray(value) ? value.map(val => `${val}`) : [`${value}`],
         };
         if (!excludes.includes(key)) total.push(res);
         return total;
@@ -399,7 +399,7 @@ export const parseMetricId = (metricId: string) => {
         return {
           data_source_label: dataSourceLabel,
           data_type_label: 'log',
-          result_table_id: splitFieldList[2]
+          result_table_id: splitFieldList[2],
         };
       }
       if (splitFieldList.length === 2) {
@@ -407,14 +407,14 @@ export const parseMetricId = (metricId: string) => {
           data_source_label: dataSourceLabel,
           data_type_label: 'event',
           result_table_id: 'system.event',
-          metric_field: splitFieldList[1]
+          metric_field: splitFieldList[1],
         };
       }
       if (splitFieldList[1] === 'alert') {
         return {
           data_source_label: dataSourceLabel,
           data_type_label: 'alert',
-          metric_field: splitFieldList[2]
+          metric_field: splitFieldList[2],
         };
       }
       if ([3, 4].includes(splitFieldList.length)) {
@@ -422,7 +422,7 @@ export const parseMetricId = (metricId: string) => {
           data_source_label: dataSourceLabel,
           data_type_label: 'time_series',
           result_table_id: splitFieldList.slice(1, -1).join('.'),
-          metric_field: splitFieldList.slice(-1).join('')
+          metric_field: splitFieldList.slice(-1).join(''),
         };
       }
     case 'custom':
@@ -431,55 +431,55 @@ export const parseMetricId = (metricId: string) => {
           data_source_label: dataSourceLabel,
           data_type_label: 'event',
           result_table_id: splitFieldList[2],
-          metric_field: splitFieldList[3]
+          metric_field: splitFieldList[3],
         };
       }
       return {
         data_source_label: dataSourceLabel,
         data_type_label: 'time_series',
         result_table_id: splitFieldList.slice(1, 3).join('.'),
-        metric_field: splitFieldList[3]
+        metric_field: splitFieldList[3],
       };
     case 'bk_log_search':
       if (splitFieldList.length === 3) {
         return {
           data_source_label: dataSourceLabel,
           data_type_label: 'log',
-          index_set_id: splitFieldList[2]
+          index_set_id: splitFieldList[2],
         };
       }
       return {
         data_source_label: dataSourceLabel,
         data_type_label: 'time_series',
         index_set_id: splitFieldList[2],
-        metric_field: splitFieldList[3]
+        metric_field: splitFieldList[3],
       };
     case 'bk_data':
       return {
         data_source_label: dataSourceLabel,
         data_type_label: 'time_series',
         result_table_id: splitFieldList[1],
-        metric_field: splitFieldList[2]
+        metric_field: splitFieldList[2],
       };
     case 'bk_fta':
       return {
         data_source_label: dataSourceLabel,
         data_type_label: splitFieldList[1],
-        metric_field: splitFieldList.slice(2).join('.')
+        metric_field: splitFieldList.slice(2).join('.'),
       };
     case 'apm':
       if (splitFieldList[1] === 'log') {
         return {
           data_source_label: dataSourceLabel,
           data_type_label: 'log',
-          result_table_id: splitFieldList[2]
+          result_table_id: splitFieldList[2],
         };
       }
       return {
         data_source_label: dataSourceLabel,
         data_type_label: 'time_series',
         result_table_id: splitFieldList[1],
-        metric_field: splitFieldList[2]
+        metric_field: splitFieldList[2],
       };
     default:
       return {};
@@ -488,7 +488,7 @@ export const parseMetricId = (metricId: string) => {
 export const MAX_PONIT_COUNT = 2880;
 export const MIN_PONIT_COUNT = 1440;
 export const INTERVAL_CONTANT_LIST = [10, 30, 60, 2 * 60, 5 * 60, 10 * 60, 30 * 60, 60 * 60];
-export const reviewInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const reviewInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     reviewInterval = interval;
@@ -503,7 +503,7 @@ export const reviewInterval = (interval: number | 'auto' | string, timeRange: nu
   return reviewInterval;
 };
 
-export const recheckInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const recheckInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     const minInterval = (timeRange / (step || 60) / MAX_PONIT_COUNT) * 60;
@@ -530,7 +530,7 @@ export const recheckInterval = (interval: number | 'auto' | string, timeRange: n
 
 export const flattenObj = obj => {
   const res = {};
-  // eslint-disable-next-line no-restricted-syntax
+
   for (const key in obj) {
     if (typeof obj[key] === 'object' && obj[key] !== null) {
       flatten(res, obj[key], `${key}`);
@@ -540,7 +540,6 @@ export const flattenObj = obj => {
   }
 
   function flatten(res, obj, keyname) {
-    // eslint-disable-next-line no-restricted-syntax
     for (const key in obj) {
       if (typeof obj[key] === 'object' && obj[key] !== null) {
         flatten(res, obj[key], `${keyname}.${key}`);

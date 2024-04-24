@@ -24,6 +24,7 @@ from rest_framework import serializers
 from apm_web.constants import (
     APDEX_VIEW_ITEM_LEN,
     COLLECT_SERVICE_CONFIG_KEY,
+    COLUMN_KEY_PROFILING_DATA_COUNT,
     DEFAULT_EMPTY_NUMBER,
     AlertLevel,
     AlertStatus,
@@ -45,6 +46,7 @@ from apm_web.metric_handler import (
     ApdexInstance,
     ApdexRange,
     AvgDurationInstance,
+    ErrorCountInstance,
     ErrorRateInstance,
     RequestCountInstance,
 )
@@ -72,6 +74,7 @@ from apm_web.serializers import (
 from apm_web.utils import Calculator, group_by, handle_filter_fields
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import ApmMetrics, OtlpKey, SpanKind
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
@@ -434,6 +437,42 @@ class ServiceListResource(PageListResource):
                 strategy["severity"] = alert_info["severity"]
         return strategy_map
 
+    def batch_query_info(self, app, start_time, end_time):
+        """
+        获取信息
+        """
+        pool = ThreadPool()
+        # 获取应用的服务列表
+        services_res = pool.apply_async(ServiceHandler.list_services, args=(app,))
+        # 获取服务的收藏信息
+        config_res = pool.apply_async(CollectServiceResource.get_collect_config, args=(app,))
+        # # 获取策略信息
+        strategy_map_res = pool.apply_async(self.combine_strategy_with_alert, args=(app, start_time, end_time))
+        # 仅获取状态列
+        service_data_status_res = pool.apply_async(
+            SERVICE_DATA_STATUS, kwds={"application": app, "start_time": start_time, "end_time": end_time}
+        )
+        remote_service_data_status_res = pool.apply_async(
+            REMOTE_SERVICE_DATA_STATUS, kwds={"application": app, "start_time": start_time, "end_time": end_time}
+        )
+        service_component_res = pool.apply_async(
+            ComponentHandler.get_service_component_name_metrics,
+            args=(app, start_time, end_time, COMPONENT_DATA_STATUS),
+        )
+        pool.close()
+        pool.join()
+
+        return (
+            services_res.get(),
+            config_res.get(),
+            strategy_map_res.get(),
+            {
+                **service_data_status_res.get(),
+                **remote_service_data_status_res.get(),
+                **service_component_res.get(),
+            },
+        )
+
     def perform_request(self, validate_data):
         start_time = validate_data["start_time"]
         end_time = validate_data["end_time"]
@@ -444,13 +483,8 @@ class ServiceListResource(PageListResource):
         if not app:
             raise ValueError(_lazy("应用{}不存在").format(validate_data['app_name']))
 
-        # 获取应用的服务列表
-        services = ServiceHandler.list_services(app)
-        # 获取服务的收藏信息
-        config = CollectServiceResource.get_collect_config(app)
+        services, config, strategy_map, request_count_info = self.batch_query_info(app, start_time, end_time)
 
-        # 获取策略信息
-        strategy_map = self.combine_strategy_with_alert(app, start_time, end_time)
         strategy_service_map = defaultdict(int)
         strategy_alert_map = defaultdict(ServiceStatus.get_default)
         for strategy in strategy_map.values():
@@ -462,19 +496,6 @@ class ServiceListResource(PageListResource):
                     if strategy_alert_map[name] > strategy.get("severity", ServiceStatus.NORMAL):
                         strategy_alert_map[name] = strategy.get("severity", ServiceStatus.NORMAL)
 
-        # 仅获取状态列 其他列通过异步接口获取
-        request_count_info = {
-            **SERVICE_DATA_STATUS(app, start_time=validate_data["start_time"], end_time=validate_data["end_time"]),
-            **REMOTE_SERVICE_DATA_STATUS(
-                app, start_time=validate_data["start_time"], end_time=validate_data["end_time"]
-            ),
-            **ComponentHandler.get_service_component_name_metrics(
-                app,
-                validate_data["start_time"],
-                validate_data["end_time"],
-                COMPONENT_DATA_STATUS,
-            ),
-        }
         # 获取 profile 服务指标
         if app.is_enabled_profiling:
             profiling_request_info = QueryTemplate(
@@ -505,6 +526,13 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
     服务列表异步接口
     """
 
+    METRIC_MAP = {
+        "avg_duration": AvgDurationInstance,
+        "error_count": ErrorCountInstance,
+        "request_count": RequestCountInstance,
+        "error_rate": ErrorRateInstance,
+    }
+
     SyncResource = ServiceListResource
 
     class RequestSerializer(AsyncSerializer):
@@ -512,6 +540,51 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         service_names = serializers.ListSerializer(child=serializers.CharField(), default=[], label="服务列表")
         start_time = serializers.IntegerField(required=True, label="数据开始时间")
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
+
+    @classmethod
+    def get_metric_service_data(cls, validated_data, app: Application, column: str):
+        """
+        获取指标数据及服务数据
+        只查单个指标
+        """
+        if column == COLUMN_KEY_PROFILING_DATA_COUNT:
+            services = ServiceHandler.list_services(app)
+            return {}, {}, services
+
+        metric_handler_cls = []
+        if column in cls.METRIC_MAP:
+            metric_handler_cls.append(cls.METRIC_MAP[column])
+
+        service_metric_param = {
+            "application": app,
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+        }
+
+        component_metric_param = {
+            "app": app,
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+        }
+
+        if metric_handler_cls:
+            service_metric_param["metric_handler_cls"] = metric_handler_cls
+            component_metric_param["metric_handler_cls"] = metric_handler_cls
+
+        pool = ThreadPool()
+        service_list_res = pool.apply_async(SERVICE_LIST, kwds=service_metric_param)
+        remote_service_list_res = pool.apply_async(REMOTE_SERVICE_LIST, kwds=service_metric_param)
+        component_metric_res = pool.apply_async(
+            ComponentHandler.get_service_component_metrics, kwds=component_metric_param
+        )
+        services_res = pool.apply_async(ServiceHandler.list_services, args=(app,))
+        pool.close()
+        pool.join()
+
+        service_metric_info = {**service_list_res.get(), **remote_service_list_res.get()}
+        component_metric_info = component_metric_res.get()
+        services = services_res.get()
+        return service_metric_info, component_metric_info, services
 
     def perform_request(self, validated_data):
         res = []
@@ -524,24 +597,16 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         if not app:
             raise ValueError(_("应用{}不存在").format(validated_data['app_name']))
 
-        service_metric_info = {
-            **SERVICE_LIST(app, start_time=validated_data["start_time"], end_time=validated_data["end_time"]),
-            **REMOTE_SERVICE_LIST(app, start_time=validated_data["start_time"], end_time=validated_data["end_time"]),
-        }
-        component_metric_info = ComponentHandler.get_service_component_metrics(
-            app,
-            validated_data["start_time"],
-            validated_data["end_time"],
-        )
-        if app.is_enabled_profiling:
+        column = validated_data["column"]
+        service_metric_info, component_metric_info, services = self.get_metric_service_data(validated_data, app, column)
+
+        if app.is_enabled_profiling and column == COLUMN_KEY_PROFILING_DATA_COUNT:
             profiling_metric_info = QueryTemplate(
                 validated_data["bk_biz_id"], validated_data["app_name"]
             ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
         else:
             profiling_metric_info = {}
 
-        services = ServiceHandler.list_services(app)
-        column = validated_data["column"]
         for service_name in validated_data["service_names"]:
             service = next((i for i in services if i["topo_key"] == service_name), None)
             if not service:
@@ -828,6 +893,14 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "filter_params": [{"key": "status.code", "op": "=", "value": ["2"]}],
             "start_time": data["start_time"],
             "end_time": data["end_time"],
+            "fields": [
+                "resource.service.name",
+                "span_name",
+                "trace_id",
+                "events.attributes.exception.type",
+                "events.name",
+                "time",
+            ],
         }
 
         # 分类可以通过两种方式进行查询
@@ -903,9 +976,9 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         for error in errors:
             error_count += 1
             times.add(error["time"])
-            exception_types |= {i.get("attributes", {}).get("exception.type") for i in error["events"]}
+            exception_types |= {i.get("attributes", {}).get("exception.type") for i in error.get("events", [])}
             if not has_exception:
-                has_exception = self.has_events(error["events"])
+                has_exception = self.has_events(error.get("events", []))
         first_time, last_time = self.compare_time(list(times))
         exception_type = self.compare_exception_type(list(exception_types))
         exception_type = exception_type if exception_type else self.UNKNOWN_EXCEPTION_TYPE
@@ -951,7 +1024,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
         error_map = {}
 
-        has_event_trace_id = [i["trace_id"] for i in error_spans if i["events"]]
+        has_event_trace_id = [i["trace_id"] for i in error_spans if i.get("events")]
 
         for span in error_spans:
             service = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME)
@@ -960,9 +1033,9 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
             endpoint = span[OtlpKey.SPAN_NAME]
 
-            if span["events"]:
+            if span.get("events"):
                 for event in span["events"]:
-                    exception_type = event[OtlpKey.ATTRIBUTES].get(
+                    exception_type = event.get(OtlpKey.ATTRIBUTES, {}).get(
                         SpanAttributes.EXCEPTION_TYPE, self.UNKNOWN_EXCEPTION_TYPE
                     )
                     key = (service, endpoint, exception_type)
@@ -1532,6 +1605,28 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             SpanAttributes.MESSAGING_DESTINATION,
         ]
 
+    def _batch_query_list_endpoints(self, validate_data, from_service_names):
+        """
+        批量获取 list_endpoints
+        """
+
+        res = []
+        endpoints_metrics = {}
+        # 采用多线程方式，获取多服务指标
+        futures = []
+        pool = ThreadPool()
+        for service_name in from_service_names:
+            futures.append(pool.apply_async(self.list_endpoints, args=(validate_data, service_name)))
+
+        for future in futures:
+            try:
+                r, m = future.get()
+                res += r
+                endpoints_metrics.update(m)
+            except Exception as e:
+                logger.exception(e)
+        return res, endpoints_metrics
+
     def perform_request(self, validate_data):
         bk_biz_id = validate_data["bk_biz_id"]
         app_name = validate_data["app_name"]
@@ -1540,13 +1635,16 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         if ServiceHandler.is_remote_service(bk_biz_id, app_name, service_name):
             # 如果为远程服务 -> 获取所有调用方的数据
             response = api.apm_api.query_topo_relation(bk_biz_id=bk_biz_id, app_name=app_name, to_topo_key=service_name)
-            res = []
-            endpoints_metrics = {}
             from_service_names = {i["from_topo_key"] for i in response}
-            for service_name in from_service_names:
-                r, m = self.list_endpoints(validate_data, service_name)
-                res += r
-                endpoints_metrics.update(m)
+            if len(from_service_names) >= 2:
+                res, endpoints_metrics = self._batch_query_list_endpoints(validate_data, from_service_names)
+            else:
+                res = []
+                endpoints_metrics = {}
+                for service_name in from_service_names:
+                    r, m = self.list_endpoints(validate_data, service_name)
+                    res += r
+                    endpoints_metrics.update(m)
 
             # 根据调用方进行过滤接口
             query_params = {
@@ -1645,16 +1743,32 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         if ComponentHandler.is_component(data):
             predicate_value = data["predicate_value"]
             query_param["category"] = data["category"]
-            query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name, predicate_value)
+            service_name = ComponentHandler.get_component_belong_service(service_name, predicate_value)
+            query_param["service_name"] = service_name
             query_param["category_kind_value"] = predicate_value
 
-        endpoints = api.apm_api.query_endpoint(query_param)
-
         application = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
+        # ENDPOINT_LIST 服务过滤条件
+        where = []
+        if service_name:
+            where.append({"key": "service_name", "method": "eq", "value": [service_name]})
+
+        endpoint_list_param = {
+            "application": application,
+            "start_time": data["start_time"],
+            "end_time": data["end_time"],
+            "where": where,
+        }
+        pool = ThreadPool()
+        endpoints_res = pool.apply_async(api.apm_api.query_endpoint, kwds=query_param)
+        endpoints_metric_res = pool.apply_async(ENDPOINT_LIST, kwds=endpoint_list_param)
+        pool.close()
+        pool.join()
+
+        endpoints = endpoints_res.get()
 
         # 获取时间范围内endpoint的指标
-        endpoints_metric = ENDPOINT_LIST(application, start_time=data["start_time"], end_time=data["end_time"])
-
+        endpoints_metric = endpoints_metric_res.get()
         request_all_count = 0
         error_all_count = 0
         duration_all_count = 0
@@ -1663,6 +1777,8 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             request_all_count += metric.get("request_count", 0)
             error_all_count += metric.get("error_count", 0)
             duration_all_count += metric.get("avg_duration", 0)
+
+        logger.info(f"[apm] endpoint_list request_all_count: {request_all_count}")
 
         for endpoint in endpoints:
             metric = endpoints_metric.get(self._build_group_key(endpoint), {})
@@ -1966,12 +2082,24 @@ class ServiceQueryExceptionResource(PageListResource):
                 id="operate",
                 name=_lazy("调用链"),
                 url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
-                + '&search_type=scope&filter_dict={{"service":["{service_name}"],"instance":["{bk_instance_id}"]}}'
-                + '&query_string=status.code:+2+AND+span_name:+"{span_name}"+',
+                + '&search_type=scope'
+                + '&listType=trace'
+                + '&start_tiem={start_time}&end_tiem={end_time}'
+                + '&query=status.code:+2+'
+                + '&conditionList={{"resource.service.name": '
+                + '{{"selectedCondition": {{"label": "=","value": "equal"}},'
+                + '"selectedConditionValue": ["{service_name}"]}},'
+                + '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
+                + '"selectedConditionValue": ["{span_name}"]}},'
+                + '"resource.bk.instance.id": {{"selectedCondition": {{"label": "=","value": "equal"}},'
+                + '"selectedConditionValue": ["{bk_instance_id}"]}}}}',
                 target="blank",
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             ),
         ]
+
+    def add_extra_params(self, params):
+        return {"start_time": int(params["start_time"]) * 1000, "end_time": int(params["end_time"]) * 1000}
 
     def build_filter_params(self, filter_dict):
         result = [{"key": "status.code", "op": "=", "value": ["2"]}]

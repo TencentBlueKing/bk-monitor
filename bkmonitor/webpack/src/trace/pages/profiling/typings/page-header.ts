@@ -35,5 +35,5 @@ export interface ToolsFormData {
 }
 
 export enum MenuEnum {
-  FullScreen = 'fullScreen'
+  FullScreen = 'fullScreen',
 }

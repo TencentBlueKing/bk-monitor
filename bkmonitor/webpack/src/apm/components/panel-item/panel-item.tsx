@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './panel-item.scss';
 
 interface IPanelItemProps {
-  title: string | TranslateResult;
+  title: TranslateResult | string;
   flexDirection?: string;
 }
 
@@ -50,8 +50,8 @@ export default class PanelItem extends tsc<IPanelItemProps> {
           {this.$slots.headerTool}
         </div>
         <div
-          class='item-content'
           style={`flex-direction:${this.flexDirection}`}
+          class='item-content'
         >
           {this.$slots.default}
         </div>

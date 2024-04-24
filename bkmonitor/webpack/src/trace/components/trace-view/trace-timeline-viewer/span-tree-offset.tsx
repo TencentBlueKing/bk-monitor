@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, PropType, ref } from 'vue';
+
 import _get from 'lodash/get';
 
 import AngleDownIcon from '../icons/angle-down.svg';
@@ -40,7 +41,7 @@ const SpanTreeOffsetProps = {
   childrenVisible: {
     type: Boolean,
     required: false,
-    default: false
+    default: false,
   },
   // hoverIndentGuideIds: {
   //   // type: Array as PropType<string[]>,
@@ -48,16 +49,16 @@ const SpanTreeOffsetProps = {
   // },
   onClick: {
     type: Function,
-    required: false
+    required: false,
   },
   span: {
-    type: Object as PropType<Span>
+    type: Object as PropType<Span>,
   },
   showChildrenIcon: {
     type: Boolean,
     required: false,
-    default: false
-  }
+    default: false,
+  },
 };
 
 export default defineComponent({
@@ -107,7 +108,7 @@ export default defineComponent({
     return {
       ancestorIds,
       handleMouseLeave,
-      handleMouseEnter
+      handleMouseEnter,
     };
   },
 
@@ -116,13 +117,13 @@ export default defineComponent({
       childrenVisible,
       onClick,
       showChildrenIcon,
-      span
+      span,
       // hoverIndentGuideIds
     } = this.$props;
     const { hasChildren, spanID } = span as Span;
     const wrapperProps =
       hasChildren || showChildrenIcon ? { onClick, role: 'switch', 'aria-checked': childrenVisible } : null;
-    // eslint-disable-next-line max-len
+
     const icon =
       (hasChildren && (childrenVisible ? AngleDownIcon : AngleRightIcon)) || (showChildrenIcon && AngleRightIcon);
 
@@ -135,7 +136,7 @@ export default defineComponent({
           <span
             key={ancestorId}
             class={[
-              'span-tree-offset-indent-guide'
+              'span-tree-offset-indent-guide',
               // {
               //   'is-active': hoverIndentGuideIds.has(ancestorId)
               // }
@@ -152,12 +153,12 @@ export default defineComponent({
             onMouseleave={event => this.handleMouseLeave(event, spanID)}
           >
             <img
-              src={icon}
               alt={icon}
+              src={icon}
             />
           </span>
         )}
       </span>
     );
-  }
+  },
 });

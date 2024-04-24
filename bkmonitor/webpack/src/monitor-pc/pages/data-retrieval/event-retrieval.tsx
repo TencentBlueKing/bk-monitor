@@ -28,21 +28,20 @@ import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { destroyTimezone } from '../../i18n/dayjs';
-
 import DataRetrieval from './data-retrieval';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
-export default class EventRetrieval extends tsc<{}> {
+export default class EventRetrieval extends tsc<object> {
   @Ref() eventRetrieval: DataRetrieval;
 
-  beforeRouteEnter(to: Route, from: Route, next: Function) {
+  beforeRouteEnter(to: Route, from: Route, next: (a: (vm: EventRetrieval) => void) => void) {
     next((vm: EventRetrieval) => {
       vm.eventRetrieval.handleBeforeRouteEnter(to, from);
     });
   }
-  beforeRouteLeave(to: Route, from: Route, next: Function) {
+  beforeRouteLeave(to: Route, from: Route, next: () => void) {
     destroyTimezone();
     next();
   }

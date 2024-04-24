@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { TextDirectionType, ViewModeType } from '../../../typings/profiling-graph';
@@ -52,7 +53,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   downloadTypeMaps = [
     'png',
     // 'json',
-    'pprof'
+    'pprof',
     // 'html'
   ];
   keyword = '';
@@ -61,7 +62,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     const list = [
       { id: ViewModeType.Table, icon: 'table' },
       { id: ViewModeType.Combine, icon: 'mc-fenping' },
-      { id: ViewModeType.Flame, icon: 'mc-flame' }
+      { id: ViewModeType.Flame, icon: 'mc-flame' },
     ];
 
     if (!this.isCompared) {
@@ -106,8 +107,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           ))}
         </div>
         <bk-input
-          right-icon='bk-icon icon-search'
           v-model={this.keyword}
+          right-icon='bk-icon icon-search'
           onInput={this.handleKeywordChange}
         />
         <div class='ellipsis-direction button-group'>

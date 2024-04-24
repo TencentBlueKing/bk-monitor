@@ -26,6 +26,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getGroupByCount } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 // import { handleTimeRange } from '../../../utils';
@@ -37,7 +38,6 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import FieldFiltering from '../event-retrieval/field-filtering';
 import HandleBtn from '../handle-btn/handle-btn';
 import { EventRetrievalViewType, FieldValue, IDataRetrievalView, IEventRetrieval, IFilterCondition } from '../typings';
-
 import FilterCondition from './filter-condition';
 
 import './event-retrieval.scss';
@@ -70,7 +70,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   /** 事件类型下拉可选项 */
   eventTypeList: IEventRetrieval.IEventTypeList[] = [
     { id: 'custom_event', name: i18n.t('自定义上报事件') },
-    { id: 'bk_monitor_log', name: i18n.t('日志关键字事件') }
+    { id: 'bk_monitor_log', name: i18n.t('日志关键字事件') },
   ];
 
   // 数据id | 采集id 可选列表
@@ -81,7 +81,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     eventType: 'custom_event',
     result_table_id: '',
     query_string: '*',
-    where: []
+    where: [],
   };
   /** 查询语句的缓存 用于diff */
   queryStringCache = '';
@@ -97,7 +97,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     theme: 'light',
     content: '#tips-content',
     placement: 'bottom-start',
-    boundary: 'window'
+    boundary: 'window',
   };
   /** 查询语句提示文本 */
   tipsContentList: IEventRetrieval.ITipsContentListItem[] = [
@@ -106,7 +106,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     { label: i18n.t('字段名模糊匹配:'), value: ['vers\\*on:(quick brown)'] },
     { label: i18n.t('通配符匹配:'), value: ['qu?ck bro*'] },
     { label: i18n.t('正则匹配:'), value: ['name:/joh?n(ath[oa]n/'] },
-    { label: i18n.t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] }
+    { label: i18n.t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] },
   ];
 
   /** 标记是否主动点击查询按钮，失焦则不执行 */
@@ -120,12 +120,12 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     const paramsMap: IEventRetrieval.SourceAndTypeLabelMap = {
       custom_event: {
         data_source_label: 'custom',
-        data_type_label: 'event'
+        data_type_label: 'event',
       },
       bk_monitor_log: {
         data_source_label: 'bk_monitor',
-        data_type_label: 'log'
-      }
+        data_type_label: 'log',
+      },
     };
     return paramsMap[this.localValue.eventType];
   }
@@ -156,19 +156,18 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       query_string: this.localValue.query_string.trim(),
       where: this.localValue.where.map((item, index) => ({
         ...item,
-        condition: !!index ? item.condition : undefined
-      }))
+        condition: !!index ? item.condition : undefined,
+      })),
     };
   }
 
   /** 图表的时间范围 */
   get timeRange() {
-    // eslint-disable-next-line camelcase
     // const { startTime: start_time, endTime: end_time } = handleTimeRange(this.compareValue.tools.timeRange);
     const [start_time, end_time] = handleTransformToTimestamp(this.compareValue.tools.timeRange);
     return {
       start_time,
-      end_time
+      end_time,
     };
   }
 
@@ -186,9 +185,9 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     if (queryConfig) {
       const { data_source_label, data_type_label, result_table_id, where } = queryConfig;
       this.localValue.where = where;
-      // eslint-disable-next-line camelcase
+
       this.localValue.result_table_id = result_table_id;
-      // eslint-disable-next-line camelcase
+
       this.localValue.eventType = `${data_source_label}_${data_type_label}` as IEventRetrieval.ILocalValue['eventType'];
       this.initData(false);
     } else {
@@ -214,11 +213,11 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       this.isEdit = true;
       const { where, result_table_id, query_string, data_source_label, data_type_label } = this.queryConfig;
       this.localValue.where = where;
-      // eslint-disable-next-line camelcase
+
       this.localValue.result_table_id = result_table_id;
-      // eslint-disable-next-line camelcase
+
       this.localValue.query_string = query_string;
-      // eslint-disable-next-line camelcase
+
       this.localValue.eventType = `${data_source_label}_${data_type_label}` as IEventRetrieval.ILocalValue['eventType'];
       this.initData(false);
     }
@@ -334,7 +333,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   /**
    * @description: 获取维度列表数据
    */
-  // eslint-disable-next-line camelcase
+
   getGroupByList(timeRange?: { start_time: number; end_time: number }) {
     if (!this.currentGroupByVarPramas.result_table_id) return;
     timeRange = timeRange ? timeRange : this.timeRange;
@@ -343,7 +342,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       ...timeRange,
       ...this.currentGroupByVarPramas,
       filter_dict: {},
-      index_set_id: ''
+      index_set_id: '',
     };
     this.gourpByLoading = true;
     return getGroupByCount(params)
@@ -452,8 +451,8 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
           <div class='er-from-item'>
             <div class='er-from-item-label'>{this.$t('事件类型')}</div>
             <bk-select
-              clearable={false}
               vModel={this.localValue.eventType}
+              clearable={false}
               onSelected={this.handleChangeEventType}
             >
               {this.eventTypeList.map(item => (
@@ -470,9 +469,9 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
                 {this.$t(this.localValue.eventType === 'custom_event' ? '数据ID' : '采集ID')}
               </div>
               <bk-select
-                clearable={false}
-                vModel={this.localValue.result_table_id}
                 key={JSON.stringify(this.dataIdList)}
+                vModel={this.localValue.result_table_id}
+                clearable={false}
                 onSelected={this.handleInitLocalValue}
               >
                 {this.dataIdList.map(item => (
@@ -493,41 +492,41 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
               ></i>
             </div>
             <bk-input
-              type='textarea'
               class='query-string-input'
               vModel={this.localValue.query_string}
+              type='textarea'
               onBlur={this.handleQueryStringBlur}
               onFocus={this.handleInputFocus}
             />
           </div>
           <div class='er-from-item'>
             <FilterCondition
-              value={this.localValue.where}
               groupBy={this.currentDimensionsList}
+              value={this.localValue.where}
               varParams={this.currentGroupByVarPramas}
               onChange={this.handleConditionChange}
             />
           </div>
           <HandleBtn
             style='padding-top: 8px;'
-            canQuery={true}
-            canFav={Boolean(this.localValue.result_table_id)}
             autoQuery={this.autoQuery}
+            canFav={Boolean(this.localValue.result_table_id)}
+            canQuery={true}
             favCheckedValue={this.favCheckedValue}
             isFavoriteUpdate={this.isFavoriteUpdate}
-            onQueryTypeChange={this.handleAutoQueryChange}
-            onQuery={this.handleEventQuery}
             onAddFav={this.handleAddEventFav}
             onClear={this.handleClearQuery}
+            onQuery={this.handleEventQuery}
+            onQueryTypeChange={this.handleAutoQueryChange}
           />
         </div>
         <FieldFiltering
-          v-bkloading={{ isLoading: this.gourpByLoading }}
           class='field-filtering'
-          value={this.groupByList}
+          v-bkloading={{ isLoading: this.gourpByLoading }}
           total={this.total}
-          onChange={list => (this.groupByList = list)}
+          value={this.groupByList}
           onAddCondition={this.handleAddFilterCondition}
+          onChange={list => (this.groupByList = list)}
         />
         {tipsContentTpl()}
       </div>

@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -444,5 +443,5 @@ export default {
   '是否取消 {0} 的订阅?': 'Do you want to unsubscribe {0}?',
   '是否重新订阅 {0} ?': 'Do you want to re-subscribe {0}?',
   取消订阅成功: 'Unsubscribe successful',
-  重新订阅成功: 'Re-subscribe successful'
+  重新订阅成功: 'Re-subscribe successful',
 };

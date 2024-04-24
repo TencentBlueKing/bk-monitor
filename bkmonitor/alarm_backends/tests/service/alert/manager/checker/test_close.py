@@ -36,7 +36,6 @@ pytestmark = pytest.mark.django_db
 
 
 class TestCloseStatusChecker(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self) -> None:

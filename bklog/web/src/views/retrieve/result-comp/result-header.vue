@@ -120,7 +120,7 @@
         </div>
       </bk-popover>
       <bk-popover
-        v-if="!isExternal"
+        v-if="isShowRetrieveSetting"
         trigger="click"
         placement="bottom-end"
         theme="light bk-select-dropdown"
@@ -313,11 +313,12 @@ export default {
       isExternal: state => state.isExternal
     }),
     ...mapGetters({
-      isShowMaskingTemplate: 'isShowMaskingTemplate'
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      isUnionSearch: 'isUnionSearch'
     }),
-    ...mapGetters({
-      isShowMaskingTemplate: 'isShowMaskingTemplate'
-    }),
+    isShowRetrieveSetting() {
+      return !this.isExternal && !this.isUnionSearch;
+    },
     refreshTimeText() {
       if (!this.refreshTimeout) return 'off';
       return this.refreshTimeList.find(item => item.id === this.refreshTimeout).name;
@@ -364,7 +365,7 @@ export default {
   },
   created() {
     this.showCollectIntroGuide = this.userGuideData?.function_guide?.search_favorite ?? false;
-    this.handleRefreshDebounce = debounce(300, false, this.handleRefresh);
+    this.handleRefreshDebounce = debounce(300, this.handleRefresh);
   },
   mounted() {
     document.addEventListener('visibilitychange', this.handleVisibilityChange);

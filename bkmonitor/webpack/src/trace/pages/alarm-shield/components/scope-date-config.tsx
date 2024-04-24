@@ -25,10 +25,10 @@
  */
 import { defineComponent, PropType, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { DatePicker, Radio, Select, TimePicker } from 'bkui-vue';
 
 import { EShieldCycle, INoticeDate } from '../typing';
-
 import DayPicker from './day-picker';
 import FormItem from './form-item';
 
@@ -39,12 +39,12 @@ export default defineComponent({
   props: {
     value: {
       type: Object as PropType<INoticeDate>,
-      default: () => null
+      default: () => null,
     },
     onChange: {
       type: Function as PropType<(v: INoticeDate) => void>,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -52,14 +52,14 @@ export default defineComponent({
       options: {
         disabledDate(date) {
           return date && (date.valueOf() < Date.now() - 8.64e7 || date.valueOf() > Date.now() + 8.64e7 * 181);
-        }
-      }
+        },
+      },
     };
     const shieldCycleList = [
       { label: t('单次'), value: 'single' },
       { label: t('每天'), value: 'day' },
       { label: t('每周'), value: 'week' },
-      { label: t('每月'), value: 'month' }
+      { label: t('每月'), value: 'month' },
     ];
     const weekList = [
       { name: t('星期一'), id: 1 },
@@ -68,7 +68,7 @@ export default defineComponent({
       { name: t('星期四'), id: 4 },
       { name: t('星期五'), id: 5 },
       { name: t('星期六'), id: 6 },
-      { name: t('星期日'), id: 7 }
+      { name: t('星期日'), id: 7 },
     ];
     /* 屏蔽时间范围 */
     const noticeDate = reactive<INoticeDate>({
@@ -76,20 +76,20 @@ export default defineComponent({
       dateRange: [],
       [EShieldCycle.single]: {
         list: [],
-        range: []
+        range: [],
       },
       [EShieldCycle.day]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
+        range: ['00:00:00', '23:59:59'],
       },
       [EShieldCycle.week]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
+        range: ['00:00:00', '23:59:59'],
       },
       [EShieldCycle.month]: {
         list: [],
-        range: ['00:00:00', '23:59:59']
-      }
+        range: ['00:00:00', '23:59:59'],
+      },
     });
     const errMsg = reactive({
       singleRange: '',
@@ -98,7 +98,7 @@ export default defineComponent({
       weekList: '',
       weekRange: '',
       monthList: '',
-      monthRange: ''
+      monthRange: '',
     });
 
     watch(
@@ -112,7 +112,7 @@ export default defineComponent({
         });
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -228,16 +228,16 @@ export default defineComponent({
       handleWeekRangeChange,
       handleMonthListChange,
       handleMonthRangeChange,
-      handleDateRangeChange
+      handleDateRangeChange,
     };
   },
   render() {
     return (
       <div class='alarm-shield-config-scope-date-config-component'>
         <FormItem
+          class='mt24'
           label={this.t('屏蔽周期')}
           require={true}
-          class='mt24'
         >
           <div class='mt8'>
             <Radio.Group
@@ -254,20 +254,20 @@ export default defineComponent({
           if (this.noticeDate.shieldCycle === EShieldCycle.single) {
             return (
               <FormItem
-                label={this.t('时间范围')}
-                require={true}
                 class='mt24'
                 errMsg={this.errMsg.singleRange}
+                label={this.t('时间范围')}
+                require={true}
               >
                 <DatePicker
                   class='width-413'
+                  appendToBody={true}
+                  clearable={false}
+                  disabledDate={this.datePick.options.disabledDate}
+                  format='yyyy-MM-dd HH:mm:ss'
                   modelValue={this.noticeDate.single.range as any}
                   placement={'bottom-start'}
                   type='datetimerange'
-                  format='yyyy-MM-dd HH:mm:ss'
-                  clearable={false}
-                  appendToBody={true}
-                  disabledDate={this.datePick.options.disabledDate}
                   onChange={v => this.handleSingleRangeChange(v)}
                 ></DatePicker>
                 {!this.errMsg.singleRange && <div class='datetimerange-tip'>{this.t('注意：最大值为6个月')}</div>}
@@ -278,18 +278,18 @@ export default defineComponent({
             return (
               <>
                 <FormItem
-                  label={this.t('时间范围')}
-                  require={true}
                   class='mt24'
                   errMsg={this.errMsg.dayRange}
+                  label={this.t('时间范围')}
+                  require={true}
                 >
                   <TimePicker
                     class='width-413'
+                    appendToBody={true}
+                    clearable={false}
                     modelValue={this.noticeDate.day.range}
                     placeholder={this.t('选择时间范围')}
                     type='timerange'
-                    appendToBody={true}
-                    clearable={false}
                     allowCrossDay
                     onUpdate:modelValue={v => this.handleDayRangeChange(v)}
                   ></TimePicker>
@@ -301,10 +301,10 @@ export default defineComponent({
             return (
               <>
                 <FormItem
-                  label={this.t('时间范围')}
-                  require={true}
                   class='mt24'
                   errMsg={this.errMsg.weekList || this.errMsg.weekRange}
+                  label={this.t('时间范围')}
+                  require={true}
                 >
                   <div class='week-data-time-range'>
                     <Select
@@ -316,20 +316,20 @@ export default defineComponent({
                     >
                       {this.weekList.map(item => (
                         <Select.Option
-                          key={item.id}
                           id={item.id}
+                          key={item.id}
                           name={item.name}
                         ></Select.Option>
                       ))}
                     </Select>
                     <TimePicker
                       class='width-413'
-                      modelValue={this.noticeDate.week.range}
-                      type='timerange'
-                      placeholder={this.t('选择时间范围')}
+                      allowCrossDay={true}
                       appendToBody={true}
                       clearable={false}
-                      allowCrossDay={true}
+                      modelValue={this.noticeDate.week.range}
+                      placeholder={this.t('选择时间范围')}
+                      type='timerange'
                       onUpdate:modelValue={v => this.handleWeekRangeChange(v)}
                     ></TimePicker>
                   </div>
@@ -340,10 +340,10 @@ export default defineComponent({
           if (this.noticeDate.shieldCycle === EShieldCycle.month) {
             return (
               <FormItem
-                label={this.t('时间范围')}
-                require={true}
                 class='mt24'
                 errMsg={this.errMsg.monthList || this.errMsg.monthRange}
+                label={this.t('时间范围')}
+                require={true}
               >
                 <div class='week-data-time-range'>
                   <DayPicker
@@ -352,12 +352,12 @@ export default defineComponent({
                   ></DayPicker>
                   <TimePicker
                     class='width-413'
-                    type='timerange'
+                    allowCrossDay={true}
+                    appendToBody={true}
+                    clearable={false}
                     modelValue={this.noticeDate.month.range}
                     placeholder={this.t('选择时间范围')}
-                    clearable={false}
-                    appendToBody={true}
-                    allowCrossDay={true}
+                    type='timerange'
                     onUpdate:modelValue={v => this.handleMonthRangeChange(v)}
                   ></TimePicker>
                 </div>
@@ -370,20 +370,20 @@ export default defineComponent({
           if (this.noticeDate.shieldCycle !== EShieldCycle.single) {
             return (
               <FormItem
-                label={this.t('日期范围')}
-                require={true}
                 class='mt24'
                 errMsg={this.errMsg.dateRange}
+                label={this.t('日期范围')}
+                require={true}
               >
                 <DatePicker
                   class='width-413'
-                  placement={'bottom-start'}
-                  modelValue={this.noticeDate.dateRange as any}
-                  type='daterange'
                   appendToBody={true}
-                  format='yyyy-MM-dd HH:mm:ss'
                   clearable={false}
                   disabledDate={this.datePick.options.disabledDate}
+                  format='yyyy-MM-dd HH:mm:ss'
+                  modelValue={this.noticeDate.dateRange as any}
+                  placement={'bottom-start'}
+                  type='daterange'
                   onChange={v => this.handleDateRangeChange(v)}
                 ></DatePicker>
                 {!this.errMsg.dateRange && <div class='datetimerange-tip'>{this.t('注意：最大值为6个月')}</div>}
@@ -394,5 +394,5 @@ export default defineComponent({
         })()}
       </div>
     );
-  }
+  },
 });

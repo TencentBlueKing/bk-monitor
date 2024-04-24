@@ -34,7 +34,7 @@ export default [
     path: '/platform-setting',
     name: 'platform-setting',
     components: {
-      noCache: PlatformSetting
+      noCache: PlatformSetting,
     },
     meta: {
       title: '平台设置',
@@ -42,8 +42,8 @@ export default [
       pageCls: 'platform-setting',
       noNavBar: true,
       authority: {
-        page: platformSettingAuth.MANAGE_GLOBAL_SETTING
-      }
-    }
-  }
+        page: platformSettingAuth.MANAGE_GLOBAL_SETTING,
+      },
+    },
+  },
 ] as RouteConfig[];

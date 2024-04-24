@@ -30,17 +30,17 @@ import { formatDuration } from '../utils/date';
 import './ticks.scss';
 
 type TicksProps = {
-  endTime?: number | TNil;
+  endTime?: TNil | number;
   numTicks: number;
-  showLabels?: boolean | TNil;
-  startTime?: number | TNil;
+  showLabels?: TNil | boolean;
+  startTime?: TNil | number;
   hideLine?: boolean;
 };
 
 const Ticks = (props: TicksProps) => {
   const { endTime, numTicks, showLabels, startTime, hideLine } = props;
 
-  let labels: undefined | string[];
+  let labels: string[] | undefined;
   if (showLabels) {
     labels = [];
     const viewingDuration = (endTime || 0) - (startTime || 0);
@@ -55,11 +55,11 @@ const Ticks = (props: TicksProps) => {
     ticks.push(
       <div
         key={portion}
-        class='ticks-tick'
         style={{
           left: `${portion * 100}%`,
-          'background-color': `${hideLine ? '' : '#DCDEE5'}`
+          'background-color': `${hideLine ? '' : '#DCDEE5'}`,
         }}
+        class='ticks-tick'
       >
         {labels && (
           <span class={`ticks-tickLabel ${portion >= 1 ? 'isEndAnchor' : ''} ${hideLine ? 'hide-line-label' : ''}`}>
@@ -75,7 +75,7 @@ const Ticks = (props: TicksProps) => {
 Ticks.defaultProps = {
   endTime: null,
   showLabels: null,
-  startTime: null
+  startTime: null,
 };
 
 export default Ticks;

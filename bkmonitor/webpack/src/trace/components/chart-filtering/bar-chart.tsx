@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, onBeforeUnmount, onMounted, PropType, ref, shallowRef, watch, WatchStopHandle } from 'vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { echarts, type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -31,13 +32,13 @@ export const BarChartProps = {
   // echart 配置
   options: {
     type: Object as PropType<MonitorEchartOptions>,
-    required: true
+    required: true,
   },
   // 当前滑动选择的时间范围
   selectedRange: {
     type: Array as PropType<number[]>,
-    required: true
-  }
+    required: true,
+  },
 };
 
 export default defineComponent({
@@ -68,7 +69,7 @@ export default defineComponent({
       if (!instance.value) {
         instance.value = echarts.init(chartRef.value!);
         instance.value.setOption({
-          ...(props.options || {})
+          ...(props.options || {}),
         });
         initPropsWatcher();
       }
@@ -82,7 +83,7 @@ export default defineComponent({
           if (instance.value) {
             initChart();
             instance.value.setOption({
-              ...(props.options || {})
+              ...(props.options || {}),
             });
           }
         },
@@ -92,7 +93,7 @@ export default defineComponent({
     /** 监听resize */
     function handleResize() {
       instance.value?.resize({
-        silent: true
+        silent: true,
       });
     }
 
@@ -101,10 +102,10 @@ export default defineComponent({
   render() {
     return (
       <div
-        class='bar-chart'
         ref='chartRef'
         style='height:56px'
+        class='bar-chart'
       />
     );
-  }
+  },
 });

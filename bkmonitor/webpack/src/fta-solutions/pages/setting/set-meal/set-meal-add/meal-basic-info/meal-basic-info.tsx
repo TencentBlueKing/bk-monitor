@@ -46,7 +46,7 @@ interface IBasicInfo {
 }
 
 @Component({
-  name: 'MealBasicInfo'
+  name: 'MealBasicInfo',
 })
 export default class MealBasicInfo extends tsc<IMealBasicInfo> {
   @Prop() public basicInfo: IBasicInfo;
@@ -58,7 +58,7 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
   };
 
   errorMsg = {
-    name: ''
+    name: '',
   };
 
   private rules = {
@@ -66,9 +66,9 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
       {
         required: true,
         message: i18n.t('必填项'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   get bizList() {
@@ -104,8 +104,8 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
     this.$router.push({
       name: 'strategy-config',
       params: {
-        actionName: this.basicInfo.name
-      }
+        actionName: this.basicInfo.name,
+      },
     });
   }
 
@@ -117,8 +117,8 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
             props: {
               labelWidth: 0,
               model: this.basicInfo,
-              rules: this.rules
-            }
+              rules: this.rules,
+            },
           }}
           ref='basicInfoRef'
         >
@@ -128,15 +128,15 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
               <div class='item-input'>
                 <bk-select
                   v-model={this.basicInfo.bizId}
-                  searchable
+                  behavior={'simplicity'}
                   clearable={false}
                   readonly
-                  behavior={'simplicity'}
+                  searchable
                 >
                   {this.bizList.map((option, index) => (
                     <bk-option
-                      key={index}
                       id={option.id}
+                      key={index}
                       name={option.text}
                     ></bk-option>
                   ))}
@@ -152,10 +152,10 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
                 <VerifyItem errorMsg={this.errorMsg.name}>
                   <bk-input
                     ref='mealNameRef'
-                    maxlength={128}
-                    minlength={1}
                     v-model={this.basicInfo.name}
                     behavior={'simplicity'}
+                    maxlength={128}
+                    minlength={1}
                     onChange={v => v && (this.errorMsg.name = '')}
                   ></bk-input>
                 </VerifyItem>
@@ -186,16 +186,16 @@ export default class MealBasicInfo extends tsc<IMealBasicInfo> {
             <div class='item-title'>{this.$t('说明')}</div>
             <div class='item-input'>
               <ResizeContainer
-                minHeight={64}
                 maxHeight={500}
+                minHeight={64}
                 minWidth={200}
               >
                 <bk-input
                   class='textarea'
-                  type={'textarea'}
-                  placeholder={this.$t('输入套餐说明')}
-                  maxlength={200}
                   v-model={this.basicInfo.desc}
+                  maxlength={200}
+                  placeholder={this.$t('输入套餐说明')}
+                  type={'textarea'}
                 ></bk-input>
               </ResizeContainer>
             </div>

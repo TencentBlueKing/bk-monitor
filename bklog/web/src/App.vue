@@ -115,28 +115,24 @@
       />
     </div>
     <auth-dialog />
-    <bk-paas-login ref="login" />
     <global-setting-dialog
       v-model="isShowGlobalDialog"
       :active-menu="globalActiveLabel"
       :menu-list="globalSettingList"
       @menuChange="handleChangeMenu"
     />
-    <!-- <login-modal v-if="loginData" :login-data="loginData" /> -->
   </div>
 </template>
 
 <script>
 import { mapState, mapGetters } from 'vuex';
 import headNav from '@/components/nav/head-nav';
-// import LoginModal from '@/components/login-modal';
 import WelcomePage from '@/components/common/welcome-page';
 import AuthContainerPage from '@/components/common/auth-container-page';
 import AuthDialog from '@/components/common/auth-dialog';
 import BizMenuSelect from '@/components/biz-menu';
 import NoviceGuide from '@/components/novice-guide';
 import jsCookie from 'js-cookie';
-import BkPaasLogin from '@blueking/paas-login';
 import GlobalSettingDialog from '@/components/global-setting';
 import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
@@ -145,13 +141,11 @@ export default {
   name: 'App',
   components: {
     headNav,
-    // LoginModal,
     AuthContainerPage,
     AuthDialog,
     WelcomePage,
     BizMenuSelect,
     NoviceGuide,
-    BkPaasLogin,
     GlobalSettingDialog,
     NoticeComponent
   },
@@ -243,22 +237,9 @@ export default {
     // 初始化脱敏灰度相关的代码
     this.initMaskingToggle();
 
-    // 弹窗登录
-    window.bus.$on('show-login-modal', loginData => {
-      this.loginData = loginData;
-    });
-    window.bus.$on('close-login-modal', () => {
-      this.loginData = null;
-      setTimeout(() => {
-        window.location.reload();
-      }, 0);
-    });
     if (!this.isAsIframe) this.getUserGuide();
 
     this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
-  },
-  mounted() {
-    window.LoginModal = this.$refs.login;
   },
   methods: {
     /** 初始化脱敏灰度相关的数据 */
@@ -561,6 +542,11 @@ export default {
 .custom-no-padding-option.bk-option > .bk-option-content {
   padding: 0;
 
+  &.is-selected {
+    color: #3a84ff;
+    background-color: #e1ecff;
+  }
+
   > .option-slot-container {
     min-height: 32px;
     padding: 9px 16px;
@@ -734,6 +720,19 @@ export default {
 .bk-dialog-type-header .header {
   /* stylelint-disable-next-line declaration-no-important */
   white-space: normal !important;
+}
+
+.bk-options .bk-option {
+  &:hover {
+    color: #63656e;
+    background-color: #f5f7fa;
+  }
+}
+
+:root {
+  --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+  --table-fount-size: 13px;
+  --table-fount-color: #313238;
 }
 
 // .bk-label {

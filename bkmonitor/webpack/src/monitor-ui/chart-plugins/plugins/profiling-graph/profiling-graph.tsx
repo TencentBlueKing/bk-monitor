@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable max-len */
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,6 +27,7 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { query, queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { Debounce, typeTools } from 'monitor-common/utils/utils';
@@ -39,10 +40,9 @@ import {
   PanelModel,
   ProfilingTableItem,
   TextDirectionType,
-  ViewModeType
+  ViewModeType,
 } from '../../typings';
 import { CommonSimpleChart } from '../common-simple-chart';
-
 import ChartTitle from './chart-title/chart-title';
 import FilterSelect from './filter-select/filter-select';
 import FrameGraph from './flame-graph/flame-graph';
@@ -65,7 +65,7 @@ class ProfilingChart extends CommonSimpleChart {
   flameData: BaseDataType = {
     name: '',
     children: undefined,
-    id: ''
+    id: '',
   };
   unit = '';
   empty = true;
@@ -94,7 +94,7 @@ class ProfilingChart extends CommonSimpleChart {
       service_name,
       start: (start_time ? dayjs.tz(start_time).unix() : startTime) * Math.pow(10, 6),
       end: (end_time ? dayjs.tz(end_time).unix() : endTime) * Math.pow(10, 6),
-      data_type: this.dataType
+      data_type: this.dataType,
     };
 
     return params;
@@ -117,7 +117,7 @@ class ProfilingChart extends CommonSimpleChart {
       start_time: start_time ? dayjs.tz(start_time).unix() : start,
       end_time: end_time ? dayjs.tz(end_time).unix() : end,
       app_name,
-      service_name
+      service_name,
     })
       .then(res => {
         if (res?.data_types?.length) {
@@ -126,7 +126,7 @@ class ProfilingChart extends CommonSimpleChart {
           this.queryParams = {
             app_name,
             service_name,
-            data_type: this.dataType
+            data_type: this.dataType,
           };
           this.handleQuery(start_time, end_time);
         }
@@ -194,7 +194,7 @@ class ProfilingChart extends CommonSimpleChart {
   async handleSortChange(sortKey: string) {
     const params = this.getParams({
       diagram_types: ['table'],
-      sort: sortKey
+      sort: sortKey,
     });
     const data = await query(params).catch(() => false);
     if (data) {
@@ -254,7 +254,7 @@ class ProfilingChart extends CommonSimpleChart {
   handleFiltersChange(values, key) {
     this.queryParams = {
       ...this.queryParams,
-      [key === 'filter' ? 'filter_labels' : 'diff_filter_labels']: values
+      [key === 'filter' ? 'filter_labels' : 'diff_filter_labels']: values,
     };
     this.getPanelData();
   }
@@ -262,7 +262,7 @@ class ProfilingChart extends CommonSimpleChart {
   handleDiffModeChange(isDiff: boolean) {
     this.queryParams = {
       ...this.queryParams,
-      is_compared: isDiff
+      is_compared: isDiff,
     };
     this.getPanelData();
   }
@@ -273,9 +273,9 @@ class ProfilingChart extends CommonSimpleChart {
         <FilterSelect
           appName={this.queryParams.app_name}
           serviceName={this.queryParams.service_name}
+          onDiffChange={val => this.handleFiltersChange(val, 'diff')}
           onDiffModeChange={this.handleDiffModeChange}
           onFilterChange={val => this.handleFiltersChange(val, 'filter')}
-          onDiffChange={val => this.handleFiltersChange(val, 'diff')}
         />
         <div class='profiling-retrieval-header'>
           <div class='data-type'>
@@ -284,9 +284,9 @@ class ProfilingChart extends CommonSimpleChart {
               {this.dataTypeList.map(item => {
                 return (
                   <bk-button
-                    size='small'
                     key={item.key}
                     class={item.key === this.dataType ? 'is-selected' : ''}
+                    size='small'
                     onClick={() => this.handleDataTypeChange(item.key)}
                   >
                     {item.name}
@@ -298,8 +298,8 @@ class ProfilingChart extends CommonSimpleChart {
           <div class='link-tips'>
             <i class='icon-monitor icon-tishi'></i>
             <i18n
-              path='更多功能，请前往 {0}'
               class='flex-center'
+              path='更多功能，请前往 {0}'
             >
               <span
                 class='link-text'
@@ -317,12 +317,12 @@ class ProfilingChart extends CommonSimpleChart {
         >
           <ChartTitle
             activeMode={this.activeMode}
-            textDirection={this.textDirection}
             isCompared={this.queryParams.is_compared}
+            textDirection={this.textDirection}
+            onDownload={this.handleDownload}
+            onKeywordChange={val => (this.filterKeyword = val)}
             onModeChange={this.handleModeChange}
             onTextDirectionChange={this.handleTextDirectionChange}
-            onKeywordChange={val => (this.filterKeyword = val)}
-            onDownload={this.handleDownload}
           />
           {this.empty ? (
             <div class='empty-chart'>{this.emptyText}</div>
@@ -331,26 +331,26 @@ class ProfilingChart extends CommonSimpleChart {
               {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
                 <TableGraph
                   data={this.tableData}
-                  unit={this.unit}
-                  textDirection={this.textDirection}
-                  highlightId={this.highlightId}
-                  filterKeyword={this.filterKeyword}
-                  isCompared={this.queryParams.is_compared}
                   dataType={this.queryParams.data_type}
-                  onUpdateHighlightId={id => (this.highlightId = id)}
+                  filterKeyword={this.filterKeyword}
+                  highlightId={this.highlightId}
+                  isCompared={this.queryParams.is_compared}
+                  textDirection={this.textDirection}
+                  unit={this.unit}
                   onSortChange={this.handleSortChange}
+                  onUpdateHighlightId={id => (this.highlightId = id)}
                 />
               )}
               {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
                 <FrameGraph
                   ref='frameGraphRef'
                   appName={(this.viewOptions as any).app_name}
-                  textDirection={this.textDirection}
-                  showGraphTools={false}
                   data={this.flameData}
+                  filterKeywords={this.flameFilterKeywords}
                   highlightId={this.highlightId}
                   isCompared={this.queryParams.is_compared}
-                  filterKeywords={this.flameFilterKeywords}
+                  showGraphTools={false}
+                  textDirection={this.textDirection}
                   onUpdateHighlightId={id => (this.highlightId = id)}
                 />
               )}

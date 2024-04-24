@@ -36,31 +36,31 @@ export default [
     path: '/alarm-dispatch',
     name: 'alarm-dispatch',
     components: {
-      noCache: AlarmDispatch
+      noCache: AlarmDispatch,
     },
     meta: {
       title: '告警分派',
       navId: 'alarm-dispatch',
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
-      noNavBar: false
-    }
+      noNavBar: false,
+    },
   },
   {
     path: '/alarm-dispatch-config/:id',
     name: 'alarm-dispatch-config',
     components: {
-      noCache: AlarmDispatchConfig
+      noCache: AlarmDispatchConfig,
     },
     meta: {
       title: '配置规则',
       navId: 'alarm-dispatch',
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       needBack: true,
-      noNavBar: false
-    }
-  }
+      noNavBar: false,
+    },
+  },
 ] as RouteConfig[];

@@ -26,6 +26,7 @@
 
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import './custom-view.scss';
@@ -70,7 +71,7 @@ export default class CustomView extends tsc<IProps> {
       <div class='event-detail-custom-view'>
         <div
           style={{
-            height: this.height
+            height: this.height,
           }}
           class='view-content-wrap'
         >

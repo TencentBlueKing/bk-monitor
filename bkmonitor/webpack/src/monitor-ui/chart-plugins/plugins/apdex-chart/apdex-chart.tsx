@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
@@ -47,8 +48,8 @@ interface IApdexChartTipItem {
   tips: string;
 }
 export enum APDEX_CHART_TYPE {
+  APDEX = 'apdex',
   EVENT = 'event',
-  APDEX = 'apdex'
 }
 interface IApdexChartProps {
   panel: PanelModel;
@@ -86,7 +87,7 @@ export class ApdexChart extends LineChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const promiseList = [];
       const timeShiftList = ['', ...this.timeOffset];
@@ -101,13 +102,13 @@ export class ApdexChart extends LineChart {
                   ...(this.viewOptions.filters?.current_target || {}),
                   ...this.viewOptions,
                   ...this.viewOptions.variables,
-                  time_shift
+                  time_shift,
                 }),
-                ...params
+                ...params,
               },
               {
-                cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
-                needMessage: false
+                cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+                needMessage: false,
               }
             )
             .then(res => {
@@ -117,7 +118,7 @@ export class ApdexChart extends LineChart {
                   ...set,
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
-                  }`
+                  }`,
                 }))
               );
               this.clearErrorMsg();
@@ -138,7 +139,7 @@ export class ApdexChart extends LineChart {
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: item.unit,
-            z: 1
+            z: 1,
           })) as any
         );
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data, !!this.splitNumber);
@@ -149,19 +150,19 @@ export class ApdexChart extends LineChart {
             animationThreshold: 1,
             grid: {
               top: 30,
-              right: 32
+              right: 32,
             },
             yAxis: {
-              show: false
+              show: false,
             },
             xAxis: {
               axisLabel: {
-                formatter: formatterFunc || '{value}'
+                formatter: formatterFunc || '{value}',
               },
               // splitNumber: this.splitNumber || 0
-              splitNumber: this.splitNumber ? seriesList[0].data?.length || 2 : 0
+              splitNumber: this.splitNumber ? seriesList[0].data?.length || 2 : 0,
             },
-            series: seriesList
+            series: seriesList,
           })
         );
         this.metrics = metrics || [];
@@ -197,7 +198,7 @@ export class ApdexChart extends LineChart {
           return {
             value: [seriesItem[0], 1],
             rawY: valY,
-            ...this.handleSetItemStyle(valY, dataType as APDEX_CHART_TYPE)
+            ...this.handleSetItemStyle(valY, dataType as APDEX_CHART_TYPE),
           } as any;
         }
         return seriesItem;
@@ -208,7 +209,7 @@ export class ApdexChart extends LineChart {
         data,
         z: 4,
         smooth: 0,
-        unitFormatter
+        unitFormatter,
       };
     });
     this.legendData = legendData;
@@ -219,7 +220,7 @@ export class ApdexChart extends LineChart {
       enabled: true,
       shadowBlur: 0,
       opacity: 1,
-      color: COLOR_LIST_BAR[0]
+      color: COLOR_LIST_BAR[0],
     };
     let sets: IApdexChartTipItem;
     switch (dataType) {
@@ -242,7 +243,7 @@ export class ApdexChart extends LineChart {
     </li>`;
     return {
       itemStyle,
-      tooltips
+      tooltips,
     };
   }
   handleSetApdexColor(val: number) {
@@ -251,18 +252,18 @@ export class ApdexChart extends LineChart {
       return {
         name: '满意',
         tips: `Apdex(${v}) > 0.75`,
-        color: '#2DCB56'
+        color: '#2DCB56',
       };
     if (v <= 0.25)
       return {
         name: '烦躁',
         tips: `Apdex(${v}) <= 0.25`,
-        color: '#FF5656'
+        color: '#FF5656',
       };
     return {
       name: '可容忍',
       tips: `0.25 < Apdex(${v}) <= 0.75`,
-      color: '#FFB848'
+      color: '#FFB848',
     };
   }
   handleSetEventColor(v: number[]) {
@@ -271,18 +272,18 @@ export class ApdexChart extends LineChart {
       return {
         name: '致命',
         tips,
-        color: '#FF5656'
+        color: '#FF5656',
       };
     if (v[0] === 2)
       return {
         name: '预警',
         tips,
-        color: '#FFB848'
+        color: '#FFB848',
       };
     return {
       name: '无告警',
       tips,
-      color: '#2DCB56'
+      color: '#2DCB56',
     };
   }
   render() {
@@ -292,30 +293,30 @@ export class ApdexChart extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            title={this.panel.title}
-            showMore={false}
-            showAddMetric={false}
-            draging={this.panel.draging}
-            metrics={this.metrics}
-            subtitle={this.panel.subTitle || ''}
             descrition={this.panel.descrition}
+            draging={this.panel.draging}
             isInstant={this.panel.instant}
+            metrics={this.metrics}
+            showAddMetric={false}
+            showMore={false}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onUpdateDragging={() => this.panel.updateDraging(false)}
           />
         )}
         {!this.empty ? (
           <div class={`apdex-chart-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChart'
-                  height={this.height}
                   width={this.width}
-                  options={this.options}
+                  height={this.height}
                   groupId={this.panel.dashboardId}
+                  options={this.options}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                 />

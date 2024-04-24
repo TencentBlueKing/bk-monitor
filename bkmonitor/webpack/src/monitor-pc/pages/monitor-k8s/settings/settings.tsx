@@ -25,13 +25,13 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deleteSceneView, getSceneView, getSceneViewList, updateSceneView } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { IBookMark, ISettingTpl, SettingsDashboardType, SettingsWrapType } from '../typings';
 import { SettingsTabType, SettingsVarType, SettingType } from '../typings/settings';
 import { SETTINGS_POP_ZINDEX } from '../utils';
-
 import SettingsDashboard from './settings-dashboard/settings-dashboard';
 import SettingsTab from './settings-tab/settings-tab';
 import SettingsVar from './settings-var/settings-var';
@@ -113,7 +113,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
   async getTabList() {
     await getSceneViewList({
       scene_id: this.sceneId,
-      type: this.viewType
+      type: this.viewType,
     })
       .then(res => {
         const newArr = [];
@@ -137,7 +137,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
     const data = await getSceneView({
       scene_id: this.sceneId,
       type: this.viewType,
-      id: tabId
+      id: tabId,
     }).catch(err => {
       console.info(err);
     });
@@ -157,7 +157,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
       const temp = {
         ...tab,
         variables: [],
-        panels: []
+        panels: [],
       };
       if (newData && tab.id === newData.id) {
         Object.assign(temp, { ...newData, isReady: true });
@@ -207,7 +207,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
         zIndex: SETTINGS_POP_ZINDEX,
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => (this.localActive = this.active),
-        cancelFn: () => this.handleActiveChange(this.localActive)
+        cancelFn: () => this.handleActiveChange(this.localActive),
       });
       return;
     }
@@ -234,8 +234,8 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
     const tabData = { id, name, view_order };
     const config: SettingsWrapType.ISettingsSaveConfig = {
       options: {
-        show_panel_count: data.show_panel_count
-      }
+        show_panel_count: data.show_panel_count,
+      },
     };
     this.isShowPanelChange = data.show_panel_count;
     this.handleSaveConfig(config, tabData).then(async () => {
@@ -276,7 +276,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
     const params = {
       scene_id: this.sceneId, // 场景分类
       type: this.viewType,
-      id
+      id,
     };
     await deleteSceneView(params).then(async () => {
       this.handlePanelChange(true);
@@ -303,14 +303,14 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
             api: 'scene_view.getSceneViewDimensionValue',
             data: {
               field: item.groupBy,
-              where: item.where.filter(item => !!item.key)
+              where: item.where.filter(item => !!item.key),
             },
             fields: {
-              id: item.groupBy
-            }
-          }
-        ]
-      }))
+              id: item.groupBy,
+            },
+          },
+        ],
+      })),
     };
     const { name, id } = data;
     const tabData = { id, name };
@@ -327,7 +327,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
     const { id, name, data } = order;
     const tabData = { id, name };
     const config: SettingsWrapType.ISettingsSaveConfig = {
-      order: data
+      order: data,
     };
     this.handleSaveConfig(config, tabData);
   }
@@ -350,7 +350,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
     const params = {
       scene_id: this.sceneId, // 场景分类
       type: this.viewType,
-      config // 设置配置
+      config, // 设置配置
     };
     Object.assign(params, tabData);
     return updateSceneView(params).then(() => {
@@ -370,26 +370,26 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
         <SettingsTab
           key={this.active}
           ref='settingsTabRef'
-          needAutoAdd={this.initAddSetting}
-          canAddTab={this.canAddTab}
           activeTab={this.localActiveTab}
           bookMarkData={this.localBookMarkData}
+          canAddTab={this.canAddTab}
+          needAutoAdd={this.initAddSetting}
           title={this.title}
-          onSave={this.handleSaveTabList}
           onDelete={this.handleDeleteTab}
+          onSave={this.handleSaveTabList}
         />
       ),
       /** 编辑变量 */
       'edit-variate': (
         <SettingsVar
-          sceneId={this.sceneId}
-          needAutoAdd={this.initAddSetting}
-          viewType={this.viewType}
-          activeTab={this.activeTab}
           ref='settingsVarRef'
+          activeTab={this.activeTab}
           bookMarkData={this.localBookMarkData}
-          title={this.title}
           getTabDetail={this.getTabDetail}
+          needAutoAdd={this.initAddSetting}
+          sceneId={this.sceneId}
+          title={this.title}
+          viewType={this.viewType}
           onSave={this.handleSaveVarList}
         />
       ),
@@ -399,13 +399,13 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
           ref='settingsDashBoardRef'
           activeTab={this.localActiveTab}
           bookMarkData={this.localBookMarkData}
-          title={this.title}
           enableAutoGrouping={this.enableAutoGrouping}
-          onGetTabDetail={this.getTabDetail}
+          title={this.title}
           on-tab-change={tab => (this.localActiveTab = tab)}
+          onGetTabDetail={this.getTabDetail}
           onSave={this.handleSaveOrder}
         />
-      )
+      ),
     };
     return settingMap[this.localActive];
   }

@@ -57,6 +57,7 @@ from apps.log_search.constants import (
     DEFAULT_TIME_FIELD,
     EsHealthStatus,
     GlobalCategoriesEnum,
+    IndexSetType,
     InnerTag,
     SearchScopeEnum,
     TimeFieldTypeEnum,
@@ -120,15 +121,27 @@ class IndexSetHandler(APIModel):
     def get_index_set_for_storage(storage_cluster_id):
         return LogIndexSet.objects.filter(storage_cluster_id=storage_cluster_id)
 
-    def config(self, config_id: int):
+    def config(self, config_id: int, index_set_ids: list = None, index_set_type: str = IndexSetType.SINGLE.value):
         """修改用户当前索引集的配置"""
         username = get_request_username()
-        UserIndexSetFieldsConfig.objects.update_or_create(
-            index_set_id=self.index_set_id,
-            username=username,
-            source_app_code=get_request_app_code(),
-            defaults={"config_id": config_id},
-        )
+        params = {"username": username, "source_app_code": get_request_app_code(), "defaults": {"config_id": config_id}}
+        if index_set_type == IndexSetType.UNION.value:
+            index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
+            params.update(
+                {
+                    "index_set_ids": index_set_ids,
+                    "index_set_type": IndexSetType.UNION.value,
+                    "index_set_ids_hash": index_set_ids_hash,
+                }
+            )
+        else:
+            params.update({"index_set_id": self.index_set_id})
+
+        UserIndexSetFieldsConfig.objects.update_or_create(**params)
+
+        if index_set_type == IndexSetType.UNION.value:
+            return
+
         # add user_operation_record
         try:
             log_index_set_obj = LogIndexSet.objects.get(index_set_id=self.index_set_id)
@@ -191,7 +204,7 @@ class IndexSetHandler(APIModel):
     @classmethod
     def post_list(cls, index_sets):
         """
-        补充存储集数据分类、数据源、集群名称字段
+        补充存储集数据分类、数据源、集群名称字段、标签信息
         :param index_sets:
         :return:
         """
@@ -204,8 +217,16 @@ class IndexSetHandler(APIModel):
             cluster_map = IndexSetHandler.get_cluster_map()
         scenario_choices = dict(Scenario.CHOICES)
 
+        tag_ids_mapping = dict()
+        tag_ids_all = set()
+
         multi_execute_func = MultiExecuteFunc()
         for _index in index_sets:
+            # 标签处理
+            if _index["tag_ids"]:
+                tag_ids_mapping[int(_index["index_set_id"])] = _index["tag_ids"]
+                tag_ids_all = tag_ids_all.union(set(_index["tag_ids"]))
+
             _index["category_name"] = GlobalCategoriesEnum.get_display(_index["category_id"])
             _index["scenario_name"] = scenario_choices.get(_index["scenario_id"])
             _index["storage_cluster_name"] = ",".join(
@@ -244,6 +265,18 @@ class IndexSetHandler(APIModel):
                 _index["time_field_unit"] = TimeFieldUnitEnum.MILLISECOND.value
                 _index["time_field"] = time_field
         result = multi_execute_func.run()
+
+        # 获取标签信息
+        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all)
+        index_set_tag_mapping = {
+            obj.tag_id: {
+                "name": InnerTag.get_choice_label(obj.name),
+                "color": obj.color,
+                "tag_id": obj.tag_id,
+            }
+            for obj in index_set_tag_objs
+        }
+
         for _index in index_sets:
             if _index["scenario_id"] == Scenario.BKDATA:
                 _index["storage_cluster_id"] = result.get(_index["index_set_id"], {}).get("storage_cluster_id")
@@ -255,6 +288,17 @@ class IndexSetHandler(APIModel):
                         .split(",")
                     }
                 )
+
+            # 补充标签信息
+            _index.pop("tag_ids")
+            tag_ids = tag_ids_mapping.get(int(_index["index_set_id"]), [])
+            if not tag_ids:
+                _index["tags"] = list()
+                continue
+
+            _index["tags"] = [
+                index_set_tag_mapping.get(int(tag_id)) for tag_id in tag_ids if index_set_tag_mapping.get(int(tag_id))
+            ]
 
         return index_sets
 
@@ -797,11 +841,12 @@ class IndexSetHandler(APIModel):
 
         tag_ids = list(index_set_obj.tag_ids)
 
-        tag_ids.append(str(tag_id))
+        if str(tag_id) not in tag_ids:
+            tag_ids.append(str(tag_id))
 
-        index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.tag_ids = tag_ids
 
-        index_set_obj.save()
+            index_set_obj.save()
 
         return
 
@@ -819,7 +864,7 @@ class IndexSetHandler(APIModel):
 
         if tag_ids and str(tag_id) in tag_ids:
             tag_ids.remove(str(tag_id))
-            index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.tag_ids = tag_ids
             index_set_obj.save()
 
         return
@@ -831,7 +876,7 @@ class IndexSetHandler(APIModel):
         """
         # 名称校验
         if (
-            params["name"] in list(InnerTag.get_dict_choices().keys())
+            params["name"] in list(InnerTag.get_dict_choices().values())
             or IndexSetTag.objects.filter(name=params["name"]).exists()
         ):
             raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
@@ -856,6 +901,7 @@ class IndexSetHandler(APIModel):
                 _data["is_built_in"] = True
             else:
                 _data["is_built_in"] = False
+            _data["name"] = InnerTag.get_choice_label(obj.name)
             ret.append(_data)
 
         return ret
@@ -1763,16 +1809,21 @@ class IndexSetFieldsConfigHandler(object):
         config_id: int = None,
         index_set_id: int = None,
         scope: str = SearchScopeEnum.DEFAULT.value,
+        index_set_ids: list = None,
+        index_set_type: str = IndexSetType.SINGLE.value,
     ):
         self.config_id = config_id
         self.index_set_id = index_set_id
         self.scope = scope
         self.source_app_code = get_request_app_code()
+        self.index_set_ids = index_set_ids
+        self.index_set_type = index_set_type
         if config_id:
             try:
                 self.data = IndexSetFieldsConfig.objects.get(pk=config_id)
             except IndexSetFieldsConfig.DoesNotExist:
                 raise IndexSetFieldsConfigNotExistException()
+        self.index_set_ids_hash = IndexSetFieldsConfig.get_index_set_ids_hash(self.index_set_ids)
 
     def retrieve(self) -> dict:
         if not self.data:
@@ -1780,12 +1831,13 @@ class IndexSetFieldsConfigHandler(object):
         return model_to_dict(self.data)
 
     def list(self, scope: str = SearchScopeEnum.DEFAULT.value) -> list:
-        config_list = [
-            model_to_dict(i)
-            for i in IndexSetFieldsConfig.objects.filter(
-                index_set_id=self.index_set_id, scope=scope, source_app_code=self.source_app_code
-            ).all()
-        ]
+        query_params = {"scope": scope, "source_app_code": self.source_app_code, "index_set_type": self.index_set_type}
+        if self.index_set_type == IndexSetType.UNION.value:
+            query_params.update({"index_set_ids_hash": self.index_set_ids_hash})
+        else:
+            query_params.update({"index_set_id": self.index_set_id})
+        objs = IndexSetFieldsConfig.objects.filter(**query_params).all()
+        config_list = [model_to_dict(obj) for obj in objs]
         config_list.sort(key=lambda c: c["name"] == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME, reverse=True)
         return config_list
 
@@ -1793,10 +1845,16 @@ class IndexSetFieldsConfigHandler(object):
         username = get_request_external_username() or get_request_username()
         # 校验配置需要修改名称时, 名称是否可用
         if self.data and self.data.name != name or not self.data:
-            if IndexSetFieldsConfig.objects.filter(
-                name=name, index_set_id=self.index_set_id, source_app_code=self.source_app_code
-            ).exists():
-                raise IndexSetFieldsConfigAlreadyExistException()
+            if self.index_set_type == IndexSetType.UNION.value:
+                if IndexSetFieldsConfig.objects.filter(
+                    name=name, index_set_ids_hash=self.index_set_ids_hash, source_app_code=self.source_app_code
+                ).exists():
+                    raise IndexSetFieldsConfigAlreadyExistException()
+            else:
+                if IndexSetFieldsConfig.objects.filter(
+                    name=name, index_set_id=self.index_set_id, source_app_code=self.source_app_code
+                ).exists():
+                    raise IndexSetFieldsConfigAlreadyExistException()
 
         if self.data:
             # 更新配置, 只允许更新name, display_fields, sort_list
@@ -1807,17 +1865,29 @@ class IndexSetFieldsConfigHandler(object):
             self.data.save()
         else:
             # 创建配置
-            self.data = IndexSetFieldsConfig.objects.create(
-                name=name,
-                index_set_id=self.index_set_id,
-                display_fields=display_fields,
-                sort_list=sort_list,
-                scope=self.scope,
-                source_app_code=self.source_app_code,
-            )
+            params = {
+                "name": name,
+                "display_fields": display_fields,
+                "sort_list": sort_list,
+                "scope": self.scope,
+                "source_app_code": self.source_app_code,
+            }
+            if self.index_set_type == IndexSetType.UNION.value:
+                params.update(
+                    {
+                        "index_set_ids": self.index_set_ids,
+                        "index_set_ids_hash": self.index_set_ids_hash,
+                        "index_set_type": IndexSetType.UNION.value,
+                    }
+                )
+            else:
+                params.update({"index_set_id": self.index_set_id, "index_set_type": IndexSetType.SINGLE.value})
+            self.data = IndexSetFieldsConfig.objects.create(**params)
             self.data.created_by = username
             self.data.save()
 
+        if self.index_set_type == IndexSetType.UNION.value:
+            return model_to_dict(self.data)
         # add user_operation_record
         try:
             log_index_set_obj = LogIndexSet.objects.get(index_set_id=self.index_set_id)

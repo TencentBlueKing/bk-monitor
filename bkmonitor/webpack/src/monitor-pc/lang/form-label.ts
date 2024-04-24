@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -419,6 +418,9 @@ export default {
   维度名称: 'Dimension Name',
   维度下钻: 'Facet',
   异常维度: 'Abnormal Dimension',
+  指标数据: 'Metrics',
+  事件数据: 'Events',
+  拨测: 'Synthetics',
 
   // - Title Text：标题文本，用于描述页面或模块的主题，例如“登录页面”、“用户信息”等。
 
@@ -587,7 +589,7 @@ export default {
   已收藏: 'Favorited',
   已经添加: 'Added',
   已选条件: 'Selected conditions',
-  "已选择{0}台主机": '{0} hosts have been selected',
+  '已选择{0}台主机': '{0} hosts have been selected',
   已有项目: 'Existing projects',
   只看已选: 'Show only selected',
 
@@ -1839,5 +1841,5 @@ export default {
   最大展示数量: 'Maximum display number',
   内容配置: 'Content configuration',
   邮件配置: 'Email configuration',
-  只展示新类: 'Only show new classes'
+  只展示新类: 'Only show new classes',
 };
