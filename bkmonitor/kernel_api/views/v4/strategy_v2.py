@@ -8,8 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from rest_framework.exceptions import ValidationError
 from django.utils.translation import ugettext as _
+from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import UserGroup
 from bkmonitor.strategy.new_strategy import Action, Detect
@@ -98,19 +98,18 @@ class SaveStrategyResource(Resource):
 
         detects = detect_serializer.validated_data
         for detect in detects:
-            detect["trigger_config"].update(
+            # 补充 uptime 默认值，同时固定 time_range 取值，支持传入日历字段
+            uptime = detect["trigger_config"].get("uptime", {})
+            uptime["time_ranges"] = [
                 {
-                    "uptime": {
-                        "time_ranges": [
-                            {
-                                "start": action_config.get("alarm_start_time", "00:00:00"),
-                                "end": action_config.get("alarm_end_time", "23:59:59"),
-                            }
-                        ],
-                        "calendars": [],
-                    }
+                    "start": action_config.get("alarm_start_time", "00:00:00"),
+                    "end": action_config.get("alarm_end_time", "23:59:59"),
                 }
-            )
+            ]
+            if "calendars" not in uptime:
+                uptime["calendars"] = []
+            detect["trigger_config"]["uptime"] = uptime
+
         validated_request_data["detects"] = detects
 
         return resource.strategies.save_strategy_v2(validated_request_data)
