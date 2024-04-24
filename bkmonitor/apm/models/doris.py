@@ -61,7 +61,7 @@ class BkDataDorisProvider:
 
     @classmethod
     def from_datasource_instance(
-        cls, obj: "ApmDataSourceConfigBase", maintainer: str, operator: str
+        cls, obj: "ApmDataSourceConfigBase", maintainer: str, operator: str, name_prefix: str = None
     ) -> "BkDataDorisProvider":
         """从数据源实例中创建数据源提供者"""
         return cls(
@@ -70,7 +70,9 @@ class BkDataDorisProvider:
             maintainer=maintainer,
             operator=operator,
             _obj=obj,
-            pure_app_name=obj.app_name.replace("-", "_"),
+            pure_app_name=obj.app_name.replace("-", "_")
+            if not name_prefix
+            else f"{obj.app_name}_{name_prefix}".replace('-', '_'),
         )
 
     def provider(self, **options) -> dict:

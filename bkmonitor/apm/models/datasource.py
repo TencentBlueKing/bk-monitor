@@ -984,7 +984,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **option):
-        bk_biz_id = int(bk_biz_id)
+        origin_bk_biz_id = bk_biz_id
         if bk_biz_id < 0:
             # 非业务创建 profile 将创建在公共业务下
             bk_biz_id = settings.BK_DATA_BK_BIZ_ID
@@ -998,6 +998,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             obj,
             maintainer=get_global_user() if not apm_maintainers else f"{get_global_user()},{apm_maintainers}",
             operator=get_global_user(),
+            name_prefix=origin_bk_biz_id,
         ).provider(**option)
 
         obj.bk_data_id = essentials["bk_data_id"]
