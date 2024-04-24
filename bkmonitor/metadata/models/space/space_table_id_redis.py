@@ -214,15 +214,9 @@ class SpaceTableIDRedis:
 
             data[tid] = json.dumps(
                 {
-                    "fields": [],
-                    "measurement_type": "is_split_measurement",
                     "storage_id": record.get("storage_cluster_id", 0),
-                    "bcs_cluster_id": None,
-                    "data_label": "",
-                    "storage_name": "",
                     "db": db,
                     "measurement": measurement,
-                    "vm_rt": "",
                 }
             )
         return data
