@@ -1067,19 +1067,10 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
             return
         self._update_params_by_advance_method()
 
-    def _update_params_by_advance_method(self):
-        if len(self.metrics) > 1 and not self.functions:
-            # 如果使用了查询函数，会走统一查询模块
-            # 只有多指标情况下, bksql，需要高级过滤转换。
-            self.ADVANCE_CONDITION_METHOD = AdvanceConditionMethod
-
-        return super(BkdataTimeSeriesDataSource, self)._update_params_by_advance_method()
-
     def __init__(self, *args, **kwargs):
         # datasource初始化部分基于 init_by_query_config， 部分是直接初始化
         # 风险： 初始化参数中可能不存在业务id信息
         bk_biz_id = kwargs.get("bk_biz_id")
-        self._using_unify_query = False
         if bk_biz_id and self.switch_unify_query(bk_biz_id):
             # 当计算平台查询走unify-query的时候，不额外处理高级过滤方法
             # 影响函数： _update_params_by_advance_method
@@ -1098,7 +1089,6 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
                 raise PermissionDeniedError(action_name=bk_biz_id)
 
     def to_unify_query_config(self) -> List[Dict]:
-        self._update_params_by_advance_method()
         # unify 定义 bkdata 查询配置制定data_source字段
         query_list = super().to_unify_query_config()
         for query in query_list:

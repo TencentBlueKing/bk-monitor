@@ -129,18 +129,15 @@ export interface IPromqlMonacoEditorProps {
   theme?: null | string;
   options?: object;
   overrideServices?: object;
-  // editorWillMount?: Function;
-  editorDidMount?: Function;
-  editorWillUnmount?: Function;
-  onChange?: Function;
-  executeQuery?: Function;
   className?: null | string;
-  uri?: Function;
   readonly?: boolean;
   minHeight?: number;
   isError?: boolean;
   onBlur?: (value: string, hasErr: boolean) => void;
   onFocus?: () => void;
+  onChange?: (v: string) => void;
+  executeQuery?: (v: boolean) => void;
+  uri?: (v: any) => void;
 }
 @Component
 export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
@@ -150,12 +147,12 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Prop({ default: null }) readonly value: null | string;
   @Prop({ default: '' }) readonly defaultValue?: string;
   @Prop({ default: 'promql' }) readonly language?: string;
-  @Prop({ default: null }) readonly theme?: null | string;
+  @Prop({ default: 'vs' }) readonly theme?: null | string;
   @Prop({ default: () => defalutOptions }) readonly options: object;
   @Prop({ default: () => ({}) }) readonly overrideServices?: object;
   @Prop({ default: null }) readonly className?: null | string;
-  @Prop({ default: () => null }) readonly executeQuery: Function;
-  @Prop() readonly uri?: Function;
+  @Prop({ default: () => null }) readonly executeQuery: (v: boolean) => void;
+  @Prop() readonly uri?: (v: any) => void;
   @Prop({ default: false }) readonly: boolean;
 
   editor: monaco.editor.IStandaloneCodeEditor | null = null;
@@ -178,7 +175,9 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
 
   beforeDestroy() {
     this.destroyMonaco();
-    this.roInstance?.disconnect?.();
+  }
+  deactivated() {
+    this.destroyMonaco();
   }
 
   onChange(value: string) {
@@ -360,6 +359,8 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   }
   destroyMonaco() {
     this.editor?.dispose?.();
+    monaco.editor.getModels().forEach(model => model.dispose());
+    this.roInstance?.disconnect?.();
   }
 
   initResize(e: Event) {

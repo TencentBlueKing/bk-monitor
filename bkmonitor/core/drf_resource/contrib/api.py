@@ -162,8 +162,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             request = get_request(peaceful=True)
             if request and not getattr(request, "external_user", None):
                 auth_params.update(get_bk_login_ticket(request))
-            else:
-                auth_params.update(make_userinfo())
+            auth_params.update(make_userinfo())
         headers["x-bkapi-authorization"] = json.dumps(auth_params)
 
         return headers
