@@ -2558,7 +2558,7 @@ class CollectorHandler(object):
         if result_table:
             return data
 
-        data["allowed"] = True
+        data["allowed"] = True # 测试
         return data
 
     def _pre_check_bk_data_name(self, model_fields: dict, bk_data_name: str):
