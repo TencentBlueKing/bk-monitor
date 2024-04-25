@@ -398,7 +398,7 @@ def redirect_func(request):
     return HttpResponseRedirect(next_url)
 
 
-BLUEAPPS_PAGE_401_RESPONSE_FUNC = redirect_func
+# BLUEAPPS_PAGE_401_RESPONSE_FUNC = redirect_func
 
 # bulk_request limit
 BULK_REQUEST_LIMIT = int(os.environ.get("BKAPP_BULK_REQUEST_LIMIT", 500))
