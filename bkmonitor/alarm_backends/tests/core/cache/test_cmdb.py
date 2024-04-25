@@ -287,7 +287,7 @@ class TestHostManager(TestCMDBBaseTestCase):
         self.assertSetEqual({"10.0.0.5|5", "10.0.0.6|6", "5", "6"}, set(json.loads(all_host_id_list["4"])))
 
         # 业务拉取异常
-        self.assertEqual(None, HostManager.get(ip="10.0.0.5", bk_cloud_id=5))
+        self.assertEqual(4, HostManager.get(ip="10.0.0.5", bk_cloud_id=5).bk_biz_id)
 
     @mock.patch("alarm_backends.core.cache.cmdb.business.api.cmdb.get_business")
     def test_remove_biz(self, get_business):
