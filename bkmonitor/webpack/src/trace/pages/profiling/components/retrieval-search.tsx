@@ -96,7 +96,7 @@ export default defineComponent({
     watch(
       () => toolsFormData.value.timeRange,
       () => {
-        getLabelList();
+        // getLabelList();
         getApplicationList();
       }
     );

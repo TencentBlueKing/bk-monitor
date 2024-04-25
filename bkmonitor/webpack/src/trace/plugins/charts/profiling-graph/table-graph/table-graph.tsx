@@ -30,11 +30,13 @@ import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/fla
 import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
 import { ITableTipsDetail, ProfilingTableItem, TableColumn } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
+import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils'
 
 import { DirectionType } from '../../../../typings';
 
 // import { ColorTypes } from './../../flame-graph-v2/types';
 import './table-graph.scss';
+import { deepClone } from 'monitor-common/utils';
 
 // const valueColumnWidth = 150;
 
@@ -79,9 +81,9 @@ export default defineComponent({
     /** 表格数据 */
     const tableData = ref<ProfilingTableItem[]>([]);
     const tableColumns = ref<TableColumn[]>([
-      { id: 'Location', name: 'Location', sort: '' },
-      { id: 'Self', name: 'Self', mode: 'normal', sort: '' },
-      { id: 'Total', name: 'Total', mode: 'normal', sort: '' },
+      { id: 'name', name: 'Location', sort: '' },
+      { id: 'self', name: 'Self', mode: 'normal', sort: '' },
+      { id: 'total', name: 'Total', mode: 'normal', sort: '' },
       { id: 'baseline', name: window.i18n.t('查询项'), mode: 'diff', sort: '' },
       { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
       { id: 'diff', name: 'Diff', mode: 'diff', sort: '' }
@@ -92,6 +94,8 @@ export default defineComponent({
     });
     const tipDetail = shallowRef<ITableTipsDetail>({});
     const localIsCompared = ref(false);
+    const sortKey = ref('');
+    const sortType = ref('');
 
     watch(
       () => props.data,
@@ -100,7 +104,9 @@ export default defineComponent({
           self: Math.max(...val.map(item => item.self)),
           total: Math.max(...val.map(item => item.total))
         };
+        sortKey.value = '';
         getTableData();
+        tableColumns.value = tableColumns.value.map(item => ({ ...item, sort: '' }));
       },
       {
         immediate: true,
@@ -115,7 +121,7 @@ export default defineComponent({
     );
 
     function getTableData() {
-      tableData.value = props.data
+      const filterList = deepClone(props.data
         .filter(item => (!!props.filterKeyword ? item.name.includes(props.filterKeyword) : true))
         .map(item => {
           const palette = Object.values(ColorTypes);
@@ -125,7 +131,9 @@ export default defineComponent({
             ...item,
             color
           };
-        });
+        }))
+
+      tableData.value = sortTableGraph(filterList, sortKey.value, sortType.value)
       localIsCompared.value = props.isCompared;
     }
     // Self 和 Total 值的展示
@@ -157,21 +165,24 @@ export default defineComponent({
     }
     /** 列字段排序 */
     function handleSort(col: TableColumn) {
-      let sortKey;
       switch (col.sort) {
         case 'asc':
           col.sort = 'desc';
-          sortKey = `-${col.id}`;
+          sortType.value = 'desc';
+          sortKey.value = col.id;
           break;
         case 'desc':
           col.sort = '';
-          sortKey = undefined;
+          sortType.value = '';
+          sortKey.value = undefined;
           break;
         default:
           col.sort = 'asc';
-          sortKey = col.id;
+          sortType.value = 'asc';
+          sortKey.value = col.id;
       }
       emit('sortChange', sortKey);
+      getTableData();
       tableColumns.value = tableColumns.value.map(item => {
         return {
           ...item,

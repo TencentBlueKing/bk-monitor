@@ -29,8 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
 import { ColorTypes, ITableTipsDetail, ProfilingTableItem, TableColumn, TextDirectionType } from '../../../typings';
 import { getHashVal } from '../flame-graph/utils';
+import { sortTableGraph } from './utils';
 
 import './table-graph.scss';
+import { deepClone } from 'monitor-common/utils';
 
 const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
 
@@ -66,9 +68,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   /** 表格数据 */
   tableData: ProfilingTableItem[] = [];
   tableColumns: TableColumn[] = [
-    { id: 'Location', name: 'Location', sort: '' },
-    { id: 'Self', name: 'Self', mode: 'normal', sort: '' },
-    { id: 'Total', name: 'Total', mode: 'normal', sort: '' },
+    { id: 'name', name: 'Location', sort: '' },
+    { id: 'self', name: 'Self', mode: 'normal', sort: '' },
+    { id: 'total', name: 'Total', mode: 'normal', sort: '' },
     { id: 'baseline', name: window.i18n.t('查询项'), mode: 'diff', sort: '' },
     { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
     { id: 'diff', name: 'Diff', mode: 'diff', sort: '' }
@@ -76,6 +78,8 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   tipDetail: ITableTipsDetail = {};
   diffMode = false;
   localIsCompared = false;
+  sortKey = '';
+  sortType = '';
 
   @Emit('updateHighlightId')
   handleHighlightIdChange(val: number) {
@@ -93,7 +97,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
       self: Math.max(...val.map(item => item.self)),
       total: Math.max(...val.map(item => item.total))
     };
+    this.sortKey = '';
     this.getTableData();
+    this.tableColumns = this.tableColumns.map(item => ({ ...item, sort: '' }));
   }
 
   @Watch('filterKeyword')
@@ -102,7 +108,8 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   }
 
   getTableData() {
-    this.tableData = (this.data || [])
+    const filterList = deepClone(
+      this.data || [])
       .filter(item => (!!this.filterKeyword ? item.name.includes(this.filterKeyword) : true))
       .map(item => {
         const palette = Object.values(ColorTypes);
@@ -112,7 +119,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
           ...item,
           color
         };
-      });
+      }
+    )
+    this.tableData = sortTableGraph(filterList, this.sortKey, this.sortType)
     this.localIsCompared = this.isCompared;
   }
   // Self 和 Total 值的展示
@@ -145,21 +154,24 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   }
   /** 列字段排序 */
   handleSort(col: TableColumn) {
-    let sortKey;
     switch (col.sort) {
       case 'asc':
         col.sort = 'desc';
-        sortKey = `-${col.id}`;
+        this.sortType = 'desc'
+        this.sortKey = col.id;
         break;
       case 'desc':
         col.sort = '';
-        sortKey = undefined;
+        this.sortType = '';
+        this.sortKey = undefined;
         break;
       default:
         col.sort = 'asc';
-        sortKey = col.id;
+        this.sortType = 'asc';
+        this.sortKey = col.id;
     }
-    this.handleSortChange(sortKey);
+    this.handleSortChange(this.sortKey);
+    this.getTableData();
     this.tableColumns = this.tableColumns.map(item => {
       return {
         ...item,
