@@ -30,7 +30,7 @@ class Discover(abc.ABC):
 
     def __init__(self, datasource):
         self.datasource = datasource
-        self.bk_biz_id = datasource.profile_bk_biz_id
+        self.bk_biz_id = datasource.bk_biz_id
         self.app_name = datasource.app_name
         self.retention = datasource.retention
         self.result_table_id = datasource.result_table_id
