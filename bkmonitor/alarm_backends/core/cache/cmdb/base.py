@@ -189,8 +189,6 @@ class RefreshByBizMixin(object):
 
         biz_ids = [business.bk_biz_id for business in business_list]
 
-        new_keys = []
-
         biz_cache_key = cls.get_biz_cache_key()
 
         for bk_biz_id in biz_ids:
@@ -206,25 +204,29 @@ class RefreshByBizMixin(object):
             else:
                 # 更新对象缓存
                 cls.cache_by_biz(bk_biz_id, objs, force=True)
-                new_keys.extend(list(objs.keys()))
 
             metrics.ALARM_CACHE_TASK_TIME.labels(str(bk_biz_id), cls.type, str(exc)).observe(
                 time.time() - biz_start_time
             )
 
-        # 清理已被删除的业务数据
-        # biz_cache_key 存储的就是最新的Keys列表，在后面与old keys做差量比对
-        # 存储结构
-        # {
-        #   '2': ['127.0.0.1|0', '127.0.0.2|0'],
-        #   '3': ['127.0.0.3|0'],
-        # }
         old_biz_ids = set(cls.cache.hkeys(biz_cache_key))
         new_biz_ids = {str(biz_id) for biz_id in biz_ids}
         deleted_biz_ids = old_biz_ids - new_biz_ids
         if deleted_biz_ids:
             cls.cache.hdel(biz_cache_key, *deleted_biz_ids)
         cls.cache.expire(biz_cache_key, cls.CACHE_TIMEOUT)
+
+        # 清理已被删除的业务数据
+        biz_cache_keys = cls.cache.hgetall(biz_cache_key) or {}
+        # biz_cache_key 存储的就是最新的Keys列表，在后面与old keys做差量比对
+        # 存储结构
+        # {
+        #   '2': ['127.0.0.1|0', '127.0.0.2|0'],
+        #   '3': ['127.0.0.3|0'],
+        # }
+        new_keys = []
+        for keys in list(biz_cache_keys.values()):
+            new_keys.extend(json.loads(keys))
 
         # 清理业务下已被删除的对象数据
         # hkeys 已经删除的key，依然会在大hash map中。 因此需要清理
