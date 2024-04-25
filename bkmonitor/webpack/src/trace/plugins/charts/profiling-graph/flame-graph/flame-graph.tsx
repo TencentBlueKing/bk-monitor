@@ -171,7 +171,7 @@ export default defineComponent({
                     needCancel: true
                   }
                 ).catch(() => false)
-              )?.diagrams?.flame_data ?? false;
+              )?.flame_data ?? false;
 
           if (data) {
             if (props.diffTraceId) {
