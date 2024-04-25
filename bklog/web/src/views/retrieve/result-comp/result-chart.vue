@@ -101,6 +101,7 @@ import MonitorEcharts from '@/components/monitor-echarts/monitor-echarts-new';
 import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
 import { mapGetters } from 'vuex';
 import axios from 'axios';
+import { debounce } from 'throttle-debounce';
 
 const CancelToken = axios.CancelToken;
 
@@ -184,7 +185,7 @@ export default {
   watch: {
     chartKey: {
       handler() {
-        this.logChartCancel();
+        this.handleLogChartCancel();
         this.localAddition = this.retrieveParams.addition;
         this.$refs.chartRef && this.$refs.chartRef.handleCloseTimer();
         this.totalCount = 0;
@@ -203,6 +204,9 @@ export default {
     'retrieveParams.interval'(newVal) {
       this.chartInterval = newVal;
     }
+  },
+  created() {
+    this.handleLogChartCancel = debounce(300, this.logChartCancel);
   },
   mounted() {
     window.bus.$on('openChartLoading', this.openChartLoading);

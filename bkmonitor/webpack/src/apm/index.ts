@@ -43,10 +43,10 @@ import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
+import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
 import 'monitor-static/icons/monitor-icons.css';
-
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
