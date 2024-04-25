@@ -150,15 +150,15 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /** 当前编辑的策略是否存在智能异常检测算法 */
   @ProvideReactive('editStrategyIntelligentDetectList') editStrategyIntelligentDetectList: string[] = [];
 
-  @Ref('judgingCondition') readonly judgingConditionEl: JudgingCondition;
-  @Ref('base-config') readonly baseConfigEl: BaseConfig;
-  @Ref('detection-rules') readonly detectionRulesEl: DetectionRules;
+  @Ref('judgingCondition') readonly judgingConditionEl: InstanceType<typeof JudgingCondition>;
+  @Ref('base-config') readonly baseConfigEl: InstanceType<typeof BaseConfig>;
+  @Ref('detection-rules') readonly detectionRulesEl: InstanceType<typeof DetectionRules>;
   // @Ref('alarmHandling') readonly alarmHandlingRef: AlarmHandling;
-  @Ref('noticeConfigNew') noticeConfigRef: NoticeConfigNew;
-  @Ref('alarmHandlingList') alarmHandlingListRef: AlarmHandlingList;
-  @Ref('noticeConfigPanel') noticeConfigPanelRef: GroupPanel;
+  @Ref('noticeConfigNew') noticeConfigRef: InstanceType<typeof NoticeConfigNew>;
+  @Ref('alarmHandlingList') alarmHandlingListRef: InstanceType<typeof AlarmHandlingList>;
+  @Ref('noticeConfigPanel') noticeConfigPanelRef: InstanceType<typeof GroupPanel>;
   @Ref() contentRef: HTMLElement;
-  @Ref('aiopsMonitorData') aiopsMonitorDataRef: AiopsMonitorData;
+  @Ref('aiopsMonitorData') aiopsMonitorDataRef: InstanceType<typeof AiopsMonitorData>;
 
   /** 导航面包屑 */
   routeList = [

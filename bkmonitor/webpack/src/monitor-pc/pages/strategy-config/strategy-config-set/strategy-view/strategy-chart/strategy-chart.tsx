@@ -242,7 +242,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       return alias.replace(/and|or|\w/g, keyword => {
         if (keyword === 'and' || keyword === 'or') return keyword;
         const metric = this.metricData.find(item => item.alias === keyword);
-        if (metric) return metric.metric_field_name;
+        if (metric) return metric.metric_field_name || alias;
         return keyword || '';
       });
     });
