@@ -26,7 +26,6 @@
 import { RouteConfig } from 'vue-router';
 
 import * as functionAuth from '../../pages/function-switch/authority-map';
-
 import externalAuthRoutes from './external-auth';
 import noBusinessRoutess from './no-business';
 import shareRoutes from './share';
@@ -46,27 +45,27 @@ export default [
     path: '/migrate-dashboard',
     name: 'migrate-dashboard',
     components: {
-      noCache: MigrateDashboard
+      noCache: MigrateDashboard,
     },
     meta: {
       title: '迁移工具',
-      navId: 'migrate-dashboard'
-    }
+      navId: 'migrate-dashboard',
+    },
   },
   {
     path: '/function-switch',
     name: 'function-switch',
     components: {
-      noCache: FunctionSwitch
+      noCache: FunctionSwitch,
     },
     meta: {
       title: '功能开关',
       navId: 'function-switch',
       authority: {
         map: functionAuth,
-        page: functionAuth.VIEW_AUTH
-      }
-    }
+        page: functionAuth.VIEW_AUTH,
+      },
+    },
   },
   {
     path: '/exception/:type?/:queryUid?',
@@ -80,18 +79,18 @@ export default [
     meta: {
       title: '404',
       navId: 'exception',
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/view-detail',
     name: 'view-detail',
     components: {
-      noCache: ViewDetail
+      noCache: ViewDetail,
     },
     meta: {
       title: '视图详情',
-      navId: 'view-detail'
-    }
-  }
+      navId: 'view-detail',
+    },
+  },
 ] as RouteConfig[];

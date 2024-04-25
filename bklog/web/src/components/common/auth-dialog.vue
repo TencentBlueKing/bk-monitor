@@ -29,23 +29,42 @@
       :width="740"
       :ok-text="$t('申请')"
       @confirm="confirmSourceApply"
-      @cancel="closeAuth">
+      @cancel="closeAuth"
+    >
       <div class="apply-authority-dialog-container">
-        <img src="../../images/lock-radius.svg" alt="lock" class="lock-icon">
-        <div class="title">{{$t('该操作需要以下权限')}}</div>
-        <bk-table v-if="tableData.length" class="king-table" :data="tableData" :outer-border="false">
+        <img
+          src="../../images/lock-radius.svg"
+          alt="lock"
+          class="lock-icon"
+        />
+        <div class="title">{{ $t('该操作需要以下权限') }}</div>
+        <bk-table
+          v-if="tableData.length"
+          class="king-table"
+          :data="tableData"
+          :outer-border="false"
+        >
           <bk-table-column :label="$t('系统')">
-            <div slot-scope="{ row }">{{row.system}}</div>
+            <div slot-scope="{ row }">{{ row.system }}</div>
           </bk-table-column>
           <bk-table-column :label="$t('关联的资源实例')">
-            <div class="related-resources-container" slot-scope="{ row }">
-              <span v-for="(source, index) in row.sources" :key="index">
+            <div
+              slot-scope="{ row }"
+              class="related-resources-container"
+            >
+              <span
+                v-for="(source, index) in row.sources"
+                :key="index"
+              >
                 {{ source }}
               </span>
               <span v-if="!row.sources.length">--</span>
             </div>
           </bk-table-column>
-          <bk-table-column :label="$t('需要申请的权限')" prop="permission"></bk-table-column>
+          <bk-table-column
+            :label="$t('需要申请的权限')"
+            prop="permission"
+          ></bk-table-column>
         </bk-table>
       </div>
     </bk-dialog>
@@ -55,8 +74,9 @@
       :title="$t('权限申请单已提交？')"
       :ok-text="$t('刷新')"
       @confirm="confirmHasApply"
-      @cancel="closeAuth">
-      {{$t('请在权限中心填写权限申请单')}}
+      @cancel="closeAuth"
+    >
+      {{ $t('请在权限中心填写权限申请单') }}
     </bk-dialog>
   </div>
 </template>
@@ -67,13 +87,13 @@ export default {
     return {
       showApplyDialog: false,
       showConfirmDialog: false,
-      tableData: [],
+      tableData: []
     };
   },
   computed: {
     authDialogData() {
       return this.$store.state.authDialogData;
-    },
+    }
   },
   watch: {
     authDialogData: {
@@ -86,21 +106,21 @@ export default {
         }
         this.showConfirmDialog = false;
       },
-      immediate: true,
-    },
+      immediate: true
+    }
   },
   methods: {
     updateData(authData) {
       try {
         const tableData = [];
-        authData.apply_data.actions.forEach((action) => {
+        authData.apply_data.actions.forEach(action => {
           const item = {
             system: authData.apply_data.system_name, // 系统
             sources: [], // 资源
-            permission: action.name, // 需要申请的权限
+            permission: action.name // 需要申请的权限
           };
-          action.related_resource_types.forEach((resource) => {
-            resource.instances.flat().forEach((instance) => {
+          action.related_resource_types.forEach(resource => {
+            resource.instances.flat().forEach(instance => {
               item.sources.push(`${instance.type_name}：${instance.name}`);
             });
           });
@@ -127,47 +147,47 @@ export default {
     },
     closeAuth() {
       this.$store.commit('updateAuthDialogData', null);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .no-authority {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 0;
-    height: 0;
+.no-authority {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.apply-authority-dialog-container {
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+
+  .lock-icon {
+    margin-bottom: 10px;
   }
 
-  .apply-authority-dialog-container {
-    display: flex;
-    flex-flow: column;
-    align-items: center;
+  .title {
+    margin-bottom: 30px;
+    font-size: 20px;
+    color: #63656e;
+  }
 
-    .lock-icon {
-      margin-bottom: 10px;
+  :deep(.king-table) {
+    margin-bottom: 12px;
+
+    .bk-table-body-wrapper {
+      height: 128px;
+      overflow-y: auto;
     }
 
-    .title {
-      font-size: 20px;
-      color: #63656e;
-      margin-bottom: 30px;
-    }
-
-    :deep(.king-table) {
-      margin-bottom: 12px;
-
-      .bk-table-body-wrapper {
-        height: 128px;
-        overflow-y: auto;
-      }
-
-      .related-resources-container {
-        display: flex;
-        flex-flow: column;
-      }
+    .related-resources-container {
+      display: flex;
+      flex-flow: column;
     }
   }
+}
 </style>

@@ -24,67 +24,28 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import type { EChartOption } from 'echarts';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { ILegendItem, LegendActionType } from '../typings';
+import { ILegendItem, LegendActionType, MonitorEchartOptions } from '../typings';
 
 @Component
 export default class ResizeMixin extends Vue {
+  legendData: ILegendItem[];
   // 鼠标是否进入图表内
   @Prop({ default: false, type: Boolean }) showHeaderMoreTool: boolean;
-  legendData: ILegendItem[];
-  handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
-    if (this.legendData.length < 2) {
-      return;
-    }
-    const chartInstance = this.$refs.baseChart as any;
-    if (actionType === 'shift-click') {
-      chartInstance.dispatchAction({
-        type: !item.show ? 'legendSelect' : 'legendUnSelect',
-        name: item.name
-      });
-      item.show = !item.show;
-      this.$emit('selectLegend', this.legendData);
-    } else if (actionType === 'click') {
-      const hasOtherShow = this.legendData.filter(item => !item.hidden).some(set => set.name !== item.name && set.show);
-      this.legendData.forEach(legend => {
-        chartInstance.dispatchAction({
-          type:
-            legend.name === item.name ||
-            !hasOtherShow ||
-            (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
-              ? 'legendSelect'
-              : 'legendUnSelect',
-          name: legend.name
-        });
-        legend.show = legend.name === item.name || !hasOtherShow;
-      });
-      this.$emit('selectLegend', this.legendData);
-    }
-  }
-  handleSetLegendEvent() {
-    const chartInstance = this.$refs.baseChart as any;
-    chartInstance?.instance.on('legendselected', this.handleLegendChange);
-    chartInstance?.instance.on('legendunselected', this.handleLegendChange);
-  }
-  handleUnSetLegendEvent() {
-    const chartInstance = this.$refs.baseChart as any;
-    chartInstance?.instance?.off?.('legendselected', this.handleLegendChange);
-    chartInstance?.instance?.off?.('legendunselected', this.handleLegendChange);
-  }
   handleLegendChange() {
     if (!this.showHeaderMoreTool) {
       // const item = this.legendData.find(item => item.name === e.name);
       // item && (item.show = e.type === 'legendselected');
       const chartInstance = this.$refs.baseChart as any;
       chartInstance.instance.dispatchAction({
-        type: 'restore'
+        type: 'restore',
       });
     }
   }
   // 根据选中图例重置图表
-  handleResetPieChart(option: EChartOption, needResetChart?: boolean, hideLabel?: boolean) {
+  handleResetPieChart(option: MonitorEchartOptions, needResetChart?: boolean, hideLabel?: boolean) {
     let totalValue = 0;
     const resArr = [];
     const chartInstance = this.$refs.baseChart as any;
@@ -113,14 +74,43 @@ export default class ResizeMixin extends Vue {
             return `${ratio}%\n${params.name}`;
           }
           return '';
-        }
+        },
       };
       targetOption.series[0].emphasis.label = {
-        show: !hideLabel
+        show: !hideLabel,
       };
     }
 
     chartInstance.instance.setOption(targetOption);
+  }
+  handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
+    if (this.legendData.length < 2) {
+      return;
+    }
+    const chartInstance = this.$refs.baseChart as any;
+    if (actionType === 'shift-click') {
+      chartInstance.dispatchAction({
+        type: !item.show ? 'legendSelect' : 'legendUnSelect',
+        name: item.name,
+      });
+      item.show = !item.show;
+      this.$emit('selectLegend', this.legendData);
+    } else if (actionType === 'click') {
+      const hasOtherShow = this.legendData.filter(item => !item.hidden).some(set => set.name !== item.name && set.show);
+      this.legendData.forEach(legend => {
+        chartInstance.dispatchAction({
+          type:
+            legend.name === item.name ||
+            !hasOtherShow ||
+            (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
+              ? 'legendSelect'
+              : 'legendUnSelect',
+          name: legend.name,
+        });
+        legend.show = legend.name === item.name || !hasOtherShow;
+      });
+      this.$emit('selectLegend', this.legendData);
+    }
   }
   // pie-chart 选中图例事件
   handleSelectPieLegend({
@@ -128,11 +118,11 @@ export default class ResizeMixin extends Vue {
     item,
     option,
     needResetChart = false,
-    hideLabel = false
+    hideLabel = false,
   }: {
     actionType: LegendActionType;
     item: ILegendItem;
-    option: EChartOption;
+    option: MonitorEchartOptions;
     needResetChart?: boolean;
     hideLabel?: boolean;
   }) {
@@ -140,7 +130,7 @@ export default class ResizeMixin extends Vue {
     if (['highlight', 'downplay'].includes(actionType)) {
       chartInstance.dispatchAction({
         type: actionType,
-        name: item.name
+        name: item.name,
       });
     }
 
@@ -149,16 +139,24 @@ export default class ResizeMixin extends Vue {
     }
 
     if (actionType === 'shift-click') {
-      // eslint-disable-next-line no-param-reassign
       item.show = !item.show;
       this.handleResetPieChart(option, needResetChart, hideLabel);
     } else if (actionType === 'click') {
       const hasOtherShow = this.legendData.some(set => set.name !== item.name && set.show);
       this.legendData.forEach(legend => {
-        // eslint-disable-next-line no-param-reassign
         legend.show = legend.name === item.name || !hasOtherShow;
       });
       this.handleResetPieChart(option, needResetChart, hideLabel);
     }
+  }
+  handleSetLegendEvent() {
+    const chartInstance = this.$refs.baseChart as any;
+    chartInstance?.instance.on('legendselected', this.handleLegendChange);
+    chartInstance?.instance.on('legendunselected', this.handleLegendChange);
+  }
+  handleUnSetLegendEvent() {
+    const chartInstance = this.$refs.baseChart as any;
+    chartInstance?.instance?.off?.('legendselected', this.handleLegendChange);
+    chartInstance?.instance?.off?.('legendunselected', this.handleLegendChange);
   }
 }

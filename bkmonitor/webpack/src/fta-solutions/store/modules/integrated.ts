@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 import { listEventPlugin } from 'monitor-api/modules/event_plugin';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import store from '../store';
 
@@ -45,13 +45,13 @@ class Integrated extends VuexModule {
                 data: [
                   {
                     id: 'PUSH',
-                    name: 'PUSH'
+                    name: 'PUSH',
                   },
                   {
                     id: 'PULL',
-                    name: 'PULL'
-                  }
-                ]
+                    name: 'PULL',
+                  },
+                ],
               },
               {
                 id: 'service',
@@ -59,15 +59,15 @@ class Integrated extends VuexModule {
                 data: [
                   {
                     id: '1',
-                    name: '通知服务'
+                    name: '通知服务',
                   },
                   {
                     id: '2',
-                    name: '协助'
-                  }
-                ]
-              }
-            ]
+                    name: '协助',
+                  },
+                ],
+              },
+            ],
           },
           {
             id: 'status',
@@ -75,14 +75,14 @@ class Integrated extends VuexModule {
             data: [
               {
                 id: '1',
-                name: '有更新'
+                name: '有更新',
               },
               {
                 id: '2',
-                name: '已下架'
-              }
-            ]
-          }
+                name: '已下架',
+              },
+            ],
+          },
         ];
         resolve(data);
       }, 1000);
@@ -104,22 +104,22 @@ class Integrated extends VuexModule {
             data: [
               {
                 name: '事件插件',
-                list: []
+                list: [],
               },
               {
                 name: '周边服务',
-                list: []
-              }
-            ]
+                list: [],
+              },
+            ],
           },
           {
             id: 'disabled',
             name: '已停用',
             data: [
               {
-                list: []
-              }
-            ]
+                list: [],
+              },
+            ],
           },
           {
             id: 'enabled',
@@ -127,14 +127,14 @@ class Integrated extends VuexModule {
             data: [
               {
                 name: '事件插件',
-                list: []
+                list: [],
               },
               {
                 name: '周边服务',
-                list: []
-              }
-            ]
-          }
+                list: [],
+              },
+            ],
+          },
         ];
 
         for (let i = 0; i < 10; i++) {
@@ -146,7 +146,7 @@ class Integrated extends VuexModule {
             pluginType: official ? '官方' : '其他',
             official,
             heatCount: Math.floor(Math.random() * 10),
-            desc: `这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述${i}`
+            desc: `这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述${i}`,
           });
         }
 
@@ -159,7 +159,7 @@ class Integrated extends VuexModule {
             pluginType: official ? '官方' : '其他',
             official,
             heatCount: Math.floor(Math.random() * 10),
-            desc: `这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述${i}`
+            desc: `这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述${i}`,
           });
         }
 
@@ -172,7 +172,7 @@ class Integrated extends VuexModule {
             pluginType: official ? '官方' : '其他',
             official,
             heatCount: Math.floor(Math.random() * 10),
-            desc: `这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述${i}`
+            desc: `这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述${i}`,
           });
         }
 
@@ -185,7 +185,7 @@ class Integrated extends VuexModule {
             pluginType: official ? '官方' : '其他',
             official,
             heatCount: Math.floor(Math.random() * 10),
-            desc: `这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述${i}`
+            desc: `这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述这是描述${i}`,
           });
         }
 

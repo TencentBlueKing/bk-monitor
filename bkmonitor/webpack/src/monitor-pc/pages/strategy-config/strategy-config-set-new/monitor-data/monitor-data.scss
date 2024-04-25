@@ -1,6 +1,10 @@
 $radioColorList: #ea3636 #ff9c01 #699df4;
 
 .monitor-data {
+  .mt-16 {
+    margin-top: 16px;
+  }
+
   &-metric {
     position: relative;
     margin-top: 10px;
@@ -106,35 +110,6 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
     .metric-source-wrap {
       display: flex;
       flex-direction: column;
-
-      .metric-source {
-        display: flex;
-        flex: 1;
-        width: 100%;
-        min-height: 68px;
-        margin: 16px 0 0 0;
-        font-size: 12px;
-        line-height: 20px;
-        color: #63656e;
-        background: #fff;
-        border: 1px solid #dcdee5;
-        border-radius: 2px;
-
-        .promql-editor {
-          width: 100%;
-          height: 100%;
-          min-height: 68px;
-          border: 0;
-
-          .cm-content {
-            padding: 10px 12px 10px 10px;
-          }
-        }
-
-        &.is-error {
-          border-color: #ff5656;
-        }
-      }
 
       .source-options-wrap {
         margin-top: 12px;

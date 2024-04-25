@@ -1,8 +1,8 @@
 html,
 body {
+  font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
   font-size: 12px;
   color: #63656e;
-  // overflow: hidden
 }
 
 html {
@@ -23,8 +23,7 @@ label {
 }
 
 * {
-  /* stylelint-disable-next-line declaration-no-important */
-  font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif !important;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;

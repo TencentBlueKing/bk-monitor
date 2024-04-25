@@ -26,42 +26,46 @@ export const menuArr = [
   {
     name: i18n.t('检索'),
     id: 'retrieve',
-    level: 1,
+    level: 1
   },
   {
     name: i18n.t('仪表盘'),
     id: 'dashboard',
     level: 1,
     dropDown: true,
-    children: [{
-      id: 'create_dashboard',
-      name: i18n.t('新建仪表盘'),
-      level: 2,
-      isDashboard: true,
-      project_manage: true,
-    }, {
-      id: 'create_folder',
-      name: i18n.t('新建目录'),
-      level: 2,
-      isDashboard: true,
-      project_manage: true,
-    }, {
-      id: 'import_dashboard',
-      name: i18n.t('导入仪表盘'),
-      level: 2,
-      isDashboard: true,
-      project_manage: true,
-    }],
+    children: [
+      {
+        id: 'create_dashboard',
+        name: i18n.t('新建仪表盘'),
+        level: 2,
+        isDashboard: true,
+        project_manage: true
+      },
+      {
+        id: 'create_folder',
+        name: i18n.t('新建目录'),
+        level: 2,
+        isDashboard: true,
+        project_manage: true
+      },
+      {
+        id: 'import_dashboard',
+        name: i18n.t('导入仪表盘'),
+        level: 2,
+        isDashboard: true,
+        project_manage: true
+      }
+    ]
   },
   {
     name: i18n.t('日志提取'),
     id: 'extract',
-    level: 1,
+    level: 1
   },
   {
     name: i18n.t('调用链'),
     id: 'trace',
-    level: 1,
+    level: 1
   },
   {
     name: i18n.t('监控策略'),
@@ -76,16 +80,16 @@ export const menuArr = [
           {
             name: i18n.t('新建'),
             id: 'addstrategy',
-            level: 3,
+            level: 3
           },
           {
             name: i18n.t('编辑'),
             id: 'editstrategy',
-            level: 3,
-          },
-        ],
-      },
-    ],
+            level: 3
+          }
+        ]
+      }
+    ]
   },
   {
     name: i18n.t('管理'),
@@ -106,27 +110,27 @@ export const menuArr = [
               {
                 name: i18n.t('新建采集'),
                 id: 'collectAdd',
-                level: 4,
+                level: 4
               },
               {
                 name: i18n.t('编辑采集项'),
                 id: 'collectEdit',
-                level: 4,
+                level: 4
               },
               {
                 name: i18n.t('启用采集项'),
                 id: 'collectStart',
-                level: 4,
+                level: 4
               },
               {
                 name: i18n.t('停用采集项'),
                 id: 'collectStop',
-                level: 4,
+                level: 4
               },
               {
                 name: i18n.t('字段清洗'),
                 id: 'collectField',
-                level: 4,
+                level: 4
               },
               {
                 name: i18n.t('配置详情'),
@@ -136,18 +140,18 @@ export const menuArr = [
                   {
                     name: i18n.t('数据采样'),
                     id: 'jsonFormat',
-                    level: 5,
-                  },
-                ],
-              },
-            ],
+                    level: 5
+                  }
+                ]
+              }
+            ]
           },
           {
             name: i18n.t('ES源接入'),
             id: 'esAccess',
-            level: 3,
-          },
-        ],
+            level: 3
+          }
+        ]
       },
       {
         name: i18n.t('索引集管理'),
@@ -157,35 +161,35 @@ export const menuArr = [
           {
             name: i18n.t('新建索引集'),
             id: 'addIndexSet',
-            level: 3,
+            level: 3
           },
           {
             name: i18n.t('编辑索引集'),
             id: 'editIndexSet',
-            level: 3,
-          },
-        ],
+            level: 3
+          }
+        ]
       },
       {
         name: i18n.t('链路配置'),
         id: 'linkConfiguration',
-        level: 2,
+        level: 2
       },
       {
         name: i18n.t('用户组配置'),
         id: 'permissionGroup',
-        level: 2,
+        level: 2
       },
       {
         name: i18n.t('v3迁移'),
         id: 'migrate',
-        level: 2,
+        level: 2
       },
       {
         name: i18n.t('日志提取配置'),
         id: 'manageExtract',
-        level: 2,
-      },
-    ],
-  },
+        level: 2
+      }
+    ]
+  }
 ];

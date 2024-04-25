@@ -25,13 +25,14 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getSceneViewDimensions, getSceneViewDimensionValue } from 'monitor-api/modules/scene_view';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import DragItem from 'monitor-ui/monitor-draggable/drag-item';
 import MonitorDraggable, { IOnDrop } from 'monitor-ui/monitor-draggable/monitor-draggable';
 
 import ConditionInput, {
-  IVarOption
+  IVarOption,
 } from '../../../strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import { IBookMark, ICurVarItem, IOption, IViewOptions, IWhere, SettingsVarType } from '../../typings';
 import { handleCheckVarWhere, handleReplaceWhereVar, SETTINGS_POP_ZINDEX } from '../../utils';
@@ -83,7 +84,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     });
     return this.groupByList.map(item => ({
       ...item,
-      disabled: selectedSet.has(item.id)
+      disabled: selectedSet.has(item.id),
     }));
   }
 
@@ -92,7 +93,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     const varMap = new Map();
     const filterDict = {
       ...this.viewOptions,
-      ...this.viewOptions.variables
+      ...this.viewOptions.variables,
     };
     Object.entries(filterDict).forEach(item => {
       const [key, value] = item;
@@ -171,7 +172,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
           loading: false,
           groupBy: data.field,
           where: data.where,
-          optionalValue: []
+          optionalValue: [],
         };
         return localVarItem;
       });
@@ -211,7 +212,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     const params = {
       scene_id: this.sceneId,
       type: this.viewType,
-      id: this.activeTab
+      id: this.activeTab,
     };
     getSceneViewDimensions(params).then(res => {
       this.groupByList = res;
@@ -271,7 +272,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
       alias: groupByItem?.name || '',
       groupBy: groupByItem?.id || '',
       optionalValue: [],
-      where: []
+      where: [],
     };
     this.localVarList.push(item);
     // this.updateAnimation();
@@ -290,7 +291,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
       title: this.$t('确认删除变量吗？'),
       confirmFn: () => {
         this.localVarList.splice(index, 1);
-      }
+      },
     });
   }
 
@@ -319,14 +320,14 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
   getGroupByOptionalValueList(groupBy = '', where: IWhere[] = []): Promise<IOption[]> {
     const cacheKey = `${groupBy}-${JSON.stringify(where)}`;
     let temp = deepClone(where);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     temp = handleReplaceWhereVar(temp, this.varOptionalMap);
     const params = {
       scene_id: this.sceneId,
       type: this.viewType,
       id: this.activeTab,
       field: groupBy,
-      where: temp.filter(item => !!item.value.length)
+      where: temp.filter(item => !!item.value.length),
     };
     if (this.groupByVarListMap.has(cacheKey)) return Promise.resolve(this.groupByVarListMap.get(cacheKey));
     return getSceneViewDimensionValue(params).then(data => {
@@ -368,7 +369,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
         loading: false,
         groupBy: item.groupBy,
         where: item.where,
-        optionalValue: []
+        optionalValue: [],
       };
       return localVarItem;
     });
@@ -388,7 +389,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
           zIndex: SETTINGS_POP_ZINDEX,
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => resolve(true),
-          cancelFn: () => reject(false)
+          cancelFn: () => reject(false),
         });
       });
       return !!res;
@@ -406,7 +407,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     return {
       id: this.localActiveTab,
       name: curTab.name,
-      data: this.localVarList
+      data: this.localVarList,
     };
   }
   /** 保存之前进行变量循环引用检查 */
@@ -420,7 +421,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
       this.$bkMessage({
         message: this.$t('变量不能存在循环引用关系'),
         theme: 'error',
-        extCls: 'common-settings-z-index'
+        extCls: 'common-settings-z-index',
       });
       return;
     }
@@ -451,15 +452,15 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
             <bk-tab
               class='tab-wrap'
               active={this.localActiveTab}
-              type='unborder-card'
               before-toggle={this.handleChangeTabBefore}
+              type='unborder-card'
               {...{ on: { 'update:active': this.handleChangeTab } }}
             >
               {this.bookMarkData.map(item => (
                 <bk-tab-panel
-                  name={item.id}
-                  label={item.name}
                   key={item.id}
+                  label={item.name}
+                  name={item.id}
                   render-label={tabItemTpl}
                 />
               ))}
@@ -468,30 +469,30 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
         </div>
         <div class='set-var-main'>
           <bk-button
-            onClick={this.handleAddVar}
             class='set-var-add-btn'
             theme='primary'
+            onClick={this.handleAddVar}
           >
             <i class='icon-monitor icon-mc-add'></i>
             <span class='set-var-btn-text'>{this.$t('新增')}</span>
           </bk-button>
           {!!this.localVarList.length ? (
             <MonitorDraggable
-              onDrop={this.handleDrop}
-              onDragstart={this.handleDragstrart}
               class='set-var-item-list'
+              onDragstart={this.handleDragstrart}
+              onDrop={this.handleDrop}
             >
               <transition-group
-                name={this.disabledAnimation ? '' : 'flip-list'}
                 class='set-var-item-wrap'
+                name={this.disabledAnimation ? '' : 'flip-list'}
                 tag='div'
               >
                 {this.localVarList.map((item, index) => (
                   <DragItem
                     key={item.key}
-                    index={index}
                     class='drag-item'
                     v-bkloading={{ isLoading: item.loading, zIndex: 2000 }}
+                    index={index}
                   >
                     <div class='set-var-item'>
                       <div class='set-var-item-header drag-handle'>
@@ -500,9 +501,9 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
                           <span class='set-var-item-title'>{`$${item.groupBy}`}</span>
                           <bk-select
                             class='set-var-select'
-                            disabled
-                            placeholder={this.$t('选择')}
                             behavior='simplicity'
+                            placeholder={this.$t('选择')}
+                            disabled
                           />
                         </span>
                         <i
@@ -516,15 +517,15 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
                             <div class='set-var-form-label'>{this.$t('维度')}</div>
                             <div class='set-var-form-value'>
                               <bk-select
-                                vModel={item.groupBy}
                                 class='set-var-group-by'
+                                vModel={item.groupBy}
                                 onSelected={val => this.handleChangeGroupBy(index, val)}
                               >
                                 {this.groupByListOptional.map(opt => (
                                   <bk-option
                                     id={opt.id}
-                                    name={opt.id}
                                     disabled={opt.disabled}
+                                    name={opt.id}
                                   />
                                 ))}
                               </bk-select>
@@ -573,8 +574,8 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
           ) : (
             <bk-exception
               class='set-var-no-data'
-              type='empty'
               scene='part'
+              type='empty'
             />
           )}
           <div class='set-var-btn-group'>

@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { DecimalCount } from '../types/displayValue';
-
 import { FormattedValue, toFixed } from './valueFormats';
 
 export function toPercent(size: number, decimals?: DecimalCount): FormattedValue {
@@ -60,7 +59,7 @@ export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue
     return { text: '' };
   }
   return {
-    text: parseFloat(toFixed(value, decimals)).toString(16).toUpperCase()
+    text: parseFloat(toFixed(value, decimals)).toString(16).toUpperCase(),
   };
 }
 

@@ -26,6 +26,7 @@
 
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
@@ -40,14 +41,14 @@ const fetchRangeOfStr = {
   '3h': `3${window.i18n.tc('小时')}`,
   '6h': `4${window.i18n.tc('小时')}`,
   '12h': `12${window.i18n.tc('小时')}`,
-  '1d': `1${window.i18n.tc('天')}`
+  '1d': `1${window.i18n.tc('天')}`,
 };
 
 /* 蓝 红 黄 枚举 */
 const levelOfColor = {
   1: 'red',
   2: 'yellow',
-  3: 'blue'
+  3: 'blue',
 };
 
 /* 以下路由不显示此组件 */
@@ -98,14 +99,14 @@ const robotWdith = 64;
 const tipClassName = 'ai-small-whale-tip-content';
 
 @Component
-export default class AiWhale extends tsc<{}> {
+export default class AiWhale extends tsc<object> {
   @Ref('robot') robotRef: HTMLDivElement;
 
   type: Ttype = 'blue';
   /* 机器人位置 */
   whalePostion = {
     top: 0,
-    left: 0
+    left: 0,
   };
   /* 当前是否展开 */
   isExpan = false;
@@ -140,8 +141,8 @@ export default class AiWhale extends tsc<{}> {
   }
 
   created() {
-    this.mousemoveFn = throttle(50, false, this.handleMousemove);
-    this.resizeFn = throttle(50, false, this.handleWindowResize);
+    this.mousemoveFn = throttle(50, this.handleMousemove);
+    this.resizeFn = throttle(50, this.handleWindowResize);
     window.addEventListener('resize', this.resizeFn);
   }
 
@@ -234,7 +235,7 @@ export default class AiWhale extends tsc<{}> {
           arrow: true,
           placement: 'top',
           boundary: 'window',
-          hideOnClick: false
+          hideOnClick: false,
         });
         this.popoverInstance?.show?.();
       }
@@ -360,13 +361,13 @@ export default class AiWhale extends tsc<{}> {
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -434,22 +435,22 @@ export default class AiWhale extends tsc<{}> {
       <div class='ai-small-whale'>
         {!!this.data && (
           <div
-            class={['robot-img', this.type]}
             ref='robot'
             style={{
               top: `${this.whalePostion.top}px`,
-              left: `${this.whalePostion.left}px`
+              left: `${this.whalePostion.left}px`,
             }}
+            class={['robot-img', this.type]}
+            onClick={this.handleClick}
             onMousedown={event => this.handleMousedown(event)}
             onMouseenter={event => this.handlePopoverShow(event)}
-            onClick={this.handleClick}
           ></div>
         )}
         <div style={{ display: 'none' }}>
           {!!this.data && (
             <div
-              class={tipClassName}
               ref='tips'
+              class={tipClassName}
             >
               {(() => {
                 if (this.type === 'blue') {
@@ -529,7 +530,7 @@ export default class AiWhale extends tsc<{}> {
                                         >
                                           {props.row.ip}
                                         </a>
-                                      )
+                                      ),
                                     }}
                                   ></bk-table-column>
                                   <bk-table-column

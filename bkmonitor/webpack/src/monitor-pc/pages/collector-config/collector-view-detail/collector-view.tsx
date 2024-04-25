@@ -37,7 +37,7 @@ import './collector-view.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class CollectorView extends tsc<{}> {
+export default class CollectorView extends tsc<object> {
   @Prop({ type: [String, Number], default: '' }) readonly id: string;
   @Prop({ type: String, default: '' }) readonly title: string;
 
@@ -46,7 +46,7 @@ export default class CollectorView extends tsc<{}> {
   routeList: INavItem[] = [
     // { id: 'collect-config', name: '数据采集' },
     // { id: 'collect-config', name: '' },
-    { id: '', name: '', subName: '' }
+    { id: '', name: '', subName: '' },
   ];
 
   // sceneId
@@ -57,8 +57,8 @@ export default class CollectorView extends tsc<{}> {
     {
       id: 'source-manage',
       name: this.$t('数据源管理') as string,
-      show: true
-    }
+      show: true,
+    },
   ];
   // 是否显示引导页
   get showGuidePage() {
@@ -82,8 +82,8 @@ export default class CollectorView extends tsc<{}> {
     next((vm: CollectorView) => {
       vm.viewOptions = {
         filters: {
-          bk_biz_id: vm.bizId
-        }
+          bk_biz_id: vm.bizId,
+        },
       };
       vm.sceneId = `collect_${to.params.id}`;
       vm.routeList[0].name = to.query.name || '';
@@ -100,8 +100,8 @@ export default class CollectorView extends tsc<{}> {
         params: {
           title: this.$route.query.name as string,
           id: this.$route.params.id,
-          pluginId: this.customQuery.pluginId as string
-        }
+          pluginId: this.customQuery.pluginId as string,
+        },
       });
     }
   }
@@ -112,24 +112,24 @@ export default class CollectorView extends tsc<{}> {
       <div class='collect-view'>
         {this.sceneId && (
           <CommonPage
+            defaultViewOptions={this.viewOptions}
+            isMergeMenuList={true}
+            menuList={this.menuList}
             sceneId={this.sceneId}
             sceneType={'detail'}
-            menuList={this.menuList}
-            isMergeMenuList={true}
-            title={this.$tc('数据采集')}
             showListMenu={this.bizId === this.$store.getters.bizId}
-            defaultViewOptions={this.viewOptions}
+            title={this.$tc('数据采集')}
+            onMenuSelect={this.handleMenuSelect}
             // onPageTitleChange={this.handlePageTitleChange}
             onTitleChange={this.headerTitleChange}
-            onMenuSelect={this.handleMenuSelect}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
-              needBack={true}
               navMode={'share'}
+              needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             ></CommonNavBar>
           </CommonPage>
         )}

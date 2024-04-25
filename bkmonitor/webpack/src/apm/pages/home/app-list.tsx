@@ -27,6 +27,7 @@
 // import { Component, Mixins, Provide } from 'vue-tsx-support';
 import { Component, Provide, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { CancelToken } from 'monitor-api/index';
 import {
   deleteApplication,
@@ -34,14 +35,12 @@ import {
   listApplicationAsync,
   metaConfigInfo,
   start,
-  stop
+  stop,
 } from 'monitor-api/modules/apm_meta';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
-import type { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 // import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
@@ -54,11 +53,13 @@ import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
-
 import AppAddForm from './app-add-form';
 import { IAppSelectOptItem } from './app-select';
 import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
+
+import type { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './app-list.scss';
 
@@ -67,6 +68,8 @@ export interface ICreateAppFormData {
   enName: string;
   desc: string;
   pluginId: string;
+  enableProfiling: boolean;
+  enableTracing: boolean;
   plugin_config?: {
     target_node_type: INodeType;
     target_object_type: TargetObjectType;
@@ -81,7 +84,7 @@ const commonTableProps: ICommonTableProps = {
   defaultSize: 'medium',
   hasColnumSetting: true,
   paginationType: 'normal',
-  columns: []
+  columns: [],
 };
 export interface IGuideLink {
   access_url: string;
@@ -89,7 +92,7 @@ export interface IGuideLink {
   metric_description: string;
 }
 @Component
-export default class AppList extends tsc<{}> {
+export default class AppList extends tsc<object> {
   @Ref() addForm: any;
 
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -112,8 +115,8 @@ export default class AppList extends tsc<{}> {
   routeList: INavItem[] = [
     {
       id: '',
-      name: 'APM'
-    }
+      name: 'APM',
+    },
   ];
   opreateOptions: IOperateOption[] = [
     // {
@@ -124,12 +127,12 @@ export default class AppList extends tsc<{}> {
     {
       id: 'storageState',
       name: window.i18n.t('存储状态'),
-      authority: true
+      authority: true,
     },
     {
       id: 'dataStatus',
       name: window.i18n.t('数据状态'),
-      authority: true
+      authority: true,
     },
     // {
     //   id: 'indicatorDimension',
@@ -139,18 +142,18 @@ export default class AppList extends tsc<{}> {
     {
       id: 'accessService',
       name: window.i18n.t('接入服务'),
-      authority: true
+      authority: true,
     },
     {
       id: 'noDataAlarm',
       name: window.i18n.t('新增无数据告警'),
-      authority: true
+      authority: true,
     },
     {
       id: 'delete',
       name: window.i18n.t('删除'),
-      authority: true
-    }
+      authority: true,
+    },
   ];
   /** 通用表格数据 */
   tableData = {
@@ -159,11 +162,11 @@ export default class AppList extends tsc<{}> {
       count: 20,
       current: 1,
       limit: 10,
-      showTotalCount: true
+      showTotalCount: true,
     },
     loading: false,
     data: [],
-    storeKey: 'apmAppList'
+    storeKey: 'apmAppList',
   };
   /** 搜索关键词 */
   searchKeyword = '';
@@ -179,13 +182,13 @@ export default class AppList extends tsc<{}> {
   menuList: IMenuItem[] = [
     {
       id: 'help-docs',
-      name: window.i18n.tc('帮助文档')
-    }
+      name: window.i18n.tc('帮助文档'),
+    },
   ];
   emptyStatusType: EmptyStatusType = 'empty';
 
   /** 异步查询字段取消请求方法 */
-  queryFieldCancelFn: Record<string, () => {}> = {};
+  queryFieldCancelFn: Record<string, () => void> = {};
 
   get apmIntroduceData() {
     const apmData = introduceData['apm-home'];
@@ -204,10 +207,10 @@ export default class AppList extends tsc<{}> {
           dataType: 'dict',
           api: 'scene_view.getStrategyAndEventCount',
           data: {
-            scene_id: 'apm'
-          }
-        }
-      ]
+            scene_id: 'apm',
+          },
+        },
+      ],
     };
     return new PanelModel(data as any);
   }
@@ -230,14 +233,14 @@ export default class AppList extends tsc<{}> {
     const {
       plugins = [],
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      setup: { guide_url = {} }
+      setup: { guide_url = {} },
     } = await metaConfigInfo().catch(() => ({}));
     this.pluginsList = plugins.map(
       (item): IAppSelectOptItem => ({
         id: item.id,
         name: item.name,
         icon: item.icon || '',
-        desc: item.short_description || ''
+        desc: item.short_description || '',
       })
     );
     this.guideUrl = guide_url as IGuideLink;
@@ -253,7 +256,7 @@ export default class AppList extends tsc<{}> {
       sort: this.sortKey,
       filter_dict: this.filterDict,
       page: this.tableData.pagination.current,
-      page_size: this.tableData.pagination.limit
+      page_size: this.tableData.pagination.limit,
     };
     const listData = await listApplication(params).catch(() => {
       this.emptyStatusType = '500';
@@ -271,7 +274,7 @@ export default class AppList extends tsc<{}> {
           name: window.i18n.tc('启/停'),
           type: 'scoped_slots',
           showOverflowTooltip: false,
-          checked: true
+          checked: true,
         },
         {
           id: 'opreate',
@@ -280,9 +283,9 @@ export default class AppList extends tsc<{}> {
           showOverflowTooltip: false,
           width: 100,
           checked: true,
-          disabled: true
-        }
-      ]
+          disabled: true,
+        },
+      ],
     ];
     this.showGuidePage = !this.tableData.pagination.count && !this.searchKeyword;
 
@@ -296,8 +299,8 @@ export default class AppList extends tsc<{}> {
       name: this.$route.name,
       query: {
         ...this.$route.query,
-        queryString: this.searchKeyword
-      }
+        queryString: this.searchKeyword,
+      },
     };
     this.$router.replace(routerParams).catch(() => {});
   }
@@ -308,14 +311,13 @@ export default class AppList extends tsc<{}> {
     fields.forEach(item => {
       const params = {
         column: item,
-        application_ids: this.tableData.data.map(val => val.application_id)
+        application_ids: this.tableData.data.map(val => val.application_id),
       };
       listApplicationAsync(params, {
-        cancelToken: new CancelToken(c => (this.queryFieldCancelFn[item] = c))
+        cancelToken: new CancelToken(c => (this.queryFieldCancelFn[item] = c)),
       })
         .then(res => {
           const dataMap = res.reduce((pre, cur) => {
-            // eslint-disable-next-line no-param-reassign
             if (!pre[cur.application_id]) pre[cur.application_id] = cur[item];
             return pre;
           }, {});
@@ -325,7 +327,7 @@ export default class AppList extends tsc<{}> {
         .finally(() => {
           this.tableData.columns = this.tableData.columns.map(col => ({
             ...col,
-            asyncable: col.id === item ? false : col.asyncable
+            asyncable: col.id === item ? false : col.asyncable,
           }));
         });
     });
@@ -336,7 +338,7 @@ export default class AppList extends tsc<{}> {
     // this.pluginId = opt.id;
     // this.showAddDialog = true;
     this.$router.push({
-      name: 'application-add'
+      name: 'application-add',
     });
   }
 
@@ -359,27 +361,27 @@ export default class AppList extends tsc<{}> {
       this.$router.push({
         name: 'application-config',
         params: {
-          id: row.application_id
+          id: row.application_id,
         },
         query: {
-          active: id === 'noDataAlarm' ? 'dataStatus' : id
-        }
+          active: id === 'noDataAlarm' ? 'dataStatus' : id,
+        },
       });
     } else if (toAccessService.includes(id)) {
       this.handleCancelAsyncGetFields();
       this.$router.push({
         name: 'service-add',
         params: {
-          appName: row.app_name
-        }
+          appName: row.app_name,
+        },
       });
     } else if (id === 'config') {
       this.handleCancelAsyncGetFields();
       this.$router.push({
         name: 'application-config',
         params: {
-          id: row.application_id
-        }
+          id: row.application_id,
+        },
       });
     } else if (id === 'delete') {
       this.$bkInfo({
@@ -392,7 +394,7 @@ export default class AppList extends tsc<{}> {
             this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
             this.getTableData();
           });
-        }
+        },
       });
     }
   }
@@ -453,7 +455,7 @@ export default class AppList extends tsc<{}> {
       this.$bkInfo({
         title: this.$t(is_enabled ? '你确认要停用？' : '你确认要启用？'),
         confirmLoading: true,
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         confirmFn: async () => {
           const api = is_enabled ? stop : start;
           const isPass = await api({ application_id })
@@ -468,7 +470,7 @@ export default class AppList extends tsc<{}> {
         },
         cancelFn: () => {
           reject();
-        }
+        },
       });
     });
   }
@@ -479,9 +481,9 @@ export default class AppList extends tsc<{}> {
       <bk-switcher
         v-authority={{ active: !hasPermission }}
         v-model={row.is_enabled}
-        theme='primary'
-        size='small'
         pre-check={() => this.handleEnablePreCheck(row, hasPermission)}
+        size='small'
+        theme='primary'
       ></bk-switcher>
     );
   }
@@ -496,14 +498,14 @@ export default class AppList extends tsc<{}> {
                 id: 'config',
                 name: window.i18n.tc('配置'),
                 authorityDetail: authorityMap.VIEW_AUTH,
-                authority: hasPermission
-              }
+                authority: hasPermission,
+              },
             ],
             popover: this.opreateOptions.map(item => ({
               ...item,
               authority: hasPermission,
-              authorityDetail: authorityMap.VIEW_AUTH
-            }))
+              authorityDetail: authorityMap.VIEW_AUTH,
+            })),
           }}
           onOptionClick={id => this.handleConfig(id, row)}
         ></OperateOptions>
@@ -526,8 +528,8 @@ export default class AppList extends tsc<{}> {
     this.$router.push({
       name: 'application',
       query: {
-        'filter-app_name': app_name
-      }
+        'filter-app_name': app_name,
+      },
     });
   }
 
@@ -576,8 +578,8 @@ export default class AppList extends tsc<{}> {
           <NavBar routeList={this.routeList}>
             {!this.showGuidePage && (
               <div
-                slot='handler'
                 class='dashboard-tools-wrap'
+                slot='handler'
               >
                 <AlarmTools
                   class='alarm-tools'
@@ -615,24 +617,20 @@ export default class AppList extends tsc<{}> {
         <div class='app-list-main'>
           {this.showGuidePage ? (
             <GuidePage
-              guideId='apm-home'
               guideData={this.apmIntroduceData}
+              guideId='apm-home'
             />
           ) : (
             <div class='app-list-content'>
               <bk-input
                 class='app-list-search'
-                placeholder={this.$t('输入搜索或筛选')}
                 v-model={this.searchKeyword}
+                placeholder={this.$t('输入搜索或筛选')}
                 clearable
                 onInput={this.handleSearch}
               ></bk-input>
               <CommonTable
                 {...{ props: this.tableData }}
-                onPageChange={this.handlePageChange}
-                onLimitChange={this.handlePageLimitChange}
-                onSortChange={this.handleSortChange}
-                onFilterChange={this.handleFilterChange}
                 scopedSlots={{
                   enable: this.handleGetEnableColumn,
                   opreate: this.handleGetOprateColumn,
@@ -651,12 +649,16 @@ export default class AppList extends tsc<{}> {
                       </span>
                       <span class='app-en-name'>{row.app_name}</span>
                     </div>
-                  )
+                  ),
                 }}
+                onFilterChange={this.handleFilterChange}
+                onLimitChange={this.handlePageLimitChange}
+                onPageChange={this.handlePageChange}
+                onSortChange={this.handleSortChange}
               >
                 <EmptyStatus
-                  type={this.emptyStatusType}
                   slot='empty'
+                  type={this.emptyStatusType}
                   onOperation={this.handleOperation}
                 />
               </CommonTable>
@@ -664,21 +666,21 @@ export default class AppList extends tsc<{}> {
           )}
         </div>
         <AppAddForm
-          pluginId={this.pluginId}
           v-model={this.showAddDialog}
+          pluginId={this.pluginId}
         ></AppAddForm>
         <bk-dialog
-          value={this.showGuideDialog}
-          mask-close={true}
-          ext-cls='guide-create-dialog'
           width={1360}
+          ext-cls='guide-create-dialog'
+          mask-close={true}
           show-footer={false}
+          value={this.showGuideDialog}
           on-cancel={this.handleCloseGuideDialog}
         >
           <GuidePage
-            marginless
-            guideId='apm-home'
             guideData={this.apmIntroduceData}
+            guideId='apm-home'
+            marginless
           />
         </bk-dialog>
       </div>

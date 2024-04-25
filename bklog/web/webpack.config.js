@@ -28,7 +28,7 @@ const fs = require('fs');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const CliMonacoWebpackPlugin = require('@blueking/bkmonitor-cli/node_modules/monaco-editor-webpack-plugin');
+const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
 const devHost = 'appdev.bktencent.com';
 const loginHost = 'https://paas-dev.bktencent.com';
@@ -40,7 +40,7 @@ let devConfig = {
   devProxyUrl,
   loginHost,
   proxy: {},
-  cache: null,
+  cache: null
 };
 const logPluginConfig = {
   pcBuildVariates: `
@@ -80,19 +80,21 @@ const logPluginConfig = {
     </script>
     % if TAM_AEGIS_KEY != "" :
       <script src="https://cdn-go.cn/aegis/aegis-sdk/latest/aegis.min.js?_bid=3977"></script>
-    % endif\n`,
+    % endif\n`
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
-module.exports = (baseConfig, {mobile, production, fta, email = false}) => {
+module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
   if (!production) {
     config.devServer = Object.assign({}, config.devServer || {}, {
       port: devConfig.port,
       host: devConfig.host,
+      open: false,
+      static: [],
       proxy: {
         ...['/api', '/version_log'].reduce(
           (pre, key) => ({
@@ -103,14 +105,14 @@ module.exports = (baseConfig, {mobile, production, fta, email = false}) => {
               secure: false,
               toProxy: true,
               headers: {
-                referer: devConfig.devProxyUrl,
-              },
-            },
+                referer: devConfig.devProxyUrl
+              }
+            }
           }),
-          {},
+          {}
         ),
-        ...devConfig.proxy,
-      },
+        ...devConfig.proxy
+      }
     });
     config.plugins.push(
       new wepack.DefinePlugin({
@@ -118,23 +120,24 @@ module.exports = (baseConfig, {mobile, production, fta, email = false}) => {
           env: {
             proxyUrl: JSON.stringify(devConfig.devProxyUrl),
             devUrl: JSON.stringify(`${devConfig.host}:${devConfig.port}`),
+            devHost: JSON.stringify(`${devConfig.host}`),
             loginHost: JSON.stringify(devConfig.loginHost),
-            loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`),
-          },
-        },
-      }),
+            loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`)
+          }
+        }
+      })
     );
   } else if (!email) {
-    config.plugins.push(new LogWebpackPlugin({...logPluginConfig, mobile, fta}));
+    config.plugins.push(new LogWebpackPlugin({ ...logPluginConfig, mobile, fta }));
     config.plugins.push(
       new CopyWebpackPlugin({
         patterns: [
           {
             from: path.resolve(__dirname, './src/images/new-logo.svg'),
-            to: path.resolve(distUrl, './img'),
-          },
-        ],
-      }),
+            to: path.resolve(distUrl, './img')
+          }
+        ]
+      })
     );
   }
 
@@ -148,9 +151,9 @@ module.exports = (baseConfig, {mobile, production, fta, email = false}) => {
           entry: 'monaco-yaml',
           worker: {
             id: 'monaco-yaml/yamlWorker',
-            entry: 'monaco-yaml/yaml.worker',
-          },
-        },
+            entry: 'monaco-yaml/yaml.worker'
+          }
+        }
       ];
       config.plugins[index] = new MonacoWebpackPlugin(item.options);
     }
@@ -160,25 +163,27 @@ module.exports = (baseConfig, {mobile, production, fta, email = false}) => {
     ...config,
     output: {
       ...config.output,
-      path: distUrl,
+      path: distUrl
     },
     entry: {
       ...config.entry,
-      main: './src/main.js',
+      main: './src/main.js'
     },
     resolve: {
       ...config.resolve,
       alias: {
         vue$: 'vue/dist/vue.esm.js',
-        '@': path.resolve('src'),
-      },
+        '@': path.resolve('src')
+      }
     },
-    plugins: baseConfig.plugins.map((plugin) => {
-      return plugin instanceof wepack.ProgressPlugin ? new WebpackBar({
-        profile: true,
-        name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,
-      }) : plugin;
+    plugins: baseConfig.plugins.map(plugin => {
+      return plugin instanceof wepack.ProgressPlugin
+        ? new WebpackBar({
+            profile: true,
+            name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`
+          })
+        : plugin;
     }),
-    cache: typeof devConfig.cache === 'boolean' ? devConfig.cache : config.cache,
+    cache: typeof devConfig.cache === 'boolean' ? devConfig.cache : config.cache
   };
 };

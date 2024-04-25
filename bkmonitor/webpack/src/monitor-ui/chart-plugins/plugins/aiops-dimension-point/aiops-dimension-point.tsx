@@ -25,10 +25,11 @@
  */
 import { Component, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import type { EChartOption } from 'echarts';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
+import { MonitorEchartOptions } from '../../typings';
 import BaseEchart from '../monitor-base-echart';
 
 import './aiops-dimension-point.scss';
@@ -58,11 +59,11 @@ interface IProps {
 
 @Component
 export default class AiopsDimensionPoint extends tsc<IProps> {
-  @Ref() baseChart: any;
+  @Ref() baseChart: InstanceType<typeof BaseEchart>;
 
   @Prop({ type: Array, default: () => [] }) chartData: IChartDataItem[];
   @Prop({ type: Object, default: () => {} }) info: IInfo;
-  @Inject('reportEventLog') reportEventLog: Function;
+  @Inject('reportEventLog') reportEventLog: (arg: any) => void;
   /** tips 是否初始化事件 */
   initTipsEvent = false;
   /** tips 参数 */
@@ -78,7 +79,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
   /** 数据点异常/正常颜色值 */
   dimensionColor = {
     max: 'rgba(234,54,54,0.20)',
-    min: 'rgba(58,132,255,0.20)'
+    min: 'rgba(58,132,255,0.20)',
   };
   /** 中位数 */
   get median() {
@@ -88,7 +89,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
   get formatPoint() {
     return this.chartData.map(point => ({
       anomaly_score: point.anomaly_score,
-      points: point.dimension_details?.slice?.(0, 2) || []
+      points: point.dimension_details?.slice?.(0, 2) || [],
     }));
   }
   /** 接近中位数的点 */
@@ -104,14 +105,14 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
     const diffResult = this.nearMedianPoint.find(point => point.anomaly_score === anomaly_score);
     return !!diffResult;
   }
-  get customOptions(): EChartOption {
+  get customOptions(): MonitorEchartOptions {
     return {
       grid: {
         left: 20,
-        containLabel: false
+        containLabel: false,
       },
       markLine: {
-        z: -100
+        z: -100,
       },
       xAxis: {
         show: false,
@@ -119,18 +120,18 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
         triggerEvent: true,
         minInterval: 0.1,
         inverse: true,
-        data: []
+        data: [],
       },
       yAxis: {
         show: false,
         data: [],
-        type: 'category'
+        type: 'category',
       },
       tooltip: {
         trigger: 'item',
         axisPointer: {
           type: 'shadow',
-          show: false
+          show: false,
         },
         enterable: true,
         transitionDuration: 0,
@@ -139,7 +140,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
         hideDelay: 30,
         // backgroundColor: `#000000`,
         padding: 0,
-        formatter: this.tipsFormatter
+        formatter: this.tipsFormatter,
       },
       series: [
         {
@@ -151,28 +152,28 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
           z: 100,
           smooth: true,
           lineStyle: {
-            opacity: 0
+            opacity: 0,
           },
           markLine: {
             symbol: 'none',
             z: 2,
             lineStyle: {
               type: 'solid',
-              width: 2
+              width: 2,
             },
             itemStyle: {
               normal: {
                 color: '#979BA5',
                 label: {
-                  show: false
-                }
-              }
+                  show: false,
+                },
+              },
             },
-            data: [{ xAxis: this.median }]
+            data: [{ xAxis: this.median }],
           },
-          data: this.getDimensionsData()
-        }
-      ]
+          data: this.getDimensionsData(),
+        },
+      ],
     };
   }
 
@@ -185,7 +186,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
       const options = {
         value: [item.anomaly_score, 0],
         mapData: item.dimension_details,
-        anomaly_score: item.anomaly_score
+        anomaly_score: item.anomaly_score,
       };
       const point = {
         ...options,
@@ -196,13 +197,13 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
         emphasis: {
           itemStyle: {
             borderWidth: 1,
-            borderColor: isDimension ? '#EA3636' : '#3A84FF'
-          }
+            borderColor: isDimension ? '#EA3636' : '#3A84FF',
+          },
         },
         itemStyle: {
           shadowColor: '#EA3636',
-          color: isDimension ? this.dimensionColor.max : this.dimensionColor.min
-        }
+          color: isDimension ? this.dimensionColor.max : this.dimensionColor.min,
+        },
       };
       /** 触发热区 */
       const pointCursor = {
@@ -210,8 +211,8 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
         name: `${item.anomaly_score}_cursor`,
         symbolSize: [40, 100],
         itemStyle: {
-          opacity: 0
-        }
+          opacity: 0,
+        },
       };
       data.push(point);
       data.push(pointCursor);
@@ -220,7 +221,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
   }
   /** 取消数据点高亮 */
   handleDownplay(params = this.tipsParams) {
-    const { instance } = this.$refs.baseChart;
+    const { instance } = this.baseChart;
     this.highlightName = '';
     instance.dispatchAction({ type: 'downplay', name: params.name });
     instance.dispatchAction({ type: 'downplay', name: params.name.replace('_cursor', '') });
@@ -231,7 +232,7 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
       return;
     }
     this.highlightName = params.name;
-    const { instance } = this.$refs.baseChart;
+    const { instance } = this.baseChart;
     instance.dispatchAction({ type: 'highlight', name: params.name });
     instance.dispatchAction({ type: 'highlight', name: params.name.replace('_cursor', '') });
   }
@@ -361,12 +362,12 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
       <div class='aiops-dimension-line'>
         {this.chartData.length > 0 && (
           <BaseEchart
-            style='width: 320px;height: 40px;'
             ref='baseChart'
+            style='width: 320px;height: 40px;'
             height={40}
-            onMouseout={this.mouseout}
-            onMousemove={this.mouseover}
             options={this.customOptions}
+            onMousemove={this.mouseover}
+            onMouseout={this.mouseout}
           />
         )}
       </div>

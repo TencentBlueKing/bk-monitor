@@ -342,7 +342,7 @@ VARIABLES = [
             },
             {"name": "content.ack_operators", "desc": _lazy("确认人"), "example": "admin"},
             {"name": "content.ack_reason", "desc": _lazy("确认原因"), "example": "Process Later"},
-            {"name": "content.receivers", "desc": _lazy("通知人"), "example": "lisa,tony"},
+            {"name": "content.receivers", "desc": _lazy("通知人"), "example": "lisa,yunweixiaoge"},
         ],
     },
     {
@@ -422,7 +422,7 @@ VARIABLES = [
             {
                 "name": "alarm.receivers",
                 "desc": _lazy("通知人"),
-                "example": ["lisa", "tony"],
+                "example": ["lisa", "yunweixiaoge"],
             },
             {
                 "name": "alarm.appointees",
@@ -458,7 +458,7 @@ VARIABLES = [
         "items": [
             {"name": "action_instance.name", "desc": _lazy("套餐名称"), "example": "机器重启"},
             {"name": "action_instance.plugin_type_name", "desc": _lazy("套餐类型"), "example": _lazy("作业平台")},
-            {"name": "action_instance.assignees", "desc": _lazy("负责人"), "example": "admin,tony"},
+            {"name": "action_instance.assignees", "desc": _lazy("负责人"), "example": "admin,yunweixiaoge"},
             {"name": "action_instance.operate_target_string", "desc": _lazy("执行对象"), "example": "127.0.0.1"},
             {"name": "action_instance.bk_biz_id", "desc": _lazy("业务ID"), "example": "2"},
             {"name": "action_instance.start_time", "desc": _lazy("开始时间"), "example": "1970-08-01 10:00:00+08:00"},

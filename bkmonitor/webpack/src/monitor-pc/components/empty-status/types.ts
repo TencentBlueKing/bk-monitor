@@ -25,7 +25,7 @@
  */
 import { TranslateResult } from 'vue-i18n';
 // 空状态类型枚举
-export type EmptyStatusType = 'empty' | '500' | 'search-empty' | '403';
+export type EmptyStatusType = '403' | '500' | 'empty' | 'search-empty';
 
 // 空状态操作枚举
 export type EmptyStatusOperationType = 'clear-filter' | 'refresh';

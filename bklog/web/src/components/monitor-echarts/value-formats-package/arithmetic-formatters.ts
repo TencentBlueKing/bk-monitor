@@ -20,51 +20,49 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { toFixed, FormattedValue } from './value-formats'
-import { DecimalCount } from '../types/display-value'
+import { toFixed, FormattedValue } from './value-formats';
+import { DecimalCount } from '../types/display-value';
 
 export function toPercent(size: number, decimals?: DecimalCount): FormattedValue {
   if (size === null) {
-    return { text: '' }
+    return { text: '' };
   }
-  return { text: toFixed(size, decimals < 3 ? decimals : 2), suffix: '%' }
+  return { text: toFixed(size, decimals < 3 ? decimals : 2), suffix: '%' };
 }
 
 export function toPercentUnit(size: number, decimals?: DecimalCount): FormattedValue {
   if (size === null) {
-    return { text: '' }
+    return { text: '' };
   }
 
-  return { text: toFixed(100 * size, decimals < 3 ? decimals : 2), suffix: '%' }
+  return { text: toFixed(100 * size, decimals < 3 ? decimals : 2), suffix: '%' };
 }
 
 export function toHex0x(value: number, decimals: DecimalCount = 2): FormattedValue {
   if (value == null) {
-    return { text: '' }
+    return { text: '' };
   }
-  const asHex = toHex(value, decimals)
+  const asHex = toHex(value, decimals);
   if (asHex.text.substring(0, 1) === '-') {
-    asHex.text = `-0x${asHex.text.substring(1)}`
+    asHex.text = `-0x${asHex.text.substring(1)}`;
   } else {
-    asHex.text = `0x${asHex.text}`
+    asHex.text = `0x${asHex.text}`;
   }
-  return asHex
+  return asHex;
 }
 
 export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue {
   if (value == null) {
-    return { text: '' }
+    return { text: '' };
   }
   return {
-    text: parseFloat(toFixed(value, decimals))
-      .toString(16)
-      .toUpperCase()
-  }
+    text: parseFloat(toFixed(value, decimals)).toString(16).toUpperCase()
+  };
 }
 
 export function sci(value: number, decimals: DecimalCount = 2): FormattedValue {
   if (value == null) {
-    return { text: '' }
+    return { text: '' };
   }
-  return { text: value.toExponential(decimals as number) }
+  return { text: value.toExponential(decimals as number) };
 }

@@ -20,7 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { mapState } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import { formatDate, random, copyMessage, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import TextHighlight from 'vue-text-highlight';
@@ -41,59 +41,59 @@ export default {
     ExpandView,
     EmptyView,
     TimeFormatterSwitcher,
-    OriginalLightHeight,
+    OriginalLightHeight
   },
   mixins: [tableRowDeepViewMixin],
   props: {
     tableList: {
       type: Array,
-      required: true,
+      required: true
     },
     originTableList: {
       type: Array,
-      required: true,
+      required: true
     },
     totalFields: {
       type: Array,
-      required: true,
+      required: true
     },
     visibleFields: {
       type: Array,
-      required: true,
+      required: true
     },
     showFieldAlias: {
       type: Boolean,
-      default: false,
+      default: false
     },
     fieldAliasMap: {
       type: Object,
-      default: () => { },
+      default: () => {}
     },
     isWrap: {
       type: Boolean,
-      default: false,
+      default: false
     },
     retrieveParams: {
       type: Object,
-      required: true,
+      required: true
     },
     tableLoading: {
       type: Boolean,
-      required: true,
+      required: true
     },
     isPageOver: {
       type: Boolean,
-      required: false,
+      required: false
     },
     timeField: {
       type: String,
-      default: '',
+      default: ''
     },
     operatorConfig: {
       type: Object,
-      required: true,
+      required: true
     },
-    handleClickTools: Function,
+    handleClickTools: Function
   },
   data() {
     return {
@@ -105,11 +105,32 @@ export default {
       originStrInstance: null,
       /** 当前需要复制的原始日志 */
       hoverOriginStr: '',
+      logSourceField: {
+        description: null,
+        es_doc_values: false,
+        field_alias: '',
+        field_name: this.$t('日志来源'),
+        field_operator: [],
+        field_type: 'keyword',
+        filterExpand: false,
+        filterVisible: false,
+        is_analyzed: false,
+        is_display: false,
+        is_editable: false,
+        minWidth: 0,
+        tag: 'union-source',
+        width: 230
+      }
     };
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
     ...mapState(['isNotVisibleFieldsShow', 'clearTableWidth']),
+    ...mapGetters({
+      isUnionSearch: 'isUnionSearch',
+      unionIndexList: 'unionIndexList',
+      unionIndexItemList: 'unionIndexItemList'
+    }),
     showHandleOption() {
       return Boolean(this.tableList.length);
     },
@@ -125,7 +146,7 @@ export default {
       const dataFields = [];
       const indexSetFields = [];
       const logFields = [];
-      this.totalFields.forEach((item) => {
+      this.totalFields.forEach(item => {
         if (item.field_type === 'date') {
           dataFields.push(item);
         } else if (item.field_name === 'log' || item.field_alias === 'original_text') {
@@ -140,9 +161,16 @@ export default {
         return sortA.localeCompare(sortB);
       });
       const sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      if (this.isUnionSearch && this.isShowSourceField) {
+        sortFieldsList.unshift(this.logSourceField);
+      }
       setDefaultTableWidth(sortFieldsList, this.tableList);
       return sortFieldsList;
     },
+    /** 是否展示数据来源 */
+    isShowSourceField() {
+      return this.operatorConfig.isShowSourceField;
+    }
   },
   watch: {
     retrieveParams: {
@@ -150,15 +178,19 @@ export default {
       handler() {
         this.cacheExpandStr = [];
         this.cacheOverFlowCol = [];
-      },
+      }
     },
-    '$route.params.indexId'() { // 切换索引集重置状态
+    '$route.params.indexId'() {
+      // 切换索引集重置状态
       this.cacheExpandStr = [];
       this.cacheOverFlowCol = [];
     },
     clearTableWidth() {
       const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-      const { params: { indexId }, query: { bizId } } = this.$route;
+      const {
+        params: { indexId },
+        query: { bizId }
+      } = this.$route;
       if (columnObj === null || JSON.stringify(columnObj) === '{}') {
         return;
       }
@@ -181,7 +213,7 @@ export default {
       }
 
       localStorage.setItem('table_column_width_obj', JSON.stringify(columnObj));
-    },
+    }
   },
   methods: {
     handleShowWhole(index) {
@@ -199,8 +231,7 @@ export default {
 
       const markVal = content.match(/(<mark>).*?(<\/mark>)/g) || [];
       if (markVal.length) {
-        markList = markVal.map(item => item.replace(/<mark>/g, '')
-          .replace(/<\/mark>/g, ''));
+        markList = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
       }
 
       return markList;
@@ -211,7 +242,8 @@ export default {
 
       const markVal = content.match(/(<mark>).*?(<\/mark>)/g) || [];
       if (markVal.length) {
-        value = String(value).replace(/<mark>/g, '')
+        value = String(value)
+          .replace(/<mark>/g, '')
           .replace(/<\/mark>/g, '');
       }
 
@@ -224,7 +256,10 @@ export default {
       ele.toggleRowExpansion(row);
     },
     handleHeaderDragend(newWidth, oldWidth, { index }) {
-      const { params: { indexId }, query: { bizId } } = this.$route;
+      const {
+        params: { indexId },
+        query: { bizId }
+      } = this.$route;
       if (index === undefined || bizId === undefined || indexId === undefined) {
         return;
       }
@@ -263,66 +298,99 @@ export default {
     // eslint-disable-next-line no-unused-vars
     renderHeaderAliasName(h, { column, $index }) {
       const field = this.getShowTableVisibleFields[$index - 1];
-      const isShowSwitcher = field?.field_type === 'date';
+      const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
+        const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
+        let unionContent = '';
+        // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
+        if (this.isUnionSearch) {
+          const indexSetIDs = field.index_set_ids?.map(item => String(item)) || [];
+          const isDifferentFields = indexSetIDs.length !== this.unionIndexItemList.length;
+          if (isDifferentFields && !isUnionSource) {
+            const lackIndexNameList = this.unionIndexItemList
+              .filter(item => indexSetIDs.includes(item.index_set_id))
+              .map(item => item.index_set_name);
+            unionContent = `${this.$t('字段来源')}: <br>${lackIndexNameList.join(' <br>')}`;
+          }
+        }
+        const isLackIndexFields = !!unionContent && this.isUnionSearch;
 
-        return h('div', {
-          class: 'render-header',
-        }, [
-          h('span', {
-            class: `field-type-icon ${fieldIcon}`,
-            style: {
-              marginRight: '4px',
-            },
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: content,
+        return h(
+          'div',
+          {
+            class: 'render-header'
+          },
+          [
+            h('span', {
+              class: `field-type-icon ${fieldIcon}`,
+              style: {
+                marginRight: '4px'
               },
-            ],
-          }),
-          h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [fieldName]),
-          h(TimeFormatterSwitcher, {
-            class: 'timer-formatter',
-            style: {
-              display: isShowSwitcher ? 'inline-block' : 'none',
-            },
-          }),
-          h('i', {
-            class: `bk-icon icon-minus-circle-shape toggle-display ${this.isNotVisibleFieldsShow ? 'is-hidden' : ''}`,
-            directives: [
+              directives: [
+                {
+                  name: 'bk-tooltips',
+                  value: content
+                }
+              ]
+            }),
+            h(
+              'span',
               {
-                name: 'bk-tooltips',
-                value: this.$t('将字段从表格中移除'),
-              },
-            ],
-            on: {
-              click: (e) => {
-                e.stopPropagation();
-                const displayFieldNames = [];
-                this.visibleFields.forEach((field) => {
-                  if (field.field_name !== fieldName) {
-                    displayFieldNames.push(field.field_name);
+                directives: [
+                  {
+                    name: 'bk-tooltips',
+                    value: { allowHTML: false, content: isLackIndexFields ? unionContent : fieldName }
                   }
-                });
-                this.$emit('fieldsUpdated', displayFieldNames, undefined, false);
+                ],
+                class: { 'lack-index-filed': isLackIndexFields }
               },
-            },
-          }),
-        ]);
+              [fieldName]
+            ),
+            h(TimeFormatterSwitcher, {
+              class: 'timer-formatter',
+              style: {
+                display: isShowSwitcher ? 'inline-block' : 'none'
+              }
+            }),
+            h('i', {
+              class: `bk-icon icon-minus-circle-shape toggle-display ${this.isNotVisibleFieldsShow ? 'is-hidden' : ''}`,
+              directives: [
+                {
+                  name: 'bk-tooltips',
+                  value: this.$t('将字段从表格中移除')
+                }
+              ],
+              on: {
+                click: e => {
+                  e.stopPropagation();
+                  const displayFieldNames = [];
+                  this.visibleFields.forEach(field => {
+                    if (field.field_name !== fieldName) {
+                      displayFieldNames.push(field.field_name);
+                    }
+                  });
+                  this.$emit('fieldsUpdated', displayFieldNames, undefined, false);
+                }
+              }
+            })
+          ]
+        );
       }
     },
     handleIconClick(type, content, field, row, isLink) {
       let value = field.field_type === 'date' ? row[field.field_name] : content;
-      value = String(value).replace(/<mark>/g, '')
+      value = String(value)
+        .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
-      if (type === 'search') { // 将表格单元添加到过滤条件
+      if (type === 'search') {
+        // 将表格单元添加到过滤条件
         this.$emit('addFilterCondition', field.field_name, 'eq', value, isLink);
-      } else if (type === 'copy') { // 复制单元格内容
+      } else if (type === 'copy') {
+        // 复制单元格内容
         copyMessage(value);
       } else if (['is', 'is not'].includes(type)) {
         this.$emit('addFilterCondition', field.field_name, type, value === '--' ? '' : value.toString(), isLink);
@@ -357,10 +425,19 @@ export default {
     handleSortTable({ column, order }) {
       const sortMap = {
         ascending: 'asc',
-        descending: 'desc',
+        descending: 'desc'
       };
       const sortList = !!column ? [[column.columnKey, sortMap[order]]] : [];
       this.$emit('shouldRetrieve', { sort_list: sortList }, false);
     },
-  },
+    getTableColumnContent(row, field) {
+      // 日志来源 展示来源的索引集名称
+      if (field?.tag === 'union-source') {
+        return (
+          this.unionIndexItemList.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ?? ''
+        );
+      }
+      return this.tableRowDeepView(row, field.field_name, field.field_type);
+    }
+  }
 };

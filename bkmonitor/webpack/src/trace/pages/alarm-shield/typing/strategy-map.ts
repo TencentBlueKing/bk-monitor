@@ -37,7 +37,7 @@ export const aggConditionColorMap = {
   include: '#FF9C01',
   exclude: '#FF9C01',
   regex: '#FF9C01',
-  nregex: '#FF9C01'
+  nregex: '#FF9C01',
 };
 
 export const aggConditionFontMap = {
@@ -52,7 +52,7 @@ export const aggConditionFontMap = {
   include: 'bold',
   exclude: 'bold',
   regex: 'bold',
-  nregex: 'bold'
+  nregex: 'bold',
 };
 
 export const methodMap = {
@@ -67,5 +67,5 @@ export const methodMap = {
   include: 'include',
   exclude: 'exclude',
   reg: 'regex',
-  nreg: 'nregex'
+  nreg: 'nregex',
 };

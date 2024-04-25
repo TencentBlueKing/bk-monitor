@@ -22,52 +22,52 @@
 
 const getStrategyList = {
   url: '/log_extract/strategies/',
-  method: 'get',
+  method: 'get'
 };
 
 const createStrategy = {
   url: '/log_extract/strategies/',
-  method: 'post',
+  method: 'post'
 };
 
 const updateStrategy = {
   url: '/log_extract/strategies/:strategy_id/',
-  method: 'put',
+  method: 'put'
 };
 
 const deleteStrategy = {
   url: '/log_extract/strategies/:strategy_id/',
-  method: 'delete',
+  method: 'delete'
 };
 
 // 日志提取链路列表
 const getLogExtractLinks = {
   url: '/log_extract/links/',
-  method: 'get',
+  method: 'get'
 };
 
 // 日志提取链路详情
 const getLogExtractLinkDetail = {
   url: '/log_extract/links/:link_id/',
-  method: 'get',
+  method: 'get'
 };
 
 // 新增日志提取链路
 const createLogExtractLink = {
   url: '/log_extract/links/',
-  method: 'post',
+  method: 'post'
 };
 
 // 更新日志提取链路
 const updateLogExtractLink = {
   url: '/log_extract/links/:link_id/',
-  method: 'put',
+  method: 'put'
 };
 
 // 删除日志提取链路
 const deleteLogExtractLink = {
   url: '/log_extract/links/:link_id/',
-  method: 'delete',
+  method: 'delete'
 };
 
 export {
@@ -79,5 +79,5 @@ export {
   getLogExtractLinkDetail,
   createLogExtractLink,
   updateLogExtractLink,
-  deleteLogExtractLink,
+  deleteLogExtractLink
 };

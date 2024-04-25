@@ -25,6 +25,7 @@
  */
 import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import { calendarDataConversion, getCalendarNew, ICalendarData, ICalendarDataUser } from './calendar-preview';
@@ -36,8 +37,8 @@ export default defineComponent({
   props: {
     value: {
       type: Array as PropType<ICalendarDataUser[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -47,8 +48,8 @@ export default defineComponent({
       users: [],
       data: getCalendarNew().map(item => ({
         dates: item,
-        data: []
-      }))
+        data: [],
+      })),
     });
     /* 日历表头部的 周信息 */
     const weekList = ref([t('周日'), t('周一'), t('周二'), t('周三'), t('周四'), t('周五'), t('周六')]);
@@ -77,7 +78,7 @@ export default defineComponent({
         init();
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -86,14 +87,14 @@ export default defineComponent({
       weekList,
       contentRef,
       containerWidth,
-      t
+      t,
     };
   },
   render() {
     return (
       <div
-        class='rotation-calendar-preview-component'
         ref='contentRef'
+        class='rotation-calendar-preview-component'
       >
         <div class='calendar-header'>
           {this.weekList.map(item => (
@@ -108,24 +109,24 @@ export default defineComponent({
         <div class='calendar-content'>
           {this.curCalendarData.data.map((item, index) => (
             <div
-              class='week-row'
-              style={{
-                height: `${120 + (item.maxRow >= 2 ? item.maxRow - 2 : 0) * 22}px`
-              }}
               key={index}
+              style={{
+                height: `${120 + (item.maxRow >= 2 ? item.maxRow - 2 : 0) * 22}px`,
+              }}
+              class='week-row'
             >
               {item.dates.map(date => (
                 <div
-                  class='day-col'
                   key={date.day}
+                  class='day-col'
                 >
                   <div
                     class={[
                       'day-label',
                       {
                         check: date.isCurDay,
-                        other: date.isOtherMonth
-                      }
+                        other: date.isOtherMonth,
+                      },
                     ]}
                   >
                     {date.day === 1 && !date.isCurDay ? this.t('{0}月', [date.month + 1]) : date.day}
@@ -135,47 +136,47 @@ export default defineComponent({
               {item.data.map((data, _index) => (
                 <Popover
                   key={`${index}${_index}`}
-                  theme='light'
-                  placement='top'
                   width={data.other.time.length > 30 ? 230 : 160}
-                  popoverDelay={[200, 0]}
-                  arrow={true}
                   extCls={'rotation-calendar-preview-component-user-item-pop'}
+                  arrow={true}
+                  placement='top'
+                  popoverDelay={[200, 0]}
+                  theme='light'
                   trigger={'hover'}
                 >
                   {{
                     default: () =>
                       !!data.users.length ? (
                         <div
-                          class='user-item'
                           style={{
                             top: `${48 + data.row * 22}px`,
                             width: `${
                               (data?.isStartBorder ? -1 : 0) + this.containerWidth * (data.range[1] - data.range[0])
                             }px`,
-                            left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`
+                            left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`,
                           }}
+                          class='user-item'
                         >
                           <div
-                            class='user-header'
                             style={{ background: data.color }}
+                            class='user-header'
                           ></div>
                           <div
-                            class='user-content'
                             style={{ color: data.color }}
+                            class='user-content'
                           >
                             <span>{data.users.map(u => u.name).join(',')}</span>
                           </div>
                         </div>
                       ) : (
                         <div
-                          class='user-item no-user'
                           style={{
                             width: `${
                               (data?.isStartBorder ? -1 : 0) + this.containerWidth * (data.range[1] - data.range[0])
                             }px`,
-                            left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`
+                            left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`,
                           }}
+                          class='user-item no-user'
                         ></div>
                       ),
                     content: () => (
@@ -183,7 +184,7 @@ export default defineComponent({
                         <div class='time'>{data.other.time}</div>
                         <div class='users'>{data.other.users}</div>
                       </div>
-                    )
+                    ),
                   }}
                 </Popover>
               ))}
@@ -192,5 +193,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

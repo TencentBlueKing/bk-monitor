@@ -471,6 +471,15 @@ class ActionEnum:
         related_actions=[],
         version=1,
     )
+    MANAGE_REPORT = ActionMeta(
+        id="manage_report",
+        name=_("订阅管理"),
+        name_en="Report Manage",
+        type="manage",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
 
 
 _all_actions = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
@@ -568,6 +577,7 @@ CMDB_REQUIRE_ACTION_IDS = [
 # 管理权限
 ADMIN_ACTION_IDS = [
     ActionEnum.MANAGE_CALENDAR.id,
+    ActionEnum.MANAGE_REPORT.id,
     ActionEnum.MANAGE_GLOBAL_SETTING.id,
     ActionEnum.VIEW_GLOBAL_SETTING.id,
     ActionEnum.MANAGE_PUBLIC_PLUGIN.id,

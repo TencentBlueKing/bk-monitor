@@ -15,12 +15,9 @@ from urllib.parse import urljoin
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
-from requests.exceptions import HTTPError, ReadTimeout
 from rest_framework import serializers
 
 from core.drf_resource.contrib.api import APIResource
-from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +27,7 @@ class BcsProjectBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
     base_url = urljoin(
         f"{settings.BCS_API_GATEWAY_SCHEMA}://{settings.BCS_API_GATEWAY_HOST}:{settings.BCS_API_GATEWAY_PORT}",
-        f"/bcsapi/v4/bcsproject/v1",
+        "/bcsapi/v4/bcsproject/v1",
     )
     module_name = "bcs-project"
 
@@ -41,33 +38,18 @@ class BcsProjectBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
             super(BcsProjectBaseResource, self).get_request_url(validated_request_data).format(**validated_request_data)
         )
 
-    def perform_request(self, validated_request_data):
-        request_url = self.get_request_url(validated_request_data)
-        headers = {
+    def get_headers(self):
+        return {
             "Authorization": f"Bearer {settings.BCS_API_GATEWAY_TOKEN}",
             "X-Project-Username": settings.COMMON_USERNAME,
         }
-        try:
-            result = self.session.get(
-                params=validated_request_data,
-                url=request_url,
-                headers=headers,
-                verify=False,
-                timeout=self.TIMEOUT,
-            )
-        except ReadTimeout:
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=_("接口返回结果超时"))
 
-        try:
-            result.raise_for_status()
-        except HTTPError as err:
-            logger.exception("【模块：{}】请求 BCS Project 服务错误：{}，请求url: {}".format(self.module_name, err, request_url))
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
-
-        result_json = result.json()
-        data = result_json.get("data", {})
-
-        return data
+    def render_response_data(self, validated_request_data, response_data):
+        # 检查返回数据的格式，并进行相应的处理
+        if isinstance(response_data, dict):
+            return response_data.get('data', {})
+        else:
+            return response_data
 
 
 class GetProjectsResource(BcsProjectBaseResource):
@@ -82,7 +64,7 @@ class GetProjectsResource(BcsProjectBaseResource):
     class RequestSerializer(serializers.Serializer):
         limit = serializers.IntegerField(required=False, default=1000)
         offset = serializers.IntegerField(required=False, default=0)
-        kind = serializers.CharField(required=False, default="k8s")
+        kind = serializers.CharField(required=False, allow_blank=True)
         is_detail = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, validated_request_data):
@@ -94,9 +76,8 @@ class GetProjectsResource(BcsProjectBaseResource):
             max_offset = count // self.default_limit
             start_offset = 1
             while start_offset <= max_offset:
-                resp_data = super(GetProjectsResource, self).perform_request(
-                    {"limit": self.default_limit, "offset": start_offset, "kind": "k8s"}
-                )
+                validated_request_data.update({"limit": self.default_limit, "offset": start_offset})
+                resp_data = super(GetProjectsResource, self).perform_request(validated_request_data)
                 project_list.extend(resp_data.get("results") or [])
                 start_offset += 1
         # 因为返回数据内容太多，抽取必要的字段

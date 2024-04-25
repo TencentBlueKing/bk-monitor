@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Provide, Ref } from 'vue-property-decorator';
+
 import { applicationInfo, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -31,7 +32,6 @@ import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as authorityMap from '../../home/authority-map';
-
 import BasicConfiguration from './basic-configuration';
 // import IndicatorDimension from './indicator-dimension';
 import ConfigurationView from './configuration-view';
@@ -66,7 +66,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       apdex_db: 0,
       apdex_rpc: 0,
       apdex_backend: 0,
-      apdex_messaging: 0
+      apdex_messaging: 0,
     },
     owner: '',
     is_enabled: false,
@@ -75,7 +75,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       es_number_of_replicas: 0,
       es_retention: 1,
       es_storage_cluster: 0, // 存储集群
-      es_shards: 1 // 分片数
+      es_shards: 1, // 分片数
     },
     create_user: '',
     create_time: '',
@@ -84,10 +84,10 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     no_data_period: 0,
     application_sampler_config: {
       sampler_type: '',
-      sampler_percentage: 0
+      sampler_percentage: 0,
     },
     application_instance_name_config: {
-      instance_name_composition: []
+      instance_name_composition: [],
     },
     application_db_config: [],
     application_db_system: [],
@@ -100,14 +100,14 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       paths: [''],
       bk_biz_id: window.bk_biz_id,
       bk_data_id: '',
-      subscription_id: ''
-    }
+      subscription_id: '',
+    },
   };
   /** 历史记录弹窗配置 */
   recordData: Record<string, string> = {};
   /** 插件使用说明侧栏配置 */
   configurationView: {
-    rightWidth: string | number;
+    rightWidth: number | string;
     range: number[];
     isActive: boolean;
     show: boolean;
@@ -115,14 +115,14 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     rightWidth: '33%',
     range: [300, 1200],
     isActive: false,
-    show: false
+    show: false,
   };
   menuList: IMenuItem[] = [
     // { id: 'baseInfo', name: window.i18n.tc('基本信息') },
     { id: 'basicConfiguration', name: window.i18n.tc('基础配置') },
     { id: 'customService', name: window.i18n.tc('自定义服务') },
     { id: 'storageState', name: window.i18n.tc('存储状态') },
-    { id: 'dataStatus', name: window.i18n.tc('数据状态') }
+    { id: 'dataStatus', name: window.i18n.tc('数据状态') },
     // { id: 'indicatorDimension', name: window.i18n.tc('指标维度') }
   ];
   clusterList: IClusterItem[] = []; // 存储集群列表
@@ -133,7 +133,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
   }
   get rightWidth() {
     const { show, rightWidth } = this.configurationView;
-    // eslint-disable-next-line no-nested-ternary
+
     return show ? (typeof rightWidth === 'string' ? rightWidth : `${rightWidth}px`) : '0px';
   }
   /** 页面权限校验实例资源 */
@@ -146,7 +146,6 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
 
   beforeRouteEnter(from, to, next) {
     next((vm: ApplicationConfiguration) => {
-      // eslint-disable-next-line no-param-reassign
       vm.routeList = [
         // {
         //   id: 'home',
@@ -165,8 +164,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
         // }
         {
           id: 'configuration',
-          name: window.i18n.tc('route-配置应用')
-        }
+          name: window.i18n.tc('route-配置应用'),
+        },
       ];
     });
   }
@@ -193,7 +192,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
           trace_mode: 'closed',
           length: 10000,
           threshold: 500,
-          enabled_slow_sql: true
+          enabled_slow_sql: true,
         });
       }
       Object.assign(this.appInfo, res);
@@ -202,7 +201,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
         create_user: createUser,
         create_time: createTime,
         update_time: updateTime,
-        update_user: updateUser
+        update_user: updateUser,
       } = this.appInfo;
       // this.routeList[1].name = `${this.$t('应用')}：${appName}`;
       // this.routeList[1].query['filter-app_name'] = appName;
@@ -244,8 +243,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     this.$router.push({
       name: 'application',
       query: {
-        'filter-app_name': this.appInfo.app_name
-      }
+        'filter-app_name': this.appInfo.app_name,
+      },
     });
   }
   /**
@@ -293,7 +292,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     const width = direction === 'left' ? `calc(100% - ${this.rightWidth})` : this.rightWidth;
     return {
       width,
-      flexBasis: width
+      flexBasis: width,
     };
   }
   /**
@@ -314,8 +313,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       case 'storageState': // 存储状态
         return (
           <StorageState
-            data={this.appInfo}
             clusterList={this.clusterList}
+            data={this.appInfo}
             on-change={this.getAppBaseInfo}
           />
         );
@@ -339,32 +338,32 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       >
         <CommonNavBar
           class='application-configuration-nav'
+          navMode={'display'}
+          needBack={true}
+          positionText={this.positonText}
           routeList={this.routeList}
           needCopyLink
-          needBack={true}
-          navMode={'display'}
-          positionText={this.positonText}
         ></CommonNavBar>
         <div
-          class='application-configuration-page'
           ref='contentRef'
+          class='application-configuration-page'
         >
           <div
-            class='configuration-content-left'
             style={this.handleContentStyle('left')}
+            class='configuration-content-left'
           >
             <ConfigurationNav
               active={this.activeMenu}
               menuList={this.menuList}
-              onMenuClick={this.handleMenuClick}
               onAlertClick={this.handleClickAlert}
+              onMenuClick={this.handleMenuClick}
             >
               {!this.firstLoad && this.getContentPanel()}
             </ConfigurationNav>
           </div>
           <div
-            class='configuration-content-right'
             style={this.handleContentStyle('right')}
+            class='configuration-content-right'
           >
             <div class='right-wrapper'>
               <div

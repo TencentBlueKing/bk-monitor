@@ -25,10 +25,10 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { copyText } from 'monitor-common/utils/utils';
 
 import { EventRetrievalViewType } from '../../typings';
-
 import TextSegmentation from './text-segmentation';
 
 import './kv-list.scss';
@@ -39,12 +39,12 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
 
   toolMenuList = [
     { id: 'is', icon: 'bk-icon icon-enlarge-line search' },
-    { id: 'copy', icon: 'icon icon-monitor icon-mc-copy' }
+    { id: 'copy', icon: 'icon icon-monitor icon-mc-copy' },
   ];
   toolMenuTips = {
     is: window.i18n.t('添加查询语句'),
     copy: window.i18n.t('复制'),
-    cannot_is: window.i18n.t('不支持查询语句')
+    cannot_is: window.i18n.t('不支持查询语句'),
   };
 
   @Emit('drillSearch')
@@ -55,7 +55,7 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
   get fieldMap() {
     return Object.entries(this.data).map(([key, value]) => ({
       field: key,
-      value
+      value,
     }));
   }
   /** 判断下钻操作是否可用 */
@@ -89,13 +89,13 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
         copyText(drillValue, msg => {
           this.$bkMessage({
             message: msg,
-            theme: 'error'
+            theme: 'error',
           });
           return;
         });
         this.$bkMessage({
           message: this.$t('复制成功'),
-          theme: 'success'
+          theme: 'success',
         });
         break;
     }

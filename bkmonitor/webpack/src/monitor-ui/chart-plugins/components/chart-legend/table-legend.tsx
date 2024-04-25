@@ -26,7 +26,6 @@
 import { Component, Watch } from 'vue-property-decorator';
 
 import { ILegendItem, TableLegendHeadType } from '../../typings';
-
 import CommonLegend from './common-legend';
 
 import './table-legend.scss';
@@ -68,6 +67,7 @@ export default class TableLegend extends CommonLegend {
       return +bVal - +aVal;
     });
   }
+
   render() {
     return (
       <table class='table-legend'>
@@ -85,12 +85,12 @@ export default class TableLegend extends CommonLegend {
                 {title}
                 <span class='caret-wrapper'>
                   <i
-                    onClick={() => this.handleSortChange(title, 1)}
                     class={{ 'sort-caret is-asc': true, active: this.sortTitle === title && this.sort === 1 }}
+                    onClick={() => this.handleSortChange(title, 1)}
                   ></i>
                   <i
-                    onClick={() => this.handleSortChange(title, 2)}
                     class={{ 'sort-caret is-desc': true, active: this.sortTitle === title && this.sort === 2 }}
+                    onClick={() => this.handleSortChange(title, 2)}
                   ></i>
                 </span>
               </th>
@@ -108,18 +108,20 @@ export default class TableLegend extends CommonLegend {
                       {title === 'Min' && (
                         <div
                           class='legend-metric'
-                          onClick={e => this.handleLegendEvent(e, 'click', item)}
+                          onMousedown={e => this.handleLegendMouseEvent(e, 'mousedown')}
                           onMouseenter={e => this.handleLegendEvent(e, 'highlight', item)}
                           onMouseleave={e => this.handleLegendEvent(e, 'downplay', item)}
+                          onMousemove={e => this.handleLegendMouseEvent(e, 'mousemove')}
+                          onMouseup={e => this.handleLegendMouseEvent(e, 'mouseup', item)}
                         >
                           <span
-                            class='metric-label'
                             style={{ backgroundColor: item.show ? item.color : '#ccc' }}
+                            class='metric-label'
                           ></span>
                           <span
-                            v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
-                            class='metric-name'
                             style={{ color: item.show ? '#63656e' : '#ccc' }}
+                            class='metric-name'
+                            v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
                           >
                             {item.name}
                           </span>

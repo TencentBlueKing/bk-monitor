@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 
@@ -32,12 +33,11 @@ import {
   getAutoOrderList,
   getPreviewParams,
   noOrderDutyData,
-  setPreviewDataOfServer
+  setPreviewDataOfServer,
 } from '../../../../trace/pages/rotation/components/calendar-preview';
 import { RotationTabTypeEnum } from '../../../../trace/pages/rotation/typings/common';
 import { randomColor, RuleDetailModel, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
-
 import RotationCalendarPreview from './rotation-calendar-preview';
 
 import './rotation-detail.scss';
@@ -66,7 +66,7 @@ export default class RotationDetail extends tsc<IProps> {
       { label: this.$t('创建人'), value: this.detailData?.create_user || '--' },
       { label: this.$t('创建时间'), value: this.detailData?.create_time || '--' },
       { label: this.$t('最近更新人'), value: this.detailData?.update_user || '--' },
-      { label: this.$t('修改时间'), value: this.detailData?.update_time || '--' }
+      { label: this.$t('修改时间'), value: this.detailData?.update_time || '--' },
     ];
   }
 
@@ -100,7 +100,7 @@ export default class RotationDetail extends tsc<IProps> {
     const params = {
       ...getPreviewParams(this.detailData.effective_time),
       source_type: 'DB',
-      id: this.id
+      id: this.id,
     };
     const data = await previewDutyRulePlan(params).catch(() => []);
     const autoOrders = getAutoOrderList(this.detailData);
@@ -119,8 +119,8 @@ export default class RotationDetail extends tsc<IProps> {
     if (user.logo)
       return (
         <img
-          src={user.logo}
           alt=''
+          src={user.logo}
         ></img>
       );
     if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img'></span>;
@@ -141,8 +141,8 @@ export default class RotationDetail extends tsc<IProps> {
         ext-cls='alarm-group-rotation-detail-side'
         {...{ on: { 'update:isShow': this.emitIsShow } }}
         width={960}
-        quick-close={true}
         is-show={this.show}
+        quick-close={true}
       >
         <div
           class='rotation-detail-side-header'
@@ -165,8 +165,8 @@ export default class RotationDetail extends tsc<IProps> {
           </span>
         </div>
         <div
-          slot='content'
           class='rotation-detail-side-content'
+          slot='content'
         >
           {formItem(this.$t('规则名称'), <span class='detail-text text-wrap'>{this.detailData?.name || '--'}</span>)}
           {formItem(this.$t('标签'), <span class='detail-text'>{this.detailData?.labels?.join(', ') || '--'}</span>)}
@@ -184,7 +184,7 @@ export default class RotationDetail extends tsc<IProps> {
                   <div class='rule-item'>
                     {rule.ruleTime.length > 1 && [
                       <span class='rule-item-index'>{this.$t('第 {num} 班', { num: ind + 1 })}</span>,
-                      <div class='col-separate'></div>
+                      <div class='col-separate'></div>,
                     ]}
                     <span class='rule-item-title'>{time.day}</span>
                     {time.timer.map(item => (
@@ -205,16 +205,16 @@ export default class RotationDetail extends tsc<IProps> {
                     <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
                       {!rule.isAuto && (
                         <div
-                          class='has-color'
                           style={{ background: randomColor(item.orderIndex) }}
+                          class='has-color'
                         ></div>
                       )}
                       {item.users.map((user, ind) => (
                         <div class='personnel-choice'>
                           {rule.isAuto && (
                             <span
-                              class='user-color'
                               style={{ 'background-color': randomColor(item.orderIndex + ind) }}
+                              class='user-color'
                             ></span>
                           )}
                           {this.renderUserLogo(user)}

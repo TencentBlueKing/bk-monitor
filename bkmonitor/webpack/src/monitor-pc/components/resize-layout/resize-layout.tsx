@@ -49,6 +49,7 @@ interface IEvents {
   onUpdateHeight: IUpdateHeight;
   onResizing: IUpdateHeight;
   onTogglePlacement: string;
+  onAfterResize?: IUpdateHeight;
 }
 @Component
 export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
@@ -112,7 +113,8 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     const asideEl = this.bkResizeLayoutRef.$el.querySelector('.bk-resize-layout-aside');
     asideEl.style.height = `${height}px`;
     this.asideHeight = height;
-    this.handleAfterResize();
+    // this.handleAfterResize();
+    this.handleAfterResizeImmediately();
     enableAnimation &&
       setTimeout(() => {
         this.needAnimation = false;
@@ -151,7 +153,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     }
     return {
       mainHeight: this.mainHeight,
-      asideHeight: this.asideHeight
+      asideHeight: this.asideHeight,
     };
   }
 
@@ -160,7 +162,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
   handleMinEmit() {
     return {
       mainHeight: this.mainHeight,
-      asideHeight: this.min
+      asideHeight: this.min,
     };
   }
 
@@ -173,7 +175,17 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     this.isResizing = false;
     return {
       mainHeight: this.mainHeight,
-      asideHeight: this.asideHeight
+      asideHeight: this.asideHeight,
+    };
+  }
+
+  /* 立即执行 无需防抖 */
+  @Emit('afterResize')
+  handleAfterResizeImmediately() {
+    this.isResizing = false;
+    return {
+      mainHeight: this.mainHeight,
+      asideHeight: this.asideHeight,
     };
   }
 
@@ -181,28 +193,28 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     return (
       <bk-resize-layout
         ref='bkResizeLayoutRef'
+        style='height: 100%'
         class={[
           'resize-layout-wrapper',
           this.localPlacement,
           {
             animation: this.needAnimation,
-            'is-resizing': this.isResizing
-          }
+            'is-resizing': this.isResizing,
+          },
         ]}
-        style='height: 100%'
+        disabled={this.disabled}
+        initial-divide={this.default}
+        max={this.max}
+        min={this.min}
+        placement={this.localPlacement}
         collapsible
         immediate
-        disabled={this.disabled}
-        min={this.min}
-        max={this.max}
-        placement={this.localPlacement}
-        initial-divide={this.default}
+        on-after-resize={this.handleAfterResizeImmediately}
         onResizing={this.handleResizing}
-        on-after-resize={this.handleAfterResize}
       >
         <div
-          slot='collapse-trigger'
           class='toggle-wrap'
+          slot='collapse-trigger'
         >
           {['top', 'bottom'].includes(this.localPlacement) && (
             <span
@@ -215,14 +227,14 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
           )}
         </div>
         <div
-          slot='main'
           class='resize-main'
+          slot='main'
         >
           {this.$slots.main}
         </div>
         <div
-          slot='aside'
           class='resize-aside'
+          slot='aside'
         >
           {this.$slots.aside}
         </div>

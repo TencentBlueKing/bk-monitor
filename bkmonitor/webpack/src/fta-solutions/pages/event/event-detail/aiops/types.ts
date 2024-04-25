@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-duplicate-enum-values */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,20 +26,20 @@
  */
 export enum ETabNames {
   dimension = 'dimension',
-  index = 'index'
+  index = 'index',
 }
 
 export enum DimensionTypes {
-  uptimecheck = 'icon-mc-service-test',
   application_check = 'icon-mc-business',
-  service_module = 'icon-mc-service-test',
   component = 'icon-mc-component',
-  host_process = 'icon-mc-aiops-process',
-  host_device = 'icon-mc-host',
-  kubernetes = 'icon-mc-aiops-kubernetes',
   hardware_device = 'icon-mc-equipment',
+  host_device = 'icon-mc-host',
+  host_process = 'icon-mc-aiops-process',
+  kubernetes = 'icon-mc-aiops-kubernetes',
+  os = 'icon-operating-system',
   other_rt = 'icon-mc-other',
-  os = 'icon-operating-system'
+  service_module = 'icon-mc-service-test',
+  uptimecheck = 'icon-mc-service-test',
 }
 
 export interface IInfo {
@@ -68,7 +69,7 @@ export interface IAnomalyDimensions {
 }
 
 export enum EventReportType {
-  'View' = 'event_detail_view',
   'Click' = 'event_detail_click',
-  'Tips' = 'event_detail_tips'
+  'Tips' = 'event_detail_tips',
+  'View' = 'event_detail_view',
 }

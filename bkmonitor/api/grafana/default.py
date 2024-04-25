@@ -131,6 +131,9 @@ class GetAllOrganization(GrafanaApiResource):
     method = "GET"
     path = "/api/orgs/"
 
+    class RequestSerializer(serializers.Serializer):
+        perpage = serializers.IntegerField(required=False, default=20000)
+
 
 class GetAllUserInOrganization(GrafanaApiResource):
     method = "GET"

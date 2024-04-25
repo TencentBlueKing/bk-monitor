@@ -1,45 +1,22 @@
 {
-  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.ts", ".eslintrc.cjs",],
+  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.ts"],
   "exclude": ["node_modules"],
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "importHelpers": true,
-    "strict": false,
+    "outDir": "./dist",
+    "strict": true,
     "strictBindCallApply": true,
     "strictNullChecks": false,
     "strictFunctionTypes": true,
     "strictPropertyInitialization": false,
     "noImplicitAny": false,
     "noImplicitThis": true,
-    "isolatedModules": true,
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "module": "esnext",
-    "target": "esnext",
-    "outDir": "dist",
-    "moduleResolution": "node",
-    "rootDir": "../../../",
-    "sourceMap": true,
-    "pretty": true,
-    "jsx": "preserve",
-    "lib": ["es2018", "dom"],
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@router/*": [
-        "./router/*"
-      ],
-      "@store/*": [
-        "./store/*"
-      ],
-      "@page/*": [
-        "./page/*"
-      ],
-      "@static/*": [
-        "./static/*"
-      ]
+      "@/*": ["./*"],
+      "@router/*": ["./router/*"],
+      "@store/*": ["./store/*"],
+      "@page/*": ["./page/*"],
+      "@static/*": ["./static/*"]
     }
   }
 }

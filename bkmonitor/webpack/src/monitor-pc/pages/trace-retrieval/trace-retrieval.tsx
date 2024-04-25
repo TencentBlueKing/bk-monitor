@@ -32,7 +32,7 @@ import './trace-retrieval.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class TraceRetrieval extends tsc<{}> {
+export default class TraceRetrieval extends tsc<object> {
   @Prop() a: number;
   get traceHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
@@ -45,7 +45,7 @@ export default class TraceRetrieval extends tsc<{}> {
   get traceData() {
     return JSON.stringify({
       host: this.traceHost,
-      baseroute: '/trace/'
+      baseroute: '/trace/',
     });
   }
   mounted() {
@@ -57,12 +57,12 @@ export default class TraceRetrieval extends tsc<{}> {
     return (
       <div class='trace-wrap'>
         <bk-weweb
-          setShodowDom={true}
-          class='trace-wrap-iframe'
-          url={this.traceUrl}
-          showSourceCode={true}
           id='trace'
+          class='trace-wrap-iframe'
           data={this.traceData}
+          setShodowDom={true}
+          showSourceCode={true}
+          url={this.traceUrl}
         />
       </div>
     );

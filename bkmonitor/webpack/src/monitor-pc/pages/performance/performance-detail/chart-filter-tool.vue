@@ -192,7 +192,7 @@ export default class ChartFilterTool extends Vue {
   created() {
     this.timerangeList = DEFAULT_TIME_RANGE_LIST;
     this.timeshiftList = DEFAULT_TIMESHIFT_LIST;
-    this.searchFn = debounce(300, false, this.handleSearchValueChange);
+    this.searchFn = debounce(300, this.handleSearchValueChange);
   }
   get compareList(): IOption[] {
     const list = [

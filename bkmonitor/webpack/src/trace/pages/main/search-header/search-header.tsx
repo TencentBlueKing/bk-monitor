@@ -41,32 +41,32 @@ export default defineComponent({
   props: {
     showLeft: {
       type: Boolean,
-      default: true
+      default: true,
     },
     favoritesList: {
       type: Array as PropType<IFavoriteItem[]>,
-      default: () => []
+      default: () => [],
     },
     timeRange: {
       type: Array as PropType<TimeRangeType>,
-      default: () => ['now-1h', 'now']
+      default: () => ['now-1h', 'now'],
     },
     timezone: {
       type: String,
-      default: getDefautTimezone()
+      default: getDefautTimezone(),
     },
     menuList: {
       type: Array as PropType<ISelectMenuOption[]>,
-      default: () => []
+      default: () => [],
     },
     refleshInterval: {
       type: Number,
-      default: -1
+      default: -1,
     },
     checkedValue: {
       type: Object,
-      defalut: () => ({})
-    }
+      defalut: () => ({}),
+    },
   },
   emits: [
     'update:showLeft',
@@ -77,7 +77,7 @@ export default defineComponent({
     'timezoneChange',
     'refleshIntervalChange',
     'menuSelectChange',
-    'immediateReflesh'
+    'immediateReflesh',
   ],
   setup(props, { emit }) {
     function handleDeleteCollect(id: number | string) {
@@ -107,8 +107,8 @@ export default defineComponent({
         <div class='inquire-header-center'>
           {props.favoritesList.length ? (
             <FavoritesList
-              value={props.favoritesList}
               checkedValue={props.checkedValue}
+              value={props.favoritesList}
               onDelete={handleDeleteCollect}
               onSelect={handleSelectCollectItem}
             />
@@ -128,11 +128,11 @@ export default defineComponent({
           <span class='inquire-header-append-item'>
             <RefreshRate
               value={props.refleshInterval}
+              onImmediate={() => emit('immediateReflesh')}
               onSelect={val => {
                 emit('update:refleshInterval', val);
                 emit('refleshIntervalChange', val);
               }}
-              onImmediate={() => emit('immediateReflesh')}
             />
             <SelectMenu
               list={props.menuList}
@@ -144,5 +144,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

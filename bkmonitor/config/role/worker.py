@@ -166,6 +166,8 @@ DEFAULT_CRONTAB = [
     ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/30 * * * *", "global"),
     # apm_ebpf 定时检查集群和业务绑定关系 每十分钟触发
     ("apm_ebpf.task.tasks.cluster_discover_cron", "*/10 * * * *", "global"),
+    # apm_profile 定时发现profile服务 每十分钟触发
+    ("apm.task.tasks.profile_discover_cron", "*/10 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
@@ -211,6 +213,8 @@ ACTION_TASK_CRONTAB = [
     ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
 ]
 
+LONG_TASK_CRONTAB = []
+
 if os.getenv("DISABLE_METADATA_TASK") != "True":
     DEFAULT_CRONTAB += [
         # metadata
@@ -219,7 +223,7 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         # metadata同步pingserver配置，下发iplist到proxy机器，每10分钟执行一次
         ("metadata.task.ping_server.refresh_ping_server_2_node_man", "*/10 * * * *", "global"),
         # metadata同步自定义上报配置到节点管理，完成配置订阅，理论上，在配置变更的时候，会执行一次，所以这里运行周期可以放大
-        ("metadata.task.custom_report.refresh_custom_report_2_node_man", "*/5 * * * *", "global"),
+        ("metadata.task.custom_report.refresh_all_custom_report_2_node_man", "*/5 * * * *", "global"),
         # metadata自动部署bkmonitorproxy
         ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
         ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),

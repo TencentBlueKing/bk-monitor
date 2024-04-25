@@ -41,7 +41,7 @@ class QueryClientTemplate(object):  # pylint: disable=invalid-name
     def query(self, index: str, body: Dict[str, Any], scroll=None, track_total_hits=False):
         raise NotImplementedError()
 
-    def mapping(self, index: str) -> Dict:
+    def mapping(self, index: str, add_settings_details: bool = False) -> Dict:
         raise NotImplementedError()
 
     def es_route(self, url: str, index=None):

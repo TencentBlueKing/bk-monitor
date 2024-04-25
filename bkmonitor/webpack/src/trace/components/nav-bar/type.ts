@@ -25,10 +25,10 @@
  */
 import { TranslateResult } from 'vue-i18n';
 
-export type NavBarMode = 'copy' | 'share' | 'display';
+export type NavBarMode = 'copy' | 'display' | 'share';
 export interface INavItem {
   id: string;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
   subName?: string;
   query?: Record<string, any>;
 }

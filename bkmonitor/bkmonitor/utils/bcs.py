@@ -14,35 +14,14 @@ import logging
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext as _
-from requests.exceptions import HTTPError, ReadTimeout
 
 from core.drf_resource.contrib.api import APIResource
-from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
 
 class BcsApiGatewayBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    def perform_request(self, validated_request_data):
-        request_url = self.get_request_url(validated_request_data)
-        headers = {"Authorization": f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"}
-        try:
-            result = self.session.get(
-                params=validated_request_data,
-                url=request_url,
-                headers=headers,
-                verify=False,
-                timeout=self.TIMEOUT,
-            )
-        except ReadTimeout:
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=_("接口返回结果超时"))
-
-        try:
-            result.raise_for_status()
-        except HTTPError as err:
-            logger.exception("【模块：%s】请求BCS APIGW错误：%s，请求url: %s " % (self.module_name, err, request_url))
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
-
-        result_json = result.json()
-        return result_json
+    def get_headers(self):
+        headers = super(BcsApiGatewayBaseResource, self).get_headers()
+        headers["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
+        return headers

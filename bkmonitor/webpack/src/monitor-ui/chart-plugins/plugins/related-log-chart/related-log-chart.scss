@@ -1,104 +1,130 @@
-@import "../../css/mixins.scss";
+@import '../../css/mixins.scss';
 
 .related-log-chart-wrap {
-  padding: 16px 16px 32px;
+  z-index: 1;
   height: 100%;
+  padding: 16px 16px 32px;
   overflow: auto;
+
   .related-alert-info {
     position: fixed;
-    left: 0;
     bottom: 0;
-    width: 100%;
+    left: 0;
     z-index: 9;
+    width: 100%;
+
     .bk-alert-info {
-      border: 0;
       height: 42px;
       background-color: #e1ecff;
+      border: 0;
+
       .bk-alert-wraper {
         padding: 14px 10px;
       }
+
       .bk-alert-title {
         text-align: center;
       }
+
       .link {
         margin-left: 8px;
-        color: #3A84FF;
+        color: #3a84ff;
         cursor: pointer;
+
         .icon-monitor {
           margin: 0 4px;
         }
       }
     }
   }
+
   .related-log-chart-main {
     height: 100%;
+
     .collapse-header {
       display: flex;
       justify-content: space-between;
+
       .collapse-title {
         display: flex;
         align-items: center;
+
         .title {
           font-weight: bold;
         }
+
         .interval-label {
           margin: 0 10px 0 24px;
         }
       }
+
       .title-tool {
         display: flex;
         align-items: center;
       }
+
       .icon-mc-camera {
         font-size: 16px;
         cursor: pointer;
+
         &:hover {
-          color: #3A84FF;
+          color: #3a84ff;
         }
       }
     }
+
     .collapse-content {
-      margin-bottom: 32px;
       height: 120px;
+      margin-bottom: 32px;
+
       .monitor-echart-common-content {
-        margin-top: 10px;
         height: 100%;
+        margin-top: 10px;
+
         .chart-instance {
           background-color: #fff;
         }
       }
     }
+
     .related-log-table {
       height: calc(100% - 248px);
     }
   }
+
   .empty-chart {
     display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
     height: 100%;
-    flex: 1;
+
     .text-wrap {
       display: flex;
       flex-direction: column;
       align-items: center;
     }
+
     .text-row {
       margin: 16px 0 24px;
       font-size: 14px;
-      color: #979BA5;
+      color: #979ba5;
     }
+
     .bk-button {
       width: 88px;
     }
   }
+
   .query-tool {
     display: flex;
     margin-bottom: 16px;
+
     .table-search-select {
       width: 210px;
-      background-color: #FFF3E1;
+      background-color: #fff3e1;
     }
+
     .table-search-input {
       margin: 0 8px;
     }

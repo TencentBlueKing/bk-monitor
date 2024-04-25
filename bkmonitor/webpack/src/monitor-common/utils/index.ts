@@ -25,7 +25,6 @@
  */
 
 import { ISpaceItem } from '../typings';
-
 import { LOCAL_BIZ_STORE_KEY } from './constant';
 import { getUrlParam } from './utils';
 
@@ -39,7 +38,7 @@ export function mergeSpaceList(spaceList: ISpaceItem[]) {
     ...item,
     id: item.bk_biz_id,
     text: item.space_name,
-    name: item.space_name
+    name: item.space_name,
   }));
   window.space_list = list;
   return list;
@@ -64,12 +63,12 @@ export const setGlobalBizId = () => {
     /^#\/(event-center\/detail|share)\//.test(location.hash) ||
     !!window.__BK_WEWEB_DATA__?.token;
   const hasBizId = () => !(!bizId || bizId === -1);
-  const setBizId = (id: string | number) => {
+  const setBizId = (id: number | string) => {
     window.cc_biz_id = +id;
     window.bk_biz_id = +id;
     !isDemo(id) && localStorage.setItem(LOCAL_BIZ_STORE_KEY, id.toString());
   };
-  const setLocationSearch = (bizId: string | number) => {
+  const setLocationSearch = (bizId: number | string) => {
     if (location.search) {
       location.search = location.search.replace(/(space_uid|bizId)=([^#&/]+)/gim, `bizId=${bizId}`);
     } else {
@@ -190,5 +189,6 @@ export const lightenDarkenColor = (color: string, amt: number): string => {
   return (color.startsWith('#') ? '#' : '') + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
 };
 export * from './constant';
+export * from './docs-link';
 export * from './utils';
 export * from './xss';

@@ -347,6 +347,7 @@ ACTIVE_VIEWS = {
         "share": "monitor_web.share.views",
         "promql_import": "monitor_web.promql_import.views",
         "datalink": "monitor_web.datalink.views",
+        "new_report": "monitor_web.new_report.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -365,6 +366,7 @@ ACTIVE_VIEWS = {
         "apm_service": "apm_web.service.views",
         "apm_log": "apm_web.log.views",
         "apm_db": "apm_web.db.views",
+        "apm_profile": "apm_web.profile.views",
     },
 }
 
@@ -841,6 +843,8 @@ BK_DATA_SCENE_ID_ABNORMAL_CLUSTER = 33
 BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION = 15
 # 指标推荐
 BK_DATA_SCENE_ID_METRIC_RECOMMENDATION = 17
+# 主机异常检测
+BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION = 15
 
 # ai设置默认方案
 # 单指标异常检测
@@ -849,10 +853,13 @@ BK_DATA_PLAN_ID_INTELLIGENT_DETECTION = 87
 BK_DATA_PLAN_ID_MULTIVARIATE_ANOMALY_DETECTION = 155
 # 指标推荐
 BK_DATA_PLAN_ID_METRIC_RECOMMENDATION = 180
+# 主机异常检测
+BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION = 287
 
 BK_DATA_MULTIVARIATE_HOST_RT_ID = os.getenv(
     "BK_DATA_MULTIVARIATE_HOST_RT_ID", f"2_{BKAPP_DEPLOY_PLATFORM}_host_multivariate"
 )
+BK_DATA_MULTIVARIATE_HOST_MIDDLE_SUFFIX = "multivariate_detection"
 
 # 机器人默认跳转链接列表
 BK_DATA_ROBOT_LINK_LIST = os.getenv(
@@ -1134,6 +1141,8 @@ BKM_IPCHOOSER_BKAPI_CLASS = "api.cmdb.ipchooser.IpChooserApi"
 # IPv6特性开关
 # 当gse新API就绪时可以，此时会切换为新API，在正式出包后可以删除该开关
 USE_GSE_AGENT_STATUS_NEW_API = True
+# GSE APIGW 的地址
+BKGSE_APIGW_BASE_URL = os.getenv("BKAPP_BKGSE_APIGW_BASE_URL", "")
 # 全面启用IPv6功能特性
 IPV6_SUPPORT_BIZ_LIST = []
 # 主机展示字段
@@ -1307,3 +1316,32 @@ OUTER_COLLOCTOR_HOST = ""
 
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
+
+# BCS 数据合流配置， 默认为 不启用
+BCS_DATA_CONVERGENCE_CONFIG = {}
+
+# 是否启用 BCS CC 的项目接口
+ENABLE_BCS_CC_PROJECT_API = False
+
+# 独立的vm集群的空间列表
+SINGLE_VM_SPACE_ID_LIST = []
+
+# 文档链接配置 格式: {"key1": {"type": "splice/link", "value": ""}}
+DOC_LINK_MAPPING = {}
+
+# 插件授权给 bkci 空间使用
+BKCI_SPACE_ACCESS_PLUGIN_LIST = []
+
+# 禁用告警CMDB缓存刷新
+DISABLE_ALARM_CMDB_CACHE_REFRESH = []
+
+# 需要base64编码的特殊字符
+BASE64_ENCODE_TRIGGER_CHARS = []
+
+# 邮件订阅审批服务ID
+REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
+
+# 是否启用access数据批量处理
+ENABLED_ACCESS_DATA_BATCH_PROCESS = False
+ACCESS_DATA_BATCH_PROCESS_SIZE = 50000
+ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0

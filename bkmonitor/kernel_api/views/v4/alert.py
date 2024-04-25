@@ -9,8 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.drf_resource import resource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from fta_web.alert.views import AlertViewSet as FTAAlertViewSet
 
 
 class AlertInfoViewSet(ResourceViewSet):
@@ -31,3 +32,9 @@ class SearchAlertViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", resource.alert.search_alert, endpoint="search_alert"),
     ]
+
+
+class AlertViewSet(FTAAlertViewSet):
+    """
+    兼容全量事件中心告警接口
+    """

@@ -20,18 +20,18 @@ export default {
   props: {
     value: {
       type: Boolean,
-      default: false,
+      default: false
     },
     // 检测任务id
     checkRecordId: {
       type: String,
-      required: true,
-    },
+      required: true
+    }
   },
   data() {
     return {
       isShow: false,
-      checkInfo: '',
+      checkInfo: ''
     };
   },
   watch: {
@@ -43,20 +43,21 @@ export default {
         this.isShow = false;
         this.checkInfo = '';
       }
-    },
+    }
   },
   methods: {
     /** 获取检测信息 */
     async handleCollectorCheck() {
       const res = await this.$http.request('collect/getCheckInfos', {
         data: {
-          check_record_id: this.checkRecordId,
-        },
+          check_record_id: this.checkRecordId
+        }
       });
       if (res.data) {
         this.checkInfo = res.data.infos || '';
 
-        if (!res.data.finished && this.isShow) { // 未完成检测 且 弹窗未关闭则继续请求
+        if (!res.data.finished && this.isShow) {
+          // 未完成检测 且 弹窗未关闭则继续请求
           setTimeout(() => {
             this.handleCollectorCheck();
           }, 1000);
@@ -65,8 +66,8 @@ export default {
     },
     closeReportSlider() {
       this.$emit('closeReport');
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -82,8 +83,8 @@ export default {
 
     .bk-sideslider-content {
       height: 100%;
-      background-color: #313238;
       color: #c4c6cc;
+      background-color: #313238;
 
       .check-info {
         padding: 20px;

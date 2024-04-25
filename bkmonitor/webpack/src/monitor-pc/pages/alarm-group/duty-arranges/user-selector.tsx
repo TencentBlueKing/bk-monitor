@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import BkUserSelector from '@blueking/user-selector';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -130,11 +131,11 @@ export default class UserSelector extends tsc<IProps, IEvents> {
     return (
       <div class='duty-user-selector-component'>
         <div
-          class={['left-wrap', { focus: this.isFocus }]}
           style={{
             borderLeft: `4px solid ${this.color}`,
-            height: this.focusHeight ? `${this.focusHeight}px` : '100%'
+            height: this.focusHeight ? `${this.focusHeight}px` : '100%',
           }}
+          class={['left-wrap', { focus: this.isFocus }]}
           onMouseenter={() => this.handleDraggableChange(true)}
           onMouseleave={() => this.handleDraggableChange(false)}
         >
@@ -144,22 +145,22 @@ export default class UserSelector extends tsc<IProps, IEvents> {
           ref='userSelector'
           class='bk-user-selector'
           v-model={this.localValue}
-          panelWidth={300}
-          placeholder={window.i18n.t('选择通知对象')}
-          displayTagTips={false}
-          displayDomain={false}
-          tagClearable={false}
-          fastClear={true}
-          emptyText={window.i18n.t('无匹配人员')}
           api={this.bkUrl}
           defaultAlternate={() => deepClone(this.groupList)}
-          tagTipsContent={this.handleTabTips}
-          renderTag={this.renderUserSelectorTag}
+          displayDomain={false}
+          displayTagTips={false}
+          emptyText={window.i18n.t('无匹配人员')}
+          fastClear={true}
+          panelWidth={300}
+          placeholder={window.i18n.t('选择通知对象')}
           renderList={this.renderUserSelectorList}
-          onFocus={this.handleFocus}
+          renderTag={this.renderUserSelectorTag}
+          tagClearable={false}
+          tagTipsContent={this.handleTabTips}
           onBlur={this.handleBlur}
           onChange={this.handleChange}
           onClear={this.handleClear}
+          onFocus={this.handleFocus}
         ></BkUserSelector>
       </div>
     );
@@ -171,7 +172,7 @@ export default class UserSelector extends tsc<IProps, IEvents> {
     const renderTag = {
       display_name: groupName || tag.user?.display_name || tag.username,
       id: tag.username,
-      type: groupName ? 'group' : ''
+      type: groupName ? 'group' : '',
     };
     return this.renderPublicCode(h, renderTag, 'tag', 'text', 'avatar');
   }
@@ -182,7 +183,7 @@ export default class UserSelector extends tsc<IProps, IEvents> {
       type: user.type,
       index: user.index,
       id: user.username,
-      display_name: user.display_name
+      display_name: user.display_name,
     };
     return this.renderPublicCode(h, renderListItem, 'user-sort-list-component-bk-selector-member', 'text', 'avatar');
   }
@@ -201,15 +202,15 @@ export default class UserSelector extends tsc<IProps, IEvents> {
       node.logo
         ? h('img', {
             class: avatarClass,
-            attrs: { src: node.logo }
+            attrs: { src: node.logo },
           })
         : h('i', {
             class:
               node.type === 'group'
                 ? 'icon-monitor icon-mc-user-group only-img'
-                : 'icon-monitor icon-mc-user-one only-img'
+                : 'icon-monitor icon-mc-user-one only-img',
           }),
-      h('span', { class: textClass }, node.type === 'group' ? node.display_name : `${node.id} (${node.display_name})`)
+      h('span', { class: textClass }, node.type === 'group' ? node.display_name : `${node.id} (${node.display_name})`),
     ]);
   }
 }

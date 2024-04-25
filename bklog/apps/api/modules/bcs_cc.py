@@ -52,12 +52,6 @@ def bcs_get_cluster_config_after(response):
     return response
 
 
-def list_project_after(response):
-    if "results" in response["data"]:
-        response["data"] = response["data"]["results"]
-    return response
-
-
 class _BcsCcApi(object):
     MODULE = _("Bcs cc 配置中心")
 
@@ -95,15 +89,6 @@ class _BcsCcApi(object):
             module=self.MODULE,
             before_request=bcs_cc_before_request,
             header_keys=["X-BKAPI-AUTHORIZATION"],
-        )
-        self.list_project = DataAPI(
-            method="GET",
-            url=bcs_cc_url + "projects/",
-            module=self.MODULE,
-            before_request=bcs_cc_before_request,
-            after_request=list_project_after,
-            header_keys=["X-BKAPI-AUTHORIZATION"],
-            cache_time=60,
         )
         self.list_shared_clusters_ns = DataAPI(
             method="GET",

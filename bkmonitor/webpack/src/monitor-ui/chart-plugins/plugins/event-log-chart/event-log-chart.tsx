@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,6 +25,7 @@
  */
 import { Component, Emit } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
@@ -43,9 +43,9 @@ import './event-log-chart.scss';
 
 interface ITextUnitSeriesItem {
   // 值
-  value: string | number;
+  value: number | string;
   // 单位
-  unit: string | number;
+  unit: number | string;
 }
 interface IEventLogChartEvents {
   onChangeHeight?: (v: number) => number;
@@ -60,11 +60,11 @@ class EventLogChart extends CommonSimpleChart {
   pagination = {
     current: 1,
     count: 100,
-    limit: 10
+    limit: 10,
   };
   /* 此变量值用于点击图例时更新表格数据 */
   variables = {
-    dimensions: []
+    dimensions: [],
   };
 
   get timeSeriesPanel(): IPanelModel {
@@ -77,27 +77,26 @@ class EventLogChart extends CommonSimpleChart {
         legend: {
           ...(this.panel?.options?.legend || {}),
           ...(this.panel.options?.dashboard_common?.static_width ? { displayMode: 'table' } : {}),
-          placement: 'bottom'
+          placement: 'bottom',
         },
         time_series: {
           type: 'bar',
           echart_option: {
-            color: ['#689DF3', '#4051A3']
-          }
-        }
-      }
+            color: ['#689DF3', '#4051A3'],
+          },
+        },
+      },
     };
   }
 
   get tablePanel() {
     return {
       ...this.panel,
-      targets: this.panel.targets.filter(target => target.datasource !== 'time_series')
+      targets: this.panel.targets.filter(target => target.datasource !== 'time_series'),
     };
   }
 
   async getPanelData(start_time?: string, end_time?: string): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return new Promise(async (resolve, reject) => {
       this.beforeGetPanelData(start_time, end_time);
       this.handleLoadingChange(true);
@@ -111,7 +110,7 @@ class EventLogChart extends CommonSimpleChart {
           limit: this.pagination.limit,
           offset: (this.pagination.current - 1) * this.pagination.limit,
           start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-          end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+          end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
         };
         const variablesService = new VariablesService({
           ...this.scopedVars,
@@ -120,7 +119,7 @@ class EventLogChart extends CommonSimpleChart {
             this.viewOptions.interval,
             params.end_time - params.start_time,
             this.panel.collect_interval
-          )
+          ),
         });
         const promiseList = this.tablePanel.targets.map(item =>
           (this as any).$api[item.apiModule]
@@ -129,8 +128,8 @@ class EventLogChart extends CommonSimpleChart {
                 ...variablesService.transformVariables(item.data),
                 ...params,
                 view_options: {
-                  ...this.viewOptions
-                }
+                  ...this.viewOptions,
+                },
               },
               { needMessage: false }
             )
@@ -223,40 +222,40 @@ class EventLogChart extends CommonSimpleChart {
       <div class='event-log-chart'>
         <ChartTitle
           class='draggable-handle text-header'
-          title={this.panel.title}
-          showMore={false}
           draging={this.panel.draging}
           isInstant={this.panel.instant}
+          showMore={false}
+          title={this.panel.title}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         <div
-          class='event-log-chart-main'
           style={{ height: `${this.height}px` }}
+          class='event-log-chart-main'
         >
           {[
             <TimeSeries
               ref='timeSeries'
               class='event-log-bar'
+              needSetEvent={false}
               panel={this.timeSeriesPanel as any}
               showChartHeader={false}
-              needSetEvent={false}
               onSelectLegend={(v: ILegendItem[]) => this.handleEventLogSelectLegend(v)}
             ></TimeSeries>,
             !!this.tableData.length && (
               <CommonTable
                 class='event-log-table'
                 checkable={false}
-                data={this.tableData}
                 columns={this.columns as any}
+                data={this.tableData}
                 defaultSize='small'
-                paginationType='simple'
-                pagination={this.pagination}
                 hasColnumSetting={false}
+                pagination={this.pagination}
+                paginationType='simple'
                 showExpand={true}
-                onPageChange={this.handlePageChange}
                 onLimitChange={this.handleLimitChange}
+                onPageChange={this.handlePageChange}
               ></CommonTable>
-            )
+            ),
           ]}
         </div>
       </div>

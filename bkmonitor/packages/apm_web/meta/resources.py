@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import models
 from django.db.models import Count, Q
 from django.db.transaction import atomic
 from django.utils import timezone
@@ -35,7 +36,6 @@ from apm_web.constants import (
     DEFAULT_DB_CONFIG,
     DEFAULT_DIMENSION_DATA_PERIOD,
     DEFAULT_NO_DATA_PERIOD,
-    DEFAULT_SPLIT_SYMBOL,
     NODATA_ERROR_STRATEGY_CONFIG_KEY,
     Apdex,
     BizConfigKey,
@@ -182,6 +182,14 @@ class CreateApplicationResource(Resource):
         )
         datasource_option = DatasourceOptionSerializer(required=True)
         plugin_config = PluginConfigSerializer(required=False)
+        enable_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=False, default=False)
+        enable_tracing = serializers.BooleanField(label="是否开启 Tracing 功能", required=False, default=True)
+
+        def validate(self, attrs):
+            res = super(CreateApplicationResource.RequestSerializer, self).validate(attrs)
+            if not attrs["enable_tracing"]:
+                raise ValueError(_("目前暂不支持关闭 Tracing 功能"))
+            return res
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
@@ -209,6 +217,8 @@ class CreateApplicationResource(Resource):
             plugin_id=validated_request_data["plugin_id"],
             deployment_ids=validated_request_data["deployment_ids"],
             language_ids=validated_request_data["language_ids"],
+            # TODO: enable_profiling vs enabled_profiling, 前后需要完全统一
+            enabled_profiling=validated_request_data["enable_profiling"],
             datasource_option=validated_request_data["datasource_option"],
             plugin_config=plugin_config,
         )
@@ -417,27 +427,41 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
         return data
 
 
+class OperateType(models.TextChoices):
+    TRACING = "tracing", _("tracing")
+    PROFILING = "profiling", _("profiling")
+
+
 class StartResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
+        type = serializers.ChoiceField(label="暂停类型", choices=OperateType.choices, default=OperateType.TRACING.value)
 
     @atomic
-    def perform_request(self, validated_request_data):
-        Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=True)
-        Application.start_plugin_config(validated_request_data["application_id"])
-        return api.apm_api.start_application(validated_request_data)
+    def perform_request(self, validated_data):
+        if validated_data["type"] == OperateType.TRACING.value:
+            Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled=True)
+            Application.start_plugin_config(validated_data["application_id"])
+            return api.apm_api.start_application(application_id=validated_data["application_id"], type="tracing")
+
+        Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled_profiling=True)
+        return api.apm_api.start_application(application_id=validated_data["application_id"], type="profiling")
 
 
 class StopResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
+        type = serializers.ChoiceField(label="暂停类型", choices=OperateType.choices, default=OperateType.TRACING.value)
 
     @atomic
-    def perform_request(self, validated_request_data):
-        Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=False)
-        Application.stop_plugin_config(validated_request_data["application_id"])
+    def perform_request(self, validated_data):
+        if validated_data["type"] == OperateType.TRACING.value:
+            Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled=False)
+            Application.stop_plugin_config(validated_data["application_id"])
+            return api.apm_api.stop_application(validated_data, type="tracing")
 
-        return api.apm_api.stop_application(validated_request_data)
+        Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled_profiling=False)
+        return api.apm_api.stop_application(application_id=validated_data["application_id"], type="profiling")
 
 
 class SamplingOptionsResource(Resource):
@@ -558,7 +582,8 @@ class SetupResource(Resource):
         application_db_config = serializers.ListField(label="db配置", child=DbConfigSerializer(), default=[])
 
         no_data_period = serializers.IntegerField(label="无数据周期", required=False)
-        is_enabled = serializers.BooleanField(label="启/停", required=False)
+        is_enabled = serializers.BooleanField(label="Tracing启/停", required=False)
+        profiling_is_enabled = serializers.BooleanField(label="Profiling启/停", required=False)
         plugin_config = PluginConfigSerializer(required=False)
 
     class SetupProcessor:
@@ -678,16 +703,30 @@ class SetupResource(Resource):
             SamplingHelpers(validated_data['application_id']).setup(validated_data["application_sampler_config"])
 
         # 判断是否需要启动/停止项目
-        if validated_data.get("is_enabled"):
+        if validated_data.get("is_enabled") is not None:
             if application.is_enabled != validated_data["is_enabled"]:
                 Application.objects.filter(application_id=application.application_id).update(
                     is_enabled=validated_data["is_enabled"]
                 )
 
                 if validated_data["is_enabled"]:
-                    api.apm_api.start_application(validated_data)
+                    Application.start_plugin_config(validated_data["application_id"])
+                    api.apm_api.start_application(application_id=validated_data["application_id"], type="tracing")
                 else:
-                    api.apm_api.stop_application(validated_data)
+                    Application.stop_plugin_config(validated_data["application_id"])
+                    api.apm_api.stop_application(application_id=validated_data["application_id"], type="tracing")
+
+        # 判断是否需要启动/暂停 profiling
+        if validated_data.get("profiling_is_enabled") is not None:
+            if application.is_enabled_profiling != validated_data["profiling_is_enabled"]:
+                Application.objects.filter(application_id=application.application_id).update(
+                    is_enabled_profiling=validated_data["profiling_is_enabled"]
+                )
+
+                if validated_data["profiling_is_enabled"]:
+                    api.apm_api.start_application(application_id=validated_data["application_id"], type="profiling")
+                else:
+                    api.apm_api.stop_application(application_id=validated_data["application_id"], type="profiling")
 
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
@@ -700,16 +739,19 @@ class SetupResource(Resource):
 
 
 class ListApplicationResource(PageListResource):
+    """APM 观测场景应用列表接口"""
+
     def get_columns(self, column_type=None):
         return [
             ScopedSlotsFormat(
                 url_format="/application?filter-app_name={app_name}",
                 id="app_alias",
-                name=_("应用名称"),
+                name=_("应用别名"),
                 checked=True,
                 action_id=ActionEnum.VIEW_APM_APPLICATION.id,
                 disabled=True,
             ),
+            StringTableFormat(id="app_name", name=_("应用名"), checked=False),
             StringTableFormat(id="description", name=_("应用描述"), checked=False),
             StringTableFormat(id="retention", name=_("存储计划"), checked=False),
             LinkTableFormat(
@@ -725,14 +767,17 @@ class ListApplicationResource(PageListResource):
             NumberTableFormat(id="avg_duration", name=_("平均响应耗时"), sortable=True, unit="ns", decimal=2, asyncable=True),
             NumberTableFormat(id="error_rate", name=_("错误率"), sortable=True, decimal=2, unit="percent", asyncable=True),
             NumberTableFormat(id="error_count", name=_("错误次数"), checked=False, sortable=True, asyncable=True),
-            StatusTableFormat(
-                id="status",
-                name=_("状态"),
+            StringTableFormat(id="is_enabled", name=_("应用是否启用"), checked=False),
+            StringTableFormat(id="is_enabled_profiling", name=_("Profiling是否启用"), checked=False),
+            StringTableFormat(
+                id="profiling_data_status",
+                name=_("Profiling数据状态"),
                 checked=True,
-                status_map_cls=DataStatus,
-                show_tips=lambda x: x == "no_data",
-                tips_format=_("{no_data_period}分钟内无数据"),
-                filterable=True,
+            ),
+            StringTableFormat(
+                id="data_status",
+                name=_("Trace数据状态"),
+                checked=True,
             ),
         ]
 
@@ -747,16 +792,22 @@ class ListApplicationResource(PageListResource):
     class ApplicationSerializer(serializers.ModelSerializer):
         class Meta:
             model = Application
-            fields = ["bk_biz_id", "application_id", "app_name", "app_alias", "description", "is_enabled"]
+            fields = [
+                "bk_biz_id",
+                "application_id",
+                "app_name",
+                "app_alias",
+                "description",
+                "is_enabled",
+                "is_enabled_profiling",
+                "profiling_data_status",
+                "data_status",
+            ]
 
         def to_representation(self, instance):
             data = super(ListApplicationResource.ApplicationSerializer, self).to_representation(instance)
-            data["retention"] = instance.storage_plan
-            data["status"] = instance.data_status
             if not data["is_enabled"]:
-                data["status"] = DataStatus.STOP
-            data["no_data_period"] = instance.no_data_period
-            data["apdex"] = None
+                data["data_status"] = DataStatus.STOP
             return data
 
     def get_filter_fields(self):
@@ -766,7 +817,13 @@ class ListApplicationResource(PageListResource):
         applications = Application.objects.filter(bk_biz_id=validate_data["bk_biz_id"])
         data = self.ApplicationSerializer(applications, many=True).data
         data = sorted(
-            data, key=lambda i: (1 if i["status"] == DataStatus.NORMAL else 0, i["application_id"]), reverse=True
+            data,
+            key=lambda i: (
+                1 if i["data_status"] == DataStatus.NORMAL else 0,
+                1 if i["profiling_data_status"] == DataStatus.NORMAL else 0,
+                i["application_id"],
+            ),
+            reverse=True,
         )
 
         return self.get_pagination_data(data, validate_data)
@@ -1825,6 +1882,15 @@ class ModifyMetricResource(Resource):
 class QueryEndpointStatisticsResource(PageListResource):
     span_keys = ["db.system", "http.url", "messaging.system", "rpc.system"]
 
+    default_sort = "-request_count"
+
+    GROUP_KEY_ATT_CONFIG = {
+        "db_system": "attributes.db.system",
+        "http_url": "attributes.http.url",
+        "messaging_system": "attributes.messaging.system",
+        "rpc_system": "attributes.rpc.system",
+    }
+
     def get_columns(self, column_type=None):
         return [
             StringTableFormat(id="summary", name=_("请求内容"), min_width=120),
@@ -1883,6 +1949,10 @@ class QueryEndpointStatisticsResource(PageListResource):
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
         span_keys = serializers.ListSerializer(child=serializers.CharField(), required=False, label="分类过滤")
+        keyword = serializers.CharField(required=False, label="过滤条件", allow_blank=True)
+
+    def get_filter_fields(self):
+        return ["summary"]
 
     def build_filter_params(self, filters):
         res = []
@@ -1910,10 +1980,10 @@ class QueryEndpointStatisticsResource(PageListResource):
 
     def add_extra_params(self, params):
         return {
-            "bk_biz_id": params.get("bk_biz_id"),
-            "app_name": params.get("app_name"),
-            "start_time": datetime.datetime.fromtimestamp(params.get("start_time")).strftime("%Y-%m-%d+%H:%M:%S"),
-            "end_time": datetime.datetime.fromtimestamp(params.get("end_time")).strftime("%Y-%m-%d+%H:%M:%S"),
+            "start_time": int(params["start_time"]) * 1000,
+            "end_time": int(params["end_time"]) * 1000,
+            "bk_biz_id": params["bk_biz_id"],
+            "app_name": params["app_name"]
         }
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
@@ -1948,12 +2018,36 @@ class QueryEndpointStatisticsResource(PageListResource):
 
         return items
 
+    @classmethod
+    def add_url_classify_data(cls, summary_mappings):
+        """
+        添加 url 归类统计数据
+        """
+        res = []
+        for summary, items in summary_mappings.items():
+            request_count = len(items)
+            res.append(
+                {
+                    "summary": summary,
+                    "filter_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
+                    "request_count": request_count,
+                    "average": round(sum([item["avg_duration"]["value"] for item in items]) / request_count / 1000, 2),
+                    "max_elapsed": round(max([item["max_duration"]["value"] for item in items]) / 1000, 2),
+                    "min_elapsed": round(min([item["min_duration"]["value"] for item in items]) / 1000, 2),
+                    "operation": {"trace": _("调用链"), "statistics": _("统计")},
+                }
+            )
+        return res
+
     def perform_request(self, validated_data):
         """
         根据app_name service_name查询span 遍历span然后取db.system,http.method..等等这些字段 没有就为空
         """
         if validated_data.get("span_keys", []):
             self.span_keys = validated_data.get("span_keys")
+        # 设置默认排序
+        if not validated_data.get("sort"):
+            validated_data["sort"] = self.default_sort
         filter_params = self.build_filter_params(validated_data["filter_params"])
         ComponentHandler.build_component_filter_params(
             validated_data["bk_biz_id"],
@@ -1963,97 +2057,57 @@ class QueryEndpointStatisticsResource(PageListResource):
             validated_data.get("component_instance_id"),
         )
 
-        spans = api.apm_api.query_span(
+        buckets = api.apm_api.query_span(
             {
                 "bk_biz_id": validated_data["bk_biz_id"],
                 "app_name": validated_data["app_name"],
                 "start_time": validated_data["start_time"],
                 "end_time": validated_data["end_time"],
                 "filter_params": filter_params,
+                "group_keys": [key.replace(".", "_") for key in self.span_keys],
             }
         )
 
         is_component = ComponentHandler.is_component(validated_data.get("service_params"))
-
-        uri_configs_mappings = None
+        uri_queryset = None
         if not is_component:
-            # http类服务可以设置uri归类
-            uri_configs_mappings = self.group_by(
-                UriServiceRelation.objects.filter(
-                    bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-                ),
-                lambda i: i.service_name,
+            uri_queryset = UriServiceRelation.objects.filter(
+                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
             )
 
-        summary_mappings = defaultdict(list)
-        for span in spans:
-            summary = None
-            filter_key = None
-            if not is_component:
-                # http 类服务summary处理
-                if (
-                    SpanAttributes.HTTP_URL in span[OtlpKey.ATTRIBUTES]
-                    and ResourceAttributes.SERVICE_NAME in span[OtlpKey.RESOURCE]
-                ):
-                    # http span需要根据服务配置uri进行汇总
-                    url = span["attributes"][SpanAttributes.HTTP_URL]
-
-                    # 取此服务的uri配置
-                    uri_configs = uri_configs_mappings.get(span[OtlpKey.RESOURCE][ResourceAttributes.SERVICE_NAME], [])
-                    for uri_config in uri_configs:
-                        if re.match(uri_config.uri, url):
-                            summary = SpanHandler.generate_uri(urlparse(url))
-                            filter_key = "http.url"
-
-                if not summary:
-                    # 否则取span的分析字段
-                    summary = next(
-                        iter(
-                            span[OtlpKey.ATTRIBUTES][attr]
-                            for attr in self.span_keys
-                            if attr in span[OtlpKey.ATTRIBUTES]
-                        ),
-                        None,
-                    )
-
-                if not summary:
-                    continue
-            else:
-                # 组件类服务summary处理
-                summary = span[OtlpKey.SPAN_NAME]
-            if not filter_key:
-                filter_key = next(
-                    iter(
-                        attr
-                        for attr in self.span_keys
-                        if attr in span[OtlpKey.ATTRIBUTES] and span[OtlpKey.ATTRIBUTES][attr]
-                    ),
-                    None,
-                )
-            if filter_key:
-                filter_key = OtlpKey.ATTRIBUTES + "." + filter_key
-                summary = DEFAULT_SPLIT_SYMBOL.join([filter_key, summary])
-            summary_mappings[summary].append(span)
-
         res = []
-        for summary, items in summary_mappings.items():
-            intervals = [int(str(i["end_time"])[:-3]) - int(str(i["start_time"])[:-3]) for i in items]
-            tmp = str(summary).split(DEFAULT_SPLIT_SYMBOL, maxsplit=1)
-            filter_key = OtlpKey.SPAN_NAME
-            if len(tmp) == 2:
-                summary = tmp[-1]
-                filter_key = tmp[0]
+        summary_mappings = defaultdict(list)
+        uri_list = uri_queryset.values_list("uri", flat=True).distinct()
+        for bucket in buckets:
+            display_values = [(k, v) for k, v in bucket["key"].items() if v]
+            if not display_values:
+                continue
+            tmp_filter_key, summary = display_values[0]
+            filter_key = self.GROUP_KEY_ATT_CONFIG.get(tmp_filter_key, "span_name")
+            # http_url 归类处理
+            if not is_component and filter_key in [OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)]:
+                url = None
+                for uri in uri_list:
+                    if re.match(uri, summary):
+                        url = SpanHandler.generate_uri(urlparse(summary))
+                        summary_mappings[url].append(bucket)
+                        break
+                if url:
+                    continue
             res.append(
                 {
                     "summary": summary,
                     "filter_key": filter_key,
-                    "request_count": len(items),
-                    "average": round(sum(intervals) / len(intervals), 2),
-                    "max_elapsed": max(intervals),
-                    "min_elapsed": min(intervals),
+                    "request_count": bucket["doc_count"],
+                    "average": round(bucket["avg_duration"]["value"] / 1000, 2),
+                    "min_elapsed": round(bucket["min_duration"]["value"] / 1000, 2),
+                    "max_elapsed": round(bucket["max_duration"]["value"] / 1000, 2),
                     "operation": {"trace": _("调用链"), "statistics": _("统计")},
                 }
             )
+        # 添加 http_url 统计数据
+        url_classify_data = self.add_url_classify_data(summary_mappings)
+        res += url_classify_data
         return self.get_pagination_data(res, validated_data)
 
 
@@ -2187,10 +2241,11 @@ class QueryExceptionEndpointResource(Resource):
             "app_name": validated_data["app_name"],
             "bk_biz_id": validated_data["bk_biz_id"],
             "filter_params": filter_params,
+            "fields": ["resource.service.name", "span_name", "trace_id", "events.attributes.exception.type"],
         }
 
         exception_spans = api.apm_api.query_span(query_dict)
-        has_event_trace_id = [i["trace_id"] for i in exception_spans if i["events"]]
+        has_event_trace_id = [i["trace_id"] for i in exception_spans if i.get("events")]
         indentify_mapping = {}
         colors = ServiceColorClassifier()
 
@@ -2198,9 +2253,9 @@ class QueryExceptionEndpointResource(Resource):
             service_name = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME, self.UNKNOWN_EXCEPTION)
             span_name = span[OtlpKey.SPAN_NAME]
 
-            if span["events"]:
+            if span.get("events"):
                 for event in span["events"]:
-                    exception_type = event[OtlpKey.ATTRIBUTES].get(
+                    exception_type = event.get(OtlpKey.ATTRIBUTES, {}).get(
                         SpanAttributes.EXCEPTION_TYPE, self.UNKNOWN_EXCEPTION
                     )
                     if (

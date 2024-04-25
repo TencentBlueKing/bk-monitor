@@ -1,3 +1,4 @@
+/* eslint-disable perfectionist/sort-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,17 +24,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
-// eslint-disable-next-line simple-import-sort/imports
+
 import Vue from 'vue';
+
+import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
+import { getUrlParam, random } from 'monitor-common/utils/utils';
 import VueRouter, { Route, RouteConfig } from 'vue-router';
 
-import { getUrlParam, random } from 'monitor-common/utils/utils';
 import introduce from '../common/introduce';
 import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';
 import reportLogStore from '../store/modules/report-log';
 import store from '../store/store';
+
+import dashboardRoutes from './dashboard';
 // #if APP !== 'external'
 import dataRetrievalRoutes from './data-retrieval';
 import eventRoutes from './event';
@@ -45,7 +49,7 @@ import scensesRoutes from './scenes';
 import platformSetting from './platform-setting';
 import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 // #endif
-import dashboardRoutes from './dashboard';
+
 // import spaceData from './space';
 import { isInCommonRoute, setLocalStoreRoute } from './router-config';
 
@@ -66,19 +70,19 @@ const routes = [
   ...emailSubscriptionsRoutes,
   {
     path: '*',
-    redirect: '/exception'
-  }
+    redirect: '/exception',
+  },
 ] as RouteConfig[];
 // #else
 // #code const routes = [...dashboardRoutes,{  path: '*',  redirect: '/grafana'}] as RouteConfig[];
 // #endif
 const router = new VueRouter({
   mode: 'hash',
-  routes
+  routes,
 });
 export const isAuthority = async (page: string | string[]) => {
   const data: { isAllowed: boolean }[] = await authorityStore.checkAllowedByActionIds({
-    action_ids: Array.isArray(page) ? page : [page]
+    action_ids: Array.isArray(page) ? page : [page],
   });
   return !!data.length && data.some(item => item.isAllowed);
 };
@@ -94,7 +98,7 @@ const specialReportRouteList = [
   'new-dashboard',
   'import-dashboard',
   'folder-dashboard',
-  'grafana-datasource'
+  'grafana-datasource',
 ];
 router.beforeEach(async (to, from, next) => {
   // 空闲初始化introduce数据
@@ -122,13 +126,12 @@ router.beforeEach(async (to, from, next) => {
       next();
     } else {
       const { origin, pathname } = location;
-      const bizid = localStorage.getItem('__biz_id__') || -1;
+      const bizid = localStorage.getItem(LOCAL_BIZ_STORE_KEY) || -1;
       location.href = `${origin}${pathname}?bizId=${bizid}#${to.fullPath}`;
       return;
     }
   }
-
-  const { fromUrl, actionId } = to.query;
+  const { actionId, fromUrl } = to.query;
   if (['no-business', 'error-exception'].includes(to.name) && actionId) {
     let hasAuthority = false;
     if (!from.name) {
@@ -157,7 +160,7 @@ router.beforeEach(async (to, from, next) => {
       'event-center',
       'event-center-detail',
       'event-center-action-detail',
-      'share'
+      'share',
     ].includes(to.name)
   ) {
     store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
@@ -172,15 +175,15 @@ router.beforeEach(async (to, from, next) => {
     } else {
       window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false));
       next({
+        params: {
+          title: '无权限',
+        },
         path: `/exception/403/${random(10)}`,
         query: {
           actionId: authority.page || '',
           fromUrl: to.fullPath.replace(/^\//, ''),
-          parentRoute: to.meta.route.parent
+          parentRoute: to.meta.route.parent,
         },
-        params: {
-          title: '无权限'
-        }
       });
     }
   } else {
@@ -191,9 +194,9 @@ router.afterEach(to => {
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
   if (['error-exception', 'no-business'].includes(to.name)) return;
   reportLogStore.reportRouteLog({
-    route_id: to.name,
     nav_id: to.meta.navId,
-    nav_name: specialReportRouteList.includes(to.meta.navId) ? to.meta?.navName || to.meta?.title : undefined
+    nav_name: specialReportRouteList.includes(to.meta.navId) ? to.meta?.navName || to.meta?.title : undefined,
+    route_id: to.name,
   });
 });
 

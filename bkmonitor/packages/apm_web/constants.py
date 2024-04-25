@@ -34,6 +34,8 @@ component_where_mapping = {
     "messaging": {"key": "messaging_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
 }
 
+COLUMN_KEY_PROFILING_DATA_COUNT = "profiling_data_count"
+
 
 class TraceKind:
     # 所有trace
@@ -96,6 +98,9 @@ class CategoryEnum:
     ASYNC_BACKEND = "async_backend"
     ALL = "all"
     OTHER = "other"
+
+    # profile 为新的展示类型 只用来展示在 serviceList 无实际作用
+    PROFILING = "profiling"
 
     @classmethod
     def get_label_by_key(cls, key: str):

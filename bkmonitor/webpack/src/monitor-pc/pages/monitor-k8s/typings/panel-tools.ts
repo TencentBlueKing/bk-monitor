@@ -25,9 +25,8 @@
  */
 import { TranslateResult } from 'vue-i18n';
 
-import { IFavList } from '../components/panel-header/favorites-list/favorites-list';
-
 import { IOption } from '.';
+import { IFavList } from '../components/panel-header/favorites-list/favorites-list';
 
 /** 面板工具的类型 */
 export declare namespace PanelToolsType {
@@ -45,7 +44,7 @@ export declare namespace PanelToolsType {
     onSplitChange?: boolean;
   }
   /** 不对比 | 时间对比 | 目标对比 | 指标对比 */
-  type CompareId = 'none' | 'time' | 'target' | 'metric';
+  type CompareId = 'metric' | 'none' | 'target' | 'time';
   /** 图表布局 */
   type LayoutId = 0 | 1 | 2;
   /** 对比方法可选项 */
@@ -78,146 +77,146 @@ export const COMPARE_KEY = ['none', 'time', 'target', 'metric'];
 export const COMPARE_LIST: PanelToolsType.ICompareListItem[] = [
   {
     id: 'none',
-    name: window.i18n.t('不对比')
+    name: window.i18n.t('不对比'),
   },
   {
     id: 'target',
-    name: window.i18n.t('目标对比')
+    name: window.i18n.t('目标对比'),
   },
   {
     id: 'time',
-    name: window.i18n.t('时间对比')
+    name: window.i18n.t('时间对比'),
   },
   {
     id: 'metric',
-    name: window.i18n.t('指标对比')
-  }
+    name: window.i18n.t('指标对比'),
+  },
 ];
 
 export const PANEL_LAYOUT = [
   {
     id: 'icon-mc-one-column',
-    name: window.i18n.t('一列')
+    name: window.i18n.t('一列'),
   },
   {
     id: 'icon-mc-two-column',
-    name: window.i18n.t('两列')
+    name: window.i18n.t('两列'),
   },
   {
     id: 'icon-mc-three-column',
-    name: window.i18n.t('三列')
-  }
+    name: window.i18n.t('三列'),
+  },
 ];
 export const PANEL_LAYOUT_LIST = [
   {
     id: 1,
-    name: window.i18n.t('一列')
+    name: window.i18n.t('一列'),
   },
   {
     id: 2,
-    name: window.i18n.t('两列')
+    name: window.i18n.t('两列'),
   },
   {
     id: 3,
-    name: window.i18n.t('三列')
+    name: window.i18n.t('三列'),
   },
   {
     id: 4,
-    name: window.i18n.t('四列')
+    name: window.i18n.t('四列'),
   },
   {
     id: 5,
-    name: window.i18n.t('五列')
-  }
+    name: window.i18n.t('五列'),
+  },
 ];
 export const COMPARE_TIME_OPTIONS = [
   {
     id: '1h',
-    name: window.i18n.t('1 小时前')
+    name: window.i18n.t('1 小时前'),
   },
   {
     id: '1d',
-    name: window.i18n.t('昨天')
+    name: window.i18n.t('昨天'),
   },
   {
     id: '1w',
-    name: window.i18n.t('上周')
+    name: window.i18n.t('上周'),
   },
   {
     id: '1M',
-    name: window.i18n.t('一月前')
-  }
+    name: window.i18n.t('一月前'),
+  },
 ];
 
 export const TIME_RANGE_DEFAULT_LIST = [
   {
     name: window.i18n.t('1 小时'),
-    value: 1 * 60 * 60 * 1000
+    value: 1 * 60 * 60 * 1000,
   },
   {
     name: window.i18n.t('1 天'),
-    value: 24 * 60 * 60 * 1000
+    value: 24 * 60 * 60 * 1000,
   },
   {
     name: window.i18n.t('7 天'),
-    value: 168 * 60 * 60 * 1000
+    value: 168 * 60 * 60 * 1000,
   },
   {
     name: window.i18n.t('1 个月'),
-    value: 720 * 60 * 60 * 1000
-  }
+    value: 720 * 60 * 60 * 1000,
+  },
 ];
 export const METHOD_LIST: IOption[] = [
   {
     id: 'AVG',
-    name: 'AVG'
+    name: 'AVG',
   },
   {
     id: 'SUM',
-    name: 'SUM'
+    name: 'SUM',
   },
   {
     id: 'MIN',
-    name: 'MIN'
+    name: 'MIN',
   },
   {
     id: 'MAX',
-    name: 'MAX'
-  }
+    name: 'MAX',
+  },
 ];
 export const REFLESH_DEFAULT_LIST = [
   {
     name: 'off',
-    id: -1
+    id: -1,
   },
   {
     name: '1m',
-    id: 60 * 1000
+    id: 60 * 1000,
   },
   {
     name: '5m',
-    id: 5 * 60 * 1000
+    id: 5 * 60 * 1000,
   },
   {
     name: '15m',
-    id: 15 * 60 * 1000
+    id: 15 * 60 * 1000,
   },
   {
     name: '30m',
-    id: 30 * 60 * 1000
+    id: 30 * 60 * 1000,
   },
   {
     name: '1h',
-    id: 60 * 60 * 1000
+    id: 60 * 60 * 1000,
   },
   {
     name: '2h',
-    id: 60 * 2 * 60 * 1000
+    id: 60 * 2 * 60 * 1000,
   },
   {
     name: '1d',
-    id: 60 * 24 * 60 * 1000
-  }
+    id: 60 * 24 * 60 * 1000,
+  },
 ];
 
 export declare namespace PanelHeaderType {

@@ -64,6 +64,11 @@ class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     def get_request_url(self, validated_request_data):
         return super(BkDataAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
 
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super().full_request_data(validated_request_data)
+        validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
+        return validated_request_data
+
 
 class BkDataQueryAPIGWResource(BkDataAPIGWResource):
     base_url = settings.BKDATA_QUERY_API_BASE_URL or BkDataAPIGWResource.base_url
@@ -130,19 +135,27 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         sql = serializers.CharField(required=True, label="查询SQL语句")
+        prefer_storage = serializers.CharField(required=False, label="查询引擎", allow_blank=True)
+        _user_request = serializers.BooleanField(required=False, label="是否指定使用 user 鉴权请求接口", default=False)
 
-    def perform_request(self, params):
-        if settings.BKDATA_DATA_TOKEN:
-            params["bkdata_authentication_method"] = "token"
-            params["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
-        else:
-            params["bkdata_authentication_method"] = "user"
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(QueryDataResource, self).full_request_data(validated_request_data)
+        if validated_request_data.get("_user_request", False):
+            validated_request_data["bkdata_authentication_method"] = "user"
             self.bk_username = settings.COMMON_USERNAME
-            try:
-                params["_origin_user"] = get_request().user.username
-            except Exception:
-                pass
-        return super(QueryDataResource, self).perform_request(params)
+            validated_request_data.pop("_user_request", None)
+        else:
+            if settings.BKDATA_DATA_TOKEN:
+                validated_request_data["bkdata_authentication_method"] = "token"
+                validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+            else:
+                validated_request_data["bkdata_authentication_method"] = "user"
+                self.bk_username = settings.COMMON_USERNAME
+                try:
+                    validated_request_data["_origin_user"] = get_request().user.username
+                except Exception:
+                    pass
+        return validated_request_data
 
 
 class CommonRequestSerializer(serializers.Serializer):
@@ -155,16 +168,16 @@ class DataAccessAPIResource(six.with_metaclass(abc.ABCMeta, BkDataAPIGWResource)
     重写BkDataAPIGWResource，对用户的处理
     """
 
-    def perform_request(self, params):
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(DataAccessAPIResource, self).full_request_data(validated_request_data)
         try:
-            params["_origin_user"] = get_request().user.username
+            validated_request_data["_origin_user"] = get_request().user.username
         except Exception:
             pass
-
         # 优先取参数里面的username(如需要使用特权帐号来请求接口的场景)
-        if not params.get("bk_username"):
+        if not validated_request_data.get("bk_username"):
             self.bk_username = settings.BK_DATA_PROJECT_MAINTAINER
-        return super(BkDataAPIGWResource, self).perform_request(params)
+        return validated_request_data
 
 
 class GetAiopsEnvs(BkDataAPIGWResource):  # noqa
@@ -216,9 +229,6 @@ class AuthTickets(BkDataAPIGWResource):
         ticket_type = serializers.CharField(required=True, label="凭证类型")
         permissions = serializers.ListField(required=True, child=PermissionsSerializer(), label="权限列表")
         reason = serializers.CharField(default="", label="授权原因")
-
-    def perform_request(self, params):
-        return super(BkDataAPIGWResource, self).perform_request(params)
 
 
 class AuthProjectsDataCheck(DataAccessAPIResource):
@@ -277,6 +287,18 @@ class GetReleaseModelInfo(DataAccessAPIResource):  # noqa
         model_release_id = serializers.IntegerField(required=True, label="模型的版本id")
         input_result_table = serializers.CharField(required=False, label="输入结果表ID")
         node_type = serializers.CharField(required=False, label="节点类型")
+
+
+class GetSceneServiceApplicationInfo(DataAccessAPIResource):
+    """
+    场景方案应用信息
+    """
+
+    action = "/v3/aiops/scene_service/application/processing/{result_table_id}/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        result_table_id = serializers.CharField(required=True)
 
 
 class GetServingResultTableInfo(DataAccessAPIResource):
@@ -382,10 +404,12 @@ class ApiServingExecute(UseSaaSAuthInfoMixin, DataAccessAPIResource):  # noqa
         config = serializers.DictField(required=True, label="模型执行参数")
         timeout = serializers.IntegerField(required=False, label="超时时间")
 
-    def perform_request(self, params):
-        params["bkdata_authentication_method"] = "token"
-        params["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
-        return super(ApiServingExecute, self).perform_request(params)
+    def full_request_data(self, validated_request_data):
+        # 组装额外参数
+        validated_request_data = super(ApiServingExecute, self).full_request_data(validated_request_data)
+        validated_request_data["bkdata_authentication_method"] = "token"
+        validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+        return validated_request_data
 
 
 ####################################
@@ -488,6 +512,8 @@ class DatabusCleans(DataAccessAPIResource):
         fields = serializers.ListField(required=True, child=FieldSerializer(), label="输出字段列表")
         description = serializers.CharField(default="", label="清洗配置描述信息")
         bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+        result_table_id = serializers.CharField(required=False, allow_blank=True, label="结果表 ID")
+        processing_id = serializers.CharField(required=False, allow_blank=True, label="数据处理 ID")
 
 
 class GetDatabusCleans(DataAccessAPIResource):
@@ -544,6 +570,7 @@ class StartDatabusCleans(DataAccessAPIResource):
         result_table_id = serializers.CharField(required=True, label="清洗结果表名称")
         storages = serializers.ListField(default=["kafka"], label="分发任务的存储列表")
         bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+        processing_id = serializers.CharField(required=False, allow_blank=True, label="数据处理 ID")
 
 
 class StopDatabusCleans(DataAccessAPIResource):
@@ -786,6 +813,20 @@ class DeleteDataFlow(DataAccessAPIResource):
         flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
 
 
+class DeleteDataFlowNode(DataAccessAPIResource):
+    """
+    删除DataFlow中的节点
+    """
+
+    action = "/v3/dataflow/flow/flows/{flow_id}/nodes/{node_id}/"
+    method = "DELETE"
+
+    class RequestSerializer(CommonRequestSerializer):
+        flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
+        node_id = serializers.IntegerField(required=True, label="DataFlow的节点ID")
+        confirm = serializers.BooleanField(default=True, required=False)
+
+
 class GetLatestDeployDataFlow(DataAccessAPIResource):
     """
     获取DataFlow的最近部署信息
@@ -987,6 +1028,13 @@ class CreateResourceSet(DataAccessAPIResource):
     """创建资源"""
 
     action = "/v3/resourcecenter/resource_sets/"
+    method = "POST"
+
+
+class GetOrCreateResourceSet(DataAccessAPIResource):
+    """创建或获取资源(如果资源存在 则返回的是已存在资源的信息)"""
+
+    action = "/v3/resourcecenter/resource_sets/get_or_create/"
     method = "POST"
 
 

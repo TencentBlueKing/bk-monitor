@@ -26,6 +26,7 @@
 import { computed, defineComponent, PropType, provide, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
+
 import { Button, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
@@ -36,7 +37,7 @@ import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exc
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
-import ProfilingGraph from '../../plugins/charts/profiling-graph/profiling-graph';
+import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
@@ -49,7 +50,7 @@ import {
   IStageTimeItem,
   IStageTimeItemContent,
   ITagContent,
-  ITagsItem
+  ITagsItem,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
 
@@ -62,8 +63,8 @@ const guideInfoData: Record<string, IGuideInfo> = {
     icon: EmptyEvent,
     title: window.i18n.t('当前无异常事件'),
     subTitle: window.i18n.t('异常事件获取来源\n1. events.attributes.exception_stacktrace 字段\n2. status.message 字段'),
-    link: null
-  }
+    link: null,
+  },
   // Log: {},
   // Host: {},
   // Process: {},
@@ -71,7 +72,7 @@ const guideInfoData: Record<string, IGuideInfo> = {
   // Index: {}
 };
 
-type TabName = 'BasicInfo' | 'Event' | 'Log' | 'Host' | 'Process' | 'Container' | 'Index' | 'Profiling';
+type TabName = 'BasicInfo' | 'Container' | 'Event' | 'Host' | 'Index' | 'Log' | 'Process' | 'Profiling';
 export default defineComponent({
   name: 'SpanDetails',
   props: {
@@ -79,7 +80,7 @@ export default defineComponent({
     withSideSlider: { type: Boolean, default: true }, // 详情信息在侧滑弹窗展示
     spanDetails: { type: Object as PropType<Span>, default: () => null },
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
-    isPageLoading: { type: Boolean, default: false }
+    isPageLoading: { type: Boolean, default: false },
   },
   emits: ['show'],
   setup(props, { emit }) {
@@ -93,9 +94,9 @@ export default defineComponent({
       header: {
         title: '',
         timeTag: '',
-        others: []
+        others: [],
       },
-      list: []
+      list: [],
     };
     const info = reactive<IInfo>(deepClone(tempInfo));
 
@@ -112,7 +113,7 @@ export default defineComponent({
 
     const bizId = computed(() => useAppStore().bizId || 0);
 
-    const countOfInfo = ref<Record<TabName, number> | {}>({});
+    const countOfInfo = ref<Record<TabName, number> | object>({});
 
     // 20230807 当前 span 开始和结束时间。用作 主机（host）标签下请求接口的时间区间参数。
     const startTimeProvider = ref('');
@@ -208,7 +209,7 @@ export default defineComponent({
         error,
         message,
         /* eslint-disable-next-line @typescript-eslint/naming-convention */
-        stage_duration
+        stage_duration,
       } = props.spanDetails as Span | any;
       // 服务、应用 名在日志 tab 里能用到
       serviceNameProvider.value = serviceName;
@@ -235,14 +236,14 @@ export default defineComponent({
               >
                 <img
                   class='span-icon'
-                  src={icon}
                   alt=''
+                  src={icon}
                 />
                 <span>{serviceName}</span>
                 <i class='icon-monitor icon-fenxiang' />
               </span>
             ),
-            title: serviceName
+            title: serviceName,
           },
           {
             label: t('应用'),
@@ -255,18 +256,18 @@ export default defineComponent({
                 <i class='icon-monitor icon-fenxiang' />
               </span>
             ),
-            title: appName
+            title: appName,
           },
           // { label: '日志', content: logs.length ? '有日志' :  '无日志' },
           {
             label: t('开始时间'),
             content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
-            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss')
+            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
           },
           {
             label: t('来源'),
             content: source || '--',
-            title: source || ''
+            title: source || '',
           },
           {
             label: t('类型'),
@@ -276,12 +277,12 @@ export default defineComponent({
                 <span>{getTypeText()}</span>
               </span>
             ),
-            title: SPAN_KIND_MAPS[kind]
+            title: SPAN_KIND_MAPS[kind],
           },
           {
             label: t('版本'),
             content: resource['telemetry.sdk.version'] || '--',
-            title: resource['telemetry.sdk.version'] || ''
+            title: resource['telemetry.sdk.version'] || '',
           },
           {
             label: t('所属Trace'),
@@ -294,9 +295,9 @@ export default defineComponent({
                 <i class='icon-monitor icon-fenxiang' />
               </span>
             ),
-            title: traceId
-          }
-        ]
+            title: traceId,
+          },
+        ],
       };
       info.list = [];
       /** Tags 信息 */
@@ -314,10 +315,10 @@ export default defineComponent({
                   type: item.type,
                   isFormat: false,
                   query_key: item.query_key,
-                  query_value: item.query_value
+                  query_value: item.query_value,
                 })
-              ) || []
-          }
+              ) || [],
+          },
         });
       }
       /** Events信息 来源：status_message & events */
@@ -328,7 +329,7 @@ export default defineComponent({
             isExpan: false,
             header: {
               date: `${formatDate(startTime)} ${formatTime(startTime)}`,
-              name: 'status_message'
+              name: 'status_message',
             },
             content: [
               {
@@ -338,9 +339,9 @@ export default defineComponent({
                 isFormat: false,
                 // 这里固定写死
                 query_key: 'status.message',
-                query_value: message
-              }
-            ]
+                query_value: message,
+              },
+            ],
           });
         }
         if (events?.length) {
@@ -356,7 +357,7 @@ export default defineComponent({
                 header: {
                   date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
                   duration: formatDuration(item.duration),
-                  name: item.name
+                  name: item.name,
                 },
                 content: item.attributes.map(attribute => ({
                   label: attribute.key,
@@ -364,8 +365,8 @@ export default defineComponent({
                   type: attribute.type,
                   isFormat: false,
                   query_key: attribute?.query_key || '',
-                  query_value: attribute?.query_value || ''
-                }))
+                  query_value: attribute?.query_value || '',
+                })),
               })
             )
           );
@@ -375,8 +376,8 @@ export default defineComponent({
           isExpan: true,
           title: 'Events',
           [EListItemType.events]: {
-            list: eventList
-          }
+            list: eventList,
+          },
         });
       }
       /** 阶段耗时信息 */
@@ -393,14 +394,14 @@ export default defineComponent({
                 id: stage_duration.left.type,
                 label: stage_duration.left.label,
                 error: stage_duration.left.error,
-                errorMsg: stage_duration.left.error_message
+                errorMsg: stage_duration.left.error_message,
               },
               {
                 id: stage_duration.right.type,
                 label: stage_duration.right.label,
                 error: stage_duration.right.error,
-                errorMsg: stage_duration.right.error_message
-              }
+                errorMsg: stage_duration.right.error_message,
+              },
             ],
             content: {
               [active]: [
@@ -415,17 +416,17 @@ export default defineComponent({
                       `receive: ${formatDate(stage_duration.right.start_time)} ${formatTime(
                         stage_duration.right.start_time,
                         true
-                      )}`
+                      )}`,
                     ],
                     gap: {
                       type: 'toRight',
-                      value: formatDuration(stage_duration.right.start_time - stage_duration.left.start_time)
-                    }
-                  }
+                      value: formatDuration(stage_duration.right.start_time - stage_duration.left.start_time),
+                    },
+                  },
                 },
                 {
                   type: 'gapTime',
-                  gapTime: formatDuration(stage_duration.right.end_time - stage_duration.right.start_time)
+                  gapTime: formatDuration(stage_duration.right.end_time - stage_duration.right.start_time),
                 },
                 {
                   type: 'useTime',
@@ -438,17 +439,17 @@ export default defineComponent({
                       `send: ${formatDate(stage_duration.right.end_time)} ${formatTime(
                         stage_duration.right.end_time,
                         true
-                      )}`
+                      )}`,
                     ],
                     gap: {
                       type: 'toLeft',
-                      value: formatDuration(stage_duration.left.end_time - stage_duration.right.end_time)
-                    }
-                  }
-                }
-              ]
-            }
-          }
+                      value: formatDuration(stage_duration.left.end_time - stage_duration.right.end_time),
+                    },
+                  },
+                },
+              ],
+            },
+          },
         });
       }
       /** process信息 */
@@ -466,10 +467,10 @@ export default defineComponent({
                   type: item.type,
                   isFormat: false,
                   query_key: item.query_key,
-                  query_value: item.query_value
+                  query_value: item.query_value,
                 })
-              ) || []
-          }
+              ) || [],
+          },
         });
       }
 
@@ -527,7 +528,6 @@ export default defineComponent({
 
     /** 添加查询语句查询 */
     const handleKvQuery = (content: ITagContent) => {
-      // eslint-disable-next-line no-useless-escape
       const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
       const url = location.href.replace(
         location.hash,
@@ -538,15 +538,13 @@ export default defineComponent({
 
     /* 复制kv部分文本 */
     const handleCopy = (content: ITagContent) => {
-      // debugger;
-      // eslint-disable-next-line no-useless-escape
       const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
       copyText(
         queryStr,
         (msg: string) => {
           Message({
             message: msg,
-            theme: 'error'
+            theme: 'error',
           });
           return;
         },
@@ -555,7 +553,7 @@ export default defineComponent({
       Message({
         theme: 'success',
         message: t('复制成功'),
-        width: 200
+        width: 200,
       });
     };
 
@@ -584,7 +582,6 @@ export default defineComponent({
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      // eslint-disable-next-line no-useless-escape
       const hash = `#/trace/home?app_name=${appName.value}&search_type=accurate&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
@@ -610,14 +607,14 @@ export default defineComponent({
       copyText(text, (msg: string) => {
         Message({
           message: msg,
-          theme: 'error'
+          theme: 'error',
         });
         return;
       });
       Message({
         message: window.i18n.t('复制成功'),
         width: 200,
-        theme: 'success'
+        theme: 'success',
       });
     }
 
@@ -727,10 +724,9 @@ export default defineComponent({
             {isJson(item.content) && (
               <Button
                 class='format-button'
-                theme='primary'
-                size='small'
                 outline={!item.isFormat}
-                // eslint-disable-next-line no-param-reassign
+                size='small'
+                theme='primary'
                 onClick={() => (item.isFormat = !item.isFormat)}
               >
                 <i class='icon-monitor icon-code'></i>
@@ -748,9 +744,9 @@ export default defineComponent({
         <div class='stage-time-list'>
           {list.map(item => (
             <Popover
+              content={item.errorMsg}
               disabled={!item.error || !item.errorMsg}
               placement={'left'}
-              content={item.errorMsg}
             >
               <div class={['list-item', { active: active === item.id }]}>
                 <span class='title'>{item.id}</span>
@@ -778,12 +774,12 @@ export default defineComponent({
                       ? [
                           <span class='to-left'></span>,
                           <span class='center-text'>{times.gap.value}</span>,
-                          <span class='line'></span>
+                          <span class='line'></span>,
                         ]
                       : [
                           <span class='line'></span>,
                           <span class='center-text'>{times.gap.value}</span>,
-                          <span class='to-right'></span>
+                          <span class='to-right'></span>,
                         ]}
                   </span>
                   <span class='right'>{times.tags[1]}</span>
@@ -810,20 +806,20 @@ export default defineComponent({
     const tabList = [
       {
         label: t('基础信息'),
-        name: 'BasicInfo'
+        name: 'BasicInfo',
       },
       {
         label: t('异常事件'),
-        name: 'Event'
+        name: 'Event',
       },
       {
         label: t('日志'),
-        name: 'Log'
+        name: 'Log',
       },
       {
         label: t('主机'),
-        name: 'Host'
-      }
+        name: 'Host',
+      },
       // 20230525 这期暂时不需要
       // {
       //   label: t('进程'),
@@ -860,7 +856,7 @@ export default defineComponent({
           bk_biz_id: window.bk_biz_id,
           apm_app_name: props.spanDetails.app_name,
           apm_service_name: props.spanDetails.service_name,
-          apm_span_id: props.spanDetails.span_id
+          apm_span_id: props.spanDetails.span_id,
         })
           .catch(console.log)
           .finally(() => (isTabPanelLoading.value = false));
@@ -872,7 +868,7 @@ export default defineComponent({
           id: activeTab.value.toLowerCase(),
           bk_biz_id: window.bk_biz_id,
           apm_app_name: props.spanDetails.app_name,
-          apm_span_id: props.spanDetails.span_id
+          apm_span_id: props.spanDetails.span_id,
         })
           .catch(console.log)
           .finally(() => (isTabPanelLoading.value = false));
@@ -891,15 +887,15 @@ export default defineComponent({
 
     const titleInfoElem = () => (
       <div
-        class='title-info'
         key={props.spanDetails?.span_id}
+        class='title-info'
       >
         <span class='trace-id'>Span ID:&nbsp;&nbsp;{props.spanDetails?.span_id}</span>
         <span class='tag'>{info.header.timeTag}</span>
         <Popover
-          theme='light'
-          placement='right'
           content={t('复制 Span ID')}
+          placement='right'
+          theme='light'
         >
           <span
             class='icon-monitor icon-mc-copy'
@@ -907,9 +903,9 @@ export default defineComponent({
           />
         </Popover>
         <Popover
-          theme='light'
-          placement='right'
           content={t('复制链接')}
+          placement='right'
+          theme='light'
         >
           <span
             class='icon-monitor icon-copy-link'
@@ -921,13 +917,13 @@ export default defineComponent({
     if (window.enable_apm_profiling) {
       tabList.push({
         label: t('性能分析'),
-        name: 'Profiling'
+        name: 'Profiling',
       });
     }
     const detailsMain = () => (
       <Loading
-        loading={props.isPageLoading}
         style='height: 100%;'
+        loading={props.isPageLoading}
       >
         {props.withSideSlider && showOriginalData.value ? (
           <div class='json-text-style'>
@@ -938,10 +934,10 @@ export default defineComponent({
             {!props.withSideSlider && (
               <div class='header-tool'>
                 <Switcher
-                  v-model={showOriginalData.value}
                   class='switcher'
-                  theme='primary'
+                  v-model={showOriginalData.value}
                   size='small'
+                  theme='primary'
                   onChange={handleOriginalDataChange}
                 />
                 <span>{t('原始数据')}</span>
@@ -994,16 +990,15 @@ export default defineComponent({
                 </div>,
 
                 <MonitorTab
+                  class='info-tab'
                   active={activeTab.value}
                   onTabChange={v => {
                     activeTab.value = v;
                     handleActiveTabChange();
                   }}
-                  class='info-tab'
                 >
                   {tabList.map(item => (
                     <Tab.TabPanel
-                      name={item.name}
                       v-slots={{
                         label: () => (
                           <div style='display: flex;'>
@@ -1012,7 +1007,7 @@ export default defineComponent({
                               <span
                                 class={{
                                   'num-badge': true,
-                                  'num-badge-active': activeTab.value === item.name
+                                  'num-badge-active': activeTab.value === item.name,
                                 }}
                               >
                                 {countOfInfo.value[item.name]}
@@ -1021,8 +1016,9 @@ export default defineComponent({
                               ''
                             )}
                           </div>
-                        )
+                        ),
                       }}
+                      name={item.name}
                     />
                   ))}
                 </MonitorTab>,
@@ -1032,7 +1028,7 @@ export default defineComponent({
                     'content-list': true,
                     // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
                     'is-log-tab': activeTab.value === 'Log',
-                    'is-host-tab': activeTab.value === 'Host'
+                    'is-host-tab': activeTab.value === 'Host',
                   }}
                 >
                   {info.list.map((item, index) => {
@@ -1056,13 +1052,13 @@ export default defineComponent({
                         <div>
                           {isException && (
                             <Button
-                              onClick={handleEventErrLink}
                               style='margin-top: 16px;'
+                              onClick={handleEventErrLink}
                             >
                               {t('错误分析')}
                               <span
-                                class='icon-monitor icon-fenxiang'
                                 style='margin-left: 8px;'
+                                class='icon-monitor icon-fenxiang'
                               ></span>
                             </Button>
                           )}
@@ -1080,7 +1076,7 @@ export default defineComponent({
                                   tagsTemplate(child.content),
                                   [
                                     <span class='time'>{child.header.date}</span>,
-                                    child.header.duration ? <span class='tag'>{child.header.duration}</span> : ''
+                                    child.header.duration ? <span class='tag'>{child.header.duration}</span> : '',
                                   ],
                                   isExpan => handleSmallExpanChange(isExpan, index, childIndex)
                                 )}
@@ -1111,19 +1107,19 @@ export default defineComponent({
                     // 日志 部分
                     activeTab.value === 'Log' && (
                       <Loading
-                        loading={isTabPanelLoading.value}
                         style='height: 100%;'
+                        loading={isTabPanelLoading.value}
                       >
                         {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                         {!isTabPanelLoading.value && (
                           <div>
                             <FlexDashboardPanel
+                              id={random(10)}
+                              column={0}
+                              dashboardId={random(10)}
                               isSingleChart={isSingleChart.value}
                               needOverviewBtn={!!sceneData.value?.list?.length}
-                              id={random(10)}
-                              dashboardId={random(10)}
                               panels={sceneData.value.overview_panels}
-                              column={0}
                             ></FlexDashboardPanel>
                           </div>
                         )}
@@ -1134,19 +1130,19 @@ export default defineComponent({
                     // 主机 部分
                     activeTab.value === 'Host' && (
                       <Loading
-                        loading={isTabPanelLoading.value}
                         style='height: 100%;'
+                        loading={isTabPanelLoading.value}
                       >
                         {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                         {!isTabPanelLoading.value && (
                           <div>
                             <FlexDashboardPanel
+                              id={random(10)}
+                              column={3}
+                              dashboardId={random(10)}
                               isSingleChart={isSingleChart.value}
                               needOverviewBtn={!!sceneData.value?.list?.length}
-                              id={random(10)}
-                              dashboardId={random(10)}
                               panels={sceneData.value.overview_panels}
-                              column={3}
                             ></FlexDashboardPanel>
                           </div>
                         )}
@@ -1157,15 +1153,16 @@ export default defineComponent({
                     // 火焰图 部分
                     activeTab.value === 'Profiling' && (
                       <Loading
-                        loading={isTabPanelLoading.value}
                         style='height: 100%;'
+                        loading={isTabPanelLoading.value}
                       >
-                        <ProfilingGraph
+                        <ProfilingFlameGraph
                           appName={appName.value}
-                          profileId={originalData.value.span_id}
-                          start={originalData.value.start_time}
-                          end={originalData.value.end_time}
                           bizId={bizId.value}
+                          end={originalData.value.end_time}
+                          profileId={originalData.value.span_id}
+                          serviceName={serviceNameProvider.value}
+                          start={originalData.value.start_time}
                           textDirection={ellipsisDirection.value}
                           onUpdate:loading={val => (isTabPanelLoading.value = val)}
                         />
@@ -1173,7 +1170,7 @@ export default defineComponent({
                     )
                   }
                   {showEmptyGuide() && <ExceptionGuide guideInfo={guideInfoData[activeTab.value]} />}
-                </div>
+                </div>,
               ]
             )}
           </div>
@@ -1183,21 +1180,17 @@ export default defineComponent({
 
     const renderDom = () => (
       <Sideslider
-        v-model={[localShow.value, 'isShow']}
-        quick-close
         width={960}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
-        onHidden={handleHiddenChange}
-        show-mask
-        transfer={document.querySelector('.trace-list-wrapper') ?? true}
+        v-model={[localShow.value, 'isShow']}
         v-slots={{
           header: () => (
             <div class='sideslider-header'>
               <span>{info.title}</span>
               <div class='header-tool'>
                 <Switcher
-                  v-model={showOriginalData.value}
                   class='switcher'
+                  v-model={showOriginalData.value}
                   theme='primary'
                   onChange={handleOriginalDataChange}
                 />
@@ -1212,8 +1205,12 @@ export default defineComponent({
                 </Button>
               </div>
             </div>
-          )
+          ),
         }}
+        transfer={document.querySelector('.trace-list-wrapper') ?? true}
+        quick-close
+        show-mask
+        onHidden={handleHiddenChange}
       >
         {detailsMain()}
       </Sideslider>
@@ -1224,10 +1221,10 @@ export default defineComponent({
       info,
       detailsMain,
       renderDom,
-      countOfInfo
+      countOfInfo,
     };
   },
   render() {
     return this.$props.withSideSlider ? this.renderDom() : this.detailsMain();
-  }
+  },
 });

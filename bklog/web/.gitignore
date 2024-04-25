@@ -55,7 +55,7 @@ jspm_packages/
 # dotenv environment variables file
 .env
 webpack-stats.json
-
+.stylelintcache
 webpack_cache/
 
 test/unit/coverage
@@ -83,3 +83,4 @@ webpack/monitor-static/*
 .cache/
 package.old.json
 yarn.lock
+.babelcache

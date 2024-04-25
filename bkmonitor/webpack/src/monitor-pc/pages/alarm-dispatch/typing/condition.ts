@@ -32,7 +32,6 @@ import { listUsersUser } from 'monitor-api/modules/model';
 import { getMetricListV2, getScenarioList, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-
 import { CONDITIONS, ICondtionItem } from './index';
 
 /* 通知人员需支持远程搜索 */
@@ -62,19 +61,19 @@ export interface IConditionProps {
   groupKey: string[];
 }
 /* 每个key前缀包含的选项 例：dimensions: ['xxx'] => dimensions.xxx */
-export type TGroupKeys = Map<string, string[] | any[]>;
+export type TGroupKeys = Map<string, any[] | string[]>;
 /* 条件选择组合key选项 */
 export const GROUP_KEYS = ['dimensions', 'tags', 'set', 'module', 'host'];
 /* 条件选择value固定项 */
 export const IS_EMPTY_USERS_VALUES = [
   { id: '0', name: 'false' },
-  { id: '1', name: 'true' }
+  { id: '1', name: 'true' },
 ];
 export enum EKeyTags {
   all = 'all',
   cmdb = 'CMDB',
+  event = 'event',
   strategy = 'strategy',
-  event = 'event'
 }
 
 /* key的标签分类 */
@@ -82,14 +81,14 @@ export const KEY_FILTER_TAGS = [
   { id: EKeyTags.all, name: window.i18n.tc('全部') },
   { id: EKeyTags.cmdb, name: window.i18n.tc('CMDB属性') },
   { id: EKeyTags.strategy, name: window.i18n.tc('告警策略') },
-  { id: EKeyTags.event, name: window.i18n.tc('告警事件') }
+  { id: EKeyTags.event, name: window.i18n.tc('告警事件') },
 ];
 
 /* 标签包含的key选项 */
 export const KEY_TAG_MAPS = {
   [EKeyTags.cmdb]: ['set', 'module', 'host'],
   [EKeyTags.strategy]: ['alert.scenario', 'alert.metric', 'alert.strategy_id', STRATEGY_LABELS],
-  [EKeyTags.event]: ['alert.name', NOTICE_USERS_KEY, 'dimensions', 'ip', 'bk_cloud_id', 'alert.event_source']
+  [EKeyTags.event]: ['alert.name', NOTICE_USERS_KEY, 'dimensions', 'ip', 'bk_cloud_id', 'alert.event_source'],
 };
 
 export function conditionCompare(left: ICondtionItem, right: ICondtionItem) {
@@ -113,11 +112,11 @@ export function conditionFindReplace(
   const conditions = [];
   const findConditions: ICondtionItem[] = findData.map(item => ({
     ...item,
-    condition: item.condition || CONDITIONS[0].id
+    condition: item.condition || CONDITIONS[0].id,
   })) as any;
   const replaceConditions = JSON.parse(JSON.stringify(replaceData || [])).map(item => ({
     ...item,
-    condition: item.condition || CONDITIONS[0].id
+    condition: item.condition || CONDITIONS[0].id,
   }));
   let startHitIndex = 0;
   oldCondition.forEach(condition => {
@@ -208,20 +207,20 @@ export async function allKVOptions(
           keySet.add(item.key);
           return {
             id: item.key,
-            name: item.display_key
+            name: item.display_key,
           };
         })
         .filter(item => item.id !== 'tags');
       if (!keySet.has(NOTICE_USERS_KEY)) {
         keys.push({
           id: NOTICE_USERS_KEY,
-          name: window.i18n.tc('通知人员')
+          name: window.i18n.tc('通知人员'),
         });
       }
       if (!keySet.has(STRATEGY_LABELS)) {
         keys.push({
           id: STRATEGY_LABELS,
-          name: window.i18n.tc('策略标签')
+          name: window.i18n.tc('策略标签'),
         });
       }
       setData('keys', '', keys);
@@ -238,8 +237,8 @@ export async function allKVOptions(
         { id: 'bkmonitor', name: window.i18n.t('监控策略') },
         ...eventPlugins.map(item => ({
           id: item.plugin_id,
-          name: item.plugin_display_name
-        }))
+          name: item.plugin_display_name,
+        })),
       ];
       setData('valueMap', 'alert.event_source', resultEventPlugins);
       awaitAll();
@@ -271,7 +270,7 @@ export async function allKVOptions(
         strategyList.map(item => ({
           ...item,
           id: String(item.id),
-          name: item.name
+          name: item.name,
         }))
       );
       awaitAll();
@@ -285,7 +284,7 @@ export async function allKVOptions(
     conditions: [{ key: 'query', value: '' }],
     page: 1,
     page_size: 1000,
-    tag: ''
+    tag: '',
   })
     .then(data => {
       setData(
@@ -293,7 +292,7 @@ export async function allKVOptions(
         'alert.metric',
         data.metric_list.map(m => ({
           id: m.metric_id,
-          name: m.name
+          name: m.name,
         }))
       );
       awaitAll();
@@ -310,7 +309,7 @@ export async function allKVOptions(
     fields: ['alert_name', 'ip', 'bk_cloud_id'],
     size: 10,
     start_time: startTime,
-    end_time: endTime
+    end_time: endTime,
   })
     .then(data => {
       const { fields } = data;
@@ -322,7 +321,7 @@ export async function allKVOptions(
             fieldData.field,
             fieldData.buckets.map(b => ({
               id: isChar ? topNDataStrTransform(b.id) : b.id,
-              name: b.name
+              name: b.name,
             }))
           );
         }
@@ -332,7 +331,7 @@ export async function allKVOptions(
             'alert.name',
             fieldData.buckets.map(b => ({
               id: isChar ? topNDataStrTransform(b.id) : b.id,
-              name: b.name
+              name: b.name,
             }))
           );
         }
@@ -361,25 +360,25 @@ export async function allKVOptions(
             if (typeof o === 'string') {
               return {
                 id: o,
-                name: o
+                name: o,
               };
             }
             return {
               id: o.id,
-              name: o.name
+              name: o.name,
             };
           })
         );
       }
       return {
         id,
-        name: d.bk_property_name
+        name: d.bk_property_name,
       };
     });
     setData('groupKeys', type, items);
   };
   searchObjectAttribute({
-    bk_obj_id: 'set'
+    bk_obj_id: 'set',
   })
     .then(data => {
       setCMDBOptions(data, 'set');
@@ -390,7 +389,7 @@ export async function allKVOptions(
     });
   // 获取模块
   searchObjectAttribute({
-    bk_obj_id: 'module'
+    bk_obj_id: 'module',
   })
     .then(data => {
       setCMDBOptions(data, 'module');
@@ -401,7 +400,7 @@ export async function allKVOptions(
     });
   // 获取主机
   searchObjectAttribute({
-    bk_obj_id: 'host'
+    bk_obj_id: 'host',
   })
     .then(data => {
       setCMDBOptions(data, 'host');
@@ -415,7 +414,7 @@ export async function allKVOptions(
     app_code: 'bk-magicbox',
     page: 1,
     page_size: 20,
-    fuzzy_lookups: ''
+    fuzzy_lookups: '',
   })
     .then(data => {
       setData(
@@ -423,7 +422,7 @@ export async function allKVOptions(
         NOTICE_USERS_KEY,
         data.results.map(item => ({
           id: item.username,
-          name: item.display_name
+          name: item.display_name,
         }))
       );
       awaitAll();
@@ -439,7 +438,7 @@ export async function allKVOptions(
     fields: ['labels'],
     size: 10,
     start_time: startTime,
-    end_time: endTime
+    end_time: endTime,
   })
     .then(data => {
       const topNData = data?.fields || [];
@@ -451,7 +450,7 @@ export async function allKVOptions(
             STRATEGY_LABELS,
             t.buckets.map(b => ({
               id: isChar ? topNDataStrTransform(b.id) : b.id,
-              name: b.name
+              name: b.name,
             }))
           );
         }
@@ -466,7 +465,7 @@ export async function allKVOptions(
     query_string: '',
     status: [],
     start_time: startTime,
-    end_time: endTime
+    end_time: endTime,
   }).catch(() => []);
   setData('groupKeys', 'dimensions', tags);
   // topN数据
@@ -479,7 +478,7 @@ export async function allKVOptions(
     fields: tagsFieldsParams.slice(0, 50),
     size: 10,
     start_time: startTime,
-    end_time: endTime
+    end_time: endTime,
   })
     .then(data => data?.fields || [])
     .catch(() => []);
@@ -490,7 +489,7 @@ export async function allKVOptions(
       t.field,
       t.buckets.map(b => ({
         id: isChar ? topNDataStrTransform(b.id) : b.id,
-        name: b.name
+        name: b.name,
       }))
     );
   });
@@ -500,7 +499,7 @@ export async function allKVOptions(
 /* 根据策略id获取维度及维度值列表 */
 export async function setDimensionsOfStrategy(strategyId, setData: (valuesMap) => void) {
   const strategyInfo = await getStrategyV2({
-    id: strategyId
+    id: strategyId,
   }).catch(() => null);
   if (!strategyInfo) {
     return;
@@ -516,7 +515,7 @@ export async function setDimensionsOfStrategy(strategyId, setData: (valuesMap) =
             params.params.field,
             data.map(d => ({
               id: d.value,
-              name: d.label
+              name: d.label,
             }))
           );
           reslove(true);
@@ -537,9 +536,9 @@ export async function setDimensionsOfStrategy(strategyId, setData: (valuesMap) =
             field: dimensionKey,
             metric_field: queryConfig.metric_field,
             result_table_id: queryConfig.result_table_id,
-            where: []
+            where: [],
           },
-          type: 'dimension'
+          type: 'dimension',
         };
         propmiseList.push(getDimensionsValueFn(params));
       }

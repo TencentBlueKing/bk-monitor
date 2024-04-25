@@ -24,29 +24,27 @@
 * IN THE SOFTWARE.
 -->
 <template>
-  <div
-    class="collector-add"
-  >
+  <div class="collector-add">
     <div class="add-step">
       <ul class="step-list">
         <li
-          class="step-list-item"
           v-for="(item, index) in stepConf.list"
           :key="index"
+          class="step-list-item"
           :class="[
             `step-list-item-${index + 1}`,
             {
               'is-active': stepConf.active === index,
-              'is-done': item.done
-            }
+              'is-done': item.done,
+            },
           ]"
         >
           <div
             :class="[
               'list-item-content',
               {
-                'is-active-arrow': stepConf.active === index
-              }
+                'is-active-arrow': stepConf.active === index,
+              },
             ]"
           >
             {{ item.name }}
@@ -56,16 +54,16 @@
     </div>
     <div class="add-container">
       <component
-        @target="target"
-        :hosts.sync="hosts"
         :is="currentView"
+        :hosts.sync="hosts"
         :is-clone="isClone"
         :config.sync="config"
         :password-input-change-set="passwordInputChangeSet"
+        :type.sync="componentType"
+        @target="target"
         @previous="handlePrevious"
         @next="handleNext"
         @passwordInputName="handlePasswordInputName"
-        :type.sync="componentType"
       />
     </div>
   </div>
@@ -77,7 +75,6 @@ import { createNamespacedHelpers } from 'vuex';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import { SET_INFO_DATA } from '../../../store/modules/collector-config';
 import * as collectAuth from '../authority-map';
-
 import ConfigDelivery from './config-delivery/config-delivery';
 import ConfigDone from './config-done/config-done';
 import ConfigSelect from './config-select/config-select';
@@ -90,15 +87,20 @@ export default {
     ConfigSet,
     ConfigSelect,
     ConfigDelivery,
-    ConfigDone
+    ConfigDone,
   },
   mixins: [authorityMixinCreate(collectAuth)],
   provide() {
     return {
       authority: this.authority,
       handleShowAuthorityDetail: this.handleShowAuthorityDetail,
-      collectAuth
+      collectAuth,
     };
+  },
+  beforeRouteLeave(to, from, next) {
+    // 清除新建配置info缓存
+    to.name !== 'plugin-add' && this[SET_INFO_DATA](null);
+    next();
   },
   data() {
     return {
@@ -111,24 +113,24 @@ export default {
           {
             name: this.$t('配置'),
             done: false,
-            component: 'config-set'
+            component: 'config-set',
           },
           {
             name: this.$t('选择目标'),
             done: false,
-            component: 'config-select'
+            component: 'config-select',
           },
           {
             name: this.$t('采集下发'),
             done: false,
-            component: 'config-delivery'
+            component: 'config-delivery',
           },
           {
             name: this.$t('完成'),
             done: false,
-            component: 'config-done'
-          }
-        ]
+            component: 'config-done',
+          },
+        ],
       },
       config: {
         mode: 'add',
@@ -137,22 +139,17 @@ export default {
         select: {},
         delivery: {},
         done: {},
-        target: {}
+        target: {},
       },
-      passwordInputChangeSet: new Set() // 父组件维护一个用于判断密码框有无发生变更的set，用于判断提交表单时是否需要将该密码表单pop出去
+      passwordInputChangeSet: new Set(), // 父组件维护一个用于判断密码框有无发生变更的set，用于判断提交表单时是否需要将该密码表单pop出去
     };
-  },
-  beforeRouteLeave(to, from, next) {
-    // 清除新建配置info缓存
-    to.name !== 'plugin-add' && this[SET_INFO_DATA](null);
-    next();
   },
   computed: {
     ...mapGetters(['addParams']),
     /** 是否为克隆采集 */
     isClone() {
       return this.$route.name === 'collect-config-clone';
-    }
+    },
   },
   created() {
     const { params } = this.$route;
@@ -161,15 +158,15 @@ export default {
         ...this.addParams,
         data: {
           updateParams: {
-            pluginId: params.pluginId
-          }
+            pluginId: params.pluginId,
+          },
         },
         mode: 'add',
         set: {},
         select: {},
         delivery: {},
         done: {},
-        target: {}
+        target: {},
       };
       this.componentType = 'ADD';
       if (typeof params.id !== 'undefined') {
@@ -184,8 +181,8 @@ export default {
       'app/SET_NAV_TITLE',
       params.id && !this.isClone
         ? `${this.$t('route-' + '编辑配置').replace('route-', '')} - #${this.$route.params.id} ${
-          this.$route.params.title
-        }`
+            this.$route.params.title
+          }`
         : this.$t('新建配置')
     );
   },
@@ -213,8 +210,8 @@ export default {
     },
     handlePasswordInputName(val) {
       this.passwordInputChangeSet.add(val);
-    }
-  }
+    },
+  },
 };
 </script>
 

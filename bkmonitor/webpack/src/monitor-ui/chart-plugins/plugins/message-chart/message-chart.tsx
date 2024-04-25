@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -46,7 +47,7 @@ export default class MessageChart extends CommonSimpleChart {
   pagination: ITablePagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   total = 0;
   async getPanelData(start_time?: string, end_time?: string) {
@@ -62,7 +63,7 @@ export default class MessageChart extends CommonSimpleChart {
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
         end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
-        bk_biz_id: this.bkBizId || window.cc_biz_id
+        bk_biz_id: this.bkBizId || window.cc_biz_id,
       };
       const variablesService = new VariablesService({
         ...this.scopedVars,
@@ -70,7 +71,7 @@ export default class MessageChart extends CommonSimpleChart {
           this.viewOptions.interval,
           params.end_time - params.start_time,
           this.panel.collect_interval
-        )
+        ),
       });
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
@@ -79,7 +80,7 @@ export default class MessageChart extends CommonSimpleChart {
               ...variablesService.transformVariables(item.data),
               ...params,
               page: this.pagination.current,
-              page_size: this.pagination.limit
+              page_size: this.pagination.limit,
             },
             { needMessage: false }
           )
@@ -87,7 +88,7 @@ export default class MessageChart extends CommonSimpleChart {
             this.series = (res.data || []).map(item => ({
               ...item,
               showAll: false,
-              id: item.id.toString()
+              id: item.id.toString(),
             }));
             this.pagination.count = res.total;
             this.clearErrorMsg();
@@ -118,7 +119,7 @@ export default class MessageChart extends CommonSimpleChart {
     this.pagination.current = 1;
     this.getPanelData();
   }
-  handlePageChange(type: 'up' | 'down' | 'last') {
+  handlePageChange(type: 'down' | 'last' | 'up') {
     if (type === 'last') {
       this.pagination.current = Math.ceil(this.pagination.count / this.pagination.limit);
     } else {
@@ -151,20 +152,20 @@ export default class MessageChart extends CommonSimpleChart {
               <span class='pagination-list'>
                 {this.$t('当前为第')}
                 <span class='bold-num'>
-                  {this.pagination.current}/{this.pagination.limit}
+                  {this.pagination.current} / {Math.ceil(this.pagination.count / this.pagination.limit)}
                 </span>
                 {this.$t('页')}
               </span>
               <div class='pagination-btn'>
                 <bk-button
-                  onClick={() => this.handlePageChange('up')}
                   disabled={this.pagination.current === 1}
+                  onClick={() => this.handlePageChange('up')}
                 >
                   {this.$t('上一页')}
                 </bk-button>
                 <bk-button
-                  onClick={() => this.handlePageChange('down')}
                   disabled={this.pagination.current === Math.ceil(this.pagination.count / this.pagination.limit)}
+                  onClick={() => this.handlePageChange('down')}
                 >
                   {this.$t('下一页')}
                 </bk-button>
@@ -184,10 +185,10 @@ export default class MessageChart extends CommonSimpleChart {
               >
                 {this.series.map(item => (
                   <bk-collapse-item
-                    hide-arrow={true}
-                    name={item.id}
                     key={item.id}
                     class='collapse-item'
+                    hide-arrow={true}
+                    name={item.id}
                   >
                     <span
                       class={`icon-monitor icon-mc-triangle-down collapse-item-icon ${
@@ -199,8 +200,8 @@ export default class MessageChart extends CommonSimpleChart {
                       <div class='item-subtitle'>{item.subtitle}</div>
                     </div>
                     <div
-                      slot='content'
                       class='collapse-item-content'
+                      slot='content'
                     >
                       {item.content.slice(0, item.showAll ? item.content.length - 1 : 4).map(text => (
                         <pre class='content-item'>{text}</pre>
@@ -217,7 +218,7 @@ export default class MessageChart extends CommonSimpleChart {
                   </bk-collapse-item>
                 ))}
               </bk-collapse>
-            </div>
+            </div>,
           ]
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>

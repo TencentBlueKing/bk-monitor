@@ -234,8 +234,7 @@ class ClusterInfo(models.Model):
             "cluster_type": self.mq_cluster.cluster_type
         }
         """
-
-        return {
+        _config = {
             "cluster_config": {
                 "domain_name": self.domain_name,
                 "port": self.port,
@@ -265,6 +264,13 @@ class ClusterInfo(models.Model):
             "cluster_type": self.cluster_type,
             "auth_info": {"password": self.password, "username": self.username},
         }
+
+        # NOTE: 针对kafka类型添加认证字段；现阶段先不添加模型存储sasl的认证信息，后续需要再补充
+        if self.cluster_type == self.TYPE_KAFKA and self.username and self.password:
+            _config["auth_info"]["sasl_mechanisms"] = config.KAFKA_SASL_MECHANISM
+            _config["auth_info"]["security_protocol"] = config.KAFKA_SASL_PROTOCOL
+
+        return _config
 
     @property
     def cluster_detail(self):
@@ -1120,7 +1126,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
                 # 否则此处发现rp配置不一致，需要修复
                 # 修复前根据新的duration判断shard的长度，并修改为合适的shard
                 try:
-                    shard_group_duration = InfluxDBHostInfo.judge_shard()
+                    shard_group_duration = InfluxDBHostInfo.judge_shard(self.source_duration_time)
                 except ValueError as e:
                     logger.error(
                         "table->[{}] rp->[{} | {}] is updated on host->[{}] failed: [{}]".format(
@@ -1148,7 +1154,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
             else:
                 # 创建前根据新的duration判断shard的长度，并修改为合适的shard
                 try:
-                    shard_group_duration = InfluxDBHostInfo.judge_shard()
+                    shard_group_duration = InfluxDBHostInfo.judge_shard(self.source_duration_time)
                 except ValueError as e:
                     logger.error(
                         "table->[{}] rp->[{} | {}] is create on host->[{}] failed: [{}]".format(

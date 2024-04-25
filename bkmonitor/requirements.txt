@@ -125,3 +125,6 @@ apigw-manager==2.0.0
 
 # crypto
 bk-crypto-python-sdk==1.0.4
+
+# graphviz
+graphviz==0.19.1

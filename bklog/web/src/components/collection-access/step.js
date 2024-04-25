@@ -28,7 +28,7 @@ export const stepsConf = {
     { title: window.mainComponent.$t('字段清洗'), icon: '' },
     { title: window.mainComponent.$t('存储'), icon: '' },
     { title: window.mainComponent.$t('日志脱敏'), icon: '', isMasking: true },
-    { title: window.mainComponent.$t('完成'), icon: '' },
+    { title: window.mainComponent.$t('完成'), icon: '' }
   ],
 
   // 采集新增
@@ -38,7 +38,7 @@ export const stepsConf = {
     { title: window.mainComponent.$t('字段清洗'), icon: '' },
     { title: window.mainComponent.$t('存储'), icon: '' },
     { title: window.mainComponent.$t('日志脱敏'), icon: '', isMasking: true },
-    { title: window.mainComponent.$t('完成'), icon: '' },
+    { title: window.mainComponent.$t('完成'), icon: '' }
   ],
   // 采集修改
   edit: [
@@ -47,7 +47,7 @@ export const stepsConf = {
     { title: window.mainComponent.$t('字段清洗'), icon: '' },
     { title: window.mainComponent.$t('存储'), icon: '' },
     { title: window.mainComponent.$t('日志脱敏'), icon: '', isMasking: true },
-    { title: window.mainComponent.$t('完成'), icon: '' },
+    { title: window.mainComponent.$t('完成'), icon: '' }
   ],
   // 采集修改
   editFinish: [
@@ -56,7 +56,7 @@ export const stepsConf = {
     { title: window.mainComponent.$t('字段清洗'), icon: '' },
     { title: window.mainComponent.$t('存储'), icon: '' },
     { title: window.mainComponent.$t('日志脱敏'), icon: '', isMasking: true },
-    { title: window.mainComponent.$t('完成'), icon: '' },
+    { title: window.mainComponent.$t('完成'), icon: '' }
   ],
   // 字段提取
   field: [
@@ -65,7 +65,7 @@ export const stepsConf = {
     { title: window.mainComponent.$t('字段清洗'), icon: '' },
     { title: window.mainComponent.$t('存储'), icon: '' },
     { title: window.mainComponent.$t('日志脱敏'), icon: '', isMasking: true },
-    { title: window.mainComponent.$t('完成'), icon: '' },
+    { title: window.mainComponent.$t('完成'), icon: '' }
   ],
   // 存储
   storage: [
@@ -74,7 +74,7 @@ export const stepsConf = {
     { title: window.mainComponent.$t('字段清洗'), icon: '' },
     { title: window.mainComponent.$t('存储'), icon: '' },
     { title: window.mainComponent.$t('日志脱敏'), icon: '', isMasking: true },
-    { title: window.mainComponent.$t('完成'), icon: '' },
+    { title: window.mainComponent.$t('完成'), icon: '' }
   ],
   // 容器日志
   container: [
@@ -82,7 +82,7 @@ export const stepsConf = {
     { title: window.mainComponent.$t('字段清洗'), icon: '' },
     { title: window.mainComponent.$t('存储'), icon: '' },
     { title: window.mainComponent.$t('日志脱敏'), icon: '', isMasking: true },
-    { title: window.mainComponent.$t('完成'), icon: '' },
+    { title: window.mainComponent.$t('完成'), icon: '' }
   ],
   // 日志脱敏
   masking: [
@@ -91,18 +91,18 @@ export const stepsConf = {
     { title: window.mainComponent.$t('字段清洗'), icon: '' },
     { title: window.mainComponent.$t('存储'), icon: '' },
     { title: window.mainComponent.$t('日志脱敏'), icon: '', isMasking: true },
-    { title: window.mainComponent.$t('完成'), icon: '' },
+    { title: window.mainComponent.$t('完成'), icon: '' }
   ],
   // 开始采集
   start: [
     { title: window.mainComponent.$t('采集下发'), icon: '' },
-    { title: window.mainComponent.$t('完成'), icon: '' },
+    { title: window.mainComponent.$t('完成'), icon: '' }
   ],
   // 停止采集
   stop: [
     { title: window.mainComponent.$t('采集下发'), icon: '' },
-    { title: window.mainComponent.$t('完成'), icon: '' },
-  ],
+    { title: window.mainComponent.$t('完成'), icon: '' }
+  ]
 };
 
 export const finishRefer = {
@@ -114,5 +114,5 @@ export const finishRefer = {
   container: 6,
   masking: 6,
   start: 2,
-  stop: 2,
+  stop: 2
 };

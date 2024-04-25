@@ -26,14 +26,28 @@
     :mask-close="false"
     :close-icon="false"
     :width="680"
+    :confirm-fn="handleConfirm"
     @value-change="handleValueChange"
-    :confirm-fn="handleConfirm">
-    <div class="module-select-container" v-bkloading="{ isLoading }">
-      <bk-radio-group v-model="selectedTypeData" style="margin-bottom: 20px;">
-        <bk-radio value="topo" style="margin-right: 16px;">{{$t('按大区选择')}}</bk-radio>
-        <bk-radio value="module">{{$t('按模块选择')}}</bk-radio>
+  >
+    <div
+      v-bkloading="{ isLoading }"
+      class="module-select-container"
+    >
+      <bk-radio-group
+        v-model="selectedTypeData"
+        style="margin-bottom: 20px"
+      >
+        <bk-radio
+          value="topo"
+          style="margin-right: 16px"
+          >{{ $t('按大区选择') }}</bk-radio
+        >
+        <bk-radio value="module">{{ $t('按模块选择') }}</bk-radio>
       </bk-radio-group>
-      <div class="tree-container" v-show="selectedTypeData === 'topo'">
+      <div
+        v-show="selectedTypeData === 'topo'"
+        class="tree-container"
+      >
         <bk-big-tree
           ref="topoTreeRef"
           show-checkbox
@@ -41,16 +55,21 @@
           :check-strictly="false"
           :default-checked-nodes="topoCheckedNodes"
           :default-expanded-nodes="topoExpandNodes"
-          @check-change="handleTopoNodeCheck">
+          @check-change="handleTopoNodeCheck"
+        >
         </bk-big-tree>
       </div>
-      <div class="tree-container" v-show="selectedTypeData === 'module'">
+      <div
+        v-show="selectedTypeData === 'module'"
+        class="tree-container"
+      >
         <div class="checkbox-container">
           <bk-checkbox
             :value="isSelectAllModule"
             :indeterminate="indeterminate"
-            @change="handleSelectAllChange">
-            {{$t('全选')}}
+            @change="handleSelectAllChange"
+          >
+            {{ $t('全选') }}
           </bk-checkbox>
         </div>
         <bk-big-tree
@@ -58,7 +77,8 @@
           show-checkbox
           :data="moduleList"
           :default-checked-nodes="moduleCheckedNodes"
-          @check-change="handleModuleNodeCheck">
+          @check-change="handleModuleNodeCheck"
+        >
         </bk-big-tree>
       </div>
     </div>
@@ -70,16 +90,16 @@ export default {
   props: {
     showSelectDialog: {
       type: Boolean,
-      default: false,
+      default: false
     },
     selectedType: {
       type: String,
-      default: 'topo',
+      default: 'topo'
     },
     selectedModules: {
       type: Array,
-      default: () => [],
-    },
+      default: () => []
+    }
   },
   data() {
     return {
@@ -93,7 +113,7 @@ export default {
       selectedTopoList: this.selectedModules,
       selectedModuleList: [], // selectedType === topo 时需要通过遍历对比列表数据得到
       isSelectAllModule: false,
-      indeterminate: false, // 是否半选
+      indeterminate: false // 是否半选
     };
   },
   created() {
@@ -109,23 +129,23 @@ export default {
         this.isLoading = true;
         const res = await this.$http.request('collect/getExtractBizTopo', {
           query: {
-            bk_biz_id: this.$store.state.bkBizId,
-          },
+            bk_biz_id: this.$store.state.bkBizId
+          }
         });
         this.topoList = res.data;
         this.moduleList = this.filterList(res.data);
         // 数据回填
-        const {
-          topoExpandNodes,
-          topoCheckedNodes,
-          moduleCheckedItems,
-        } = this.recursiveFindDefault(res.data, null, this.selectedModules);
+        const { topoExpandNodes, topoCheckedNodes, moduleCheckedItems } = this.recursiveFindDefault(
+          res.data,
+          null,
+          this.selectedModules
+        );
         // 回填已选择的模块
         this.selectedModuleList = moduleCheckedItems.map(item => ({
           bk_inst_id: item.bk_inst_id,
           bk_inst_name: item.bk_inst_name,
           bk_obj_id: item.bk_obj_id,
-          bk_biz_id: item.bk_biz_id,
+          bk_biz_id: item.bk_biz_id
         }));
         this.moduleCheckedNodes = moduleCheckedItems.map(item => item.id);
         if (this.moduleCheckedNodes.length === this.moduleList.length) {
@@ -141,7 +161,8 @@ export default {
         // 回填已选择的大区
         this.topoExpandNodes = topoExpandNodes;
         this.topoCheckedNodes = topoCheckedNodes;
-        if (topoCheckedNodes.length) { // 父亲勾选后子孙禁用勾选
+        if (topoCheckedNodes.length) {
+          // 父亲勾选后子孙禁用勾选
           this.$nextTick(() => {
             const rootNode = this.$refs.topoTreeRef?.nodes[0];
             if (rootNode?.children?.length) {
@@ -160,7 +181,7 @@ export default {
       if (bool) {
         this.inheritCheckNode(nodes, bool);
       } else {
-        nodes.forEach((node) => {
+        nodes.forEach(node => {
           if (node?.children?.length) {
             this.recursiveDealCheckedNode(node.children, node.checked);
           }
@@ -169,7 +190,7 @@ export default {
     },
     // 找到模板节点并打平去重
     filterList(list, dict = {}) {
-      list.forEach((item) => {
+      list.forEach(item => {
         if (item.bk_obj_id === 'module' && !dict[item.bk_inst_name]) {
           dict[item.bk_inst_name] = item;
         }
@@ -186,9 +207,9 @@ export default {
       selectedNodes,
       topoCheckedNodes = [],
       topoExpandNodes = [],
-      moduleCheckedMap = {},
+      moduleCheckedMap = {}
     ) {
-      treeNodes.forEach((treeNode) => {
+      treeNodes.forEach(treeNode => {
         treeNode.parentNode = parentNode || null;
 
         for (const selectedNode of selectedNodes) {
@@ -211,7 +232,7 @@ export default {
             selectedNodes,
             topoCheckedNodes,
             topoExpandNodes,
-            moduleCheckedMap,
+            moduleCheckedMap
           );
         }
       });
@@ -219,7 +240,7 @@ export default {
       return {
         topoCheckedNodes,
         topoExpandNodes: [...new Set(topoExpandNodes)],
-        moduleCheckedItems: Object.values(moduleCheckedMap),
+        moduleCheckedItems: Object.values(moduleCheckedMap)
       };
     },
     // 按大区选择
@@ -229,7 +250,7 @@ export default {
     },
     // 父亲勾选或取消勾选后，子孙跟随状态变化，且父亲勾选后子孙禁用勾选
     inheritCheckNode(nodes, bool) {
-      nodes.forEach((node) => {
+      nodes.forEach(node => {
         node.checked = bool;
         node.disabled = bool;
         node.children?.length && this.inheritCheckNode(node.children, bool);
@@ -243,10 +264,10 @@ export default {
           bk_inst_id: data.bk_inst_id,
           bk_inst_name: data.bk_inst_name,
           bk_obj_id: data.bk_obj_id,
-          bk_biz_id: data.bk_biz_id,
+          bk_biz_id: data.bk_biz_id
         });
       } else if (node.children?.length) {
-        node.children.forEach((child) => {
+        node.children.forEach(child => {
           this.recursiveFindTopoNodes(child, selectedTopoList);
         });
       }
@@ -268,13 +289,13 @@ export default {
         this.isSelectAllModule = false;
         this.indeterminate = false;
       }
-      this.selectedModuleList = checkedNodes.map((node) => {
+      this.selectedModuleList = checkedNodes.map(node => {
         const { data } = node;
         return {
           bk_inst_id: data.bk_inst_id,
           bk_inst_name: data.bk_inst_name,
           bk_obj_id: data.bk_obj_id,
-          bk_biz_id: data.bk_biz_id,
+          bk_biz_id: data.bk_biz_id
         };
       });
     },
@@ -284,22 +305,22 @@ export default {
       if (val) {
         this.indeterminate = false;
         this.isSelectAllModule = true;
-        nodes.forEach((node) => {
+        nodes.forEach(node => {
           node.checked = true;
         });
-        this.selectedModuleList = nodes.map((node) => {
+        this.selectedModuleList = nodes.map(node => {
           const { data } = node;
           return {
             bk_inst_id: data.bk_inst_id,
             bk_inst_name: data.bk_inst_name,
             bk_obj_id: data.bk_obj_id,
-            bk_biz_id: data.bk_biz_id,
+            bk_biz_id: data.bk_biz_id
           };
         });
       } else {
         this.indeterminate = false;
         this.isSelectAllModule = false;
-        nodes.forEach((node) => {
+        nodes.forEach(node => {
           node.checked = false;
         });
         this.selectedModuleList = [];
@@ -312,22 +333,22 @@ export default {
       const selectedList = this.selectedTypeData === 'topo' ? this.selectedTopoList : this.selectedModuleList;
       this.$emit('confirm', this.selectedTypeData, selectedList);
       this.$emit('update:showSelectDialog', false);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .module-select-container {
-    .tree-container {
-      height: 440px;
-      overflow: auto;
+.module-select-container {
+  .tree-container {
+    height: 440px;
+    overflow: auto;
 
-      .checkbox-container {
-        line-height: 22px;
-        padding: 0 0 7px 20px;
-        border-bottom: 1px solid #dfdfdf;
-      }
+    .checkbox-container {
+      padding: 0 0 7px 20px;
+      line-height: 22px;
+      border-bottom: 1px solid #dfdfdf;
     }
   }
+}
 </style>

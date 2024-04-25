@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import Vuex from 'vuex';
 
 import getters from './getters';
 
 Vue.use(Vuex);
+
 const moduleFiles = require.context('./modules', true, /\.js$/);
 const modules = moduleFiles.keys().reduce((modules, modulePath) => {
   const moduleName = modulePath.replace(/^\.\/(.*)\.\w+$/, '$1');
@@ -40,5 +42,5 @@ const modules = moduleFiles.keys().reduce((modules, modulePath) => {
 export default new Vuex.Store({
   getters,
   modules,
-  strict: process.env.NODE_ENV !== 'production'
+  strict: process.env.NODE_ENV !== 'production',
 });

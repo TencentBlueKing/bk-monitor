@@ -37,12 +37,13 @@ from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider, ReadableSpan
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.sampling import ALWAYS_OFF, ALWAYS_ON, DEFAULT_OFF
 from opentelemetry.trace import Span, Status, StatusCode
-from opentelemetry.sdk.trace.sampling import ALWAYS_OFF, DEFAULT_OFF, ALWAYS_ON
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.utils import get_local_ip
 
 
 def requests_callback(span: Span, response):
@@ -154,7 +155,6 @@ class BluekingInstrumentor(BaseInstrumentor):
         otlp_exporter = OTLPSpanExporter(endpoint=otlp_grpc_host)
         span_processor = LazyBatchSpanProcessor(otlp_exporter)
 
-
         # periord task not sampler
         sampler = DEFAULT_OFF
         if settings.IS_CELERY_BEAT:
@@ -170,6 +170,7 @@ class BluekingInstrumentor(BaseInstrumentor):
                     "service.version": settings.VERSION,
                     "bk_data_id": otlp_bk_data_id,
                     "bk.data.token": otlp_bk_data_token,
+                    "net.host.ip": get_local_ip(),
                 }
             ),
             sampler=sampler,

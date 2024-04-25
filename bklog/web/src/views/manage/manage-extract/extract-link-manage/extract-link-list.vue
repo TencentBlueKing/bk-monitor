@@ -22,9 +22,10 @@
 
 <template>
   <div
-    class="extract-link-list-container"
     v-bkloading="{ isLoading }"
-    data-test-id="extractLinkList_div_extractLinkListBox">
+    class="extract-link-list-container"
+    data-test-id="extractLinkList_div_extractLinkListBox"
+  >
     <div>
       <bk-button
         v-cursor="{ active: isAllowedManage === false }"
@@ -32,9 +33,10 @@
         :loading="isButtonLoading"
         class="king-button"
         theme="primary"
-        style="margin: 20px 0;width: 120px;"
+        style="width: 120px; margin: 20px 0"
         data-test-id="extractLinkListBox_button_addNewLinkList"
-        @click="handleCreate">
+        @click="handleCreate"
+      >
         {{ $t('新增') }}
       </bk-button>
     </div>
@@ -42,25 +44,54 @@
       class="king-table"
       :data="extractLinkList"
       row-key="strategy_id"
-      data-test-id="extractLinkListBox_table_LinkListTableBox">
-      <bk-table-column :label="$t('链路名称')" :render-header="$renderHeader">
-        <div class="table-ceil-container" slot-scope="{ row }">
+      data-test-id="extractLinkListBox_table_LinkListTableBox"
+    >
+      <bk-table-column
+        :label="$t('链路名称')"
+        :render-header="$renderHeader"
+      >
+        <div
+          slot-scope="{ row }"
+          class="table-ceil-container"
+        >
           <span v-bk-overflow-tips>{{ row.name }}</span>
         </div>
       </bk-table-column>
-      <bk-table-column :label="$t('链路类型')" :render-header="$renderHeader" prop="created_at">
+      <bk-table-column
+        :label="$t('链路类型')"
+        :render-header="$renderHeader"
+        prop="created_at"
+      >
         <div slot-scope="{ row }">
-          <template>{{linkNameMap[row.link_type]}}</template>
+          <template>{{ linkNameMap[row.link_type] }}</template>
         </div>
       </bk-table-column>
-      <bk-table-column :label="$t('操作')" :render-header="$renderHeader" width="200">
-        <div slot-scope="{ row }" class="task-operation-container">
-          <span class="task-operation" @click="handleEditStrategy(row)">{{ $t('编辑') }}</span>
-          <span class="task-operation" @click="handleDeleteStrategy(row)">{{ $t('删除') }}</span>
+      <bk-table-column
+        :label="$t('操作')"
+        :render-header="$renderHeader"
+        width="200"
+      >
+        <div
+          slot-scope="{ row }"
+          class="task-operation-container"
+        >
+          <span
+            class="task-operation"
+            @click="handleEditStrategy(row)"
+            >{{ $t('编辑') }}</span
+          >
+          <span
+            class="task-operation"
+            @click="handleDeleteStrategy(row)"
+            >{{ $t('删除') }}</span
+          >
         </div>
       </bk-table-column>
       <div slot="empty">
-        <empty-status :empty-type="emptyType" @operation="handleOperation" />
+        <empty-status
+          :empty-type="emptyType"
+          @operation="handleOperation"
+        />
       </div>
     </bk-table>
   </div>
@@ -74,7 +105,7 @@ import EmptyStatus from '@/components/empty-status';
 export default {
   name: 'ExtractLinkList',
   components: {
-    EmptyStatus,
+    EmptyStatus
   },
   data() {
     return {
@@ -85,13 +116,13 @@ export default {
       linkNameMap: {
         common: this.$t('内网链路'),
         qcloud_cos: this.$t('腾讯云链路'),
-        bk_repo: this.$t('蓝鲸制品库'),
+        bk_repo: this.$t('蓝鲸制品库')
       },
-      emptyType: 'empty',
+      emptyType: 'empty'
     };
   },
   computed: {
-    ...mapGetters(['spaceUid']),
+    ...mapGetters(['spaceUid'])
   },
   created() {
     this.checkManageAuth();
@@ -101,10 +132,12 @@ export default {
       try {
         const res = await this.$store.dispatch('checkAllowed', {
           action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
-          resources: [{
-            type: 'space',
-            id: this.spaceUid,
-          }],
+          resources: [
+            {
+              type: 'space',
+              id: this.spaceUid
+            }
+          ]
         });
         this.isAllowedManage = res.isAllowed;
         if (res.isAllowed) {
@@ -137,10 +170,12 @@ export default {
           this.isButtonLoading = true;
           const res = await this.$store.dispatch('getApplyData', {
             action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
-            resources: [{
-              type: 'space',
-              id: this.spaceUid,
-            }],
+            resources: [
+              {
+                type: 'space',
+                id: this.spaceUid
+              }
+            ]
           });
           this.$store.commit('updateAuthDialogData', res.data);
         } catch (err) {
@@ -152,8 +187,8 @@ export default {
         this.$router.push({
           name: 'extract-link-create',
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
       }
     },
@@ -162,12 +197,12 @@ export default {
       this.$router.push({
         name: 'extract-link-edit',
         params: {
-          linkId: row.link_id,
+          linkId: row.link_id
         },
         query: {
           spaceUid: this.$store.state.spaceUid,
-          editName: row.name,
-        },
+          editName: row.name
+        }
       });
     },
     // 删除提取链路
@@ -180,8 +215,8 @@ export default {
             this.isLoading = true;
             await this.$http.request('extractManage/deleteLogExtractLink', {
               params: {
-                link_id: row.link_id,
-              },
+                link_id: row.link_id
+              }
             });
             this.messageSuccess(this.$t('删除成功'));
             await this.initList();
@@ -189,7 +224,7 @@ export default {
             console.warn(e);
             this.isLoading = false;
           }
-        },
+        }
       });
     },
     handleOperation(type) {
@@ -198,27 +233,27 @@ export default {
         this.search();
         return;
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .extract-link-list-container {
-    padding: 0 24px 20px;
+.extract-link-list-container {
+  padding: 0 24px 20px;
 
-    /*表格内容样式*/
-    :deep(.king-table) {
-      .task-operation-container {
-        display: flex;
-        align-items: center;
+  /*表格内容样式*/
+  :deep(.king-table) {
+    .task-operation-container {
+      display: flex;
+      align-items: center;
 
-        .task-operation {
-          margin-right: 12px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
+      .task-operation {
+        margin-right: 12px;
+        color: #3a84ff;
+        cursor: pointer;
       }
     }
   }
+}
 </style>

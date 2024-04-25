@@ -25,7 +25,8 @@
  */
 import { Component, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import echarts from 'echarts';
+
+import { connect, disconnect } from 'echarts/core';
 import { multiAnomalyDetectGraph } from 'monitor-api/modules/alert';
 import { random } from 'monitor-common/utils';
 import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -90,7 +91,7 @@ export default class IntelligenceScene extends tsc<IProps> {
     this.loading = true;
     const data = await multiAnomalyDetectGraph({
       alert_id: this.params.id,
-      bk_biz_id: this.params.bk_biz_id
+      bk_biz_id: this.params.bk_biz_id,
     }).catch(() => []);
     this.timeRangeInit();
     const result = data.map(item => {
@@ -102,19 +103,19 @@ export default class IntelligenceScene extends tsc<IProps> {
           data: {
             ...target.data,
             id: this.params.id,
-            bk_biz_id: this.params.bk_biz_id
+            bk_biz_id: this.params.bk_biz_id,
           },
-          datasource: 'time_series'
+          datasource: 'time_series',
         })),
         options: {
           time_series: {
-            custom_timerange: true
-          }
-        }
+            custom_timerange: true,
+          },
+        },
       };
     });
     this.panels = result.map(item => new PanelModel(item));
-    echarts.connect(this.dashboardId.toString());
+    connect(this.dashboardId.toString());
     this.loading = false;
   }
 
@@ -125,7 +126,7 @@ export default class IntelligenceScene extends tsc<IProps> {
   }
 
   destroyed() {
-    echarts.disConnect(this.dashboardId.toString());
+    disconnect(this.dashboardId.toString());
   }
 
   render() {
@@ -133,17 +134,17 @@ export default class IntelligenceScene extends tsc<IProps> {
       <div
         class='intelligence-scene-view-component'
         v-bkloading={{
-          isLoading: this.loading
+          isLoading: this.loading,
         }}
       >
         {this.panels.map((panel, index) => (
           <div
-            class='intelligenc-scene-item'
             key={index}
+            class='intelligenc-scene-item'
           >
             <ChartWrapper
-              panel={panel}
               needCheck={false}
+              panel={panel}
               onDblClick={this.handledblClick}
             ></ChartWrapper>
           </div>

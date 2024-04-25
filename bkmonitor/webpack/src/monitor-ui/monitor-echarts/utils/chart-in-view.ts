@@ -25,10 +25,10 @@
  */
 type InTopOrBottom = boolean | undefined;
 export default class ChartInView {
-  public chartInTop: InTopOrBottom;
   public chartInBottom: InTopOrBottom;
-  public timer: any;
+  public chartInTop: InTopOrBottom;
   public rect: DOMRect;
+  public timer: any;
   public constructor(inTop: InTopOrBottom, inBottom: InTopOrBottom, rect?: DOMRect) {
     this.setCharInView(inTop, inBottom, rect);
   }

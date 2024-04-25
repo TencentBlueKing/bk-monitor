@@ -20,6 +20,7 @@ from django.db.transaction import atomic
 from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
 from metadata import config, models
+from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
@@ -158,7 +159,9 @@ def sync_bkcc_space_data_source():
     # NOTE: 因为 0 业务的数据源不一定是 bkcc 类型，需要忽略掉更新
     real_biz_data_id_dict, zero_data_id_list = get_real_zero_biz_data_id()
     models.DataSource.objects.filter(bk_data_id__in=zero_data_id_list).exclude(
-        bk_data_id__in=SKIP_DATA_ID_LIST_FOR_BKCC
+        Q(bk_data_id__in=SKIP_DATA_ID_LIST_FOR_BKCC)
+        | Q(space_uid__startswith=SpaceTypes.BKCI.value)
+        | Q(space_uid__startswith=SpaceTypes.BKSAAS.value)
     ).update(is_platform_data_id=True, space_type_id=SpaceTypes.BKCC.value)
     logger.info(
         "update is_platform_data_id: %s, belong space type: %s of data id: %s",
@@ -622,7 +625,7 @@ def push_and_publish_space_router(
     space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish)
 
 
-@share_lock(identify="metadata_push_and_publish_space_router")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_push_and_publish_space_router")
 def push_and_publish_space_router_task():
     logger.info("start to push and publish space router")
 

@@ -26,8 +26,8 @@
 <template>
   <div :class="['member-selector-wrap', { 'is-error': isError }]">
     <bk-user-selector
-      class="bk-user-selector"
       v-model="localValue"
+      class="bk-user-selector"
       :panel-width="300"
       :placeholder="$t('选择通知对象')"
       :display-tag-tips="false"
@@ -51,14 +51,11 @@
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 import BkUserSelector from '@blueking/user-selector';
 import { deepClone } from 'monitor-common/utils/utils';
-
-debugger;
-
 @Component({
   name: 'member-selector',
   components: {
-    BkUserSelector
-  }
+    BkUserSelector,
+  },
 })
 export default class MemberSelector extends Vue {
   @Prop({ type: Array, default: () => [] }) readonly groupList: any;
@@ -97,7 +94,7 @@ export default class MemberSelector extends Vue {
     const renderTag = {
       display_name: groupName || tag.user?.display_name || tag.username,
       id: tag.username,
-      type: groupName ? 'group' : ''
+      type: groupName ? 'group' : '',
     };
     return this.renderMemberTag(renderTag, h);
   }
@@ -106,20 +103,42 @@ export default class MemberSelector extends Vue {
   }
   renderPublicCode(e, t, n, r, h) {
     const o = h;
-    return o('div', {
-      class: t
-    }, [e.logo ? o('img', {
-      class: r,
-      attrs: {
-        src: e.logo
-      }
-    }) : o('i', {
-      class: 'group' === e.type ? 'icon-monitor icon-mc-user-group only-img' : 'icon-monitor icon-mc-user-one only-img'
-    }), 'group' === e.type ? o('span', {
-      class: n
-    }, [e.display_name]) : o('span', {
-      class: n
-    }, [e.id, ' (', e.display_name, ')'])]);
+    return o(
+      'div',
+      {
+        class: t,
+      },
+      [
+        e.logo
+          ? o('img', {
+              class: r,
+              attrs: {
+                src: e.logo,
+              },
+            })
+          : o('i', {
+              class:
+                'group' === e.type
+                  ? 'icon-monitor icon-mc-user-group only-img'
+                  : 'icon-monitor icon-mc-user-one only-img',
+            }),
+        'group' === e.type
+          ? o(
+              'span',
+              {
+                class: n,
+              },
+              [e.display_name],
+            )
+          : o(
+              'span',
+              {
+                class: n,
+              },
+              [e.id, ' (', e.display_name, ')'],
+            ),
+      ],
+    );
   }
   renderMerberList(e, h) {
     return this.renderPublicCode(e, 'bk-selector-node bk-selector-member only-notice', 'text', 'avatar', h);
@@ -131,7 +150,7 @@ export default class MemberSelector extends Vue {
       type: user.type,
       index: user.index,
       id: user.username,
-      display_name: user.display_name
+      display_name: user.display_name,
     };
     return this.renderMerberList(renderListItem, h);
   }
@@ -141,7 +160,6 @@ export default class MemberSelector extends Vue {
   }
   // 查找display_name
   getDefaultUsername(list, val) {
-    // eslint-disable-next-line no-restricted-syntax
     for (const item of list) {
       if (item.username === val) return item.display_name;
       if (item.children?.length) return this.getDefaultUsername(item.children, val);

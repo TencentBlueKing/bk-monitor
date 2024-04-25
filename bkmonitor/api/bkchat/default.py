@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 
 import abc
 
-import requests
 import six
 from django.conf import settings
 from django.utils.translation import ugettext as _
@@ -32,26 +31,18 @@ class BkchatAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     def label(self):
         return self.__doc__
 
-    def perform_request(self, validated_request_data):
-        if not settings.BKHCAT_APP_CODE:
-            return super(BkchatAPIGWResource, self).perform_request(validated_request_data)
-
-        request_url = self.get_request_url(validated_request_data)
-        validated_request_data.update(
-            {
-                "bk_app_code": settings.BKHCAT_APP_CODE,
-                "bk_app_secret": settings.BKHCAT_APP_SECRET,
-                "biz_id": settings.BKCHAT_BIZ_ID,
-            }
-        )
-        if self.method == "POST":
-            response = requests.post(request_url, json=validated_request_data).json()
-        else:
-            response = requests.get(request_url, params=validated_request_data).json()
-        if response.get("result"):
-            return response["data"]
-        else:
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=response)
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(BkchatAPIGWResource, self).full_request_data(validated_request_data)
+        # 组装自定义参数
+        if settings.BKCHAT_APP_CODE:
+            validated_request_data.update(
+                {
+                    "bk_app_code": settings.BKHCAT_APP_CODE,
+                    "bk_app_secret": settings.BKHCAT_APP_SECRET,
+                    "biz_id": settings.BKCHAT_BIZ_ID,
+                }
+            )
+        return validated_request_data
 
 
 class GetNoticeGroup(BkchatAPIGWResource):
@@ -109,4 +100,5 @@ class SendNoticeGroupMsg(BkchatAPIGWResource):
                     pass
             return {"username_check": {"invalid": invalid}, "message": str(e)}
         except Exception as e:
+            self.report_api_failure_metric(error_code=getattr(e, 'code', 0), exception_type=type(e).__name__)
             return {"username_check": {"invalid": validated_request_data["notice_group_id_list"]}, "message": str(e)}

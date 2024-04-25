@@ -25,7 +25,10 @@
     <span class="icon log-icon icon-index-set"></span>
     <h2 class="main-tip">{{ $t('当前业务无数据可检索') }}</h2>
     <!-- 要使用检索功能，请先创建索引集 -->
-    <div class="index-manage-container" v-if="space.project_manage">
+    <div
+      v-if="space.project_manage"
+      class="index-manage-container"
+    >
       <!-- 日志数据已进入数据平台或ES 关联已入库的数据 -->
       <div class="index-manage">
         <div class="index-manage-tips">
@@ -36,7 +39,8 @@
           class="king-button"
           theme="primary"
           :outline="true"
-          @click="goToCreateIndex">
+          @click="goToCreateIndex"
+        >
           {{ $t('新建索引集') }}
         </bk-button>
       </div>
@@ -50,13 +54,19 @@
           class="king-button"
           theme="primary"
           :outline="true"
-          @click="goToCreateCollection">
+          @click="goToCreateCollection"
+        >
           {{ $t('新建采集接入') }}
         </bk-button>
       </div>
     </div>
     <!-- 请联系业务运维配索引集 -->
-    <p class="side-tip" v-else>{{ $t('请联系业务运维配索引集') }}</p>
+    <p
+      v-else
+      class="side-tip"
+    >
+      {{ $t('请联系业务运维配索引集') }}
+    </p>
   </div>
 </template>
 
@@ -66,16 +76,16 @@ import { mapGetters } from 'vuex';
 export default {
   computed: {
     ...mapGetters({
-      space: 'space',
-    }),
+      space: 'space'
+    })
   },
   methods: {
     goToCreateIndex() {
       this.$router.push({
         path: '/manage/log-collection/log-index-set',
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
     },
     goToCreateCollection() {
@@ -83,75 +93,75 @@ export default {
         this.$router.push({
           path: '/manage/log-collection',
           query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
+            spaceUid: this.$store.state.spaceUid
+          }
         });
       } else {
         window.open(window.BKDATA_URL);
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style scoped lang="scss">
-  .no-index-set-container {
-    text-align: center;
-    margin-top: 142px;
-    height: calc(100% - 142px);
+.no-index-set-container {
+  height: calc(100% - 142px);
+  margin-top: 142px;
+  text-align: center;
 
-    .icon-index-set {
-      margin-bottom: 25px;
-      font-size: 52px;
-      color: #d4d6dd;
-    }
+  .icon-index-set {
+    margin-bottom: 25px;
+    font-size: 52px;
+    color: #d4d6dd;
+  }
 
-    .main-tip {
-      margin-bottom: 30px;
-      font-size: 18px;
-      color: #313238;
-    }
+  .main-tip {
+    margin-bottom: 30px;
+    font-size: 18px;
+    color: #313238;
+  }
 
-    .index-manage-container {
+  .index-manage-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 732px;
+    margin: 80px auto 0;
+
+    .index-manage {
       display: flex;
-      justify-content: space-between;
+      flex-flow: column;
       align-items: center;
-      width: 732px;
-      margin: 80px auto 0;
+      width: 346px;
+      height: 200px;
+      background: #fff;
+      border-radius: 2px;
 
-      .index-manage {
-        display: flex;
-        flex-flow: column;
-        align-items: center;
-        width: 346px;
-        height: 200px;
-        background: #fff;
-        border-radius: 2px;
+      .index-manage-tips {
+        height: 88px;
+        margin: 40px 0 0;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 24px;
+        color: #63656e;
 
-        .index-manage-tips {
-          height: 88px;
-          margin: 40px 0 0;
-          color: #63656e;
-          font-size: 14px;
-          font-weight: 600;
-          line-height: 24px;
-
-          p:last-child {
-            color: #979ba5;
-            font-weight: normal;
-          }
-        }
-
-        .king-button {
-          border-radius: 16px;
+        p:last-child {
+          font-weight: normal;
+          color: #979ba5;
         }
       }
-    }
 
-    .side-tip {
-      margin-bottom: 30px;
-      font-size: 14px;
-      color: #979ba5;
+      .king-button {
+        border-radius: 16px;
+      }
     }
   }
+
+  .side-tip {
+    margin-bottom: 30px;
+    font-size: 14px;
+    color: #979ba5;
+  }
+}
 </style>

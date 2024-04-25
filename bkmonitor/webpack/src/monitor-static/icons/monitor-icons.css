@@ -6,6 +6,7 @@
   src: url('monitor-icons.woff2?t=1705908796951') format('woff2'),
        url('monitor-icons.woff?t=1705908796951') format('woff'),
        url('monitor-icons.ttf?t=1705908796951') format('truetype');
+  font-display: swap;
 }
 
 .icon-monitor {
@@ -14,6 +15,10 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-profiling:before {
+  content: '\e7a5';
 }
 
 .icon-dingwei1:before {

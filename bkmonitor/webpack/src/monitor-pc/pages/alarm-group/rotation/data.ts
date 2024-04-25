@@ -28,7 +28,7 @@
 export function dutyNoticeConfigToParams(data) {
   const typeMap = {
     week: 'weekly',
-    month: 'monthly'
+    month: 'monthly',
   };
   const hoursAgo = (() => {
     if (data.timeType === 'week') {
@@ -43,32 +43,32 @@ export function dutyNoticeConfigToParams(data) {
       chat_ids: data.rtxId.split(','),
       type: typeMap[data.sendType],
       date: typeMap[data.sendType] === 'weekly' ? data.week : data.month,
-      time: data.sendTime
+      time: data.sendTime,
     },
     personal_notice: {
       enabled: data.needNotice,
       hours_ago: hoursAgo,
-      duty_rules: data.rotationId
-    }
+      duty_rules: data.rotationId,
+    },
   };
 }
 /* 将后台数据转换为组件数据 */
 export function paramsToDutyNoticeConfig(dutyNotice) {
   const typeMap = {
     weekly: 'week',
-    monthly: 'month'
+    monthly: 'month',
   };
   const hoursAgo = (() => {
     const days = dutyNotice.personal_notice.hours_ago / 24;
     if (days % 7 === 0) {
       return {
         timeType: 'week',
-        startNum: days / 7
+        startNum: days / 7,
       };
     }
     return {
       timeType: 'day',
-      startNum: days
+      startNum: days,
     };
   })();
   return {
@@ -82,6 +82,6 @@ export function paramsToDutyNoticeConfig(dutyNotice) {
     needNotice: dutyNotice.personal_notice.enabled,
     startNum: hoursAgo.startNum,
     timeType: hoursAgo.timeType,
-    rotationId: dutyNotice.personal_notice.duty_rules
+    rotationId: dutyNotice.personal_notice.duty_rules,
   };
 }

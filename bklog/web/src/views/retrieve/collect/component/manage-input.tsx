@@ -35,6 +35,12 @@ export default class ManageInput extends tsc<IProps> {
   @Ref() inputRef: any;
 
   inputStr = '';
+  isClick = false;
+
+  /** 是否展示失效 */
+  isFailFavorite(item) {
+    return item.index_set_type === 'single' ? !item.is_active : !item.is_actives.every(Boolean);
+  }
 
   @Watch('favoriteData.name', { immediate: true })
   handleWatchFavoriteName(str) {
@@ -45,7 +51,12 @@ export default class ManageInput extends tsc<IProps> {
   handleChangeFavoriteName() {
     return this.inputStr;
   }
-  isClick = false;
+
+  /** 是否是多索引集 */
+  isMultiIndex(item) {
+    return item.index_set_type === 'union';
+  }
+
   handleClickInput() {
     this.isClick = true;
     this.$nextTick(() => {
@@ -58,20 +69,28 @@ export default class ManageInput extends tsc<IProps> {
   }
   render() {
     return (
-      <div class="manage-input" onClick={this.handleClickInput}>
+      <div
+        class='manage-input'
+        onClick={this.handleClickInput}
+      >
         {this.isClick ? (
           <Input
             vModel={this.inputStr}
-            ref="inputRef"
+            ref='inputRef'
             onBlur={this.blurInput}
             maxlength={30}
           ></Input>
         ) : (
-          <div class="collect-box">
-            <span class="collect-name" v-bk-overflow-tips>{this.inputStr}</span>
+          <div class='collect-box'>
+            <span
+              class='collect-name'
+              v-bk-overflow-tips
+            >
+              {this.inputStr}
+            </span>
             {!this.favoriteData.is_active ? (
               <span v-bk-tooltips={{ content: this.$t('数据源不存在'), placement: 'right' }}>
-                <span class="bk-icon log-icon icon-shixiao"></span>
+                <span class='bk-icon log-icon icon-shixiao'></span>
               </span>
             ) : undefined}
           </div>

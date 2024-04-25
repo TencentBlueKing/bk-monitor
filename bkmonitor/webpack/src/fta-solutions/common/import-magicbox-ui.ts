@@ -29,6 +29,7 @@
  * @Description:
  */
 import Vue from 'vue';
+
 import bkMagicVue from 'bk-magic-vue';
 
 // import Vue from 'vue';
