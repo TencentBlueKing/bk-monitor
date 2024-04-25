@@ -59,8 +59,8 @@ def new_report_detect():
         )
         if (
             frequency["type"] != 5
-            and last_send_time.strftime("%Y-%m-%d") >= datetime.datetime.today().strftime("%Y-%m-%d")
             and last_send_time
+            and last_send_time.strftime("%Y-%m-%d") >= datetime.datetime.today().strftime("%Y-%m-%d")
         ):
             logger.info(f"[new_report_detect] report({report.id}) is not 5 type and already send today.")
             continue
@@ -69,7 +69,7 @@ def new_report_detect():
             f"[new_report_detect] report({report.id}) last_send_time: {last_send_time},"
             f" run_time_strings:{run_time_strings}"
         )
-        if not is_run_time(frequency, run_time_strings, last_send_time):
+        if not is_run_time(frequency, run_time_strings):
             logger.info(f"[new_report_detect] report({report.id}) is not at sending time.")
             continue
         # 根据渠道分别发送，记录最新发送轮次

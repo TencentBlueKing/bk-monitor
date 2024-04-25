@@ -54,7 +54,7 @@ def parse_frequency(frequency, last_send_time=None) -> list:
     return run_time_strings
 
 
-def is_run_time(frequency, run_time_strings: list, last_send_time=None) -> bool:
+def is_run_time(frequency, run_time_strings: list) -> bool:
     """
     是否到执行时间
     """
