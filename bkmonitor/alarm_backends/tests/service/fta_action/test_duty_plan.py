@@ -1482,6 +1482,7 @@ class TestEffectiveTime:
         ],
     )
     def test_user_group_save(self, db_setup, duty_group_data, create_time, duty_user):
+
         create_time = time_tools.str2datetime(create_time)
         with mock.patch("bkmonitor.action.serializers.strategy.time_tools.datetime_today", return_value=create_time):
             g_slz = UserGroupDetailSlz(data=duty_group_data)

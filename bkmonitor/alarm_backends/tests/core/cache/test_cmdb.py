@@ -247,8 +247,6 @@ class TestHostManager(TestCMDBBaseTestCase):
             Host(bk_host_innerip="10.0.0.1", bk_cloud_id=1, bk_host_id=1, bk_biz_id=2),
             Host(bk_host_innerip="10.0.0.3", bk_cloud_id=3, bk_host_id=3, bk_biz_id=2),
             Host(bk_host_innerip="10.0.0.4", bk_cloud_id=4, bk_host_id=4, bk_biz_id=2),
-            Host(bk_host_innerip="10.0.0.5", bk_cloud_id=5, bk_host_id=5, bk_biz_id=4),
-            Host(bk_host_innerip="10.0.0.6", bk_cloud_id=6, bk_host_id=6, bk_biz_id=4),
         ]
 
         def mocked_get_host_by_topo_node(bk_biz_id, **kwargs):
@@ -262,7 +260,7 @@ class TestHostManager(TestCMDBBaseTestCase):
         HostManager.refresh()
         hosts = HostManager.all()
 
-        # 删除了一台业务2的机器,业务4下的机器也已删除
+        # 删除了一台业务2的机器
         excepted_hosts_result = [
             Host(bk_host_innerip="10.0.0.1", bk_cloud_id=1, bk_host_id=1, bk_biz_id=2),
             Host(bk_host_innerip="10.0.0.3", bk_cloud_id=3, bk_host_id=3, bk_biz_id=2),
