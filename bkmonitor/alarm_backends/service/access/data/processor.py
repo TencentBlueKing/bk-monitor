@@ -578,6 +578,14 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 如果没有分批任务，直接返回
         if self.batch_count == 1:
+            metrics.ACCESS_DATA_PROCESS_TIME.labels(strategy_group_key=metrics.TOTAL_TAG).observe(
+                time.time() - start_time
+            )
+            metrics.ACCESS_DATA_PROCESS_COUNT.labels(
+                strategy_group_key=metrics.TOTAL_TAG,
+                status=metrics.StatusEnum.from_exc(exc),
+                exception=exc,
+            ).inc()
             return
 
         # 等待分批任务结果
