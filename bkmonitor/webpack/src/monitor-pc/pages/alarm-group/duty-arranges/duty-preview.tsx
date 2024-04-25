@@ -41,7 +41,7 @@ export interface IUserGroup {
 }
 interface IDateGroup {
   // 日期组
-  dateStr: string | { name: string } | any; // 日期
+  dateStr: { name: string } | any | string; // 日期
   userGroups: IUserGroup[][];
 }
 interface IGroup {
@@ -49,7 +49,7 @@ interface IGroup {
   dateGroups: IDateGroup[];
 }
 interface IEvents {
-  onCycleType?: 'right' | 'left';
+  onCycleType?: 'left' | 'right';
 }
 export interface IPreviewValue {
   // 空闲期 例子 leisure: [ range: [[1,10],[50,100]], dateStr: '2-18' ]
@@ -122,7 +122,7 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
   }
   /* 点击切换周期 */
   @Emit('cycleType')
-  handleLeftOrRightChange(type: 'right' | 'left') {
+  handleLeftOrRightChange(type: 'left' | 'right') {
     return type;
   }
   /* 用户组样式 */
@@ -194,10 +194,10 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
           <div class='title-items'>
             {this.previewData.groups.map(item => (
               <div
-                class='title-item'
                 style={{
                   height: `${this.getGroupHeight(item)}px`,
                 }}
+                class='title-item'
               >
                 {item.title}
               </div>
@@ -234,8 +234,8 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
                   <div class='leisure-col'>
                     {item.col.map(r => (
                       <div
-                        class='leisure'
                         style={this.getLeisureiStyle(r.range)}
+                        class='leisure'
                         v-bk-tooltips={{
                           content: r.time,
                           theme: 'light',
@@ -250,30 +250,30 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
               </div>
               {this.previewData.groups.map((group, groupIndex) => (
                 <div
-                  class='row'
                   style={{
                     height: `${this.getGroupHeight(group)}px`,
                   }}
+                  class='row'
                 >
                   {group.dateGroups.map(g => (
                     <div class='col'>
                       {g?.userGroups.map((u, row) =>
                         u.map(item => (
                           <div
-                            class='user-item'
                             style={this.getUserGroupStyle(item.color, item.range, row)}
+                            class='user-item'
                             onMouseenter={(event: Event) => this.handleMouseenter(event, item)}
                           >
                             {item.users.map(user => user.name || user.id).join(',')}
                           </div>
-                        )),
+                        ))
                       )}
                     </div>
                   ))}
                   {this.previewData.crossDayGroups[groupIndex].groups.map(group => (
                     <div
-                      class='user-item cross'
                       style={this.getCrossUserGroupStyle(group.userGroup.color, group.range, 0)}
+                      class='user-item cross'
                       onMouseenter={(event: Event) =>
                         this.handleMouseenter(event, { ...group.userGroup, time: group.time }, true)
                       }
@@ -288,8 +288,8 @@ export default class DutyPreview extends tsc<IProps, IEvents> {
         </div>
         <div style={{ display: 'none' }}>
           <div
-            class='duty-preview-component-user-item-tip'
             ref='userTip'
+            class='duty-preview-component-user-item-tip'
           >
             <div class='time'>{this.popover.time}</div>
             <div class='users'>{this.popover.users.map(item => `${item.id} (${item.name})`).join(', ')}</div>

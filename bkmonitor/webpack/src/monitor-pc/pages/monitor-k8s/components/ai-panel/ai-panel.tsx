@@ -25,17 +25,19 @@
  */
 import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { isShadowEqual, reviewInterval } from 'monitor-ui/chart-plugins/utils';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { FormattedValue, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryOption } from '../../../performance/performance-type';
 import ViewDetail from '../../../view-detail/view-detail-new';
 import { PanelToolsType } from '../../typings/panel-tools';
+
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
 import './ai-panel.scss';
 
@@ -233,7 +235,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
           interval: reviewInterval(
             this.viewOptions.interval,
             dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-            row.panel.collect_interval,
+            row.panel.collect_interval
           ),
         });
         copyPanel = variablesService.transformVariables(copyPanel);
@@ -292,11 +294,11 @@ export default class Aipanel extends tsc<ICommonListProps> {
             onClick={this.handleToAddStrategy}
           ></span>
           <i
+            class='bk-icon icon-cog-shape setting-icon'
             v-bk-tooltips={{
               content: this.$t('AI设置'),
               delay: 200,
             }}
-            class='bk-icon icon-cog-shape setting-icon'
             onClick={this.handlerGoAiSettings}
           ></i>
         </div>

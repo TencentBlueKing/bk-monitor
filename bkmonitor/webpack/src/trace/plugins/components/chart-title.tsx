@@ -25,6 +25,7 @@
  */
 import { computed, ComputedRef, defineComponent, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
@@ -37,7 +38,6 @@ import {
   IMenuItem,
   ITitleAlarm,
 } from '../typings';
-
 import TitleMenu from './title-menu';
 
 import './chart-title.scss';
@@ -114,7 +114,7 @@ export default defineComponent({
         const data = await fetchItemStatus({ metric_ids: [id] }).catch(() => ({ [id]: 0 }));
         alarmStatus.value = data?.[id];
       },
-      { immediate: true },
+      { immediate: true }
     );
     function handleShowMenu(e: any) {
       if (!props.draging) {
@@ -243,8 +243,8 @@ export default defineComponent({
                 v-slots={{
                   default: () => (
                     <i
-                      class='icon-monitor icon-hint tips-icon'
                       style={{ display: this.showMore ? 'flex' : 'none' }}
+                      class='icon-monitor icon-hint tips-icon'
                     />
                   ),
                   content: () => (
@@ -260,10 +260,10 @@ export default defineComponent({
             {this.showMetricAlarm && this.metricTitleData ? (
               <Popover content={this.$t('添加策略')}>
                 <i
-                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   style={{
                     display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
+                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   onClick={this.handleAllMetricSelect}
                 ></i>
               </Popover>
@@ -275,8 +275,8 @@ export default defineComponent({
                     marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
                     display: this.showMore ? 'flex' : 'none',
                   }}
-                  tabindex='undefined'
                   class='icon-monitor icon-mc-more more-icon icon-btn'
+                  tabindex='undefined'
                 />
               </Popover>
             }
@@ -284,18 +284,18 @@ export default defineComponent({
           {this.subtitle && <div class='sub-title'>{this.subtitle}</div>}
         </div>
         <TitleMenu
-          list={this.menuList}
-          drillDownOption={this.drillDownOption}
-          onSelect={this.handleMenuClick}
-          onMetricSelect={this.handleMetricSelect}
-          onChildMenuToggle={this.handleChildMenuToggle}
-          metrics={this.metrics}
-          showAddMetric={this.showAddMetric}
           style={{
             left: `${this.menuLeft}px`,
             top: '36px',
             display: this.showMenu ? 'flex' : 'none',
           }}
+          drillDownOption={this.drillDownOption}
+          list={this.menuList}
+          metrics={this.metrics}
+          showAddMetric={this.showAddMetric}
+          onChildMenuToggle={this.handleChildMenuToggle}
+          onMetricSelect={this.handleMetricSelect}
+          onSelect={this.handleMenuClick}
           onSelectChild={this.handleMenuChildClick}
         ></TitleMenu>
       </div>

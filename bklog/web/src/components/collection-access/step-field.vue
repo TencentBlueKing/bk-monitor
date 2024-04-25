@@ -845,10 +845,6 @@ export default {
     isJsonOrOperator() {
       return this.params.etl_config === 'bk_log_json' || this.params.etl_config === 'bk_log_delimiter';
     },
-    hasFormat() {
-      // 最后一次正确的fileds结果
-      return this.formData.fields.length;
-    },
     showDebugBtn() {
       const methods = this.params.etl_config;
       if (!methods || methods === 'bk_log_text') return false;
@@ -1234,11 +1230,10 @@ export default {
     },
     // 检查提取方法或条件是否已变更
     checkEtlConfChnage(isCollect = false) {
-      // 非bk_log_text类型需要有正确的结果
-      // if (this.formData.etl_config && this.formData.etl_config !== 'bk_log_text' && !this.hasFormat) return;
       let isConfigChange = false; // 提取方法或条件是否已变更
       const etlConfigParam = this.params.etl_config;
-      if (etlConfigParam !== 'bk_log_text') {
+      // 如果未选模式 则默认传bk_log_text
+      if (etlConfigParam !== 'bk_log_text' && !!etlConfigParam) {
         const etlConfigForm = this.formData.etl_config;
         if (etlConfigParam !== etlConfigForm) {
           isConfigChange = true;
@@ -1277,12 +1272,6 @@ export default {
     },
     // 完成按钮
     finish(isCollect = false) {
-      if (!this.params.etl_config) {
-        this.$bkMessage({
-          theme: 'error',
-          message: this.$t('请选择字段提取方法')
-        });
-      }
       const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
       if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
         this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));

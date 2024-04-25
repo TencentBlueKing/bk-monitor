@@ -25,6 +25,7 @@
  */
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils/utils';
 import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -65,7 +66,7 @@ export default class SceneView extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 当前业务id
-  @ProvideReactive('bkBizId') bkBizId: string | number = null;
+  @ProvideReactive('bkBizId') bkBizId: number | string = null;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   @Watch('show')
@@ -137,7 +138,7 @@ export default class SceneView extends tsc<IProps> {
 
   handleToCustomScene() {
     window.open(
-      `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/custom-scenes/view/${this.sceneId}?name=${this.sceneName}`,
+      `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/custom-scenes/view/${this.sceneId}?name=${this.sceneName}`
     );
   }
 
@@ -149,12 +150,12 @@ export default class SceneView extends tsc<IProps> {
       >
         {!!this.localPanels.length && (
           <DashboardPanel
-            panels={this.localPanels}
-            needOverviewBtn={false}
-            isSplitPanel={false}
-            isSingleChart={this.isSingleChart}
-            column={3}
             id={this.dashboardPanelId}
+            column={3}
+            isSingleChart={this.isSingleChart}
+            isSplitPanel={false}
+            needOverviewBtn={false}
+            panels={this.localPanels}
           ></DashboardPanel>
         )}
         {!this.readonly && !!this.localPanels.length && (

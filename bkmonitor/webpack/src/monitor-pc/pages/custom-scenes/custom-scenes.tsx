@@ -25,6 +25,7 @@
  */
 import { Component, Mixins } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import axios from 'axios';
 import { getLabel } from 'monitor-api/modules/commons';
 import { getObservationSceneList, getObservationSceneStatusList } from 'monitor-api/modules/scene_view';
@@ -39,15 +40,14 @@ import CommonStatus, { CommonStatusType } from '../monitor-k8s/components/common
 import CommonTable from '../monitor-k8s/components/common-table';
 import PageTitle from '../monitor-k8s/components/page-title';
 import { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings';
-
 import * as authMap from './authority-map';
 
 import './custom-scenes.scss';
 
 enum ESceneType {
-  plugin = 'plugin',
-  customMetric = 'custom_metric',
   customEvent = 'custom_event',
+  customMetric = 'custom_metric',
+  plugin = 'plugin',
 }
 
 const STATUS_TYPE = {
@@ -55,7 +55,7 @@ const STATUS_TYPE = {
   SUCCESS: window.i18n.t('正常'),
 };
 
-const addTypes: { id: ESceneType; name: string | any }[] = [
+const addTypes: { id: ESceneType; name: any | string }[] = [
   { id: ESceneType.plugin, name: window.i18n.t('插件采集') },
   { id: ESceneType.customMetric, name: window.i18n.t('自定义指标') },
   { id: ESceneType.customEvent, name: window.i18n.t('自定义事件') },
@@ -160,7 +160,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     }
     if (this.keyword) {
       this.tableData.allData = this.allData.filter(
-        item => String(item.name).indexOf(this.keyword) > -1 || String(item.sub_name).indexOf(this.keyword) > -1,
+        item => String(item.name).indexOf(this.keyword) > -1 || String(item.sub_name).indexOf(this.keyword) > -1
       );
     }
     this.tableData.pagination.count = this.tableData.allData.length;
@@ -174,7 +174,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     this.tableData.pagination.current = 1;
     if (this.keyword) {
       this.tableData.allData = this.allData.filter(
-        item => String(item.name).indexOf(this.keyword) > -1 || String(item.sub_name).indexOf(this.keyword) > -1,
+        item => String(item.name).indexOf(this.keyword) > -1 || String(item.sub_name).indexOf(this.keyword) > -1
       );
     } else {
       this.tableData.allData = this.allData.map(item => item);
@@ -209,7 +209,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
       { scene_view_ids: sceneViewIds },
       {
         cancelToken: this.cancelTokenSource.token,
-      },
+      }
     )
       .then(res => {
         this.statusLoading = false;
@@ -394,12 +394,12 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
         v-bkloading={{ isLoading: this.loading }}
       >
         <PageTitle
-          tabList={[]}
           activeTab={''}
-          showSearch={false}
           showFilter={false}
           showInfo={false}
+          showSearch={false}
           showSelectPanel={false}
+          tabList={[]}
         >
           <span slot='title'>{this.$t('自定义场景')}</span>
         </PageTitle>
@@ -420,8 +420,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 >
                   {addTypes.map(item => (
                     <li
-                      onClick={() => this.handleAdd(item.id)}
                       class='list-item'
+                      onClick={() => this.handleAdd(item.id)}
                     >
                       {item.name}
                     </li>
@@ -430,19 +430,15 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
               </bk-dropdown-menu>
               <bk-input
                 class='search-wrapper-input'
-                placeholder={window.i18n.t('搜索')}
                 v-model={this.keyword}
+                placeholder={window.i18n.t('搜索')}
                 right-icon='bk-icon icon-search'
-                onChange={this.handleSearchChange}
                 on-enter={this.handleSearchChange}
                 on-right-icon-click={this.handleSearchChange}
+                onChange={this.handleSearchChange}
               />
             </div>
             <CommonTable
-              columns={this.tableData.columns}
-              data={this.tableData.data}
-              pagination={this.tableData.pagination}
-              checkable={false}
               scopedSlots={{
                 name: (row: ITableItem) => (
                   <div class='column-name'>
@@ -463,8 +459,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                     <div class='column-status'>
                       {row.status ? (
                         <CommonStatus
-                          type={row.status}
                           text={STATUS_TYPE[row.status]}
+                          type={row.status}
                         ></CommonStatus>
                       ) : (
                         '--'
@@ -513,8 +509,12 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                   ),
                 ],
               }}
-              onPageChange={this.handlePageChange}
+              checkable={false}
+              columns={this.tableData.columns}
+              data={this.tableData.data}
+              pagination={this.tableData.pagination}
               onLimitChange={this.handleLimitChange}
+              onPageChange={this.handlePageChange}
             >
               <EmptyStatus
                 slot='empty'

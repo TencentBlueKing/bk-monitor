@@ -55,6 +55,7 @@
 </template>
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
+
 import { random } from 'monitor-common/utils/utils';
 import { Loading, Overlay, PullRefresh } from 'vant';
 

@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import './filter-var-tag-input.scss';
@@ -97,15 +98,15 @@ export default class FilterVarTagInput extends tsc<IProps, IEvents> {
       <span class='filter-var-tag-input'>
         <bk-tag-input
           v-model={this.localValue}
-          list={this.list}
-          trigger='focus'
-          has-delete-icon={this.clearable}
           clearable={this.clearable}
-          allow-create
-          allow-auto-match
+          has-delete-icon={this.clearable}
+          list={this.list}
           max-data={this.multiple ? -1 : 1}
-          placeholder={this.$t('输入')}
           paste-fn={this.handlePaste}
+          placeholder={this.$t('输入')}
+          trigger='focus'
+          allow-auto-match
+          allow-create
           on-change={this.handleChange}
         ></bk-tag-input>
       </span>

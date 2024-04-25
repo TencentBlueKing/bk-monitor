@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -35,7 +36,6 @@ import { debounce } from 'throttle-debounce';
 
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
-
 import { defaultConfig } from './mermaid';
 
 // import mermaid  from './dist/mermaid.core.mjs';
@@ -190,10 +190,8 @@ export default defineComponent({
             const collapseCount = item.group_info.members.filter(spanId =>
               connections.some(
                 connection =>
-                  connection.original.span_id === spanId &&
-                  !connection.parallel_id &&
-                  !connection.parallel_path?.length,
-              ),
+                  connection.original.span_id === spanId && !connection.parallel_id && !connection.parallel_path?.length
+              )
             ).length;
             collapseCountMsg = collapseCount > 1 ? ` x${collapseCount} ` : '';
           }
@@ -263,7 +261,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
             },
             {
               needCancel: true,
-            },
+            }
           ).catch(() => false);
           if (!data.diagram_data) {
             showException.value = true;
@@ -301,7 +299,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
           emit('update:loading', false);
         }
       }),
-      { immediate: true },
+      { immediate: true }
     );
     /**
      *
@@ -360,7 +358,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                 item =>
                   item.span_id &&
                   participant.component_name === item.component_name &&
-                  (!participant.span_id || participant.display_name === item.display_name),
+                  (!participant.span_id || participant.display_name === item.display_name)
               )
               .map(item => item.span_id);
             spanIdList = excludeList;
@@ -626,56 +624,56 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
     if (this.showException)
       return (
         <Exception
-          type='empty'
           description={this.$t('暂无数据')}
+          type='empty'
         />
       );
     return (
       <div
-        class='sequence-graph-wrapper'
         ref='sequenceGraphWrapRef'
+        class='sequence-graph-wrapper'
       >
         <div
-          class='sequence-graph'
           ref='sequenceGraphRef'
+          class='sequence-graph'
         >
           <div id={this.graphId}></div>
           <div
-            class='sequence-graph-ref'
             ref='mermaidRef'
+            class='sequence-graph-ref'
             onClick={this.handleClickSvg}
           />
         </div>
         <div class='sequence-tools'>
           {
             <Popover
-              trigger='manual'
-              isShow={this.showThumbnail || this.showLegend}
-              theme='light'
-              placement='top-start'
-              allowHtml={false}
-              arrow={false}
-              zIndex={1001}
-              extCls='sequence-thumbnail-popover'
               width={this.thumbnailRect.width}
               height={this.thumbnailRect.height}
-              content={this.sequenceThumbnailRef}
+              extCls='sequence-thumbnail-popover'
+              allowHtml={false}
+              arrow={false}
               boundary={'parent'}
+              content={this.sequenceThumbnailRef}
+              isShow={this.showThumbnail || this.showLegend}
+              placement='top-start'
               renderType='auto'
+              theme='light'
+              trigger='manual'
+              zIndex={1001}
             >
               {{
                 default: () => (
                   <GraphTools
                     class='sequence-graph-tools'
-                    scaleStep={10}
+                    legendActive={this.showLegend}
                     minScale={10}
+                    scaleStep={10}
                     scaleValue={this.graphScale}
                     thumbnailActive={this.showThumbnail}
-                    legendActive={this.showLegend}
-                    onShowThumbnail={this.handleShowThumbnail}
-                    onStoreImg={this.downloadSvgAsImage}
                     onScaleChange={this.handleScaleChange}
                     onShowLegend={this.handleShowLegend}
+                    onShowThumbnail={this.handleShowThumbnail}
+                    onStoreImg={this.downloadSvgAsImage}
                   />
                 ),
                 content: () => [
@@ -694,17 +692,17 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                           width: `${this.thumbnailViewRect.width}px`,
                           height: `${this.thumbnailViewRect.height}px`,
                         }}
-                        onMousedown={this.handleThumbnailViewMouseDown}
                         class='sequence-thumbnail-view'
+                        onMousedown={this.handleThumbnailViewMouseDown}
                       />
                       <canvas
-                        width={this.thumbnailRect.width * window.devicePixelRatio}
-                        height={this.thumbnailRect.height * window.devicePixelRatio}
+                        id='thumbnail-canvas'
+                        ref='thumbnailRef'
                         style={{
                           transform: `scale(${1 / window.devicePixelRatio})`,
                         }}
-                        id='thumbnail-canvas'
-                        ref='thumbnailRef'
+                        width={this.thumbnailRect.width * window.devicePixelRatio}
+                        height={this.thumbnailRect.height * window.devicePixelRatio}
                         class='sequence-thumbnail-canvas'
                       ></canvas>
                     </div>

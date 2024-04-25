@@ -32,7 +32,7 @@ import './add-btn.scss';
 @Component
 export default class AddBtn extends tsc<
   {
-    text: string | TranslateResult;
+    text: TranslateResult | string;
   },
   {
     onClick: (payload: MouseEvent) => void;

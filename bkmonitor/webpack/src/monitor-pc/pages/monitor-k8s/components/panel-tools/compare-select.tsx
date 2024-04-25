@@ -26,12 +26,12 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { IOption } from '../../typings';
 import { COMPARE_KEY, COMPARE_LIST, COMPARE_TIME_OPTIONS, PanelToolsType } from '../../typings/panel-tools';
-
 import TargetCompareSelect from './target-compare-select';
 
 import './compare-select.scss';
@@ -176,7 +176,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
     const viewOptions = deepClone(this.targetValue) as IViewOptions;
 
     this.localTargetValue = viewOptions.compares?.targets?.map(item =>
-      this.panel.targets?.[0]?.handleCreateItemId(item, true),
+      this.panel.targets?.[0]?.handleCreateItemId(item, true)
     );
     // this.localTargetValue = viewOptions.compares?.targets?.filter(item => item).map(item => item.bk_host_id);
   }
@@ -205,7 +205,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
   @Emit('compareChange')
   handleCompareChange(
     type: PanelToolsType.CompareId,
-    val?: PanelToolsType.CompareValue<PanelToolsType.CompareId>,
+    val?: PanelToolsType.CompareValue<PanelToolsType.CompareId>
   ): PanelToolsType.Compare {
     const defaultDataMap: PanelToolsType.ICompareValueType = {
       none: true,
@@ -331,17 +331,17 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
       <bk-select
         class='bk-select-simplicity compare-select'
         behavior='simplicity'
+        value={localValue}
+        zIndex={this.zIndex}
         multiple
         searchable
-        zIndex={this.zIndex}
-        value={localValue}
-        onSelected={handler}
         onClear={() => handler([])}
+        onSelected={handler}
       >
         {options.map(item => (
           <bk-option
-            key={item.id}
             id={item.id}
+            key={item.id}
             name={item.name}
           ></bk-option>
         ))}
@@ -376,8 +376,8 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
           onChange={this.handleTargetChange} /> */}
           <span class='target-compare-select'>
             <TargetCompareSelect
-              value={this.localTargetValue}
               list={this.targetOptionsFilter as any}
+              value={this.localTargetValue}
               onChange={this.handleTargetChange}
             ></TargetCompareSelect>
           </span>
@@ -387,18 +387,18 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
       time: (
         <bk-select
           class='bk-select-simplicity compare-select time-compare-select'
-          behavior='simplicity'
           v-model={this.localTimeValue}
-          multiple
+          behavior='simplicity'
           zIndex={this.zIndex}
-          onToggle={this.handleSelectToggle}
-          onSelected={list => this.handleTimeChange(list)}
+          multiple
           onClear={() => this.handleTimeChange([])}
+          onSelected={list => this.handleTimeChange(list)}
+          onToggle={this.handleSelectToggle}
         >
           {this.compareTimeList.map(item => (
             <bk-option
-              key={item.id}
               id={item.id}
+              key={item.id}
               name={item.name}
             />
           ))}
@@ -406,13 +406,13 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
             {this.showCustomTime ? (
               <span class='time-input-wrap'>
                 <bk-input
-                  size='small'
                   v-model={this.customTimeVal}
+                  size='small'
                   onKeydown={(_, evt) => this.handleModifiers(evt, this.handleAddCustomTime)}
                 />
                 <span
-                  v-bk-tooltips={this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')}
                   class='help-icon icon-monitor icon-mc-help-fill'
+                  v-bk-tooltips={this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')}
                 />
               </span>
             ) : (
@@ -436,17 +436,17 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
         <span class='compare-select-label'>{this.$t('对比方式')}</span>
         <bk-select
           class='bk-select-simplicity compare-select'
+          v-model={this.localType}
           behavior='simplicity'
           clearable={false}
-          v-model={this.localType}
           disabled={!this.needCompare}
           zIndex={this.zIndex}
           onSelected={this.handleTypeChange}
         >
           {this.compareEnable.map(item => (
             <bk-option
-              key={item.id}
               id={item.id}
+              key={item.id}
               name={item.name}
             />
           ))}

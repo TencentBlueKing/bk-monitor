@@ -27,7 +27,7 @@ export const SPLIT_MIN_WIDTH = 300;
 export const SPLIT_MAX_WIDTH = 1200;
 
 export type SceneType = 'detail' | 'overview';
-export type ContentType = 'dashboard' | 'component' | 'event';
+export type ContentType = 'component' | 'dashboard' | 'event';
 
 export interface IRelateItem {
   id: string;
@@ -69,24 +69,24 @@ export const RELATED_MENU_LIST: IRelateItem[] = [
 ];
 
 export class SplitPanelModel {
+  contentType?: ContentType;
   id: string;
   name: string;
   queryType?: string[];
-  contentType?: ContentType;
   sceneType?: SceneType;
   constructor(model: IRelateItem) {
     Object.keys(model).forEach(key => (this[key] = model[key]));
+  }
+  get defaultParams() {
+    // 事件类型的处理记录需默认 参数
+    if (this.id === 'action_event') return { activeFilterId: 'action', searchType: 'action' };
+    return {};
   }
   get hasFilter() {
     return this.queryType.includes('filter');
   }
   get hasSearchInput() {
     return this.queryType.includes('input');
-  }
-  get defaultParams() {
-    // 事件类型的处理记录需默认 参数
-    if (this.id === 'action_event') return { activeFilterId: 'action', searchType: 'action' };
-    return {};
   }
 }
 

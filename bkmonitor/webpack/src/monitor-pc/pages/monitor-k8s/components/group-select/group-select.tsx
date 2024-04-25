@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
@@ -154,9 +155,9 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
           ))}
           <CustomSelect
             class='group-add-btn'
+            options={this.options}
             value={this.localValue}
             multiple
-            options={this.options}
             onSelected={this.handleAddGroups}
           >
             {this.options.map(opt => (

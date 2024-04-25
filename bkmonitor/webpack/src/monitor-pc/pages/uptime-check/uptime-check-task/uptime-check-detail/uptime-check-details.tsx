@@ -130,28 +130,28 @@ export default class UptimeCheckDetail extends tsc<object> {
     return (
       <div class='uptime-check-detail'>
         <CommonPage
+          defaultViewOptions={this.viewOptions}
+          menuList={this.menuList}
           sceneId={'uptime_check'}
           sceneType={'detail'}
-          menuList={this.menuList}
           onMenuSelect={this.handleMenuSelect}
-          defaultViewOptions={this.viewOptions}
           onTitleChange={this.headerTitleChange}
         >
           <CommonNavBar
             slot='nav'
-            routeList={this.routeList}
-            needShadow={true}
-            needCopyLink
             needBack={true}
+            needShadow={true}
+            routeList={this.routeList}
+            needCopyLink
           />
           {!this.readonly && (
             <span slot='dashboardTools'>
               <bk-button
                 class='ml15'
-                size='small'
-                icon='plus'
-                theme='primary'
                 v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                icon='plus'
+                size='small'
+                theme='primary'
                 onClick={() =>
                   this.authority.MANAGE_AUTH
                     ? this.handleToCreateDialTest()

@@ -25,6 +25,7 @@
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import { Route } from 'vue-router';
+
 import {
   collectConfigList,
   // collectInstanceStatus,
@@ -38,15 +39,14 @@ import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as collectAuth from '../authority-map';
 import { STATUS_LIST } from '../collector-host-detail/utils';
-
+import CollectorConfiguration from './collector-configuration';
+import CollectorStatusDetails from './collector-status-details';
 import { IAlarmGroupList } from './components/alarm-group';
 import AlertTopic from './components/alert-topic';
 import FieldDetails from './components/field-details';
 import LinkStatus from './components/link-status';
 import StorageState from './components/storage-state';
 import { DetailData, TabEnum, TCollectorAlertStage } from './typings/detail';
-import CollectorConfiguration from './collector-configuration';
-import CollectorStatusDetails from './collector-status-details';
 
 import './collector-detail.scss';
 
@@ -221,7 +221,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
         if (count !== this.allData[TabEnum.TargetDetail].pollingCount) return;
         this.allData[TabEnum.TargetDetail].data = data;
         this.allData[TabEnum.TargetDetail].needPolling = data.contents.some(item =>
-          item.child.some(set => STATUS_LIST.includes(set.status)),
+          item.child.some(set => STATUS_LIST.includes(set.status))
         );
         if (!this.allData[TabEnum.TargetDetail].needPolling) {
           window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
@@ -304,11 +304,11 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           >
             {!!this.collectId && (
               <CollectorConfiguration
-                key={this.allData[TabEnum.Configuration].renderKey}
                 id={this.collectId as any}
-                show={this.active === TabEnum.Configuration}
-                detailData={this.detailData}
+                key={this.allData[TabEnum.Configuration].renderKey}
                 collectConfigData={this.collectConfigData}
+                detailData={this.detailData}
+                show={this.active === TabEnum.Configuration}
               ></CollectorConfiguration>
             )}
           </bk-tab-panel>
@@ -317,12 +317,12 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.TargetDetail}
           >
             <AlertTopic
-              class='mb-24'
-              stage={TCollectorAlertStage.collecting}
               id={this.collectId as any}
-              updateKey={this.allData[TabEnum.TargetDetail].topicKey}
+              class='mb-24'
               alarmGroupList={this.alarmGroupList}
               alarmGroupListLoading={this.alarmGroupListLoading}
+              stage={TCollectorAlertStage.collecting}
+              updateKey={this.allData[TabEnum.TargetDetail].topicKey}
               onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
             ></AlertTopic>
             <CollectorStatusDetails
@@ -337,17 +337,17 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.DataLink}
           >
             <AlertTopic
-              class='mb-24'
-              stage={TCollectorAlertStage.transfer}
               id={this.collectId as any}
-              updateKey={this.allData[TabEnum.DataLink].topicKey}
+              class='mb-24'
               alarmGroupList={this.alarmGroupList}
               alarmGroupListLoading={this.alarmGroupListLoading}
+              stage={TCollectorAlertStage.transfer}
+              updateKey={this.allData[TabEnum.DataLink].topicKey}
               onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
             ></AlertTopic>
             <LinkStatus
-              show={this.active === TabEnum.DataLink}
               collectId={this.collectId}
+              show={this.active === TabEnum.DataLink}
             />
           </bk-tab-panel>
           <bk-tab-panel
@@ -355,18 +355,18 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.StorageState}
           >
             <AlertTopic
-              class='mb-24'
-              stage={TCollectorAlertStage.storage}
               id={this.collectId as any}
-              updateKey={this.allData[TabEnum.StorageState].topicKey}
+              class='mb-24'
               alarmGroupList={this.alarmGroupList}
               alarmGroupListLoading={this.alarmGroupListLoading}
+              stage={TCollectorAlertStage.storage}
+              updateKey={this.allData[TabEnum.StorageState].topicKey}
               onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
             ></AlertTopic>
             <StorageState
-              loading={this.allData[TabEnum.StorageState].loading}
-              data={this.allData[TabEnum.StorageState].data}
               collectId={this.collectId}
+              data={this.allData[TabEnum.StorageState].data}
+              loading={this.allData[TabEnum.StorageState].loading}
             />
           </bk-tab-panel>
           <bk-tab-panel
@@ -376,8 +376,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             <FieldDetails detailData={this.detailData} />
           </bk-tab-panel>
           <span
-            slot='setting'
             class='tab-right-tip'
+            slot='setting'
           >
             <span class='icon-monitor icon-tishi'></span>
             <span>{this.$t('可对当前采集内容进行检索')},</span>

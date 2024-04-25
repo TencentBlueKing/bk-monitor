@@ -26,7 +26,7 @@
 
 import { Span } from '../typings';
 
-type IToggleStatus = 'expand' | 'collpase';
+type IToggleStatus = 'collpase' | 'expand';
 
 /** 基于 traceTree 进行折叠分组
  * 折叠条件：

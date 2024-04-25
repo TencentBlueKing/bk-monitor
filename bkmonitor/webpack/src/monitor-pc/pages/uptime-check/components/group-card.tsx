@@ -36,7 +36,7 @@ const logoIconStyle = (logo: string) => ({
   'border-radius': logo ? '0' : '100%',
 });
 
-export type IOptionType = 'edit' | 'delete';
+export type IOptionType = 'delete' | 'edit';
 
 const options: { id: IOptionType; name: string }[] = [
   { id: 'edit', name: window.i18n.tc('编辑') },
@@ -161,21 +161,21 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
     return (
       <div
         class={['uptime-check-group-card', { active: this.dragStatus.dragging && this.hover }]}
-        onMouseleave={this.handleMouseleave}
-        onDragover={(e: Event) => this.handleDragOver(e)}
+        onClick={this.handleGroupClick}
         onDragenter={() => {
           this.hover = true;
         }}
         onDragleave={() => {
           this.hover = false;
         }}
+        onDragover={(e: Event) => this.handleDragOver(e)}
         onDrop={this.handleDrop}
-        onClick={this.handleGroupClick}
+        onMouseleave={this.handleMouseleave}
       >
         <div class='card-desc'>
           <span
-            class='desc-icon'
             style={logoIconStyle(this.data.logo)}
+            class='desc-icon'
           >
             {!this.data.logo ? this.data.name.slice(0, 1).toLocaleUpperCase() : ''}
           </span>
@@ -224,9 +224,9 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
                 </div>
                 <bk-progress
                   class='progress-item'
+                  color={processColor(item.available)}
                   percent={+(item.available * 0.01).toFixed(2) || 0}
                   showText={false}
-                  color={processColor(item.available)}
                 ></bk-progress>
               </div>
             ))}
@@ -239,8 +239,8 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
         )}
         <div style={{ display: 'none' }}>
           <div
-            class='popover-desc'
             ref='popoverContent'
+            class='popover-desc'
           >
             {options.map(item => (
               <div

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import NoticeModeNew, {
   INoticeWayValue,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
@@ -53,7 +54,7 @@ export interface IAlarmGroupDeatail {
 }
 interface IEvent {
   onShowChange?: boolean;
-  onEditGroup?: string | number;
+  onEditGroup?: number | string;
 }
 interface IFormData {
   channels: string[];
@@ -423,8 +424,8 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
         class='alarm-group-detail-wrap'
         {...{ on: { 'update:isShow': this.emitIsShow } }}
         width={960}
-        quick-close={true}
         is-show={this.show}
+        quick-close={true}
       >
         <div
           class='alarm-detail-header'
@@ -442,9 +443,9 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
           )}
           <bk-button
             class={['header-edit', { disabled: !this.editAllowed }]}
-            theme={this.editAllowed ? 'primary' : 'default'}
-            outline={this.editAllowed}
             disabled={!this.editAllowed}
+            outline={this.editAllowed}
+            theme={this.editAllowed ? 'primary' : 'default'}
             onClick={this.handleEdit}
           >
             {this.$t('编辑')}
@@ -455,9 +456,9 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
           />
         </div>
         <div
+          class='alarm-details'
           slot='content'
           v-bkloading={{ isLoading: this.loading }}
-          class='alarm-details'
         >
           <div class='alarm-details-col'>
             <div
@@ -478,8 +479,8 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
             <div class='alarm-details-item alarm-details-content'>{this.formData.name}</div>
           </div>
           <div
-            class='alarm-details-col text-top'
             style='margin-bottom: 14px'
+            class='alarm-details-col text-top'
           >
             <div
               class='alarm-details-label alarm-details-person-label'
@@ -500,9 +501,9 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                   ></DutyArranges> */}
                       <RotationPreview
                         v-bkloading={{ isLoading: this.previewLoading }}
-                        value={this.previewData}
-                        dutyPlans={this.dutyPlans}
                         alarmGroupId={this.id}
+                        dutyPlans={this.dutyPlans}
+                        value={this.previewData}
                         onStartTimeChange={this.handleStartTimeChange}
                       ></RotationPreview>
                       {/* 值班通知设置 */}
@@ -552,15 +553,15 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                 if (this.formData.users?.length) {
                   return this.formData.users.map(item => (
                     <div
-                      class='person-box'
                       key={item.id}
+                      class='person-box'
                     >
                       <div class='person-image'>
                         {[
                           item.logo ? (
                             <img
-                              src={item.logo}
                               alt=''
+                              src={item.logo}
                             />
                           ) : undefined,
                           !item.logo && item.type === 'group' ? (
@@ -584,8 +585,8 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
           </div>
           {!!this.formData.mention_list.length && (
             <div
-              class='alarm-details-col text-top'
               style='margin-bottom: 14px'
+              class='alarm-details-col text-top'
             >
               <div
                 class='alarm-details-label alarm-details-person-label'
@@ -597,15 +598,15 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
               <div class='alarm-details-item alarm-details-person'>
                 {this.formData.mention_list.map(item => (
                   <div
-                    class='person-box'
                     key={item.id}
+                    class='person-box'
                   >
                     <div class='person-image'>
                       {[
                         item.logo ? (
                           <img
-                            src={item.logo}
                             alt=''
+                            src={item.logo}
                           />
                         ) : undefined,
                         !item.logo && item.type === 'group' ? (
@@ -651,26 +652,26 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                     })).map(item => (
                       <bk-tab-panel
                         key={item.key}
-                        name={item.key}
                         label={item.label}
+                        name={item.key}
                       ></bk-tab-panel>
                     ))}
                   </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew
+                      bkchatList={this.bkchatList}
+                      channels={this.channels}
                       noticeWay={this.noticeWayList}
                       notifyConfig={this.notice.alertData.notify_config}
-                      refreshKey={this.refreshKey.alertKey}
-                      channels={this.channels}
-                      bkchatList={this.bkchatList}
                       readonly={true}
+                      refreshKey={this.refreshKey.alertKey}
                       onRefreshKeyChange={() => (this.refreshKey.alertKey = false)}
                     ></NoticeModeNew>
                   </div>
                 </div>
                 <div
-                  class='notice-title'
                   style={{ marginTop: '16px' }}
+                  class='notice-title'
                 >
                   {this.$t('执行通知')}
                 </div>
@@ -690,20 +691,20 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                     })).map(item => (
                       <bk-tab-panel
                         key={item.key}
-                        name={item.key}
                         label={item.label}
+                        name={item.key}
                       ></bk-tab-panel>
                     ))}
                   </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew
-                      noticeWay={this.noticeWayList}
-                      type={1}
-                      refreshKey={this.refreshKey.actionKey}
-                      channels={this.channels}
                       bkchatList={this.bkchatList}
+                      channels={this.channels}
+                      noticeWay={this.noticeWayList}
                       notifyConfig={executionNotifyConfigChange(this.notice.actionData.notify_config)}
                       readonly={true}
+                      refreshKey={this.refreshKey.actionKey}
+                      type={1}
                       onRefreshKeyChange={() => (this.refreshKey.actionKey = false)}
                     ></NoticeModeNew>
                   </div>

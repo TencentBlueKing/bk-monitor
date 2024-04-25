@@ -73,6 +73,7 @@ from bkmonitor.strategy.serializers import (
     BkMonitorTimeSeriesSerializer,
     CustomEventSerializer,
     CustomTimeSeriesSerializer,
+    HostAnomalyDetectionSerializer,
     IntelligentDetectSerializer,
     MultivariateAnomalyDetectionSerializer,
     PrometheusTimeSeriesSerializer,
@@ -805,6 +806,7 @@ class Algorithm(AbstractConfig):
             "TimeSeriesForecasting": TimeSeriesForecastingSerializer,
             "AbnormalCluster": AbnormalClusterSerializer,
             "MultivariateAnomalyDetection": MultivariateAnomalyDetectionSerializer,
+            "HostAnomalyDetection": HostAnomalyDetectionSerializer,
             "PartialNodes": None,
             "": None,
         }
@@ -2187,25 +2189,34 @@ class Strategy(AbstractConfig):
         - 计算平台数据(根据用户身份配置)
             1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
         """
+        from bkmonitor.models import AlgorithmModel
+        from monitor_web.tasks import (
+            access_aiops_by_strategy_id,
+            access_host_anomaly_detect_by_strategy_id,
+        )
+
         # 未开启计算平台接入，则直接返回
         if not settings.IS_ACCESS_BK_DATA:
             return
 
-        has_intelligent_algorithm = False
+        intelligent_algorithm = None
         for algorithm in chain(*(item.algorithms for item in self.items)):
-            if algorithm.type in AlgorithmModel.AIOPS_ALGORITHMS:
-                has_intelligent_algorithm = True
+            # 主机异常检测的接入逻辑跟其他智能检测不一样，因此单独接入
+            if algorithm.type == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
+                intelligent_algorithm = algorithm.type
                 break
 
-        if not has_intelligent_algorithm:
+            if algorithm.type in AlgorithmModel.AIOPS_ALGORITHMS:
+                intelligent_algorithm = algorithm.type
+                break
+
+        if not intelligent_algorithm:
             return
 
         # 判断数据来源
         for query_config in chain(*(item.query_configs for item in self.items)):
             if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
                 continue
-
-            from monitor_web.tasks import access_aiops_by_strategy_id
 
             need_access = False
 
@@ -2218,13 +2229,16 @@ class Strategy(AbstractConfig):
 
             elif query_config.data_source_label == DataSourceLabel.BK_DATA:
                 # 1. 先授权给监控项目(以创建或更新策略的用户来请求一次授权)
-                from bkmonitor.dataflow import auth
+                if intelligent_algorithm in AlgorithmModel.AIOPS_ALGORITHMS:
+                    # 主机异常检测使用业务主机观测场景的flow，因此不需要授权
+                    from bkmonitor.dataflow import auth
 
-                auth.ensure_has_permission_with_rt_id(
-                    bk_username=get_global_user() or settings.BK_DATA_PROJECT_MAINTAINER,
-                    rt_id=query_config.result_table_id,
-                    project_id=settings.BK_DATA_PROJECT_ID,
-                )
+                    auth.ensure_has_permission_with_rt_id(
+                        bk_username=get_global_user() or settings.BK_DATA_PROJECT_MAINTAINER,
+                        rt_id=query_config.result_table_id,
+                        project_id=settings.BK_DATA_PROJECT_ID,
+                    )
+
                 # 2. 然后再创建异常检测的dataflow
                 need_access = True
 
@@ -2237,8 +2251,11 @@ class Strategy(AbstractConfig):
                 query_config.save()
 
                 if settings.ROLE == "web":
-                    # 只有 web 运行模式下，才允许触发 celery 异步接入任务
-                    access_aiops_by_strategy_id.delay(self.id)
+                    if intelligent_algorithm == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
+                        access_host_anomaly_detect_by_strategy_id.delay(self.id)
+                    else:
+                        # 只有 web 运行模式下，才允许触发 celery 异步接入任务
+                        access_aiops_by_strategy_id.delay(self.id)
 
     @classmethod
     def get_priority_group_key(cls, bk_biz_id: int, items: List[Item]):

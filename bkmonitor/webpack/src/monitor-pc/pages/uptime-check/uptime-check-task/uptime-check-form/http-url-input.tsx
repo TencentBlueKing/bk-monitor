@@ -26,6 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { isHttpUrl, isIpv6Url } from 'monitor-common/regex/url';
 
 import './http-url-input.scss';
@@ -33,7 +34,7 @@ import './http-url-input.scss';
 interface IHttpUrlInputProps {
   value: string;
   validateFn?: (v: string) => boolean;
-  errorTips?: string | TranslateResult;
+  errorTips?: TranslateResult | string;
 }
 @Component
 export default class HttpUrlInput extends tsc<
@@ -97,18 +98,18 @@ export default class HttpUrlInput extends tsc<
         ) : (
           <div class={`bk-form-item ${this.isError ? 'is-error' : ''}`}>
             <bk-input
-              class='url-input'
               ref='urlInput'
+              class='url-input'
               value={this.value}
-              onFocus={this.handleFocus}
               onBlur={this.handleBlur}
               onChange={this.handleChange}
               onEnter={this.handleBlur}
+              onFocus={this.handleFocus}
             />
             {this.isError && (
               <i
-                v-bk-tooltips={{ content: this.errorTips, allowHTML: false }}
                 class='bk-icon icon-exclamation-circle-shape terror-tips-icon'
+                v-bk-tooltips={{ content: this.errorTips, allowHTML: false }}
               />
             )}
             {/* {this.isError && <div class='error-tips'>{this.errorTips}</div>} */}

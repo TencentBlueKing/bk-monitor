@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { listDutyRule } from 'monitor-api/modules/model';
 import { previewUserGroupPlan } from 'monitor-api/modules/user_groups';
 import { Debounce, random } from 'monitor-common/utils';
@@ -32,7 +33,6 @@ import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import { EStatus, getEffectiveStatus, statusMap } from '../../../../trace/pages/rotation/typings/common';
 import { IGroupListItem } from '../duty-arranges/user-selector';
-
 import { dutyNoticeConfigToParams, paramsToDutyNoticeConfig } from './data';
 import DutyNoticeConfig, { initData as noticeData } from './duty-notice-config';
 import RotationDetail from './rotation-detail';
@@ -52,7 +52,7 @@ interface IProps {
   dutyNotice?: any;
   defaultGroupList?: IGroupListItem[];
   rendreKey?: string;
-  alarmGroupId?: string | number;
+  alarmGroupId?: number | string;
   dutyPlans?: any[];
   onNoticeChange?: (_v) => void;
   onDutyChange?: (v: number[]) => void;
@@ -66,7 +66,7 @@ export default class RotationConfig extends tsc<IProps> {
   /* 值班通知设置数据 */
   @Prop({ default: () => [], type: Object }) dutyNotice: any;
   @Prop({ default: '', type: String }) rendreKey: string;
-  @Prop({ type: [Number, String], default: '' }) alarmGroupId: string | number;
+  @Prop({ type: [Number, String], default: '' }) alarmGroupId: number | string;
   /* 轮值历史 */
   @Prop({ default: () => [], type: Array }) dutyPlans: any[];
   @Ref('wrap') wrapRef: HTMLDivElement;
@@ -498,9 +498,9 @@ export default class RotationConfig extends tsc<IProps> {
       <div class='alarm-group-rotation-config-component'>
         <div class='add-wrap'>
           <bk-button
-            outline
-            theme='primary'
             loading={this.dutyLoading}
+            theme='primary'
+            outline
             onClick={e => !this.dutyLoading && this.handleAddRotation(e)}
           >
             <span class='icon-monitor icon-plus-line'></span>
@@ -516,13 +516,13 @@ export default class RotationConfig extends tsc<IProps> {
           >
             {this.dutyList.map((item, index) => (
               <div
-                class='duty-item'
                 key={item.id}
-                onClick={() => this.handleShowDetail(item)}
+                class='duty-item'
                 draggable={this.needDrag}
-                onDragstart={() => this.handleDragStart(index)}
-                onDragover={event => this.handleDragOver(event, index)}
+                onClick={() => this.handleShowDetail(item)}
                 onDragend={() => this.handleDragEnd()}
+                onDragover={event => this.handleDragOver(event, index)}
+                onDragstart={() => this.handleDragStart(index)}
               >
                 <span
                   class='icon-monitor icon-mc-tuozhuai'
@@ -565,12 +565,12 @@ export default class RotationConfig extends tsc<IProps> {
           <RotationPreview
             class='mt-12'
             v-bkloading={{ isLoading: this.previewLoading }}
-            value={this.previewData}
             alarmGroupId={this.alarmGroupId}
             dutyPlans={this.dutyPlans}
             previewDutyRules={this.previewDutyRules}
-            onStartTimeChange={this.handleStartTimeChange}
+            value={this.previewData}
             onInitStartTime={v => (this.previewStartTime = v)}
+            onStartTimeChange={this.handleStartTimeChange}
           ></RotationPreview>
         )}
         <div
@@ -583,9 +583,9 @@ export default class RotationConfig extends tsc<IProps> {
         <DutyNoticeConfig
           ref='noticeConfig'
           class={{ displaynone: !this.showNotice }}
-          value={this.noticeConfig}
-          renderKey={this.noticeRenderKey}
           dutyList={this.dutyList as any[]}
+          renderKey={this.noticeRenderKey}
+          value={this.noticeConfig}
           onChange={this.handleNoticeConfigChange}
         ></DutyNoticeConfig>
         {!!this.userPreviewList.length && (
@@ -620,7 +620,7 @@ export default class RotationConfig extends tsc<IProps> {
                       return undefined;
                     })()}
                   </div>
-                ),
+                )
             )}
           </div>
         )}
@@ -631,15 +631,15 @@ export default class RotationConfig extends tsc<IProps> {
         ></RotationDetail>
         <div style={{ display: 'none' }}>
           <div
-            class='alarm-group-rotation-config-component-add-pop'
             ref='wrap'
+            class='alarm-group-rotation-config-component-add-pop'
           >
             <div class='header-wrap'>
               <bk-input
-                value={this.search}
-                placeholder={this.$t('可输入规则名称，标签搜索')}
-                left-icon='bk-icon icon-search'
                 behavior='simplicity'
+                left-icon='bk-icon icon-search'
+                placeholder={this.$t('可输入规则名称，标签搜索')}
+                value={this.search}
                 clearable
                 onChange={this.handleSearchChange}
               ></bk-input>
@@ -650,8 +650,8 @@ export default class RotationConfig extends tsc<IProps> {
                   .filter(item => !!item.show && item.status !== EStatus.Deactivated)
                   .map(item => (
                     <div
-                      class='duty-select-item'
                       key={item.id}
+                      class='duty-select-item'
                       onClick={() => this.handleSelectOption(item)}
                     >
                       <div onClick={(e: Event) => e.stopPropagation()}>
@@ -670,8 +670,8 @@ export default class RotationConfig extends tsc<IProps> {
                       <span class='tags'>
                         {item.labels.map((tag, tagIndex) => (
                           <span
-                            class={['item-tag', { active: !!this.search && tag.indexOf(this.search) >= 0 }]}
                             key={tagIndex}
+                            class={['item-tag', { active: !!this.search && tag.indexOf(this.search) >= 0 }]}
                             v-bk-overflow-tips
                           >
                             {tag}
@@ -697,8 +697,8 @@ export default class RotationConfig extends tsc<IProps> {
                 {this.refreshLoading ? (
                   <img
                     class='loading-icon'
-                    src={loadingIcon}
                     alt=''
+                    src={loadingIcon}
                   ></img>
                 ) : (
                   <span class='icon-monitor icon-zhongzhi1'></span>

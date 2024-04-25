@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getVariableValue } from 'monitor-api/modules/grafana';
 
 import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../constant/constant';
 import SelectMenu from '../../strategy-config/strategy-config-set-new/components/select-menu';
-
 import SimpleSelectInput from './simple-select-input';
 
 import './simple-condition-input.scss';
@@ -48,7 +48,7 @@ interface IConditionItem {
   dimensionName?: string;
 }
 export interface IDimensionItem {
-  id: string | number;
+  id: number | string;
   name: string;
   type?: string;
   is_dimension?: boolean;
@@ -58,8 +58,8 @@ interface IMetricMeta {
   dataSourceLabel: string;
   dataTypeLabel: string;
   metricField: string;
-  resultTableId: string | number;
-  indexSetId?: string | number;
+  resultTableId: number | string;
+  indexSetId?: number | string;
 }
 
 interface IProps {
@@ -135,7 +135,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
         value: [],
         method: 'eq',
       },
-      needCondition ? { condition: 'and' } : {},
+      needCondition ? { condition: 'and' } : {}
     );
   }
 
@@ -163,7 +163,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
    * @description: 维度数据类型不同所需的method
    * @param {*} type 维度的数据类型
    */
-  handleGetMethodList(type: 'string' | 'number') {
+  handleGetMethodList(type: 'number' | 'string') {
     if (type === 'number') {
       return NUMBER_CONDITION_METHOD_LIST;
     }
@@ -275,7 +275,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
           ? {
               index_set_id: this.metricMeta.indexSetId,
             }
-          : {},
+          : {}
       ),
     };
     await getVariableValue(params, { needRes: true })
@@ -334,19 +334,16 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
         {this.conditions.map((item, index) => [
           item.condition && item.key && index > 0 ? (
             <input
-              style={{ display: item.condition ? 'block' : 'none' }}
               key={`condition-${index}-${item.key}`}
+              style={{ display: item.condition ? 'block' : 'none' }}
               class='condition-item condition-item-condition'
-              readonly
               value={item.condition.toLocaleUpperCase()}
+              readonly
               on-click={e => this.handleToggleCondition(e, { index, prop: 'condition' })}
             />
           ) : undefined,
           <SimpleSelectInput
             ref={`selectInput${index}`}
-            value={item.dimensionName}
-            list={this.dimensionsList as any}
-            placeholder={window.i18n.t('输入维度名称') as string}
             v-bk-tooltips={{
               content: item.key,
               trigger: 'mouseenter',
@@ -355,13 +352,16 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
               boundary: document.body,
               allowHTML: false,
             }}
+            list={this.dimensionsList as any}
             nodataMsg={window.i18n.t('该策略无可选维度') as string}
+            placeholder={window.i18n.t('输入维度名称') as string}
+            value={item.dimensionName}
             onChange={v => this.handleKeyChange(item, v)}
           >
             <div
               style={{ display: item.key ? 'flex' : 'none' }}
-              slot='extension'
               class='extension'
+              slot='extension'
               on-click={() => this.handleDeleteKey(index)}
             >
               <i class='icon-monitor icon-chahao'></i>
@@ -371,8 +371,8 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
           item.dimensionName
             ? [
                 <span
-                  class='condition-item condition-item-method'
                   key={`method-${index}-${item.key}`}
+                  class='condition-item condition-item-method'
                   on-click={e => this.handleToggleMethod(e, { index, prop: 'method' })}
                 >
                   {this.handleGetMethodNameById(item.method)}
@@ -387,31 +387,31 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                         ? [nullOptions]
                         : []
                   }
-                  trigger='focus'
-                  has-delete-icon
-                  allow-create
-                  allow-auto-match
-                  value={item.value}
                   paste-fn={v => this.handlePaste(v, item)}
+                  trigger='focus'
+                  value={item.value}
+                  allow-auto-match
+                  allow-create
+                  has-delete-icon
                   on-change={(v: string[]) => this.handleValueChange(item, v)}
                 ></bk-tag-input>,
               ]
             : undefined,
         ])}
         <span
-          class='condition-item condition-add'
           style={{ display: this.showAdd ? 'flex' : 'none' }}
+          class='condition-item condition-add'
           on-click={() => this.handleAddCondition()}
         >
           <i class='bk-icon icon-plus'></i>
         </span>
         <SelectMenu
-          show={this.showSelectMenu}
-          target={this.curSelectTarget}
           list={this.menuList}
           min-width={60}
-          on-on-select={item => this.handelMenuSelect(item)}
+          show={this.showSelectMenu}
+          target={this.curSelectTarget}
           on-on-hidden={() => this.handleMenuHidden()}
+          on-on-select={item => this.handelMenuSelect(item)}
         ></SelectMenu>
       </div>
     );

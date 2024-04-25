@@ -6,13 +6,10 @@ from urllib.parse import urljoin
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
-from requests.exceptions import HTTPError, ReadTimeout
 from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
 from core.drf_resource.contrib.api import APIResource
-from core.errors.api import BKAPIError
 
 logger = logging.getLogger("bcs_storage")
 
@@ -40,28 +37,14 @@ class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
         return request_url.format(**validated_request_data)
 
-    def perform_request(self, validated_request_data):
-        request_url = self.get_request_url(validated_request_data)
-        headers = {"Authorization": f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"}
-        try:
-            result = self.session.get(
-                url=request_url,
-                headers=headers,
-                verify=False,
-                timeout=self.TIMEOUT,
-            )
-        except ReadTimeout:
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=_("接口返回结果超时"))
+    def get_headers(self):
+        headers = super(BcsStorageBaseResource, self).get_headers()
+        headers["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
+        return headers
 
-        try:
-            result.raise_for_status()
-        except HTTPError as err:
-            logger.exception("【模块：{}】请求APIGW错误：{}，请求url: {} ".format(self.module_name, err, request_url))
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
-
-        result_json = result.json()
+    def render_response_data(self, validated_request_data, response_data):
         data = []
-        for item in result_json.get("data", []):
+        for item in response_data.get("data", []):
             try:
                 data.append(item.get("data", {}))
             except Exception as e:

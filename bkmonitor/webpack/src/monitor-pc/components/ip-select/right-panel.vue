@@ -29,10 +29,10 @@
     :class="{ 'need-border': needBorder }"
   >
     <div
-      @click="handleTitleClick"
       class="right-panel-title"
       :class="{ 'is-collapse': isEndCollapse }"
       :style="{ backgroundColor: titleBgColor }"
+      @click="handleTitleClick"
     >
       <slot name="panel">
         <slot name="pre-panel" />
@@ -61,8 +61,8 @@
     >
       <div
         v-if="contentRender"
-        class="right-panel-content"
         v-show="collapse"
+        class="right-panel-content"
       >
         <slot />
       </div>
@@ -80,7 +80,7 @@ export default {
   name: 'RightPanel',
   model: {
     prop: 'collapse',
-    event: 'change'
+    event: 'change',
   },
   props: {
     collapse: Boolean,
@@ -89,28 +89,28 @@ export default {
       default() {
         return {
           num: 0,
-          type: ''
+          type: '',
         };
-      }
+      },
     },
     collapseColor: {
       type: String,
-      default: '#63656E'
+      default: '#63656E',
     },
     titleBgColor: {
       type: String,
-      default: '#F5F6FA'
+      default: '#F5F6FA',
     },
     type: String,
     needBorder: Boolean,
-    contentRender: { /** conetent部分未展开是否渲染节点 */
-      type: Boolean,
-      default: true
-    }
+    contentRender: {
+      /** conetent部分未展开是否渲染节点 */ type: Boolean,
+      default: true,
+    },
   },
   data() {
     return {
-      isEndCollapse: this.collapse
+      isEndCollapse: this.collapse,
     };
   },
   methods: {
@@ -161,8 +161,8 @@ export default {
     handleTitleClick() {
       this.$emit('update:collapse', !this.collapse);
       this.$emit('change', !this.collapse, this.type);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -227,7 +227,7 @@ export default {
   }
 
   .collapse-transition {
-    transition: .3s height ease-in-out;
+    transition: 0.3s height ease-in-out;
   }
 }
 </style>

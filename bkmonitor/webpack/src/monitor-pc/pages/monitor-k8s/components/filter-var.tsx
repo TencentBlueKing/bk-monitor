@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getVariableValue } from 'monitor-api/modules/grafana';
 
 import CustomSelect from '../../../components/custom-select/custom-select';
@@ -148,10 +149,10 @@ export default class FilterVar extends tsc<IFilterVarProps, IFilterVarEvents> {
             <span class='filter-var-item-label'>{item.name}</span>
             <bk-select
               class='filter-var-item-select'
-              behavior='simplicity'
-              multiple
-              popover-width={100}
               vModel={item.value}
+              behavior='simplicity'
+              popover-width={100}
+              multiple
               onClear={this.handleVarChange}
               onSelected={this.handleVarChange}
             >

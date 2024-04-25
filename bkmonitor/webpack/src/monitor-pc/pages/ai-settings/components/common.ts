@@ -30,7 +30,7 @@ export const handleSetTargetDesc = (
   bkTargetType: NotificationType,
   objectType?: string,
   nodeCount = 0,
-  instance_count = 0,
+  instance_count = 0
 ) => {
   const targetResult = {
     message: '',

@@ -31,7 +31,7 @@ import Collapse from '../../../components/collapse/collapse';
 import './fav-list.scss';
 
 export interface IFavListItem {
-  id: string | number;
+  id: number | string;
   name: string;
   expend?: boolean;
   uid?: string;
@@ -96,21 +96,21 @@ export default class FavList extends tsc<IProps, IEvents> {
             </div>
             <Collapse
               expand={item.expend}
-              needCloseButton={false}
               maxHeight={300}
+              needCloseButton={false}
             >
               <div class='fav-list-main'>
                 {item.children.map(child => (
                   <div
-                    class={['fav-item', { checked: this.localChecked === child.uid }]}
                     key={child.id}
+                    class={['fav-item', { checked: this.localChecked === child.uid }]}
                   >
                     <i
+                      class='icon-monitor icon-mc-collect'
                       v-bk-tooltips={{
                         content: this.$t('取消收藏'),
                         extCls: 'garfana-link-tips',
                       }}
-                      class='icon-monitor icon-mc-collect'
                       onClick={() => this.handleUnstarred(child)}
                     ></i>
                     <span

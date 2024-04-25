@@ -54,7 +54,7 @@ export interface ICompareData {
   name: string;
 }
 
-export type CompareOptions = 'YESTERDAY' | 'WEEKLY';
+export type CompareOptions = 'WEEKLY' | 'YESTERDAY';
 
 export type CompareMap = {
   [p in CompareOptions]: VueI18n.TranslateResult;

@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { createSpace, listDevopsSpaces } from 'monitor-api/modules/commons';
 
 import OrganizationSelector from './organization-selector';
@@ -236,7 +237,7 @@ export default class ResearchForm extends tsc<IProps> {
           },
           () => {
             resolve(false);
-          },
+          }
         );
       }
     });
@@ -315,17 +316,17 @@ export default class ResearchForm extends tsc<IProps> {
               <bk-input
                 class='textarea'
                 v-model={this.editValue.desc}
-                placeholder={this.$tc('输入')}
-                type='textarea'
-                rows={3}
                 maxlength={100}
+                placeholder={this.$tc('输入')}
+                rows={3}
+                type='textarea'
               ></bk-input>
             </div>
           ) : (
             <div class='research-form-add'>
               <bk-form
-                form-type='vertical'
                 ref='addForm'
+                form-type='vertical'
                 {...{
                   props: {
                     model: this.addValue,
@@ -334,33 +335,33 @@ export default class ResearchForm extends tsc<IProps> {
                 }}
               >
                 <bk-form-item
-                  label={this.$tc('空间名')}
-                  required={true}
-                  property={'spaceName'}
                   error-display-type={'normal'}
+                  label={this.$tc('空间名')}
+                  property={'spaceName'}
+                  required={true}
                 >
                   <bk-input v-model_trim={this.addValue.spaceName}></bk-input>
                 </bk-form-item>
                 <bk-form-item
-                  label={this.$tc('英文名')}
-                  required={true}
-                  property={'spaceId'}
                   error-display-type={'normal'}
+                  label={this.$tc('英文名')}
+                  property={'spaceId'}
+                  required={true}
                 >
                   <bk-input v-model={this.addValue.spaceId}></bk-input>
                 </bk-form-item>
                 <bk-form-item
-                  label={this.$tc('说明')}
-                  required={true}
-                  property={'desc'}
                   error-display-type={'normal'}
+                  label={this.$tc('说明')}
+                  property={'desc'}
+                  required={true}
                 >
                   <bk-input
-                    v-model={this.addValue.desc}
                     class='textarea'
-                    type='textarea'
-                    rows={3}
+                    v-model={this.addValue.desc}
                     maxlength={100}
+                    rows={3}
+                    type='textarea'
                   ></bk-input>
                 </bk-form-item>
                 <bk-form-item
@@ -370,10 +371,10 @@ export default class ResearchForm extends tsc<IProps> {
                   <OrganizationSelector onChange={this.handleOrganization}></OrganizationSelector>
                 </bk-form-item>
                 <bk-form-item
-                  label={this.$tc('项目类型')}
-                  required={true}
-                  property={'project_type'}
                   error-display-type={'normal'}
+                  label={this.$tc('项目类型')}
+                  property={'project_type'}
+                  required={true}
                 >
                   <div class='project-type'>
                     <bk-select

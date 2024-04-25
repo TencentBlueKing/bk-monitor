@@ -30,10 +30,10 @@
   >
     <bk-dropdown-menu
       slot="title"
+      ref="dropdown"
       :class="['title-setting', { 'title-disable': !series.length && !setList.length }]"
       trigger="click"
       :disabled="!setList.length"
-      ref="dropdown"
     >
       <div
         slot="dropdown-trigger"
@@ -47,8 +47,8 @@
         <span class="tag-setting"> {{ $t('展示设置') }} </span>
       </div>
       <div
-        slot="dropdown-content"
         v-if="setList.length"
+        slot="dropdown-content"
         style="margin: -6px 0"
       >
         <ul
@@ -62,18 +62,18 @@
           >
             <label class="bk-form-checkbox bk-checkbox-small check-label-item char-checkbox">
               <input
+                v-model="checkedSets"
                 type="checkbox"
                 class="bk-checkbox"
                 :value="item.id"
-                v-model="checkedSets"
-              >
+              />
               <i class="bk-checkbox-text">{{ item.name }}</i>
             </label>
           </li>
         </ul>
         <div
-          class="title-setting-footer"
           slot="dropdown-content"
+          class="title-setting-footer"
         >
           <span @click="submitHandle"> {{ $t('确定') }} </span>
           <span @click="cancelHandle"> {{ $t('取消') }} </span>
@@ -99,7 +99,7 @@
         '#CAE1FF',
         '#CDCDB4',
         '#FE0000',
-        '#C3017C'
+        '#C3017C',
       ]"
     />
   </panel-card>
@@ -114,31 +114,31 @@ export default {
   name: 'AvailableRateChart',
   components: {
     MonitorEchart,
-    PanelCard
+    PanelCard,
   },
   props: {
     setList: {
       type: Array,
-      required: true
+      required: true,
     },
     checkedList: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     series: {
       type: Array,
-      required: true
+      required: true,
     },
     utcoffset: {
       type: Number,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
-      checkedSets: []
+      checkedSets: [],
     };
   },
   computed: {
@@ -146,23 +146,23 @@ export default {
       return {
         yAxis: {
           axisLine: {
-            show: true
+            show: true,
           },
-          z: 6
+          z: 6,
         },
         xAxis: {
           splitLine: {
             show: true,
             lineStyle: {
               color: '#DCDEE5',
-              type: 'dashed'
-            }
+              type: 'dashed',
+            },
           },
           axisLine: {
-            show: true
+            show: true,
           },
-          z: 6
-        }
+          z: 6,
+        },
       };
     },
     newSeries() {
@@ -174,44 +174,44 @@ export default {
           borderWidth: 1,
           borderColor: 'rgba(255,246,242,.5)',
           shadowColor: 'rgba(255,246,242,.5)',
-          shadowBlur: 0
+          shadowBlur: 0,
         },
         data: [
           [
             {
               xAxis: 'min',
-              yAxis: 0
+              yAxis: 0,
             },
             {
               xAxis: 'max',
-              yAxis: 80 // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
-            }
-          ]
+              yAxis: 80, // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
+            },
+          ],
         ],
-        opacity: 0.1
+        opacity: 0.1,
       };
       return this.series?.length
         ? this.series.map(item => ({
-          ...item,
-          markArea
-        }))
+            ...item,
+            markArea,
+          }))
         : [
-          {
-            data: [
-              [null, 0],
-              [null, 100]
-            ],
-            markArea
-          }
-        ];
-    }
+            {
+              data: [
+                [null, 0],
+                [null, 100],
+              ],
+              markArea,
+            },
+          ];
+    },
   },
   watch: {
     checkedList: {
       handler(val) {
         this.checkedSets = val;
-      }
-    }
+      },
+    },
   },
   created() {
     this.checkedSets = this.checkedList;
@@ -227,8 +227,8 @@ export default {
     },
     triggerCheckedHandle() {
       // e.stopPropagation()
-    }
-  }
+    },
+  },
 };
 </script>
 

@@ -25,6 +25,7 @@
  */
 import { Component, Emit } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
@@ -42,9 +43,9 @@ import './event-log-chart.scss';
 
 interface ITextUnitSeriesItem {
   // 值
-  value: string | number;
+  value: number | string;
   // 单位
-  unit: string | number;
+  unit: number | string;
 }
 interface IEventLogChartEvents {
   onChangeHeight?: (v: number) => number;
@@ -117,7 +118,7 @@ class EventLogChart extends CommonSimpleChart {
           interval: reviewInterval(
             this.viewOptions.interval,
             params.end_time - params.start_time,
-            this.panel.collect_interval,
+            this.panel.collect_interval
           ),
         });
         const promiseList = this.tablePanel.targets.map(item =>
@@ -130,7 +131,7 @@ class EventLogChart extends CommonSimpleChart {
                   ...this.viewOptions,
                 },
               },
-              { needMessage: false },
+              { needMessage: false }
             )
             .then(res => {
               this.series = res;
@@ -139,7 +140,7 @@ class EventLogChart extends CommonSimpleChart {
             })
             .catch(error => {
               this.handleErrorMsgChange(error.msg || error.message);
-            }),
+            })
         );
         const res = await Promise.all(promiseList).catch(() => false);
         if (!!res) {
@@ -221,38 +222,38 @@ class EventLogChart extends CommonSimpleChart {
       <div class='event-log-chart'>
         <ChartTitle
           class='draggable-handle text-header'
-          title={this.panel.title}
-          showMore={false}
           draging={this.panel.draging}
           isInstant={this.panel.instant}
+          showMore={false}
+          title={this.panel.title}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         <div
-          class='event-log-chart-main'
           style={{ height: `${this.height}px` }}
+          class='event-log-chart-main'
         >
           {[
             <TimeSeries
               ref='timeSeries'
               class='event-log-bar'
+              needSetEvent={false}
               panel={this.timeSeriesPanel as any}
               showChartHeader={false}
-              needSetEvent={false}
               onSelectLegend={(v: ILegendItem[]) => this.handleEventLogSelectLegend(v)}
             ></TimeSeries>,
             !!this.tableData.length && (
               <CommonTable
                 class='event-log-table'
                 checkable={false}
-                data={this.tableData}
                 columns={this.columns as any}
+                data={this.tableData}
                 defaultSize='small'
-                paginationType='simple'
-                pagination={this.pagination}
                 hasColnumSetting={false}
+                pagination={this.pagination}
+                paginationType='simple'
                 showExpand={true}
-                onPageChange={this.handlePageChange}
                 onLimitChange={this.handleLimitChange}
+                onPageChange={this.handlePageChange}
               ></CommonTable>
             ),
           ]}

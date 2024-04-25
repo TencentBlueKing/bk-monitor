@@ -371,7 +371,7 @@ class LogIndexSet(SoftDeleteModel):
 
     # 上下文、实时日志 定位字段 排序字段
     target_fields = models.JSONField(_("定位字段"), null=True, default=list)
-    sort_fields = models.JSONField(_("排序字段"),  null=True, default=list)
+    sort_fields = models.JSONField(_("排序字段"), null=True, default=list)
 
     def get_name(self):
         return self.index_set_name
@@ -445,9 +445,9 @@ class LogIndexSet(SoftDeleteModel):
 
         return BkDataAuthHandler.get_auth_url(not_applied_indices)
 
-    @property
-    def no_data_check_time(self):
-        result = cache.get(INDEX_SET_NO_DATA_CHECK_PREFIX + str(self.index_set_id))
+    @staticmethod
+    def no_data_check_time(index_set_id: str):
+        result = cache.get(INDEX_SET_NO_DATA_CHECK_PREFIX + index_set_id)
         if result is None:
             temp = timestamp_to_datetime(time.time()) - datetime.timedelta(minutes=INDEX_SET_NO_DATA_CHECK_INTERVAL)
             result = datetime_to_timestamp(temp)
@@ -499,8 +499,6 @@ class LogIndexSet(SoftDeleteModel):
         if is_trace_log:
             qs = qs.filter(is_trace_log=is_trace_log)
 
-        no_data_check_time_list = [item.no_data_check_time for item in qs]
-
         index_sets = qs.values(
             "space_uid",
             "index_set_id",
@@ -515,14 +513,22 @@ class LogIndexSet(SoftDeleteModel):
             "time_field_unit",
             "tag_ids",
             "target_fields",
-            "sort_fields"
+            "sort_fields",
         )
 
         # 获取接入场景
         scenarios = array_hash(Scenario.get_scenarios(), "scenario_id", "scenario_name")
 
-        # 获取索引详情
-        index_set_ids = [index_set["index_set_id"] for index_set in index_sets]
+        # 获取索引详情和标签信息
+        index_set_ids, tag_id_list = [], []
+        for index_set in index_sets:
+            tag_id_list.extend(index_set["tag_ids"])
+            index_set_ids.append(index_set["index_set_id"])
+
+        tags_data_dic = IndexSetTag.batch_get_tags(set(tag_id_list))
+
+        no_data_check_time_list = [cls.no_data_check_time(str(index_set_id)) for index_set_id in index_set_ids]
+
         mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, get_request_username()))
 
         index_set_data = array_group(
@@ -556,8 +562,8 @@ class LogIndexSet(SoftDeleteModel):
 
             index_set["scenario_name"] = scenarios.get(index_set["scenario_id"])
             index_set["bk_biz_id"] = space_uid_to_bk_biz_id(index_set["space_uid"])
+            index_set["tags"] = [tags_data_dic.get(tag_id, []) for tag_id in index_set["tag_ids"]]
 
-            index_set["tags"] = IndexSetTag.batch_get_tags(index_set["tag_ids"])
             index_set["is_favorite"] = index_set["index_set_id"] in mark_index_set_ids
             index_set["no_data_check_time"] = no_data_check_time
             index_set["target_fields"] = [] if not index_set["target_fields"] else index_set["target_fields"]
@@ -704,6 +710,7 @@ class UserIndexSetSearchHistory(SoftDeleteModel):
     class Meta:
         verbose_name = _("索引集用户检索记录")
         verbose_name_plural = _("32_搜索-索引集用户检索记录")
+        indexes = [models.Index(fields=["created_by"])]
 
 
 class ResourceChange(OperateRecordModel):
@@ -1039,12 +1046,16 @@ class IndexSetTag(models.Model):
         return cls.objects.create(name=name).tag_id
 
     @classmethod
-    def batch_get_tags(cls, tag_ids: list):
+    def batch_get_tags(cls, tag_ids: set):
         tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "color", "tag_id")
-        return [
-            {"name": InnerTag.get_choice_label(tag["name"]), "color": tag["color"], "tag_id": tag["tag_id"]}
+        return {
+            str(tag["tag_id"]): {
+                "name": InnerTag.get_choice_label(tag["name"]),
+                "color": tag["color"],
+                "tag_id": tag["tag_id"],
+            }
             for tag in tags
-        ]
+        }
 
 
 class AsyncTask(OperateRecordModel):

@@ -25,6 +25,7 @@
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import {
   customTimeSeriesList,
   deleteCustomEventGroup,
@@ -43,7 +44,6 @@ import authorityMixinCreate from '../../mixins/authorityMixin';
 import CommonTable, { ICommonTableProps } from '../monitor-k8s/components/common-table';
 import { ITableColumn } from '../monitor-k8s/typings';
 import OperateOptions from '../uptime-check/components/operate-options';
-
 import * as customAuth from './authority-map';
 
 import './custom-report.scss';
@@ -229,7 +229,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       vm.dataReset();
       if (
         !['custom-escalation-form', 'custom-detail-event', 'custom-detail-timeseries', 'custom-scenes-view'].includes(
-          from.name,
+          from.name
         )
       ) {
         vm.clearConditions();
@@ -250,7 +250,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
         { id: 'data_label', name: window.i18n.tc('英文名'), type: 'string', props: { minWidth: 100 } },
         { id: 'desc', name: window.i18n.tc('说明'), type: 'string', props: { minWidth: 100 } },
         { id: 'protocol', name: window.i18n.tc('上报协议'), type: 'string', props: { minWidth: 100 } },
-      ] as ITableColumn[]),
+      ] as ITableColumn[])
     );
     /** 隐藏的字段 */
     const excludeCheckedId = ['protocol', 'create'];
@@ -380,7 +380,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * @param {IEventItem} row
    * @return {*}
    */
-  handleOperate(v: 'view' | 'delete', row: IEventItem) {
+  handleOperate(v: 'delete' | 'view', row: IEventItem) {
     const toView = {
       [CUSTOM_EVENT]: () => {
         this.$router.push({
@@ -516,17 +516,17 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
           <PageTips
             style={{ marginTop: '16px' }}
             tips-text={this.$t(
-              '自定义上报是一种最灵活和自由的方式上报数据。如果是通过HTTP上报，agent和插件都不需要安装；如果是通过SDK和命令行上报，依赖bkmonitorbeat采集器。',
+              '自定义上报是一种最灵活和自由的方式上报数据。如果是通过HTTP上报，agent和插件都不需要安装；如果是通过SDK和命令行上报，依赖bkmonitorbeat采集器。'
             )}
+            doc-link={'fromCustomRreporting'}
             link-text={this.$t('采集器安装前往节点管理')}
             link-url={`${this.$store.getters.bkNodemanHost}#/plugin-manager/list`}
-            doc-link={'fromCustomRreporting'}
           ></PageTips>
           <div class='custom-report-page-content'>
             <div class='content-left-operator'>
               <bk-button
-                v-authority={{ active: !this.hasManageAuth }}
                 class='mc-btn-add mr-16'
+                v-authority={{ active: !this.hasManageAuth }}
                 theme='primary'
                 onClick={() =>
                   this.hasManageAuth
@@ -550,9 +550,9 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
               </div>
               <bk-input
                 extCls='operator-input'
+                v-model={this.search}
                 placeholder={this.$tc('搜索 ID / 名称')}
                 rightIcon='bk-icon icon-search'
-                v-model={this.search}
                 on-change={this.handleSearch}
               ></bk-input>
             </div>
@@ -615,12 +615,12 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                         },
                       ],
                     }}
-                    onOptionClick={(v: 'view' | 'delete') => this.handleOperate(v, row)}
+                    onOptionClick={(v: 'delete' | 'view') => this.handleOperate(v, row)}
                   ></OperateOptions>
                 ),
               }}
-              onPageChange={this.handlePageChange}
               onLimitChange={this.handlePageLimitChange}
+              onPageChange={this.handlePageChange}
             >
               <div slot='empty'>
                 <EmptyStatus

@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    v-bkloading="{ isLoading: group.loading }"
     ref="uptimeCheckTask"
+    v-bkloading="{ isLoading: group.loading }"
   >
     <group-cards
       ref="groupCards"
@@ -38,8 +38,8 @@
       @group-edit="handleGroupEdit"
     />
     <task-cards
-      ref="taskCards"
       v-show="hasSearchData"
+      ref="taskCards"
       :task-detail.sync="taskDetail"
       v-on="$listeners"
       @delete-task="handleDeleteTask"
@@ -47,8 +47,8 @@
       @change-status="handleChangeStatus"
     />
     <div
-      class="empty-search-data"
       v-show="!hasSearchData"
+      class="empty-search-data"
     >
       <i class="icon-monitor icon-hint" /> {{ $t('没有搜索到相关拨测任务') }}
     </div>
@@ -63,14 +63,20 @@
   </div>
 </template>
 <script>
-import { createNamespacedHelpers } from 'vuex';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { addTaskUptimeCheckGroup,   changeStatusUptimeCheckTask, cloneUptimeCheckTask,
-  createUptimeCheckGroup, destroyUptimeCheckGroup,   destroyUptimeCheckTask, updateUptimeCheckGroup } from 'monitor-api/modules/model';
+import {
+  addTaskUptimeCheckGroup,
+  changeStatusUptimeCheckTask,
+  cloneUptimeCheckTask,
+  createUptimeCheckGroup,
+  destroyUptimeCheckGroup,
+  destroyUptimeCheckTask,
+  updateUptimeCheckGroup,
+} from 'monitor-api/modules/model';
 import { debounce } from 'throttle-debounce';
+import { createNamespacedHelpers } from 'vuex';
 
 import DeleteSubtitle from '../../../strategy-config/strategy-config-common/delete-subtitle';
-
 import GroupCards from './group-cards.vue';
 import TaskCards from './task-cards.vue';
 
@@ -80,13 +86,13 @@ export default {
   components: {
     GroupCards,
     TaskCards,
-    DeleteSubtitle
+    DeleteSubtitle,
   },
   props: {
     group: {
       type: Object,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
@@ -95,17 +101,17 @@ export default {
         show: false,
         tasks: [],
         name: '',
-        id: ''
+        id: '',
       },
       hasSearchData: true,
       delSubTitle: {
         title: window.i18n.t('任务名'),
-        name: ''
-      }
+        name: '',
+      },
     };
   },
   computed: {
-    ...mapGetters({ keyword: 'keyword', taskList: 'groupTaskList' })
+    ...mapGetters({ keyword: 'keyword', taskList: 'groupTaskList' }),
   },
   watch: {
     keyword: {
@@ -114,15 +120,15 @@ export default {
           this.hasSearchData = this.refreshListStatus();
           this.$refs.groupCards.handleGroupChange();
         }, 0);
-      }
+      },
     },
     taskDetail: {
       handler(v) {
         this.getTaskList({ groupDetail: v.show, tasks: v.tasks });
         this.$emit('change-group-id', v.id);
         this.$emit('change-task-detail', v);
-      }
-    }
+      },
+    },
   },
   created() {
     this.lisenResize = debounce(300, v => this.handleWindowResize(v));
@@ -149,7 +155,7 @@ export default {
       this.$emit('set-loading', true);
       addTaskUptimeCheckGroup(data.id, {
         id: data.id,
-        task_id: id
+        task_id: id,
       })
         .then(() => {
           this.handleUpdateAll();
@@ -165,10 +171,10 @@ export default {
     },
     handleGroupDelete(id) {
       destroyUptimeCheckGroup(id, {}, { needRes: true })
-        .then((res) => {
+        .then(res => {
           this.$bkMessage({
             message: res.result ? this.$t('解散任务组成功') : this.$t('解散任务组失败'),
-            theme: res.result ? 'success' : 'error'
+            theme: res.result ? 'success' : 'error',
           });
           this.handleUpdateAll();
         })
@@ -189,12 +195,12 @@ export default {
         ? updateUptimeCheckGroup(params.id, params, { needRes: true })
         : createUptimeCheckGroup(params, { needRes: true });
       editRes
-        .then((res) => {
+        .then(res => {
           const success = params.add ? this.$t('创建成功') : this.$t('编辑成功');
           const error = params.add ? this.$t('创建失败') : this.$t('编辑失败');
           this.$bkMessage({
             message: res.result ? success : error,
-            theme: res.result ? 'success' : 'error'
+            theme: res.result ? 'success' : 'error',
           });
           this.handleUpdateAll();
         })
@@ -217,14 +223,14 @@ export default {
             .then(() => {
               this.$bkMessage({
                 theme: 'success',
-                message: this.$t('删除任务成功！')
+                message: this.$t('删除任务成功！'),
               });
               this.handleUpdateAll();
             })
             .catch(() => {
               this.$emit('set-loading', false);
             });
-        }
+        },
       });
     },
     // 克隆拨测任务
@@ -234,7 +240,7 @@ export default {
         .then(() => {
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('克隆任务成功！')
+            message: this.$t('克隆任务成功！'),
           });
           this.handleUpdateAll();
         })
@@ -246,16 +252,17 @@ export default {
     handleChangeStatus(item) {
       const status = item.switch ? 'stoped' : 'running';
       this.$emit('set-loading', true);
-      changeStatusUptimeCheckTask(item.id, { status }).then((data) => {
-        this.$bkMessage({
-          theme: 'success',
-          message: this.$t(data.status === 'running' ? '任务启动成功' : '任务停止成功')
-        });
-        this.handleUpdateAll();
-      })
+      changeStatusUptimeCheckTask(item.id, { status })
+        .then(data => {
+          this.$bkMessage({
+            theme: 'success',
+            message: this.$t(data.status === 'running' ? '任务启动成功' : '任务停止成功'),
+          });
+          this.handleUpdateAll();
+        })
         .finally(() => this.$emit('set-loading', false));
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

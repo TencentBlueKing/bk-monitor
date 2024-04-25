@@ -80,17 +80,18 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         (
             "BK_DATA_DRUID_STORAGE_CLUSTER_NAME",
-            slz.CharField(label="计算平台 DRUID 存储集群名称", default="", allow_blank=True),
+            slz.CharField(label=_("计算平台 DRUID 存储集群名称"), default="", allow_blank=True),
         ),
-        ("BK_DATA_KAFKA_BROKER_URL", slz.CharField(label="与计算平台对接的消息队列BROKER地址", default="")),
-        ("BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW", slz.IntegerField(label="数据接入计算平台后dataflow延时时间", default=5)),
-        ("BK_DATA_SCENE_ID_INTELLIGENT_DETECTION", slz.IntegerField(label="计算平台单指标异常检测场景ID", default=0)),
-        ("BK_DATA_SCENE_ID_TIME_SERIES_FORECASTING", slz.IntegerField(label="计算平台时序预测场景ID", default=0)),
-        ("BK_DATA_SCENE_ID_ABNORMAL_CLUSTER", slz.IntegerField(label="计算平台离群检测场景ID", default=0)),
-        ("BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION", slz.IntegerField(label="计算平台多指标异常检测场景ID", default=0)),
-        ("BK_DATA_SCENE_ID_METRIC_RECOMMENDATION", slz.IntegerField(label="计算平台指标推荐场景ID", default=0)),
-        ("BK_DATA_FLOW_CLUSTER_GROUP", slz.CharField(label="计算平台 dataflow 计算集群组", default="default_inland")),
-        ("BK_DATA_REALTIME_NODE_WAIT_TIME", slz.IntegerField(label="计算平台 实时节点等待时间", default=10)),
+        ("BK_DATA_KAFKA_BROKER_URL", slz.CharField(label=_("与计算平台对接的消息队列BROKER地址"), default="")),
+        ("BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW", slz.IntegerField(label=_("数据接入计算平台后dataflow延时时间"), default=5)),
+        ("BK_DATA_SCENE_ID_INTELLIGENT_DETECTION", slz.IntegerField(label=_("计算平台单指标异常检测场景ID"), default=0)),
+        ("BK_DATA_SCENE_ID_TIME_SERIES_FORECASTING", slz.IntegerField(label=_("计算平台时序预测场景ID"), default=0)),
+        ("BK_DATA_SCENE_ID_ABNORMAL_CLUSTER", slz.IntegerField(label=_("计算平台离群检测场景ID"), default=0)),
+        ("BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION", slz.IntegerField(label=_("计算平台多指标异常检测场景ID"), default=0)),
+        ("BK_DATA_SCENE_ID_METRIC_RECOMMENDATION", slz.IntegerField(label=_("计算平台指标推荐场景ID"), default=0)),
+        ("BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label=_("计算平台主机异常检测场景ID"), default=0)),
+        ("BK_DATA_FLOW_CLUSTER_GROUP", slz.CharField(label=_("计算平台 dataflow 计算集群组"), default="default_inland")),
+        ("BK_DATA_REALTIME_NODE_WAIT_TIME", slz.IntegerField(label=_("计算平台 实时节点等待时间"), default=10)),
         (
             "BK_DATA_DIMENSION_DRILL_PROCESSING_ID",
             slz.CharField(label="维度下钻 API Serving 请求的数据处理ID", default="multidimension_drill"),
@@ -187,9 +188,14 @@ ADVANCED_OPTIONS = OrderedDict(
             "BK_DATA_PLAN_ID_METRIC_RECOMMENDATION",
             slz.IntegerField(label="指标推荐默认plan id", default=0),
         ),
+        ("BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label=_("计算平台主机异常检测方案ID"), default=0)),
         (
             "BK_DATA_MULTIVARIATE_HOST_RT_ID",
             slz.CharField(label="多指标异常检测通用flow结果输出表", default=f"2_{settings.BKAPP_DEPLOY_PLATFORM}_host_multivariate"),
+        ),
+        (
+            "BK_DATA_MULTIVARIATE_HOST_MIDDLE_SUFFIX",
+            slz.IntegerField(label="多指标异常检测业务FLOW检测表后缀", default="multivariate_detection"),
         ),
         (
             "BK_DATA_ROBOT_LINK_LIST",
@@ -281,7 +287,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
+        ("ACCESS_DATA_BATCH_PROCESS_THRESHOLD", slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0)),
+        ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
+
     ]
 )
 

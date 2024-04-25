@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, PropType, ref } from 'vue';
+
 import _get from 'lodash/get';
 
 import AngleDownIcon from '../icons/angle-down.svg';
@@ -152,8 +153,8 @@ export default defineComponent({
             onMouseleave={event => this.handleMouseLeave(event, spanID)}
           >
             <img
-              src={icon}
               alt={icon}
+              src={icon}
             />
           </span>
         )}

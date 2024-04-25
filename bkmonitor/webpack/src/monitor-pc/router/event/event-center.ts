@@ -80,7 +80,7 @@ export default [
               map: eventCenterAuth,
             },
           }
-        : {},
+        : {}
     ),
   },
   {
@@ -115,7 +115,7 @@ export default [
               map: eventCenterAuth,
             },
           }
-        : {},
+        : {}
     ),
   },
   {
@@ -148,7 +148,7 @@ export default [
               page: eventCenterAuth.VIEW_AUTH,
             },
           }
-        : {},
+        : {}
     ),
   },
   {
@@ -181,7 +181,7 @@ export default [
               page: eventCenterAuth.VIEW_AUTH,
             },
           }
-        : {},
+        : {}
     ),
   },
 ] as RouteConfig[];

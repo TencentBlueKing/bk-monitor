@@ -261,3 +261,5 @@ export const PANEL_INTERVAL_LIST = [
 ];
 
 export const TARGET_TABEL_EXPAND_MAX = 5; /** 采集下发目标默认最大展开表格数量 */
+
+export const LETTERS = 'abcdefghijklmnopqrstuvwxyz';

@@ -26,7 +26,7 @@
 import VueI18n from 'vue-i18n';
 
 export interface IHeaderItem {
-  id: 'alarmDate' | 'message' | 'bkBizName';
+  id: 'alarmDate' | 'bkBizName' | 'message';
   value: string;
   title: VueI18n.TranslateResult;
 }
@@ -57,4 +57,4 @@ export type IStatusMap = {
 
 export type ValueOf<T> = T[keyof T];
 
-export type EventStatus = 'ABNORMAL' | 'SHIELD_ABNORMAL' | 'CLOSED' | 'RECOVERED';
+export type EventStatus = 'ABNORMAL' | 'CLOSED' | 'RECOVERED' | 'SHIELD_ABNORMAL';

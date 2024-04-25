@@ -34,22 +34,22 @@ type TimestampsType = [number, number];
 
 /** 处理时间范围的对象 */
 export class TimeRange {
+  dateRange: DateRange = null;
   /** 实例化的时间范围对象 */
   value: dayjs.Dayjs[] = [];
-  dateRange: DateRange = null;
   constructor(times: TimeRangeType) {
     this.init(times);
+  }
+
+  /** 格式化时间范围 */
+  format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
+    return this.value.map(item => item?.format?.(str) || null) as TimeRangeType;
   }
 
   /** 初始化时间对象 */
   init(times: TimeRangeType) {
     this.dateRange = new DateRange(times, 'YYYY-MM-DD HH:mm:ss', window.timezone);
     this.value = [this.dateRange.startDate, this.dateRange.endDate];
-  }
-
-  /** 格式化时间范围 */
-  format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
-    return this.value.map(item => item?.format?.(str) || null) as TimeRangeType;
   }
   /** 格式化成秒 */
   unix(): TimestampsType {
@@ -58,7 +58,7 @@ export class TimeRange {
 }
 
 /** 字符串的时间戳(毫秒)转为数字类型 */
-export const intTimestampStr = (str): number | null => {
+export const intTimestampStr = (str): null | number => {
   const isTimestamp = /^\d{1}$|^([1-9]\d{1,12})$/.test(str);
   return isTimestamp ? parseInt(str, 10) : str;
 };

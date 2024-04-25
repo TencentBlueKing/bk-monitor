@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
@@ -170,15 +171,14 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
       <div class='alarm-tools'>
         <span
           class='alarm-tools-strategy'
-          onClick={() => this.handleToStrategyListAndEvnetCenter()}
           v-bk-tooltips={{ content: this.$t('策略'), delay: 200, boundary: 'window', placement: 'bottom' }}
+          onClick={() => this.handleToStrategyListAndEvnetCenter()}
         >
           <i class='icon-monitor icon-mc-strategy tool-icon' />
           {this.strategyNum}
         </span>
         <span
           class={`alarm-tools-alarm ${!this.alarmNum ? 'is-disabled' : ''}`}
-          onClick={() => (this.alarmNum ? this.handleToStrategyListAndEvnetCenter(true) : false)}
           v-bk-tooltips={{
             content: this.alarmNum < 1 ? this.$t('无告警事件') : this.$t('当前有{0}个告警事件', [this.alarmNum]),
             delay: 200,
@@ -186,6 +186,7 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
             placement: 'bottom',
             allowHTML: false,
           }}
+          onClick={() => (this.alarmNum ? this.handleToStrategyListAndEvnetCenter(true) : false)}
         >
           <i class='icon-monitor icon-mc-chart-alert tool-icon' />
           {this.alarmNum}

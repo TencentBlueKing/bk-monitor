@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers as m } from 'vue-tsx-support';
+
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
@@ -50,7 +51,7 @@ const DEFAULT_SEARCH_INPUT_HEIGHT = 32;
 const DEFAULT_TREE_HEIGHT = 500;
 
 /** 成功 | 无数据 | 失败 | 警告 | 不展示状态 */
-export type StatusClassNameType = 'success' | 'nodata' | 'failed' | 'warning' | 'none';
+export type StatusClassNameType = 'failed' | 'nodata' | 'none' | 'success' | 'warning';
 export interface TreeNodeItem {
   id: number | string;
   name: string;
@@ -70,13 +71,13 @@ export interface TreeNodeItem {
   os_type?: string;
 }
 export interface ICurNode {
-  id: string | number; // ip + cloudId 或者 bkInstId + bkObjId
+  id: number | string; // ip + cloudId 或者 bkInstId + bkObjId
   ip?: string;
-  cloudId?: string | number;
+  cloudId?: number | string;
   bkInstId?: number | string;
   bkObjId?: string;
   type: NodeType;
-  processId?: string | number;
+  processId?: number | string;
   osType?: number;
 }
 
@@ -291,7 +292,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
     } else {
       this.handleTitleChange(
         undefined,
-        `${bk_inst_id ?? ''}` || `${bk_target_service_instance_id ?? ''}` || this.$t('概览').toString(),
+        `${bk_inst_id ?? ''}` || `${bk_target_service_instance_id ?? ''}` || this.$t('概览').toString()
       );
     }
     if (!!this.hostTreeData.length && (bk_inst_id !== undefined || bk_target_service_instance_id !== undefined)) {
@@ -462,7 +463,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
 
   /** 初始化展开的节点 */
   get defaultExpandedId() {
-    const fn = (list: string | any[], targetName: string | number): any => {
+    const fn = (list: any[] | string, targetName: number | string): any => {
       if (list?.length) {
         for (const item of list) {
           const sourceId =
@@ -694,7 +695,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
   }
 
   /** 生成主机主机的状态类名 */
-  getItemStatusClassName(status: string | number): StatusClassNameType {
+  getItemStatusClassName(status: number | string): StatusClassNameType {
     const target = this.statusMapping.find(item => item.id === status);
     return (target.color as StatusClassNameType) || 'none';
   }
@@ -746,8 +747,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
           onClick={m.stop(() => this.handleClickItemProxy(data))}
         >
           <span
-            class='node-content'
             style='padding-right: 5px;'
+            class='node-content'
           >
             <div
               class='node-content-wrap'
@@ -795,18 +796,18 @@ export default class HostTree extends tsc<IProps, IEvents> {
             <div class='host-tree-search-row'>
               {this.conditionList.length ? (
                 <bk-search-select
-                  placeholder={this.$t('搜索')}
                   vModel={this.searchCondition}
+                  data={this.currentConditionList}
+                  placeholder={this.$t('搜索')}
                   show-condition={false}
                   show-popover-tag-change={false}
-                  data={this.currentConditionList}
                   onChange={this.handleSearch}
                 />
               ) : (
                 <bk-input
                   v-model={this.searchKeyword}
-                  right-icon='bk-icon icon-search'
                   placeholder={this.$t('搜索IP / 主机名')}
+                  right-icon='bk-icon icon-search'
                   onInput={this.handleLocalSearch}
                 ></bk-input>
               )}
@@ -830,10 +831,10 @@ export default class HostTree extends tsc<IProps, IEvents> {
             </div>
             {this.isStatusFilter && (
               <StatusTab
-                needAll={false}
-                disabledClickZero
                 v-model={this.statusType}
+                needAll={false}
                 statusList={this.statusList}
+                disabledClickZero
                 onChange={this.handleStatusChange}
               ></StatusTab>
             )}
@@ -849,22 +850,22 @@ export default class HostTree extends tsc<IProps, IEvents> {
             {this.isTargetCompare ? (
               <bk-alert
                 class='target-compare-tips'
-                type='info'
                 title={this.$t('选择目标进行对比')}
+                type='info'
               ></bk-alert>
             ) : undefined}
           </div>
           {this.hostTreeData.length ? (
             <div style={{ height: `${this.hostTreeHeight}px` }}>
               <bk-big-tree
-                class={['big-tree', { 'clear-selected': !this.curNode?.id }]}
                 ref='bigTreeRef'
-                expand-on-click={false}
-                selectable={true}
-                filter-method={this.filterMethod}
-                default-expanded-nodes={this.defaultExpandedId}
+                class={['big-tree', { 'clear-selected': !this.curNode?.id }]}
                 data={this.hostTreeData}
+                default-expanded-nodes={this.defaultExpandedId}
+                expand-on-click={false}
+                filter-method={this.filterMethod}
                 scopedSlots={scopedSlots}
+                selectable={true}
               >
                 <template slot='empty'>
                   {this.isNoData && (

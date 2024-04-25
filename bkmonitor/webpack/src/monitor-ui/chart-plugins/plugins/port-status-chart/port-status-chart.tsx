@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -76,7 +77,7 @@ class PortStatusChart extends CommonSimpleChart {
         interval: reviewInterval(
           this.viewOptions.interval,
           params.end_time - params.start_time,
-          this.panel.collect_interval,
+          this.panel.collect_interval
         ),
       });
       const promiseList = this.panel.targets.map(item =>
@@ -86,7 +87,7 @@ class PortStatusChart extends CommonSimpleChart {
               ...variablesService.transformVariables(item.data),
               ...params,
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(res => {
             this.series = res;
@@ -95,7 +96,7 @@ class PortStatusChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
@@ -119,10 +120,10 @@ class PortStatusChart extends CommonSimpleChart {
       <ul class='port-status-chart'>
         <ChartTitle
           class='draggable-handle'
-          title={this.panel.title}
-          showMore={false}
           draging={this.panel.draging}
           isInstant={this.panel.instant}
+          showMore={false}
+          title={this.panel.title}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         {!this.empty && this.series?.length ? (

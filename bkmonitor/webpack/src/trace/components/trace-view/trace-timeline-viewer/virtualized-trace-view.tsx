@@ -51,6 +51,7 @@
  */
 
 import { computed, defineComponent, inject, nextTick, PropType, ref } from 'vue';
+
 import * as authorityMap from 'apm/pages/home/authority-map';
 import _isEqual from 'lodash/isEqual';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
@@ -60,7 +61,6 @@ import { useAuthorityStore } from '../../../store/modules/authority';
 import { useTraceStore } from '../../../store/modules/trace';
 import { useChildrenHiddenInject } from '../hooks';
 import { Span, TNil, Trace } from '../typings';
-
 import ListView from './list-view';
 
 import './virtualized-trace-view.scss';
@@ -75,8 +75,8 @@ type RowState = {
 const VirtualizedTraceViewProps = {
   registerAccessors: Function as PropType<(accesors: any) => void>,
   setSpanNameColumnWidth: Function as PropType<(width: number) => void>,
-  setTrace: Function as PropType<(trace: Trace | TNil, uiFind: string | TNil) => void>,
-  focusUiFindMatches: Function as PropType<(trace: Trace, uiFind: string | TNil, allowHide?: boolean) => void>,
+  setTrace: Function as PropType<(trace: TNil | Trace, uiFind: TNil | string) => void>,
+  focusUiFindMatches: Function as PropType<(trace: Trace, uiFind: TNil | string, allowHide?: boolean) => void>,
   shouldScrollToFirstUiFindMatch: {
     type: Boolean,
   },
@@ -101,7 +101,7 @@ const VirtualizedTraceViewProps = {
 export function generateRowStates(
   spans: Span[] | TNil,
   childrenHiddenIDs: Set<unknown>,
-  detailStates: Record<string, any> | undefined,
+  detailStates: Record<string, any> | undefined
 ): RowState[] {
   if (!spans) {
     return [];
@@ -265,27 +265,27 @@ export default defineComponent({
 
     return (
       <div
-        class='virtualized-trace-view-spans'
         ref='virtualizedTraceViewElm'
+        class='virtualized-trace-view-spans'
       >
         <ListView
           ref='listViewElm'
+          dataLength={this.getRowStates.length}
+          detailStates={this.detailStates}
+          haveReadSpanIds={this.haveReadSpanIds}
           // key={this.spans.length}
           itemsWrapperClassName='virtualized-trace-view-rows-wrapper'
+          spanNameColumnWidth={spanNameColumnWidth}
           viewBuffer={300}
           viewBufferMin={100}
-          dataLength={this.getRowStates.length}
           windowScroller
-          haveReadSpanIds={this.haveReadSpanIds}
-          detailStates={this.detailStates}
-          spanNameColumnWidth={spanNameColumnWidth}
-          onItemClick={this.handleSpanClick}
           onGetCrossAppInfo={this.getAcrossAppInfo}
+          onItemClick={this.handleSpanClick}
           onToggleCollapse={this.handleToggleCollapse}
         />
         <SpanDetails
-          show={this.showSpanDetails}
           isFullscreen={this.isFullscreen}
+          show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
           onShow={v => (this.showSpanDetails = v)}
         />

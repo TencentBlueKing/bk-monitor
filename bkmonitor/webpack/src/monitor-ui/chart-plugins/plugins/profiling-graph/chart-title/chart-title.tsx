@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { TextDirectionType, ViewModeType } from '../../../typings/profiling-graph';
@@ -106,8 +107,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           ))}
         </div>
         <bk-input
-          right-icon='bk-icon icon-search'
           v-model={this.keyword}
+          right-icon='bk-icon icon-search'
           onInput={this.handleKeywordChange}
         />
         <div class='ellipsis-direction button-group'>

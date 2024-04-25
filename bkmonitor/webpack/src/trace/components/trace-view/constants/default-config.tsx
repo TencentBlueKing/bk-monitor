@@ -121,8 +121,8 @@ export default deepFreeze(
     },
     // fields that should be individually merged vs wholesale replaced
     '__mergeFields',
-    { value: ['dependencies', 'search', 'tracking'] },
-  ),
+    { value: ['dependencies', 'search', 'tracking'] }
+  )
 );
 
 // eslint-disable-next-line @typescript-eslint/naming-convention

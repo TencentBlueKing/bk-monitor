@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { RouteConfig } from 'vue-router';
+
 import * as ruleAuth from 'monitor-pc/pages/strategy-config/authority-map';
 
 const StrategyConfig = () =>

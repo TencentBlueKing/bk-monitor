@@ -29,7 +29,7 @@ import './timeline-row.scss';
 interface ITimelineRowCellProps {
   className?: string;
   width: number;
-  style?: Object;
+  style?: object;
 }
 
 const TimelineRowCell = (props: ITimelineRowCellProps, { slots }) => {
@@ -38,8 +38,8 @@ const TimelineRowCell = (props: ITimelineRowCellProps, { slots }) => {
   const mergedStyle = { ...style, flexBasis: widthPercent, maxWidth: widthPercent };
   return (
     <div
-      class={`ub-relative ${className}`}
       style={mergedStyle}
+      class={`ub-relative ${className}`}
       {...rest}
     >
       {slots.default?.()}

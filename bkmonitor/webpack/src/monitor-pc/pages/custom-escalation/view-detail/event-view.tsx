@@ -93,21 +93,21 @@ export default class EventView extends tsc<object> {
       <div class='event-view'>
         {this.sceneId && (
           <CommonPage
-            sceneId={this.sceneId}
-            sceneType={'detail'}
             defaultViewOptions={this.viewOptions}
-            title={this.$tc('自定义事件')}
             isMergeMenuList={true}
             menuList={this.menuList}
+            sceneId={this.sceneId}
+            sceneType={'detail'}
+            title={this.$tc('自定义事件')}
             onMenuSelect={this.handleMenuSelect}
             onTitleChange={this.headerTitleChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             />
           </CommonPage>
         )}

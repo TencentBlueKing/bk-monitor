@@ -67,7 +67,7 @@ export default class HorizontalScrollContainer extends tsc<IProps> {
     this.canNext = true;
   }
 
-  handleClick(type: 'pre' | 'next') {
+  handleClick(type: 'next' | 'pre') {
     if (this.running) return;
     let course = 120;
     const speed = 5;

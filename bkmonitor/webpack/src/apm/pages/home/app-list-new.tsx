@@ -26,12 +26,12 @@
 
 import { Component, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deleteApplication, listApplication, listApplicationAsync } from 'monitor-api/modules/apm_meta';
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import CommonTable, { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
@@ -43,10 +43,11 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
-
 import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
 import { SEARCH_KEYS, STATUS_MAP } from './utils';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './app-list-new.scss';
 
@@ -307,7 +308,7 @@ export default class AppList extends tsc<object> {
     }
     this.getAsyncData(
       ['service_count'],
-      listData.data.map(item => item.application_id),
+      listData.data.map(item => item.application_id)
     );
     // 路由同步查询关键字
     const routerParams = {
@@ -696,8 +697,8 @@ export default class AppList extends tsc<object> {
         <NavBar routeList={this.routeList}>
           {!this.showGuidePage && (
             <div
-              slot='handler'
               class='dashboard-tools-wrap'
+              slot='handler'
             >
               <AlarmTools
                 class='alarm-tools'
@@ -706,9 +707,9 @@ export default class AppList extends tsc<object> {
               <DashboardTools
                 showListMenu={false}
                 timeRange={this.timeRange}
-                onTimeRangeChange={this.handleTimeRangeChange}
                 onImmediateReflesh={() => this.handleImmediateReflesh()}
                 onRefleshChange={this.handleRefleshChange}
+                onTimeRangeChange={this.handleTimeRangeChange}
               ></DashboardTools>
               <bk-button
                 size='small'
@@ -732,15 +733,15 @@ export default class AppList extends tsc<object> {
 
         <div
           class='app-list-main'
-          onScroll={this.handleScroll}
           v-bkloading={{
             isLoading: this.pagination.current === 1 && this.loading,
           }}
+          onScroll={this.handleScroll}
         >
           {this.showGuidePage ? (
             <GuidePage
-              guideId='apm-home'
               guideData={this.apmIntroduceData}
+              guideId='apm-home'
             />
           ) : (
             <div class='app-list-content'>
@@ -755,14 +756,14 @@ export default class AppList extends tsc<object> {
                 </bk-button>
                 <bk-search-select
                   class='app-list-search'
-                  values={this.searchCondition}
-                  placeholder={this.$t('请输入搜索或筛选')}
                   data={this.conditionListFilter()}
-                  strink={false}
                   filter={true}
-                  wrap-zindex={0}
+                  placeholder={this.$t('请输入搜索或筛选')}
                   show-condition={false}
                   show-popover-tag-change={false}
+                  strink={false}
+                  values={this.searchCondition}
+                  wrap-zindex={0}
                   onChange={this.handleSearchCondition}
                 ></bk-search-select>
                 {/* <Input
@@ -786,10 +787,10 @@ export default class AppList extends tsc<object> {
                       <div class='header-left'>
                         <span class={['icon-monitor icon-mc-triangle-down', { expan: item.isExpan }]}></span>
                         <div
-                          class='first-code'
                           style={{
                             background: item.firstCodeColor,
                           }}
+                          class='first-code'
                         >
                           <span>{item.firstCode}</span>
                         </div>
@@ -817,8 +818,8 @@ export default class AppList extends tsc<object> {
                         </div>
                         <div class='item-content'>
                           <div
-                            class='trace-status'
                             style={STATUS_MAP[item.data_status]?.style}
+                            class='trace-status'
                           >
                             {STATUS_MAP[item.data_status]?.name || '--'}
                           </div>
@@ -826,8 +827,8 @@ export default class AppList extends tsc<object> {
                         <div class='item-label'>Profiling:</div>
                         <div class='item-content'>
                           <div
-                            class='trace-status'
                             style={STATUS_MAP[item.profiling_data_status]?.style}
+                            class='trace-status'
                           >
                             {STATUS_MAP[item.profiling_data_status]?.name || '--'}
                           </div>
@@ -882,9 +883,9 @@ export default class AppList extends tsc<object> {
                           <CommonTable
                             {...{ props: item.tableData }}
                             onCollect={val => this.handleCollect(val, item)}
+                            onFilterChange={val => this.handleFilterChange(val, item)}
                             onScrollEnd={() => this.handleScrollEnd(item)}
                             onSortChange={val => this.handleSortChange(val as any, item)}
-                            onFilterChange={val => this.handleFilterChange(val, item)}
                           ></CommonTable>
                         ) : (
                           <EmptyStatus
@@ -916,17 +917,17 @@ export default class AppList extends tsc<object> {
         </div>
 
         <bk-dialog
-          value={this.showGuideDialog}
-          mask-close={true}
-          ext-cls='guide-create-dialog'
           width={1360}
+          ext-cls='guide-create-dialog'
+          mask-close={true}
           show-footer={false}
+          value={this.showGuideDialog}
           on-cancel={this.handleCloseGuideDialog}
         >
           <GuidePage
-            marginless
-            guideId='apm-home'
             guideData={this.apmIntroduceData}
+            guideId='apm-home'
+            marginless
           />
         </bk-dialog>
       </div>

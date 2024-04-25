@@ -108,19 +108,19 @@ export default class CustomDatePick extends tsc<IProps, IEvents> {
       <div class='custom-date-pick-component'>
         <bk-date-picker
           v-model={this.curDate}
-          transfer={true}
-          type={'date'}
           options={{
             disabledDate: this.disabledDateFn,
           }}
-          format={this.dateFormat()}
           clearable={false}
+          format={this.dateFormat()}
           readonly={this.readonly}
+          transfer={true}
+          type={'date'}
           onChange={this.handleDateChange}
         >
           <div
-            slot='header'
             class='custom-date-pick-component-slot-header'
+            slot='header'
             onMousedown={(e: Event) => e.stopPropagation()}
           >
             <div class='left'>
@@ -133,15 +133,15 @@ export default class CustomDatePick extends tsc<IProps, IEvents> {
             <div class='right'>
               {this.readonlyTime ? (
                 <bk-input
-                  readonly={true}
                   v-model={this.curTime}
+                  readonly={true}
                 ></bk-input>
               ) : (
                 <bk-time-picker
                   v-model={this.curTime}
                   format={'HH:mm'}
-                  transfer={false}
                   placement={'bottom-end'}
+                  transfer={false}
                   onChange={this.handleTimeChange}
                 ></bk-time-picker>
               )}

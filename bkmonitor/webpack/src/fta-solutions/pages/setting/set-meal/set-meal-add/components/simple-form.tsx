@@ -72,12 +72,12 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
             </div>,
             <div class='wrap'>
               <bk-input
-                value={item.value}
-                behavior='simplicity'
                 placeholder={
                   item?.placeholder ||
                   this.$t('输入需要调试的{0}参数', [`${item.lable?.replace(/\{\{(.*?)\}\}|(\s)/g, '') || ''}`])
                 }
+                behavior='simplicity'
+                value={item.value}
                 onChange={(v: string) => this.handleInputChange(v, index)}
               ></bk-input>
             </div>,

@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Form, Loading, Sideslider } from 'bkui-vue';
 
 import { useDocumentLink } from '../../../hooks';
@@ -40,7 +41,7 @@ export default defineComponent({
       default: DetailType.Application,
     },
     detailData: {
-      type: Object as PropType<ServicesDetail | FileDetail>,
+      type: Object as PropType<FileDetail | ServicesDetail>,
       default: () => null,
     },
     show: {
@@ -149,11 +150,11 @@ export default defineComponent({
     return (
       <>
         <Sideslider
-          isShow={this.show}
-          onUpdate:isShow={this.handleShowChange}
-          quick-close
           width={400}
           ext-cls='profiling-detail-sideslider'
+          isShow={this.show}
+          quick-close
+          onUpdate:isShow={this.handleShowChange}
         >
           {{
             header: () => (

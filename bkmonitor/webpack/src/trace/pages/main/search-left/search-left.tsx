@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import * as authorityMap from 'apm/pages/home/authority-map';
 import { Button, ResizeLayout, Select } from 'bkui-vue';
 import { type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
@@ -35,13 +35,15 @@ import { useAuthorityStore } from '../../../store/modules/authority';
 import { IAppItem, ISearchTypeItem, SearchType } from '../../../typings';
 import FieldFiltering from '../event-retrieval/field-filtering';
 
+import type { PropType } from 'vue';
+
 import './search-left.scss';
 
-export function formItem(label: string | JSX.Element, content: JSX.Element, key?: string) {
+export function formItem(label: JSX.Element | string, content: JSX.Element, key?: string) {
   return (
     <div
-      class='left-form-item'
       key={key || ''}
+      class='left-form-item'
     >
       <div class='item-label'>{label}</div>
       <div class='item-content'>{content}</div>
@@ -105,10 +107,6 @@ export default defineComponent({
             <Select
               class='w-100'
               v-model={props.app}
-              onChange={v => emit('appChange', v)}
-              clearable={false}
-              filterable={true}
-              popoverOptions={{ theme: 'light bk-select-popover trace-search-select-popover' }}
               v-slots={{
                 extension: () => (
                   <div
@@ -120,11 +118,15 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              clearable={false}
+              filterable={true}
+              popoverOptions={{ theme: 'light bk-select-popover trace-search-select-popover' }}
+              onChange={v => emit('appChange', v)}
             >
               {props.appList.map((item, index) => (
                 <Select.Option
-                  key={index}
                   id={item.app_name}
+                  key={index}
                   name={`${item.app_alias}（${item.app_name}）`}
                 >
                   <div
@@ -150,7 +152,7 @@ export default defineComponent({
                   </div>
                 </Select.Option>
               ))}
-            </Select>,
+            </Select>
           ),
           formItem(
             t('查询方式'),
@@ -164,7 +166,7 @@ export default defineComponent({
                   {item.name}
                 </Button>
               ))}
-            </Button.ButtonGroup>,
+            </Button.ButtonGroup>
           ),
           slots.query?.(),
         ]}
@@ -178,9 +180,6 @@ export default defineComponent({
         {props.showBottom ? (
           <ResizeLayout
             style={{ height: '100%' }}
-            initialDivide={610}
-            placement={placement}
-            immediate
             v-slots={{
               aside: () => topContent(),
               main: () =>
@@ -197,6 +196,9 @@ export default defineComponent({
                   </div>
                 ) : undefined,
             }}
+            initialDivide={610}
+            placement={placement}
+            immediate
           ></ResizeLayout>
         ) : (
           topContent()

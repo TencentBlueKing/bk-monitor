@@ -26,16 +26,16 @@
 import Vue, { VNode } from 'vue';
 import { TranslateResult } from 'vue-i18n';
 
-export type IpType = 'TOPO' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE';
+export type IpType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
 
 // tab数据源
 export interface IPanel {
   name: string; // tab唯一标识（要和components目录的文件名保持一致，作为后面动态组件的name）
-  label: string | TranslateResult; // tab默认显示文本
+  label: TranslateResult | string; // tab默认显示文本
   hidden?: boolean; // tab是否显示
   disabled?: boolean; // tab是否禁用
   keepAlive?: boolean; // 是否缓存
-  tips?: string | TranslateResult;
+  tips?: TranslateResult | string;
   component?: Vue; // 组件对象（默认根据name从layout里面获取）
   type?: IpType; // 当前tab对于的类型（目前对于后端来说只有两种，只是前端选择方式不一样）
 }
@@ -45,8 +45,8 @@ export interface IEventsMap {
 }
 
 export interface IMenu {
-  id: string | number;
-  label: string | TranslateResult;
+  id: number | string;
+  label: TranslateResult | string;
   readonly?: boolean;
   disabled?: boolean;
   hidden?: boolean;
@@ -59,7 +59,7 @@ export interface INodeData extends IMenu {
 
 export interface IPreviewData {
   id: IpType;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
   data: any[];
   dataNameKey?: string;
 }
@@ -85,9 +85,9 @@ export interface IPreviewDataOption {
 }
 
 export interface ITreeNode {
-  id: string | number;
+  id: number | string;
   name: string;
-  level: string | number;
+  level: number | string;
   children: ITreeNode[];
   data?: any;
   parent?: ITreeNode;
@@ -95,7 +95,7 @@ export interface ITreeNode {
 
 export interface ITableConfig {
   prop: string;
-  label: string | TranslateResult;
+  label: TranslateResult | string;
   render?: (row: any, column: any, $index: number) => VNode | any;
   hidden?: boolean;
   minWidth?: number;
@@ -104,13 +104,13 @@ export interface ITableConfig {
 export interface IAgentStatusData {
   count?: number;
   status: string;
-  display: string | TranslateResult;
+  display: TranslateResult | string;
   errorCount?: number;
 }
 // 0 未选 1 半选 2 全选
 export type CheckValue = 0 | 1 | 2;
 
-export type CheckType = 'current' | 'all';
+export type CheckType = 'all' | 'current';
 
 export interface IPagination {
   limit: number;
@@ -146,5 +146,5 @@ export interface ITableCheckData {
 
 export interface IClassifyTab {
   active: string;
-  list: { id: 'inner' | 'outer' | 'other'; name: TranslateResult }[];
+  list: { id: 'inner' | 'other' | 'outer'; name: TranslateResult }[];
 }

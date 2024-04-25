@@ -25,6 +25,7 @@
  */
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import G6 from '@antv/g6';
 import dayjs from 'dayjs';
 import bus from 'monitor-common/utils/event-bus';
@@ -232,7 +233,7 @@ export class RelationGraph extends CommonSimpleChart {
         ${itemName(target, model)}
       </span>
       ${target.target === 'blank' ? '<span class="icon-monitor icon-fenxiang"></span>' : ''}
-    </li>`,
+    </li>`
               )
               .join('')}
             </ul>`;
@@ -322,9 +323,9 @@ export class RelationGraph extends CommonSimpleChart {
                     ...(this.viewOptions.filters?.current_target || {}),
                     ...this.viewOptions,
                     ...this.viewOptions.variables,
-                  },
+                  }
                 ),
-                { needMessage: false },
+                { needMessage: false }
               )
               .then(res => {
                 const legendStatusData = res.legend_data.statusList.map(item => ({
@@ -383,9 +384,9 @@ export class RelationGraph extends CommonSimpleChart {
                     ...(this.viewOptions.filters?.current_target || {}),
                     ...this.viewOptions,
                     ...this.viewOptions.variables,
-                  },
+                  }
                 ),
-                { needMessage: false },
+                { needMessage: false }
               )
               .then(({ columns, data, total, condition_list }) => {
                 this.emptyStatusType = this.keyword || this.filter !== 'all' ? 'search-empty' : 'empty';
@@ -401,7 +402,7 @@ export class RelationGraph extends CommonSimpleChart {
               })
               .catch(error => {
                 this.handleErrorMsgChange(error.msg || error.message);
-              }),
+              })
           );
       }
       const res = await Promise.all(promiseList).catch(() => false);
@@ -464,7 +465,7 @@ export class RelationGraph extends CommonSimpleChart {
            */
           setState: (name, value, item) => this.setNodeState(name, value, item),
         },
-        'circle',
+        'circle'
       );
       // 自定义边
       G6.registerEdge(
@@ -486,7 +487,7 @@ export class RelationGraph extends CommonSimpleChart {
            */
           setState: (name, value, item) => this.setEdgeState(name, value, item),
         },
-        this.serviceName ? 'cubic-horizontal' : 'quadratic',
+        this.serviceName ? 'cubic-horizontal' : 'quadratic'
       );
 
       this.graph = new G6.Graph({
@@ -714,7 +715,7 @@ export class RelationGraph extends CommonSimpleChart {
       const startCircle = group.find(e => e.get('name') === 'start-circle');
       const start = group.find(e => e.get('name') === 'start');
       [nodeShape, labelShape, iconShape, languageCircle, languageImageShape, startCircle, start].forEach(shape =>
-        shape?.attr({ opacity: value ? 0.1 : 1 }),
+        shape?.attr({ opacity: value ? 0.1 : 1 })
       );
     }
   }
@@ -778,7 +779,7 @@ export class RelationGraph extends CommonSimpleChart {
           {
             repeat: true, // whether executes the animation repeatly
             duration: 3000, // the duration for executing once
-          },
+          }
         );
       } else {
         // 停止动画
@@ -889,7 +890,7 @@ export class RelationGraph extends CommonSimpleChart {
           ${tips
             .map(
               tip =>
-                `<li><div class='value'>${tip.value}</div><div style='color: rgba(0,0,0,0.60);'>${tip.name}</div></li>`,
+                `<li><div class='value'>${tip.value}</div><div style='color: rgba(0,0,0,0.60);'>${tip.name}</div></li>`
             )
             .join('')}
         </ul>
@@ -1058,7 +1059,7 @@ export class RelationGraph extends CommonSimpleChart {
     this.checkedColumns = list;
   }
   /* 关键字搜索 */
-  handleSearchChange(value: string | number) {
+  handleSearchChange(value: number | string) {
     this.keyword = value as any;
     if (this.isOverview) {
       this.handleHighlightNode();
@@ -1191,7 +1192,7 @@ export class RelationGraph extends CommonSimpleChart {
         }));
       } else {
         const hasOtherSelect = this.legendStatisticsData.some(statistics =>
-          statistics.data.some(set => set.size !== item.size && set.select),
+          statistics.data.some(set => set.size !== item.size && set.select)
         );
         this.legendStatisticsData = this.legendStatisticsData.map(statis => ({
           ...statis,
@@ -1281,19 +1282,19 @@ export class RelationGraph extends CommonSimpleChart {
       <div class='relation-graph'>
         <RelationChartTitle
           ref='chartTitle'
-          isOverview={this.isOverview}
-          filterList={this.filterList}
-          showNoData={this.showNoData}
           conditionOptions={this.conditionOptions}
+          filterList={this.filterList}
           isFullScreen={this.isFullScreen}
-          onOverview={this.handleOverview}
-          onSearchChange={this.handleSearchChange}
+          isOverview={this.isOverview}
+          showNoData={this.showNoData}
+          onClearFilter={this.handleClearFilter}
           onConditionChange={this.handleConditionChange}
-          onbackToCenter={this.handlebackToCenter}
-          onShowNodata={this.handleShowNodata}
           onFilterChange={this.handleFilterChange}
           onFullScreen={this.handleFullScreen}
-          onClearFilter={this.handleClearFilter}
+          onOverview={this.handleOverview}
+          onSearchChange={this.handleSearchChange}
+          onShowNodata={this.handleShowNodata}
+          onbackToCenter={this.handlebackToCenter}
         />
         {this.isOverview ? (
           <div class='graph-main'>
@@ -1309,14 +1310,14 @@ export class RelationGraph extends CommonSimpleChart {
                       onClick={() => this.handleGraphZoom(this.zoomValue + 0.1)}
                     ></span>
                     <bk-slider
-                      v-model={this.zoomValue}
-                      class='slider-wrap'
                       height='82px'
-                      show-tip={false}
-                      vertical={true}
-                      min-value={this.minZoomVal}
+                      class='slider-wrap'
+                      v-model={this.zoomValue}
                       max-value={this.maxZoomVal}
+                      min-value={this.minZoomVal}
+                      show-tip={false}
                       step={0.1}
+                      vertical={true}
                       onChange={value => this.handleGraphZoom(value)}
                     ></bk-slider>
                     <span
@@ -1336,20 +1337,20 @@ export class RelationGraph extends CommonSimpleChart {
             <CommonTable
               style='background: #fff;'
               checkable={false}
-              data={this.tableData}
               columns={this.columns}
+              data={this.tableData}
               defaultSize='small'
-              paginationType='simple'
               pagination={this.pagination}
-              onSortChange={this.handleSortChange}
-              onLimitChange={this.handleLimitChange}
-              onPageChange={this.handlePageChange}
+              paginationType='simple'
               onColumnSettingChange={this.handleColumnChange}
               onFilterChange={this.handleTableFilterChange}
+              onLimitChange={this.handleLimitChange}
+              onPageChange={this.handlePageChange}
+              onSortChange={this.handleSortChange}
             >
               <EmptyStatus
-                type={this.emptyStatusType}
                 slot='empty'
+                type={this.emptyStatusType}
                 onOperation={this.handleOperation}
               />
             </CommonTable>
@@ -1360,10 +1361,10 @@ export class RelationGraph extends CommonSimpleChart {
           <RatioLegend
             key={this.legendKey}
             legendStatusData={this.legendStatusData}
-            statistics={this.legendStatisticsData}
             sizeCategory={this.sizeCategory}
-            onStatisticsChange={this.handleChangeStatistics}
+            statistics={this.legendStatisticsData}
             onSelectLegend={this.handleSelectLegend}
+            onStatisticsChange={this.handleChangeStatistics}
           />
         ) : undefined}
       </div>

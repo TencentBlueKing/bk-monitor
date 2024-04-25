@@ -26,6 +26,7 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import {
   batchRetry,
   batchRevokeTargetNodes,
@@ -47,18 +48,17 @@ import {
   STATUS_LIST,
   statusMap,
 } from '../collector-host-detail/utils';
-
 import AlertHistogram from './components/alert-histogram';
 
 import './collector-status-details.scss';
 
 enum EColumn {
+  alert = 'alert',
+  detail = 'detail',
   name = 'name',
+  operate = 'operate',
   status = 'status',
   version = 'version',
-  detail = 'detail',
-  operate = 'operate',
-  alert = 'alert',
 }
 
 interface IProps {
@@ -217,7 +217,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           task_id: data.task_id,
           id: this.config.id,
         },
-        { needMessage: false },
+        { needMessage: false }
       )
         .then(data => {
           this.side.detail = data.log_detail;
@@ -269,7 +269,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.contents.forEach(content => {
       if (content.child?.length) {
         const setData = content.child.find(
-          set => set.instance_id === data.instance_id && set.status === EStatus.FAILED,
+          set => set.instance_id === data.instance_id && set.status === EStatus.FAILED
         );
         if (setData) {
           setData.status = 'PENDING';
@@ -412,7 +412,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   /**
    * @description 复制目标
    */
-  handleCopyTargets(type?: 'ip' | 'instance') {
+  handleCopyTargets(type?: 'instance' | 'ip') {
     let copyStr = '';
     this.contents.forEach(ct => {
       if (type === 'ip' || this.targetNodeType === 'HOST') {
@@ -441,20 +441,20 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           <div class='header-filter'>
             {FILTER_TYPE_LIST.map(item => (
               <div
-                class={['header-filter-item', { active: item.id === this.header.status }]}
                 key={item.id}
+                class={['header-filter-item', { active: item.id === this.header.status }]}
                 onClick={() => this.handleFilterChange(item.id)}
               >
                 {(() => {
                   if (!!item.color) {
                     return (
                       <span
-                        class='point mr-3'
                         style={{ background: item.color[0] }}
+                        class='point mr-3'
                       >
                         <span
-                          class='s-point'
                           style={{ background: item.color[1] }}
+                          class='s-point'
                         ></span>
                       </span>
                     );
@@ -462,8 +462,8 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                   if (item.id === EStatus.RUNNING) {
                     return (
                       <bk-spin
-                        size='mini'
                         class='mr-3'
+                        size='mini'
                       ></bk-spin>
                     );
                   }
@@ -497,9 +497,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             <bk-button
               class='mr-10'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
-              icon={this.disBatch ? 'loading' : ''}
               disabled={!this.haveDeploying || this.disBatch}
               hover-theme='primary'
+              icon={this.disBatch ? 'loading' : ''}
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchStop() : this.handleShowAuthorityDetail())}
             >
               {this.$t('批量终止')}
@@ -543,18 +543,18 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                 {!!content.is_label && (
                   <span slot='pre-header'>
                     <span
-                      class='pre-panel-name fix-same-code'
                       style={{
                         backgroundColor: labelMap[content.label_name].color,
                       }}
+                      class='pre-panel-name fix-same-code'
                     >
                       {labelMap[content.label_name].name}
                     </span>
                     <span
-                      class='pre-panel-mark fix-same-code'
                       style={{
                         borderColor: labelMap[content.label_name].color,
                       }}
+                      class='pre-panel-mark fix-same-code'
                     ></span>
                   </span>
                 )}
@@ -572,7 +572,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                             content.pendingNum
                               ? ','
                               : undefined}
-                          </span>,
+                          </span>
                         );
                       }
                       if (content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) {
@@ -582,7 +582,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                               <span style={{ color: '#ea3636' }}>{content.failedNum}</span>
                             </i18n>
                             {content.pendingNum ? ',' : undefined}
-                          </span>,
+                          </span>
                         );
                       }
                       if (content.pendingNum) {
@@ -591,7 +591,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                             <i18n path='{0}个执行中'>
                               <span style={{ color: '#3a84ff' }}>{content.failedNum}</span>
                             </i18n>
-                          </span>,
+                          </span>
                         );
                       }
                       if (!content.child.length) {
@@ -625,8 +625,8 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                   })()}
                 </span>
                 <div
-                  slot='content'
                   class='table-content-wrap'
+                  slot='content'
                 >
                   <bk-table
                     {...{
@@ -642,10 +642,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                         return (
                           <bk-table-column
                             key={key}
-                            prop={column.id}
-                            label={column.name}
                             width={column.width}
-                            minWidth={column?.minWidth}
                             formatter={(row: any) => {
                               switch (column.id) {
                                 case EColumn.name: {
@@ -660,21 +657,21 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                       {[
                                         this.isRunning && STATUS_LIST.includes(row.status) ? (
                                           <bk-spin
-                                            size='mini'
                                             class='mr-3'
+                                            size='mini'
                                           ></bk-spin>
                                         ) : undefined,
                                         this.isRunning &&
                                         [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
-                                          row.status,
+                                          row.status
                                         ) ? (
                                           <span
-                                            class='point mr-3'
                                             style={{ background: colorMap[row.status][0] }}
+                                            class='point mr-3'
                                           >
                                             <span
-                                              class='s-point'
                                               style={{ background: colorMap[row.status][1] }}
+                                              class='s-point'
                                             ></span>
                                           </span>
                                         ) : undefined,
@@ -737,6 +734,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                 }
                               }
                             }}
+                            label={column.name}
+                            minWidth={column?.minWidth}
+                            prop={column.id}
                           ></bk-table-column>
                         );
                       })}
@@ -746,10 +746,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             ))}
         </div>
         <bk-sideslider
+          width={900}
           class='fix-same-code'
           is-show={this.side.show}
           quick-close={true}
-          width={900}
           title={this.side.title}
           {...{ on: { 'update:isShow': v => (this.side.show = v) } }}
         >

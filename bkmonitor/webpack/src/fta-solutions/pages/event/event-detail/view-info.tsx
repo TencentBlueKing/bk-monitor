@@ -26,6 +26,7 @@
 
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { alertGraphQuery } from 'monitor-api/modules/alert';
 import { logQuery } from 'monitor-api/modules/grafana';
@@ -58,7 +59,7 @@ interface ILogData {
 }
 
 interface IDataZoomTimeRange {
-  timeRange: TimeRangeType | [];
+  timeRange: [] | TimeRangeType;
 }
 @Component({
   name: 'ViewInfo',
@@ -199,7 +200,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   handleShow(v) {
     if (v) {
       this.isMultivariateAnomalyDetection =
-        this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.MultivariateAnomalyDetection;
+        this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.HostAnomalyDetection;
       if (!this.logData.length) {
         this.getData();
       }
@@ -277,7 +278,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
             /\$time_offset/g,
             hasMatch
               ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-              : val.replace('current', this.$t('当前')),
+              : val.replace('current', this.$t('当前'))
           );
         }
       } else if (typeof val === 'object') {
@@ -319,7 +320,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       this.errorMsg = '';
       const res = await alertGraphQuery(
         { ...chartQueryConfig, ...params },
-        { needRes: true, needMessage: false },
+        { needRes: true, needMessage: false }
       ).catch(err => {
         if (err && this.noGraphCode.includes(err.code)) {
           this.chart.selectForFetch = false;
@@ -344,7 +345,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
 
       if (chartQueryConfig?.extend_fields?.intelligent_detect?.result_table_id && series.length) {
         const chartSeries = series.find(
-          item => item?.metric?.metric_field === 'value' && item?.time_offset === 'current',
+          item => item?.metric?.metric_field === 'value' && item?.time_offset === 'current'
         );
         if (!chartSeries) return [];
         // 智能异常检测算法 边界画图设置
@@ -361,7 +362,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
               item =>
                 item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
                 item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-                item.metric.metric_field === 'upper_bound',
+                item.metric.metric_field === 'upper_bound'
             )
             ?.datapoints?.map(item => [item[1], item[0]]) || [];
         const lowBoundary =
@@ -370,14 +371,14 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
               item =>
                 item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
                 item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-                item.metric.metric_field === 'lower_bound',
+                item.metric.metric_field === 'lower_bound'
             )
             ?.datapoints.map(item => [item[1], item[0]]) || [];
         const coverData = series?.find(
           item =>
             item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
             item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
-            item.metric.metric_field === 'is_anomaly',
+            item.metric.metric_field === 'is_anomaly'
         )?.datapoints;
         if (coverData?.length) {
           coverList.push({
@@ -493,7 +494,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
           const timeIndex = item.columns.findIndex(name => name === 'bk_trace_timestamp');
           /* 过滤时间戳与值为空的数据 */
           const dataPointsFilter = item.data_points.filter(
-            item => !!item[timeIndex] && typeof item[valueIndex] === 'number',
+            item => !!item[timeIndex] && typeof item[valueIndex] === 'number'
           );
           const datapoints = traceReduceDensityFn(dataPointsFilter, timeIndex, valueIndex);
           result.push({
@@ -547,21 +548,21 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
     return (
       <div class='series-view-container'>
         <MonitorEchart
+          key={this.detail.id}
           ref='monitorEchart'
           height={220}
-          title={this.chart.title}
-          subtitle={this.chart.subtitle}
-          key={this.detail.id}
-          options={this.chartOption}
-          errorMsg={this.errorMsg}
-          empty-text={this.errorMsg?.length ? this.$t('查询数据错误') : this.$t('无数据')}
           chart-type={this.chart.chartType}
-          hasTraceInfo={this.hasTraceSeries}
           curBizId={this.detail.bk_biz_id}
-          traceInfoTimeRange={this.traceInfoTimeRange}
-          on-data-zoom={this.dataZoom}
+          empty-text={this.errorMsg?.length ? this.$t('查询数据错误') : this.$t('无数据')}
+          errorMsg={this.errorMsg}
           get-alarm-status={this.getAlarmStatus}
           get-series-data={this.handleGetSeriesData}
+          hasTraceInfo={this.hasTraceSeries}
+          options={this.chartOption}
+          subtitle={this.chart.subtitle}
+          title={this.chart.title}
+          traceInfoTimeRange={this.traceInfoTimeRange}
+          on-data-zoom={this.dataZoom}
           on-export-data-retrieval={this.handleToDataRetrieval}
         ></MonitorEchart>
       </div>
@@ -586,8 +587,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
         <div style={{ height: `${this.tableHeight}px` }}>
           <bk-table data={this.logData}>
             <bk-table-column
-              label={this.$t('时间')}
               width={260}
+              label={this.$t('时间')}
               scopedSlots={timeSlots}
             ></bk-table-column>
             <bk-table-column

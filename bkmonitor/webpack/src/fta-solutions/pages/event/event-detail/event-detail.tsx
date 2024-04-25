@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import { alertDetail, listAlertFeedback, searchAction } from 'monitor-api/modules/alert';
 import { listIndexByHost } from 'monitor-api/modules/alert_events';
@@ -40,7 +41,6 @@ import { throttle } from 'throttle-debounce';
 
 import ChatGroup from '../../../components/chat-group/chat-group';
 import { IChatGroupDialogOptions } from '../typings/event';
-
 import { createAutoTimerange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
@@ -316,7 +316,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     // 如果 告警来源 是监控策略就要跳转到 策略详情 。
     if (this.basicInfo.plugin_id === 'bkmonitor') {
       window.open(
-        `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/strategy-config/detail/${this.id}?fromEvent=true`,
+        `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/strategy-config/detail/${this.id}?fromEvent=true`
       );
     } else if (this.basicInfo.plugin_id) {
       // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
@@ -493,15 +493,15 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     ];
     return [
       <AlarmConfirm
-        show={alarmConfirm.show}
         bizIds={[this.basicInfo.bk_biz_id]}
         ids={[this.id]}
+        show={alarmConfirm.show}
         on-change={this.alarmConfirmChange}
         onConfirm={this.handleConfirmAfter}
       ></AlarmConfirm>,
       <QuickShield
-        details={detail}
         bizIds={[this.basicInfo.bk_biz_id]}
+        details={detail}
         ids={[this.basicInfo.id]}
         show={quickShield.show}
         on-change={this.quickShieldChange}
@@ -510,42 +510,42 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       ></QuickShield>,
       this.logRetrieval.isMounted ? (
         <LogRetrievalDialog
-          show={this.logRetrieval.show}
-          indexList={this.logRetrieval.indexList}
-          showTips={this.logRetrieval.isShowTip}
-          ip={this.logRetrieval.ip}
           bizId={this.basicInfo.bk_biz_id}
+          indexList={this.logRetrieval.indexList}
+          ip={this.logRetrieval.ip}
+          show={this.logRetrieval.show}
+          showTips={this.logRetrieval.isShowTip}
           onShowChange={this.handleLogDialogShow}
         ></LogRetrievalDialog>
       ) : undefined,
       <HandleStatusDialog
-        actions={this.actions}
         v-model={this.dialog.statusDialog.show}
+        actions={this.actions}
       ></HandleStatusDialog>,
       <Feedback
-        show={feedback.show}
         ids={[this.basicInfo.id]}
+        show={feedback.show}
         onChange={this.handleFeedback}
         onConfirm={this.handleFeedBackConfirm}
       ></Feedback>,
       <ManualProcess
-        show={this.dialog.manualProcess.show}
-        bizIds={this.dialog.manualProcess.bizIds}
         alertIds={this.dialog.manualProcess.alertIds}
-        onShowChange={this.manualProcessShowChange}
+        bizIds={this.dialog.manualProcess.bizIds}
+        show={this.dialog.manualProcess.show}
         onDebugStatus={this.handleDebugStatus}
         onMealInfo={this.handleMealInfo}
+        onShowChange={this.manualProcessShowChange}
       ></ManualProcess>,
       <ManualDebugStatus
+        actionIds={this.dialog.manualProcess.actionIds}
         bizIds={this.dialog.manualProcess.bizIds}
         debugKey={this.dialog.manualProcess.debugKey}
-        actionIds={this.dialog.manualProcess.actionIds}
         mealInfo={this.dialog.manualProcess.mealInfo}
       ></ManualDebugStatus>,
       <AlarmDispatch
-        show={this.dialog.alarmDispatch.show}
         alertIds={this.dialog.alarmDispatch.alertIds}
         bizIds={this.dialog.alarmDispatch.bizIds}
+        show={this.dialog.alarmDispatch.show}
         onShow={this.handleAlarmDispatchShowChange}
       ></AlarmDispatch>,
     ];
@@ -618,32 +618,32 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
           </div>
           <BasicInfo
             basicInfo={this.basicInfo}
-            on-quick-shield={this.quickShieldChange}
             on-alarm-confirm={this.alarmConfirmChange}
-            on-strategy-detail={this.toStrategyDetail}
-            on-processing-status={this.processingStatus}
             on-manual-process={this.handleManualProcess}
+            on-processing-status={this.processingStatus}
+            on-quick-shield={this.quickShieldChange}
+            on-strategy-detail={this.toStrategyDetail}
             onAlarmDispatch={this.handleAlarmDispatch}
           ></BasicInfo>
           <div class='basicinfo-bottom-border'></div>
           <TabContainer
-            detail={this.basicInfo}
-            show={this.tabShow}
-            alertId={this.id}
-            isScrollEnd={this.isScrollEnd}
-            activeTab={this.activeTab}
             actions={this.actions}
-            traceIds={this.traceIds}
+            activeTab={this.activeTab}
+            alertId={this.id}
+            detail={this.basicInfo}
+            isScrollEnd={this.isScrollEnd}
             sceneId={this.sceneId}
             sceneName={this.sceneName}
+            show={this.tabShow}
+            traceIds={this.traceIds}
           ></TabContainer>
         </div>
         {this.getDialogComponent()}
         <ChatGroup
-          show={this.chatGroupDialog.show}
-          assignee={this.chatGroupDialog.assignee}
           alarmEventName={this.chatGroupDialog.alertName}
           alertIds={this.chatGroupDialog.alertIds}
+          assignee={this.chatGroupDialog.assignee}
+          show={this.chatGroupDialog.show}
           onShowChange={this.chatGroupShowChange}
         />
       </div>

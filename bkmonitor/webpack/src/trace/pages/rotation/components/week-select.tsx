@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import './week-select.scss';
@@ -62,7 +63,7 @@ export default defineComponent({
     });
     /** 用于展示的文本 */
     const localText = computed(() =>
-      localValue.map(val => weekList.value.find(item => item.id === val).name).join('、'),
+      localValue.map(val => weekList.value.find(item => item.id === val).name).join('、')
     );
     watch(
       () => props.modelValue,
@@ -71,7 +72,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     // ---------popover弹窗控制------------
@@ -92,7 +93,7 @@ export default defineComponent({
     /** 周选择器实例，用于获取宽度 */
     const weekSelectRef = ref<HTMLDivElement>();
     /** hover的周选项 */
-    const hoverWeek = ref<string | number>('');
+    const hoverWeek = ref<number | string>('');
     /** 选择器下拉列表 */
     const weekList = computed<WeekListItemModel[]>(() => {
       const list = [
@@ -182,8 +183,8 @@ export default defineComponent({
       <div class='week-select-wrapper-component'>
         {this.label && (
           <div
-            class='label'
             style={{ width: `${this.labelWidth}px` }}
+            class='label'
           >
             {this.label}
           </div>
@@ -194,12 +195,12 @@ export default defineComponent({
         >
           <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']}></i>
           <Popover
-            trigger='click'
-            is-show={this.show}
-            theme='light'
             extCls='week-select-popover component'
             arrow={false}
+            is-show={this.show}
             placement='bottom'
+            theme='light'
+            trigger='click'
             onAfterHidden={this.handleAfterHidden}
             onAfterShow={this.handleAfterShow}
           >

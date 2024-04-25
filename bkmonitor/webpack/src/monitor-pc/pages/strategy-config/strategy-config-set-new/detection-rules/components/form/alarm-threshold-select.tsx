@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getCookie } from 'monitor-common/utils';
 
 import SelectMenu from '../../../components/select-menu';
@@ -32,11 +33,11 @@ import SelectMenu from '../../../components/select-menu';
 import './alarm-threshold-select.scss';
 // const i18n = window.i18n
 export interface IItem {
-  id: string | number;
-  name: string | number;
+  id: number | string;
+  name: number | string;
 }
 
-export type BoundType = 'middle' | 'upper' | 'lower';
+export type BoundType = 'lower' | 'middle' | 'upper';
 
 export interface ILocalValueItem {
   method: string;
@@ -212,16 +213,16 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
     return (
       <div class={['alarm-threshold-select-wrap', { 'is-readonly': this.readonly }]}>
         <i18n
+          class='bound-type-select'
           path='{0}满足下列条件时触发告警'
           tag='div'
-          class='bound-type-select'
         >
           <bk-select
-            value={this.boundType}
             clearable={false}
             disabled={this.readonly}
-            onChange={this.handleBoundTypeChange}
             ext-popover-cls='bound-type-popover'
+            value={this.boundType}
+            onChange={this.handleBoundTypeChange}
           >
             <bk-option
               id='upper'
@@ -241,10 +242,10 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
           if (item.condition) {
             return (
               <span
-                style={`display: ${!index && 'none;'}`}
                 key={`condition-${index}`}
-                class='condition active'
                 ref={`condition-${index}`}
+                style={`display: ${!index && 'none;'}`}
+                class='condition active'
                 onClick={() => this.handleShowSelect(`condition-${index}`, index, item.index)}
               >
                 {this.conditionNameDisplsy(item.condition.condition)}
@@ -274,12 +275,12 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
                       'has-unit-larger': this.unit.length > 2,
                     },
                   ]}
-                  behavior='simplicity'
-                  readonly={this.readonly}
-                  onInput={this.emitLocalChange}
                   // style="width: 78px"
                   v-model={item.value.value}
+                  behavior='simplicity'
+                  readonly={this.readonly}
                   type='number'
+                  onInput={this.emitLocalChange}
                 >
                   <template slot='append'>
                     <div class='right-unit'>{this.unit}</div>
@@ -296,11 +297,11 @@ export default class AlarmThresholdSelect extends tsc<IAlarmThresholdSelect, IEv
           ></span>
         )}
         <SelectMenu
-          show={this.showSelectMenu}
-          target={this.curSelectTarget}
           list={this.menuList}
           min-width={60}
           need-delete={this.needDelete}
+          show={this.showSelectMenu}
+          target={this.curSelectTarget}
           {...{
             on: {
               'on-delete': this.handleMenuDelete,

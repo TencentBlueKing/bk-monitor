@@ -25,13 +25,14 @@
  */
 import { computed, defineComponent, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import { generateTimeSlots } from '../utils';
 
 import './data-time-select.scss';
 
-type ShowType = 'week' | 'calendar';
+type ShowType = 'calendar' | 'week';
 
 export default defineComponent({
   name: 'DataTimeSelect',
@@ -76,7 +77,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     // ---------popover弹窗控制------------
@@ -149,20 +150,20 @@ export default defineComponent({
       <div class='data-time-select-component'>
         {this.label && (
           <div
-            class='label'
             style={{ width: `${this.labelWidth}px` }}
+            class='label'
           >
             {this.label}
           </div>
         )}
         <div class={['data-time-select-wrapper', this.show && 'active']}>
           <Popover
-            trigger='click'
-            is-show={this.show}
-            theme='light'
             extCls='data-time-select-popover component'
             arrow={false}
+            is-show={this.show}
             placement='bottom-start'
+            theme='light'
+            trigger='click'
             onAfterHidden={this.handleAfterHidden}
             onAfterShow={this.handleAfterShow}
           >

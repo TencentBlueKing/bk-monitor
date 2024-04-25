@@ -158,6 +158,7 @@ class ShieldListResource(Resource):
                     "notice_config": shield.notice_config if shield.notice_config else "{}",
                     "description": shield.description,
                     "source": shield.source,
+                    "update_user": shield.update_user,
                 }
             )
 

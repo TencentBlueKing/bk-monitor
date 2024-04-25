@@ -27,6 +27,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
 import { random } from 'monitor-common/utils/utils';
@@ -42,7 +43,7 @@ import './event-table.scss';
 
 const alertStoreKey = '__ALERT_EVENT_COLUMN__';
 const actionStoreKey = '__ACTION_EVENT_COLUMN__';
-type TableSizeType = 'small' | 'medium' | 'large';
+type TableSizeType = 'large' | 'medium' | 'small';
 interface IEventTableProps {
   tableData: IEventItem[];
   pagination: IPagination;
@@ -55,7 +56,7 @@ interface IEventTableProps {
 interface IEventStatusMap {
   color: string;
   bgColor: string;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
 }
 interface IColumnItem {
   id: string;
@@ -68,7 +69,7 @@ interface IColumnItem {
     minWidth?: number | string;
     resizable?: boolean;
     formatter?: (value: any) => string; // Replace `Function` with a more specific function type
-    sortable?: boolean | 'curstom';
+    sortable?: 'curstom' | boolean;
   };
 }
 interface IEventTableEvent {
@@ -287,8 +288,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               const statusInfo = getStatusInfo(row.status, row.failure_type);
               return (
                 <span
-                  v-bk-overflow-tips
                   class={['action-status', statusInfo.status]}
+                  v-bk-overflow-tips
                 >
                   {statusInfo.text || '--'}
                 </span>
@@ -728,7 +729,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     const storeKey = this.searchType === 'alert' ? alertStoreKey : actionStoreKey;
     localStorage.setItem(
       storeKey,
-      JSON.stringify(this.tableColumn.filter(item => item.checked || item.disabled).map(item => item.id)),
+      JSON.stringify(this.tableColumn.filter(item => item.checked || item.disabled).map(item => item.id))
     );
     this.tableKey = random(10);
   }
@@ -801,7 +802,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
         window.open(
           `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${detailId}`,
-          '__blank',
+          '__blank'
         );
         return;
       // 监控数据检索
@@ -811,7 +812,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           `${origin}${location.pathname
             .toString()
             .replace('fta/', '')}?bizId=${bizId}#/data-retrieval/?targets=${JSON.stringify(targets)}`,
-          '__blank',
+          '__blank'
         );
         return;
       // 日志检索
@@ -833,7 +834,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           `${origin}${location.pathname
             .toString()
             .replace('fta/', '')}?bizId=${bizId}#/custom-escalation-detail/event/${id}`,
-          '__blank',
+          '__blank'
         );
         return;
     }
@@ -906,7 +907,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
    * @param {string} id
    * @return {*}
    */
-  handleClickActionCount(type: 'trigger' | 'defense', row: IEventItem) {
+  handleClickActionCount(type: 'defense' | 'trigger', row: IEventItem) {
     // const data = { queryString: `action_id : ${id}`, timeRange }
     const { id, create_time: createTime, end_time: endTime } = row;
     handleToAlertList(
@@ -916,7 +917,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         end_time: endTime,
         id,
       },
-      row.bk_biz_id || this.$store.getters.bizId,
+      row.bk_biz_id || this.$store.getters.bizId
     );
   }
   // 时间格式化
@@ -938,7 +939,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         `<div class="description-desc">${this.$t('告警内容')}：${description || '--'}</div>`,
       ]
         .filter(Boolean)
-        .join(''),
+        .join('')
     );
   }
   /**
@@ -1061,11 +1062,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     if (this.searchType === 'alert') {
       columList.push(
         <bk-table-column
-          type='selection'
           width='50'
-          minWidth='50'
           fixed='left'
-        />,
+          minWidth='50'
+          type='selection'
+        />
       );
     }
     return columList.concat(
@@ -1127,8 +1128,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           if (column.id === 'status') {
             return (
               <bk-table-column
-                class-name='status-cell'
                 key={`${this.searchType}_${column.id}`}
+                class-name='status-cell'
                 label={column.name}
                 prop={column.id}
                 {...{ props: column.props }}
@@ -1143,27 +1144,27 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   }) => (
                     <div class='status-column'>
                       <span
-                        class='status-label'
                         style={{
                           color: this.eventStatusMap?.[status]?.color,
                           backgroundColor: this.eventStatusMap?.[status]?.bgColor,
                         }}
+                        class='status-label'
                       >
                         {this.eventStatusMap?.[status]?.name || '--'}
                       </span>
                       <div
-                        class='operate-panel'
-                        v-en-class='en-lang'
                         style={{
                           display:
                             this.hoverRowIndex === $index || this.popoperOperateIndex === $index ? 'flex' : 'none',
                         }}
+                        class='operate-panel'
+                        v-en-class='en-lang'
                       >
                         {this.enableCreateChatGroup ? (
                           <span
                             class='operate-panel-item icon-monitor icon-we-com'
-                            on-click={() => this.handleChatGroup(row)}
                             v-bk-tooltips={{ content: this.$t('一键拉群'), delay: 200, appendTo: 'parent' }}
+                            on-click={() => this.handleChatGroup(row)}
                           />
                         ) : (
                           ''
@@ -1173,12 +1174,6 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                             'operate-panel-item icon-monitor icon-duihao',
                             { 'is-disable': isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled },
                           ]}
-                          on-click={() =>
-                            !isAck &&
-                            !['RECOVERED', 'CLOSED'].includes(status) &&
-                            !followerDisabled &&
-                            this.handleAlertConfirm(row)
-                          }
                           v-bk-tooltips={{
                             content:
                               isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled
@@ -1188,6 +1183,12 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                             appendTo: 'parent',
                             allowHTML: false,
                           }}
+                          on-click={() =>
+                            !isAck &&
+                            !['RECOVERED', 'CLOSED'].includes(status) &&
+                            !followerDisabled &&
+                            this.handleAlertConfirm(row)
+                          }
                         />
                         <span
                           class={[
@@ -1196,12 +1197,12 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                               'is-disable': followerDisabled,
                             },
                           ]}
-                          onClick={() => !followerDisabled && this.handleManualProcess(row)}
                           v-bk-tooltips={{
                             content: followerDisabled ? this.$t('关注人禁用此操作') : this.$t('手动处理'),
                             delay: 200,
                             appendTo: 'parent',
                           }}
+                          onClick={() => !followerDisabled && this.handleManualProcess(row)}
                         />
                         {/* <span class="operate-panel-item icon-monitor icon-mc-alarm-abnormal"/> */}
                         {/* <span
@@ -1255,8 +1256,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   default: ({ row }: { row: IEventItem }) =>
                     row.event_count > -1 ? (
                       <bk-button
-                        onClick={() => this.handleClickEventCount(row)}
                         text={true}
+                        onClick={() => this.handleClickEventCount(row)}
                       >
                         {row.event_count}
                       </bk-button>
@@ -1310,8 +1311,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 scopedSlots={{
                   default: ({ row }: { row: IEventItem }) => (
                     <span
-                      class='event-status'
                       style={{ borderLeftColor: this.actionStatusColorMap[row.status] }}
+                      class='event-status'
                       onClick={() => this.handleShowDetail(row)}
                     >
                       {row.id}
@@ -1332,10 +1333,10 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   default: ({ row }: { row: IEventItem }) =>
                     row[column.id] > 0 ? (
                       <bk-button
+                        text={true}
                         onClick={() =>
                           this.handleClickActionCount(column.id === 'alert_count' ? 'trigger' : 'defense', row)
                         }
-                        text={true}
                       >
                         {row[column.id]}
                       </bk-button>
@@ -1365,38 +1366,38 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         return (
           <bk-table-column
             key={`${this.searchType}_${column.id}`}
+            formatter={row => (!row[column.id] && row[column.id] !== 0 ? '--' : row[column.id])}
             label={column.name}
             prop={column.id}
-            formatter={row => (!row[column.id] && row[column.id] !== 0 ? '--' : row[column.id])}
             {...{ props: column.props }}
           />
         );
-      }),
+      })
     );
   }
   render() {
     return (
       <div>
         <bk-table
-          data={this.tableData}
-          class='event-table'
-          size={this.tableSize}
-          outer-border={false}
-          header-border={false}
-          pagination={this.pagination}
           ref='table'
+          class='event-table'
           v-bkloading={{ isLoading: this.loading, zIndex: 1000 }}
-          on-sort-change={this.handleSortChange}
-          on-row-mouse-enter={index => (this.hoverRowIndex = index)}
-          on-row-mouse-leave={() => (this.hoverRowIndex = -1)}
+          data={this.tableData}
+          header-border={false}
+          outer-border={false}
+          pagination={this.pagination}
+          size={this.tableSize}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
+          on-row-mouse-enter={index => (this.hoverRowIndex = index)}
+          on-row-mouse-leave={() => (this.hoverRowIndex = -1)}
           on-selection-change={this.handleSelectChange}
+          on-sort-change={this.handleSortChange}
         >
           {this.selectedCount && (
             <div
-              slot='prepend'
               class='table-prepend'
+              slot='prepend'
             >
               <i class='icon-monitor icon-hint prepend-icon'></i>
               <i18n
@@ -1404,8 +1405,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 tag='span'
               >
                 <span
-                  slot='count'
                   class='table-prepend-count'
+                  slot='count'
                 >
                   {this.selectedCount}
                 </span>
@@ -1413,21 +1414,21 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               {this.tableToolList.map(item => (
                 <bk-button
                   key={item.id}
+                  class='table-prepend-clear'
                   slot='count'
+                  disabled={item.id === 'chat' ? false : this.followerDisabled}
                   text={true}
                   theme='primary'
-                  disabled={item.id === 'chat' ? false : this.followerDisabled}
-                  class='table-prepend-clear'
                   onClick={() => !(item.id === 'chat' ? false : this.followerDisabled) && this.handleBatchSet(item.id)}
                 >
                   {item.name}
                 </bk-button>
               ))}
               <bk-button
+                class='table-prepend-clear'
                 slot='count'
                 text={true}
                 theme='primary'
-                class='table-prepend-clear'
                 onClick={this.handleClearSelected}
               >
                 {this.$t('取消')}
@@ -1436,15 +1437,15 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           )}
           {this.handleGetColumns()}
           <bk-table-column
-            type='setting'
             key={`${this.tableKey}_${this.searchType}`}
+            type='setting'
           >
             <bk-table-setting-content
               class='event-table-setting'
               fields={this.tableColumn}
-              value-key='id'
               label-key='name'
               selected={this.tableColumn.filter(item => item.checked || item.disabled)}
+              value-key='id'
               on-setting-change={this.handleSettingChange}
             />
           </bk-table-column>
@@ -1458,8 +1459,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     return (
       <div style={{ display: 'none' }}>
         <div
-          class='event-table-options-more-items'
           ref='moreItems'
+          class='event-table-options-more-items'
         >
           <div
             class={['more-item', { 'is-disable': this.opetateRow?.is_shielded || this.opetateRow?.followerDisabled }]}

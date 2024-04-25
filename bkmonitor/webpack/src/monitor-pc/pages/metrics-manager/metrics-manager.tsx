@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 // import { MetricType } from '../../components/metric-selector/typings';
 import { random } from 'monitor-common/utils/utils';
@@ -34,7 +35,6 @@ import FilterPanel, { IFilterData } from '../strategy-config/strategy-config-lis
 import { IGroupData } from '../strategy-config/strategy-config-list/group';
 import { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 import { handleMouseDown, handleMouseMove } from '../strategy-config/util';
-
 import MetricsTable from './metrics-table';
 
 import './metrics-manager.scss';
@@ -183,7 +183,7 @@ export default class MetricsManager extends tsc<object> {
         data: dataSourceCheckedList
           .map(item => {
             const target = this.dataSourceList.find(
-              set => set.data_type_label === 'time_series' && set.data_source_label === item.id,
+              set => set.data_type_label === 'time_series' && set.data_source_label === item.id
             );
             const count = target?.count || 0;
             return {
@@ -297,16 +297,16 @@ export default class MetricsManager extends tsc<object> {
       >
         <div class='metrics-manager-content'>
           <div
+            style={{ width: `${this.drapWidth}px`, display: this.showLeft ? 'block' : 'none' }}
             class={['content-left', { drapActive: this.drapActive }]}
             data-tag='resizeTarget'
-            style={{ width: `${this.drapWidth}px`, display: this.showLeft ? 'block' : 'none' }}
           >
             <div
               class='content-left-drag'
               onMousedown={this.handleMouseDown}
-              onMousemove={this.handleMouseMove}
               onMouseenter={() => (this.drapActive = true)}
               onMouseleave={() => (this.drapActive = false)}
+              onMousemove={this.handleMouseMove}
             ></div>
             <FilterPanel
               key={this.leftFilter.key}
@@ -332,16 +332,16 @@ export default class MetricsManager extends tsc<object> {
             v-bkloading={{ isLoading: this.tableLoading }}
           >
             <MetricsTable
-              tableData={this.tableData}
-              pagination={this.pagination as any}
               emptyStatusType={this.emptyStatusType}
-              onPageChange={this.handPageChange}
-              onLimitChange={this.handleLimitChange}
+              pagination={this.pagination as any}
+              tableData={this.tableData}
+              onClearFilter={this.handleClearFilter}
               onConditionChange={this.handleConditionChange}
               onDataRetrieval={this.handleToDataRetrieval}
               onDataSourceChange={this.handleDataSourceChange}
               onEnableChange={this.handleEnableChange}
-              onClearFilter={this.handleClearFilter}
+              onLimitChange={this.handleLimitChange}
+              onPageChange={this.handPageChange}
               onRefresh={this.handleRefresh}
             >
               {!this.showLeft ? (

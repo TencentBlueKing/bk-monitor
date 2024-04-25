@@ -30,10 +30,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import './common-item.scss';
 
 interface ICommonProps {
-  title: string | TranslateResult;
+  title: TranslateResult | string;
   isRequired?: boolean;
   showSemicolon?: boolean;
-  tips?: string | TranslateResult;
+  tips?: TranslateResult | string;
   isWrap?: boolean;
   isSwitch?: boolean;
   desc?: string;

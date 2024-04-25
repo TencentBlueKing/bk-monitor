@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, PropType } from 'vue';
+
 import { Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
 
@@ -35,7 +36,6 @@ import { useChildrenHiddenInject, useSpanBarCurrentInject } from '../hooks';
 import ArrowRightShapeIcon from '../icons/arrow-right-shape.svg';
 import ErrorIcon from '../icons/error.svg';
 import { Span } from '../typings';
-
 import SpanBar from './span-bar';
 import SpanTreeOffset from './span-tree-offset';
 import Ticks from './ticks';
@@ -127,7 +127,7 @@ export default defineComponent({
     // 是否跨应用调用 span
 
     const crossRelationInfo = computed(() =>
-      Object.keys(props.span?.cross_relation || {}).length ? props.span?.cross_relation : false,
+      Object.keys(props.span?.cross_relation || {}).length ? props.span?.cross_relation : false
     );
     const ellipsisDirection = computed(() => useTraceStore().ellipsisDirection);
     // 是否显示耗时
@@ -218,7 +218,7 @@ export default defineComponent({
 
     const viewBounds = this.getViewedBounds?.()(
       span?.startTime as number,
-      (span?.startTime as number) + (realDuration as number),
+      (span?.startTime as number) + (realDuration as number)
     );
 
     const viewStart = viewBounds?.start;
@@ -256,18 +256,18 @@ export default defineComponent({
       >
         {isHaveRead && (
           <Popover
-            theme='dark'
             content={this.$t('已读')}
             placement='left'
+            theme='dark'
           >
             <span class='have-read-mark'></span>
           </Popover>
         )}
         {this.crossRelationInfo ? (
           <TimelineRowCell
-            className='span-view cross-app-span'
             style={{ cursor: 'pointer' }}
             width={1}
+            className='span-view cross-app-span'
           >
             <div
               class={[
@@ -281,15 +281,15 @@ export default defineComponent({
             >
               <SpanTreeOffset
                 childrenVisible={isChildrenExpanded}
-                span={span}
                 showChildrenIcon={true}
+                span={span}
                 onClick={(e: Event) => this.handleClick(e, isParent)}
               />
               <a class='cross-span-name'>
                 <img
-                  src={CrossAppTag}
                   class='cross-tag'
                   alt=''
+                  src={CrossAppTag}
                 />
                 <span class='cross-span-name'>{this.crossRelationInfo.app_name}</span>
                 <span class='cross-description'>{`${this.$t('所属空间：')}${this.crossRelationInfo.bk_biz_name}`}</span>
@@ -299,8 +299,8 @@ export default defineComponent({
         ) : (
           <>
             <TimelineRowCell
-              className='span-name-column'
               width={columnDivision}
+              className='span-name-column'
             >
               <div
                 class={`
@@ -314,24 +314,24 @@ export default defineComponent({
                   onClick={(e: Event) => this.handleClick(e, isParent)}
                 />
                 <a
+                  style={{ borderColor: color }}
                   class={`span-name ${isDetailExpanded ? 'is-detail-expanded' : ''}`}
                   aria-checked={isDetailExpanded}
                   role='switch'
-                  style={{ borderColor: color }}
                   tabindex={0}
                 >
                   {showErrorIcon && (
                     <img
-                      src={ErrorIcon}
-                      alt='error'
                       class='error-icon'
+                      alt='error'
+                      src={ErrorIcon}
                     />
                   )}
                   {span?.icon && (
                     <img
                       class='service-icon'
-                      src={span.icon}
                       alt=''
+                      src={span.icon}
                     />
                   )}
                   <span
@@ -343,13 +343,13 @@ export default defineComponent({
                     {rpc && (
                       <span>
                         <img
-                          src={ArrowRightShapeIcon}
                           class='span-bar-row-arrow-icon'
                           alt=''
+                          src={ArrowRightShapeIcon}
                         />
                         <i
-                          class='span-bar-row-rpc-color-marker'
                           style={{ background: rpc.color }}
+                          class='span-bar-row-rpc-color-marker'
                         />
                         {rpc.serviceName}
                       </span>
@@ -357,13 +357,13 @@ export default defineComponent({
                     {noInstrumentedServer && (
                       <span>
                         <img
-                          src={ArrowRightShapeIcon}
                           class='span-bar-row-arrow-icon'
                           alt=''
+                          src={ArrowRightShapeIcon}
                         />
                         <i
-                          class='span-bar-row-rpc-color-marker'
                           style={{ background: noInstrumentedServer.color }}
+                          class='span-bar-row-rpc-color-marker'
                         />
                         {noInstrumentedServer.serviceName}
                       </span>
@@ -373,9 +373,7 @@ export default defineComponent({
                   </span>
                   {groupInfo ? (
                     <Popover
-                      placement='top'
                       key={isExpand}
-                      popoverDelay={[500, 0]}
                       v-slots={{
                         content: () =>
                           isExpand ? (
@@ -394,6 +392,8 @@ export default defineComponent({
                             </span>
                           ),
                       }}
+                      placement='top'
+                      popoverDelay={[500, 0]}
                     >
                       {isExpand ? (
                         <i
@@ -416,14 +416,12 @@ export default defineComponent({
               </div>
             </TimelineRowCell>
             <TimelineRowCell
-              className='span-view'
               style={{ cursor: 'pointer' }}
               width={1 - columnDivision}
+              className='span-view'
             >
               <Ticks numTicks={numTicks} />
               <Popover
-                popoverDelay={[500, 0]}
-                placement='top'
                 key={label}
                 v-slots={{
                   content: () => (
@@ -438,16 +436,18 @@ export default defineComponent({
                     </div>
                   ),
                 }}
+                placement='top'
+                popoverDelay={[500, 0]}
               >
                 <SpanBar
-                  rpc={rpc}
-                  viewStart={viewStart}
-                  viewEnd={viewEnd}
                   color={color}
-                  shortLabel={label}
-                  longLabel={longLabel}
                   hintSide={hintSide}
+                  longLabel={longLabel}
+                  rpc={rpc}
+                  shortLabel={label}
                   span={span}
+                  viewEnd={viewEnd}
+                  viewStart={viewStart}
                 />
               </Popover>
             </TimelineRowCell>

@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getExperience, saveExperience } from 'monitor-api/modules/alert';
 import Editor from 'monitor-ui/markdown-editor/editor';
 
@@ -57,7 +58,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   async getData() {
     this.isLoading = true;
     const data = await getExperience({ alert_id: this.alertId, bk_biz_id: this.bkBizId }).finally(
-      () => (this.isLoading = false),
+      () => (this.isLoading = false)
     );
     this.text = data.description;
   }
@@ -75,8 +76,8 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   render() {
     return (
       <div
-        v-bkloading={{ isLoading: this.isLoading }}
         class={['event-detail-handleexperience', { displaynone: !this.show }]}
+        v-bkloading={{ isLoading: this.isLoading }}
       >
         <div class='handleexperience-tip'>
           <span class='icon-monitor icon-hint'></span>

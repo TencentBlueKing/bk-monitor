@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 export enum EFileStatus {
-  uploaded = 'uploaded',
   parsingFailed = 'parsing_failed',
   parsingSucceed = 'parsing_succeed',
-  storeSucceed = 'store_succeed',
   storeFailed = 'store_failed',
+  storeSucceed = 'store_succeed',
+  uploaded = 'uploaded',
 }
 
 export const fileStatusMap = {

@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { statusList } from 'monitor-api/modules/report';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
@@ -106,20 +107,20 @@ export default class EmailSubscriptionsHistory extends tsc<object> {
       <div class='email-subscriptions-history-wrap'>
         <ListCollapse
           class='collapse-wrap'
-          title={this.$tc('已发送')}
           active-name={this.activeList}
+          title={this.$tc('已发送')}
           on-item-click={arr => (this.activeList = arr)}
         >
           <div
-            slot='content'
             class='list-content'
+            slot='content'
           >
             <bk-table
-              v-bkloading={{ isLoading: this.loading, zIndex: 1 }}
               style='margin-top: 15px'
+              v-bkloading={{ isLoading: this.loading, zIndex: 1 }}
               data={this.tableData}
-              outer-border={true}
               header-border={false}
+              outer-border={true}
               pagination={this.pagination}
               on-page-change={this.handlePageChange}
               on-page-limit-change={this.handleLimitChange}
@@ -128,8 +129,6 @@ export default class EmailSubscriptionsHistory extends tsc<object> {
                 item.key === 'isSuccess' ? (
                   <bk-table-column
                     key={index}
-                    label={this.$t('发送状态')}
-                    prop='isSuccess'
                     scopedSlots={{
                       default: scope => (
                         <span class={scope.row.isSuccess ? 'is-success' : 'is-fail'}>
@@ -137,15 +136,17 @@ export default class EmailSubscriptionsHistory extends tsc<object> {
                         </span>
                       ),
                     }}
+                    label={this.$t('发送状态')}
+                    prop='isSuccess'
                   ></bk-table-column>
                 ) : (
                   <bk-table-column
                     key={index}
+                    formatter={item.formatter}
                     label={item.label}
                     prop={item.key}
-                    formatter={item.formatter}
                   ></bk-table-column>
-                ),
+                )
               )}
             </bk-table>
           </div>

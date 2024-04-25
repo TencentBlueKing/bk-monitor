@@ -24,27 +24,27 @@
  * IN THE SOFTWARE.
  */
 
-// eslint-disable-next-line simple-import-sort/imports
 import './public-path.ts';
-import Vue from 'vue';
-import i18n from './i18n/i18n';
 
-import { setVue } from '../monitor-api/utils/index';
+import i18n from './i18n/i18n';
+import Vue from 'vue';
+
 import { register, unregister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam } from 'monitor-common/utils/utils';
+import Notify from 'vant/lib/notify';
 
+import { setVue } from '../monitor-api/utils/index';
 import App from './pages/app.vue';
 import router from './router/router';
 import store from './store/store';
 
+import './static/scss/global.scss';
 import 'monitor-static/icons/monitor-icons.css';
 import 'vant/lib/icon/local.css';
-import './static/scss/global.scss';
 import 'vant/lib/index.css';
-import Notify from 'vant/lib/notify';
 interface IMessageParam {
   message: string;
-  theme: 'primary' | 'success' | 'danger' | 'warning' | 'error';
+  theme: 'danger' | 'error' | 'primary' | 'success' | 'warning';
 }
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');

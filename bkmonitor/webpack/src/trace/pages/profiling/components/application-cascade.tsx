@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Form, Input, Loading, Popover } from 'bkui-vue';
 import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 
@@ -106,7 +107,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     const showPopover = ref(false);
@@ -181,13 +182,13 @@ export default defineComponent({
     return (
       <div class='application-cascade-component'>
         <Popover
-          placement='bottom-start'
           arrow={false}
+          is-show={this.showPopover}
+          placement='bottom-start'
           theme='light application-cascade-popover'
           trigger='click'
-          is-show={this.showPopover}
-          onAfterShow={val => this.handlePopoverShowChange(val)}
           onAfterHidden={val => this.handlePopoverShowChange(val)}
+          onAfterShow={val => this.handlePopoverShowChange(val)}
         >
           {{
             default: () => (
@@ -206,8 +207,8 @@ export default defineComponent({
                 <div class='search-wrap'>
                   <i class='icon-monitor icon-mc-search search-icon'></i>
                   <Input
-                    v-model={this.searchKey}
                     class='search-input'
+                    v-model={this.searchKey}
                     placeholder={this.t('输入关键字')}
                   ></Input>
                 </div>
@@ -217,9 +218,9 @@ export default defineComponent({
                     <div class='group-wrap'>
                       {this.appList.normal.map(item => (
                         <div
+                          key={item.application_id}
                           class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                           onClick={() => this.handleAppClick(item)}
-                          key={item.application_id}
                         >
                           <i class='icon-monitor icon-mc-menu-apm'></i>
                           <span class='name'>
@@ -263,8 +264,8 @@ export default defineComponent({
                         <div class='no-data-wrap'>
                           <Loading
                             loading={this.tokenLoading}
-                            theme='primary'
                             mode='spin'
+                            theme='primary'
                           >
                             <Form labelWidth={100}>
                               <Form.FormItem label={this.t('应用名')}>{this.appData.app_name}</Form.FormItem>
@@ -273,8 +274,8 @@ export default defineComponent({
                               <Form.FormItem label='Token'>
                                 <span class='password'>{this.token || '●●●●●●●●●●'}</span>
                                 <Button
-                                  text
                                   theme='primary'
+                                  text
                                   onClick={this.handleViewToken}
                                 >
                                   {this.t('点击查看')}

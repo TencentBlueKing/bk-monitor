@@ -57,15 +57,15 @@
           class="rules-select"
         >
           <div
-            class="rules-label"
             v-en-style="'width: 85px'"
+            class="rules-label"
           >
             {{ $t('匹配规则') }}
           </div>
           <div class="rules-content">
             <div
-              :class="rulesClass"
               ref="rulesWrapRef"
+              :class="rulesClass"
             >
               <template v-for="rule of localGroupRules">
                 <div
@@ -141,8 +141,8 @@
       @after-leave="afterLeave"
     >
       <div
-        class="table-box"
         v-show="!show"
+        class="table-box"
       >
         <div
           class="left-table"
@@ -186,15 +186,15 @@
               <template slot-scope="scope">
                 <div class="cell-margin name">
                   <div
+                    :ref="'inputmetric' + scope.$index"
+                    class="name-cell-content"
                     @mouseenter="handleInputMouseEnter(...arguments, scope.$index, scope.row.source_name)"
                     @mouseleave="handleInputMouseLeave"
-                    class="name-cell-content"
-                    :ref="'inputmetric' + scope.$index"
                   >
                     <div
                       v-if="!scope.row.showInput || scope.row.isFirst"
-                      class="overflow-tips"
                       v-bk-overflow-tips
+                      class="overflow-tips"
                       @click="handleClickInput(scope)"
                     >
                       <span v-if="scope.row.name">{{ scope.row.name }}</span>
@@ -207,20 +207,20 @@
                     </div>
                     <bk-input
                       v-else
+                      :ref="`input${scope.$index}`"
                       :value="scope.row.name"
                       :placeholder="scope.row.monitor_type === 'metric' ? $t('输入指标id') : $t('输入维度id')"
                       size="small"
                       :disabled="scope.row.isFirst || !!scope.row.source_name"
-                      @blur="val => handleCheckName(scope.row, val)"
                       :class="{ 'input-err': scope.row.errValue || scope.row.reValue }"
-                      :ref="`input${scope.$index}`"
+                      @blur="val => handleCheckName(scope.row, val)"
                     />
 
                     <span
                       v-if="scope.row.errValue"
                       v-bk-tooltips="{
                         content: $t('注意: 名字冲突'),
-                        placements: ['top']
+                        placements: ['top'],
                       }"
                       class="icon-monitor icon-remind fz-14"
                     />
@@ -228,10 +228,10 @@
                       v-else-if="scope.row.reValue"
                       v-bk-tooltips="{
                         content: $t('自动转换'),
-                        placements: ['top']
+                        placements: ['top'],
                       }"
-                      @click.stop="handleRename(scope.row)"
                       class="zhuanghuan-btn"
+                      @click.stop="handleRename(scope.row)"
                     >
                       <span class="icon-monitor icon-zhuanhuan" />
                     </span>
@@ -249,8 +249,8 @@
                     v-model="scope.row.description"
                     size="small"
                     :placeholder="scope.row.monitor_type === 'metric' ? $t('输入指标别名') : $t('输入维度别名')"
-                    @blur="handleCheckDescName(scope.row)"
                     :class="{ 'input-err': scope.row.descReValue }"
+                    @blur="handleCheckDescName(scope.row)"
                   />
                   <bk-popover
                     class="change-name"
@@ -285,14 +285,14 @@
                     <bk-select
                       v-model="scope.row.type"
                       :popover-options="selectPopoverOption"
-                      @change="handleTypeChange(scope.row)"
                       :clearable="false"
+                      @change="handleTypeChange(scope.row)"
                       @toggle="handleToggleChange(...arguments, 'numType')"
                     >
                       <bk-option
                         v-for="option in typeList"
-                        :key="option.id"
                         :id="option.id"
+                        :key="option.id"
                         :name="option.name"
                       />
                     </bk-select>
@@ -318,27 +318,27 @@
             >
               <template slot-scope="scope">
                 <div
-                  class="cell-margin"
                   v-if="unit.value && unit.index === scope.$index && scope.row.monitor_type === 'metric'"
+                  class="cell-margin"
                   @mouseleave="handleMouseLeave('unit')"
                 >
                   <bk-select
                     v-model="scope.row.unit"
                     :clearable="false"
                     :popover-width="120"
+                    :popover-options="selectPopoverOption"
                     @toggle="handleToggleChange(...arguments, 'unit')"
                     @change="handleUnitChange(scope.row)"
-                    :popover-options="selectPopoverOption"
                   >
                     <bk-option-group
                       v-for="(group, index) in unitList"
-                      :name="group.name"
                       :key="index"
+                      :name="group.name"
                     >
                       <bk-option
                         v-for="option in group.formats"
-                        :key="option.id"
                         :id="option.id"
+                        :key="option.id"
                         :name="option.name"
                       />
                     </bk-option-group>
@@ -402,15 +402,15 @@
         </div>
         <template v-if="!isFromHome">
           <div
-            class="right-data"
             v-show="isShowData"
+            class="right-data"
           >
             <ul class="ul-head">
               <li
-                class="host-type"
-                :class="{ active: osIndex === dataPreview.index }"
                 v-for="(osType, osIndex) in osTypeList"
                 :key="osIndex"
+                class="host-type"
+                :class="{ active: osIndex === dataPreview.index }"
                 @click="handleDataChange(osIndex, osType)"
               >
                 {{ osType }}
@@ -418,9 +418,9 @@
             </ul>
             <template v-if="paginationData.length">
               <div
-                class="data-preview"
                 v-for="(item, index) in paginationData"
                 :key="index"
+                class="data-preview"
               >
                 {{
                   [undefined, null].includes(item.value[dataPreview.type]) ? '--' : item.value[dataPreview.type] + ''
@@ -442,8 +442,8 @@
         class="add-rule-popover-content"
       >
         <bk-input
-          class="rule-name-input"
           v-model="addRule.name"
+          class="rule-name-input"
           clearable
         />
         <div
@@ -489,17 +489,17 @@ export default {
     isDefaultGroup: {
       // 是否是默认分组
       type: Boolean,
-      default: false
+      default: false,
     },
     metricData: {
       //  指标/维度数据
       type: Array,
-      default: () => []
+      default: () => [],
     },
     hideStop: Boolean,
     groupRules: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     groupName: String, //  分组名字
     groupIndex: Number, //  分组索引
@@ -507,26 +507,26 @@ export default {
     osTypeList: {
       //  调试类型
       type: Array,
-      default: () => []
+      default: () => [],
     },
     nameList: {
       // 英文名列表
       type: Array,
-      default: () => []
+      default: () => [],
     },
     descNameList: {
       //  别名列表
       type: Array,
-      default: () => []
+      default: () => [],
     },
     isFromHome: {
       type: Boolean,
-      default: false
+      default: false,
     },
     unitList: {
       //  动态单位表
       type: Array,
-      default: () => []
+      default: () => [],
     },
     typeList: {
       type: Array,
@@ -534,14 +534,14 @@ export default {
         return [
           //  类别表
           { id: 'double', name: 'double' },
-          { id: 'int', name: 'int' }
+          { id: 'int', name: 'int' },
         ];
-      }
+      },
     },
     transFromAll: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   data() {
     return {
@@ -549,78 +549,78 @@ export default {
       dataPreview: {
         //  数据预览参数
         index: 0,
-        type: this.osTypeList[0]
+        type: this.osTypeList[0],
       },
       numType: {
         value: true,
         index: -1,
-        toggle: false
+        toggle: false,
       },
       unit: {
         value: true,
         index: -1,
-        toggle: false
+        toggle: false,
       },
       instance: null,
       selectPopoverOption: {
         boundary: 'body',
-        flipBehavior: ['bottom']
+        flipBehavior: ['bottom'],
       },
       pagination: {
         current: 1,
         count: this.metricData.length,
         limit: 10,
-        limitList: [10, 20, 50, 100]
+        limitList: [10, 20, 50, 100],
       },
       selectList: [
         {
           id: 'current',
-          name: this.$t('本页全选')
+          name: this.$t('本页全选'),
         },
         {
           id: 'all',
-          name: this.$t('跨页全选')
-        }
+          name: this.$t('跨页全选'),
+        },
       ],
       checkType: 'current',
       addRule: {
         name: '',
         index: -1,
         instance: null,
-        msg: ''
+        msg: '',
       },
       rulesClass: {
         'rules-wrap': true,
-        expand: false
+        expand: false,
       },
-      hiddenRuleNumber: 0
+      hiddenRuleNumber: 0,
     };
   },
   computed: {
     localGroupRules() {
       const data = this.groupRules.map(item => ({
         type: 'value',
-        value: item
+        value: item,
       }));
       /** 如果是展开状态或者没有隐藏的规则项，则额外补充一个添加按钮 */
       if (this.hiddenRuleNumber === 0 || this.rulesClass.expand) {
         return [
           ...data,
           {
-            type: 'add'
-          }
+            type: 'add',
+          },
         ];
       }
       /** 根据需要隐藏的规则项数量，拼接展示 */
       return [
         ...data.slice(0, data.length - this.hiddenRuleNumber),
         {
-          type: 'num-mark'
+          type: 'num-mark',
         },
         {
-          type: 'add'
+          type: 'add',
         },
-        ...data.slice(data.length - this.hiddenRuleNumber)
+        ...data.slice(data.length - this.hiddenRuleNumber),
       ];
     },
     // 表格前端分页
@@ -678,7 +678,7 @@ export default {
         return 1;
       }
       return 0;
-    }
+    },
   },
   watch: {
     metricData(data) {
@@ -691,7 +691,7 @@ export default {
       });
     },
     transFromAll() {
-      this.metricData.forEach((item) => {
+      this.metricData.forEach(item => {
         this.reNameFn(item);
       });
     },
@@ -720,7 +720,7 @@ export default {
           /** 预留添加规则按钮和数字标记按钮宽度 */
           widthTotal = addRuleWidth + numMarkWidth;
           /** 查找开始被隐藏的规则项的索引 */
-          const startInd = Array.from(ruleTagList).findIndex((item) => {
+          const startInd = Array.from(ruleTagList).findIndex(item => {
             const { width } = item.getBoundingClientRect();
             /*
              * 如果当前规则项的宽度加上已显示的规则项总宽度大于容器宽度,隐藏当前规则
@@ -736,11 +736,11 @@ export default {
           this.hiddenRuleNumber = startInd === -1 ? 0 : val.length - startInd;
         });
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   async created() {
-    this.metricData.forEach((row) => {
+    this.metricData.forEach(row => {
       this.checkNameFn(row);
     });
   },
@@ -771,8 +771,8 @@ export default {
     //  勾选指标联动勾选维度
     handleCheckMetric(scope) {
       if (scope.row.tag_list) {
-        scope.row.tag_list.forEach((dimension) => {
-          this.metricData.forEach((item) => {
+        scope.row.tag_list.forEach(dimension => {
+          this.metricData.forEach(item => {
             if (dimension.field_name === item.name) {
               item.isCheck = scope.row.isCheck;
             }
@@ -788,15 +788,15 @@ export default {
         // 有关联指标的维度集合
         const relatedDimensions = new Set();
         const data = type === 'current' ? this.paginationData : this.metricData;
-        data.forEach((item) => {
+        data.forEach(item => {
           // 维度不能被勾选
           item.isCheck = value === 2 && item.monitor_type !== 'dimension';
           // 收集已勾选指标所关联的维度
-          item.monitor_type === 'metric'
-            && (item.tag_list || []).forEach(item => relatedDimensions.add(item.field_name));
+          item.monitor_type === 'metric' &&
+            (item.tag_list || []).forEach(item => relatedDimensions.add(item.field_name));
         });
         // 自动勾选关联的维度
-        this.metricData.forEach((item) => {
+        this.metricData.forEach(item => {
           item.monitor_type === 'dimension' && (item.isCheck = relatedDimensions.has(item.name));
         });
       }
@@ -815,9 +815,9 @@ export default {
         type: 'name',
         data: {
           oldName,
-          ...row
+          ...row,
         },
-        groupIndex: this.groupIndex
+        groupIndex: this.groupIndex,
       });
       this.checkNameFn(row);
     },
@@ -831,8 +831,8 @@ export default {
           data.errValue = true;
           data.reValue = false;
         } else if (
-          row.monitor_type === 'dimension'
-          && this.metricData.filter(item => item.name === row.name).length > 1
+          row.monitor_type === 'dimension' &&
+          this.metricData.filter(item => item.name === row.name).length > 1
         ) {
           data.errValue = true;
           data.reValue = false;
@@ -866,7 +866,7 @@ export default {
       this.$emit('edit-row', {
         type: 'description',
         data: row,
-        groupIndex: this.groupIndex
+        groupIndex: this.groupIndex,
       });
     },
     //  转化有冲突的关键字指标/维度名
@@ -888,7 +888,7 @@ export default {
         arrow: true,
         showOnInit: true,
         distance: 0,
-        placement: 'top-start'
+        placement: 'top-start',
       });
       this?.instance?.show(100);
     },
@@ -929,27 +929,27 @@ export default {
       this.$emit('edit-row', {
         type: 'type',
         data: row,
-        groupIndex: this.groupIndex
+        groupIndex: this.groupIndex,
       });
     },
     handleUnitChange(row) {
       this.$emit('edit-row', {
         type: 'unit',
         data: row,
-        groupIndex: this.groupIndex
+        groupIndex: this.groupIndex,
       });
     },
     handleActiveChange(row) {
       this.$emit('edit-row', {
         type: 'active',
         data: row,
-        groupIndex: this.groupIndex
+        groupIndex: this.groupIndex,
       });
     },
     //  找到单位值对应的name
     handleFindUnitName(id) {
       let name = id;
-      this.unitList.forEach((group) => {
+      this.unitList.forEach(group => {
         const res = group.formats.find(item => item.id === id);
         if (res) {
           name = res.name;
@@ -964,11 +964,11 @@ export default {
           list: this.selectList,
           value: this.checkValue,
           defaultType: this.checkType,
-          disabled: this.isAllDimension
+          disabled: this.isAllDimension,
         },
         on: {
-          change: this.handleCheckAll
-        }
+          change: this.handleCheckAll,
+        },
       });
     },
     handleClickInput(scope) {
@@ -986,7 +986,7 @@ export default {
       this.pagination.limit = limit;
     },
     resetCheckStatus() {
-      this.metricData.forEach((item) => {
+      this.metricData.forEach(item => {
         // 维度不能被勾选
         item.isCheck = false;
       });
@@ -994,9 +994,9 @@ export default {
     addRow(type) {
       this.handleAddRow({
         row: {
-          monitor_type: type
+          monitor_type: type,
         },
-        groupIndex: this.groupIndex
+        groupIndex: this.groupIndex,
       });
     },
     /**
@@ -1024,7 +1024,7 @@ export default {
           this.addRule.instance?.destroy();
           this.addRule.instance = null;
           this.addRule.msg = '';
-        }
+        },
       });
       this.addRule.instance?.show();
     },
@@ -1050,10 +1050,10 @@ export default {
       this.addRuleCancel();
     },
     changeCheckStatus() {
-      this.paginationData.forEach((metric) => {
+      this.paginationData.forEach(metric => {
         if (metric.tag_list) {
-          metric.tag_list.forEach((name) => {
-            this.paginationData.forEach((item) => {
+          metric.tag_list.forEach(name => {
+            this.paginationData.forEach(item => {
               if (name === item.name) {
                 item.isCheck = false;
               }
@@ -1074,8 +1074,8 @@ export default {
     handleExpand() {
       this.rulesClass.expand = true;
       document.addEventListener('click', this.handleDocumentClick, false);
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -1097,7 +1097,7 @@ export default {
 .metric-group {
   margin-top: 16px;
   color: #63656e;
-  transition: height .5s;
+  transition: height 0.5s;
 
   :deep(.bk-form-input),
   :deep(.bk-select) {
@@ -1307,7 +1307,7 @@ export default {
 
     .left-table {
       width: 100%;
-      transition: width .5s;
+      transition: width 0.5s;
 
       .name {
         position: relative;

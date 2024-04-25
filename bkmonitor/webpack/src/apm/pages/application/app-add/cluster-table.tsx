@@ -143,8 +143,6 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
               on-row-click={this.handleSelectCluster}
             >
               <bk-table-column
-                label={this.$t('集群名')}
-                min-width='220'
                 scopedSlots={{
                   default: ({ row }) => (
                     <bk-radio checked={this.value === row.storage_cluster_id}>
@@ -152,31 +150,33 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
                     </bk-radio>
                   ),
                 }}
+                label={this.$t('集群名')}
+                min-width='220'
               ></bk-table-column>
               <bk-table-column
-                label={this.$t('总量')}
-                min-width='110'
                 scopedSlots={{
                   default: ({ row }) => <span>{this.formatFileSize(row.storage_total)}</span>,
                 }}
+                label={this.$t('总量')}
+                min-width='110'
               ></bk-table-column>
               <bk-table-column
-                label={this.$t('空闲率')}
-                min-width='110'
                 scopedSlots={{
                   default: ({ row }) => (
                     <div class='percent'>
                       <div class='percent-progress'>
                         <bk-progress
-                          theme='success'
-                          show-text={false}
                           percent={this.getPercent(row.storage_usage)}
+                          show-text={false}
+                          theme='success'
                         ></bk-progress>
                       </div>
                       <span>{`${this.getPercent(row.storage_usage, 1)}%`}</span>
                     </div>
                   ),
                 }}
+                label={this.$t('空闲率')}
+                min-width='110'
               ></bk-table-column>
               <bk-table-column
                 label={this.$t('索引数')}

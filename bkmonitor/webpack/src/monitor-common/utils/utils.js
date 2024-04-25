@@ -304,10 +304,10 @@ export const docCookies = {
       decodeURIComponent(
         document.cookie.replace(
           new RegExp(
-            `(?:(?:^|.*;)\\s*${encodeURIComponent(sKey).replace(/[-.+*]/g, '\\$&')}\\s*\\=\\s*([^;]*).*$)|^.*$`,
+            `(?:(?:^|.*;)\\s*${encodeURIComponent(sKey).replace(/[-.+*]/g, '\\$&')}\\s*\\=\\s*([^;]*).*$)|^.*$`
           ),
-          '$1',
-        ),
+          '$1'
+        )
       ) || null
     );
   },

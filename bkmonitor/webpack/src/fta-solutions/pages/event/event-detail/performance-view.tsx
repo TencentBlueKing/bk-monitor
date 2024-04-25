@@ -25,6 +25,7 @@
  */
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils/utils';
 import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -69,7 +70,7 @@ export default class PerformanceView extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 当前业务id
-  @ProvideReactive('bkBizId') bkBizId: string | number = null;
+  @ProvideReactive('bkBizId') bkBizId: number | string = null;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   @Watch('show')
@@ -138,7 +139,7 @@ export default class PerformanceView extends tsc<IProps> {
             scene_id: 'host',
             type: 'detail',
             id: 'host',
-          },
+          }
     ).catch(() => ({ id: '', panels: [], name: '' }));
     this.sceneData = new BookMarkModel(data || { id: '', panels: [], name: '' });
     this.localPanels = setBizIdToPanel(this.handleGetLocalPanels(this.sceneData.panels), this.detail.bk_biz_id);
@@ -170,7 +171,7 @@ export default class PerformanceView extends tsc<IProps> {
   handleToPerformance() {
     const detailId = this.bkHostId ? this.bkHostId : `${this.ip}-${this.cloudId}`;
     window.open(
-      `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/performance/detail/${detailId}`,
+      `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/performance/detail/${detailId}`
     );
   }
 
@@ -190,12 +191,12 @@ export default class PerformanceView extends tsc<IProps> {
       >
         {this.localPanels.length ? (
           <DashboardPanel
-            panels={this.localPanels}
-            needOverviewBtn={false}
-            isSplitPanel={false}
-            isSingleChart={false}
-            column={3}
             id={this.dashboardPanelId}
+            column={3}
+            isSingleChart={false}
+            isSplitPanel={false}
+            needOverviewBtn={false}
+            panels={this.localPanels}
           ></DashboardPanel>
         ) : (
           <div class='no-data'>

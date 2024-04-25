@@ -30,10 +30,10 @@ export enum SearchType {
 }
 
 export enum ConditionType {
-  /** 查询项 */
-  Where = 'where',
   /** 对比项 */
   Comparison = 'comparison',
+  /** 查询项 */
+  Where = 'where',
 }
 
 export interface IConditionItem {

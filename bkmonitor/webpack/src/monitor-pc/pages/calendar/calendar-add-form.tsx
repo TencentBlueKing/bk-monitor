@@ -25,12 +25,13 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { editItem, saveItem } from 'monitor-api/modules/calendar';
 
+import CalendarAddInput from './calendar-add-input';
 import CalendarInfo, { IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
 import DaysSelect from './components/days-select/days-select';
-import CalendarAddInput from './calendar-add-input';
 import {
   EDelAndEditType,
   ERepeatKey,
@@ -80,10 +81,10 @@ interface IAddFormData {
   title: string;
   calendar: number | string;
   timeZone: string;
-  startDate: string | Date;
+  startDate: Date | string;
   startTime: string;
   isAllDay: boolean;
-  endDate: string | Date;
+  endDate: Date | string;
   endTime: string;
   repeat: ERepeatKey;
 }
@@ -501,14 +502,14 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
   render() {
     return (
       <bk-dialog
-        title={this.$t(this.editData ? '编辑事项' : '新建事项')}
-        z-index={Z_INDEX}
         width={640}
-        header-position='left'
         ext-cls='add-calendar-dialog-wrap'
-        value={this.value}
+        header-position='left'
         loading={this.addLoading}
         mask-close={false}
+        title={this.$t(this.editData ? '编辑事项' : '新建事项')}
+        value={this.value}
+        z-index={Z_INDEX}
         onCancel={() => this.handleShowChange(false)}
         onConfirm={this.handleAddConfirmProxy}
       >
@@ -523,36 +524,36 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
           form-type='vertical'
         >
           <bk-form-item
-            property='title'
             error-display-type='normal'
+            property='title'
           >
             <bk-input
-              placeholder={this.$t('输入不工作时间事项')}
               v-model={this.addFormData.title}
+              placeholder={this.$t('输入不工作时间事项')}
             ></bk-input>
             <div class='form-item-des'>{this.$t('此事项为不工作时间事项')}</div>
           </bk-form-item>
           <bk-form-item
+            error-display-type='normal'
             label={this.$t('归属日历')}
             property='calendar'
-            error-display-type='normal'
           >
             <bk-select
+              v-model={this.addFormData.calendar}
               clearable={false}
               z-index={Z_INDEX + 10}
-              v-model={this.addFormData.calendar}
               onToggle={this.handleHideCalendarInput}
             >
               {this.calendarList.map(opt => (
                 <bk-option
-                  key={opt.id}
                   id={opt.id}
+                  key={opt.id}
                   name={opt.name}
                 ></bk-option>
               ))}
               <div
-                slot='extension'
                 class='calendar-custom-add-btn-wrap'
+                slot='extension'
               >
                 <CalendarAddInput
                   ref='calendarAddInputRef'
@@ -586,12 +587,12 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
               ></bk-date-picker>
               <bk-time-picker
                 class='time-picker'
-                clearable={false}
                 v-model={this.addFormData.startTime}
+                clearable={false}
               ></bk-time-picker>
               <bk-checkbox
-                v-model={this.addFormData.isAllDay}
                 class='all-day'
+                v-model={this.addFormData.isAllDay}
                 onChange={this.handleSelectedAllDay}
               >
                 {this.$t('全天')}
@@ -609,31 +610,31 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
               ></bk-date-picker>
               <bk-time-picker
                 class='time-picker'
-                clearable={false}
                 v-model={this.addFormData.endTime}
+                clearable={false}
               ></bk-time-picker>
             </div>
           </bk-form-item>
           <bk-form-item label={this.$t('重复')}>
             <bk-select
-              v-model={this.addFormData.repeat}
-              z-index={Z_INDEX + 10}
               class='repeat-select'
+              v-model={this.addFormData.repeat}
               clearable={false}
               disabled={this.repeatDisabled}
               ext-popover-cls='repeat-select-popover'
+              z-index={Z_INDEX + 10}
             >
               {this.repeatOptions.map(opt => (
                 <bk-option
                   id={opt.id}
-                  name={opt.name}
                   key={opt.id}
                   disabled={opt.disabled}
+                  name={opt.name}
                 ></bk-option>
               ))}
               <div
-                slot='extension'
                 class='repeat-extension'
+                slot='extension'
                 onClick={this.handleShowRepeatForm}
               >
                 {this.$t('自定义')}
@@ -643,14 +644,14 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
         </bk-form>
         {/* 自定义重复弹窗 */}
         <bk-dialog
-          value={this.showRepeatForm}
           width={480}
-          title={this.$t('自定义重复')}
           ext-cls='add-calendar-repeat-dialog-wrap'
-          z-index={Z_INDEX + 20}
           header-position='left'
           loading={this.repeatLoading}
           mask-close={false}
+          title={this.$t('自定义重复')}
+          value={this.showRepeatForm}
+          z-index={Z_INDEX + 20}
           onCancel={() => (this.showRepeatForm = false)}
           onConfirm={this.handleConfirmCustomRepeat}
         >
@@ -658,10 +659,10 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
             <bk-form-item label={this.$t('频率')}>
               <div class='repeat-frequency'>
                 <bk-select
-                  v-model={this.repeatFormData.repeatType}
-                  z-index={Z_INDEX + 30}
-                  clearable={false}
                   class='frequency-type-select'
+                  v-model={this.repeatFormData.repeatType}
+                  clearable={false}
+                  z-index={Z_INDEX + 30}
                   onSelected={this.handleFrequencyChange}
                 >
                   {this.repeatTypeOptions.map(opt => (
@@ -673,20 +674,20 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                   ))}
                 </bk-select>
                 <i18n
-                  path={this.repeatI8nPath}
                   class='frequency-input-num-wrap'
+                  path={this.repeatI8nPath}
                 >
                   <bk-input
                     class='frequency-input-num'
-                    min={1}
                     v-model={this.repeatFormData.repeatNum}
+                    min={1}
                     type='number'
                   ></bk-input>
                 </i18n>
               </div>
             </bk-form-item>
             {[ERepeatTypeId.weeks, ERepeatTypeId.months, ERepeatTypeId.years].includes(
-              this.repeatFormData.repeatType,
+              this.repeatFormData.repeatType
             ) && (
               <bk-form-item label=''>
                 <DaysSelect
@@ -698,20 +699,20 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
             <bk-form-item label={this.$t('结束日期')}>
               <bk-date-picker
                 class='repeat-end-date'
-                ext-popover-cls='repeat-end-date-popover'
                 clearable={false}
-                placeholder={this.$t('永不结束')}
+                ext-popover-cls='repeat-end-date-popover'
                 format='yyyy-MM-dd HH:mm:ss'
+                placeholder={this.$t('永不结束')}
                 value={this.repeatFormData.endDate}
                 onChange={val => (this.repeatFormData.endDate = dayjs.tz(val).format('YYYY-MM-DD 23:59:59'))}
               >
                 <div
-                  slot='footer'
                   class='repeat-end-date-footer'
+                  slot='footer'
                 >
                   <bk-button
-                    size='small'
                     class={['no-repeat-btn', { active: this.repeatFormData.endDateNoRepeat }]}
+                    size='small'
                     onClick={this.handleNoRepeatStatus}
                   >
                     {this.$t('永不结束')}
@@ -722,13 +723,13 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
           </bk-form>
           <CalendarInfo
             v-model={this.infoConfig.value}
+            cancelText={this.infoConfig.cancelText}
             infoDesc={this.infoConfig.infoDesc}
             infoTitle={this.infoConfig.infoTitle}
             okText={this.infoConfig.okText}
-            cancelText={this.infoConfig.cancelText}
             zIndex={this.infoConfig.zIndex}
-            onConfirm={this.handleInfoConfirm}
             onCancel={this.handleInfoCancel}
+            onConfirm={this.handleInfoConfirm}
           ></CalendarInfo>
         </bk-dialog>
       </bk-dialog>

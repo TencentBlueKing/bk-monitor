@@ -25,6 +25,7 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { listSpaces, listStickySpaces, stickSpace } from 'monitor-api/modules/commons';
 import { getAuthorityDetail } from 'monitor-api/modules/iam';
 import { Debounce, mergeSpaceList, random } from 'monitor-common/utils';
@@ -110,7 +111,7 @@ interface ITableItem {
 interface IFuncItem {
   name: string;
   status: FuncType;
-  type: 'status' | 'select';
+  type: 'select' | 'status';
 }
 /**
  * 空间管理页面
@@ -416,9 +417,9 @@ export default class SpaceManage extends tsc<object> {
         <div class='space-manage-main'>
           <div class='space-manage-header'>
             <bk-button
-              theme='primary'
-              icon='plus'
               class='space-add-btn'
+              icon='plus'
+              theme='primary'
               onClick={this.handleAddShow}
             >
               {this.$tc('新增')}
@@ -439,30 +440,29 @@ export default class SpaceManage extends tsc<object> {
             </div>
             <bk-input
               class='search-input'
-              value={this.keyword}
               placeholder={this.$tc('输入')}
               right-icon='bk-icon icon-search'
+              value={this.keyword}
               onInput={this.handleSearch}
             ></bk-input>
           </div>
           <bk-table
-            class='table-wrap'
-            ref='tableRef'
             key={this.refreshTable}
+            ref='tableRef'
+            class='table-wrap'
+            data={this.currentPageTableData}
             outer-border={false}
             pagination={this.pagination}
-            data={this.currentPageTableData}
             on-filter-change={this.handleFilterChange}
             on-page-change={this.handlePageChange}
             on-page-limit-change={this.handleLimitChange}
           >
             <EmptyStatus
-              type={this.emptyStatusType}
               slot='empty'
+              type={this.emptyStatusType}
               onOperation={this.handleOperation}
             />
             <bk-table-column
-              label={this.$t('空间名')}
               width={150}
               formatter={(row: ITableItem) => (
                 <div class='space-name-wrap'>
@@ -476,15 +476,15 @@ export default class SpaceManage extends tsc<object> {
                     onClick={() => !row.hasAuth && this.handleApplyAuth(row)}
                   >
                     <div
-                      class='space-name'
                       style={{ color: !row.hasAuth ? '#ccc' : '#3a84ff' }}
+                      class='space-name'
                       v-bk-overflow-tips
                     >
                       {row.name}
                     </div>
                     <div
-                      class='space-enname'
                       style={{ color: !row.hasAuth ? '#ccc' : '#979BA5' }}
+                      class='space-enname'
                       v-bk-overflow-tips
                     >
                       {row.enName}
@@ -492,50 +492,49 @@ export default class SpaceManage extends tsc<object> {
                   </div>
                 </div>
               )}
+              label={this.$t('空间名')}
             />
             <bk-table-column
-              label={this.$t('状态')}
               width={90}
-              property={'status'}
-              filters={this.statusFilterOptions}
               formatter={(row: ITableItem) => (
                 <CommonStatus
-                  type={row.status}
                   text={row.statusText}
+                  type={row.status}
                 ></CommonStatus>
               )}
+              filters={this.statusFilterOptions}
+              label={this.$t('状态')}
+              property={'status'}
             />
             <bk-table-column
-              label={this.$t('类型')}
               width={110}
-              property={'types'}
-              filters={this.typeFilterOptions}
               formatter={(row: ITableItem) =>
                 row.types.map(item => (
                   <span
-                    class='space-type'
                     style={{ ...SPACE_TYPE_MAP[item.id]?.light }}
+                    class='space-type'
                   >
                     {item.name}
                   </span>
                 ))
               }
+              filters={this.typeFilterOptions}
+              label={this.$t('类型')}
+              property={'types'}
             />
             {
               <bk-table-column
-                label={this.$t('具备功能')}
-                min-width={660}
                 formatter={(row: ITableItem) => (
                   <div class='function-wrap'>
                     {
                       SPACE_FEATURE_LIST.map(item => (
                         <CommonStatus
-                          class='func-item'
-                          type={row.function[item.id] ? 'normal' : 'stoped'}
                           key={item.id}
-                          icon={!row.function[item.id] ? 'icon-monitor icon-mc-target-link' : ''}
+                          class='func-item'
                           v-bk-tooltips={{ content: row.function[item.id] ? this.$t('已关联') : this.$t('未关联') }}
+                          icon={!row.function[item.id] ? 'icon-monitor icon-mc-target-link' : ''}
                           text={item.name}
+                          type={row.function[item.id] ? 'normal' : 'stoped'}
                         />
                       ))
                       // row.function?.length ? row.function.map(item => (
@@ -557,14 +556,16 @@ export default class SpaceManage extends tsc<object> {
                     }
                   </div>
                 )}
+                label={this.$t('具备功能')}
+                min-width={660}
               />
             }
           </bk-table>
         </div>
         <SpaceAddList
           show={this.showAdd}
-          onShowChange={this.handleShowChange}
           onSaveSuccess={this.handleSaveSuccess}
+          onShowChange={this.handleShowChange}
         ></SpaceAddList>
       </div>
     );

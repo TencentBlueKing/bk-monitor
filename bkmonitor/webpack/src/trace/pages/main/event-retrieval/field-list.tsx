@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Collapse, Progress } from 'bkui-vue';
 import { EnlargeLine, NarrowLine } from 'bkui-vue/lib/icon';
 import { deepClone } from 'monitor-common/utils/utils';
@@ -82,7 +83,7 @@ export default defineComponent({
       () => props.value,
       v => {
         localValue.value = v;
-      },
+      }
     );
 
     /**
@@ -222,10 +223,10 @@ export default defineComponent({
                   <span class='percent'>{val.percent}%</span>
                 </div>
                 <Progress
-                  theme='success'
                   percent={val.percent}
                   show-text={false}
                   stroke-width={4}
+                  theme='success'
                 ></Progress>
               </div>
               <div class='icon-box'>
@@ -258,12 +259,12 @@ export default defineComponent({
       <Collapse
         class='collapse-wrap collapse-wrap-event'
         v-model={this.expandedData}
-        list={this.localValue}
-        idFiled='key'
         v-slots={{
           default: (item: TraceFieldValue, index: number) => titleSlot(item, index),
           content: (item: TraceFieldValue) => contentSlot(item),
         }}
+        idFiled='key'
+        list={this.localValue}
       >
         {/* <div class="collapse-wrap collapse-wrap-event">
           {

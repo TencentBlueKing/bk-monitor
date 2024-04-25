@@ -95,7 +95,7 @@ export default class TreeMenu extends tsc<IProps, IEvents> {
         {
           expendIcon: this.expendIcon,
           closeIcon: this.closeIcon,
-        },
+        }
       );
       return newItem;
     });
@@ -119,9 +119,9 @@ export default class TreeMenu extends tsc<IProps, IEvents> {
       <TreeList
         checked={this.localChecked}
         list={this.localData}
-        onSelected={this.handleSelectedItem}
         onMore={this.handleMore}
         onRename={this.handleRename}
+        onSelected={this.handleSelectedItem}
       ></TreeList>
     );
   }

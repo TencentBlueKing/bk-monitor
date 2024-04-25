@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { CancelToken } from 'monitor-api/index';
 import {
   getIntelligentDetectAccessStatus,
@@ -178,7 +179,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     const checkedId = metric.agg_dimension;
 
     return dimensionsList.filter(
-      item => item.is_dimension && checkedId.includes(item.id as string),
+      item => item.is_dimension && checkedId.includes(item.id as string)
     ) as ISelectOptionItem[];
   }
 
@@ -366,8 +367,8 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
       >
         {this.tipsData.message && !this.isChangeModel && (
           <bk-alert
-            type={this.tipsData.status}
             class='alert-message'
+            type={this.tipsData.status}
           >
             <div
               class='alert-message-number'
@@ -378,12 +379,12 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
         )}
         <Form
           ref='formRef'
-          rules={this.rules}
+          class='time-serise-forecast-wrap'
+          formItemList={this.formItem}
           label-width={126}
           readonly={this.readonly}
-          formItemList={this.formItem}
+          rules={this.rules}
           onChange={this.handleFormValueChange}
-          class='time-serise-forecast-wrap'
         ></Form>
       </div>
     );

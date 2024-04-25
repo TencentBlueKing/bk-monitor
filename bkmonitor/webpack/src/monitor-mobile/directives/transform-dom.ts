@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { DirectiveOptions } from 'vue';
-import { DirectiveBinding } from 'vue/types/options';
+import type { DirectiveOptions } from 'vue';
+import type { DirectiveBinding } from 'vue/types/options';
 
 function getTarget(selector: string) {
   let target = document.querySelector(selector);

@@ -38,6 +38,7 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
@@ -56,7 +57,6 @@ import { useSearchStore } from '../../../store/modules/search';
 import { ListType, useTraceStore } from '../../../store/modules/trace';
 import { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
 import SpanDetails from '../span-details';
-
 import InterfaceStatistics from './interface-statistics';
 import ServiceStatistics from './service-statistics';
 import TraceDetail from './trace-detail';
@@ -83,16 +83,16 @@ enum TraceFilter {
 }
 
 enum SpanFilter {
-  RootSpan = 'root_span',
   EntrySpan = 'entry_span',
+  Error = 'error',
+  RootSpan = 'root_span',
   // 第二期：后端未提供该参数，先占个位。
   ThirdPart = '3',
-  Error = 'error',
 }
 
 enum InterfaceStatisticsFilter {
-  RootSpan = 'root_span',
   RootServiceSpan = 'root_service_span',
+  RootSpan = 'root_span',
   StatusCode = 'status.code',
 }
 
@@ -249,7 +249,7 @@ export default defineComponent({
     const tableData = computed(() => store.traceList);
     const filterSpanTableData = computed(() => store.filterSpanList);
     const tableDataOfSpan = computed(() =>
-      filterSpanTableData.value?.length ? filterSpanTableData.value : store.spanList,
+      filterSpanTableData.value?.length ? filterSpanTableData.value : store.spanList
     );
     const filterTableData = computed(() => store.filterTraceList);
     const localTableData = computed(() => (filterTableData.value?.length ? filterTableData.value : tableData.value));
@@ -261,10 +261,10 @@ export default defineComponent({
         label: () => (
           <div class='trace-id-column-head'>
             <Popover
-              popoverDelay={[500, 0]}
               content='trace_id'
-              theme='light'
               placement='right'
+              popoverDelay={[500, 0]}
+              theme='light'
             >
               <span class='th-label'>Trace ID</span>
             </Popover>
@@ -277,8 +277,8 @@ export default defineComponent({
         width: showTraceDetail.value ? 248 : 160,
         render: ({ cell, data, index }: { cell: string; data: ITraceListItem; index: number }) => (
           <div
-            class={['trace-id-column', { 'expand-row': showTraceDetail.value && cell === curTraceId.value }]}
             style={`width:${showTraceDetail.value ? '232px' : 'auto'}`}
+            class={['trace-id-column', { 'expand-row': showTraceDetail.value && cell === curTraceId.value }]}
             onClick={() => handleTraceDetail(data.trace_id, index)}
           >
             <div
@@ -301,10 +301,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='min_start_time'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('开始时间')}</span>
           </Popover>
@@ -321,10 +321,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('整个Trace的第一个Span')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('根Span')}</span>
           </Popover>
@@ -353,10 +353,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('服务端进程的第一个Service')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('入口服务')}</span>
           </Popover>
@@ -390,10 +390,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('入口服务的第一个接口')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('入口接口')}</span>
           </Popover>
@@ -426,10 +426,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='root_service_category'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('调用类型')}</span>
           </Popover>
@@ -452,10 +452,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='root_service_status_code'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('状态码')}</span>
           </Popover>
@@ -478,10 +478,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='trace_duration'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('耗时')}</span>
           </Popover>
@@ -504,10 +504,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind_statistics.sync'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('同步Span数量')}</span>
           </Popover>
@@ -525,10 +525,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind_statistics.async'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('异步Span数量')}</span>
           </Popover>
@@ -545,10 +545,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind_statistics.interval'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('内部Span数量')}</span>
           </Popover>
@@ -565,10 +565,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind_statistics.unspecified'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('未知Span数量')}</span>
           </Popover>
@@ -585,10 +585,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.db'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('DB 数量')}</span>
           </Popover>
@@ -605,10 +605,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.messaging'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Messaging 数量')}</span>
           </Popover>
@@ -625,10 +625,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.http'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('HTTP 数量')}</span>
           </Popover>
@@ -645,10 +645,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.rpc'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('RPC 数量')}</span>
           </Popover>
@@ -665,10 +665,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.async_backend'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Async 数量')}</span>
           </Popover>
@@ -686,10 +686,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='category_statistics.other'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Other 数量')}</span>
           </Popover>
@@ -706,10 +706,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='span_count'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Span 数量')}</span>
           </Popover>
@@ -726,10 +726,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='hierarchy_count'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Span 层数')}</span>
           </Popover>
@@ -746,10 +746,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='service_count'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('服务数量')}</span>
           </Popover>
@@ -788,7 +788,7 @@ export default defineComponent({
             break;
         }
       },
-      { immediate: true },
+      { immediate: true }
     );
     // 当在 table header 上选择筛选并确定后执行的回调方法。
     const handleSpanFilter = (options: any) => {
@@ -826,7 +826,7 @@ export default defineComponent({
     const handleTraceDetail = async (traceId: string, index) => {
       // 当前全屏状态且点击的是当前trace
       if (traceId === curTraceId.value && isFullscreen.value) return;
-
+      debugger;
       if (!isFullscreen.value) {
         // 当前未在全屏，则打开全屏弹窗
         curTraceIndex.value = index;
@@ -1032,12 +1032,12 @@ export default defineComponent({
 
     watch(
       () => filterTableData.value,
-      () => store.setTraceDetail(false),
+      () => store.setTraceDetail(false)
     );
     watch(
       () => localTableData.value,
       () => handleClientResize(),
-      { immediate: true },
+      { immediate: true }
     );
     watch([() => props.appName, () => timeRange?.value], () => {
       shouldResetTable.value = true;
@@ -1051,7 +1051,7 @@ export default defineComponent({
           renderKey.value = random(6);
           shouldResetTable.value = false;
         }
-      },
+      }
     );
     watch(
       () => isFullscreen.value,
@@ -1064,7 +1064,7 @@ export default defineComponent({
             });
           }, 10);
         }
-      },
+      }
     );
 
     onMounted(() => {
@@ -1081,10 +1081,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='span_id'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>Span ID</span>
           </Popover>
@@ -1112,10 +1112,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='span_name'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('接口名称')}</span>
           </Popover>
@@ -1135,10 +1135,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='start_time'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('开始时间')}</span>
           </Popover>
@@ -1157,10 +1157,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='end_time'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('结束时间')}</span>
           </Popover>
@@ -1179,10 +1179,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='elapsed_time'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('耗时')}</span>
           </Popover>
@@ -1202,10 +1202,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='status_code'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('状态')}</span>
           </Popover>
@@ -1228,10 +1228,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='kind'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('类型')}</span>
           </Popover>
@@ -1252,10 +1252,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='resource.service.name'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('所属服务')}</span>
           </Popover>
@@ -1279,10 +1279,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='resource.bk.instance.id'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('实例 ID')}</span>
           </Popover>
@@ -1303,10 +1303,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='resource.telemetry.sdk.name'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('SDK 名称')}</span>
           </Popover>
@@ -1323,10 +1323,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='resource.telemetry.sdk.version'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('SDK 版本')}</span>
           </Popover>
@@ -1347,10 +1347,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content='trace_id'
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('所属Trace')}</span>
           </Popover>
@@ -1505,8 +1505,8 @@ export default defineComponent({
             <div class='sub-description'>{`${this.$t('组合检索注意大写')}：log: (error OR info)`}</div>
           </div>
           <div
-            class='description link'
             style='margin-top: 8px'
+            class='description link'
           >
             {this.$t('查看更多语法规则')}
             <span class='icon-monitor icon-fenxiang'></span>
@@ -1516,39 +1516,39 @@ export default defineComponent({
     );
     const traceTableContent = (showDetail: boolean) => (
       <div
-        class={`trace-content-table-wrap ${this.showTraceDetail ? 'is-show-detail' : ' '}`}
         key={this.renderKey}
         ref='traceTableContainer'
+        class={`trace-content-table-wrap ${this.showTraceDetail ? 'is-show-detail' : ' '}`}
       >
         <Table
           ref='traceTableElem'
           style='height: 100%'
           height='100%'
-          tabindex={-1}
           class='trace-table'
-          // rowHeight={40}
-          border={this.isFullscreen ? '' : ['outer']}
-          columns={this.tableColumns}
-          data={this.localTableData}
+          v-slots={{ empty: () => tableEmptyContent() }}
           rowStyle={(row: { traceID: string[] }) => {
             if (this.showTraceDetail && row.traceID?.[0] === this.curTraceId) return { background: '#EDF4FF' };
             return {};
           }}
-          settings={this.store.tableSettings.trace}
+          // rowHeight={40}
+          border={this.isFullscreen ? '' : ['outer']}
+          columns={this.tableColumns}
+          data={this.localTableData}
           scroll-loading={this.tableLoading}
-          onScrollBottom={this.handleScrollBottom}
+          settings={this.store.tableSettings.trace}
+          tabindex={-1}
           onColumnFilter={this.handleSpanFilter}
           onColumnSort={this.handleTraceColumnSort}
+          onScrollBottom={this.handleScrollBottom}
           onSettingChange={this.handleTraceTableSettingsChange}
-          v-slots={{ empty: () => tableEmptyContent() }}
         />
         {showDetail && this.showTraceDetail && (
           <div class={`detail-box ${this.isFullscreen ? 'fullsreen-box' : ''}`}>
             <TraceDetail
               ref='traceDetailElem'
-              isInTable
               appName={appName}
               traceID={this.curTraceId}
+              isInTable
               onClose={this.handleColseDetail}
             />
           </div>
@@ -1561,17 +1561,17 @@ export default defineComponent({
           ref='tableSpanElem'
           style='height: 100%'
           height='100%'
-          tabindex={-1}
           class='table-span'
-          rowHeight={40}
           border={['outer']}
           columns={this.tableColumnOfSpan}
           data={this.tableDataOfSpan}
-          settings={this.store.tableSettings.span}
+          rowHeight={40}
           scroll-loading={this.tableLoading}
-          onScrollBottom={this.handleScrollBottom}
+          settings={this.store.tableSettings.span}
+          tabindex={-1}
           onColumnFilter={this.handleSpanFilter}
           onColumnSort={this.handleTraceColumnSort}
+          onScrollBottom={this.handleScrollBottom}
           onSettingChange={this.handleSpanTableSettingsChange}
           // TODO：后期确认空数据的设计样式
           // v-slots={{ empty: () => tableEmptyContent() }}
@@ -1583,11 +1583,11 @@ export default defineComponent({
         <InterfaceStatistics
           filterList={this.traceListFilter}
           interfaceTypeList={this.selectedInterfaceTypeInInterfaceStatistics}
-          sourceTypeList={this.selectedSourceTypeInInterfaceStatistics}
           scroll-loading={this.tableLoading}
+          sourceTypeList={this.selectedSourceTypeInInterfaceStatistics}
+          onColumnFilter={this.handleSpanFilter}
           // @ts-ignore
           onScrollBottom={this.handleScrollBottom}
-          onColumnFilter={this.handleSpanFilter}
           // onColumnSort={this.handleTraceColumnSort}
         ></InterfaceStatistics>
       </div>
@@ -1598,11 +1598,11 @@ export default defineComponent({
         <ServiceStatistics
           filterList={this.traceListFilter}
           interfaceTypeList={this.selectedInterfaceTypeInServiceStatistics}
-          sourceTypeList={this.selectedSourceTypeInServiceStatistics}
           scroll-loading={this.tableLoading}
+          sourceTypeList={this.selectedSourceTypeInServiceStatistics}
+          onColumnFilter={this.handleSpanFilter}
           // @ts-ignore
           onScrollBottom={this.handleScrollBottom}
-          onColumnFilter={this.handleSpanFilter}
           // onColumnSort={this.handleTraceColumnSort}
         ></ServiceStatistics>
       </div>
@@ -1610,12 +1610,12 @@ export default defineComponent({
 
     return (
       <div
-        class='trace-list-wrapper'
         ref='traceListWrapper'
+        class='trace-list-wrapper'
       >
         <div
-          class='chart-content'
           ref='chartContent'
+          class='chart-content'
         >
           <div
             class={`collapse-title ${this.collapseActive ? 'collapse-active' : ''}`}
@@ -1628,8 +1628,8 @@ export default defineComponent({
             <div class='chart-list'>
               {this.chartList.map(panel => (
                 <TimeSeries
-                  class='chart-list-item'
                   key={panel.id}
+                  class='chart-list-item'
                   panel={panel}
                   isUseAlone
                 />
@@ -1639,12 +1639,12 @@ export default defineComponent({
         </div>
         <div
           ref='traceTableMain'
-          class={['trace-table-main', { 'is-fullscreen': this.isFullscreen }]}
           style={`height: ${this.height}px`}
+          class={['trace-table-main', { 'is-fullscreen': this.isFullscreen }]}
         >
           <Loading
-            loading={this.isFullscreen && this.isListLoading}
             class={`full-screen-loading ${this.isFullscreen ? 'is-active' : ''}`}
+            loading={this.isFullscreen && this.isListLoading}
           >
             <div class='table-filter'>
               <Radio.Group
@@ -1660,8 +1660,8 @@ export default defineComponent({
               {/* 20230816 列表的每一个子项都添加 key ，解决切换列表时可能会渲染异常的问题，这里用静态 key ，因为触发 checkbox.group 时会重新执行动态 key ，避免再一次重新渲染。  */}
               {this.selectedListType === 'trace' && (
                 <div
-                  class='trace-filter'
                   key='trace-filter'
+                  class='trace-filter'
                 >
                   <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
                   <Checkbox.Group
@@ -1675,8 +1675,8 @@ export default defineComponent({
 
               {this.selectedListType === 'span' && (
                 <div
-                  class='span-filter'
                   key='span-filter'
+                  class='span-filter'
                 >
                   {/* 第二期没有 第三方、错误  */}
                   <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
@@ -1686,15 +1686,15 @@ export default defineComponent({
                   >
                     <Popover
                       content={this.$t('整个Trace的第一个Span')}
-                      theme='light'
                       placement='top'
+                      theme='light'
                     >
                       <Checkbox label={SpanFilter.RootSpan}>{this.$t('根Span')}</Checkbox>
                     </Popover>
                     <Popover
                       content={this.$t('每个Service的第一个Span')}
-                      theme='light'
                       placement='top'
+                      theme='light'
                     >
                       <Checkbox label={SpanFilter.EntrySpan}>{this.$t('入口Span')}</Checkbox>
                     </Popover>
@@ -1712,8 +1712,8 @@ export default defineComponent({
 
               {this.selectedListType === 'interfaceStatistics' && (
                 <div
-                  class='interface-statistics-filter'
                   key='interface-statistics-filter'
+                  class='interface-statistics-filter'
                 >
                   <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
                   <Checkbox.Group
@@ -1722,15 +1722,15 @@ export default defineComponent({
                   >
                     <Popover
                       content={this.$t('整个Trace的第一个Span')}
-                      theme='light'
                       placement='top'
+                      theme='light'
                     >
                       <Checkbox label={InterfaceStatisticsFilter.RootSpan}>{this.$t('根Span')}</Checkbox>
                     </Popover>
                     <Popover
                       content={this.$t('每个Service的第一个Span')}
-                      theme='light'
                       placement='top'
+                      theme='light'
                     >
                       <Checkbox label={InterfaceStatisticsFilter.RootServiceSpan}>{this.$t('服务入口Span')}</Checkbox>
                     </Popover>
@@ -1765,8 +1765,8 @@ export default defineComponent({
 
               {this.selectedListType === 'serviceStatistics' && (
                 <div
-                  class='span-service-statistics-filter'
                   key='span-service-statistics-filter'
+                  class='span-service-statistics-filter'
                 >
                   <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
                   <Checkbox.Group
@@ -1811,9 +1811,9 @@ export default defineComponent({
         </div>
 
         <SpanDetails
-          show={this.isShowSpanDetail}
-          isPageLoading={this.isSpanDetailLoading}
           isFullscreen={this.isFullscreen}
+          isPageLoading={this.isSpanDetailLoading}
+          show={this.isShowSpanDetail}
           spanDetails={this.spanDetails}
           onShow={v => (this.isShowSpanDetail = v)}
         ></SpanDetails>

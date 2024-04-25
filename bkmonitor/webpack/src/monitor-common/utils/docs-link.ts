@@ -25,7 +25,6 @@
  */
 
 import { DocLinkType } from '../typings';
-
 import { rstrip } from './utils';
 
 function linkJump(type: DocLinkType, path: string) {

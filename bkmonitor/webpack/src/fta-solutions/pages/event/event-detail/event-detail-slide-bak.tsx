@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { actionDetail } from 'monitor-api/modules/alert';
 import { copyText } from 'monitor-common/utils/utils';
@@ -47,7 +48,7 @@ interface IEvent {
 interface IDetailList {
   label: string;
   key: string;
-  value: string | IContent;
+  value: IContent | string;
   display?: string;
   valueDisplayMap?: object;
 }
@@ -181,7 +182,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
             if (url) {
               str = str.replace(
                 /([\s\S]?)\$([\s\S]*)\$([\s\S]?)/,
-                `$1<a class="link" href="${url}" target="_blank">$2</a>$3`,
+                `$1<a class="link" href="${url}" target="_blank">$2</a>$3`
               );
             }
             item.value = str;
@@ -277,8 +278,8 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
     const tplMap = {
       eventDetail: () => (
         <EventDetail
-          class='event-detail-content'
           id={this.eventId}
+          class='event-detail-content'
           activeTab={this.activeTab}
           onCloseSlider={() => this.emitIsShow(false)}
         ></EventDetail>
@@ -337,16 +338,16 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
     return (
       <bk-sideslider
         ext-cls='event-detail-sideslider'
-        transfer={true}
         isShow={this.isShow}
+        transfer={true}
         {...{ on: { 'update:isShow': this.emitIsShow } }}
-        quick-close={true}
         width={this.width}
+        quick-close={true}
         onHidden={this.handleHiddenSlider}
       >
         <div
-          slot='header'
           class='sideslider-title'
+          slot='header'
         >
           {this.tplTitle()}
         </div>

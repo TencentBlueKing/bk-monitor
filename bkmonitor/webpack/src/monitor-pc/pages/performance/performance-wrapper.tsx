@@ -25,6 +25,7 @@
  */
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -35,7 +36,6 @@ import DashboardTools from '../monitor-k8s/components/dashboard-tools';
 import PageTitle from '../monitor-k8s/components/page-title';
 import SplitPanel from '../monitor-k8s/components/split-panel';
 import { IBookMark, ITabItem, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH } from '../monitor-k8s/typings';
-
 import Performance from './performance.vue';
 
 import './performance-wrapper.scss';
@@ -113,26 +113,26 @@ export default class PerformanceWrapper extends tsc<object> {
       <div class='performance-wrapper'>
         <PageTitle
           activeTab={this.activeTab}
-          tabList={this.tabList}
-          showSearch={false}
           showFilter={false}
           showInfo={false}
+          showSearch={false}
           showSelectPanel={false}
+          tabList={this.tabList}
           onTabChange={this.handleTabChange}
         >
           <span slot='title'>{this.$t('主机监控')}</span>
           <AlarmTools
-            slot='tools'
             style={{ marginRight: '8px' }}
+            slot='tools'
             panel={this.alarmToolsPanel}
           />
           <DashboardTools
             slot='tools'
             isSplitPanel={this.isSplitPanel}
             refleshInterval={this.refleshInterval}
+            showDownSampleRange={false}
             showListMenu={false}
             showTimeRange={false}
-            showDownSampleRange={false}
             onImmediateReflesh={this.handleImmediateReflesh}
             onRefleshChange={v => (this.refleshInterval = v)}
             onSplitPanelChange={this.handleSplitPanel}
@@ -141,11 +141,11 @@ export default class PerformanceWrapper extends tsc<object> {
         <div class='performance-wrapper-container'>
           <Performance class='table-wrapper' />
           <div
-            class='split-panel-wrapper'
             style={{
               width: `${this.splitPanelWidth}px`,
               display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
             }}
+            class='split-panel-wrapper'
           >
             {this.isSplitPanel ? (
               <SplitPanel

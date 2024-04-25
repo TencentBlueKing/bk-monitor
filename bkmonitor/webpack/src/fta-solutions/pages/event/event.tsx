@@ -28,6 +28,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import {
   actionDateHistogram,
@@ -62,13 +63,18 @@ import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import ChatGroup from '../../components/chat-group/chat-group';
 import EventStoreModule from '../../store/modules/event';
 import Group, { IGroupData } from '../integrated/group';
-
+import AlertAnalyze from './alert-analyze';
+import EmptyTable from './empty-table';
+import EventChart from './event-chart';
 import AlarmConfirm from './event-detail/alarm-confirm';
 import AlarmDispatch from './event-detail/alarm-dispatch';
 import EventDetailSlider, { TType as TSliderType } from './event-detail/event-detail-slider';
 import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
 import QuickShield from './event-detail/quick-shield';
+import EventTable, { IShowDetail } from './event-table';
+import FilterInput from './filter-input';
+import MonitorDrag from './monitor-drag';
 import {
   AnlyzeField,
   EBatchAction,
@@ -80,12 +86,6 @@ import {
   IEventItem,
   SearchType,
 } from './typings/event';
-import AlertAnalyze from './alert-analyze';
-import EmptyTable from './empty-table';
-import EventChart from './event-chart';
-import EventTable, { IShowDetail } from './event-table';
-import FilterInput from './filter-input';
-import MonitorDrag from './monitor-drag';
 import { getOperatorDisabled } from './utils';
 
 import './event.scss';
@@ -247,7 +247,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 左侧过滤
   advancedFilterData = [];
   advancedFilterDefaultOpen = [];
-  condition: Record<string, string[] | string> = {};
+  condition: Record<string, string | string[]> = {};
   activeFilterName = '';
   activeFilterId = '';
   searchType: SearchType = 'alert';
@@ -285,7 +285,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   };
 
   // 查询
-  chartInterval: string | number = 'auto';
+  chartInterval: number | string = 'auto';
   chartKey: string = random(10);
   alertChartMap: Record<string, number> = { ABNORMAL: 1, RECOVERED: 2, CLOSED: 3 };
   actionChartMap: Record<string, number> = { success: 1, failure: 2, running: 3, skipped: 4, shield: 5 };
@@ -675,7 +675,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       conditions: !onlyOverview
         ? Object.keys(this.condition)
             .map((key, index) =>
-              Object.assign({ key, value: this.condition[key] }, index > 0 ? { condition: 'and' } : {}),
+              Object.assign({ key, value: this.condition[key] }, index > 0 ? { condition: 'and' } : {})
             )
             .filter(item => item.value?.length)
         : [], // 过滤条件，二维数组
@@ -752,8 +752,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 {contentArr[0]}
                 {
                   <a
-                    target='blank'
                     href={item.content.url}
+                    target='blank'
                   >
                     {contentArr[1]}
                   </a>
@@ -920,7 +920,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           ...topNParams,
           fields: !isDetail ? [...allFieldList] : [this.detailField],
         },
-        { needCancel: true },
+        { needCancel: true }
       ).catch(() => ({ doc_count: 0, fields: [] }));
       fieldList = fields;
       count = doc_count;
@@ -930,7 +930,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             ...topNParams,
             fields: (!isDetail ? [...(tagList || []).map(item => item.id)] : [this.detailField]).slice(0, 20),
           },
-          { needCancel: true },
+          { needCancel: true }
         )
           .then(({ fields, doc_count }) => {
             fieldList = [...fieldList, ...fields];
@@ -1016,7 +1016,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     } else if (this.activeFilterId) {
       this.activeFilterName =
         [overview, actionOverview, ...overview.children, ...actionOverview.children].find(
-          item => item.id === this.activeFilterId,
+          item => item.id === this.activeFilterId
         )?.name || '';
       if (!this.activeFilterName) {
         this.activeFilterId = overview.id;
@@ -1033,7 +1033,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     if (this.queryString?.length) {
       validate = await validateQueryString(
         { query_string: this.replaceSpecialCondition(this.queryString), search_type: this.searchType },
-        { needMessage: false, needRes: true },
+        { needMessage: false, needRes: true }
       )
         .then(res => res.result)
         .catch(() => false);
@@ -1101,7 +1101,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
 
     // 查找当前表格的 告警 标签是否有 通知人 为空的情况。BugID: 1010158081103484871
     this.numOfEmptyAssignee = this.tableData.filter(
-      (item: IEventItem) => this.searchType === 'alert' && !item.assignee?.length && item.status === 'ABNORMAL',
+      (item: IEventItem) => this.searchType === 'alert' && !item.assignee?.length && item.status === 'ABNORMAL'
     ).length;
 
     const ublist = this.allowedBizList.filter(item => item.noAuth && this.bizIds.includes(item.id));
@@ -1224,7 +1224,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   async handleGetAllowedBizList() {
     const { business_list, business_with_alert, business_with_permission } = await bizWithAlertStatistics().catch(
-      () => ({}),
+      () => ({})
     );
     this.allBizList = business_list.map(item => ({
       id: item.bk_biz_id,
@@ -1606,7 +1606,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
   }
   /* 搜索条件包含action_id 且 打开批量搜索则更新url状态 */
-  batchUrlUpdate(type: EBatchAction | '') {
+  batchUrlUpdate(type: '' | EBatchAction) {
     if (/(^action_id).+/g.test(this.queryString) || !type) {
       const key = random(10);
       const params = {
@@ -1749,7 +1749,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @param {string} v 图表周期
    * @return {*}
    */
-  handleChartIntervalChange(v: string | number) {
+  handleChartIntervalChange(v: number | string) {
     this.chartInterval = v;
     this.chartKey = random(10);
   }
@@ -1780,7 +1780,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @param {string} id 选中id
    * @return {*}
    */
-  handleAdvanceFilterChange(conditionKey: string | number, id: string[]) {
+  handleAdvanceFilterChange(conditionKey: number | string, id: string[]) {
     this.condition[conditionKey] = id;
     this.pagination.current = 1;
     this.handleGetTableData(false);
@@ -1979,38 +1979,38 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   getOperateDialogComponent() {
     return [
       <AlarmConfirm
-        show={this.dialog.alarmConfirm.show}
-        ids={this.dialog.alarmConfirm.ids}
         bizIds={this.dialog.alarmConfirm.bizIds}
-        onConfirm={this.handleConfirmAfter}
+        ids={this.dialog.alarmConfirm.ids}
+        show={this.dialog.alarmConfirm.show}
         on-change={this.alarmConfirmChange}
+        onConfirm={this.handleConfirmAfter}
       ></AlarmConfirm>,
       <QuickShield
+        bizIds={this.dialog.quickShield.bizIds}
         details={this.dialog.quickShield.details}
         ids={this.dialog.quickShield.ids}
-        bizIds={this.dialog.quickShield.bizIds}
         show={this.dialog.quickShield.show}
         on-change={this.quickShieldChange}
         on-succes={this.quickShieldSucces}
       ></QuickShield>,
       <ManualProcess
-        show={this.dialog.manualProcess.show}
-        bizIds={this.dialog.manualProcess.bizIds}
         alertIds={this.dialog.manualProcess.alertIds}
-        onShowChange={this.manualProcessShowChange}
+        bizIds={this.dialog.manualProcess.bizIds}
+        show={this.dialog.manualProcess.show}
         onDebugStatus={this.handleDebugStatus}
         onMealInfo={this.handleMealInfo}
+        onShowChange={this.manualProcessShowChange}
       ></ManualProcess>,
       <ManualDebugStatus
+        actionIds={this.dialog.manualProcess.actionIds}
         bizIds={this.dialog.manualProcess.bizIds}
         debugKey={this.dialog.manualProcess.debugKey}
-        actionIds={this.dialog.manualProcess.actionIds}
         mealInfo={this.dialog.manualProcess.mealInfo}
       ></ManualDebugStatus>,
       <AlarmDispatch
-        show={this.dialog.alarmDispatch.show}
         alertIds={this.dialog.alarmDispatch.alertIds}
         bizIds={this.dialog.alarmDispatch.bizIds}
+        show={this.dialog.alarmDispatch.show}
         onShow={this.handleAlarmDispatchShowChange}
         onSuccess={this.handleAlarmDispatchSuccess}
       ></AlarmDispatch>,
@@ -2020,16 +2020,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   filterGroupSlot(item: IGroupData) {
     return (
       <bk-big-tree
-        class={{ 'no-multi-level': !item.children.some(child => child.children?.length) }}
         ref={`tree-${item.id}`}
-        options={{ nameKey: 'name', idKey: 'id', childrenKey: 'children' }}
-        show-checkbox={true}
-        data={item.children}
-        default-expand-all={true}
-        show-link-line={false}
-        default-checked-nodes={this.condition[item.id]}
-        padding={30}
-        on-check-change={id => this.handleAdvanceFilterChange(item.id, id)}
+        class={{ 'no-multi-level': !item.children.some(child => child.children?.length) }}
         scopedSlots={{
           default: ({ data }) => (
             <div class='condition-tree-item'>
@@ -2038,6 +2030,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             </div>
           ),
         }}
+        data={item.children}
+        default-checked-nodes={this.condition[item.id]}
+        default-expand-all={true}
+        options={{ nameKey: 'name', idKey: 'id', childrenKey: 'children' }}
+        padding={30}
+        show-checkbox={true}
+        show-link-line={false}
+        on-check-change={id => this.handleAdvanceFilterChange(item.id, id)}
       ></bk-big-tree>
     );
   }
@@ -2054,18 +2054,18 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         {item?.children?.map?.(set =>
           filterIconMap[set.id] ? (
             <li
-              class={['set-list-item', { 'item-active': set.id === this.activeFilterId }]}
               key={set.id}
+              class={['set-list-item', { 'item-active': set.id === this.activeFilterId }]}
               on-click={() => this.handleSelectActiveFilter(item.id as SearchType, set)}
             >
               <i
-                class={`icon-monitor item-icon ${filterIconMap[set.id].icon}`}
                 style={{ color: filterIconMap[set.id].color }}
+                class={`icon-monitor item-icon ${filterIconMap[set.id].icon}`}
               />
               {set.name}
               <span class='item-count'>{set.count}</span>
             </li>
-          ) : undefined,
+          ) : undefined
         ) || undefined}
       </ul>,
     ];
@@ -2097,57 +2097,57 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     return (
       <div class='event-center-page'>
         <div
-          class={`event-filter ${this.isSplitEventPanel ? 'hidden' : ''}`}
           style={{
             width: `${this.filterWidth}px`,
             flexBasis: `${this.filterWidth}px`,
             display: this.filterWidth > 200 ? 'flex' : 'none',
           }}
+          class={`event-filter ${this.isSplitEventPanel ? 'hidden' : ''}`}
         >
           <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
           <div class='filter-search'>
             <div class='search-title'>{this.$t('高级筛选')}</div>
             <Group
               class='search-group'
-              data={this.advancedFilterData}
-              defaultActiveName={this.advancedFilterDefaultOpen}
-              onActiveChange={this.handleFilterActiveChange}
-              onClear={item => this.clearCheckedFilter(item)}
               scopedSlots={{
                 default: ({ item }) => this.filterGroupSlot(item),
               }}
+              data={this.advancedFilterData}
+              defaultActiveName={this.advancedFilterDefaultOpen}
               theme='filter'
+              onActiveChange={this.handleFilterActiveChange}
+              onClear={item => this.clearCheckedFilter(item)}
             />
           </div>
           <MonitorDrag
-            theme={'line'}
             lineText={''}
+            theme={'line'}
             toggleSet={this.toggleSet}
             on-move={this.handleDragFilter}
           />
           <div
-            class='filter-line-trigger'
             style={{
               left: `${this.filterWidth}px`,
             }}
+            class='filter-line-trigger'
             onClick={() => (this.filterWidth = 0)}
           >
             <span class='icon-monitor icon-arrow-left'></span>
           </div>
         </div>
         <div
-          class='event-content'
           style={{ maxWidth: `calc(100% - ${this.filterWidth}px - ${this.isSplitPanel ? this.splitPanelWidth : 0}px)` }}
+          class='event-content'
         >
           <div class={`content-header ${this.isSplitEventPanel ? 'hidden' : ''}`}>
             <i
-              class='icon-monitor icon-double-up set-filter'
               style={{ display: this.filterWidth > 200 ? 'none' : 'flex' }}
+              class='icon-monitor icon-double-up set-filter'
               on-click={this.setFilterDefaultWidth}
             />
             <span
-              class='header-title'
               style={{ marginLeft: this.filterWidth > 200 ? '24px' : '0px' }}
+              class='header-title'
             >
               {this.activeFilterName || this.$t('事件中心')}
             </span>
@@ -2158,23 +2158,23 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               showListMenu={false}
               timeRange={this.timeRange}
               timezone={this.timezone}
-              onSplitPanelChange={this.handleSplitPanel}
               onFullscreenChange={this.handleFullscreen}
               onImmediateReflesh={this.handleImmediateReflesh}
               onRefleshChange={this.handleRefleshChange}
+              onSplitPanelChange={this.handleSplitPanel}
               onTimeRangeChange={this.handleTimeRangeChange}
               onTimezoneChange={this.handleTimezoneChange}
             />
           </div>
           <div
-            class='content-wrap'
             ref='contentWrap'
+            class='content-wrap'
           >
             <EventChart
-              searchType={this.searchType}
               chartInterval={this.chartInterval}
-              getSeriesData={this.handleGetAlertDateHistogram}
               chartKey={this.chartKey}
+              getSeriesData={this.handleGetAlertDateHistogram}
+              searchType={this.searchType}
               onIntervalChange={this.handleChartIntervalChange}
             />
             <div class='content-wrap-filter'>
@@ -2229,20 +2229,20 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               </div> */}
               <SpaceSelect
                 class='mr-16'
-                value={this.bizIds}
-                spaceList={this.$store.getters.bizList}
-                hasAuthApply={true}
                 currentSpace={this.$store.getters.bizId}
+                hasAuthApply={true}
+                spaceList={this.$store.getters.bizList}
+                value={this.bizIds}
                 onApplyAuth={this.handleCheckAllowedByIds}
                 onChange={this.handleBizIdsChange}
               ></SpaceSelect>
               <FilterInput
                 ref='filterInput'
+                inputStatus={this.filterInputStatus}
+                isFillId={true}
+                searchType={this.searchType}
                 value={this.queryString}
                 valueMap={this.valueMap}
-                searchType={this.searchType}
-                isFillId={true}
-                inputStatus={this.filterInputStatus}
                 onChange={this.handleQueryStringChange}
                 onClear={this.handleQueryStringChange}
               />
@@ -2257,8 +2257,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             {`${this.bussinessTips}`.length > 0 && (
               <div class='permission-tips'>
                 <bk-icon
-                  type='exclamation-circle'
                   class='permission-tips-icon'
+                  type='exclamation-circle'
                 />
                 {this.bussinessTips}
                 <bk-button
@@ -2269,8 +2269,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   {this.$t('申请权限')}
                 </bk-button>
                 <bk-icon
-                  type='close'
                   class='permission-tips-close'
+                  type='close'
                   onClick={() => (this.showPermissionTips = false)}
                 />
               </div>
@@ -2286,9 +2286,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   </span>
 
                   <bk-button
-                    text
-                    title='primary'
                     class='alert-text query-btn'
+                    title='primary'
+                    text
                     onClick={this.setQueryStringForCheckingEmptyAssignee}
                   >
                     <span style='display: inline-flex;'>{this.$t('button-查看')}</span>
@@ -2297,19 +2297,19 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               </bk-alert>
             )}
             <div
-              class='content-table'
               ref='contentTable'
+              class='content-table'
             >
               <bk-tab
                 active={this.activePanel}
-                on-tab-change={this.handleAlertTabChange}
                 type='unborder-card'
+                on-tab-change={this.handleAlertTabChange}
               >
                 {this.panelList.map(item => (
                   <bk-tab-panel
                     key={item.id}
-                    name={item.id}
                     label={item.name}
+                    name={item.id}
                   />
                 ))}
               </bk-tab>
@@ -2317,8 +2317,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 <EmptyTable
                   v-bkloading={{ isLoading: this.tableLoading, zIndex: 1000 }}
                   emptyType={this.noDataType}
-                  onApplyAuth={this.handleCheckAllowedByIds}
                   handleOperation={this.handleOperation}
+                  onApplyAuth={this.handleCheckAllowedByIds}
                 >
                   {this.noDataString && <span>{this.noDataString} </span>}
                 </EmptyTable>
@@ -2327,42 +2327,42 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   <keep-alive>
                     {this.activePanel === 'list' ? (
                       <EventTable
-                        doLayout={this.activePanel}
                         bizIds={this.bizIds}
-                        tableData={this.tableData}
-                        pagination={this.pagination}
+                        doLayout={this.activePanel}
                         loading={this.tableLoading}
+                        pagination={this.pagination}
                         searchType={this.searchType}
                         selectedList={this.selectedList}
-                        onBatchSet={this.handleBatchAlert}
-                        onPageChange={this.handleTabelPageChange}
-                        onLimitChange={this.handleTableLimitChange}
-                        onShowDetail={this.handleShowDetail}
-                        onSelectChange={this.handleTableSelecChange}
-                        onAlertConfirm={this.handleAlertConfirm}
-                        onQuickShield={this.handleQuickShield}
-                        onSortChange={this.handleSortChange}
-                        onManualProcess={this.handleManualProcess}
-                        onChatGroup={this.handleChatGroup}
+                        tableData={this.tableData}
                         onAlarmDispatch={this.handleAlarmDispatch}
+                        onAlertConfirm={this.handleAlertConfirm}
+                        onBatchSet={this.handleBatchAlert}
+                        onChatGroup={this.handleChatGroup}
+                        onLimitChange={this.handleTableLimitChange}
+                        onManualProcess={this.handleManualProcess}
+                        onPageChange={this.handleTabelPageChange}
+                        onQuickShield={this.handleQuickShield}
+                        onSelectChange={this.handleTableSelecChange}
+                        onShowDetail={this.handleShowDetail}
+                        onSortChange={this.handleSortChange}
                       />
                     ) : (
                       <AlertAnalyze
-                        bizIds={this.bizIds}
-                        loading={this.tableLoading}
                         analyzeData={this.analyzeData}
                         analyzeFields={this.curAnalyzeFields}
                         analyzeTagList={this.analyzeTagList}
+                        bizIds={this.bizIds}
+                        clearSearch={this.handleOperation}
                         detailField={this.detailField}
                         detailFieldData={this.detailFieldData}
                         detailLoading={this.detailLoading}
-                        searchType={this.searchType}
                         hasSearchParams={this.hasSearchParams}
-                        clearSearch={this.handleOperation}
+                        loading={this.tableLoading}
+                        searchType={this.searchType}
+                        onAppendQuery={this.handleAppendQuery}
+                        onDetailFieldChange={this.handleDetailFieldChange}
                         // style={{ display: this.activePanel === 'analyze' ? 'flex' : 'none' }}
                         onFieldChange={this.handleFieldChange}
-                        onDetailFieldChange={this.handleDetailFieldChange}
-                        onAppendQuery={this.handleAppendQuery}
                       />
                     )}
                   </keep-alive>
@@ -2372,35 +2372,35 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           </div>
         </div>
         <div
-          class='split-panel-wrapper'
           style={{
             width: `${this.splitPanelWidth}px`,
             display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
           }}
+          class='split-panel-wrapper'
         >
           {this.isSplitPanel ? (
             <SplitPanel
+              defaultRelated={'k8s'}
               splitMaxWidth={Math.max(this.splitPanelWidth + 300, SPLIT_MAX_WIDTH)}
               toggleSet={this.toggleSet}
-              defaultRelated={'k8s'}
               onDragMove={this.handleDragMove}
             />
           ) : undefined}
         </div>
         <EventDetailSlider
-          isShow={this.detailInfo.isShow}
-          eventId={this.detailInfo.id}
-          type={this.detailInfo.type}
           activeTab={this.detailInfo.activeTab}
           bizId={this.detailInfo.bizId}
+          eventId={this.detailInfo.id}
+          isShow={this.detailInfo.isShow}
+          type={this.detailInfo.type}
           onShowChange={v => (this.detailInfo.isShow = v)}
         />
         {this.getOperateDialogComponent()}
         <ChatGroup
-          show={this.chatGroupDialog.show}
-          assignee={this.chatGroupDialog.assignee}
           alarmEventName={this.chatGroupDialog.alertName}
           alertIds={this.chatGroupDialog.alertIds}
+          assignee={this.chatGroupDialog.assignee}
+          show={this.chatGroupDialog.show}
           onShowChange={this.chatGroupShowChange}
         />
       </div>

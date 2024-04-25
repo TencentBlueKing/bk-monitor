@@ -25,6 +25,7 @@
  */
 import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import { calendarDataConversion, getCalendarNew, ICalendarData, ICalendarDataUser } from './calendar-preview';
@@ -78,7 +79,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     return {
@@ -92,8 +93,8 @@ export default defineComponent({
   render() {
     return (
       <div
-        class='rotation-calendar-preview-component'
         ref='contentRef'
+        class='rotation-calendar-preview-component'
       >
         <div class='calendar-header'>
           {this.weekList.map(item => (
@@ -108,16 +109,16 @@ export default defineComponent({
         <div class='calendar-content'>
           {this.curCalendarData.data.map((item, index) => (
             <div
-              class='week-row'
+              key={index}
               style={{
                 height: `${120 + (item.maxRow >= 2 ? item.maxRow - 2 : 0) * 22}px`,
               }}
-              key={index}
+              class='week-row'
             >
               {item.dates.map(date => (
                 <div
-                  class='day-col'
                   key={date.day}
+                  class='day-col'
                 >
                   <div
                     class={[
@@ -135,19 +136,18 @@ export default defineComponent({
               {item.data.map((data, _index) => (
                 <Popover
                   key={`${index}${_index}`}
-                  theme='light'
-                  placement='top'
                   width={data.other.time.length > 30 ? 230 : 160}
-                  popoverDelay={[200, 0]}
-                  arrow={true}
                   extCls={'rotation-calendar-preview-component-user-item-pop'}
+                  arrow={true}
+                  placement='top'
+                  popoverDelay={[200, 0]}
+                  theme='light'
                   trigger={'hover'}
                 >
                   {{
                     default: () =>
                       !!data.users.length ? (
                         <div
-                          class='user-item'
                           style={{
                             top: `${48 + data.row * 22}px`,
                             width: `${
@@ -155,27 +155,28 @@ export default defineComponent({
                             }px`,
                             left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`,
                           }}
+                          class='user-item'
                         >
                           <div
-                            class='user-header'
                             style={{ background: data.color }}
+                            class='user-header'
                           ></div>
                           <div
-                            class='user-content'
                             style={{ color: data.color }}
+                            class='user-content'
                           >
                             <span>{data.users.map(u => u.name).join(',')}</span>
                           </div>
                         </div>
                       ) : (
                         <div
-                          class='user-item no-user'
                           style={{
                             width: `${
                               (data?.isStartBorder ? -1 : 0) + this.containerWidth * (data.range[1] - data.range[0])
                             }px`,
                             left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`,
                           }}
+                          class='user-item no-user'
                         ></div>
                       ),
                     content: () => (

@@ -25,15 +25,17 @@
  * IN THE SOFTWARE.
  */
 import { TranslateResult } from 'vue-i18n';
+
 import { random } from 'monitor-common/utils/utils';
 
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { PanelHeaderType, PanelToolsType } from '../../monitor-k8s/typings';
 import { IFunctionItem } from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
 import { IFunctionsValue } from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { IMetricDetail, MetricDetail } from '../../strategy-config/strategy-config-set-new/typings';
 import { IIndexListItem } from '../index-list/index-list';
+
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 export interface whereItem {
   condition: 'and' | 'or';
@@ -43,8 +45,8 @@ export interface whereItem {
 }
 
 export interface IOption {
-  id: string | number;
-  name: string | TranslateResult;
+  id: number | string;
+  name: TranslateResult | string;
 }
 // 收藏列表
 export declare namespace IFavList {
@@ -79,13 +81,13 @@ export declare namespace IFavList {
 
 // 指标检索类型
 export declare namespace IDataRetrieval {
-  type tabId = 'monitor' | 'log' | 'event'; // 数据检索 | 日志检索 | 事件检索
+  type tabId = 'event' | 'log' | 'monitor'; // 数据检索 | 日志检索 | 事件检索
   interface ITabList {
     id: tabId;
-    name: string | TranslateResult;
+    name: TranslateResult | string;
   }
 
-  type IOption = 'source' | 'enable' | 'copy' | 'delete'; // 对应的操作：源码、开启、复制、删除
+  type IOption = 'copy' | 'delete' | 'enable' | 'source'; // 对应的操作：源码、开启、复制、删除
 
   type ILocalValue = DataRetrievalQueryItem | IExpressionItem;
 
@@ -110,13 +112,13 @@ export declare namespace IDataRetrieval {
     group_by: string[];
     where: whereItem[];
     functions: IFunctionItem[];
-    index_set_id?: string | number;
+    index_set_id?: number | string;
     filter_dict?: Record<string, any>;
   }
   // 目前跳转检索的两种数据结构分类分别以 仪表盘grafana图表 | 主机详情图表 为代表，但不仅包含其一
   type fromRouteNameType = 'grafana' | 'performance-detail';
 
-  type TargetType = 'INSTANCE' | 'TOPO' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE';
+  type TargetType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
   interface ITarget {
     show: boolean;
     objectType: 'HOST';
@@ -125,7 +127,7 @@ export declare namespace IDataRetrieval {
     desc: string;
     mainlineObjectTopoList: any[];
   }
-  type promEventType = 'enter' | 'blur'; // enter键触发 失焦触发
+  type promEventType = 'blur' | 'enter'; // enter键触发 失焦触发
 
   // 周期单位对应的换算
   // 周期单位对应的换算
@@ -178,11 +180,11 @@ export declare namespace IDataRetrievalItem {
 export declare namespace IDataRetrievalView {
   type chartType = 0 | 1 | 2 | 3 | 4 | number;
 
-  type compareType = 'none' | 'metric' | 'target' | 'time';
-  type typeOfView = 'monitor' | 'event' | 'trace';
+  type compareType = 'metric' | 'none' | 'target' | 'time';
+  type typeOfView = 'event' | 'monitor' | 'trace';
   interface ICompare {
     type: compareType;
-    value?: boolean | string[] | string;
+    value?: boolean | string | string[];
   }
   interface ITools {
     refleshInterval: number;
@@ -248,7 +250,7 @@ export declare namespace IDataRetrievalView {
   }
   interface IOptionItem {
     id?: string;
-    name: string | TranslateResult;
+    name: TranslateResult | string;
     value?: number | string;
   }
 }
@@ -267,20 +269,20 @@ interface IDataRetrievalQueryItem {
 
 // 查询项数据结构
 export class DataRetrievalQueryItem extends MetricDetail {
-  sourceCode = ''; // 源码
-  sourceCodeCache = ''; // 源码缓存
-  sourceCodeIsNullMetric = false; // 记录源码转换出现空指标
-  showSource = false; // 展示源码
-  sourceCodeError = false; // 源码报错
-  consistency = true; // ui与source一致性标记
-  enable = true; // 是否生效
-  isMetric = true; // 初始化指标数据标记
-  key = random(8); // 唯一key值
-  loading = false;
-  switchToUI = false; // 将切换ui
-  filter_dict: Record<string, any> = {};
-  agg_interval: any = 'auto';
-  errMsg = ''; /* 转换为promql时的报错信息 */
+  agg_interval: any = 'auto'; // 源码
+  consistency = true; // 源码缓存
+  enable = true; // 记录源码转换出现空指标
+  errMsg = ''; // 展示源码
+  filter_dict: Record<string, any> = {}; // 源码报错
+  isMetric = true; // ui与source一致性标记
+  key = random(8); // 是否生效
+  loading = false; // 初始化指标数据标记
+  showSource = false; // 唯一key值
+  sourceCode = '';
+  sourceCodeCache = ''; // 将切换ui
+  sourceCodeError = false;
+  sourceCodeIsNullMetric = false;
+  switchToUI = false; /* 转换为promql时的报错信息 */
   constructor(data?: IMetricDetail & IDataRetrievalQueryItem) {
     super(data);
     if (!data) return;
@@ -302,15 +304,15 @@ interface IDataRetrievalPromqlItem {
   code: string;
   enable: boolean;
   alias: string;
-  step: string | number;
+  step: number | string;
 }
 export class DataRetrievalPromqlItem {
-  key = random(8);
+  alias = '';
   code = '';
   enable = true;
-  alias = '';
-  step = 'auto';
   errMsg = '';
+  key = random(8);
+  step = 'auto';
   constructor(data?: IDataRetrievalPromqlItem) {
     if (!data) return;
     this.key = data.key || random(8);
@@ -350,20 +352,20 @@ export declare namespace IEventRetrieval {
   type IEventTypeList = IOption;
 
   interface ILocalValue {
-    eventType: 'custom_event' | 'bk_monitor_log';
+    eventType: 'bk_monitor_log' | 'custom_event';
     result_table_id: string;
     query_string: string;
     where: IFilterCondition.localValue[];
   }
 
   interface ITipsContentListItem {
-    label: string | TranslateResult;
+    label: TranslateResult | string;
     value: string[];
   }
 
   interface EventTypeChange {
     data_source_label: 'bk_monitor' | 'custom';
-    data_type_label: 'log' | 'event';
+    data_type_label: 'event' | 'log';
   }
 
   interface SourceAndTypeLabelMap {
@@ -387,7 +389,7 @@ export declare namespace IFilterCondition {
   interface IEvent {
     onChange: localValue[];
   }
-  type GroupbyType = 'string' | 'number';
+  type GroupbyType = 'number' | 'string';
   type IGroupBy = IOption & {
     type: GroupbyType;
   };
@@ -406,7 +408,7 @@ export declare namespace IFilterCondition {
   interface localValue {
     key: number | string;
     method: string;
-    value: string[] | number[];
+    value: number[] | string[];
     condition: 'and' | 'or';
   }
   type AddType = 'add' | 'edit';
@@ -426,10 +428,10 @@ export declare namespace FieldFilteringType {
     onChange: FieldValue[];
   }
   enum FieldDataType {
-    string = 'string',
-    number = 'number',
-    text = 'text',
     date = 'date',
+    number = 'number',
+    string = 'string',
+    text = 'text',
   }
   interface IFieldValue {
     id: string;
@@ -459,14 +461,14 @@ export interface FieldValueDimension {
   count?: number;
 }
 export class FieldValue {
-  key = random(8);
-  type = 'string'; // 数据类型
+  checked = true;
+  dimensions: FieldValueDimension[] = []; // 数据类型
   field = ''; // 字段
   fieldName = ''; // 字段名
-  dimensions: FieldValueDimension[] = []; // 值
-  checked = true; // 是否选中
+  key = random(8); // 值
+  showMore = false; // 是否选中
   total = 0;
-  showMore = false; // 是否展开更多的条件
+  type = 'string'; // 是否展开更多的条件
 
   constructor(data: IFieldValueType) {
     if (!data) return;
@@ -495,7 +497,7 @@ export declare namespace FieldListType {
 }
 
 export declare namespace EventRetrievalViewType {
-  type intervalType = number | 'auto';
+  type intervalType = 'auto' | number;
   interface IProps {
     // fieldList: FieldValue[];
     compareValue: IDataRetrievalView.ICompareValue;
@@ -577,7 +579,7 @@ export declare namespace FavoriteIndexType {
     groupList: IFavList.groupList[];
     isHoverTitle?: boolean;
     groupName?: string;
-    data: IFavList.favList | IFavList.favGroupList;
+    data: IFavList.favGroupList | IFavList.favList;
   }
 }
 

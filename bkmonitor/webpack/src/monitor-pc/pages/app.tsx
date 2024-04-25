@@ -1,3 +1,4 @@
+/* eslint-disable perfectionist/sort-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,27 +24,29 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// eslint-disable-next-line simple-import-sort/imports
+
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import BkPaasLogin from '@blueking/paas-login';
-import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
-import { loginRefreshIntercept } from '../common/login-refresh-intercept';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { getFooter, listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
+import { getDashboardList } from 'monitor-api/modules/grafana';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal';
+
+import introduce from '../common/introduce';
 import UserConfigMixin from '../mixins/userStoreConfig';
+import { isAuthority } from '../router/router';
 import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
 import { ISpaceItem } from '../types';
-
-import DashboardContainer from './grafana/dashboard-container/dashboard-container';
-import CommonNavBar from './monitor-k8s/components/common-nav-bar';
 import { useCheckVersion } from './check-version';
+import DashboardContainer from './grafana/dashboard-container/dashboard-container';
+import { getDashboardCache } from './grafana/utils';
+import CommonNavBar from './monitor-k8s/components/common-nav-bar';
 import NavTools from './nav-tools';
 
 // #if APP !== 'external'
@@ -54,10 +57,6 @@ import HeaderSettingModal from './header-setting-modal';
 // #endif
 
 import './app.scss';
-import introduce from '../common/introduce';
-import { isAuthority } from '../router/router';
-import { getDashboardCache } from './grafana/utils';
-import { getDashboardList } from 'monitor-api/modules/grafana';
 // import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
 const changeNoticeRouteList = [
@@ -130,7 +129,7 @@ export default class App extends tsc<object> {
         item.route === routeId ||
         item.id === routeId ||
         item?.children?.some(child => child.id === routeId) ||
-        item?.children?.some(child => child?.children?.some(set => set.id === routeId)),
+        item?.children?.some(child => child?.children?.some(set => set.id === routeId))
     )?.id;
   }
   get routeId() {
@@ -166,7 +165,7 @@ export default class App extends tsc<object> {
       item =>
         item.text.includes(this.keyword) ||
         String(item.id).includes(this.keyword) ||
-        item.py_text.includes(this.keyword),
+        item.py_text.includes(this.keyword)
     );
   }
   get bizName() {
@@ -236,8 +235,6 @@ export default class App extends tsc<object> {
   }
   mounted() {
     this.handleGetNewUserGuide();
-    window.LoginModal = this.$refs.login;
-    loginRefreshIntercept();
     this.needMenu && this.handleNavHeaderResize();
     this.needMenu && addListener(this.navHeaderRef, this.handleNavHeaderResize);
     addListener(this.navHeaderRef, this.handleNavHeaderResize);
@@ -346,7 +343,7 @@ export default class App extends tsc<object> {
       JSON.stringify({
         ...storeMenu,
         ...newMenu,
-      }),
+      })
     );
   }
   /**
@@ -472,7 +469,7 @@ export default class App extends tsc<object> {
           .catch(() => false)
           .finally(() => {
             setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
-          }),
+          })
       );
       [, hasAuthority] = await Promise.all(promiseList);
       if (!hasAuthority) {
@@ -548,7 +545,7 @@ export default class App extends tsc<object> {
           if (navList?.length) {
             const storeRoute = storeVal[this.headerNav];
             const hasRoute = navList.find(
-              item => item.id === storeRoute?.name || item?.children?.some(set => set.id === storeRoute?.name),
+              item => item.id === storeRoute?.name || item?.children?.some(set => set.id === storeRoute?.name)
             );
             this.$router.push(hasRoute ? storeRoute : route);
             if (!hasRoute) {
@@ -604,12 +601,12 @@ export default class App extends tsc<object> {
   commonHeader() {
     return (
       <bk-dropdown-menu
-        position-fixed={true}
         ref='commonHeaderDrop'
+        position-fixed={true}
       >
         <div
-          slot='dropdown-trigger'
           class='header-list-item no-border'
+          slot='dropdown-trigger'
         >
           {this.$t('route-常用')}
           <i class='bk-icon icon-down-shape' />
@@ -623,8 +620,8 @@ export default class App extends tsc<object> {
             ?.filter(item => item.id)
             .map(item => (
               <li
-                class='common-list-item'
                 key={item.id}
+                class='common-list-item'
                 onClick={() => this.handleGoStoreRoute(item)}
               >
                 <i class={`${item.icon} list-item-icon`} />
@@ -656,23 +653,23 @@ export default class App extends tsc<object> {
       this.showNav && (
         <CommonNavBar
           class='common-nav-bar-single'
-          routeList={this.navRouteList}
-          needCopyLink={this.needCopyLink}
           needBack={this.needBack}
+          needCopyLink={this.needCopyLink}
+          routeList={this.navRouteList}
         ></CommonNavBar>
       ),
       <div
         key={this.routeViewKey}
-        v-monitor-loading={{ isLoading: this.routeChangeLoading }}
-        class={['page-container', { 'no-overflow': !!this.$route.meta?.customTitle }, this.$route.meta?.pageCls]}
         style={{ height: this.showNav ? 'calc(100% - 52px - var(--notice-alert-height))' : '100%' }}
+        class={['page-container', { 'no-overflow': !!this.$route.meta?.customTitle }, this.$route.meta?.pageCls]}
+        v-monitor-loading={{ isLoading: this.routeChangeLoading }}
       >
         <keep-alive>
           <router-view class='page-wrapper'></router-view>
         </keep-alive>
         <router-view
-          class='page-wrapper'
           key='noCache'
+          class='page-wrapper'
           name='noCache'
         ></router-view>
         {this.$route.name === 'home' && this.footerHtml ? (
@@ -685,10 +682,10 @@ export default class App extends tsc<object> {
     ];
     return (
       <div
-        class='bk-monitor'
         style={{
           '--notice-alert-height': this.showAlert ? '40px' : '0px',
         }}
+        class='bk-monitor'
       >
         {process.env.NODE_ENV !== 'development' && (
           <notice-component
@@ -700,19 +697,19 @@ export default class App extends tsc<object> {
           class={{
             'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share',
           }}
-          navigation-type='top-bottom'
-          on-toggle={this.handleToggle}
-          themeColor='#2c354d'
-          side-title={this.$t('监控平台')}
-          head-height={this.isFullScreen ? 0 : 52}
-          need-menu={!!this.menuList?.length && this.needMenu && !this.isFullScreen && this.$route.name !== 'share'}
           default-open={this.menuToggle}
+          head-height={this.isFullScreen ? 0 : 52}
+          navigation-type='top-bottom'
+          need-menu={!!this.menuList?.length && this.needMenu && !this.isFullScreen && this.$route.name !== 'share'}
+          side-title={this.$t('监控平台')}
+          themeColor='#2c354d'
+          on-toggle={this.handleToggle}
           on-toggle-click={this.handleToggleClick}
         >
           {this.needMenu && !this.isFullScreen && this.$route.name !== 'share' && (
             <div
-              class='bk-monitor-header'
               ref='navHeader'
+              class='bk-monitor-header'
               slot='header'
             >
               <div class='header-list'>
@@ -721,31 +718,31 @@ export default class App extends tsc<object> {
                   ({ id, route, name }, index) =>
                     this.routeList.length - index > this.hideNavCount && (
                       <a
+                        id={`head-nav-${route}`}
                         key={id}
                         class={[
                           'header-list-item',
                           { 'item-active': !this.globalSettingShow && id === this.headerNav },
                         ]}
-                        onMousedown={() => this.handleHeaderNavClick(id)}
-                        id={`head-nav-${route}`}
+                        href={`${this.$router.resolve({ name: route }, this.$route, false).href}`}
                         // style={{ width }}
                         onClick={e => this.handleClickHeaderMenu(e, route, id)}
-                        href={`${this.$router.resolve({ name: route }, this.$route, false).href}`}
+                        onMousedown={() => this.handleHeaderNavClick(id)}
                       >
                         {this.$t(name.startsWith('route-') ? name : `route-${name}`)}
                       </a>
-                    ),
+                    )
                 )}
                 {this.hideNavCount > 0 && (
                   <bk-dropdown-menu
                     ref='headerDrowdownMenu'
+                    style='height: inherit'
                     class='header-more-dropdown'
                     position-fixed
-                    style='height: inherit'
                   >
                     <span
-                      slot='dropdown-trigger'
                       class='header-more'
+                      slot='dropdown-trigger'
                     >
                       <i class='bk-icon icon-ellipsis' />
                     </span>
@@ -757,16 +754,16 @@ export default class App extends tsc<object> {
                         ({ id, route, name }, index) =>
                           this.routeList.length - index <= this.hideNavCount && (
                             <a
+                              id={`head-nav-${route}`}
                               key={id}
                               class={['list-item', { 'item-active': id === this.headerNav }]}
-                              onMousedown={() => this.handleHeaderNavClick(id)}
-                              id={`head-nav-${route}`}
-                              onClick={e => this.handleClickHeaderMenu(e, route)}
                               href={`${this.$router.resolve({ name: route }, this.$route, false).href}`}
+                              onClick={e => this.handleClickHeaderMenu(e, route)}
+                              onMousedown={() => this.handleHeaderNavClick(id)}
                             >
                               {this.$t(name.startsWith('route-') ? name : `route-${name}`)}
                             </a>
-                          ),
+                          )
                       )}
                     </ul>
                   </bk-dropdown-menu>
@@ -785,27 +782,27 @@ export default class App extends tsc<object> {
             // #if APP !== 'external'
             this.menuList?.length ? (
               <div
-                class='fta-menu'
                 key='menu'
+                class='fta-menu'
                 slot='menu'
               >
                 <div class='biz-select'>
                   <BizSelect
-                    value={+this.bizId}
                     bizList={this.bizIdList}
                     isShrink={!this.menuToggle}
-                    theme='dark'
                     minWidth={380}
                     stickyList={this.spacestickyList}
-                    onOpenSpaceManager={this.handleOpenSpace}
+                    theme='dark'
+                    value={+this.bizId}
                     onChange={this.handleBizChange}
+                    onOpenSpaceManager={this.handleOpenSpace}
                   />
                 </div>
                 <bk-navigation-menu
                   style={{ marginTop: this.headerNav === 'data' ? '8px' : '0px' }}
-                  toggle-active={this.menuToggle}
-                  default-active={this.routeId}
                   before-nav-change={this.handleBeforeNavChange}
+                  default-active={this.routeId}
+                  toggle-active={this.menuToggle}
                   {...{ props: APP_NAV_COLORS }}
                 >
                   {this.menuList
@@ -820,24 +817,24 @@ export default class App extends tsc<object> {
                             .filter(child => !child.hidden)
                             .map(child => (
                               <bk-navigation-menu-item
-                                onClick={() => this.handleMenuItemClick(child)}
                                 key={child.id}
-                                href={child.href}
-                                has-child={child.children && !!child.children.length}
                                 scopedSlots={{
                                   child: () =>
                                     child?.children?.map(set => (
                                       <bk-navigation-menu-item
-                                        class={{ 'disabled-event': !set.href && !set.path }}
-                                        onClick={() => this.handleMenuItemClick(set)}
                                         key={set.id}
+                                        class={{ 'disabled-event': !set.href && !set.path }}
                                         href={set.href}
+                                        onClick={() => this.handleMenuItemClick(set)}
                                         {...{ props: set }}
                                       >
                                         {this.$t(set.name)}
                                       </bk-navigation-menu-item>
                                     )),
                                 }}
+                                has-child={child.children && !!child.children.length}
+                                href={child.href}
+                                onClick={() => this.handleMenuItemClick(child)}
                                 {...{ props: child }}
                               >
                                 <span class='nav-menu-item'>
@@ -850,10 +847,10 @@ export default class App extends tsc<object> {
                         </bk-navigation-menu-group>
                       ) : (
                         <bk-navigation-menu-item
-                          onClick={() => this.handleMenuItemClick(item)}
                           key={item.id}
-                          href={item.href}
                           has-child={false}
+                          href={item.href}
+                          onClick={() => this.handleMenuItemClick(item)}
                           {...{ props: item }}
                         >
                           <span class='nav-menu-item'>
@@ -862,7 +859,7 @@ export default class App extends tsc<object> {
                             {item.navIcon && <i class={item.navIcon} />}
                           </span>
                         </bk-navigation-menu-item>
-                      ),
+                      )
                     )}
                 </bk-navigation-menu>
               </div>
@@ -882,14 +879,13 @@ export default class App extends tsc<object> {
             pageMain
           )}
           <AuthorityModal />
-          <BkPaasLogin ref='login' />
           {
             // #if APP !== 'external'
             !this.readonly && this.$route.name && this.$route.name !== 'share' && (
               <HeaderSettingModal
                 show={this.headerSettingShow}
-                onStoreRoutesChange={v => (this.userStoreRoutes = v)}
                 onChange={this.handleHeaderSettingShowChange}
+                onStoreRoutesChange={v => (this.userStoreRoutes = v)}
               />
             )
             // #endif
