@@ -82,7 +82,7 @@ export interface BaseDataType {
   diff_info?: {
     baseline: number;
     comparison: number;
-    mark: 'added' | 'removed' | 'changed' | 'unchanged';
+    mark: 'added' | 'changed' | 'removed' | 'unchanged';
     diff: number;
   };
 }
@@ -127,7 +127,7 @@ export const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'copy',
     name: window.i18n.tc('复制函数名称'),
-    icon: 'icon-menu-view'
+    icon: 'icon-menu-view',
   },
   {
     id: 'reset',
@@ -136,15 +136,9 @@ export const CommonMenuList: ICommonMenuItem[] = [
   },
   {
     id: 'highlight',
-<<<<<<< HEAD
     name: window.i18n.tc('高亮相似 Node'),
-    icon: 'icon-menu-view'
-  }
-=======
-    name: window.i18n.tc('高亮相似 Span'),
     icon: 'icon-menu-view',
   },
->>>>>>> 21b2071dd23867558bde3113d0fbe913529bf95e
 ];
 // 用于标识根节点
 export interface ITipsDetail {

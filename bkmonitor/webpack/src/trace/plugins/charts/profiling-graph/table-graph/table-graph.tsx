@@ -27,17 +27,17 @@
 import { defineComponent, PropType, ref, shallowRef, Teleport, watch } from 'vue';
 
 import { Exception } from 'bkui-vue';
+import { deepClone } from 'monitor-common/utils';
 import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
+import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils';
 import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
 import { ITableTipsDetail, ProfilingTableItem, TableColumn } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
-import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils'
 
 import { DirectionType } from '../../../../typings';
 
 // import { ColorTypes } from './../../flame-graph-v2/types';
 import './table-graph.scss';
-import { deepClone } from 'monitor-common/utils';
 
 // const valueColumnWidth = 150;
 
@@ -122,19 +122,21 @@ export default defineComponent({
     );
 
     function getTableData() {
-      const filterList = deepClone(props.data
-        .filter(item => (!!props.filterKeyword ? item.name.includes(props.filterKeyword) : true))
-        .map(item => {
-          const palette = Object.values(ColorTypes);
-          const colorIndex = getHashVal(item.name) % palette.length;
-          const color = palette[colorIndex];
-          return {
-            ...item,
-            color,
-          };
-        }))
+      const filterList = deepClone(
+        props.data
+          .filter(item => (!!props.filterKeyword ? item.name.includes(props.filterKeyword) : true))
+          .map(item => {
+            const palette = Object.values(ColorTypes);
+            const colorIndex = getHashVal(item.name) % palette.length;
+            const color = palette[colorIndex];
+            return {
+              ...item,
+              color,
+            };
+          })
+      );
 
-      tableData.value = sortTableGraph(filterList, sortKey.value, sortType.value)
+      tableData.value = sortTableGraph(filterList, sortKey.value, sortType.value);
       localIsCompared.value = props.isCompared;
     }
     // Self 和 Total 值的展示
@@ -346,17 +348,10 @@ export default defineComponent({
                   ? [
                       <thead>
                         <th></th>
-<<<<<<< HEAD
                         <th>{this.$t('当前')}</th>
                         <th>{this.$t('参照')}</th>
                         <th>{this.$t('差异')}</th>
-                      </thead>
-=======
-                        <th>Baseline</th>
-                        <th>Comparison</th>
-                        <th>Diff</th>
                       </thead>,
->>>>>>> 21b2071dd23867558bde3113d0fbe913529bf95e
                     ]
                   : [
                       <thead>
