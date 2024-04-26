@@ -90,6 +90,8 @@ def create_conditions_expression(configs: List[Dict]):
     """
     生成条件表达式
     """
+    number_methods = ["gt", "gte", "lt", "lte", "eq", "neq"]
+
     method_mapping = {
         "eq": "=",
         "neq": "!=",
@@ -115,7 +117,11 @@ def create_conditions_expression(configs: List[Dict]):
         if not values or method not in method_mapping:
             continue
 
-        expression = f"{key}{method_mapping[method]}{','.join([str(v) for v in values])}"
+        if isinstance(values[0], str) or method not in number_methods:
+            expression = f"{key}{method_mapping[method]}\"{','.join([str(v) for v in values])}\""
+        else:
+            expression = f"{key}{method_mapping[method]}{','.join([str(v) for v in values])}"
+
         if expressions:
             expressions += f" {condition} "
         expressions += expression
