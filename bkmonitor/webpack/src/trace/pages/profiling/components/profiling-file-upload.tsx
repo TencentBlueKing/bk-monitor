@@ -66,8 +66,8 @@ function valueFlash(set, val, limit) {
 }
 
 const uploadTypeList = [
-  { id: ConditionType.Where, name: window.i18n.t('查询项') },
-  { id: ConditionType.Comparison, name: window.i18n.t('对比项') },
+  { id: ConditionType.Where, name: window.i18n.t('当前查询项') },
+  { id: ConditionType.Comparison, name: window.i18n.t('参照查询项') },
 ];
 
 enum EFileStatus {

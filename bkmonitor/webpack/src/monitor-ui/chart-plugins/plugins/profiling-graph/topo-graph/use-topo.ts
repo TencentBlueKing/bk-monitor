@@ -43,7 +43,7 @@ export class UseTopoChart {
   }
 
   initEvents() {
-    this.imageHtml?.addEventListener('mousedown', (event: MouseEvent) => {
+    this.containerHtml?.addEventListener('mousedown', (event: MouseEvent) => {
       event.preventDefault();
       this.isDragging = true;
       this.dragStartX = event.clientX - this.imgX;

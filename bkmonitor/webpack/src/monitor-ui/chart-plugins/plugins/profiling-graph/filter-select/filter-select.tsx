@@ -100,6 +100,14 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
     );
   }
 
+  get filterLabelList() {
+    return this.labelList.filter(val => !this.localFilterPanel.some(panel => panel.title === val.id));
+  }
+
+  get diffLabelList() {
+    return this.labelList.filter(val => !this.localDiffPanel.some(panel => panel.title === val.id));
+  }
+
   @Watch('listenChange', { deep: true })
   async handleQueryParamsChange() {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -143,6 +151,19 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
       }
     });
     mode === 'filter' ? this.handleFilterChange(labelValues) : this.handleDiffChange(labelValues);
+  }
+
+  /**
+   * @desc 删除变量选择器
+   * @param { string } name
+   * @param { string } mode
+   */
+  handleDeleteVarSelector(title, mode) {
+    (mode === 'filter' ? this.localFilterPanel : this.localDiffPanel).splice(
+      (mode === 'filter' ? this.localFilterPanel : this.localDiffPanel).findIndex(panel => panel.title === title),
+      1
+    );
+    this.handleSelectValueChange(mode);
   }
 
   handleShowDropDown(mode) {
@@ -192,6 +213,10 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
                 on-change={() => this.handleSelectValueChange(mode)}
               ></bk-tag-input>
             </span>
+            <i
+              class='icon-monitor icon-mc-minus-plus'
+              on-click={() => this.handleDeleteVarSelector(item.title, mode)}
+            ></i>
           </span>
         )),
         <span class={['filter-add-btn', { active: mode === 'filter' ? this.isShowAddFilter : this.isShowAddDiff }]}>
@@ -208,7 +233,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
               props: this.addKeyprops,
             }}
           >
-            {this.labelList.map(opt => (
+            {(mode === 'filter' ? this.filterLabelList : this.diffLabelList).map(opt => (
               <bk-option
                 id={opt.id}
                 name={opt.name}

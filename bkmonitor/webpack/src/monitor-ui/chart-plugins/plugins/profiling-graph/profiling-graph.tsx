@@ -191,16 +191,17 @@ class ProfilingChart extends CommonSimpleChart {
     this.textDirection = val;
   }
   /** 表格排序 */
-  async handleSortChange(sortKey: string) {
-    const params = this.getParams({
-      diagram_types: ['table'],
-      sort: sortKey,
-    });
-    const data = await query(params).catch(() => false);
-    if (data) {
-      this.highlightId = -1;
-      this.tableData = data.table_data?.items ?? [];
-    }
+  async handleSortChange() {
+    // const params = this.getParams({
+    //   diagram_types: ['table'],
+    //   sort: sortKey
+    // });
+    // const data = await query(params).catch(() => false);
+    // if (data) {
+    //   this.highlightId = -1;
+    //   this.tableData = data.table_data?.items ?? [];
+    // }
+    this.highlightId = -1;
   }
   handleDownload(type: string) {
     switch (type) {

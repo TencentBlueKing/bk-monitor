@@ -60,13 +60,12 @@ class TableDiagrammer:
     def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
         diff_tree = ProfileDiffer.from_raw(base_doris_converter, diff_doris_converter).diff_tree()
         table_data = []
-        miss_value = {"id": 0, "value": 0, "name": "", "system_name": "", "filename": ""}
+        miss_value = {"id": 0, "value": 0, "self": 0, "name": "", "system_name": "", "filename": ""}
         for node in diff_tree.children_map.values():
             table_data.append(
                 {
                     **node.default.to_dict(),
                     **node.diff_info,
-                    "diff": node.delta,
                     "baseline_node": node.baseline.to_dict() if node.baseline else miss_value,
                     "comparison_node": node.comparison.to_dict() if node.comparison else miss_value,
                 }
