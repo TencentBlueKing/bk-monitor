@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-
 /**
  * @desc 表格字段排序
  * @param { Array } list
@@ -42,28 +41,31 @@ export const sortTableGraph = (list, sortKey, sortType) => {
         if (sortKey === 'name') return prev.name.toLowerCase().localeCompare(next.name.toLowerCase());
 
         // 如果是对比模式的 diff 列排序 则要考虑 added 和 removed 在两端的情况
-        if (sortKey === 'diff') { // 先检查标签mark，added 排在最前 removed 排在最后
+        if (sortKey === 'diff') {
+          // 先检查标签mark，added 排在最前 removed 排在最后
           if (prev.mark === 'added' && next.mark !== 'added') return -1;
           else if (next.mark === 'added' && prev.mark !== 'added') return 1;
-          else if (prev.mark === 'removed' && next.mark !== 'removed')return 1;
+          else if (prev.mark === 'removed' && next.mark !== 'removed') return 1;
           else if (next.mark === 'removed' && prev.mark !== 'removed') return -1;
           else return prev[sortKey] - next[sortKey];
         }
-        
+
         return prev[sortKey] - next[sortKey];
-      } else if (sortType === 'desc') { // 降序
+      } else if (sortType === 'desc') {
+        // 降序
         // 函数名称按 字符串 降序排序
         if (sortKey === 'name') return next.name.toLowerCase().localeCompare(prev.name.toLowerCase());
 
         // 如果是对比模式的 diff 列排序 则要考虑 added 和 removed 在两端的情况
-        if (sortKey === 'diff') { // 先检查标签mark，removed 排在最前 added 排在最后
-          if (prev.mark === 'added' && next.mark !== 'added')return 1;
-          else if (next.mark === 'added' && prev.mark !== 'added')return -1;
-          else if (prev.mark === 'removed' && next.mark !== 'removed')return -1;
-          else if (next.mark === 'removed' && prev.mark !== 'removed')return 1;
+        if (sortKey === 'diff') {
+          // 先检查标签mark，removed 排在最前 added 排在最后
+          if (prev.mark === 'added' && next.mark !== 'added') return 1;
+          else if (next.mark === 'added' && prev.mark !== 'added') return -1;
+          else if (prev.mark === 'removed' && next.mark !== 'removed') return -1;
+          else if (next.mark === 'removed' && prev.mark !== 'removed') return 1;
           else return next[sortKey] - prev[sortKey];
         }
-        
+
         return next[sortKey] - prev[sortKey];
       }
 
@@ -76,4 +78,4 @@ export const sortTableGraph = (list, sortKey, sortType) => {
   };
 
   return list.sort(comparator);
-}
+};
