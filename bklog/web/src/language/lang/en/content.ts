@@ -652,7 +652,7 @@ export default {
   大于或等于: 'greater than or equal',
   小于或等于: 'less than or equal',
   '已选择{0}个索引集': '{0} index sets selected',
-  每次最多可选择10项: 'A maximum of 10 items can be selected at a time',
+  每次最多可选择20项: 'A maximum of 10 items can be selected at a time',
   已有同名收藏: 'There is already a favorite with the same name',
   多索引集: 'Multiple index sets',
   已失效: 'Expired',
