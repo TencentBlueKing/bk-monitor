@@ -17,7 +17,6 @@ from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
 class CollectingConfigViewSet(ResourceViewSet):
-
     iam_read_actions = ActionEnum.VIEW_COLLECTION
     iam_write_actions = ActionEnum.MANAGE_COLLECTION
 
