@@ -30,12 +30,12 @@
  */
 import Vue from 'vue';
 import Router, { RouteConfig } from 'vue-router';
+
 import { random } from 'monitor-common/utils/utils';
 import ExceptionPage from 'monitor-pc/pages/exception-page/exception-page.vue';
 
 import authorityStore from '../store/modules/authority';
 import Store from '../store/store';
-
 import routes from './module';
 
 Vue.use(Router);
@@ -54,15 +54,15 @@ export const routerConfig: RouteConfig[] = [
     meta: {
       title: '404',
       navId: 'exception',
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '*',
     redirect: {
-      name: 'home'
-    }
-  }
+      name: 'home',
+    },
+  },
 ];
 
 const createRouter = () =>
@@ -79,15 +79,15 @@ const createRouter = () =>
       path:
         item.path !== '*'
           ? `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
-          : item.path
-    }))
+          : item.path,
+    })),
   });
 
 const router = createRouter();
 
 const isAuthority = async (page: string | string[]) => {
   const data: { isAllowed: boolean }[] = await authorityStore.checkAllowedByActionIds({
-    action_ids: Array.isArray(page) ? page : [page]
+    action_ids: Array.isArray(page) ? page : [page],
   });
   return !!data.length && data.some(item => item.isAllowed);
 };
@@ -118,11 +118,11 @@ router.beforeEach(async (to, from, next) => {
         path: `/exception/403/${random(10)}`,
         query: {
           actionId: authority.page || '',
-          fromUrl: to.fullPath.replace(/^\//, '')
+          fromUrl: to.fullPath.replace(/^\//, ''),
         },
         params: {
-          title: '无权限'
-        }
+          title: '无权限',
+        },
       });
     }
   } else {

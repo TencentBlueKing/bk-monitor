@@ -34,7 +34,6 @@ interface ITagChart {
   panel: PanelModel;
 }
 @Component
-// eslint-disable-next-line max-len
 export default class TagChart extends tsc<ITagChart> {
   @Prop({ required: true }) panel: PanelModel;
 

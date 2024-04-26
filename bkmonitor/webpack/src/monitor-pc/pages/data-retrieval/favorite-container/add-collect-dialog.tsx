@@ -27,6 +27,7 @@
 import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { createFavoriteGroup, listFavoriteGroup } from 'monitor-api/modules/model';
 
 import './add-collect-dialog.scss';
@@ -42,7 +43,7 @@ interface IProps {
 
 interface ISubmitData {
   name: string;
-  group_id: string | number;
+  group_id: number | string;
   create_user: string;
 }
 
@@ -71,16 +72,16 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     // 用户可编辑的基础数据
     name: '',
     group_id: '',
-    create_user: ''
+    create_user: '',
   };
   favoriteData: ISubmitData = {
     // 收藏数据
     name: '',
     group_id: '',
-    create_user: ''
+    create_user: '',
   };
   verifyData = {
-    groupName: ''
+    groupName: '',
   };
   positionTop = 0;
   allGroupList = [];
@@ -93,29 +94,29 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     name: [
       {
         required: true,
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkSpecification,
         message: window.i18n.t('收藏名包含了特殊符号'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkRepeatName,
         message: window.i18n.t('注意: 名字冲突'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkCannotUseName,
         message: window.i18n.t('保留名称，不可使用'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.i18n.t('注意：最大值为30个字符'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   public groupNameRules = {
@@ -123,24 +124,24 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
       {
         validator: this.checkName,
         message: window.i18n.t('组名不规范, 包含了特殊符号.'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkExistName,
         message: window.i18n.t('注意: 名字冲突'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.i18n.t('注意：最大值为30个字符'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   get isEditFavorite() {
@@ -181,7 +182,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
       .filter(pItem => pItem.code)
       .map(item => ({
         label: `${window.i18n.t('查询项')}${item.alias}:`,
-        value: item.code
+        value: item.code,
       }));
   }
 
@@ -202,7 +203,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     return {
       value: this.favoriteData,
       isEdit: this.isEditFavorite,
-      hideCallback: () => this.handleShowChange(false)
+      hideCallback: () => this.handleShowChange(false),
     };
   }
 
@@ -243,7 +244,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
       createFavoriteGroup({
         bk_biz_id: this.bizId,
         type: this.favoriteSearchType,
-        name: this.verifyData.groupName
+        name: this.verifyData.groupName,
       })
         .then(() => {
           this.getFavoriteGroupList(true, this.verifyData.groupName.trim());
@@ -333,8 +334,8 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
           ) : (
             <span class='string-json view-content'>
               <VueJsonPretty
-                deep={5}
                 data={this.keyword}
+                deep={5}
               />
             </span>
           )}
@@ -344,28 +345,28 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
     const eventKeywordsSlot = () => <span>{this.keyword?.queryConfig.query_string}</span>;
     return (
       <bk-dialog
-        value={this.value}
-        title={this.isEditFavorite ? this.$t('编辑收藏') : this.$t('新增收藏')}
-        ok-text={this.isEditFavorite ? this.$t('保存') : this.$t('确定')}
-        header-position='left'
-        ext-cls='add-collect-dialog'
-        render-directive='if'
         width={480}
-        position={{ top: this.positionTop }}
-        mask-close={false}
+        ext-cls='add-collect-dialog'
         auto-close={false}
-        on-value-change={this.handleValueChange}
+        header-position='left'
+        mask-close={false}
+        ok-text={this.isEditFavorite ? this.$t('保存') : this.$t('确定')}
+        position={{ top: this.positionTop }}
+        render-directive='if'
+        title={this.isEditFavorite ? this.$t('编辑收藏') : this.$t('新增收藏')}
+        value={this.value}
         on-confirm={this.handleSubmitFormData}
+        on-value-change={this.handleValueChange}
       >
         <bk-form
-          form-type='vertical'
           ref='validateForm'
           v-bkloading={{ isLoading: this.formLoading }}
+          form-type='vertical'
           {...{
             props: {
               model: this.favoriteData,
-              rules: this.rules
-            }
+              rules: this.rules,
+            },
           }}
         >
           <div class='edit-information'>
@@ -373,10 +374,10 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
             {this.favoriteSearchType === 'metric' ? metricKeywordsSlot() : eventKeywordsSlot()}
           </div>
           <bk-form-item
-            label={this.$t('收藏名')}
-            required
-            property='name'
             class='group-name'
+            label={this.$t('收藏名')}
+            property='name'
+            required
           >
             <bk-input
               class='collect-name'
@@ -398,8 +399,8 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                 {this.$t('公开')}({this.$t('本业务可见')})
               </bk-radio>
               <bk-radio
-                value={'0'}
                 disabled={this.isCannotChangeVisible}
+                value={'0'}
               >
                 {this.$t('私有')}
                 {this.$t('(仅个人可见)')}
@@ -407,8 +408,8 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
             </bk-radio-group>
           </bk-form-item>
           <bk-form-item
-            label={this.$t('所属组')}
             class='affiliation-group'
+            label={this.$t('所属组')}
           >
             <bk-select
               vModel={this.favoriteData.group_id}
@@ -436,27 +437,27 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                   </div>
                 ) : (
                   <li
-                    class='add-new-page-input'
                     style={{ padding: '6px 0' }}
+                    class='add-new-page-input'
                   >
                     <bk-form
-                      labelWidth={0}
-                      style={{ width: '100%' }}
                       ref='checkInputForm'
+                      style={{ width: '100%' }}
+                      labelWidth={0}
                       {...{
                         props: {
                           model: this.verifyData,
-                          rules: this.groupNameRules
-                        }
+                          rules: this.groupNameRules,
+                        },
                       }}
                     >
                       <bk-form-item property='groupName'>
                         <bk-input
-                          clearable
-                          placeholder={this.$t('输入组名,30个字符')}
                           vModel={this.verifyData.groupName}
-                          onEnter={this.handleCreateGroup}
                           maxlength={10}
+                          placeholder={this.$t('输入组名,30个字符')}
+                          clearable
+                          onEnter={this.handleCreateGroup}
                         ></bk-input>
                       </bk-form-item>
                     </bk-form>

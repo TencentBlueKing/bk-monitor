@@ -36,8 +36,8 @@
     @confirm="handleConfirm"
   >
     <div
-      class="strategy-config-metric"
       v-bkloading="{ isLoading: loading }"
+      class="strategy-config-metric"
     >
       <bk-tab
         :active.sync="scenarioType"
@@ -51,14 +51,14 @@
         />
       </bk-tab>
       <bk-search-select
-        :show-popover-tag-change="false"
         ref="searchSelect"
+        v-model="searchObj.keyWord"
+        :show-popover-tag-change="false"
         :popover-zindex="2600"
         class="metric-search"
-        @change="handleSearch"
         :data="searchObj.data"
-        v-model="searchObj.keyWord"
         :placeholder="$t('搜索')"
+        @change="handleSearch"
       />
       <div class="metric-content">
         <ul class="metric-content-left">
@@ -66,10 +66,10 @@
             <li
               v-if="
                 (item.data_type_label === 'event' && mericType === 'event') ||
-                  (item.data_type_label !== 'event' && item.data_type_label !== 'log' && mericType !== 'event')
+                (item.data_type_label !== 'event' && item.data_type_label !== 'log' && mericType !== 'event')
               "
-              class="left-item"
               :key="index"
+              class="left-item"
               :class="{ 'item-active': item.source_type === left.active }"
               @click="handleSelectSource(item.source_type)"
             >
@@ -77,17 +77,16 @@
               <span
                 class="left-item-num"
                 :class="{ 'num-active': item.source_type === left.active }"
-              >{{
-                item.count
-              }}</span>
+                >{{ item.count }}</span
+              >
             </li>
           </template>
         </ul>
         <div class="metric-content-right">
           <bk-table
             ref="metricTable"
-            :class="{ 'hidden-header': mericType === 'time_series' }"
             :key="`${left.active}${scenarioType}${isShow}`"
+            :class="{ 'hidden-header': mericType === 'time_series' }"
             :data="right.data"
             :empty-text="$t('无数据')"
             max-height="400"
@@ -96,9 +95,9 @@
           >
             <template>
               <bk-table-column
-                :width="item.type === 'radio' ? 52 : ''"
                 v-for="(item, index) in right.columns"
                 :key="index"
+                :width="item.type === 'radio' ? 52 : ''"
                 :label="item.label"
               >
                 <template slot-scope="scope">
@@ -110,16 +109,16 @@
                     @change="handleRadioChange(scope.row)"
                   />
                   <span
-                    class="col-name"
                     v-if="item.type === 'related_id'"
+                    class="col-name"
                     @mouseenter="handleNameEnter($event, scope.row)"
                     @mouseleave="handleNameLeave($event, scope.row)"
                   >
                     {{ scope.row.related_id }}
                   </span>
                   <span
-                    class="col-name"
                     v-if="item.type === 'result_table_id'"
+                    class="col-name"
                     @mouseenter="handleNameEnter($event, scope.row)"
                     @mouseleave="handleNameLeave($event, scope.row)"
                   >
@@ -177,7 +176,8 @@
                 <img
                   src="../../../../static/images/svg/spinner.svg"
                   alt=""
-                > {{ $t('正加载更多内容…') }}
+                />
+                {{ $t('正加载更多内容…') }}
               </div>
             </template>
           </bk-table>
@@ -189,16 +189,18 @@
         theme="primary"
         :disabled="!right.value"
         @click="handleConfirm"
-      > {{ $t('添加') }} </bk-button>
+      >
+        {{ $t('添加') }}
+      </bk-button>
       <bk-button @click="handleCancel">
         {{ $t('取消') }}
       </bk-button>
     </template>
     <div v-show="false">
       <div
-        @mouseleave="handleTipsLeave"
-        class="uptimecheck-tips"
         ref="uptimecheckTips"
+        class="uptimecheck-tips"
+        @mouseleave="handleTipsLeave"
       >
         {{ $t('该指标需设置期望返回码/期望响应信息后才可选取') }}
         <span
@@ -213,9 +215,9 @@
   </bk-dialog>
 </template>
 <script>
-import { createNamespacedHelpers } from 'vuex';
 import { getMetricList } from 'monitor-api/modules/strategies';
 import { debounce, throttle } from 'throttle-debounce';
+import { createNamespacedHelpers } from 'vuex';
 
 const { mapGetters } = createNamespacedHelpers('strategy-config');
 
@@ -225,7 +227,7 @@ const PAGE = {
   custom_event: 1,
   custom_time_series: 1,
   bk_monitor_event: 1,
-  log_time_series: 1
+  log_time_series: 1,
 };
 export default {
   name: 'StrategyConfigMetric',
@@ -233,11 +235,11 @@ export default {
     isShow: Boolean,
     id: {
       type: [String, Number],
-      default: 0
+      default: 0,
     },
     monitorType: {
       type: String,
-      default: 'service_module'
+      default: 'service_module',
     },
     metric: Object,
     isEdit: Boolean,
@@ -247,8 +249,8 @@ export default {
       validator(v) {
         return ['event', 'time_series'].includes(v);
       },
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
@@ -257,10 +259,10 @@ export default {
       requestCount: 0, // 编辑拨测指标时，对后台数据再次过滤，得到唯一数据，requestCount变量识别是否是第一次
       searchObj: {
         keyWord: [],
-        data: []
+        data: [],
       },
       left: {
-        active: this.mericType === 'event' ? 'bk_monitor_event' : 'bk_monitor_time_series'
+        active: this.mericType === 'event' ? 'bk_monitor_event' : 'bk_monitor_time_series',
       },
       monitorSource: {},
       metricList: {},
@@ -269,7 +271,7 @@ export default {
         columns: [],
         scrollLoading: false,
         page: {},
-        value: null
+        value: null,
       },
       handleSearch: () => {},
       throttledScroll: () => {},
@@ -279,7 +281,7 @@ export default {
       hoverTimer: null,
       uptimeCheckTaskId: null,
       disabledClearSeach: true,
-      scenarioType: ''
+      scenarioType: '',
     };
   },
   computed: {
@@ -288,9 +290,9 @@ export default {
       let strValue = '';
       const objValue = {};
       // 生成后台所需要的搜索参数
-      this.searchObj.keyWord.forEach((item) => {
+      this.searchObj.keyWord.forEach(item => {
         if (Array.isArray(item.values)) {
-          item.values.forEach((v) => {
+          item.values.forEach(v => {
             objValue[item.id] = v.id;
           });
         } else {
@@ -306,46 +308,46 @@ export default {
           { label: '', type: 'radio' },
           { label: this.$t('指标名'), type: 'metric_field_name' },
           { label: this.$t('指标分类'), type: 'result_table_name' },
-          { label: this.$t('插件名'), type: 'related_id' }
+          { label: this.$t('插件名'), type: 'related_id' },
         ],
         bk_data_time_series: [
           { label: '', type: 'radio' },
           { label: this.$t('表名'), type: 'result_table_name' },
-          { label: this.$t('指标名'), type: 'metric_field_name' }
+          { label: this.$t('指标名'), type: 'metric_field_name' },
         ],
         custom_event: [
           { label: '', type: 'radio' },
           { label: this.$t('事件名称'), type: 'metric_field_name' },
           { label: this.$t('数据ID'), type: 'result_table_id' },
-          { label: this.$t('数据名称'), type: 'result_table_name' }
+          { label: this.$t('数据名称'), type: 'result_table_name' },
         ],
         custom_time_series: [
           { label: '', type: 'radio' },
           { label: this.$t('事件名称'), type: 'metric_field_name' },
           { label: this.$t('特性ID') },
-          { label: this.$t('英文名') }
+          { label: this.$t('英文名') },
         ],
         bk_monitor_event: [
           { label: '', type: 'radio' },
-          { label: this.$t('事件名称'), type: 'metric_field_name' }
+          { label: this.$t('事件名称'), type: 'metric_field_name' },
         ],
         log_time_series: [
           { label: '', type: 'radio' },
           { label: this.$t('指标名'), type: 'metric_field_name' },
           { label: this.$t('索引'), type: 'result_table_name' },
-          { label: this.$t('索引集'), type: 'related_name' }
-        ]
+          { label: this.$t('索引集'), type: 'related_name' },
+        ],
       };
     },
     scenarioListAll() {
       let arr = [];
       const list = JSON.parse(JSON.stringify(this.scenarioList));
-      list.reverse().forEach((item) => {
+      list.reverse().forEach(item => {
         const child = item.children.map(one => ({ name: one.id, label: one.name }));
         arr = [...child, ...arr];
       });
       return arr;
-    }
+    },
   },
   watch: {
     isShow(v) {
@@ -381,14 +383,14 @@ export default {
           { label: '', type: 'radio' },
           { label: this.$t('指标名'), type: 'metric_field_name' },
           { label: this.$t('指标分类'), type: 'result_table_name' },
-          { label: this.$t('任务名'), type: 'related_name' }
+          { label: this.$t('任务名'), type: 'related_name' },
         ];
       } else {
         this.COLUMNS.bk_monitor_time_series = [
           { label: '', type: 'radio' },
           { label: this.$t('指标名'), type: 'metric_field_name' },
           { label: this.$t('指标分类'), type: 'result_table_name' },
-          { label: this.$t('插件ID'), type: 'related_id' }
+          { label: this.$t('插件ID'), type: 'related_id' },
         ];
       }
       if (!this.disabledClearSeach) {
@@ -410,20 +412,20 @@ export default {
           {
             id: 'metric_field',
             name: isSame('custom_event') ? '事件ID' : this.$t('指标名'),
-            values: [{ id: this.metric.metricName, name: this.metric.metricName }]
-          }
+            values: [{ id: this.metric.metricName, name: this.metric.metricName }],
+          },
         ];
         if (isSame('uptimecheck', this.scenarioType) && !isSame('custom_event') && !isSame('log_time_series')) {
           conditions.push(
             {
               id: 'task_id',
               name: this.$t('任务ID'),
-              values: [{ id: this.metric.relatedId, name: this.metric.relatedId }]
+              values: [{ id: this.metric.relatedId, name: this.metric.relatedId }],
             },
             {
               id: 'task_name',
               name: this.$t('任务名'),
-              values: [{ id: this.metric.relatedName, name: this.metric.relatedName }]
+              values: [{ id: this.metric.relatedName, name: this.metric.relatedName }],
             }
           );
         }
@@ -431,13 +433,13 @@ export default {
           conditions.push({
             id: 'result_table_id',
             name: isSame('custom_event') ? this.$t('数据ID') : this.$t('表名'),
-            values: [{ id: this.metric.resultTableId, name: this.metric.resultTableId }]
+            values: [{ id: this.metric.resultTableId, name: this.metric.resultTableId }],
           });
         } else if (isSame('log_time_series')) {
           conditions.push({
             id: 'related_id',
             name: this.$t('索引集'),
-            values: [{ id: this.metric.relatedId, name: this.metric.relatedId }]
+            values: [{ id: this.metric.relatedId, name: this.metric.relatedId }],
           });
         }
         this.searchObj.keyWord = conditions;
@@ -445,7 +447,7 @@ export default {
     },
     mericType() {
       this.left.active = this.mericType === 'event' ? 'bk_monitor_event' : 'bk_monitor_time_series';
-    }
+    },
   },
   created() {
     this.initOperations();
@@ -499,7 +501,7 @@ export default {
         { id: 'collect_config', name: this.$t('采集配置'), children: [] },
         { id: 'metric_field', name: this.$t('指标名'), children: [] },
         { id: 'metric_filed_name', name: this.$t('指标别名'), children: [] },
-        { id: 'plugin_type', name: this.$t('插件类型'), children: [] }
+        { id: 'plugin_type', name: this.$t('插件类型'), children: [] },
       ];
       const searchObj = {
         bk_monitor_time_series: [...options],
@@ -511,8 +513,8 @@ export default {
           { id: 'result_table_name', name: this.$t('数据名称'), children: [] },
           { id: 'metric_field_name', name: this.$t('事件名称'), children: [] },
           { id: 'result_table_id', name: this.$t('数据ID'), children: [] },
-          { id: 'metric_field', name: this.$t('事件ID'), children: [] }
-        ]
+          { id: 'metric_field', name: this.$t('事件ID'), children: [] },
+        ],
       };
       const searchList = searchObj[sourceType];
       if (sourceType === 'custom_event') {
@@ -554,9 +556,9 @@ export default {
           values: [
             {
               id: strategyName,
-              name: strategyName
-            }
-          ]
+              name: strategyName,
+            },
+          ],
         });
         // this.disabledClearSeach = true
       }
@@ -573,8 +575,8 @@ export default {
       this.$emit('hide-dialog', false);
     },
     handleScenarioList() {
-      this.scenarioList.forEach((item) => {
-        item.children.forEach((source) => {
+      this.scenarioList.forEach(item => {
+        item.children.forEach(source => {
           this.monitorSource[source.id] = [];
           this.metricList[source.id] = {};
           this.right.page[source.id] = { ...PAGE };
@@ -597,7 +599,7 @@ export default {
         placement: 'right',
         maxWidth: 200,
         followCursor: false,
-        flip: false
+        flip: false,
       };
       if (this.scenarioType === 'uptimecheck' && data.disabled) {
         this.uptimeCheckTaskId = Number(data.related_id);
@@ -622,8 +624,8 @@ export default {
       this.$router.push({
         name: 'uptime-check',
         params: {
-          taskId: this.uptimeCheckTaskId
-        }
+          taskId: this.uptimeCheckTaskId,
+        },
       });
     },
     handleTips(data) {
@@ -637,7 +639,7 @@ export default {
         { label: `${this.$t('英文名')}:`, val: data.metric_field },
         { label: `${this.$t('含义')}:`, val: data.description },
         { label: `${this.$t('插件ID')}:`, val: data.related_name },
-        { label: `${this.$t('分类')}:`, val: data.result_table_label }
+        { label: `${this.$t('分类')}:`, val: data.result_table_label },
       ];
       let content = '';
       if (data.collect_config) {
@@ -650,10 +652,10 @@ export default {
       if (this.left.active === 'log_time_series') {
         elList = [
           { label: `${this.$t('数据源')}:`, val: data.extend_fields.scenario_name },
-          { label: `${this.$t('存储集群')}:`, val: data.extend_fields.storage_cluster_id }
+          { label: `${this.$t('存储集群')}:`, val: data.extend_fields.storage_cluster_id },
         ];
       }
-      elList.forEach((item) => {
+      elList.forEach(item => {
         content += `<div class="item"><div>${item.label}</div>${item.val}</div>\n`;
       });
       return content;
@@ -665,7 +667,7 @@ export default {
       const dataKey = isUptimeCheck
         ? `${data.metric_field}-${data.result_table_id}-${data.related_id}`
         : `${data.metric_field}-${data.result_table_id}`;
-      tableData.forEach((item) => {
+      tableData.forEach(item => {
         const itemKey = isUptimeCheck
           ? `${item.metric_field}-${item.result_table_id}-${item.related_id}`
           : `${item.metric_field}-${item.result_table_id}`;
@@ -694,7 +696,8 @@ export default {
       this.left.active = type;
       this.searchObj.data = this.getSearchOptions(this.left.active);
       if (this.metricList[this.scenarioType][type] && this.monitorSource[this.scenarioType].length) {
-        this.right.columns =          this.mericType === 'time_series' ? this.handleTableHeader(this.COLUMNS[type]) : this.COLUMNS[type];
+        this.right.columns =
+          this.mericType === 'time_series' ? this.handleTableHeader(this.COLUMNS[type]) : this.COLUMNS[type];
         this.right.data = this.metricList[this.scenarioType][type];
       } else {
         this.loading = true;
@@ -711,13 +714,13 @@ export default {
       const { clientHeight } = e.target;
       const isEnd = scrollHeight - scrollTop === clientHeight;
       const source = this.monitorSource[this.scenarioType].find(item => item.source_type === this.left.active) || {
-        count: 0
+        count: 0,
       };
       const metricCount = source.count;
       if (
-        isEnd
-        && !this.right.scrollLoading
-        && this.right.page[this.scenarioType][this.left.active] * 10 <= metricCount
+        isEnd &&
+        !this.right.scrollLoading &&
+        this.right.page[this.scenarioType][this.left.active] * 10 <= metricCount
       ) {
         this.right.page[this.scenarioType][this.left.active] += 1;
         this.right.scrollLoading = true;
@@ -731,7 +734,8 @@ export default {
     handleSourceMetric(data, page, scenarioType, sourceType) {
       this.monitorSource[scenarioType] = data.count_list || [];
       this.handleSetMetric(data || [], page, scenarioType, sourceType);
-      this.right.columns =        this.mericType === 'time_series' ? this.handleTableHeader(this.COLUMNS[sourceType]) : this.COLUMNS[sourceType];
+      this.right.columns =
+        this.mericType === 'time_series' ? this.handleTableHeader(this.COLUMNS[sourceType]) : this.COLUMNS[sourceType];
       this.right.data = this.metricList[scenarioType][sourceType];
       this.$nextTick(() => {
         this.$refs.metricTable.doLayout();
@@ -739,7 +743,7 @@ export default {
     },
     handleSetMetric(data, page, scenarioType, sourceType) {
       let alreadySelected = false;
-      const metricList = data.metric_list.map((item) => {
+      const metricList = data.metric_list.map(item => {
         item.name = item.metric_field_name;
         item.select = false;
         // 匹配到则不再进行选中设置
@@ -788,7 +792,7 @@ export default {
             ? this.metric.dataTypeLabel
             : source.data_type_label || (this.mericType === 'event' ? 'event' : 'time_series'),
         result_table_label: this.scenarioType,
-        page_size: 10
+        page_size: 10,
       };
     },
     filterMetric() {
@@ -808,17 +812,17 @@ export default {
       const params = {
         ...staticParams,
         search_fields: {
-          ...this.seachParams.objValue
+          ...this.seachParams.objValue,
         },
         page: this.right.page[scenarioType] ? this.right.page[scenarioType][sourceType] : 1,
-        search_value: this.seachParams.strValue
+        search_value: this.seachParams.strValue,
       };
       params.task_id && (params.task_id = `${params.task_id}`);
       return getMetricList(params)
-        .then((data) => {
+        .then(data => {
           // const newSourceType = `${staticParams.data_source_label}_${staticParams.data_type_label}`
           if (this.isEdit && scenarioType === 'uptimecheck' && this.requestCount === 1) {
-            data.metric_list = data.metric_list.filter((item) => {
+            data.metric_list = data.metric_list.filter(item => {
               const str = `${item.related_id}|${item.metric_field}`;
               const res = str === `${this.metric.relatedId}|${this.metric.metricName}`;
               return res;
@@ -846,7 +850,7 @@ export default {
         'bk_data|time_series': 'bk_data_time_series',
         'custom|event': 'custom_event',
         'custom|time_series': 'custom_time_series',
-        'bk_log_search|time_series': 'log_time_series'
+        'bk_log_search|time_series': 'log_time_series',
       };
       return types[key];
     },
@@ -862,7 +866,7 @@ export default {
     handleMetricFieldName(row) {
       const obj = {
         id: '',
-        alias: ''
+        alias: '',
       };
       // 英文
       if (this.lang === 'en') {
@@ -873,8 +877,8 @@ export default {
         obj.alias = !row.metric_field_name || row.metric_field_name === row.metric_field ? '' : row.metric_field_name;
       }
       return obj;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

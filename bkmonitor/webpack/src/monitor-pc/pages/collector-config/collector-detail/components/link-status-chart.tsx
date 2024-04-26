@@ -26,6 +26,7 @@
 
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import { MonitorEchartOptions, MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -37,7 +38,7 @@ import './link-status-chart.scss';
 
 interface LinkStatusChartProps {
   timeRange?: TimeRangeType;
-  type: 'minute' | 'hour';
+  type: 'hour' | 'minute';
   data: [number, number][];
   getChartData: () => any;
 }
@@ -57,7 +58,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     default: () =>
       new Promise(resolve => {
         resolve(true);
-      })
+      }),
   })
   getChartData: () => any;
 
@@ -69,56 +70,56 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
       itemWidth: 8,
       itemHeight: 10,
       icon: 'rect',
-      selectedMode: false
+      selectedMode: false,
     },
     xAxis: {
       type: 'time',
       axisLine: {
         lineStyle: {
-          color: '#F0F1F5'
-        }
+          color: '#F0F1F5',
+        },
       },
       axisLabel: {
-        color: '#979BA5'
+        color: '#979BA5',
       },
       axisTick: {
-        show: false
+        show: false,
       },
       splitLine: {
-        show: false
-      }
+        show: false,
+      },
     },
     yAxis: {
       type: 'value',
       axisTick: {
-        show: false
+        show: false,
       },
       axisLabel: {
-        color: '#979BA5'
+        color: '#979BA5',
       },
       axisLine: {
-        show: false
+        show: false,
       },
       splitLine: {
         lineStyle: {
-          color: '#F0F1F5'
-        }
-      }
+          color: '#F0F1F5',
+        },
+      },
     },
     series: [],
     tooltip: {
-      trigger: 'axis'
+      trigger: 'axis',
     },
     textStyle: {
-      color: '#63656E'
+      color: '#63656E',
     },
     grid: {
       left: 50,
       top: 10,
       right: 40,
       bottom: 30,
-      containLabel: true
-    }
+      containLabel: true,
+    },
   });
 
   loading = false;
@@ -130,8 +131,8 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
       type: 'line',
       symbol: 'none',
       itemStyle: {
-        color: '#339DFF'
-      }
+        color: '#339DFF',
+      },
     };
     const hour: MonitorEchartSeries = {
       name: this.$tc('小时数据量'),
@@ -139,12 +140,12 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
       type: 'bar',
       barMaxWidth: 30,
       itemStyle: {
-        color: '#339DFF'
-      }
+        color: '#339DFF',
+      },
     };
     return {
       ...this.defaultOption,
-      series: [this.type === 'minute' ? minute : hour]
+      series: [this.type === 'minute' ? minute : hour],
     };
   }
 
@@ -154,7 +155,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
       ['now-3h', 'now'],
       ['now-6h', 'now'],
       ['now-24h', 'now'],
-      ['now-72h', 'now']
+      ['now-72h', 'now'],
     ];
   }
 
@@ -194,10 +195,10 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
           <div class='chart-label'>{this.type === 'minute' ? this.$tc('分钟数据量') : this.$tc('小时数据量')}</div>
           <div class='chart-tools'>
             <TimeRange
-              value={this.timeRange}
-              onChange={val => this.handleTimeRange(val)}
               commonUseList={this.defaultShortcuts}
               needTimezone={false}
+              value={this.timeRange}
+              onChange={val => this.handleTimeRange(val)}
             ></TimeRange>
             <span class='operate'>
               <i

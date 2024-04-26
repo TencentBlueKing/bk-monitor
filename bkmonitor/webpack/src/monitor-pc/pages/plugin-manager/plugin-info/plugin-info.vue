@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="plugin-detail-wrapper"
     v-bkloading="{ isLoading: isLoading }"
+    class="plugin-detail-wrapper"
   >
     <common-nav-bar
       :route-list="routeList"
@@ -50,25 +50,26 @@
               path="插件制作好了，去 {0}"
             >
               <span
-                style="color: #3a84ff; cursor: pointer;"
+                style="color: #3a84ff; cursor: pointer"
                 @click="handleJump"
-              >{{ $t('数据采集') }}</span>
+                >{{ $t('数据采集') }}</span
+              >
             </i18n>
           </bk-alert>
         </template>
         <bk-tab-panel
+          key="detail"
           :label="$t('插件详情')"
           name="detail"
-          key="detail"
         >
           <div class="content-wrapper">
             <div class="operator">
               <bk-button
                 v-if="canEdit"
-                style="width: 88px;"
+                v-authority="{ active: !authority.MANAGE_AUTH }"
+                style="width: 88px"
                 theme="primary"
                 outline
-                v-authority="{ active: !authority.MANAGE_AUTH }"
                 @click="authority.MANAGE_AUTH ? handleEdit() : handleShowAuthorityDetail()"
               >
                 {{ $t('编辑') }}
@@ -80,8 +81,8 @@
             </div>
             <div
               v-show="tabActive === 'detail'"
-              class="plugin-info"
               ref="pluginInfo"
+              class="plugin-info"
             >
               <div class="info-item">
                 <div class="item-label">
@@ -92,14 +93,14 @@
                 </div>
                 <div class="logo">
                   <img
-                    class="logo-img"
                     v-if="pluginInfo.logo"
+                    class="logo-img"
                     :src="`data:image/png;base64,${pluginInfo.logo}`"
                     alt=""
-                  >
+                  />
                   <div
-                    class="logo-text"
                     v-else
+                    class="logo-text"
                   >
                     <span class="text-content">{{ pluginInfo.plugin_id.slice(0, 1).toUpperCase() }}</span>
                   </div>
@@ -112,9 +113,11 @@
                 <div class="item-container">
                   {{ pluginInfo.plugin_id }}
                   <span
-                    class="public-plugin"
                     v-if="!pluginInfo.bk_biz_id"
-                  > {{ $t('( 公共插件 )') }}</span>
+                    class="public-plugin"
+                  >
+                    {{ $t('( 公共插件 )') }}</span
+                  >
                 </div>
               </div>
               <div class="info-item">
@@ -140,8 +143,8 @@
                     </div>
                 </div> -->
               <div
-                class="info-item align-top"
                 v-if="['Exporter', 'DataDog'].includes(pluginInfo.plugin_type)"
+                class="info-item align-top"
               >
                 <div class="item-label">
                   {{ $t('上传内容') }}
@@ -151,8 +154,8 @@
                     <template v-for="(collector, key) in pluginInfo.collector_json">
                       <div
                         v-if="collector && collector.file_name"
-                        class="file-wrapper"
                         :key="key"
+                        class="file-wrapper"
                       >
                         <div class="icon-wrapper">
                           <span :class="['item-icon', 'icon-monitor', `icon-${key}`]" />
@@ -166,26 +169,26 @@
                 </div>
               </div>
               <div
-                class="info-item align-top"
                 v-if="['Script', 'JMX', 'DataDog'].includes(pluginInfo.plugin_type)"
+                class="info-item align-top"
               >
                 <div class="item-label label-upload">
                   {{ $t('采集配置') }}
                 </div>
                 <div
-                  :class="{ 'item-container': true, 'editor-wrapper': ['Script'].includes(pluginInfo.plugin_type) }"
                   ref="collectorConfig"
+                  :class="{ 'item-container': true, 'editor-wrapper': ['Script'].includes(pluginInfo.plugin_type) }"
                 >
                   <template v-if="['Script'].includes(pluginInfo.plugin_type)">
                     <ul
-                      class="system-tabs"
                       v-if="pluginInfo.plugin_type === 'Script'"
+                      class="system-tabs"
                     >
                       <template v-for="(collector, key) in pluginInfo.systemList">
                         <li
-                          :class="['system-tab', { active: collectorConf.active === collector }]"
-                          :key="key"
                           v-if="collector"
+                          :key="key"
+                          :class="['system-tab', { active: collectorConf.active === collector }]"
                           @click="viewCollectorConf(collector)"
                         >
                           <span>{{ collector }}</span>
@@ -196,19 +199,20 @@
                       <span>{{ collectorConf.type }}</span>
                     </div>
                     <monaco-editor
+                      v-model="collectorConf.content"
                       full-screen
                       :options="editorOptions"
-                      v-model="collectorConf.content"
                       language="shell"
                     />
                   </template>
                   <div
-                    class="jmx"
                     v-if="['JMX', 'DataDog'].includes(pluginInfo.plugin_type)"
+                    class="jmx"
                   >
-                    <pre class="jmx-code">
-{{ pluginInfo.collector_json.config_yaml }}
-</pre>
+                    <pre class="jmx-code"
+                      >{{ pluginInfo.collector_json.config_yaml }}
+</pre
+                    >
                   </div>
                 </div>
               </div>
@@ -234,20 +238,24 @@
               </template>
               <div :class="{ 'info-item': true, 'multiple-lin': isMultipleLin }">
                 <div
-                  :class="{ 'item-label': true, 'label-param': pluginInfo.config_json.length, 'multiple-lin': isMultipleLin }"
+                  :class="{
+                    'item-label': true,
+                    'label-param': pluginInfo.config_json.length,
+                    'multiple-lin': isMultipleLin,
+                  }"
                 >
                   {{ $t('定义参数') }}
                 </div>
                 <div
-                  class="item-container"
                   v-if="isShowParam"
                   ref="pluginParams"
+                  class="item-container"
                 >
                   <template v-for="(param, index) in pluginInfo.config_json">
                     <span
                       v-if="!param.hasOwnProperty('visible')"
-                      :class="{ 'item-param': true, 'multiple-lin': param.multipleLin }"
                       :key="index"
+                      :class="{ 'item-param': true, 'multiple-lin': param.multipleLin }"
                       @click="viewParam(param)"
                     >
                       {{ param.name || param.description }}
@@ -255,8 +263,8 @@
                   </template>
                 </div>
                 <div
-                  class="item-container no-param"
                   v-else
+                  class="item-container no-param"
                 >
                   <span class="param-text"> {{ $t('未定义') }} </span>
                 </div>
@@ -295,29 +303,29 @@
           </div>
         </bk-tab-panel>
         <bk-tab-panel
+          key="metric"
           :label="$t('指标维度')"
           name="metric"
-          key="metric"
         >
           <div class="content-wrapper">
             <div
-              class="operator"
               v-show="tabActive === 'metric'"
+              class="operator"
             >
               <bk-button
+                v-authority="{ active: !authority.MANAGE_AUTH }"
                 theme="primary"
                 outline
-                v-authority="{ active: !authority.MANAGE_AUTH }"
                 @click="authority.MANAGE_AUTH ? handleToMertic() : handleShowAuthorityDetail()"
               >
                 {{ $t('设置指标&维度') }}
               </bk-button>
             </div>
             <div
-              class="metric-group"
-              :class="{ 'active-group': show }"
               v-for="group in pluginInfo.metric_json"
               :key="group.table_name"
+              class="metric-group"
+              :class="{ 'active-group': show }"
             >
               <div class="group-header">
                 <div
@@ -328,9 +336,7 @@
                     class="bk-icon group-icon"
                     :class="show ? 'icon-right-shape' : 'icon-down-shape'"
                   />
-                  <div class="group-name">
-                    {{ group.table_name }}({{ group.table_desc }})
-                  </div>
+                  <div class="group-name">{{ group.table_name }}({{ group.table_desc }})</div>
                   <div class="group-num">
                     <i18n path="共{0}个指标，{1}个维度">
                       <span class="num-blod">{{ metricNum(group.fields) }}</span>
@@ -414,10 +420,10 @@
   </div>
 </template>
 <script>
-import { mapActions, mapGetters } from 'vuex';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { retrieveCollectorPlugin } from 'monitor-api/modules/model';
 import Viewer from 'monitor-ui/markdown-editor/viewer.tsx';
+import { mapActions, mapGetters } from 'vuex';
 
 import MonacoEditor from '../../../components/editors/monaco-editor';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
@@ -435,11 +441,11 @@ export default {
     MonitorTab,
     HistoryDialog,
     CommonNavBar,
-    ViewParam
+    ViewParam,
   },
   mixins: [authorityMixinCreate(pluginManagerAuth)],
   props: {
-    pluginId: String
+    pluginId: String,
   },
   data() {
     return {
@@ -448,11 +454,11 @@ export default {
       tabActive: 'detail',
       paramConf: {
         list: [],
-        isShow: false
+        isShow: false,
       },
       editorOptions: {
         readOnly: true,
-        width: '100%'
+        width: '100%',
       },
       pluginInfo: {
         bk_biz_id: '',
@@ -471,18 +477,18 @@ export default {
         label: '',
         port: '',
         logo: '',
-        is_support_remote: false
+        is_support_remote: false,
       },
       collectorConf: {
         active: '',
         type: '',
-        content: ''
+        content: '',
       },
       configLabels: {
         mode: this.$t('参数类型'),
         name: this.$t('参数名称'),
         default: this.$t('默认值'),
-        description: this.$t('参数说明')
+        description: this.$t('参数说明'),
       },
       types: {
         text: this.$t('文本'),
@@ -490,7 +496,7 @@ export default {
         file: this.$t('文件'),
         switch: this.$t('开关'),
         service: this.$t('服务实例标签'),
-        host: this.$t('主机字段')
+        host: this.$t('主机字段'),
       },
       pluginType: {
         Script: 'Script',
@@ -499,20 +505,20 @@ export default {
         DataDog: 'DataDog',
         'Built-In': 'BK-Monitor',
         Pushgateway: 'BK-Pull',
-        SNMP: 'SNMP'
+        SNMP: 'SNMP',
       },
       updateInfo: [],
       routeList: Object.freeze([{ id: 'plugin-detail', name: this.$t('插件详情') }]),
       isMultipleLin: false,
       canEdit: true,
-      calculationSize: () => {}
+      calculationSize: () => {},
     };
   },
   computed: {
     business() {
       const obj = {};
       const list = this.$store.getters.bizList.concat([{ id: 0, text: this.$t('全业务') }]);
-      list.forEach((item) => {
+      list.forEach(item => {
         obj[item.id] = item.text;
       });
       return obj;
@@ -526,14 +532,14 @@ export default {
     positionText() {
       return `${this.$t('插件名')}: ${this.pluginInfo.plugin_id}`;
     },
-    ...mapGetters('plugin-manager', ['osList', 'labels'])
+    ...mapGetters('plugin-manager', ['osList', 'labels']),
   },
   watch: {
     isShowParam(val) {
       if (val) {
         this.calculationParamsHeight();
       }
-    }
+    },
   },
   async created() {
     if (!this.$route.meta.title) {
@@ -542,8 +548,7 @@ export default {
         `${this.$t('route-' + '插件详情').replace('route-', '')} - ${this.$route.params.pluginId}`
       );
     }
-    await Promise.all([this.getOsList(), this.getLabels()]).catch(() => {
-    });
+    await Promise.all([this.getOsList(), this.getLabels()]).catch(() => {});
     this.requestPluginDetail(this.$route.params.pluginId);
   },
   mounted() {
@@ -565,16 +570,16 @@ export default {
       this.$router.push({
         name: 'plugin-edit',
         params: {
-          pluginId: this.pluginInfo.plugin_id
-        }
+          pluginId: this.pluginInfo.plugin_id,
+        },
       });
     },
     handleToMertic() {
       this.$router.push({
         name: 'plugin-setmetric',
         params: {
-          pluginId: this.$route.params.pluginId
-        }
+          pluginId: this.$route.params.pluginId,
+        },
       });
     },
     handleLook() {
@@ -592,7 +597,7 @@ export default {
         if (this.$refs.pluginParams) {
           const height = this.$refs.pluginParams.clientHeight;
           this.isMultipleLin = height > 24 || height === 34;
-          this.pluginInfo.config_json.forEach((item) => {
+          this.pluginInfo.config_json.forEach(item => {
             this.$set(
               item,
               'multipleLin',
@@ -609,7 +614,7 @@ export default {
      */
     requestPluginDetail(id) {
       retrieveCollectorPlugin(id)
-        .then((data) => {
+        .then(data => {
           this.handleData(data);
         })
         .finally(() => {
@@ -640,7 +645,7 @@ export default {
      */
     viewParam(param) {
       this.paramConf.list = [];
-      Object.keys(this.configLabels).forEach((key) => {
+      Object.keys(this.configLabels).forEach(key => {
         if (key === 'default') {
           let value = '';
           if (param.type === 'service' || param.type === 'host') {
@@ -650,12 +655,12 @@ export default {
           }
           this.paramConf.list.push({
             label: `${this.configLabels[key]}(${this.types[param.type]})`,
-            value
+            value,
           });
         } else {
           this.paramConf.list.push({
             label: this.configLabels[key],
-            value: param[key]
+            value: param[key],
           });
         }
       });
@@ -676,8 +681,8 @@ export default {
     },
     handleData(data) {
       // 转换is_diff_metric=true的指标type为diff用于展示
-      data.metric_json.forEach((item) => {
-        item.fields.forEach((set) => {
+      data.metric_json.forEach(item => {
+        item.fields.forEach(set => {
           if (set.monitor_type === 'metric' && set.is_diff_metric) {
             set.type = 'diff';
           }
@@ -691,8 +696,9 @@ export default {
       this.canEdit = data.edit_allowed;
       if ((type === 'Script' || type === 'DataDog') && collectorJson) {
         // 默认选中非空的系统展示其脚本内容
-        this.pluginInfo.systemList = Object.keys(collectorJson).filter(item => this.osList
-          .find(sys => item === sys.os_type));
+        this.pluginInfo.systemList = Object.keys(collectorJson).filter(item =>
+          this.osList.find(sys => item === sys.os_type)
+        );
         this.pluginInfo.systemList.some(item => collectorJson[item] && this.viewCollectorConf(item));
       } else if (type === 'Exporter') {
         const hostParam = configJson.find(item => item.name === 'host') || {};
@@ -704,9 +710,9 @@ export default {
         { label: this.$t('创建人'), value: data.create_user || '--' },
         { label: this.$t('创建时间'), value: data.create_time || '--' },
         { label: this.$t('最近更新人'), value: data.update_user || '--' },
-        { label: this.$t('修改时间'), value: data.update_time || '--' }
+        { label: this.$t('修改时间'), value: data.update_time || '--' },
       ];
-      this.labels.forEach((item) => {
+      this.labels.forEach(item => {
         const obj = item.children.find(v => v.id === data.label);
         if (obj) {
           this.pluginInfo.label = `${item.name}-${obj.name}`;
@@ -723,11 +729,11 @@ export default {
       this.$router.push({
         name: 'collect-config-add',
         params: {
-          pluginId: this.pluginInfo.plugin_id
-        }
+          pluginId: this.pluginInfo.plugin_id,
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -759,7 +765,6 @@ export default {
   }
 }
 
-
 .operator {
   position: absolute;
   top: 16px;
@@ -787,8 +792,8 @@ export default {
   margin-bottom: 8px;
   color: #63656e;
   background: #fff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
-  transition: height .5s;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  transition: height 0.5s;
 
   .num-blod {
     font-weight: bold;

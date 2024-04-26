@@ -45,7 +45,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
     max: false,
     min: false,
     value: null,
-    originValue: null
+    originValue: null,
   });
   const timeMap = {};
   data.forEach(item => {
@@ -56,7 +56,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
         list = timeMap[time];
         list[0] = {
           value: dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss'),
-          originValue: time
+          originValue: time,
         };
       }
       const index = tableThArr.findIndex(target => item.target === target);
@@ -66,7 +66,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
           value,
           originValue: value,
           max: false,
-          min: false
+          min: false,
         };
       }
     });
@@ -78,7 +78,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
     list.forEach((set, lIndex) => {
       if (!set) {
         list[lIndex] = {
-          ...getDefaultValue()
+          ...getDefaultValue(),
         };
       }
     });
@@ -87,7 +87,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   // // 计算极值
   const maxMinMap = tableThArr.map(() => ({
     max: null,
-    min: null
+    min: null,
   }));
   tableThArr.forEach((th, index) => {
     if (index > 0) {
@@ -118,7 +118,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   });
   return {
     tableThArr,
-    tableTdArr
+    tableTdArr,
   };
 };
 
@@ -154,34 +154,34 @@ export const refleshList = [
   // 刷新间隔列表
   {
     name: 'off',
-    id: -1
+    id: -1,
   },
   {
     name: '1m',
-    id: 60 * 1000
+    id: 60 * 1000,
   },
   {
     name: '5m',
-    id: 5 * 60 * 1000
+    id: 5 * 60 * 1000,
   },
   {
     name: '15m',
-    id: 15 * 60 * 1000
+    id: 15 * 60 * 1000,
   },
   {
     name: '30m',
-    id: 30 * 60 * 1000
+    id: 30 * 60 * 1000,
   },
   {
     name: '1h',
-    id: 60 * 60 * 1000
+    id: 60 * 60 * 1000,
   },
   {
     name: '2h',
-    id: 60 * 2 * 60 * 1000
+    id: 60 * 2 * 60 * 1000,
   },
   {
     name: '1d',
-    id: 60 * 24 * 60 * 1000
-  }
+    id: 60 * 24 * 60 * 1000,
+  },
 ];

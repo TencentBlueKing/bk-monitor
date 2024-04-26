@@ -37,6 +37,7 @@ import serviceList from '@/services/index.js';
 import { context, trace } from '@opentelemetry/api';
 import { makeMessage } from '@/common/util';
 import i18n from '@/language/i18n';
+import { showLoginModal } from '@blueking/login-modal';
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
 // axios 实例
@@ -234,8 +235,8 @@ function handleReject(error, config) {
       const loginData = error.response.data;
       if (loginData.has_plain) {
         try {
-          window.LoginModal.$props.loginUrl = loginData.login_url;
-          window.LoginModal.show();
+          const { login_url: loginUrl } = loginData;
+          showLoginModal({ loginUrl });
         } catch (_) {
           handleLoginExpire();
         }

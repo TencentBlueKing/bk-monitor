@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import Vuex from 'vuex';
 
 import getters from './getters';
@@ -41,5 +42,5 @@ const modules = moduleFiles.keys().reduce((modules, modulePath) => {
 export default new Vuex.Store({
   getters,
   modules,
-  strict: process.env.NODE_ENV !== 'production'
+  strict: process.env.NODE_ENV !== 'production',
 });

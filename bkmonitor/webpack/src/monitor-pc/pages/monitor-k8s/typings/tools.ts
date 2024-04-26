@@ -28,7 +28,7 @@ import { TranslateResult } from 'vue-i18n';
 import { type SceneType } from '../components/common-page';
 
 export interface ITabItem {
-  id: string | number;
+  id: number | string;
   name: string;
   show_panel_count?: boolean;
   panel_count?: number;
@@ -41,7 +41,7 @@ export interface ITabItem {
 // nav 导航栏设置数据item
 export interface INavItem {
   id: string;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
   subName?: string;
   query?: Record<string, any>;
 }
@@ -54,17 +54,17 @@ export interface IRouteBackItem {
   isBack?: boolean;
 }
 /** 更多菜单id */
-export type IMenuId = 'edit-variate' | 'edit-tab' | 'edit-dashboard' | 'view-demo';
+export type IMenuId = 'edit-dashboard' | 'edit-tab' | 'edit-variate' | 'view-demo';
 
 export const COMMON_TAB_LIST: ITabItem[] = [
   {
     id: 'dashboard',
-    name: window.i18n.tc('概览')
+    name: window.i18n.tc('概览'),
   },
   {
     id: 'list',
-    name: window.i18n.tc('主机列表')
-  }
+    name: window.i18n.tc('主机列表'),
+  },
 ];
 export interface IMenuItem extends ITabItem {
   disable?: boolean;
@@ -74,20 +74,20 @@ export interface IMenuItem extends ITabItem {
 export const COMMON_SETTINGS_LIST: IMenuItem[] = [
   {
     id: 'edit-tab',
-    name: window.i18n.tc('编辑页签')
+    name: window.i18n.tc('编辑页签'),
   },
   {
     id: 'edit-variate',
-    name: window.i18n.tc('编辑变量')
+    name: window.i18n.tc('编辑变量'),
   },
   {
     id: 'edit-dashboard',
-    name: window.i18n.tc('编辑视图')
+    name: window.i18n.tc('编辑视图'),
   },
   {
     id: 'view-demo',
-    name: window.i18n.tc('DEMO')
-  }
+    name: window.i18n.tc('DEMO'),
+  },
 ];
 
 export interface IUptimeCheckType {
@@ -96,21 +96,21 @@ export interface IUptimeCheckType {
 }
 export const UPTIME_CHECK_TYPE: IUptimeCheckType = {
   task: 'uptime-check-task',
-  node: 'uptime-check-node'
+  node: 'uptime-check-node',
 };
 
 export const UPTIME_CHECK_LIST: ITabItem[] = [
   {
     name: window.i18n.tc('拨测任务'),
-    id: UPTIME_CHECK_TYPE.task
+    id: UPTIME_CHECK_TYPE.task,
   },
   {
     name: window.i18n.tc('拨测节点'),
-    id: UPTIME_CHECK_TYPE.node
-  }
+    id: UPTIME_CHECK_TYPE.node,
+  },
 ];
 
-export type CommonTabType = 'dashboard' | 'list' | IUptimeCheckType['task'] | IUptimeCheckType['node'] | string;
+export type CommonTabType = 'dashboard' | 'list' | IUptimeCheckType['node'] | IUptimeCheckType['task'] | string;
 
 // 平铺模式下 dashboard panel 列数的localstorage key值
 export const DASHBOARD_PANEL_COLUMN_KEY = '__chart_view_type__';

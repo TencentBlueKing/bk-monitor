@@ -26,7 +26,6 @@
 import dayjs from 'dayjs';
 
 import { DecimalCount } from '../types/displayValue';
-
 import { FormattedValue, toFixed, toFixedScaled, ValueFormatter } from './valueFormats';
 
 interface IntervalsInSeconds {
@@ -34,14 +33,14 @@ interface IntervalsInSeconds {
 }
 
 export enum Interval {
-  Year = 'year',
-  Month = 'month',
-  Week = 'week',
   Day = 'day',
   Hour = 'hour',
+  Millisecond = 'millisecond',
   Minute = 'minute',
+  Month = 'month',
   Second = 'second',
-  Millisecond = 'millisecond'
+  Week = 'week',
+  Year = 'year',
 }
 
 const INTERVALS_IN_SECONDS: IntervalsInSeconds = {
@@ -52,7 +51,7 @@ const INTERVALS_IN_SECONDS: IntervalsInSeconds = {
   [Interval.Hour]: 3600,
   [Interval.Minute]: 60,
   [Interval.Second]: 1,
-  [Interval.Millisecond]: 0.001
+  [Interval.Millisecond]: 0.001,
 };
 
 export function toNanoSeconds(size: number, decimals: DecimalCount = 2, scaledDecimals?: DecimalCount): FormattedValue {
@@ -250,7 +249,7 @@ export function toDuration(size: number, decimals: DecimalCount, timeScale: Inte
     { long: Interval.Hour },
     { long: Interval.Minute },
     { long: Interval.Second },
-    { long: Interval.Millisecond }
+    { long: Interval.Millisecond },
   ];
 
   // convert $size to milliseconds
@@ -291,7 +290,7 @@ export function toClock(size: number, decimals: DecimalCount = 2): FormattedValu
   // < 1 second
   if (size < 1000) {
     return {
-      text: dayjs.utc(size).format('SSS\\m\\s')
+      text: dayjs.utc(size).format('SSS\\m\\s'),
     };
   }
 

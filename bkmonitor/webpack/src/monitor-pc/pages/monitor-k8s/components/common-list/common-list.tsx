@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -32,16 +33,17 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
+
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
 import './common-list.scss';
 
@@ -117,7 +119,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   // active id
@@ -140,7 +142,6 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
 
   /** 目标对比选中的主机id */
   get compareTargets() {
-    // eslint-disable-next-line max-len
     return (
       this.viewOptions?.compares?.targets?.map(item => this.panel.targets?.[0]?.handleCreateItemId(item, true)) || []
     );
@@ -200,7 +201,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
           end_time: endTime,
           condition_list: transformConditionValueParams(this.searchCondition),
           filter: this.filter === 'all' ? '' : this.filter,
-          keyword: this.keyword
+          keyword: this.keyword,
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
@@ -212,7 +213,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
             return {
               ...set,
               id,
-              name: set.name || id
+              name: set.name || id,
             };
           });
         })
@@ -239,7 +240,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
   @Debounce(300)
@@ -254,7 +255,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     }
     this.handleUpdateQueryData({
       ...this.queryData,
-      keyword: v
+      keyword: v,
     });
   }
   handleRefresh() {
@@ -266,7 +267,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     const value = this.panel.targets[0].handleCreateCompares(data);
     viewOptions.filters = { ...(value || {}) };
     viewOptions.compares = {
-      targets: []
+      targets: [],
     };
     this.handleTitleChange(data.name);
     this.$emit('change', viewOptions);
@@ -283,8 +284,8 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     const viewOptions: IViewOptions = {
       ...this.viewOptions,
       compares: {
-        targets: this.localCompareTargets
-      }
+        targets: this.localCompareTargets,
+      },
     };
     this.$emit('change', viewOptions);
   }
@@ -322,18 +323,18 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
         <div class='list-header'>
           {this.conditionList.length ? (
             <bk-search-select
-              placeholder={this.$t('搜索')}
               vModel={this.searchCondition}
-              show-condition={false}
               data={this.currentConditionList}
+              placeholder={this.$t('搜索')}
+              show-condition={false}
               show-popover-tag-change={false}
               onChange={this.handleSearch}
             />
           ) : (
             <bk-input
               v-model={this.keyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
@@ -356,19 +357,18 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
           {this.localList?.length ? (
             <bk-virtual-scroll
               ref='virtualInstance'
-              item-height={32}
               scopedSlots={{
                 default: ({ data }) => {
                   const itemId = this.panel.targets[0]?.handleCreateItemId(data);
                   return (
                     <div
-                      onClick={() => this.handleSelectedItem(data)}
                       class={[
                         `list-wrapper-item ${data.id === this.activeId ? 'item-active' : ''}`,
                         {
-                          'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId)
-                        }
+                          'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
+                        },
                       ]}
+                      onClick={() => this.handleSelectedItem(data)}
                     >
                       {!!data.status?.type && (
                         <CommonStatus
@@ -398,8 +398,9 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
                       </span>
                     </div>
                   );
-                }
+                },
               }}
+              item-height={32}
             ></bk-virtual-scroll>
           ) : (
             <EmptyStatus

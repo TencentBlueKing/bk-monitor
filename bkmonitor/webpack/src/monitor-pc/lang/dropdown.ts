@@ -96,5 +96,5 @@ export default {
   日期选择: 'Date selection',
   指定时间: 'Specify time',
   我申请的: 'My Application',
-  我的订阅: 'My Subscription'
+  我的订阅: 'My Subscription',
 };

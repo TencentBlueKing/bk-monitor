@@ -36,10 +36,10 @@ export default applyGuidePage([
     path: '/k8s',
     name: 'k8s',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: MonitorK8s
+      noCache: MonitorK8s,
     },
     meta: {
       title: '容器监控',
@@ -48,21 +48,21 @@ export default applyGuidePage([
       noNavBar: true,
       needClearQuery: true,
       route: {
-        parent: 'scenes'
+        parent: 'scenes',
       },
       authority: {
-        page: VIEW_AUTH
-      }
-    }
+        page: VIEW_AUTH,
+      },
+    },
   },
   {
     path: '/k8s/detail',
     name: 'k8s-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: monitorK8sDetail
+      noCache: monitorK8sDetail,
     },
     meta: {
       title: '容器监控详情',
@@ -70,11 +70,11 @@ export default applyGuidePage([
       customTitle: true,
       noNavBar: true,
       route: {
-        parent: 'k8s'
+        parent: 'k8s',
       },
       authority: {
-        page: VIEW_AUTH
-      }
-    }
-  }
+        page: VIEW_AUTH,
+      },
+    },
+  },
 ] as RouteConfig[]);

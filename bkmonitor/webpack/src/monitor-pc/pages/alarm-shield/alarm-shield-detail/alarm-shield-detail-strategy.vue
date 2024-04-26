@@ -35,7 +35,8 @@
           :key="item.id"
           class="item-content-name"
         >
-          {{ item.name }}<i
+          {{ item.name
+          }}<i
             class="icon-monitor icon-mc-wailian"
             @click="handleToStrategy(item.id)"
           />
@@ -44,8 +45,8 @@
       </div>
     </div>
     <div
-      class="strategy-detail"
       v-if="isOneStrategy"
+      class="strategy-detail"
     >
       <div class="strategy-detail-label">
         {{ $t('策略内容') }}
@@ -55,8 +56,8 @@
     </div>
     <alarm-shield-detail-dimension :detail-data="detailData" />
     <div
-      class="scope-item"
       v-if="dimension.target"
+      class="scope-item"
     >
       <div class="item-label">
         {{ $t('屏蔽范围') }}
@@ -83,31 +84,30 @@ import { transformDataKey } from 'monitor-common/utils/utils';
 
 import { strategyMapMixin } from '../../../common/mixins';
 import StrategyDetailNew from '../alarm-shield-components/strategy-detail-new';
-
 import AlarmShieldDetailDimension from './alarm-shield-detail-dimension.tsx';
 
 export default {
   name: 'AlarmShieldDetailStrategy',
   components: {
     StrategyDetailNew,
-    AlarmShieldDetailDimension
+    AlarmShieldDetailDimension,
   },
   mixins: [strategyMapMixin],
   props: {
     dimension: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     detailData: {
       type: Object,
-      default: () => null
-    }
+      default: () => null,
+    },
   },
   data() {
     return {
       level: '',
       levelMap: ['', this.$t('致命'), this.$t('预警'), this.$t('提醒')],
-      target: ''
+      target: '',
     };
   },
   computed: {
@@ -120,11 +120,11 @@ export default {
           id: this.dimension.strategies[0].id,
           name: this.dimension.strategies[0].name,
           scenario: this.dimension.strategies[0].scenario,
-          items: [{ queryConfigs: this.dimension.strategies[0].itemList }]
+          items: [{ queryConfigs: this.dimension.strategies[0].itemList }],
         },
         true
       );
-    }
+    },
   },
   created() {
     this.handleStrategyDetail();
@@ -133,7 +133,7 @@ export default {
     handleStrategyDetail() {
       const arr = [];
       if (Array.isArray(this.dimension.level)) {
-        this.dimension.level.forEach((item) => {
+        this.dimension.level.forEach(item => {
           arr.push(this.levelMap[item]);
         });
       } else {
@@ -146,8 +146,8 @@ export default {
     },
     handleToStrategy(id) {
       this.$router.push({ name: 'strategy-config-detail', params: { id } });
-    }
-  }
+    },
+  },
 };
 </script>
 

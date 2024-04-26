@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -25,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { ObjectDirective } from 'vue';
+
 import { random } from 'monitor-common/utils/utils';
 
 let insertedEl: IDragHtmlElement = null;
@@ -41,11 +41,10 @@ interface IBindValue {
   autoHidden: boolean; // 超出最小宽度时是否自动隐藏
   isShow: boolean; // 是否展示
   theme: 'normal' | 'simple'; // 拖拽按钮主题
-  onHidden?: Function; // 隐藏回调
-  onWidthChange?: Function; // 宽度更新
+  onHidden?: () => void; // 隐藏回调
+  onWidthChange?: (w: number) => void; // 宽度更新
 }
 interface IDragHtmlElement extends HTMLElement {
-  // eslint-disable-next-line camelcase
   _bk_monitor_drag: {
     el: HTMLDivElement;
     value: IBindValue;
@@ -137,7 +136,7 @@ export const monitorDrag: ObjectDirective = {
     el._bk_monitor_drag = {
       el: dragEle,
       value: bind.value,
-      dragKey: key
+      dragKey: key,
     };
   },
 
@@ -168,5 +167,5 @@ export const monitorDrag: ObjectDirective = {
     delete insertedElMap[dragKey];
 
     delete el._bk_monitor_drag;
-  }
+  },
 };

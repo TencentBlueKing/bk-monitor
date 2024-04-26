@@ -687,7 +687,7 @@ class InfluxDBHostInfo(models.Model, InfluxDBTool):
                     # 否则需要更新配置
                     try:
                         # 判断出合理的shard再对RP进行修改
-                        shard_duration = InfluxDBHostInfo.judge_shard()
+                        shard_duration = InfluxDBHostInfo.judge_shard(duration_str)
                     except ValueError as e:
                         logger.error("host->[{}] update default rp failed: [{}]".format(self.host_name, e))
                         break

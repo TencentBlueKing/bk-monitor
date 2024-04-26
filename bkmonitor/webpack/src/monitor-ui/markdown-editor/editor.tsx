@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Editor, EditorOptions, PreviewStyle } from '@toast-ui/editor';
 
 // import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
@@ -88,7 +89,7 @@ export default class MyComponent extends tsc<IMarkdownEditorProps> {
       previewStyle: this.previewStyle,
       hideModeSwitch: true,
       events: this.editorEvents.reduce((pre, key) => (pre[key] = (...args: any) => this.$emit(key, ...args)), {}),
-      viewer: false
+      viewer: false,
     });
     if (this.$listeners.input) {
       this.editor.on('change', () => {

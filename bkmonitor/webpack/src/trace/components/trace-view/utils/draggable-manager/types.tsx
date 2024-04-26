@@ -25,7 +25,6 @@
  */
 
 import { TNil } from '../../typings';
-
 import DraggableManager from './draggable-manager';
 import EUpdateTypes from './e-update-types';
 
@@ -39,7 +38,7 @@ export type DraggableBounds = {
 export type DraggingUpdate = {
   event: MouseEvent;
   manager: DraggableManager;
-  tag: string | TNil;
+  tag: TNil | string;
   type: EUpdateTypes;
   value: number;
   x: number;

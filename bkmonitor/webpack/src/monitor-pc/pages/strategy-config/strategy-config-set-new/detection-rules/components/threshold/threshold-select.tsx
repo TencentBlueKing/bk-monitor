@@ -31,8 +31,8 @@ import SelectMenu from '../../../components/select-menu';
 import './threshold-select.scss';
 
 export interface IItem {
-  id: string | number;
-  name: string | number;
+  id: number | string;
+  name: number | string;
 }
 
 export interface ILocalValueItem {
@@ -64,9 +64,9 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
   @Prop({
     default: () => [
       { id: 'or', name: 'OR' },
-      { id: 'and', name: 'AND' }
+      { id: 'and', name: 'AND' },
     ],
-    type: Array
+    type: Array,
   })
   readonly conditionList: IItem[];
   @Prop({ type: String, default: window.i18n.tc('（当前值）') }) label: string;
@@ -98,7 +98,7 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
         this.localValue.push({
           method: child.method,
           value: child.threshold,
-          condition: isAnd ? 'and' : 'or'
+          condition: isAnd ? 'and' : 'or',
         });
       });
     });
@@ -113,14 +113,14 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
         value.push([
           {
             method: item.method,
-            threshold: item.value
-          }
+            threshold: item.value,
+          },
         ]);
       } else {
         const lastChild = value[value.length - 1];
         lastChild?.push({
           method: item.method,
-          threshold: item.value
+          threshold: item.value,
         });
       }
     });
@@ -157,7 +157,7 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
     this.localValue.push({
       method: 'gte',
       value: 0,
-      condition: 'and'
+      condition: 'and',
     });
     this.emitLocalChange();
   }
@@ -169,7 +169,7 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
     this.curType = isCondition ? 'condition' : 'method';
     this.needDelete = isCondition;
     this.menuList = isCondition ? this.conditionList : this.methodList;
-    // eslint-disable-next-line prefer-destructuring
+
     this.curSelectTarget = this.$refs[ref];
     this.curIndex = index;
     this.curValueIndex = valueIndex;
@@ -197,8 +197,8 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
     return (
       <div class={['threshold-select-wrap', { 'is-readonly': this.readonly }]}>
         <span
-          class='desc-text'
           style='margin-right: 8px;'
+          class='desc-text'
         >
           {this.label}
         </span>
@@ -206,10 +206,10 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
           if (item.condition) {
             return (
               <span
-                style={`display: ${!index && 'none;'}`}
                 key={`condition-${index}`}
-                class='condition active'
                 ref={`condition-${index}`}
+                style={`display: ${!index && 'none;'}`}
+                class='condition active'
                 onClick={() => this.handleShowSelect(`condition-${index}`, index, item.index)}
               >
                 {this.conditionNameDisplsy(item.condition.condition)}
@@ -236,15 +236,15 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
                     'num-input',
                     {
                       'has-unit': this.unit,
-                      'has-unit-larger': this.unit.length > 2
-                    }
+                      'has-unit-larger': this.unit.length > 2,
+                    },
                   ]}
-                  behavior='simplicity'
-                  readonly={this.readonly}
-                  onInput={this.emitLocalChange}
                   // style="width: 78px"
                   v-model={item.value.value}
+                  behavior='simplicity'
+                  readonly={this.readonly}
                   type='number'
+                  onInput={this.emitLocalChange}
                 >
                   <template slot='append'>
                     <div class='right-unit'>{this.unit}</div>
@@ -262,24 +262,24 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
         )}
         {this.isChinese ? (
           <span
-            class='desc-text'
             style='margin-left: 8px;'
+            class='desc-text'
           >
             时触发告警
           </span>
         ) : undefined}
         <SelectMenu
-          show={this.showSelectMenu}
-          target={this.curSelectTarget}
           list={this.menuList}
           min-width={60}
           need-delete={this.needDelete}
+          show={this.showSelectMenu}
+          target={this.curSelectTarget}
           {...{
             on: {
               'on-delete': this.handleMenuDelete,
               'on-select': this.handelMenuSelect,
-              'on-hidden': this.handleMenuHidden
-            }
+              'on-hidden': this.handleMenuHidden,
+            },
           }}
         ></SelectMenu>
       </div>

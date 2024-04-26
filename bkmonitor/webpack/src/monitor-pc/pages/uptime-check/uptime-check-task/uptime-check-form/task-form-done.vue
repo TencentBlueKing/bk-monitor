@@ -38,38 +38,40 @@
       </div>
       <!-- eslint-disable-next-line vue/no-v-html -->
       <div
-        class="done-top-content"
         v-if="status === 'error' && errorMsg"
+        class="done-top-content"
         v-html="errorMsg"
       />
       <div class="done-top-operate">
         <bk-button
           class="mr10"
           @click="cancelUptimeCheckTask"
-        >{{ currentStatusText.cancelText }}</bk-button>
+          >{{ currentStatusText.cancelText }}</bk-button
+        >
         <bk-button
           v-if="status === 'error'"
           theme="primary"
           class="mr10"
           @click="handleEnforceSave"
-        >{{ $t('强制保存') }}</bk-button>
+          >{{ $t('强制保存') }}</bk-button
+        >
         <bk-button
+          v-if="showToEdit"
           theme="primary"
           @click="goToEdit"
-          v-if="showToEdit"
-        >{{ currentStatusText.confirmText }}</bk-button>
+          >{{ currentStatusText.confirmText }}</bk-button
+        >
         <bk-button
+          v-else
           theme="primary"
           @click="confirmUptimeCheckTask"
-          v-else
-        >{{
-          currentStatusText.confirmText
-        }}</bk-button>
+          >{{ currentStatusText.confirmText }}</bk-button
+        >
       </div>
     </section>
     <section
-      class="done-bottom"
       v-if="status === 'success' && tableData.length > 0"
+      class="done-bottom"
     >
       <bk-table :data="tableData">
         <bk-table-column
@@ -116,19 +118,19 @@ export default {
       default: 'success',
       validator(value) {
         return ['success', 'error'].includes(value);
-      }
+      },
     },
     tableData: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     type: {
       type: String,
       default: 'add',
       validator(value) {
         return ['add', 'edit'].includes(value);
-      }
-    }
+      },
+    },
   },
   data() {
     return {
@@ -137,30 +139,30 @@ export default {
           icon: 'icon-duihao icon-success',
           title: this.$t('创建拨测任务成功'),
           cancelText: this.$t('返回列表'),
-          confirmText: this.$t('继续添加拨测任务')
+          confirmText: this.$t('继续添加拨测任务'),
         },
         edit: {
           icon: 'icon-duihao icon-success',
           title: this.$t('编辑拨测任务成功'),
           cancelText: this.$t('返回列表'),
-          confirmText: this.$t('继续添加拨测任务')
-        }
+          confirmText: this.$t('继续添加拨测任务'),
+        },
       },
       error: {
         add: {
           icon: 'icon-remind icon-error',
           title: this.$t('拨测任务创建失败'),
           cancelText: this.$t('放弃'),
-          confirmText: this.$t('修改后重试')
+          confirmText: this.$t('修改后重试'),
         },
         edit: {
           icon: 'icon-remind icon-error',
           title: this.$t('拨测任务编辑失败'),
           cancelText: this.$t('放弃'),
-          confirmText: this.$t('修改后重试')
-        }
+          confirmText: this.$t('修改后重试'),
+        },
       },
-      isEn
+      isEn,
     };
   },
   computed: {
@@ -169,13 +171,13 @@ export default {
     },
     showToEdit() {
       return this.status === 'error' && this.editId && this.type === 'add';
-    }
+    },
   },
   methods: {
     cancelUptimeCheckTask() {
       this.$emit('back-add');
       this.$router.push({
-        name: 'uptime-check'
+        name: 'uptime-check',
       });
     },
     confirmUptimeCheckTask() {
@@ -190,8 +192,8 @@ export default {
               {
                 key: 'task_id',
                 method: 'eq',
-                value: row.relatedId.toString()
-              }
+                value: row.relatedId.toString(),
+              },
             ],
             group_by: [],
             interval: 60,
@@ -203,24 +205,24 @@ export default {
             result_table_id: row.resultTableId,
             result_table_label: row.resultTableLabel,
             related_id: row.relatedId,
-            related_name: row.relatedName
-          }
-        }
+            related_name: row.relatedName,
+          },
+        },
       });
     },
     goToEdit() {
       this.$router.push({
         name: 'uptime-check-task-edit',
         params: {
-          id: this.editId
-        }
+          id: this.editId,
+        },
       });
     },
     /* 强制保存 */
     handleEnforceSave() {
       this.$emit('enforce-save');
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

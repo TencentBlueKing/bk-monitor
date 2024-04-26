@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -414,5 +413,5 @@ export default {
   解除: 'Unmute',
   拉群: 'WeCom',
   连通性测试: 'Connectivity test',
-  更多配置: 'More configuration'
+  更多配置: 'More configuration',
 };

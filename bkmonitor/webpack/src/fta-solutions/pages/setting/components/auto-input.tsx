@@ -37,7 +37,7 @@ interface IAutoInputEvent {
 }
 
 @Component({
-  name: 'AutoInput'
+  name: 'AutoInput',
 })
 export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
   @Prop({ type: Array, default: () => [] }) tipsData: IAutoInput['tipsData'];
@@ -143,12 +143,12 @@ export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
         theme: 'light auto-input-component-list-warp',
         maxWidth: 520,
         duration: [200, 0],
-        offset: `${this.offsetX}, ${this.offsetY}`
+        offset: `${this.offsetX}, ${this.offsetY}`,
       });
     } else {
       // 更新提示的位置
       this.popoverInstance.set({
-        offset: `${this.offsetX}, ${this.offsetY}`
+        offset: `${this.offsetX}, ${this.offsetY}`,
       });
     }
     // 显示
@@ -178,10 +178,10 @@ export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
     return (
       <div class='auto-input-component-setting'>
         <bk-input
-          v-model={this.params}
-          type='text'
           ref='input'
+          v-model={this.params}
           behavior={'simplicity'}
+          type='text'
           on-input={this.handleInput}
         ></bk-input>
         <div style={{ display: 'none' }}>
@@ -191,13 +191,13 @@ export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
           >
             {this.tipsData.map((item, index) => (
               <li
-                class='list-item'
-                on-mousedown={() => this.handleMousedown(item)}
                 key={item.id + index}
                 style={{
                   display: !this.params || item.id.includes(this.keyword) ? 'flex' : 'none',
-                  position: 'relative'
+                  position: 'relative',
                 }}
+                class='list-item'
+                on-mousedown={() => this.handleMousedown(item)}
               >
                 {item.id}
                 <span class='item-desc'>{item.name}</span>

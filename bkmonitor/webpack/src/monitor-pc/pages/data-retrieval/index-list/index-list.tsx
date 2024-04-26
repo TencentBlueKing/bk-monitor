@@ -84,19 +84,19 @@ export default class IndexList extends tsc<IProps, IEvents> {
         >
           {data.name}
         </span>
-      )
+      ),
     };
     return (
       <bk-big-tree
         ref='indexTree'
+        height={this.height}
         class={['index-list-tree-wrap', this.type]}
         data={this.list}
-        padding={this.type === 'list' ? 10 : 26}
-        selectable
         expand-on-click={false}
-        height={this.height}
-        default-expand-all
+        padding={this.type === 'list' ? 10 : 26}
         scopedSlots={scopedSlots}
+        default-expand-all
+        selectable
         on-select-change={this.handleSelectItem}
       >
         <EmptyStatus

@@ -27,4 +27,4 @@ import { ofType } from 'vue-tsx-support';
 
 import GlobalConfig from './global-config.vue';
 
-export default ofType<{}>().convert(GlobalConfig);
+export default ofType<object>().convert(GlobalConfig);

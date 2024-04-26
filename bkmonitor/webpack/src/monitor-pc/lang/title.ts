@@ -128,5 +128,5 @@ export default {
   '持续 Profiling': 'Continuous profiling',
   有数据应用: 'Has data applied',
   无数据应用: 'No data applied',
-  订阅详情: 'Subscription details'
+  订阅详情: 'Subscription details',
 };

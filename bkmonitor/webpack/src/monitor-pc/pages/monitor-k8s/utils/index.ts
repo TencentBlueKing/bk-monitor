@@ -107,7 +107,7 @@ export const handleCheckVarWhere = (sourceData: VarWhereMap): boolean => {
  * @param {IWhere} where 条件
  * @param {Map} dataMap 变量替换的映射表
  */
-export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, string[] | string>) => {
+export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, string | string[]>) => {
   const result = where
     .filter(item => !!item.value.length)
     .map(item => {
@@ -130,7 +130,7 @@ export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, stri
             total.push(val);
           }
           return total;
-        }, [])
+        }, []),
       };
     });
   return result;
@@ -153,7 +153,7 @@ export const handleGetReferenceKeyList = (srcStr: string): string[] => {
  * @description: 替换变量请求参数中的引用变量
  * @param {Record} srcData
  */
-// eslint-disable-next-line max-len
+
 export const handleReplaceVarData = (data: Record<string, any>, map: Map<string, any>): Record<string, any> => {
   const srcData = deepClone(data);
   /** 特殊处理where条件，where的value格式是数组 */
@@ -176,13 +176,13 @@ export const handleReplaceVarData = (data: Record<string, any>, map: Map<string,
  * @param condition search-select组件值
  * @returns 接口参数
  */
-// eslint-disable-next-line max-len
+
 export const transformConditionValueParams = (condition: IBkSeachSelectValue[]): IQueryDataSearch =>
   condition.map(item => {
     const key = item.values ? item.id : 'keyword';
     const vlaue = item.values ? (item.multiable ? item.values.map(val => val.id) : item.values[0]?.id) : item.id;
     return {
-      [key]: vlaue
+      [key]: vlaue,
     };
   });
 /**
@@ -190,7 +190,7 @@ export const transformConditionValueParams = (condition: IBkSeachSelectValue[]):
  * @param search 搜索条件
  * @returns search-select组件值
  */
-// eslint-disable-next-line max-len
+
 export const transformQueryDataSearch = (search: IQueryDataSearch): IBkSeachSelectValue[] =>
   search.map((item): IBkSeachSelectValue => {
     const key = Object.keys(item)?.[0];
@@ -198,7 +198,7 @@ export const transformQueryDataSearch = (search: IQueryDataSearch): IBkSeachSele
     if (key === 'keyword') {
       return {
         id: value as string,
-        name: value as string
+        name: value as string,
       };
     }
     return {
@@ -210,8 +210,8 @@ export const transformQueryDataSearch = (search: IQueryDataSearch): IBkSeachSele
           ? [{ id: value, name: value }]
           : value.map(set => ({
               id: set,
-              name: set
-            }))
+              name: set,
+            })),
     };
   }) as IBkSeachSelectValue[];
 
@@ -223,7 +223,7 @@ export const transformQueryDataSearch = (search: IQueryDataSearch): IBkSeachSele
  * @param excludesKeyword 不需要过滤的keyword自定义输入的条件 needFilter = true 生效
  * @returns IBkSeachSelectValue
  */
-// eslint-disable-next-line max-len
+
 export const updateBkSearchSelectName = (
   conditionList: IBkSeachSelectValue[],
   searchList: IBkSeachSelectValue[],
@@ -264,7 +264,6 @@ export const filterSelectorPanelSearchList = (conditionList, searchList) =>
     if (item.children.length === 1) {
       isShow = !searchList.find(set => set.id === item.id && !!set.values);
     } else if (item.children.length > 1) {
-      // eslint-disable-next-line max-len
       item.children = item.children.filter(
         child => !searchList.some(set => set.values?.some?.(val => val.id === child.id) ?? true)
       );

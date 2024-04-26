@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 
 import Square from './square';
@@ -43,7 +44,7 @@ interface IBusinessAlarmSquareEvents {
 }
 
 @Component({
-  name: 'BusinessAlarmSquare'
+  name: 'BusinessAlarmSquare',
 })
 export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, IBusinessAlarmSquareEvents> {
   @Prop({ type: Array, default: () => [] }) squares: any[];
@@ -56,26 +57,26 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
   svgMap = {
     uptimecheck: {
       d: 'M0,91.5L0,91.5c15.2,0,27.5-12.3,27.5-27.5V28C27.5,12.8,39.8,0.5,55,0.5h0',
-      viewBox: '0 0 55 92'
+      viewBox: '0 0 55 92',
     },
     process: {
       d: 'M0,185.5L0,185.5c15.2,0,27.5-12.3,27.5-27.5V28C27.5,12.8,39.8,0.5,55,0.5h0',
-      viewBox: '0 0 55 186'
+      viewBox: '0 0 55 186',
     },
     os: {
       d: 'M0,232.5L0,232.5c15.2,0,27.5-12.3,27.5-27.5V28C27.5,12.8,39.8,0.5,55,0.5h0',
-      viewBox: '0 0 55 233'
+      viewBox: '0 0 55 233',
     },
     service: {
       d: 'M0,138.5L0,138.5c15.2,0,27.5-12.3,27.5-27.5V28C27.5,12.8,39.8,0.5,55,0.5h0',
-      viewBox: '0 0 55 139'
-    }
+      viewBox: '0 0 55 139',
+    },
   };
   colorMap = {
     serious: '#DE6573',
     slight: '#FEBF81',
     unset: '#C4C6CC',
-    normal: '#85CFB7'
+    normal: '#85CFB7',
   };
 
   svgKey = random(8);
@@ -109,7 +110,7 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
       width: w,
       height: h,
       right: r,
-      top: t
+      top: t,
     };
   }
 
@@ -118,7 +119,7 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
       uptimecheck: this.getStyle('140px', '-110px'),
       service: this.getStyle('139px', '-95px'),
       process: this.getStyle('186px', '-106px'),
-      os: this.getStyle('139px', '-70px')
+      os: this.getStyle('139px', '-70px'),
     };
     return obj[this.curSquare.name];
   }
@@ -137,8 +138,8 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
           ))}
         </div>
         <div
-          class='svg-container'
           style={{ display: !this.isAllNormal ? 'block' : 'none' }}
+          class='svg-container'
         >
           <svg style='display: none'>
             <symbol
@@ -147,10 +148,10 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
             >
               <path
                 d={this.svgMap[this.curSquare.name].d}
+                fill='none'
                 stroke={this.colorMap[this.curSquare.status]}
                 stroke-dasharray='3'
                 stroke-width='1.5px'
-                fill='none'
               />
             </symbol>
           </svg>

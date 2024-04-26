@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { IBookMark, SettingsTabType } from '../../typings';
 import { SETTINGS_POP_ZINDEX } from '../../utils';
-
 import TabForm from './tab-form';
 
 import './settings-tab.scss';
@@ -51,14 +51,14 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
   /** 拖拽数据 */
   dragData: { from: number; to: number } = {
     from: null,
-    to: null
+    to: null,
   };
   localTabData: IBookMark[] = [];
   loading = true;
   curTabForm: SettingsTabType.ITabForm = {};
   curTabFormCache: SettingsTabType.ITabForm = {};
   drag = {
-    active: -1
+    active: -1,
   };
 
   get pageNameList() {
@@ -125,13 +125,13 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
         show_panel_count: true,
         variables: [],
         panels: [],
-        panel_count: 0
+        panel_count: 0,
       });
       this.tabActive = this.localTabData[0].id;
       this.curTabForm = {
         id: `custom_${new Date().getTime()}`,
         name: '新页签',
-        show_panel_count: true
+        show_panel_count: true,
       };
     };
 
@@ -166,7 +166,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
             this.localTabData = deepClone(this.bookMarkData);
           }
           cb();
-        }
+        },
       });
     } else {
       cb();
@@ -180,7 +180,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
    */
   handleDragStart(evt: DragEvent, index: number) {
     this.dragData.from = index;
-    // eslint-disable-next-line no-param-reassign
+
     evt.dataTransfer.effectAllowed = 'move';
   }
 
@@ -269,7 +269,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
       title: this.$t('确认删除此页签吗？'),
       confirmFn: () => {
         this.handleDeleteChange(id);
-      }
+      },
     });
   }
 
@@ -290,22 +290,22 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
         </div>
         <div class='setting-tab-list'>
           <transition-group
-            name={this.dragData.from !== null ? 'flip-list' : 'filp-list-none'}
             class='tab-list'
+            name={this.dragData.from !== null ? 'flip-list' : 'filp-list-none'}
             tag='ul'
           >
             {this.localTabData.map((tab, index) => (
               <li
-                class={['drag-item', { 'active-item': this.tabActive === tab?.id || index === this.drag.active }]}
                 key={tab.id}
+                class={['drag-item', { 'active-item': this.tabActive === tab?.id || index === this.drag.active }]}
                 draggable={true}
                 onClick={() => this.handleSelectItem(tab)}
-                onDragstart={evt => this.handleDragStart(evt, index)}
                 onDragend={this.handleDragend}
-                onDrop={this.handleDrop}
                 onDragenter={() => this.handleDragEnter(index)}
-                onDragover={evt => this.handleDragOver(evt, index)}
                 onDragleave={this.handleDragLeave}
+                onDragover={evt => this.handleDragOver(evt, index)}
+                onDragstart={evt => this.handleDragStart(evt, index)}
+                onDrop={this.handleDrop}
               >
                 <div class='tab-main'>
                   <i class='icon-monitor icon-mc-tuozhuai'></i>
@@ -317,15 +317,15 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
           </transition-group>
         </div>
         <TabForm
-          v-bkloading={{ isLoading: this.loading, zIndex: 2000 }}
           key={this.tabActive}
-          formData={this.curTabForm}
+          v-bkloading={{ isLoading: this.loading, zIndex: 2000 }}
           bookMarkData={this.bookMarkData}
           canAddTab={this.canAddTab}
+          formData={this.curTabForm}
           onChange={this.handleFiledChange}
-          onSave={this.handleSave}
           // onReset={this.handleReset}
           onDelete={this.handleDelete}
+          onSave={this.handleSave}
         />
       </div>
     );

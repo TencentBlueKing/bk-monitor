@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { collectConfigList } from 'monitor-api/modules/collecting';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 
@@ -48,33 +49,33 @@ export default class FavoritesList extends tsc<IDataRetrievalView.IEmptyView> {
   grammarMap = [
     {
       key: this.$t('带字段全文检索更高效'),
-      value: 'log:abc'
+      value: 'log:abc',
     },
     {
       key: this.$t('模糊检索使用通配符'),
-      value: `abc* ${this.$t('或')} ab?c`
+      value: `abc* ${this.$t('或')} ab?c`,
     },
     {
       key: this.$t('双引号匹配完整字符串'),
-      value: 'log:"ERROR MSG"'
+      value: 'log:"ERROR MSG"',
     },
     {
       key: this.$t('数值字段范围匹配'),
-      value: 'count:[1 TO 5]'
+      value: 'count:[1 TO 5]',
     },
     {
       key: this.$t('正则匹配'),
-      value: 'name:/joh?n(ath[oa]n/'
+      value: 'name:/joh?n(ath[oa]n/',
     },
     {
       key: this.$t('组合检索注意大写'),
-      value: 'log: (error OR info)'
-    }
+      value: 'log: (error OR info)',
+    },
   ];
 
   emptyTextMap: IEmptyStatusTextMap = Object.assign({}, defaultTextMap, {
     empty: window.i18n.t('暂未进行检索'),
-    'search-empty': window.i18n.t('无数据')
+    'search-empty': window.i18n.t('无数据'),
   });
 
   @Emit('clickEventBtn')
@@ -109,7 +110,7 @@ export default class FavoritesList extends tsc<IDataRetrievalView.IEmptyView> {
           if (!tableId) {
             this.$bkMessage({
               message: typeLabel === 'event' ? this.$t('检查是否选择数据ID') : this.$t('检查是否选择采集ID'),
-              theme: 'error'
+              theme: 'error',
             });
             return;
           }
@@ -122,7 +123,7 @@ export default class FavoritesList extends tsc<IDataRetrievalView.IEmptyView> {
                 if (!findItem) {
                   this.$bkMessage({
                     message: this.$t('没有找到与采集ID对应的数据源'),
-                    theme: 'error'
+                    theme: 'error',
                   });
                   return;
                 }
@@ -137,7 +138,7 @@ export default class FavoritesList extends tsc<IDataRetrievalView.IEmptyView> {
             if (!findItem) {
               this.$bkMessage({
                 message: this.$t('没有找到与数据ID对应的数据源'),
-                theme: 'error'
+                theme: 'error',
               });
               return;
             }
@@ -272,13 +273,13 @@ export default class FavoritesList extends tsc<IDataRetrievalView.IEmptyView> {
     };
     return (
       <div
-        v-show={!this.queryLoading}
         class='empty-container'
+        v-show={!this.queryLoading}
       >
         <EmptyStatus
+          textMap={this.emptyTextMap}
           type={this.emptyStatus}
           onOperation={this.handleOperation}
-          textMap={this.emptyTextMap}
         >
           {this.showType === 'monitor' && monitorSlot()}
           {this.showType === 'event' && eventSlot()}

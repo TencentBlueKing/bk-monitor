@@ -25,13 +25,13 @@
 -->
 <template>
   <article
-    class="config-history"
     v-bkloading="{ isLoading: loading }"
+    class="config-history"
   >
     <!--友情提示-->
     <section
-      class="config-history-tip"
       v-show="tableData.length > 0 && tipShow"
+      class="config-history-tip"
     >
       <div class="tip-left">
         <span class="icon-monitor icon-tips left-icon" />
@@ -47,12 +47,12 @@
     </section>
     <!--历史列表-->
     <section
-      class="config-history-content"
       v-show="tableData.length > 0"
+      class="config-history-content"
     >
       <bk-table
-        @row-click="handleRowClick"
         :data="tableData"
+        @row-click="handleRowClick"
       >
         <bk-table-column
           :label="$t('导入时间')"
@@ -68,8 +68,8 @@
         >
           <template #default="{ row }">
             <div
-              class="status-col"
               v-if="['upload', 'importing'].includes(row.status)"
+              class="status-col"
             >
               <div class="status-item">
                 <span class="status-runing icon-monitor icon-loading" />
@@ -77,14 +77,14 @@
               </div>
             </div>
             <div
-              class="status-col"
               v-else
+              class="status-col"
             >
               <div
-                class="status-item"
                 v-for="(value, name, index) of row.detail"
-                :key="index"
                 v-show="value"
+                :key="index"
+                class="status-item"
               >
                 <span :class="`status-${statusMap[name] ? statusMap[name].status : 'failed'}`" />
                 <span>{{ getStatusText(name, row.detail) }}</span>
@@ -96,8 +96,8 @@
     </section>
     <!--列表空数据-->
     <section
-      class="config-history-empty"
       v-show="tableData.length === 0"
+      class="config-history-empty"
     >
       <span class="empty-icon"><i class="icon-monitor icon-hint" /></span>
       <span class="empty-drop"> {{ $t('未发现导入记录') }} </span>
@@ -122,17 +122,17 @@ export default {
       statusMap: {
         successCount: {
           name: this.$t('成功'),
-          status: 'success'
+          status: 'success',
         },
         failedCount: {
           name: this.$t('失败'),
-          status: 'failed'
-        }
+          status: 'failed',
+        },
       },
       loading: false,
       tipShow: true,
       // tips过期时间 30 天（毫秒）
-      expire: 3600000 * 24 * 30
+      expire: 3600000 * 24 * 30,
     };
   },
   created() {
@@ -165,7 +165,7 @@ export default {
       this.tableData = await this.getHistoryList();
       // 移除队列中不在运行中的任务
       this.taskQueue.forEach((item, index) => {
-        this.tableData.forEach((row) => {
+        this.tableData.forEach(row => {
           if (item.id === row.id && row.status === 'imported') {
             this.taskQueue.splice(index, 1);
           }
@@ -174,18 +174,18 @@ export default {
     },
     getStatusText(countName, detail) {
       if (countName === 'successCount') {
-        return  detail.failedCount ? this.$t('{0}个成功', [detail[countName]]) : this.$t('全部成功');
+        return detail.failedCount ? this.$t('{0}个成功', [detail[countName]]) : this.$t('全部成功');
       }
       if (countName === 'failedCount') {
-        return  detail.failedCount ? this.$t('{0}个失败', [detail[countName]]) : this.$t('全部失败');
+        return detail.failedCount ? this.$t('{0}个失败', [detail[countName]]) : this.$t('全部失败');
       }
     },
     handleRowClick(row) {
       this.$router.push({
         name: 'import-configuration-importing',
         params: {
-          id: row.id
-        }
+          id: row.id,
+        },
       });
     },
     handleHideTips() {
@@ -194,8 +194,8 @@ export default {
         window.localStorage.setItem('__import-history-tip__', dateTime);
         this.tipShow = false;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -222,7 +222,6 @@ $emptyTipColor: #979ba5;
   border: 1px solid nth($statusBorderColors, $i);
   border-radius: 50%;
 }
-
 
 .config-history {
   min-height: 100%;

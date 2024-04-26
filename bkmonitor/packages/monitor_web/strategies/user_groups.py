@@ -127,13 +127,15 @@ def get_or_create_ops_notice_group(bk_biz_id: int) -> Optional[int]:
     return UserGroup.objects.get(bk_biz_id=bk_biz_id, name=six.text_type(user_group["name"])).id
 
 
+COLLECTING_GROUP_NAME = _("采集负责人")
+
+
 def add_member_to_collecting_notice_group(bk_biz_id: int, user_id: str) -> int:
     """创建采集负责人"""
-    collecting_group_name = _("采集负责人")
-    instances = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=collecting_group_name)
+    instances = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=COLLECTING_GROUP_NAME)
     if not instances.exists():
         user_group = {
-            "name": collecting_group_name,
+            "name": COLLECTING_GROUP_NAME,
             "notice_receiver": [{"id": user_id, "type": "user"}],
             **PUBLIC_NOTICE_CONFIG,
         }
@@ -164,3 +166,17 @@ def add_member_to_collecting_notice_group(bk_biz_id: int, user_id: str) -> int:
     user_group_serializer.is_valid(True)
     inst = user_group_serializer.save()
     return inst.id
+
+
+def remove_member_from_collecting_notice_group(bk_biz_id: int, user_id: str) -> None:
+    """移除采集负责人。"""
+    group = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=COLLECTING_GROUP_NAME).last()
+    if not group or not group.duty_arranges:
+        return
+
+    users = group.duty_arranges[0].users
+    new_users = [user for user in users if user.get("id") != user_id]
+
+    serializer = UserGroupDetailSlz(group, data={"duty_arranges": [{"users": new_users}]}, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()

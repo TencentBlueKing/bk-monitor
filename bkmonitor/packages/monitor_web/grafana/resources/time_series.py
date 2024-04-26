@@ -739,7 +739,7 @@ class GetVariableValue(Resource):
         promql = params["promql"].strip()
         if not promql:
             return []
-
+        promql = resource.grafana.graph_promql_query.remove_all_conditions(params["promql"])
         all_dimensions = set()
         for query in promql.split("\n"):
             if not query.strip():

@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, onBeforeUnmount, PropType, ref } from 'vue';
+
 import { Button } from 'bkui-vue';
 
 import { useSpanBarCurrentInject, useViewRangeInject } from '../hooks';
@@ -34,10 +35,9 @@ import {
   IViewRangeTime,
   TNil,
   TUpdateViewRangeTimeFunction,
-  ViewRangeTimeUpdate
+  ViewRangeTimeUpdate,
 } from '../typings';
 import DraggableManager, { DraggableBounds, DraggingUpdate, EUpdateTypes } from '../utils/draggable-manager';
-
 import GraphTicks from './graph-ticks';
 import Scrubber from './scrubber';
 
@@ -45,16 +45,16 @@ import './viewing-layer.scss';
 
 const ViewingLayerProps = {
   height: {
-    type: Number
+    type: Number,
   },
   numTicks: {
-    type: Number
+    type: Number,
   },
   updateViewRangeTime: Function as PropType<TUpdateViewRangeTimeFunction>,
   updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>,
   viewRange: {
-    type: Object as PropType<IViewRange>
-  }
+    type: Object as PropType<IViewRange>,
+  },
 };
 
 /**
@@ -72,7 +72,7 @@ export const dragTypes = {
   /**
    * Tag for dragging a new view range.
    */
-  REFRAME: 'REFRAME'
+  REFRAME: 'REFRAME',
 };
 
 /**
@@ -87,7 +87,7 @@ const getNextViewLayout = (start: number, position: number) => {
   return {
     x: `${left * 100}%`,
     width: `${(right - left) * 100}%`,
-    leadingX: `${position * 100}%`
+    leadingX: `${position * 100}%`,
   };
 };
 
@@ -101,7 +101,7 @@ export default defineComponent({
     const viewRangeStore = useViewRangeInject();
     const spanBarCurrentStore = useSpanBarCurrentInject();
 
-    const getDraggingBounds = (tag: string | TNil): DraggableBounds => {
+    const getDraggingBounds = (tag: TNil | string): DraggableBounds => {
       if (!layerGraphRef.value) {
         throw new Error('invalid state');
       }
@@ -163,10 +163,10 @@ export default defineComponent({
       }
       manager.resetBounds();
       preventCursorLine.value = false;
-      // eslint-disable-next-line max-len
+
       viewRangeStore?.onViewRangeChange({
         ...viewRangeStore?.viewRange.value,
-        time: { current: [update[0], update[1]] }
+        time: { current: [update[0], update[1]] },
       });
       spanBarCurrentStore?.onCurrentChange([update[0], update[1]]);
     };
@@ -197,7 +197,7 @@ export default defineComponent({
       onDragStart: handleReframeDragUpdate,
       onMouseMove: handleReframeMouseMove,
       onMouseLeave: handleReframeMouseLeave,
-      tag: dragTypes.REFRAME
+      tag: dragTypes.REFRAME,
     });
 
     const draggerStart = new DraggableManager({
@@ -207,7 +207,7 @@ export default defineComponent({
       onDragStart: handleScrubberDragUpdate,
       onMouseEnter: handleScrubberEnterLeave,
       onMouseLeave: handleScrubberEnterLeave,
-      tag: dragTypes.SHIFT_START
+      tag: dragTypes.SHIFT_START,
     });
 
     const draggerEnd = new DraggableManager({
@@ -217,7 +217,7 @@ export default defineComponent({
       onDragStart: handleScrubberDragUpdate,
       onMouseEnter: handleScrubberEnterLeave,
       onMouseLeave: handleScrubberEnterLeave,
-      tag: dragTypes.SHIFT_END
+      tag: dragTypes.SHIFT_END,
     });
 
     /**
@@ -225,7 +225,7 @@ export default defineComponent({
      */
     const resetTimeZoomClickHandler = () => {
       // props.updateViewRangeTime(0, 1);
-      // eslint-disable-next-line max-len
+
       viewRangeStore?.onViewRangeChange({ ...viewRangeStore?.viewRange.value, time: { current: [0, 1] } });
       spanBarCurrentStore?.onCurrentChange([0, 1]);
     };
@@ -241,32 +241,32 @@ export default defineComponent({
       return [
         <rect
           key='fill'
+          width={layout.width}
+          height={(props.height as number) - 2}
           class={[
             'draggedShift',
             {
               isShiftDrag: isShift,
-              isReframeDrag: !isShift
-            }
+              isReframeDrag: !isShift,
+            },
           ]}
           x={layout.x}
           y='0'
-          width={layout.width}
-          height={(props.height as number) - 2}
         />,
         <rect
           key='edge'
+          width='1'
+          height={(props.height as number) - 2}
           class={[
             'draggedEdge',
             {
               isShiftDrag: isShift,
-              isReframeDrag: !isShift
-            }
+              isReframeDrag: !isShift,
+            },
           ]}
           x={layout.leadingX}
           y='0'
-          width='1'
-          height={(props.height as number) - 2}
-        />
+        />,
       ];
     };
 
@@ -285,7 +285,7 @@ export default defineComponent({
       resetTimeZoomClickHandler,
       getMarkers,
       viewRangeStore,
-      spanBarCurrentStore
+      spanBarCurrentStore,
     };
   },
   render() {
@@ -293,7 +293,6 @@ export default defineComponent({
     const { cursor, shiftStart, shiftEnd, reframe } = this.viewRangeStore?.viewRange?.value.time as IViewRangeTime;
     const { current } = this.spanBarCurrentStore as ISpanBarStore;
 
-    // eslint-disable-next-line eqeqeq
     const haveNextTimeRange = shiftStart != null || shiftEnd != null || reframe != null;
     const [viewStart, viewEnd] = current.value;
     let leftInactive = 0;
@@ -305,72 +304,72 @@ export default defineComponent({
       rightInactive = 100 - viewEnd * 100;
     }
     let cursorPosition: string | undefined;
-    // eslint-disable-next-line eqeqeq
+
     if (!haveNextTimeRange && cursor != null && !this.preventCursorLine) {
       cursorPosition = `${cursor * 100}%`;
     }
 
     return (
       <div
-        class='viewing-layer'
         style={{ height: `${height}px` }}
+        class='viewing-layer'
       >
         {(viewStart !== 0 || viewEnd !== 1) && (
           <Button
-            onClick={this.resetTimeZoomClickHandler}
             class='reset-zoom'
             size='small'
+            onClick={this.resetTimeZoomClickHandler}
           >
             {this.$t('重置')}
           </Button>
         )}
         <svg
+          ref='layerGraphRef'
           height={height}
           class='wiewing-layer-graph'
-          ref='layerGraphRef'
           onMousedown={this.draggerReframe.handleMouseDown}
           onMouseleave={this.draggerReframe.handleMouseLeave}
           onMousemove={this.draggerReframe.handleMouseMove}
         >
           {leftInactive > 0 && (
             <rect
+              width={`${leftInactive}%`}
+              height='100%'
+              class='viewing-layer-inactive'
               x={0}
               y={0}
-              height='100%'
-              width={`${leftInactive}%`}
-              class='viewing-layer-inactive'
             />
           )}
           {rightInactive > 0 && (
             <rect
+              width={`${rightInactive}%`}
+              height='100%'
+              class='viewing-layer-inactive'
               x={`${100 - rightInactive}%`}
               y={0}
-              height='100%'
-              width={`${rightInactive}%`}
-              class='viewing-layer-inactive'
             />
           )}
           <GraphTicks numTicks={numTicks as number} />
-          {/* eslint-disable-next-line eqeqeq */}
+          {}
           {shiftStart != null && this.getMarkers(viewStart, shiftStart, true)}
-          {/* eslint-disable-next-line eqeqeq */}
+          {}
           {shiftEnd != null && this.getMarkers(viewEnd, shiftEnd, true)}
           {cursorPosition && (
             <line
               class='viewinglayer-cursorGuide'
-              x1={cursorPosition}
-              y1='0'
-              x2={cursorPosition}
-              y2={(height as number) - 2}
               stroke-width='1'
+              x1={cursorPosition}
+              x2={cursorPosition}
+              y1='0'
+              y2={(height as number) - 2}
             />
           )}
           <Scrubber
             isDragging={shiftStart !== null}
+            position={viewStart || 0}
             onMouseDown={this.draggerStart.handleMouseDown}
             onMouseEnter={this.draggerStart.handleMouseEnter}
             onMouseLeave={this.draggerStart.handleMouseLeave}
-            position={viewStart || 0}
           />
           <Scrubber
             isDragging={shiftEnd !== null}
@@ -379,12 +378,12 @@ export default defineComponent({
             onMouseEnter={this.draggerEnd.handleMouseEnter}
             onMouseLeave={this.draggerEnd.handleMouseLeave}
           />
-          {/* eslint-disable-next-line eqeqeq */}
+          {}
           {reframe != null && this.getMarkers(reframe.anchor, reframe.shift, false)}
         </svg>
         {/* fullOverlay updates the mouse cursor blocks mouse events */}
         {haveNextTimeRange && <div class='viewingLayer-fullOverlay' />}
       </div>
     );
-  }
+  },
 });

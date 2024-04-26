@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { PanelModel } from '../typings';
-
 import { getMetricId } from './utils';
 
 export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {

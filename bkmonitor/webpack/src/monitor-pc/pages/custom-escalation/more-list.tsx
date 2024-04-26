@@ -69,7 +69,7 @@ export default class MoreList extends tsc<IProps> {
     const overflowTagWidth = 41;
     let totalWidth = 0;
     await this.$nextTick();
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const i in childs) {
       const item = childs[i] as HTMLDivElement;
       if (!item.className || item.className.indexOf('list-item') === -1) continue;
@@ -134,7 +134,7 @@ export default class MoreList extends tsc<IProps> {
       onHide: () => {
         this.isAdd = false;
         this.editActive = '';
-      }
+      },
     });
     this.popoverInstance?.show?.();
   }
@@ -208,8 +208,8 @@ export default class MoreList extends tsc<IProps> {
     return (
       <div class={['match-rule-more-list-component', { 'is-expand': this.isExpand }]}>
         <ul
-          class='more-list'
           ref='list'
+          class='more-list'
         >
           {this.localList.map((item, index) => (
             <li
@@ -234,19 +234,19 @@ export default class MoreList extends tsc<IProps> {
         </ul>
         <div style='display: none'>
           <div
-            class='match-rule-more-list-component-operate-wrap'
             ref='opreate'
+            class='match-rule-more-list-component-operate-wrap'
           >
             <bk-input
               class='edit-input'
-              maxlength={40}
               v-model={this.tempInput}
+              maxlength={40}
               onChange={this.handleInputChange}
               onEnter={this.handleSave}
             ></bk-input>
             <div
-              class='err-msg'
               style={{ display: !!this.errMsg ? 'block' : 'none' }}
+              class='err-msg'
             >
               {this.errMsg}
             </div>

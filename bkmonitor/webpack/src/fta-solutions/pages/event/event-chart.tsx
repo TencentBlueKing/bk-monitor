@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts.vue';
 
 import { ICommonItem, SearchType } from './typings/event';
@@ -32,7 +33,7 @@ import { ICommonItem, SearchType } from './typings/event';
 import './event-chart.scss';
 
 interface IEventChartProps {
-  chartInterval: string | number;
+  chartInterval: number | string;
   getSeriesData: () => Promise<{ unit: string; series: any[] }>;
   intervalList?: ICommonItem[];
   chartKey: string;
@@ -40,38 +41,38 @@ interface IEventChartProps {
 }
 
 interface IEventChartEvent {
-  onIntervalChange: string | number;
+  onIntervalChange: number | string;
 }
 @Component({
-  components: { MonitorEcharts }
+  components: { MonitorEcharts },
 })
 export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> {
   @Prop({
     default: () => [
       {
         id: 'auto',
-        name: 'Auto'
+        name: 'Auto',
       },
       {
         id: 60,
-        name: '1 min'
+        name: '1 min',
       },
       {
         id: 5 * 60,
-        name: '5 min'
+        name: '5 min',
       },
       {
         id: 60 * 60,
-        name: '1 h'
+        name: '1 h',
       },
       {
         id: 24 * 60 * 60,
-        name: '1 d'
-      }
-    ]
+        name: '1 d',
+      },
+    ],
   })
   intervalList: ICommonItem[];
-  @Prop({ default: 'auto', type: [String, Number] }) chartInterval: string | number;
+  @Prop({ default: 'auto', type: [String, Number] }) chartInterval: number | string;
   @Prop({ required: true, type: [Function] }) getSeriesData: () => Promise<any[]>;
   @Prop({ required: true, type: [String] }) chartKey: string;
   @Prop({ required: true, type: String }) searchType: SearchType;
@@ -79,11 +80,11 @@ export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> 
   expand = true;
   chartOption = {
     tool: {
-      show: true
+      show: true,
     },
     grid: {
-      right: '20'
-    }
+      right: '20',
+    },
   };
   get chartColors() {
     return this.searchType === 'action'
@@ -104,32 +105,32 @@ export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> 
     return (
       <div class={['event-chart', { 'is-expand': !this.expand }]}>
         <monitor-echarts
-          height={200}
           key={this.chartKey}
-          title={this.searchType === 'action' ? this.$t('执行趋势') : this.$t('告警趋势')}
+          height={200}
+          chart-type='bar'
           colors={this.chartColors}
           getSeriesData={this.getSeriesData}
-          options={this.chartOption}
-          chart-type='bar'
           needFullScreen={false}
+          options={this.chartOption}
+          title={this.searchType === 'action' ? this.$t('执行趋势') : this.$t('告警趋势')}
         >
           <div
-            slot='title'
             class='event-chart-title'
+            slot='title'
             onClick={this.handleExpandChange}
           >
             <i
-              onClick={this.handleExpandChange}
               class={['icon-monitor icon-mc-triangle-down chart-icon', { 'is-expand': this.expand }]}
+              onClick={this.handleExpandChange}
             />
             {this.searchType === 'action' ? this.$t('执行趋势') : this.$t('告警趋势')}
             {this.expand && [
               <span class='interval-label'>{this.$t('汇聚周期')}</span>,
               <bk-select
                 class='interval-select'
-                size='small'
                 behavior='simplicity'
                 clearable={false}
+                size='small'
                 value={this.chartInterval}
                 onChange={this.handleIntervalChange}
               >
@@ -142,7 +143,7 @@ export default class EventChart extends tsc<IEventChartProps, IEventChartEvent> 
                     {item.name}
                   </bk-option>
                 ))}
-              </bk-select>
+              </bk-select>,
             ]}
           </div>
         </monitor-echarts>

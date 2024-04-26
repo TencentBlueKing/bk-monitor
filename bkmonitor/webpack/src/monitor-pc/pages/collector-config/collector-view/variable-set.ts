@@ -41,7 +41,7 @@ const collectStorageKey = 'collectVariablesConfig';
 const setCollectVariable: Function = (
   collectId: string, // 采集id 或者自定义指标id
   sceneName: string, // 场景名
-  data: { type: 'variables' | 'dashboard'; variables?: { id: string; value: string[] }[]; active?: string[] }, // 存储检查视图变量或者图表分组展开记录 type:variables对应variables 'dashboard'对应active
+  data: { type: 'dashboard' | 'variables'; variables?: { id: string; value: string[] }[]; active?: string[] }, // 存储检查视图变量或者图表分组展开记录 type:variables对应variables 'dashboard'对应active
   type = 'collect' // 区分是采集还是其他地方的检查视图
 ) => {
   const id = `${type}_${collectId}`;
@@ -56,11 +56,11 @@ const setCollectVariable: Function = (
     } else {
       if (collectConfig[id]) {
         collectConfig[id][sceneName] = {
-          variables: variablesMap || {}
+          variables: variablesMap || {},
         };
       } else {
         collectConfig[id] = {
-          [sceneName]: { variables: variablesMap }
+          [sceneName]: { variables: variablesMap },
         };
       }
     }
@@ -71,11 +71,11 @@ const setCollectVariable: Function = (
     } else {
       if (collectConfig[id]) {
         collectConfig[id][sceneName] = {
-          activeName: data.active
+          activeName: data.active,
         };
       } else {
         collectConfig[id] = {
-          [sceneName]: { activeName: data.active }
+          [sceneName]: { activeName: data.active },
         };
       }
     }
@@ -86,7 +86,7 @@ const setCollectVariable: Function = (
 const getCollectVariable: Function = (
   collectId: string, // 采集id 或者自定义指标id
   sceneName: string, // 场景名
-  dataType: 'variables' | 'dashboard', // 存储检查视图变量或者图表分组展开记录
+  dataType: 'dashboard' | 'variables', // 存储检查视图变量或者图表分组展开记录
   type = 'collect' // 区分是采集还是其他地方的检查视图
 ) => {
   const id = `${type}_${collectId}`;

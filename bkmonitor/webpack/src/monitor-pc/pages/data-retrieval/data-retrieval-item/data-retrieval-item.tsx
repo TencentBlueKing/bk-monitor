@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 import { recheckInterval } from 'monitor-ui/chart-plugins/utils';
 
@@ -60,7 +61,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
         result_table_label_name: resultTableLabelName,
         related_name: relatedName,
         result_table_name: resultTableName,
-        metric_field_name: metricFieldName
+        metric_field_name: metricFieldName,
       } = this.localValue as DataRetrievalQueryItem;
       value = `${resultTableLabelName}/${relatedName}/${resultTableName}/${metricFieldName}`;
     }
@@ -95,7 +96,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
       if (!this.groupByMap.includes(id)) {
         newGroupBy.push({
           id,
-          name: id
+          name: id,
         });
       }
     });
@@ -136,7 +137,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
   emitChange(type?: IDataRetrievalItem.emitType): IDataRetrievalItem.onChange {
     return {
       type,
-      value: this.localValue
+      value: this.localValue,
     };
   }
 
@@ -205,7 +206,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             placement: 'right',
             zIndex: 9999,
             boundary: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {item.name}
@@ -226,7 +227,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             zIndex: 9999,
             offset: '0, 6',
             boundary: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {node.name}
@@ -245,13 +246,13 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             onClick={() => this.handleShowMetricSelector(true)}
           >
             <bk-input
-              class='metric-selector-target'
+              id={`_metric_item_index_${this.index}`}
               ref='metricInput'
+              class='metric-selector-target'
+              clearable={true}
               placeholder={this.$t('选择')}
               value={this.metricValStr}
-              clearable={true}
               readonly
-              id={`_metric_item_index_${this.index}`}
               onClear={this.handleClearMerticVal}
             />
           </div>
@@ -264,13 +265,13 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                   <div class='query-item-content'>
                     <bk-select
                       vModel={this.localValue.agg_method}
-                      onChange={this.handleMethodChange}
                       clearable={false}
+                      onChange={this.handleMethodChange}
                     >
                       {this.methodList.map((method, index) => (
                         <bk-option
-                          key={index}
                           id={method.id}
+                          key={index}
                           name={method.name}
                         ></bk-option>
                       ))}
@@ -295,14 +296,14 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                   <div class='query-item-content'>
                     <bk-tag-input
                       vModel={this.localValue.agg_dimension}
+                      allow-create={true}
+                      allow-next-focus={false}
                       list={this.metricGroupByList}
                       placeholder={String(this.$t('选择'))}
-                      trigger='focus'
-                      allow-next-focus={false}
-                      allow-create={true}
                       search-key={['name', 'id']}
-                      tpl={this.aggDimensionOptionTpl}
                       tag-tpl={this.aggDimensionTagTpl}
+                      tpl={this.aggDimensionOptionTpl}
+                      trigger='focus'
                       // tooltip-key="id"
                       onChange={() => this.emitChange()}
                     />
@@ -313,15 +314,15 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                   <div class='query-item-content'>
                     <SimpleConditionInput
                       class='query-where-selector-simple'
-                      conditionList={this.localValue.agg_condition}
-                      dimensionsList={this.metricWhereGroupBy}
                       metricMeta={{
                         dataSourceLabel: this.localValue.data_source_label,
                         dataTypeLabel: this.localValue.data_type_label,
                         metricField: this.localValue.metric_field,
                         resultTableId: this.localValue.result_table_id,
-                        indexSetId: this.localValue.index_set_id
+                        indexSetId: this.localValue.index_set_id,
                       }}
+                      conditionList={this.localValue.agg_condition}
+                      dimensionsList={this.metricWhereGroupBy}
                       isHasNullOption={true}
                       onChange={this.handleConditionChaneg}
                       onKeyLoading={this.handleLoadingChange}
@@ -355,7 +356,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                     </div>
                   </div>
                 ) : undefined}
-              </div>
+              </div>,
             ]
           : undefined}
       </div>

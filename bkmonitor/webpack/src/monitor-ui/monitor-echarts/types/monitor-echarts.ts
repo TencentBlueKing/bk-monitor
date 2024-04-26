@@ -23,18 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
 import { BarChart, LineChart, MapChart, PieChart } from 'echarts/charts';
-import type {
-  DatasetComponentOption,
-  GridComponentOption,
-  LegendComponentOption,
-  MarkAreaComponentOption,
-  MarkLineComponentOption,
-  TitleComponentOption,
-  ToolboxComponentOption,
-  TooltipComponentOption
-} from 'echarts/components';
 import {
   GeoComponent,
   GraphicComponent,
@@ -45,24 +34,36 @@ import {
   MarkPointComponent,
   TitleComponent,
   ToolboxComponent,
-  TooltipComponent
+  TooltipComponent,
 } from 'echarts/components';
-import type { ComposeOption } from 'echarts/core';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 
+import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
+import type {
+  DatasetComponentOption,
+  GridComponentOption,
+  LegendComponentOption,
+  MarkAreaComponentOption,
+  MarkLineComponentOption,
+  TitleComponentOption,
+  ToolboxComponentOption,
+  TooltipComponentOption,
+} from 'echarts/components';
+import type { ComposeOption } from 'echarts/core';
+
 export type MonitorEchartOptions = ComposeOption<
   | BarSeriesOption
-  | LineSeriesOption
-  | PieSeriesOption
-  | TitleComponentOption
-  | TooltipComponentOption
   | DatasetComponentOption
   | GridComponentOption
-  | ToolboxComponentOption
   | LegendComponentOption
+  | LineSeriesOption
   | MarkAreaComponentOption
   | MarkLineComponentOption
+  | PieSeriesOption
+  | TitleComponentOption
+  | ToolboxComponentOption
+  | TooltipComponentOption
 >;
 export type MonitorEchartSeries = ComposeOption<BarSeriesOption | LineSeriesOption | PieSeriesOption>;
 echarts.use([
@@ -80,7 +81,7 @@ echarts.use([
   MarkLineComponent,
   MarkPointComponent,
   GraphicComponent,
-  GeoComponent
+  GeoComponent,
 ]);
 
 export { echarts };

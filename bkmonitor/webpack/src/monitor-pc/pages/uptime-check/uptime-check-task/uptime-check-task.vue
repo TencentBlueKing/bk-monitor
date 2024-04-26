@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="uptime-task"
     v-monitor-loading="{ isLoading: allLoading }"
+    class="uptime-task"
   >
     <uptime-check-empty
       v-if="(!allData.length && !group.data.length) || !hasNode"
@@ -38,23 +38,23 @@
     <template v-else>
       <div class="uptime-task-header">
         <bk-button
+          v-authority="{ active: !authority.MANAGE_AUTH }"
           theme="primary"
           class="search-item mc-btn-add"
-          v-authority="{ active: !authority.MANAGE_AUTH }"
           @click="authority.MANAGE_AUTH ? handleCreateTask() : handleShowAuthorityDetail()"
         >
           {{ $t('新建') }}
         </bk-button>
         <bk-button
-          class="search-item mc-btn-add"
           v-authority="{ active: !authority.MANAGE_AUTH }"
+          class="search-item mc-btn-add"
           @click="authority.MANAGE_AUTH ? handleCreateTaskGroup() : handleShowAuthorityDetail()"
         >
           {{ $t('新建任务组') }}
         </bk-button>
         <bk-button
-          class="search-item"
           v-authority="{ active: !authority.MANAGE_AUTH }"
+          class="search-item"
           @click="authority.MANAGE_AUTH ? importFile() : handleShowAuthorityDetail()"
         >
           {{ $t('导入拨测任务') }}
@@ -64,8 +64,8 @@
           :placeholder="$t('任务名称')"
           right-icon="bk-icon icon-search"
           :value="header.keyword"
-          @change="handleSearch"
           clearable
+          @change="handleSearch"
         />
         <div class="search-switch">
           <span
@@ -83,8 +83,8 @@
       <div class="uptime-task-container">
         <keep-alive>
           <uptime-check-cards
-            ref="checkCards"
             v-if="!header.switch"
+            ref="checkCards"
             :group="group"
             @update-all="handleAllDataFetch"
             @detail-show="handleDetailShow"
@@ -96,9 +96,9 @@
           />
           <uptime-check-list
             v-else
+            :change-status="handleChangeGroupStatus"
             @update-all="handleAllDataFetch"
             @edit="handleEditTask"
-            :change-status="handleChangeGroupStatus"
             @detail-show="handleDetailShow"
           />
         </keep-alive>
@@ -111,8 +111,8 @@
   </div>
 </template>
 <script>
-import { createNamespacedHelpers } from 'vuex';
 import { debounce } from 'throttle-debounce';
+import { createNamespacedHelpers } from 'vuex';
 
 import UptimeCheckCards from './uptime-check-card/uptime-check-cards.vue';
 import UptimeCheckEmpty from './uptime-check-empty/uptime-check-empty';
@@ -126,49 +126,49 @@ export default {
     UptimeCheckEmpty,
     UptimeCheckCards,
     UptimeCheckList,
-    UptimeCheckImport
+    UptimeCheckImport,
   },
   inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
     fromRouteName: {
       type: String,
-      required: true
+      required: true,
     },
     nodeName: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   data() {
     return {
       hasNode: false,
       header: {
         switch: 0,
-        keyword: ''
+        keyword: '',
       },
       group: {
         data: [],
         expand: false,
-        loading: false
+        loading: false,
       },
       table: {
         data: [],
-        row: null
+        row: null,
       },
       detail: {
         groupId: -1,
-        groupLimit: false
+        groupLimit: false,
       },
       options: {
-        isShow: false
+        isShow: false,
       },
       allLoading: false,
       handleSearch: null,
-      taskDetail: null
+      taskDetail: null,
     };
   },
   computed: {
-    ...mapGetters(['allData', 'keyword', 'searchData'])
+    ...mapGetters(['allData', 'keyword', 'searchData']),
   },
   activated() {
     this.handleRouteEnter();
@@ -177,7 +177,7 @@ export default {
   deactivated() {
     this.detail = {
       groupId: -1,
-      groupLimit: false
+      groupLimit: false,
     };
   },
   methods: {
@@ -203,7 +203,7 @@ export default {
           show: false,
           tasks: [],
           name: '',
-          id: ''
+          id: '',
         };
       }
       this.hasNode = data.has_node;
@@ -223,8 +223,8 @@ export default {
         name: 'uptime-check-task-edit',
         params: {
           id: task.id,
-          bizId: task.bk_biz_id
-        }
+          bizId: task.bk_biz_id,
+        },
       });
     },
     handleAllDataFetch() {
@@ -239,8 +239,8 @@ export default {
         name: groupLimit && groupId ? 'uptime-check-group-detail' : 'uptime-check-task-detail',
         params: {
           taskId: item.id,
-          groupId: groupLimit && groupId ? groupId : 0
-        }
+          groupId: groupLimit && groupId ? groupId : 0,
+        },
       });
     },
     handleTaskDetail(v) {
@@ -255,7 +255,7 @@ export default {
         params = {
           keyword,
           groupDetail: show,
-          tasks
+          tasks,
         };
       }
       this.setKeyword(params);
@@ -272,7 +272,7 @@ export default {
     },
     handleCreateNode() {
       this.$router.push({
-        name: 'uptime-check-node-add'
+        name: 'uptime-check-node-add',
       });
     },
     handleChangeGroupStatus() {
@@ -288,20 +288,20 @@ export default {
     },
     handleCreateTask() {
       const params = {
-        title: this.$t('新建拨测任务')
+        title: this.$t('新建拨测任务'),
       };
       if (!this.header.switch && this.$refs.checkCards && this.$refs.checkCards._data.taskDetail.name) {
         params.groupName = this.$refs.checkCards._data.taskDetail.name;
       }
       this.$router.push({
         name: 'uptime-check-task-add',
-        params
+        params,
       });
     },
     handleCreateTaskGroup() {
       this.$bus.$emit('handle-create-task-group');
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

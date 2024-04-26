@@ -99,5 +99,5 @@ export default {
   基于范围进行屏蔽: 'Mute by Range',
   主机智能异常检测结果: 'Host intelligent abnormal detection results',
   耗时区间: 'Time-consuming interval',
-  异常事件: 'Events'
+  异常事件: 'Events',
 };
