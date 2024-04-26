@@ -16,7 +16,7 @@ from typing import Any, List
 
 from graphviz import Digraph
 
-from apm_web.profile.constants import CallGraphResponseDataMode
+from apm_web.profile.constants import CallGraph, CallGraphResponseDataMode
 from apm_web.profile.converter import Converter
 from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
 
@@ -149,19 +149,14 @@ def generate_svg_data(tree: FunctionTree, data: dict):
     return data
 
 
-max_size = 2
-base_size = 0.5
-min_size = 0.2
-
-
 def calculate_node_size(percentage):
     """根据百分比计算节点大小"""
 
     percentage = max(0, min(1, percentage))
 
-    node_size = base_size + percentage * (max_size - min_size)
+    node_size = CallGraph.BASE_SIZE + percentage * (CallGraph.MAX_SIZE - CallGraph.MIN_SIZE)
 
-    return node_size, base_size
+    return node_size, CallGraph.BASE_SIZE
 
 
 def display_time(timestamp_microseconds):
