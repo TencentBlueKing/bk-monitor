@@ -26,13 +26,13 @@
 
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { transferCountSeries, transferLatestMsg } from 'monitor-api/modules/datalink';
 import { copyText } from 'monitor-common/utils/utils';
 
 import MonacoEditor from '../../../../components/editors/monaco-editor.vue';
 import { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-
 import LinkStatusChart from './link-status-chart';
 
 import './link-status.scss';
@@ -57,12 +57,12 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
   minuteChartConfig: ChartConfigModel = {
     timeRange: ['now-1h', 'now'],
-    data: []
+    data: [],
   };
 
   hourChartConfig: ChartConfigModel = {
     timeRange: ['now-6h', 'now'],
-    data: []
+    data: [],
   };
 
   tableList = [];
@@ -70,7 +70,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
   sideslider = {
     isShow: false,
-    data: ''
+    data: '',
   };
 
   @Watch('show')
@@ -84,7 +84,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     }
   }
 
-  handleTimeRange(val, type: 'minute' | 'hour') {
+  handleTimeRange(val, type: 'hour' | 'minute') {
     if (type === 'minute') {
       this.minuteChartConfig.timeRange = val;
     } else {
@@ -92,7 +92,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     }
   }
 
-  async getChartData(type: 'minute' | 'hour') {
+  async getChartData(type: 'hour' | 'minute') {
     const [startTime, endTime] = handleTransformToTimestamp(
       type === 'minute' ? this.minuteChartConfig.timeRange : this.hourChartConfig.timeRange
     );
@@ -100,7 +100,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
       collect_config_id: this.collectId,
       interval_option: type,
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     }).catch(() => [{ datapoints: [] }]);
     if (res.length) {
       if (type === 'minute') {
@@ -114,7 +114,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   async getTableData() {
     this.tableLoading = true;
     const res = await transferLatestMsg({
-      collect_config_id: this.collectId
+      collect_config_id: this.collectId,
     }).catch(() => []);
     this.tableList = res;
     this.tableLoading = false;
@@ -128,13 +128,13 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -155,20 +155,20 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
           <div class='chart-container'>
             <LinkStatusChart
               ref='minuteChartRef'
-              type='minute'
-              timeRange={this.minuteChartConfig.timeRange}
               data={this.minuteChartConfig.data}
               getChartData={() => this.getChartData('minute')}
+              timeRange={this.minuteChartConfig.timeRange}
+              type='minute'
               onTimeRangeChange={val => this.handleTimeRange(val, 'minute')}
             />
           </div>
           <div class='chart-container'>
             <LinkStatusChart
               ref='dayChartRef'
-              type='hour'
-              timeRange={this.hourChartConfig.timeRange}
               data={this.hourChartConfig.data}
               getChartData={() => this.getChartData('hour')}
+              timeRange={this.hourChartConfig.timeRange}
+              type='hour'
               onTimeRangeChange={val => this.handleTimeRange(val, 'hour')}
             />
           </div>
@@ -188,15 +188,15 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
           <div class='table-content'>
             <bk-table
               class='data-sample-table'
-              data={this.tableList}
-              outer-border={false}
-              header-border={false}
               v-bkloading={{ isLoading: this.tableLoading }}
+              data={this.tableList}
+              header-border={false}
+              outer-border={false}
             >
               <bk-table-column
-                type='index'
-                label={this.$t('序号')}
                 width='120'
+                label={this.$t('序号')}
+                type='index'
               />
               <bk-table-column
                 label={this.$t('原始数据')}
@@ -204,12 +204,11 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                 show-overflow-tooltip
               />
               <bk-table-column
-                label={this.$t('采集时间')}
                 width='250'
+                label={this.$t('采集时间')}
                 prop='time'
               />
               <bk-table-column
-                label={this.$t('操作')}
                 width='175'
                 scopedSlots={{
                   default: ({ row }) => [
@@ -225,9 +224,10 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                       onClick={() => this.handleViewData(row)}
                     >
                       {this.$t('查看上报数据')}
-                    </bk-button>
-                  ]
+                    </bk-button>,
+                  ],
                 }}
+                label={this.$t('操作')}
               ></bk-table-column>
             </bk-table>
           </div>
@@ -235,27 +235,27 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
         <bk-sideslider
           ext-cls='data-status-sideslider'
-          transfer={true}
           isShow={this.sideslider.isShow}
+          transfer={true}
           {...{ on: { 'update:isShow': v => (this.sideslider.isShow = v) } }}
-          quick-close={true}
           width={656}
+          quick-close={true}
           onHidden={this.handleHiddenSlider}
         >
           <div
-            slot='header'
             class='sideslider-title'
+            slot='header'
           >
             <span>{this.$t('上报日志详情')}</span>
             <bk-button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</bk-button>
           </div>
           <div slot='content'>
             <MonacoEditor
+              style='height: calc(100vh - 60px)'
               class='code-viewer'
               language='json'
-              value={this.sideslider.data}
               options={{ readOnly: true }}
-              style='height: calc(100vh - 60px)'
+              value={this.sideslider.data}
             ></MonacoEditor>
           </div>
         </bk-sideslider>

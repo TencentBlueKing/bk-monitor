@@ -24,16 +24,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
-/* eslint-disable camelcase */
+
 import { Component, Emit, Inject, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import {
   DEFAULT_MESSAGE_TMPL,
-  DEFAULT_TITLE_TMPL
+  DEFAULT_TITLE_TMPL,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { getConvergeFunction } from 'monitor-api/modules/action';
+import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { strategySnapshot } from 'monitor-api/modules/alert';
 import { listCalendar } from 'monitor-api/modules/calendar';
 import { getFunctions } from 'monitor-api/modules/grafana';
@@ -46,13 +47,14 @@ import {
   noticeVariableList,
   promqlToQueryConfig,
   queryConfigToPromql,
-  saveStrategyV2
+  saveStrategyV2,
 } from 'monitor-api/modules/strategies';
 import debouceDecorator from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 // import StrategyMetricSelector from './components/strategy-metric-selector';
-import { deepClone, getUrlParam, transformDataKey, typeTools } from 'monitor-common/utils/utils';
+import { deepClone, getUrlParam, random, transformDataKey, typeTools } from 'monitor-common/utils/utils';
 
+import { LETTERS } from '../../../common/constant';
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
@@ -64,7 +66,6 @@ import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
-
 import { actionConfigGroupList, IAllDefense, IValue as IAlarmItem } from './alarm-handling/alarm-handling';
 import AlarmHandlingList from './alarm-handling/alarm-handling-list';
 import BaseConfig, { IBaseConfig } from './base-config/base-config';
@@ -89,7 +90,7 @@ import {
   ISourceData,
   MetricDetail,
   MetricType,
-  strategyType
+  strategyType,
 } from './typings';
 
 import './strategy-config-set.scss';
@@ -100,16 +101,16 @@ const hostTargetFieldType = {
   TOPO: 'host_topo_node',
   INSTANCE: 'ip',
   SERVICE_TEMPLATE: 'host_service_template',
-  SET_TEMPLATE: 'host_set_template'
+  SET_TEMPLATE: 'host_set_template',
 };
 const serviceTargetFieldType = {
   TOPO: 'service_topo_node',
   SERVICE_TEMPLATE: 'service_service_template',
-  SET_TEMPLATE: 'service_set_template'
+  SET_TEMPLATE: 'service_set_template',
 };
 interface IStrategyConfigSetProps {
   fromRouteName: string;
-  id: string | number;
+  id: number | string;
 }
 
 interface IStrategyConfigSetEvent {
@@ -126,18 +127,17 @@ export interface IAlarmGroupList {
 /* data_source_label 为 prometheus 监控数据模式显示为source模式 */
 const PROMETHEUS = 'prometheus';
 
-const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 const DEFAULT_INTERVAL = 60; // 指标默认的周期单位：秒
 const DEFAULT_TIME_RANGE: ITimeRangeMultipleProps['value'] = DEFAULT_TIME_RANGES.map(timeRange => [
   `${timeRange[0]}:00`,
-  `${timeRange[1]}:59`
+  `${timeRange[1]}:59`,
 ]);
 
 Component.registerHooks(['beforeRouteLeave', 'beforeRouteEnter']);
 @Component
 export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStrategyConfigSetEvent> {
   // 策略Id
-  @Prop({ type: [String, Number] }) readonly id: string | number;
+  @Prop({ type: [String, Number] }) readonly id: number | string;
   // 来自route id
   @Prop({ type: String }) readonly fromRouteName: string;
 
@@ -150,26 +150,26 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /** 当前编辑的策略是否存在智能异常检测算法 */
   @ProvideReactive('editStrategyIntelligentDetectList') editStrategyIntelligentDetectList: string[] = [];
 
-  @Ref('judgingCondition') readonly judgingConditionEl: JudgingCondition;
-  @Ref('base-config') readonly baseConfigEl: BaseConfig;
-  @Ref('detection-rules') readonly detectionRulesEl: DetectionRules;
+  @Ref('judgingCondition') readonly judgingConditionEl: InstanceType<typeof JudgingCondition>;
+  @Ref('base-config') readonly baseConfigEl: InstanceType<typeof BaseConfig>;
+  @Ref('detection-rules') readonly detectionRulesEl: InstanceType<typeof DetectionRules>;
   // @Ref('alarmHandling') readonly alarmHandlingRef: AlarmHandling;
-  @Ref('noticeConfigNew') noticeConfigRef: NoticeConfigNew;
-  @Ref('alarmHandlingList') alarmHandlingListRef: AlarmHandlingList;
-  @Ref('noticeConfigPanel') noticeConfigPanelRef: GroupPanel;
+  @Ref('noticeConfigNew') noticeConfigRef: InstanceType<typeof NoticeConfigNew>;
+  @Ref('alarmHandlingList') alarmHandlingListRef: InstanceType<typeof AlarmHandlingList>;
+  @Ref('noticeConfigPanel') noticeConfigPanelRef: InstanceType<typeof GroupPanel>;
   @Ref() contentRef: HTMLElement;
-  @Ref('aiopsMonitorData') aiopsMonitorDataRef: AiopsMonitorData;
+  @Ref('aiopsMonitorData') aiopsMonitorDataRef: InstanceType<typeof AiopsMonitorData>;
 
   /** 导航面包屑 */
   routeList = [
     {
       id: 'strategy-config',
-      name: window.i18n.tc('策略配置')
+      name: window.i18n.tc('策略配置'),
     },
     {
       id: '',
-      name: 'loading...'
-    }
+      name: 'loading...',
+    },
   ];
   /* 面包屑 */
   navName = 'loading...';
@@ -177,12 +177,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   scenarioList: IScenarioItem[] = [];
   // 告警组
   alarmGroupList: IAlarmGroupList[] = [];
+  alarmGroupLoading = false;
 
-  strategyView: { rightWidth: string | number; range: number[]; show: boolean; isActive: boolean } = {
+  strategyView: { rightWidth: number | string; range: number[]; show: boolean; isActive: boolean } = {
     rightWidth: '33%',
     range: [300, 1200],
     show: true,
-    isActive: false
+    isActive: false,
   };
   // 基本信息数据
   baseConfig: IBaseConfig = {
@@ -191,7 +192,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     name: '',
     labels: [],
     isEnabled: true,
-    priority: null
+    priority: null,
   };
   // 检测规则数据
   detectionConfig: IDetectionConfig = {
@@ -199,7 +200,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     unitType: '', // 单位类型
     unitList: [],
     connector: 'and',
-    data: []
+    data: [],
   };
 
   /** 检测规则编辑时需要回填的数据 */
@@ -217,18 +218,18 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       checkWindow: 5,
       checkType: 'total',
       timeRanges: DEFAULT_TIME_RANGE,
-      calendars: []
+      calendars: [],
     },
     recoveryConfig: {
       // 恢复条件
-      checkWindow: 5
+      checkWindow: 5,
     },
     noDataConfig: {
       // 无数据告警
       continuous: 10,
       isEnabled: true,
       dimensions: [],
-      level: 2
+      level: 2,
     },
     noticeTemplate: {
       anomalyTemplate: `{{content.level}}
@@ -247,8 +248,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       triggerList: [],
       variateList: [],
       previewTemplate: false,
-      variateListShow: false
-    }
+      variateListShow: false,
+    },
   };
 
   // 防御动作列表
@@ -260,19 +261,19 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     signal: ['abnormal'], // 触发信号
     options: {
       converge_config: {
-        need_biz_converge: true // 告警风暴开关
+        need_biz_converge: true, // 告警风暴开关
       },
       exclude_notice_ways: {
         recovered: [],
         closed: [],
-        ack: []
+        ack: [],
       },
       noise_reduce_config: {
         is_enabled: false,
         count: 10,
-        dimensions: []
+        dimensions: [],
       },
-      chart_image_enabled: true // 告警通知模板是否附带图片的选项
+      chart_image_enabled: true, // 告警通知模板是否附带图片的选项
     },
     config: {
       // 高级配置
@@ -281,9 +282,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       template: [
         { signal: 'abnormal', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
         { signal: 'recovered', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
-        { signal: 'closed', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL }
-      ]
-    }
+        { signal: 'closed', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
+      ],
+    },
   };
   // 告警处理(新)
   actionsData: IAlarmItem[] = [];
@@ -306,7 +307,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     /* 语法报错 */
     promqlError: false,
     /* 报错信息 */
-    errorMsg: ''
+    errorMsg: '',
   };
   /* ui 转 promql 的报错信息 */
   metricDataErrorMsg = '';
@@ -337,7 +338,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     monitorType: '',
     show: false,
     key: '',
-    dataTypeLabel: ''
+    dataTypeLabel: '',
   };
   record: {
     data: Record<string, string>;
@@ -348,7 +349,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   strategyStatusMap = {
     UPDATED: i18n.t('（已修改）'),
     DELETED: i18n.t('（已删除）'),
-    UNCHANGED: ''
+    UNCHANGED: '',
   };
   strategyStatus = '';
 
@@ -374,6 +375,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   descriptionType = '';
   /* 是否为场景智能检测 */
   isMultivariateAnomalyDetection = false;
+  /* 场景智能检测视图参数 */
+  multivariateAnomalyDetectionParams = {
+    metrics: [],
+    refleshKey: '',
+  };
+  /* 是否开启场景智能检测功能 */
+  showMultivariateAnomalyDetection = false;
 
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
@@ -389,7 +397,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   get bizList(): ISpaceItem[] {
     return this.$store.getters.bizList;
   }
-  get bizId(): string | number {
+  get bizId(): number | string {
     return this.$store.getters.bizId;
   }
   get rightWidth() {
@@ -468,7 +476,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 提交按钮禁用提示状态 */
   get submitBtnTipDisabled() {
     if (this.isMultivariateAnomalyDetection) {
-      return false;
+      return true;
     }
     if (!this.editAllowed) {
       return false;
@@ -588,7 +596,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         scenarioId: getUrlParam('scenarioId'),
         indexStatement: getUrlParam('indexStatement'),
         condition,
-        dimension
+        dimension,
       };
     } else {
       try {
@@ -633,17 +641,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   if (field === 'data_source_label') {
                     return {
                       key: field,
-                      value: Array.isArray(item[field]) ? item[field] : [item[field]]
+                      value: Array.isArray(item[field]) ? item[field] : [item[field]],
                     };
                   }
                   return {
                     key: field,
-                    value: item[field] ?? ''
+                    value: item[field] ?? '',
                   };
                 })
                 .filter(set => set.key !== 'data_label' || set.value),
               search_value: '',
-              tag: ''
+              tag: '',
             })
               .then(({ metric_list: metricList }) => {
                 const curMetric = metricList.find(set => set.metric_field === item.metric_field);
@@ -657,7 +665,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   agg_interval: !item.interval || item.interval === 'auto' ? DEFAULT_INTERVAL : item.interval,
                   agg_method: item.method,
                   query_string: item.query_string || '',
-                  functions: item.functions
+                  functions: item.functions,
                 });
               })
               .catch(() => ({}));
@@ -696,7 +704,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       result_table_label: isOldLogSearch ? metric.scenarioId : metric.result_table_label,
       query_string: isOldLogSearch ? metric.indexStatement : metric.query_string,
       index_set_id: isOldLogSearch ? metric.indexSetId : metric.index_set_id,
-      targets: (metric.target || []).map(item => ({ ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id }))
+      targets: (metric.target || []).map(item => ({ ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id })),
     };
     const { metric_list: metricList } = await getMetricListV2({
       bk_biz_id: this.bizId,
@@ -708,10 +716,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         ? [{ key: 'index_set_id', value: data.index_set_id }]
         : metricFields.map(field => ({
             key: field,
-            value: data[field]
+            value: data[field],
           })),
       search_value: '',
-      tag: ''
+      tag: '',
     }).catch(() => ({}));
     if (metricList?.length) {
       const curMetric =
@@ -727,13 +735,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           alias: 'a',
           agg_condition: (data.agg_condition || []).map(item => ({
             ...item,
-            value: typeof item.value === 'string' ? item.value.split(',') : item.value
+            value: typeof item.value === 'string' ? item.value.split(',') : item.value,
           })),
           agg_dimension: data.agg_dimension || [],
           agg_interval: data.agg_interval || DEFAULT_INTERVAL,
           agg_method: data.agg_method,
-          query_string: data.query_string || ''
-        })
+          query_string: data.query_string || '',
+        }),
       ];
       this.handleDetectionRulesUnit();
     }
@@ -765,7 +773,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       name: '',
       labels: [],
       isEnabled: true,
-      priority: null
+      priority: null,
     };
 
     this.monitorDataEditMode = 'Edit';
@@ -775,7 +783,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       unitType: '',
       unitList: [],
       connector: 'and',
-      data: []
+      data: [],
     };
     // 检测回填数据
     this.detectionDataBackfill = [];
@@ -791,25 +799,25 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       signal: ['abnormal'], // 触发信号
       options: {
         converge_config: {
-          need_biz_converge: true // 告警风暴开关
+          need_biz_converge: true, // 告警风暴开关
         },
         exclude_notice_ways: {
           recovered: [],
           closed: [],
-          ack: []
+          ack: [],
         },
         noise_reduce_config: {
           is_enabled: false,
           count: 10,
-          dimensions: []
+          dimensions: [],
         },
         upgrade_config: {
           is_enabled: false,
           user_groups: [],
-          upgrade_interval: undefined
+          upgrade_interval: undefined,
         },
         assign_mode: ['by_rule', 'only_notice'],
-        chart_image_enabled: true
+        chart_image_enabled: true,
       },
       config: {
         interval_notify_mode: 'standard',
@@ -817,9 +825,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         template: [
           { signal: 'abnormal', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
           { signal: 'recovered', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
-          { signal: 'closed', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL }
-        ]
-      }
+          { signal: 'closed', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
+        ],
+      },
     };
     this.noticeConfigRef?.templateDataInit();
 
@@ -835,18 +843,18 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         checkWindow: 5,
         checkType: 'total',
         timeRanges: DEFAULT_TIME_RANGE,
-        calendars: []
+        calendars: [],
       },
       recoveryConfig: {
         // 恢复条件
-        checkWindow: 5
+        checkWindow: 5,
       },
       noDataConfig: {
         // 无数据告警
         continuous: 10,
         isEnabled: false,
         dimensions: [],
-        level: 2
+        level: 2,
       },
       noticeTemplate: {
         anomalyTemplate: `{{content.level}}
@@ -865,8 +873,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         triggerList: [],
         variateList: [],
         previewTemplate: false,
-        variateListShow: false
-      }
+        variateListShow: false,
+      },
     };
 
     // 指标数据
@@ -881,7 +889,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       id: null,
       monitorType: '',
       show: false,
-      isEdit: false
+      isEdit: false,
     };
     // 监控数据模式 converge: 汇聚 realtime: 实时
     this.dataMode = 'converge';
@@ -922,12 +930,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.strategyId = 0;
     this.editAllowed = true;
     this.isMultivariateAnomalyDetection = false;
+    /** 获取告警组接口太慢，不和其他接口一起请求 */
+    this.getAlarmGroupList();
     const promiseList = [];
     if (!this.scenarioList?.length) {
       promiseList.push(this.getScenarioList());
     }
+    promiseList.push(this.getShowMultivariateAnomalyDetection());
     promiseList.push(this.getDefenseList());
-    promiseList.push(this.getAlarmGroupList());
     promiseList.push(this.getActionConfigList());
     promiseList.push(this.getCalendarList());
     if (!SetMealAddStore.getMessageTemplateList.length) {
@@ -967,13 +977,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   async getCalendarList() {
     const params = {
       page: 1,
-      page_size: 1000
+      page_size: 1000,
     };
     const data = await listCalendar(params).catch(() => null);
     if (data) {
       this.calendarList = data.data.map(item => ({
         id: item.id,
-        name: item.name
+        name: item.name,
       }));
     }
     return data;
@@ -988,22 +998,33 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   // 获取套餐数据
   async getActionConfigList() {
     const data = await listActionConfig({
-      with_advance_fields: 'no'
+      with_advance_fields: 'no',
     }).catch(() => []);
     this.actionConfigList = data;
   }
 
+  // 获取是否展示是否开启场景智能检测功能数据
+  async getShowMultivariateAnomalyDetection() {
+    const data = await fetchAiSetting().catch(() => null);
+    this.showMultivariateAnomalyDetection = !!data?.multivariate_anomaly_detection?.host?.is_enabled;
+  }
+
   // 获取告警组数据
   getAlarmGroupList() {
-    return listUserGroup({ exclude_detail_info: 1 }).then(data => {
-      this.alarmGroupList = data.map(item => ({
-        id: item.id,
-        name: item.name,
-        needDuty: item.need_duty,
-        receiver:
-          item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || []
-      }));
-    });
+    this.alarmGroupLoading = true;
+    return listUserGroup({ exclude_detail_info: 1 })
+      .then(data => {
+        this.alarmGroupList = data.map(item => ({
+          id: item.id,
+          name: item.name,
+          needDuty: item.need_duty,
+          receiver:
+            item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || [],
+        }));
+      })
+      .finally(() => {
+        this.alarmGroupLoading = false;
+      });
   }
 
   // 获取监控对象数据
@@ -1063,7 +1084,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     await this.handleProcessData({
       ...strategyDetail,
-      targetDetail: { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList }
+      targetDetail: { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList },
     });
   }
 
@@ -1079,7 +1100,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           const temp = dimensionName || setCondition?.dimensionName || setCondition?.dimension_name;
           return temp || setCondition.key;
         })(),
-        value: typeof setCondition.value === 'string' ? setCondition.value.split(',') : setCondition.value
+        value: typeof setCondition.value === 'string' ? setCondition.value.split(',') : setCondition.value,
       }));
   }
   async handleProcessData(data) {
@@ -1089,7 +1110,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       name: this.isClone ? `${data.name}_copy` : data.name,
       labels: data.labels || [],
       isEnabled: data.is_enabled,
-      priority: data.priority || null
+      priority: data.priority || null,
     };
     const { triggerConfig, recoveryConfig, noDataConfig } = this.analyzingConditions;
     const {
@@ -1104,8 +1125,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           level = 1,
           connector = 'and',
           trigger_config: detectsTriggerConfig = triggerConfig,
-          recovery_config: detectsRecoveryConfig = recoveryConfig
-        } = { connector: 'and', level: 1 }
+          recovery_config: detectsRecoveryConfig = recoveryConfig,
+        } = { connector: 'and', level: 1 },
       ] = [],
       items: [
         {
@@ -1114,10 +1135,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           origin_sql: sourceCode,
           query_configs: queryConfigs,
           algorithms,
-          functions
-        }
+          functions,
+        },
       ],
-      metric_type
+      metric_type,
       // actions: [{ notice_template: template = noticeTemplate }]
     } = data;
     this.expression = (expression || '').toLocaleLowerCase();
@@ -1128,19 +1149,22 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       createUser,
       createTime,
       updateTime,
-      updateUser
+      updateUser,
     };
     this.defaultCheckedTarget = targetDetail || { target_detail: [] };
     this.target = targetDetail?.target_detail || [];
     /* 是否为场景智能检测 */
-    if (algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection) {
+    if (
+      algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection ||
+      algorithms?.[0]?.type === MetricType.HostAnomalyDetection
+    ) {
       const curMetricData = new MetricDetail({
         targetType: targetDetail?.node_type,
         objectType: targetDetail?.instance_type,
         sceneConfig: {
           algorithms,
-          query_configs: queryConfigs
-        }
+          query_configs: queryConfigs,
+        },
       } as any);
       this.metricData.push(curMetricData);
       this.isMultivariateAnomalyDetection = true;
@@ -1158,7 +1182,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         // page: 1,
         // page_size: queryConfigs.length,
         // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
-        conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }]
+        conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }],
       }).catch(() => ({}));
       this.metricData = queryConfigs.map(
         ({
@@ -1170,7 +1194,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           index_set_id,
           functions,
           intelligent_detect,
-          // eslint-disable-next-line camelcase
+
           metric_field,
           metric_id,
           agg_method,
@@ -1180,9 +1204,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           alias,
           query_string,
           custom_event_name,
-          bkmonitor_strategy_id
+          bkmonitor_strategy_id,
         }) => {
-          // eslint-disable-next-line camelcase
           const curMetric = metricList?.find(set => set.metric_id === metric_id) || {
             data_source_label,
             data_type_label,
@@ -1196,9 +1219,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             query_string,
             custom_event_name,
             bkmonitor_strategy_id,
-            dimensions: []
+            dimensions: [],
           };
-          // eslint-disable-next-line camelcase
+
           this.dataMode =
             agg_method === 'REAL_TIME' || (data_type_label === 'event' && data_source_label === 'bk_monitor')
               ? 'realtime'
@@ -1221,14 +1244,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             functions: functions || [],
             intelligent_detect,
             metric_type,
-            logMetricList: metricList
+            logMetricList: metricList,
           });
         }
       );
       /* 当前选择器类型 */
       this.metricSelector.dataTypeLabel = this.metricData[0].data_type_label;
     }
-    /* eslint-disable camelcase */
+
     const triggerConfigData = detectsTriggerConfig;
     const recoveryConfigData = detectsRecoveryConfig;
     const noDataConfigData = dataConfig;
@@ -1236,7 +1259,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     triggerConfig.count = triggerConfigData.count || 0;
     triggerConfig.checkWindow = triggerConfigData.check_window || 0;
     triggerConfig.calendars = triggerConfigData.uptime?.calendars || [];
-    // eslint-disable-next-line max-len
+
     triggerConfig.timeRanges =
       triggerConfigData.uptime?.time_ranges?.map?.(timeRange => [`${timeRange.start}:00`, `${timeRange.end}:59`]) ||
       DEFAULT_TIME_RANGE;
@@ -1263,9 +1286,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         options: {
           converge_config: {
             ...item.options.converge_config,
-            timedelta: item.options.converge_config.timedelta / 60
-          }
-        }
+            timedelta: item.options.converge_config.timedelta / 60,
+          },
+        },
       }));
     } else {
       this.isActionEnabled = false;
@@ -1279,7 +1302,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           : pre,
       []
     );
-    // eslint-disable-next-line max-len
+
     const isDimensionsAll = legalDimensionList.every(item =>
       (notice.options?.noise_reduce_config?.dimensions || []).includes(item.id)
     );
@@ -1287,39 +1310,39 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       ...notice,
       config: {
         ...notice.config,
-        notify_interval: notice.config.notify_interval / 60
+        notify_interval: notice.config.notify_interval / 60,
       },
       options: {
         converge_config: {
-          need_biz_converge: notice.options.converge_config.need_biz_converge
+          need_biz_converge: notice.options.converge_config.need_biz_converge,
         },
         exclude_notice_ways: {
           recovered: notice.options?.exclude_notice_ways?.recovered || [],
           closed: notice.options?.exclude_notice_ways?.closed || [],
-          ack: notice.options?.exclude_notice_ways?.ack || []
+          ack: notice.options?.exclude_notice_ways?.ack || [],
         },
         noise_reduce_config: {
           dimensions: isDimensionsAll ? ['all'] : notice.options?.noise_reduce_config?.dimensions || [],
           is_enabled: notice.options?.noise_reduce_config?.is_enabled || false,
-          count: notice.options?.noise_reduce_config?.count || 10
+          count: notice.options?.noise_reduce_config?.count || 10,
         },
         upgrade_config: {
           is_enabled: notice.options?.upgrade_config?.is_enabled || false,
           user_groups: notice.options?.upgrade_config?.user_groups || [],
-          upgrade_interval: notice.options?.upgrade_config?.upgrade_interval || undefined
+          upgrade_interval: notice.options?.upgrade_config?.upgrade_interval || undefined,
         },
         assign_mode: notice.options?.assign_mode || [],
-        chart_image_enabled: !!notice.options?.chart_image_enabled
+        chart_image_enabled: !!notice.options?.chart_image_enabled,
       },
-      user_groups: notice.user_groups.filter(u => ['string', 'number'].includes(typeof u))
+      user_groups: notice.user_groups.filter(u => ['string', 'number'].includes(typeof u)),
     };
     // 检测算法数据回显
     this.handleDetectionRulesUnit();
-    // eslint-disable-next-line
+
     this.detectionConfig.data = algorithms.map(({ unit_prefix, ...item }) => this.displayDetectionRulesConfig(item));
     this.detectionDataBackfill = deepClone(this.detectionConfig.data);
     this.detectionConfig.connector = connector;
-    this.detectionConfig.unit = algorithms?.[0]?.unit_prefix || ''; // eslint-disable-line
+    this.detectionConfig.unit = algorithms?.[0]?.unit_prefix || '';
     this.metricSelector.type = metric_type || MetricType.TimeSeries;
   }
   // 检测算法回显空数据转换
@@ -1327,7 +1350,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const { config } = item;
     if (item.type === 'IntelligentDetect' && !config.anomaly_detect_direct) config.anomaly_detect_direct = 'all';
     // 如果服务端没有返回 fetch_type 数据，这里将提供一个默认的数值。（向前兼容）
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+
     if (['AdvancedRingRatio', 'AdvancedYearRound'].includes(item.type) && !config.fetch_type) config.fetch_type = 'avg';
     const isArray = typeTools.isArray(config);
     if (isArray) return item;
@@ -1375,7 +1398,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const nullMetric = new MetricDetail({
       metric_id: '',
       alias: LETTERS[this.metricData.length],
-      data_type_label: this.metricSelector.dataTypeLabel
+      data_type_label: this.metricSelector.dataTypeLabel,
     } as any);
     this.metricData.push(nullMetric);
   }
@@ -1534,6 +1557,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   handleTargetChange(target) {
     this.target = target;
     this.defaultCheckedTarget.target_detail = target;
+    if (this.isMultivariateAnomalyDetection) {
+      /* refleshKey用于控制图表数据刷新 */
+      this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+    }
   }
 
   handleMouseDown(e) {
@@ -1576,7 +1603,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         this.$bkMessage({
           message: this.$t('promql不能为空'),
           theme: 'error',
-          delay: 3000
+          delay: 3000,
         });
         validate = false;
       }
@@ -1584,7 +1611,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         this.$bkMessage({
           message: this.$t('Step需填写合法的整数值'),
           theme: 'error',
-          delay: 3000
+          delay: 3000,
         });
         validate = false;
       }
@@ -1604,7 +1631,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         this.$bkMessage({
           message: this.$t('多指标维度选择必须是相互包含关系'),
           theme: 'error',
-          delay: 3000
+          delay: 3000,
         });
       }
     }
@@ -1614,7 +1641,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.$bkMessage({
         message: this.$t('关联告警需至少选择2个告警进行管理'),
         theme: 'error',
-        delay: 3000
+        delay: 3000,
       });
     }
     if (
@@ -1626,7 +1653,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.$bkMessage({
         message: this.$t('索引集非COUNT汇聚方法需要选择一个指标'),
         theme: 'error',
-        delay: 3000
+        delay: 3000,
       });
     }
     const promiseList = [];
@@ -1664,7 +1691,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         is_enabled: noDataConfig.isEnabled, // 是否启用无数据告警
         agg_dimension:
           this.monitorDataEditMode === 'Source' ? this.judgingConditionEl.promqlDimensions : noDataConfig.dimensions, // 无数据检测维度
-        level: noDataConfig.level // 无数据告警级别
+        level: noDataConfig.level, // 无数据告警级别
       };
       if (this.isMultivariateAnomalyDetection) {
         const curMetricData = this.metricData[0] as IMetricDetail;
@@ -1676,7 +1703,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           functions: [],
           origin_sql: '',
           query_configs: curMetricData.sceneConfig.query_configs,
-          algorithms: curMetricData.sceneConfig.algorithms
+          algorithms: curMetricData.sceneConfig.algorithms,
         });
       } else {
         itemsParams.push({
@@ -1689,17 +1716,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               this.monitorDataEditMode === 'Source'
                 ? this.judgingConditionEl.promqlDimensions
                 : noDataConfig.dimensions, // 无数据检测维度
-            level: noDataConfig.level // 无数据告警级别
+            level: noDataConfig.level, // 无数据告警级别
           },
           target: this.handleGetTargetParams(), // 监控目标
-          expression: this.expression?.toLocaleLowerCase?.() || 'a', // 表达式
+          expression: this.expression?.toLocaleLowerCase?.() || LETTERS.at(0), // 表达式
           functions: this.localExpFunctions, // 表达式函数
           origin_sql: this.sourceData.sourceCode, // source
           // 指标信息
           query_configs:
             this.monitorDataEditMode === 'Source' ? this.handlePromsqlQueryConfig() : this.handleQueryConfig(),
           // 检测算法
-          algorithms: this.getAlgorithmList(this.metricData[0])
+          algorithms: this.getAlgorithmList(this.metricData[0]),
         });
       }
       // 当 input 手动清空时 priority 为 空串，不符合后端的类型，这里做一次调整或转换。
@@ -1723,17 +1750,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               'converge_func' in item.options.converge_config
                 ? {
                     ...item.options.converge_config,
-                    timedelta: item.options.converge_config.timedelta * 60
+                    timedelta: item.options.converge_config.timedelta * 60,
                   }
-                : { is_enabled: false }
-          }
+                : { is_enabled: false },
+          },
         })),
         // 通知设置
         notice: {
           ...this.noticeData,
           config: {
             ...this.noticeData.config,
-            notify_interval: this.noticeData.config.notify_interval * 60
+            notify_interval: this.noticeData.config.notify_interval * 60,
           },
           options: {
             ...this.noticeData.options,
@@ -1745,22 +1772,22 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   : false,
               dimensions: this.noticeData.options.noise_reduce_config.dimensions.includes('all')
                 ? this.legalDimensionList.map(l => l.id)
-                : this.noticeData.options.noise_reduce_config.dimensions
-            }
+                : this.noticeData.options.noise_reduce_config.dimensions,
+            },
           },
-          user_groups: this.noticeData.user_groups.filter(u => ['string', 'number'].includes(typeof u))
+          user_groups: this.noticeData.user_groups.filter(u => ['string', 'number'].includes(typeof u)),
         },
-        metric_type: this.metricSelector.type || this.selectMetricData?.[0]?.metric_type || MetricType.TimeSeries
+        metric_type: this.metricSelector.type || this.selectMetricData?.[0]?.metric_type || MetricType.TimeSeries,
       };
       this.loading = true;
-      // eslint-disable-next-line max-len
+
       await saveStrategyV2(
         transformDataKey(Object.assign(params, this.id && !this.isClone ? { id: this.id } : {}), true)
       )
         .then(() => {
           this.$bkMessage({
             theme: 'success',
-            message: this.id && !this.isClone ? this.$t('编辑策略成功') : this.$t('创建策略成功')
+            message: this.id && !this.isClone ? this.$t('编辑策略成功') : this.$t('创建策略成功'),
           });
           this.$emit('save');
         })
@@ -1776,14 +1803,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /**
    * @description: 处理query_config提交参数
    */
-  handleQueryConfig(type: 'sumbit' | 'promsql' = 'sumbit') {
+  handleQueryConfig(type: 'promsql' | 'sumbit' = 'sumbit') {
     const hasIntelligentDetect = this.detectionConfig?.data?.some(item => item.type === 'IntelligentDetect');
     return this.selectMetricData.map(item => {
       const common = {
         data_label: item.curRealMetric?.data_label || item.data_label,
         data_source_label: item.curRealMetric?.data_source_label || item.data_source_label,
         data_type_label: item.curRealMetric?.data_type_label || item.data_type_label,
-        alias: item.alias?.toLocaleLowerCase?.() || 'a', // 表达式上对应的别名
+        alias: item.alias?.toLocaleLowerCase?.() || LETTERS.at(0), // 表达式上对应的别名
         result_table_id: item.curRealMetric?.result_table_id || item.result_table_id || '',
         agg_method: this.dataMode === 'realtime' ? 'REAL_TIME' : item.agg_method,
         agg_interval: item.agg_interval,
@@ -1791,7 +1818,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         agg_condition: item.agg_condition.filter(item => item.key && item.value?.length),
         metric_field: item.curRealMetric?.metric_field || item.metric_field,
         unit: this.detectionConfig.unit ? item.unit : '',
-        metric_id: item.metric_id
+        metric_id: item.metric_id,
       };
 
       !common.data_label && delete common.data_label;
@@ -1805,11 +1832,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         intelligent_detect: this.id && hasIntelligentDetect ? item.intelligent_detect : undefined,
         time_field: (hasIntelligentDetect ? 'dtEventTimeStamp' : item.time_field) || 'time',
         bkmonitor_strategy_id: item.metric_field || item.bkmonitor_strategy_id,
-        alert_name: item.metric_field
+        alert_name: item.metric_field,
       };
       // promsql所需参数
       const promsql = {
-        functions: item.functions
+        functions: item.functions,
       };
 
       const result = Object.assign(common, type === 'sumbit' ? submit : promsql);
@@ -1825,8 +1852,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         data_type_label: 'time_series',
         promql: this.sourceData.sourceCode,
         agg_interval: this.sourceData.step,
-        alias: 'a'
-      }
+        alias: 'a',
+      },
     ];
   }
 
@@ -1837,7 +1864,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (this.monitorDataEditMode === 'Source') {
       return this.baseConfig.name;
     }
-    const exp = this.expression || 'a';
+    const exp = this.expression || LETTERS.at(0);
     const name = exp.replace(/[a-zA-z]/g, (subStr: string) => {
       const { agg_method = '', metric_field_name = '' } =
         this.metricData.find(item => subStr?.toLocaleLowerCase() === item.alias?.toLocaleLowerCase()) || {};
@@ -1859,7 +1886,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         level: item.level,
         type: '',
         config: [],
-        unit_prefix: ''
+        unit_prefix: '',
       });
     } else {
       algorithmList = this.detectionConfig.data.map(({ level, type, config }) => ({
@@ -1871,7 +1898,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             return '';
           }
           return this.needShowUnit ? this.detectionConfig.unit : '';
-        })()
+        })(),
       }));
     }
     return algorithmList;
@@ -1925,17 +1952,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           // 生效时间段
           time_ranges: triggerConfig.timeRanges.map(item => ({
             start: item[0].replace(/:\d{2}$/, ''),
-            end: item[1].replace(/:\d{2}$/, '')
-          }))
-        }
+            end: item[1].replace(/:\d{2}$/, ''),
+          })),
+        },
       },
       // 恢复配置
       recovery_config: {
         // 恢复周期
-        check_window: recoveryConfig.checkWindow
+        check_window: recoveryConfig.checkWindow,
       },
       // 算法连接符
-      connector
+      connector,
     }));
     return detects;
   }
@@ -1956,9 +1983,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               {
                 field,
                 method: 'eq',
-                value: this.handleCheckedData(metricItem.targetType, this.target)
-              }
-            ]
+                value: this.handleCheckedData(metricItem.targetType, this.target),
+              },
+            ],
           ]
         : [];
     }
@@ -1973,14 +2000,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           ip: item.ip,
           bk_cloud_id: item.bk_cloud_id,
           bk_host_id: item.bk_host_id,
-          bk_supplier_id: item.bk_supplier_id
+          bk_supplier_id: item.bk_supplier_id,
         });
       });
     } else {
       data.forEach(item => {
         checkedData.push({
           bk_inst_id: item.bk_inst_id,
-          bk_obj_id: item.bk_obj_id
+          bk_obj_id: item.bk_obj_id,
         });
       });
     }
@@ -2023,7 +2050,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       sourceCode: '',
       errorMsg: '',
       promqlError: false,
-      sourceCodeCache: ''
+      sourceCodeCache: '',
     };
     this.monitorDataEditMode = 'Edit';
     this.isMultivariateAnomalyDetection = false;
@@ -2041,8 +2068,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.$router.push({
       name: 'strategy-config-edit',
       params: {
-        id: String(this.strategyId || this.id)
-      }
+        id: String(this.strategyId || this.id),
+      },
     });
   }
   // 获取策略模板变量列表
@@ -2162,7 +2189,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.monitorDataLoading = true;
     const params = {
       promql: this.sourceData.sourceCode,
-      step: this.sourceData.step
+      step: this.sourceData.step,
     };
     const res = await promqlToQueryConfig('', params, { needMessage: false })
       .then(res => {
@@ -2181,14 +2208,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     const targetRes = res || {
       expression: 'a',
-      query_configs: this.metricData
+      query_configs: this.metricData,
     };
-    this.expression = targetRes.expression || 'a';
+    this.expression = targetRes.expression || LETTERS.at(0);
     this.sourceData.sourceCodeCache = this.sourceData.sourceCode;
     const { metric_list: metricList = [] } = await getMetricListV2({
       // page: 1,
       // page_size: res.query_configs.length,
-      conditions: [{ key: 'metric_id', value: targetRes.query_configs.map(item => item.metric_id) }]
+      conditions: [{ key: 'metric_id', value: targetRes.query_configs.map(item => item.metric_id) }],
     }).catch(() => {
       this.monitorDataLoading = false;
       return {};
@@ -2204,7 +2231,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           result_table_label_name: item.data_source_label,
           related_name: resultTableIdList[0],
           result_table_name: resultTableIdList[1],
-          data_label: item.data_label
+          data_label: item.data_label,
         };
         if (!!this.targetType) {
           curMetric.targetType = this.targetType;
@@ -2216,7 +2243,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           agg_dimension: item.agg_dimension,
           agg_interval: item.agg_interval,
           alias: item.alias?.toLocaleLowerCase?.(),
-          functions: item.functions || []
+          functions: item.functions || [],
         });
       });
     } else {
@@ -2238,7 +2265,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       //     agg_condition: item.agg_condition,
       //     agg_dimension: item.agg_dimension,
       //     agg_interval: item.agg_interval,
-      //     alias: item.alias?.toLocaleLowerCase?.() || 'a',
+      //     alias: item.alias?.toLocaleLowerCase?.() || LETTERS.at(0),
       //     functions: item.functions || []
       //   }));
       // }
@@ -2260,7 +2287,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const param = {
       query_config_format: 'strategy',
       expression: this.expression?.toLocaleLowerCase?.(),
-      query_configs: this.handleQueryConfig('promsql')
+      query_configs: this.handleQueryConfig('promsql'),
     };
     const res = await queryConfigToPromql('', param, { needMessage: false })
       .catch(err => {
@@ -2398,16 +2425,25 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.metricData = [
         new MetricDetail({
           ...this.metricData[0],
-          sceneConfig
-        })
+          sceneConfig,
+        }),
       ];
     } else {
       this.metricData = [
         new MetricDetail({
-          sceneConfig
-        } as any)
+          sceneConfig,
+        } as any),
       ];
     }
+  }
+  /**
+   * @description 场景智能检测指标变化
+   * @param metrics
+   */
+  handleSceneConfigMetricChange(metrics) {
+    this.multivariateAnomalyDetectionParams.metrics = metrics;
+    /* refleshKey用于控制图表数据刷新 */
+    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
   }
 
   metricDataContent() {
@@ -2417,52 +2453,55 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         <AiopsMonitorData
           ref='aiopsMonitorData'
           defaultCheckedTarget={this.defaultCheckedTarget}
+          defaultScenario={this.baseConfig.scenario}
+          isEdit={this.isEdit}
           metricData={this.metricData as any}
+          scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
-          onTargetTypeChange={this.handleTargetTypeChange}
+          onMetricChange={this.handleSceneConfigMetricChange}
           onTargetChange={this.handleTargetChange}
         ></AiopsMonitorData>
       );
     }
     return (
       <MonitorData
-        readonly={this.isDetailMode}
         dataMode={this.dataMode}
-        metricData={this.metricData}
-        source={this.sourceData.sourceCode}
-        expression={this.expression}
-        expFunctions={this.localExpFunctions}
-        defaultCheckedTarget={this.defaultCheckedTarget}
-        hasAIntelligentDetect={this.hasAIntelligentDetect}
-        loading={this.monitorDataLoading}
-        editMode={this.monitorDataEditMode}
-        promqlError={this.sourceData.promqlError}
         dataTypeLabel={this.metricSelector.dataTypeLabel}
-        sourceStep={this.sourceData.step}
-        hasAiOpsDetect={this.hasAiOpsDetect}
+        defaultCheckedTarget={this.defaultCheckedTarget}
+        editMode={this.monitorDataEditMode}
         errMsg={this.errMsg}
-        onMethodChange={this.handleDetectionRulesUnit}
-        onFunctionChange={this.handleDetectionRulesUnit}
-        onModeChange={this.handleModeChange}
-        onExpressionChange={this.handleExpressionChange}
-        onExpressionBlur={this.handleExpressionBlur}
-        onExpFunctionsChange={this.handleExpFunctionsChange}
-        onSourceChange={this.handleSourceChange}
-        onTargetChange={this.handleTargetChange}
-        onDelete={this.handleDeleteMetric}
+        expFunctions={this.localExpFunctions}
+        expression={this.expression}
+        hasAIntelligentDetect={this.hasAIntelligentDetect}
+        hasAiOpsDetect={this.hasAiOpsDetect}
+        loading={this.monitorDataLoading}
+        metricData={this.metricData}
+        promqlError={this.sourceData.promqlError}
+        readonly={this.isDetailMode}
+        source={this.sourceData.sourceCode}
+        sourceStep={this.sourceData.step}
         onAddMetric={this.handleShowMetricContinue}
         onAddNullMetric={this.handleAddNullMetric}
-        onTargetTypeChange={this.handleTargetTypeChange}
-        onPromqlEnter={hasError => this.handlePromqlError(hasError, 'enter')}
+        onDelete={this.handleDeleteMetric}
+        onEditModeChange={this.handleEditModeChange}
+        onExpFunctionsChange={this.handleExpFunctionsChange}
+        onExpressionBlur={this.handleExpressionBlur}
+        onExpressionChange={this.handleExpressionChange}
+        onFunctionChange={this.handleDetectionRulesUnit}
+        onMethodChange={this.handleDetectionRulesUnit}
+        onModeChange={this.handleModeChange}
         onPromqlBlur={hasError => this.handlePromqlError(hasError, 'blur')}
+        onPromqlEnter={hasError => this.handlePromqlError(hasError, 'enter')}
         onPromqlFocus={() => {
           this.sourceData.promqlError = false;
           this.sourceData.errorMsg = '';
         }}
-        onclearErr={() => (this.metricDataErrorMsg = '')}
-        onEditModeChange={this.handleEditModeChange}
         onShowExpress={this.handleShowExpress}
         onSouceStepChange={this.handleSourceStepChange}
+        onSourceChange={this.handleSourceChange}
+        onTargetChange={this.handleTargetChange}
+        onTargetTypeChange={this.handleTargetTypeChange}
+        onclearErr={() => (this.metricDataErrorMsg = '')}
       />
     );
   }
@@ -2474,9 +2513,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           <div class='config-header'>
             {this.strategyStatus !== 'DELETED' ? (
               <bk-button
-                text
                 style='margin-right: 8px'
                 v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                text
                 onClick={() => (this.authority.MANAGE_AUTH ? this.handleGoEdit() : this.handleShowAuthorityDetail())}
               >
                 {this.$t('编辑策略')}
@@ -2484,8 +2523,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             ) : undefined}{' '}
             |
             <bk-button
-              text
               style='margin-left: 8px'
+              text
               onClick={() => (this.record.show = true)}
             >
               {this.$t('查看变更记录')}
@@ -2494,60 +2533,60 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         )}
         <CommonNavBar
           class='strategy-config-nav'
-          routeList={this.routeList}
-          needCopyLink={false}
-          needBack={true}
           navMode={'copy'}
+          needBack={true}
+          needCopyLink={false}
+          routeList={this.routeList}
         >
           <div slot='custom'>{this.navName}</div>
           <span
-            slot='append'
             class={['icon-monitor icon-audit', { active: this.strategyView.show }]}
+            slot='append'
             v-bk-tooltips={{
               content: this.$t(this.strategyView.show ? '收起' : '展开'),
               delay: 200,
-              appendTo: () => document.body
+              appendTo: () => document.body,
             }}
             onClick={() => (this.strategyView.show = !this.strategyView.show)}
           />
         </CommonNavBar>
         <div
+          ref='contentRef'
           class='set-content'
           v-bkloading={{ isLoading: this.loading }}
-          ref='contentRef'
         >
           {/* <!-- 策略编辑和新建 --> */}
           <div class='set-content-left'>
             <GroupPanel
-              title={this.$t('基本信息')}
               class='mb10'
+              title={this.$t('基本信息')}
             >
               <BaseConfig
                 ref='base-config'
-                bizList={this.bizList}
-                bizId={this.bizId}
-                readonly={this.isDetailMode}
-                data={this.baseConfig}
-                scenarioList={this.scenarioList}
                 scenarioReadonly={
                   this.monitorDataEditMode === 'Source' ? false : !!this.metricData.some(item => !!item.metric_id)
                 }
+                bizId={this.bizId}
+                bizList={this.bizList}
+                data={this.baseConfig}
+                readonly={this.isDetailMode}
+                scenarioList={this.scenarioList}
                 on-change={this.handleBaseConfigChange}
               />
             </GroupPanel>
 
             <GroupPanel
-              title={this.$t('监控数据')}
               class='mb10'
+              title={this.$t('监控数据')}
             >
               {!this.isDetailMode && (
                 <bk-button
-                  on-click={this.handleClearMetric}
                   style={{ paddingRight: 0, display: this.metricData.length ? 'inline-block' : 'none' }}
                   slot='tools'
                   size='small'
-                  text
                   theme='primary'
+                  text
+                  on-click={this.handleClearMetric}
                 >
                   {this.$t('清除')}
                 </bk-button>
@@ -2555,7 +2594,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               {!this.metricData.length && !this.sourceData.sourceCode
                 ? !this.loading && (
                     <MonitorDataEmpty
-                      on-add-metric={this.handleShowMetric}
+                      showMultivariateAnomalyDetection={this.showMultivariateAnomalyDetection}
+                      onAddMetric={this.handleShowMetric}
                       onHoverType={this.handleEmptyHoverType}
                     />
                   )
@@ -2565,56 +2605,56 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             this.monitorDataEditMode === 'Source' ? (
               <GroupPanel
                 key='detectionRulesGroupPanel' // 增加唯一key避免与其他grouppanel混淆出错
-                title={this.$t('检测规则')}
-                subtitle={this.$t('通过查询的数据按检测规则判断是否需要进行告警')}
                 class='mb10'
-                show-expand={!this.isDetailMode}
                 default-expand={true}
+                show-expand={!this.isDetailMode}
+                subtitle={this.$t('通过查询的数据按检测规则判断是否需要进行告警')}
+                title={this.$t('检测规则')}
               >
                 <DetectionRules
                   ref='detection-rules'
-                  metricData={this.selectMetricData}
-                  readonly={this.isDetailMode}
                   backfillData={this.detectionDataBackfill}
-                  value={this.detectionConfig.data}
-                  unit={this.detectionConfig.unit}
                   connector={this.detectionConfig.connector}
-                  unitType={this.detectionConfig.unitType}
-                  isEdit={this.isEdit}
                   dataMode={this.dataMode}
+                  isEdit={this.isEdit}
+                  metricData={this.selectMetricData}
                   needShowUnit={this.needShowUnit}
-                  onModelChange={this.handleModelChange}
+                  readonly={this.isDetailMode}
+                  unit={this.detectionConfig.unit}
+                  unitType={this.detectionConfig.unitType}
+                  value={this.detectionConfig.data}
                   onAiopsTypeChange={this.handleAiopsChartType}
-                  onConnectorChange={this.connectorChange}
                   onChange={this.handleDetectionRulesChange}
-                  onUnitChange={this.handleUnitChange}
+                  onConnectorChange={this.connectorChange}
+                  onModelChange={this.handleModelChange}
                   onRuleClick={this.handleRuleClick}
+                  onUnitChange={this.handleUnitChange}
                 ></DetectionRules>
               </GroupPanel>
             ) : undefined}
             {
               <GroupPanel
                 key='judgingConditionGroupPanel'
-                title={this.$t('判断条件')}
-                subtitle={this.$t('判断最终是否要产生告警')}
-                readonly={this.isDetailMode}
-                class='mb10'
-                show-expand={!this.isDetailMode}
-                default-expand={this.isDetailMode}
                 ref='judgingConditionGroupPanel'
+                class='mb10'
+                default-expand={this.isDetailMode}
+                readonly={this.isDetailMode}
+                show-expand={!this.isDetailMode}
+                subtitle={this.$t('判断最终是否要产生告警')}
+                title={this.$t('判断条件')}
               >
                 <JudgingCondition
                   ref='judgingCondition'
+                  calendarList={this.calendarList}
                   data={this.analyzingConditions}
-                  scenario={this.baseConfig.scenario}
-                  // onNoDataChange={this.handleNoDataChange}
-                  metricData={this.metricData}
-                  isDetailMode={this.isDetailMode}
+                  editMode={this.monitorDataEditMode}
                   isAlert={!this.isNeedJudgingCondition}
+                  isDetailMode={this.isDetailMode}
                   // judgeTimeRange={this.judgeTimeRange}
                   legalDimensionList={this.legalDimensionList}
-                  calendarList={this.calendarList}
-                  editMode={this.monitorDataEditMode}
+                  // onNoDataChange={this.handleNoDataChange}
+                  metricData={this.metricData}
+                  scenario={this.baseConfig.scenario}
                   onChange={this.handleJudgingChange}
                   // onTimeChange={(v: string[]) => this.judgeTimeRange = v}
                   onValidatorErr={this.judgingValidatorErr}
@@ -2622,43 +2662,43 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               </GroupPanel>
             }
             <GroupPanel
-              title={this.$t('告警处理')}
-              subtitle={this.$t('告警产生后是否要触发动作')}
               class='mb10'
               show-expand={!this.isDetailMode}
+              subtitle={this.$t('告警产生后是否要触发动作')}
+              title={this.$t('告警处理')}
             >
               <AlarmHandlingList
                 ref='alarmHandlingList'
-                value={this.actionsData}
                 allAction={actionConfigGroupList(this.actionConfigList)}
                 allDefense={this.defenseList}
                 readonly={this.isDetailMode}
                 strategyId={this.id ? +this.id : ''}
-                onChange={v => (this.actionsData = v)}
+                value={this.actionsData}
                 onAddMeal={(v: number) => (this.actionIndex = v)}
+                onChange={v => (this.actionsData = v)}
               ></AlarmHandlingList>
             </GroupPanel>
             <GroupPanel
               ref='noticeConfigPanel'
-              title={this.$t('通知设置')}
-              subtitle={this.$t('告警产生后是否要触发通知')}
               class='mb10'
-              show-expand={!this.isDetailMode}
               defaultExpand={false}
               expand={!!this.detectionConfig.data.length}
+              show-expand={!this.isDetailMode}
+              subtitle={this.$t('告警产生后是否要触发通知')}
+              title={this.$t('通知设置')}
               onExpand={() => (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit()}
             >
               {!this.loading && (
                 <NoticeConfigNew
                   ref='noticeConfigNew'
+                  alarmGroupLoading={this.alarmGroupLoading}
                   allAction={actionConfigGroupList(this.actionConfigList)}
-                  userList={this.alarmGroupList}
-                  value={this.noticeData}
-                  readonly={this.isDetailMode}
-                  strategyId={this.id ? +this.id : ''}
                   isExecuteDisable={!this.isActionEnabled}
                   legalDimensionList={this.legalDimensionList}
-                  dataTypeLabel={this.metricData?.[0]?.data_type_label || ''}
+                  readonly={this.isDetailMode}
+                  strategyId={this.id ? +this.id : ''}
+                  userList={this.alarmGroupList}
+                  value={this.noticeData}
                   onChange={(data: INoticeValue) => (this.noticeData = data)}
                 ></NoticeConfigNew>
               )}
@@ -2669,13 +2709,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   v-bk-tooltips={{
                     disabled: this.submitBtnTipDisabled,
                     content: !this.editAllowed ? this.$t('内置策略不允许修改') : this.$t('未选择监控数据'),
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   <bk-button
+                    class='save-btn'
                     disabled={this.submitBtnDisabled}
                     theme='primary'
-                    class='save-btn'
                     on-click={this.handleSubmitStrategyConfig}
                   >
                     {this.$t('提交')}
@@ -2693,31 +2733,32 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           </div>
           {/* <!-- 策略辅助视图 --> */}
           <div
-            class='set-content-right'
             style={{ width: this.strategyView.show ? this.rightWidth : 0 }}
+            class='set-content-right'
           >
             <div
-              class='right-wrapper'
               style={{ width: this.rightWidth }}
+              class='right-wrapper'
             >
               <div
                 class={['drag', { active: this.strategyView.isActive }]}
                 on-mousedown={this.handleMouseDown}
               ></div>
               <StrategyView
-                metricData={this.selectMetricData}
-                detectionConfig={this.detectionConfig}
-                expression={this.localExpress}
-                expFunctions={this.localExpFunctions}
-                legalDimensionList={this.legalDimensionList}
-                dataMode={this.dataMode}
-                editMode={this.monitorDataEditMode}
-                sourceData={this.sourceData}
+                activeModelMd={this.activeModelIndex}
                 aiopsChartType={this.localAiopsChartType}
                 aiopsModelMdList={this.aiopsModelMdList}
-                activeModelMd={this.activeModelIndex}
+                dataMode={this.dataMode}
                 descriptionType={this.descriptionType}
+                detectionConfig={this.detectionConfig}
+                editMode={this.monitorDataEditMode}
+                expFunctions={this.localExpFunctions}
+                expression={this.localExpress}
                 isMultivariateAnomalyDetection={this.isMultivariateAnomalyDetection}
+                legalDimensionList={this.legalDimensionList}
+                metricData={this.selectMetricData}
+                multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
+                sourceData={this.sourceData}
                 strategyTarget={this.strategyTarget}
               />
             </div>
@@ -2725,14 +2766,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         </div>
         <MetricSelector
           metricId={this.metricSelector.id}
+          metricKey={this.metricSelector.key}
+          scenarioList={this.scenarioAllList}
           show={this.metricSelector.show}
           targetId={this.metricSelectorTargetId}
-          scenarioList={this.scenarioAllList}
           type={this.metricSelector.type}
-          metricKey={this.metricSelector.key}
-          defaultScenario={this.baseConfig.scenario}
-          onShowChange={val => (this.metricSelector.show = val)}
+          // defaultScenario={this.baseConfig.scenario}
           onSelected={this.handleAddMetric}
+          onShowChange={val => (this.metricSelector.show = val)}
         ></MetricSelector>
         {/* <StrategyMetricSelector
           type={this.metricSelector.type}

@@ -35,7 +35,7 @@ import './metric-view.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class MetricView extends tsc<{}> {
+export default class MetricView extends tsc<object> {
   @Prop({ type: [String, Number], default: '' }) id: string;
 
   viewOptions: IViewOptions = {};
@@ -52,8 +52,8 @@ export default class MetricView extends tsc<{}> {
     {
       id: '',
       name: 'loading...',
-      subName: ''
-    }
+      subName: '',
+    },
   ];
 
   // sceneId
@@ -63,8 +63,8 @@ export default class MetricView extends tsc<{}> {
     {
       id: 'source-manage',
       name: this.$t('数据源管理') as string,
-      show: true
-    }
+      show: true,
+    },
   ];
 
   handleMenuSelect({ id }) {
@@ -73,8 +73,8 @@ export default class MetricView extends tsc<{}> {
         name: 'custom-detail-timeseries',
         params: {
           id: this.$route.params.id || '',
-          type: 'customTimeSeries'
-        }
+          type: 'customTimeSeries',
+        },
       });
     }
   }
@@ -91,7 +91,7 @@ export default class MetricView extends tsc<{}> {
     next((vm: MetricView) => {
       // vm.routeList[1].name = to.query.name || '';
       vm.viewOptions = {
-        filters: {}
+        filters: {},
       };
       vm.sceneId = `custom_metric_${to.params.id}`;
       vm.routeList[0].name = `${vm.$route.query.name}`;
@@ -106,22 +106,22 @@ export default class MetricView extends tsc<{}> {
       <div class='metric-view'>
         {this.sceneId && (
           <CommonPage
+            defaultViewOptions={this.viewOptions}
+            isMergeMenuList={true}
+            menuList={this.menuList}
             sceneId={this.sceneId}
             sceneType={'detail'}
-            defaultViewOptions={this.viewOptions}
             title={this.$tc('自定义指标')}
-            menuList={this.menuList}
             onMenuSelect={this.handleMenuSelect}
-            isMergeMenuList={true}
             // onPageTitleChange={this.handlePageTitleChange}
             onTitleChange={this.headerTitleChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             />
           </CommonPage>
         )}

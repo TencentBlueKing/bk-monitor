@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import DatePicker from '@blueking/date-picker/vue2';
 import { type Dayjs } from 'dayjs';
 
 import { updateTimezone } from '../../i18n/dayjs';
-
 import { DEFAULT_TIME_RANGE } from './utils';
 
 import '@blueking/date-picker/vue2/vue2.css';
@@ -73,11 +73,11 @@ export default class TimeRange extends tsc<IProps, IEvents> {
       <div style='display: inline-flex'>
         <DatePicker
           ref='datePicker'
-          modelValue={this.value}
-          timezone={this.timezone}
-          needTimezone={this.needTimezone}
           behavior={this.type}
           commonUseList={this.commonUseList}
+          modelValue={this.value}
+          needTimezone={this.needTimezone}
+          timezone={this.timezone}
           onChange={this.handleModelValueChange}
           onTimezoneChange={this.handleTimezoneChange}
         />

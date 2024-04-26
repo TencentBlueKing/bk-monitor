@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { listStickySpaces } from 'monitor-api/modules/commons';
 import {
   createDashboardOrFolder,
@@ -34,7 +35,7 @@ import {
   getDirectoryTree,
   renameFolder,
   starDashboard,
-  unstarDashboard
+  unstarDashboard,
 } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
 import { deepClone, random } from 'monitor-common/utils/utils';
@@ -45,7 +46,6 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { ISpaceItem } from '../../../types';
 import { WATCH_SPACE_STICKY_LIST } from '../../app';
-
 import FavList, { IFavListItem } from './fav-list';
 import IconBtn, { IIconBtnOptions } from './icon-btn';
 import { IMoreData } from './tree-list';
@@ -84,7 +84,7 @@ export enum MoreType {
   fav /** 收藏 */,
   unfav /** 取消收藏 */,
   export /** 导出 */,
-  rename /** 重命名 */
+  rename /** 重命名 */,
 }
 type FormType = MoreType.dashboard | MoreType.dir;
 @Component
@@ -107,25 +107,25 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     {
       icon: 'icon-mc-youjian',
       tips: window.i18n.tc('route-邮件订阅'),
-      router: 'email-subscriptions'
+      router: 'email-subscriptions',
     },
     {
       icon: 'icon-mc-history',
       tips: window.i18n.tc('route-发送历史'),
-      router: 'email-subscriptions-history'
+      router: 'email-subscriptions-history',
     },
     process.env.APP !== 'external'
       ? {
           icon: 'icon-menu-export',
           tips: window.i18n.tc('批量导入'),
-          router: 'export-import'
+          router: 'export-import',
         }
       : undefined,
     {
       icon: 'icon-shezhi',
       tips: window.i18n.tc('route-仪表盘设置'),
-      router: 'grafana-datasource'
-    }
+      router: 'grafana-datasource',
+    },
   ].filter(Boolean);
 
   /** 我的收藏列表 */
@@ -142,28 +142,28 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         id: MoreType.dashboard,
         name: window.i18n.tc('仪表盘'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       {
         id: MoreType.dir,
         name: window.i18n.tc('目录'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       {
         id: MoreType.import,
         name: window.i18n.tc('导入'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       process.env.APP !== 'external'
         ? {
             id: MoreType.imports,
             name: window.i18n.tc('批量导入'),
             hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-            action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+            action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
           }
-        : undefined
+        : undefined,
     ].filter(Boolean);
   }
 
@@ -172,14 +172,14 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   formData: IFormData = {
     name: '',
-    dir: null
+    dir: null,
   };
   /**
    * 表单校验规则
    */
   formRules = {
     name: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }],
-    dir: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }]
+    dir: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }],
   };
   loading = false;
 
@@ -189,7 +189,6 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   get searchResList(): TreeMenuItem[] {
     if (!this.keywork) return [];
     const res = this.grafanaList.reduce((total, item) => {
-      // eslint-disable-next-line max-len
       const res = item.children.filter(
         child => child.title.toLocaleLowerCase().indexOf(this.keywork.toLocaleLowerCase()) > -1
       );
@@ -209,7 +208,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       if (item.isFolder && item.title && item.uid !== GRAFANA_HOME_ID) {
         total.push({
           id: item.id,
-          name: item.title
+          name: item.title,
         });
       }
       return total;
@@ -248,7 +247,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   async handleFetchStickyList() {
     const params = {
-      username: this.$store.getters.userName
+      username: this.$store.getters.userName,
     };
     const res = await listStickySpaces(params).catch(() => []);
     this.spacestickyList = res;
@@ -288,7 +287,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       icon: 'icon-mc-grafana-home',
       isFolder: false,
       isStarred: false,
-      children: []
+      children: [],
     });
   }
 
@@ -307,7 +306,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         isStarred,
         isFolder: Object.prototype.hasOwnProperty.call(item, 'dashboards'),
         editable: item.editable ?? true,
-        children: this.handleGrafanaTreeData(dashboards)
+        children: this.handleGrafanaTreeData(dashboards),
       };
     });
   }
@@ -321,15 +320,15 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       {
         id: 3,
         name: this.$tc('我的收藏'),
-        children: []
-      }
+        children: [],
+      },
     ];
     favList[0].children = list.reduce((total, item) => {
       if (item.is_starred)
         total.push({
           id: item.id,
           name: item.name,
-          uid: item.uid
+          uid: item.uid,
         });
       return total;
     }, []);
@@ -416,7 +415,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               this.$bkMessage({ message: this.$t('目录删除成功'), theme: 'success' });
               this.handleFetchGrafanaTree();
             }
-          }
+          },
         });
       }
     } else {
@@ -433,7 +432,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             this.$bkMessage({ message: this.$t('仪表盘删除成功'), theme: 'success' });
             this.handleFetchGrafanaTree();
           }
-        }
+        },
       });
     }
   }
@@ -462,7 +461,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleImportsDashboard() {
     this.$router.push({
-      name: 'import-configuration-upload'
+      name: 'import-configuration-upload',
     });
   }
 
@@ -471,7 +470,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleImportDashboard() {
     this.$router.push({
-      path: '/grafana/import'
+      path: '/grafana/import',
     });
   }
 
@@ -482,7 +481,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   async handleFavDashboard(data: IMoreData) {
     if (data.item.isDashboard) {
       const res = await starDashboard({
-        dashboard_id: data.item.id
+        dashboard_id: data.item.id,
       })
         .then(() => true)
         .catch(() => false);
@@ -540,7 +539,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     const params = {
       title: this.formData.name,
       folderId: this.formData.dir,
-      type: 'dashboard'
+      type: 'dashboard',
     };
     return createDashboardOrFolder(params)
       .then(() => true)
@@ -552,7 +551,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   handleAddFolder() {
     const params = {
       title: this.formData.name,
-      type: 'folder'
+      type: 'folder',
     };
     return createDashboardOrFolder(params)
       .then(() => true)
@@ -575,7 +574,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   async handleRename(item: TreeMenuItem) {
     const res = await renameFolder({
       uid: item.uid,
-      title: item.editValue
+      title: item.editValue,
     })
       .then(() => true)
       .catch(() => false);
@@ -591,8 +590,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.$router.push({
       name: 'export-configuration',
       params: {
-        dashboardChecked: checkList as any
-      }
+        dashboardChecked: checkList as any,
+      },
     });
   }
 
@@ -631,13 +630,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         <div class='grafana-aside-main'>
           <div class='grafana-biz'>
             <BizSelect
-              value={+this.bizId}
               bizList={this.bizIdList}
               minWidth={380}
-              theme={'dark'}
               stickyList={this.spacestickyList}
-              onOpenSpaceManager={this.handleOpenSpace}
+              theme={'dark'}
+              value={+this.bizId}
               onChange={this.handleBizChange}
+              onOpenSpaceManager={this.handleOpenSpace}
             />
           </div>
           {/* 如果没有收藏仪表盘，就不显示空列表。 */}
@@ -646,8 +645,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               <FavList
                 checked={this.checked}
                 list={this.favList}
-                onUnstarred={this.handleUnstarred}
                 onSelected={this.handleSelectedFav}
+                onUnstarred={this.handleUnstarred}
               ></FavList>
             </div>
           )}
@@ -660,9 +659,9 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 {this.$t('全部')}
               </span>
               <IconBtn
-                iconOnly
-                checked={this.searchActive}
                 class='search-icon'
+                checked={this.searchActive}
+                iconOnly
                 onClick={this.handleShowSearch}
               >
                 <bk-icon
@@ -673,13 +672,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               {process.env.APP !== 'external' && (
                 <IconBtn
                   class='no-wrap'
-                  title={this.$tc('新增')}
                   options={this.addOptions}
+                  title={this.$tc('新增')}
                   onSelected={this.handleAdd}
                 >
                   <bk-icon
-                    slot='icon'
                     class='add-icon'
+                    slot='icon'
                     type='plus'
                   />
                 </IconBtn>
@@ -691,8 +690,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             >
               <div class='grafana-handle-main'>
                 <bk-input
-                  right-icon='bk-icon icon-search'
                   v-model={this.keywork}
+                  right-icon='bk-icon icon-search'
                   onInput={this.handleSearchInput}
                 ></bk-input>
               </div>
@@ -727,8 +726,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 data={this.grafanaList}
                 defaultExpend={false}
                 onMore={this.handleTreeMore}
-                onSelected={this.handleSelectedGrafana}
                 onRename={this.handleRename}
+                onSelected={this.handleSelectedGrafana}
               ></TreeMenu>
             </div>
           )}
@@ -737,12 +736,12 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             <div class='garfana-link'>
               {this.linkList.map(item => (
                 <span
+                  class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   v-bk-tooltips={{
                     content: item.tips,
                     extCls: 'garfana-link-tips',
-                    allowHTML: false
+                    allowHTML: false,
                   }}
-                  class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   onClick={() => this.handleLinkTo(item)}
                 >
                   <i class={['icon-monitor', item.icon]}></i>
@@ -753,12 +752,12 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           }
         </div>
         <bk-dialog
-          title={this.$t(this.isDashboard ? '新建仪表盘' : '新增目录')}
-          header-position='left'
           width={480}
-          zIndex={1}
           ext-cls='dashboard-add-dialog'
           v-model={this.showAddForm}
+          header-position='left'
+          title={this.$t(this.isDashboard ? '新建仪表盘' : '新增目录')}
+          zIndex={1}
           show-footer
           onCancel={this.handleCancel}
         >
@@ -766,24 +765,24 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             {...{
               props: {
                 model: this.formData,
-                rules: this.formRules
-              }
+                rules: this.formRules,
+              },
             }}
             ref='dashboardForm'
             formType='vertical'
           >
             <bk-form-item
-              required
-              property='name'
               label={this.$t(this.isDashboard ? '仪表盘名称' : '目录名称')}
+              property='name'
+              required
             >
               <bk-input v-model={this.formData.name}></bk-input>
             </bk-form-item>
             {this.isDashboard && (
               <bk-form-item
-                required
-                property='dir'
                 label={this.$t('所属目录')}
+                property='dir'
+                required
               >
                 <bk-select v-model={this.formData.dir}>
                   {this.dirList.map(item => (
@@ -797,8 +796,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             )}
           </bk-form>
           <div
-            slot='footer'
             class='dashboard-add-dialog-footer'
+            slot='footer'
           >
             <bk-button
               disabled={this.loading}

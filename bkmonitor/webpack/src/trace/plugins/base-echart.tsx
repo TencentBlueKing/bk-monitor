@@ -32,8 +32,9 @@ import {
   ref,
   shallowRef,
   watch,
-  WatchStopHandle
+  WatchStopHandle,
 } from 'vue';
+
 import dayjs from 'dayjs';
 import { echarts, MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -44,24 +45,24 @@ export const BaseChartProps = {
   // 视图高度
   height: {
     type: Number,
-    required: true
+    required: true,
   },
   // 视图宽度 默认撑满父级
   width: Number,
   // echart 配置
   options: {
     type: Object as () => PropType<MonitorEchartOptions>,
-    required: true
+    required: true,
   },
   // echarts图表实例分组id
   groupId: {
     type: String,
-    default: ''
+    default: '',
   },
   showRestore: {
     type: Boolean,
     default: false,
-  }
+  },
 };
 export default defineComponent({
   name: 'BaseEchart',
@@ -97,26 +98,26 @@ export default defineComponent({
               curPoint.value.xAxis = params.value;
               curPoint.value.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
             }
-          }
+          },
         },
         crossStyle: {
           color: 'transparent',
           opacity: 0,
-          width: 0
-        }
+          width: 0,
+        },
       },
       appendToBody: true,
       formatter: (p: any) => handleSetTooltip(p),
-      position: (pos: (string | number)[], params: any, dom: any, rect: any, size: any) => {
+      position: (pos: (number | string)[], params: any, dom: any, rect: any, size: any) => {
         const { contentSize } = size;
         const chartRect = chartRef.value!.getBoundingClientRect();
         const posRect = {
           x: chartRect.x + +pos[0],
-          y: chartRect.y + +pos[1]
+          y: chartRect.y + +pos[1],
         };
         const position = {
           left: 0,
-          top: 0
+          top: 0,
         };
         const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
         if (canSetBootom > 0) {
@@ -133,7 +134,7 @@ export default defineComponent({
         if (contentSize[0]) tooltipSize = contentSize;
         return position;
       },
-      ...(props.options?.tooltip || {})
+      ...(props.options?.tooltip || {}),
     };
     // 高度变化
     watch(
@@ -143,12 +144,12 @@ export default defineComponent({
           instance.value?.setOption({
             yAxis: {
               splitNumber: 2,
-              scale: false
-            }
+              scale: false,
+            },
           });
         }
         instance.value?.resize({
-          silent: true
+          silent: true,
         });
       }
     );
@@ -159,11 +160,11 @@ export default defineComponent({
         instance.value?.setOption({
           xAxis: {
             splitNumber: Math.ceil(Number(width) / 150),
-            min: 'dataMin'
-          }
+            min: 'dataMin',
+          },
         });
         instance.value?.resize({
-          silent: true
+          silent: true,
         });
       }
     );
@@ -181,7 +182,7 @@ export default defineComponent({
           seriesIndex: -1,
           dataIndex: -1,
           xAxis: '',
-          yAxis: ''
+          yAxis: '',
         };
         return;
       }
@@ -195,7 +196,7 @@ export default defineComponent({
           .map((item: { color: any; seriesName: any; value: any[] }) => ({
             color: item.color,
             seriesName: item.seriesName,
-            value: item.value[1]
+            value: item.value[1],
           }))
           .sort(
             (a: { value: number }, b: { value: number }) =>
@@ -205,7 +206,7 @@ export default defineComponent({
         liHtmls = list
           .sort((a: { value: number[] }, b: { value: number[] }) => b.value[1] - a.value[1])
           .map(
-            (item: { value: number[]; color: any; seriesName: any; seriesIndex: string | number; dataIndex: any }) => {
+            (item: { value: number[]; color: any; seriesName: any; seriesIndex: number | string; dataIndex: any }) => {
               let markColor = 'color: #fafbfd;';
               if (data[0].value === item.value[1]) {
                 markColor = 'color: #fff;font-weight: bold;';
@@ -215,7 +216,7 @@ export default defineComponent({
                   seriesIndex: +item.seriesIndex,
                   dataIndex: item.dataIndex,
                   xAxis: item.value[0] as any,
-                  yAxis: item.value[1] as any
+                  yAxis: item.value[1] as any,
                 };
               }
               if (item.value[1] === null) return '';
@@ -273,8 +274,8 @@ export default defineComponent({
           ...props.options,
           tooltip: {
             ...tooltip,
-            ...props.options
-          } as any
+            ...props.options,
+          } as any,
         });
         initPropsWatcher();
         initChartEvent();
@@ -289,7 +290,7 @@ export default defineComponent({
         const [batch] = event.batch;
         if (instance.value && batch.startValue && batch.endValue) {
           instance.value.dispatchAction({
-            type: 'restore'
+            type: 'restore',
           });
           const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
           const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
@@ -297,7 +298,7 @@ export default defineComponent({
         }
       } else {
         instance.value?.dispatchAction({
-          type: 'restore'
+          type: 'restore',
         });
       }
     }
@@ -314,8 +315,8 @@ export default defineComponent({
                 ...(props.options || {}),
                 tooltip: {
                   ...tooltip,
-                  ...(props.options || {})
-                } as any
+                  ...(props.options || {}),
+                } as any,
               },
               { notMerge: true, lazyUpdate: false, silent: true }
             );
@@ -331,7 +332,7 @@ export default defineComponent({
       dispatchAction({
         type: 'takeGlobalCursor',
         key: 'dataZoomSelect',
-        dataZoomSelectActive: true
+        dataZoomSelectActive: true,
       });
     }
     // 初始化chart 事件
@@ -372,7 +373,7 @@ export default defineComponent({
       isMouseOver.value = false;
     }
     function handleClickRestore(e: MouseEvent) {
-      e.preventDefault();      
+      e.preventDefault();
       emit('restore');
     }
     return {
@@ -399,20 +400,20 @@ export default defineComponent({
       handleMouseover,
       handleMouseleave,
       handleDataZoom,
-      handleClickRestore
+      handleClickRestore,
     };
   },
   render() {
     return (
       <div class='chart-base-wrap'>
         <div
-          class='chart-base'
           ref='chartRef'
           style={{ minHeight: `${1}px` }}
-          onMouseover={this.handleMouseover}
-          onMouseleave={this.handleMouseleave}
+          class='chart-base'
           onClick={this.handleClick}
           onDblclick={this.handleDblClick}
+          onMouseleave={this.handleMouseleave}
+          onMouseover={this.handleMouseover}
         />
         {this.showRestore && (
           <span
@@ -424,5 +425,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

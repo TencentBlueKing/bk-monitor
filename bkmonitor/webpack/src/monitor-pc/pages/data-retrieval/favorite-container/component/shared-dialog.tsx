@@ -26,12 +26,12 @@
 
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { shareFavorite } from 'monitor-api/modules/model';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { ISpaceItem } from '../../../../types';
 import { IFavList } from '../../typings';
-
 import List, { IListItem } from './checkbox-list';
 
 import './shared-dialog.scss';
@@ -86,7 +86,7 @@ export default class SharedDialog extends tsc<IProps> {
     const list: IListItem = {
       id: null,
       name: '' /** 普通列表 */,
-      children: []
+      children: [],
     };
     const keyword = this.keyword.trim().toLocaleLowerCase();
     this.bizList.forEach(item => {
@@ -112,7 +112,7 @@ export default class SharedDialog extends tsc<IProps> {
         const newItem = {
           ...item,
           name: item.space_name.replace(/\[.*?\]/, ''),
-          tags
+          tags,
         };
         list.children.push(newItem as IListItem);
       }
@@ -155,7 +155,7 @@ export default class SharedDialog extends tsc<IProps> {
       // 没选空间
       this.$bkMessage({
         message: this.$t('请选择空间'),
-        theme: 'warning'
+        theme: 'warning',
       });
       return;
     }
@@ -174,12 +174,12 @@ export default class SharedDialog extends tsc<IProps> {
         share_bk_biz_ids: selectIDList,
         duplicate_mode: this.resetNameRule,
         name,
-        config
+        config,
       };
       await shareFavorite(data);
       this.$bkMessage({
         message: this.$t('共享成功'),
-        theme: 'success'
+        theme: 'success',
       });
       this.handleShowChange();
     } catch (err) {
@@ -196,16 +196,16 @@ export default class SharedDialog extends tsc<IProps> {
   render() {
     return (
       <bk-dialog
-        value={this.value}
-        title={this.$t('共享')}
-        header-position='left'
         width={480}
-        position={{ top: this.positionTop }}
-        mask-close={false}
         auto-close={false}
+        header-position='left'
         loading={this.isQuest}
-        on-value-change={this.handleValueChange}
+        mask-close={false}
+        position={{ top: this.positionTop }}
+        title={this.$t('共享')}
+        value={this.value}
         on-confirm={this.handleSubmitFormData}
+        on-value-change={this.handleValueChange}
       >
         <div class='biz-list-wrap-01'>
           <div class='biz-list-main'>
@@ -213,12 +213,12 @@ export default class SharedDialog extends tsc<IProps> {
               <bk-input
                 class='biz-search'
                 clearable={false}
-                right-icon='bk-icon icon-search'
                 placeholder={this.$t('搜索空间')}
+                right-icon='bk-icon icon-search'
                 value={this.keyword}
-                on-clear={() => this.handleBizSearch('')}
-                on-change={this.handleBizSearch}
                 on-blur={this.handleBizSearch}
+                on-change={this.handleBizSearch}
+                on-clear={() => this.handleBizSearch('')}
               />
             </div>
             {/* {

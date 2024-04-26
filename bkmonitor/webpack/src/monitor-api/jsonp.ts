@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,9 +26,9 @@
 export type JsonpCallback<T> = (response: T) => void;
 
 interface JsonpOptions<T> {
-  data?: Record<string, string | number>;
+  data?: Record<string, number | string>;
   callback?: JsonpCallback<T>;
-  onError?: (e: string | Event) => void;
+  onError?: (e: Event | string) => void;
 }
 /**
  *
@@ -51,7 +50,7 @@ export function jsonp<T>(url: string, options: JsonpOptions<T>): void {
     cleanup();
   };
 
-  const handleError = (e: string | Event) => {
+  const handleError = (e: Event | string) => {
     options.onError?.(e);
     cleanup();
   };
@@ -95,9 +94,9 @@ export function useJSONP<T>(url: string, options: JsonpOptions<T>): Promise<T> {
       callback: (response: T) => {
         resolve(response);
       },
-      onError: (e: string | Event) => {
+      onError: (e: Event | string) => {
         reject(e);
-      }
+      },
     });
   });
 }

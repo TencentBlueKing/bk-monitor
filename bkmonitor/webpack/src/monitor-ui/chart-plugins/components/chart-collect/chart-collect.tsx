@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collection-view-dialog';
@@ -41,7 +42,7 @@ import './chart-collect.scss';
 const isEn = isEnFn();
 
 export interface ICheckPanel {
-  id: string | number;
+  id: number | string;
   panels?: ICheckPanel[];
 }
 
@@ -59,7 +60,7 @@ interface IChartCollectEvent {
 }
 
 @Component({
-  name: 'ChartCollect'
+  name: 'ChartCollect',
 })
 export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectEvent> {
   @Prop({ type: Array, default: () => [] }) localPanels: PanelModel[];
@@ -97,10 +98,10 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
               ...(this.viewOptions.filters?.current_target || {}),
               ...this.viewOptions,
               ...this.viewOptions.variables,
-              interval
-            })
-          }
-        }))
+              interval,
+            }),
+          },
+        })),
       };
     };
     const checkList = [];
@@ -169,7 +170,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
         ...this.viewOptions,
-        ...this.viewOptions.variables
+        ...this.viewOptions.variables,
       })
     );
     window.open(
@@ -183,7 +184,6 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
   handleViewDetail() {
     const config = this.checkList.reduce((config, item) => {
       if (!config) {
-        // eslint-disable-next-line no-param-reassign
         config = item;
       } else {
         config.targets.push(...item.targets);
@@ -197,13 +197,13 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
       compareValue: {
         compare: {
           type: this.compareType,
-          value: this.compareType === 'time' ? this.timeOffset : ''
+          value: this.compareType === 'time' ? this.timeOffset : '',
         },
         tools: {
-          timeRange: this.timeRange
+          timeRange: this.timeRange,
         },
-        type: ['time', 'metric'].includes(this.compareType) ? this.compareType : 'none'
-      }
+        type: ['time', 'metric'].includes(this.compareType) ? this.compareType : 'none',
+      },
     };
     this.showDetail = true;
   }
@@ -253,10 +253,10 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
           ) : undefined}
         </transition>
         <CollectionDialog
-          isShow={this.showCollectionDialog}
           collectionList={this.checkList}
-          onShow={(v: boolean) => this.handleShowCollectEmit(v)}
+          isShow={this.showCollectionDialog}
           onOnCollectionSuccess={() => this.handleCollectSuccess}
+          onShow={(v: boolean) => this.handleShowCollectEmit(v)}
         ></CollectionDialog>
         {this.showDetail && (
           <ViewDetail

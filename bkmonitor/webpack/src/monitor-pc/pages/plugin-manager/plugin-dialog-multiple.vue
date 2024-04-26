@@ -30,8 +30,8 @@
     :mask-close="false"
     ext-cls="plugin-dialog-multiple"
     header-position="left"
-    @cancel="handleDialogClose"
     width="640"
+    @cancel="handleDialogClose"
   >
     <template slot="header">
       <div class="dialog-title">
@@ -40,22 +40,26 @@
     </template>
     <div class="dilog-container">
       <div
-        class="dialog-content"
         v-for="(item, index) in files"
         :key="index"
         ref="content"
+        class="dialog-content"
       >
         <span class="icon-monitor icon-CPU dialog-content-icon" />
         <div class="dialog-content-desc">
           <div class="desc-name">
             <div
-              class="item-name"
               v-bk-overflow-tips
-            >{{ item.name }}</div>
+              class="item-name"
+            >
+              {{ item.name }}
+            </div>
             <div
               v-if="item.versonShow"
               class="item-verson"
-            >（{{ $t('版本') }}{{ item.verson }}）</div>
+            >
+              （{{ $t('版本') }}{{ item.verson }}）
+            </div>
             <div
               class="item-status"
               :style="{ color: statusMap[item.status] }"
@@ -97,8 +101,8 @@ export default {
     show: Boolean,
     files: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   data() {
     return {
@@ -111,15 +115,15 @@ export default {
         [this.$t('插件包不完整')]: '#EA3636',
         [this.$t('上传中...')]: '#3A84FF',
         [this.$t('解析中...')]: '#3A84FF',
-        [this.$t('解析失败')]: '#EA3636'
+        [this.$t('解析失败')]: '#EA3636',
       },
-      popoverInstance: null
+      popoverInstance: null,
     };
   },
   computed: {
     isSuccess() {
       return this.files.every(item => item.isOk);
-    }
+    },
   },
   methods: {
     handleDialogClose() {
@@ -134,7 +138,7 @@ export default {
           maxWidth: 382,
           showOnInit: true,
           distance: 22,
-          offset: -120
+          offset: -120,
         });
         this.popoverInstance.show(100);
       }
@@ -145,8 +149,8 @@ export default {
         this.popoverInstance.destroy();
         this.popoverInstance = null;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -226,6 +230,4 @@ export default {
     }
   }
 }
-
-
 </style>

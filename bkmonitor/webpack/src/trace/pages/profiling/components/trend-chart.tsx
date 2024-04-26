@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, inject, PropType, provide, Ref, ref, watch } from 'vue';
+
 import { Collapse, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
 import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
@@ -38,7 +39,7 @@ import {
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
   TIMEZONE_KEY,
-  VIEWOPTIONS_KEY
+  VIEWOPTIONS_KEY,
 } from '../../../plugins/hooks';
 import { PanelModel } from '../../../plugins/typings';
 import { SearchType, ToolsFormData } from '../typings';
@@ -52,10 +53,10 @@ const DEFAULT_PANEL_CONFIG = {
     x: 16,
     y: 16,
     w: 8,
-    h: 4
+    h: 4,
   },
   type: 'graph',
-  targets: []
+  targets: [],
 };
 
 export default defineComponent({
@@ -63,12 +64,12 @@ export default defineComponent({
   props: {
     content: {
       type: String,
-      default: ''
+      default: '',
     },
     queryParams: {
       type: Object as PropType<IQueryParams>,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   setup(props) {
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
@@ -114,9 +115,9 @@ export default defineComponent({
           ...(searchType.value === SearchType.Upload
             ? {
                 start_time: parseInt(String(start / Math.pow(10, 6)), 10),
-                end_time: parseInt(String(end / Math.pow(10, 6)), 10)
+                end_time: parseInt(String(end / Math.pow(10, 6)), 10),
               }
-            : {})
+            : {}),
         };
 
         panel.value = new PanelModel({
@@ -128,14 +129,14 @@ export default defineComponent({
               api: targetApi,
               datasource: 'time_series',
               alias: '',
-              data: targetData
-            }
-          ]
+              data: targetData,
+            },
+          ],
         });
       },
       {
         immediate: true,
-        deep: true
+        deep: true,
       }
     );
 
@@ -149,42 +150,42 @@ export default defineComponent({
       collapse,
       handleCollapseChange,
       loading,
-      chartCustomTooltip
+      chartCustomTooltip,
     };
   },
   render() {
     return (
       <div class='trend-chart'>
         <Collapse.CollapsePanel
-          modelValue={this.collapse}
-          onUpdate:modelValue={this.handleCollapseChange}
           v-slots={{
             content: () => (
               <div
-                class='trend-chart-wrap'
                 ref='chartRef'
+                class='trend-chart-wrap'
               >
                 {this.collapse && this.panel && (
                   <TimeSeries
                     key={this.chartType}
+                    customTooltip={this.chartCustomTooltip}
                     panel={this.panel}
                     showChartHeader={false}
                     showHeaderMoreTool={false}
                     onLoading={val => (this.loading = val)}
-                    customTooltip={this.chartCustomTooltip}
                   />
                 )}
               </div>
-            )
+            ),
           }}
+          modelValue={this.collapse}
+          onUpdate:modelValue={this.handleCollapseChange}
         >
           <div
             class='trend-chart-header'
             onClick={e => e.stopPropagation()}
           >
             <Radio.Group
-              type='capsule'
               v-model={this.chartType}
+              type='capsule'
             >
               <Radio.Button label='all'>{this.$t('总趋势')}</Radio.Button>
               <Radio.Button label='trace'>{this.$t('Trace 数据')}</Radio.Button>
@@ -199,5 +200,5 @@ export default defineComponent({
         </Collapse.CollapsePanel>
       </div>
     );
-  }
+  },
 });

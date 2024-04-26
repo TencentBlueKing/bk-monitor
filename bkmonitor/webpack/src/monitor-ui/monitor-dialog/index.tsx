@@ -31,7 +31,7 @@ import './monitor-dialog.scss';
 interface IMonitorDialogProps {
   value: boolean;
   title?: string;
-  width?: string | number;
+  width?: number | string;
   appendToBody?: boolean;
   maskClose?: boolean;
   zIndex?: number;
@@ -53,7 +53,7 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
   // 是否显示
   @Prop({
     type: Boolean,
-    default: false
+    default: false,
   })
   value: boolean;
 
@@ -63,42 +63,42 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
     default() {
       return '';
       // return this.$t('监控平台')
-    }
+    },
   })
   title: string;
 
   // 宽度
   @Prop({
     type: [String, Number],
-    default: 400
+    default: 400,
   })
-  width: string | number;
+  width: number | string;
 
   // 是否插入到body下
   @Prop({
     type: Boolean,
-    default: false
+    default: false,
   })
   appendToBody: boolean;
 
   // 是否点击mask关闭
   @Prop({
     type: Boolean,
-    default: false
+    default: false,
   })
   maskClose: boolean;
 
   // 层级
   @Prop({
     type: [String, Number],
-    default: 1000
+    default: 1000,
   })
   zIndex: number;
 
   // 是否需要footer
   @Prop({
     type: Boolean,
-    default: true
+    default: true,
   })
   needFooter: boolean;
 
@@ -113,21 +113,21 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
   // 是否需要展示header
   @Prop({
     type: Boolean,
-    default: true
+    default: true,
   })
   needHeader: boolean;
 
   // 是否需要展示确定按钮
   @Prop({
     type: Boolean,
-    default: true
+    default: true,
   })
   showConfirmBtn: boolean;
 
   // 是否需要展示关闭按钮
   @Prop({
     type: Boolean,
-    default: true
+    default: true,
   })
   needCloseIcon: boolean;
 
@@ -147,7 +147,7 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
   }
 
   destroyed() {
-    if (this.appendToBody && this.$el && this.$el.parentNode) {
+    if (this.appendToBody && this.$el?.parentNode) {
       this.$el.parentNode.removeChild(this.$el);
     }
   }
@@ -180,7 +180,7 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
   }
 
   // 关闭弹窗
-  hideDialog(cancel?: Boolean): void {
+  hideDialog(cancel?: boolean): void {
     if (cancel !== false) {
       this.$emit('update:value', false);
       this.$emit('change', false);
@@ -202,12 +202,12 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
     return (
       <div
         ref='monitor-dialog'
+        style={{
+          width: `${this.width}px`,
+        }}
         class={{
           'full-screen': this.fullScreen,
-          'monitor-dialog': true
-        }}
-        style={{
-          width: `${this.width}px`
+          'monitor-dialog': true,
         }}
         onClick={(e: Event) => {
           e.stopPropagation();
@@ -226,9 +226,9 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
           <div class='monitor-dialog-footer'>
             {this.$slots.footer || [
               <bk-button
+                style={{ display: this.showConfirmBtn ? 'flex' : 'none' }}
                 class='footer-btn'
                 theme='primary'
-                style={{ display: this.showConfirmBtn ? 'flex' : 'none' }}
                 onClick={this.handleClickConfirm}
               >
                 {window.i18n.tc('确定')}
@@ -238,7 +238,7 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
                 onClick={this.handleClickCancel}
               >
                 {window.i18n.tc('取消')}
-              </bk-button>
+              </bk-button>,
             ]}
           </div>
         )}
@@ -253,8 +253,8 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
         on-after-leave={this.afterLeave}
       >
         <div
-          class='monitor-dialog-mask'
           style={{ zIndex: this.zIndex, display: this.value ? 'flex' : 'none' }}
+          class='monitor-dialog-mask'
           onClick={this.handleMaskClick}
         >
           {this.renderContent()}

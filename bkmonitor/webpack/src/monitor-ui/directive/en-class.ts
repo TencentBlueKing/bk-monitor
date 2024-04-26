@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { type VueConstructor } from 'vue';
-import { type DirectiveBinding } from 'vue/types/options';
+
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { type DirectiveBinding } from 'vue/types/options';
 
 export default class EnStyleDirective {
   public static install(Vue: VueConstructor) {
@@ -55,7 +56,7 @@ export default class EnStyleDirective {
             cssText += `${key}: ${options.styles[key]};`;
           });
         el.style.cssText += cssText;
-      }
+      },
     });
   }
 }

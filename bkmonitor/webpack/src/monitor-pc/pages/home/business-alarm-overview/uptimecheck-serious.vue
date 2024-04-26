@@ -31,53 +31,57 @@
           class="tab"
           :class="{ active: tabIndex === 0 }"
           @click="tabIndex = 0"
-        ><span class="tab-name"> {{ $t('拨测任务') }} </span><span class="tab-num">{{ taskNum }}</span></span>
+          ><span class="tab-name"> {{ $t('拨测任务') }} </span><span class="tab-num">{{ taskNum }}</span></span
+        >
         <span
           class="tab"
           :class="{ active: tabIndex === 1 }"
           @click="tabIndex = 1"
-        ><span class="tab-name"> {{ $t('拨测节点') }} </span><span class="tab-num">{{ nodeNum }}</span></span>
+          ><span class="tab-name"> {{ $t('拨测节点') }} </span><span class="tab-num">{{ nodeNum }}</span></span
+        >
       </div>
     </div>
     <div
-      class="serious-content-wrap"
       v-show="tabIndex === 0"
+      class="serious-content-wrap"
     >
       <div
-        class="serious-content-wrap-container"
         v-if="alarm.task && alarm.task.abnormal_events.length"
+        class="serious-content-wrap-container"
       >
         <div
-          class="chart-item"
           v-for="item in alarm.task.abnormal_events"
           :key="item.task_id"
+          class="chart-item"
         >
           <business-alarm-card
-            :title="item.title"
             :id="item.event_id"
+            :title="item.title"
             :level="1"
             :alarm="item"
           />
         </div>
       </div>
       <div
-        class="no-alarm"
         v-else
-      >{{ $t('拨测任务很健康，无告警事件产生!') }}</div>
+        class="no-alarm"
+      >
+        {{ $t('拨测任务很健康，无告警事件产生!') }}
+      </div>
     </div>
     <div
-      class="serious-content-wrap"
       v-show="tabIndex === 1"
+      class="serious-content-wrap"
     >
       <div
-        class="serious-content-wrap-container"
         v-if="alarm.node && alarm.node.abnormal_nodes.length"
+        class="serious-content-wrap-container"
       >
         <ul class="list">
           <li
-            class="item"
             v-for="item in alarm.node.abnormal_nodes"
             :key="item.id"
+            class="item"
             @click="nodeAlarmClickHandle"
           >
             <svg-icon
@@ -89,9 +93,11 @@
         </ul>
       </div>
       <div
-        class="no-alarm"
         v-else
-      >{{ $t('拨测节点很健康，无告警事件产生!') }}</div>
+        class="no-alarm"
+      >
+        {{ $t('拨测节点很健康，无告警事件产生!') }}
+      </div>
     </div>
   </section>
 </template>
@@ -105,7 +111,7 @@ export default {
   name: 'UptimecheckSerious',
   components: {
     BusinessAlarmCard,
-    SvgIcon
+    SvgIcon,
   },
   mixins: [gotoPageMixin],
   inject: ['homeItemBizId'],
@@ -114,12 +120,12 @@ export default {
       type: Object,
       default() {
         return {};
-      }
-    }
+      },
+    },
   },
   data() {
     return {
-      tabIndex: 0
+      tabIndex: 0,
     };
   },
   computed: {
@@ -136,14 +142,14 @@ export default {
         return alarm.node.abnormal_nodes.length > 99 ? '99+' : alarm.node.abnormal_nodes.length;
       }
       return 0;
-    }
+    },
   },
   methods: {
     nodeAlarmClickHandle() {
       const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/uptime-check?dashboardId=uptime-check-node`;
       window.open(url);
-    }
-  }
+    },
+  },
 };
 </script>
 

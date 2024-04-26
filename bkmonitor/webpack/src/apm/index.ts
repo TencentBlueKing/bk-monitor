@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-// eslint-disable-next-line simple-import-sort/imports
 import './public-path.ts';
 import 'monitor-common/polyfill';
-import Vue from 'vue';
+
 import i18n from './i18n/i18n';
+import Vue from 'vue';
 
 import './common/import-magicbox-ui';
-import 'monitor-ui/directive/index';
 import 'monitor-static/svg-icons';
+import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
@@ -43,10 +43,10 @@ import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
+import 'monitor-pc/common/global-login';
 
-import 'monitor-static/icons/monitor-icons.css';
 import './static/scss/global.scss';
-
+import 'monitor-static/icons/monitor-icons.css';
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
@@ -62,15 +62,15 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     bizList: window.space_list,
     csrfCookieName: window.csrf_cookie_name || '',
     siteUrl: window.site_url,
-    bkUrl: window.bk_url
+    bkUrl: window.bk_url,
   });
-  // eslint-disable-next-line no-new
+
   new Vue({
     el: '#app',
     router,
     store,
     i18n,
-    render: h => h(App)
+    render: h => h(App),
   });
   Vue.prototype.$bus = new Vue();
   Vue.prototype.$api = Api;
@@ -80,7 +80,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     .enhancedContext({
       space_uid: spaceUid || undefined,
       bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
-      context_type: 'basic'
+      context_type: 'basic',
     })
     .then(data => {
       Object.keys(data).forEach(key => {
@@ -99,15 +99,15 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         bizList: window.space_list,
         csrfCookieName: window.csrf_cookie_name || '',
         siteUrl: window.site_url,
-        bkUrl: window.bk_url
+        bkUrl: window.bk_url,
       });
-      // eslint-disable-next-line no-new
+
       new Vue({
         el: '#app',
         router,
         store,
         i18n,
-        render: h => h(App)
+        render: h => h(App),
       });
       Vue.prototype.$bus = new Vue();
       Vue.prototype.$api = Api;
@@ -116,7 +116,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         .enhancedContext({
           space_uid: spaceUid || undefined,
           bk_biz_id: bizId,
-          context_type: 'extra'
+          context_type: 'extra',
         })
         .then(data => {
           Object.keys(data).forEach(key => {

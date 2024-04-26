@@ -41,14 +41,14 @@ interface ICommonNavBarProps {
   navMode?: NavBarMode;
   callbackRouterBack?: () => void;
 }
-export type NavBarMode = 'copy' | 'share' | 'display';
+export type NavBarMode = 'copy' | 'display' | 'share';
 
 @Component({
   name: 'CommonNavBar',
   components: {
     TemporaryShare: () =>
-      import(/* webpackChunkName: "TemporaryShare" */ '../../../components/temporary-share/temporary-share') as any
-  }
+      import(/* webpackChunkName: "TemporaryShare" */ '../../../components/temporary-share/temporary-share') as any,
+  },
 })
 export default class CommonNavBar extends tsc<ICommonNavBarProps> {
   @Prop({ type: Array, default: () => [] }) routeList: INavItem[];
@@ -98,9 +98,9 @@ export default class CommonNavBar extends tsc<ICommonNavBarProps> {
     const len = this.routeList.length;
     return (
       <div
+        key='navigationBar'
         class={`navigation-bar common-nav-bar ${this.needShadow ? 'detail-bar' : ''}`}
         slot='title'
-        key='navigationBar'
       >
         {!this.readonly && (this.needBack || ((this.needBack ?? true) && len > 1)) && (
           <span
@@ -142,9 +142,9 @@ export default class CommonNavBar extends tsc<ICommonNavBarProps> {
         {
           !(this.readonly && !this.positionText?.length) && this.needCopyLink ? (
             <TemporaryShare
-              positionText={this.positionText}
               navList={this.routeList}
               navMode={this.navMode}
+              positionText={this.positionText}
               onlyCopy={this.navMode === 'copy'}
             />
           ) : undefined

@@ -9,6 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Dict
+
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
@@ -45,6 +47,17 @@ class Command(BaseCommand):
                 raise  # 这里不对异常捕获，需要抛出去，让Command执行失败
 
     @classmethod
+    def _get_kafka_sasl_auth(cls, cluster: models.ClusterInfo) -> Dict:
+        username, password = cluster.username, cluster.password
+        auth = {"sasl_username": username, "sasl_passwd": password}
+        # NOTE: 现阶段先不添加模型存储sasl的认证信息，后续需要再补充
+        if username and password:
+            auth["sasl_mechanisms"] = config.KAFKA_SASL_MECHANISM
+            auth["security_protocol"] = config.KAFKA_SASL_PROTOCOL
+
+        return auth
+
+    @classmethod
     def update_stream_to_info_to_gse(cls, mq_cluster):
         """
         刷新数据库的集群信息，比如主机名，端口这些，更新到gse，保持两边一直
@@ -52,7 +65,8 @@ class Command(BaseCommand):
         name = "mq_stream_to_{}".format(mq_cluster.cluster_id)
         if mq_cluster.is_default_cluster:
             name = cls.DEFAULT_MQ_STREAM_TO_NAME
-
+        # 获取kafka auth信息
+        kafka_auth = cls._get_kafka_sasl_auth(mq_cluster)
         params = {
             "condition": {"stream_to_id": mq_cluster.gse_stream_to_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
             "operation": {"operator_name": settings.COMMON_USERNAME},
@@ -61,7 +75,8 @@ class Command(BaseCommand):
                     "name": name,
                     "report_mode": cls.DEFAULT_STREAM_TO_REPORT_MODEL,
                     cls.DEFAULT_STREAM_TO_REPORT_MODEL: {
-                        "storage_address": [{"ip": mq_cluster.domain_name, "port": mq_cluster.port}]
+                        "storage_address": [{"ip": mq_cluster.domain_name, "port": mq_cluster.port}],
+                        **kafka_auth,
                     },
                 }
             },
@@ -74,6 +89,8 @@ class Command(BaseCommand):
         if mq_cluster.is_default_cluster:
             name = cls.DEFAULT_MQ_STREAM_TO_NAME
 
+        # 获取kafka auth信息
+        kafka_auth = cls._get_kafka_sasl_auth(mq_cluster)
         params = {
             "metadata": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
             "operation": {"operator_name": settings.COMMON_USERNAME},
@@ -81,7 +98,8 @@ class Command(BaseCommand):
                 "name": name,
                 "report_mode": cls.DEFAULT_STREAM_TO_REPORT_MODEL,
                 cls.DEFAULT_STREAM_TO_REPORT_MODEL: {
-                    "storage_address": [{"ip": mq_cluster.domain_name, "port": mq_cluster.port}]
+                    "storage_address": [{"ip": mq_cluster.domain_name, "port": mq_cluster.port}],
+                    **kafka_auth,
                 },
             },
         }

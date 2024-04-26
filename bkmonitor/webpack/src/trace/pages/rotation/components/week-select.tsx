@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import './week-select.scss';
@@ -46,8 +47,8 @@ export default defineComponent({
     labelWidth: { type: Number, default: 52 },
     modelValue: {
       type: Array as PropType<number[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: ['update:modelValue', 'change', 'selectEnd'],
   setup(props, { emit }) {
@@ -70,7 +71,7 @@ export default defineComponent({
         localValue.splice(0, localValue.length, ...val);
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -92,7 +93,7 @@ export default defineComponent({
     /** 周选择器实例，用于获取宽度 */
     const weekSelectRef = ref<HTMLDivElement>();
     /** hover的周选项 */
-    const hoverWeek = ref<string | number>('');
+    const hoverWeek = ref<number | string>('');
     /** 选择器下拉列表 */
     const weekList = computed<WeekListItemModel[]>(() => {
       const list = [
@@ -102,7 +103,7 @@ export default defineComponent({
         { id: 4, label: t('周四') },
         { id: 5, label: t('周五') },
         { id: 6, label: t('周六') },
-        { id: 7, label: t('周日') }
+        { id: 7, label: t('周日') },
       ];
       return list.map(item => {
         const isStart = item.id === localValue[0];
@@ -113,7 +114,7 @@ export default defineComponent({
           /** 是否时起始日 */
           isStart,
           /** 是否有设置起始日功能 */
-          hasSetStart: hoverWeek.value === item.id && !isStart
+          hasSetStart: hoverWeek.value === item.id && !isStart,
         };
       });
     });
@@ -174,7 +175,7 @@ export default defineComponent({
       weekList,
       hoverWeek,
       handleSelectItemClick,
-      handleSetStart
+      handleSetStart,
     };
   },
   render() {
@@ -182,8 +183,8 @@ export default defineComponent({
       <div class='week-select-wrapper-component'>
         {this.label && (
           <div
-            class='label'
             style={{ width: `${this.labelWidth}px` }}
+            class='label'
           >
             {this.label}
           </div>
@@ -194,12 +195,12 @@ export default defineComponent({
         >
           <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']}></i>
           <Popover
-            trigger='click'
-            is-show={this.show}
-            theme='light'
             extCls='week-select-popover component'
             arrow={false}
+            is-show={this.show}
             placement='bottom'
+            theme='light'
+            trigger='click'
             onAfterHidden={this.handleAfterHidden}
             onAfterShow={this.handleAfterShow}
           >
@@ -236,11 +237,11 @@ export default defineComponent({
                 <div class={{ 'week-select-text': true, placeholder: !this.localText }}>
                   {this.localText || this.t('选择')}
                 </div>
-              )
+              ),
             }}
           </Popover>
         </div>
       </div>
     );
-  }
+  },
 });

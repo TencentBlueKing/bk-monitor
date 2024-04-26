@@ -26,6 +26,7 @@
 
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { deepClone } from 'monitor-common/utils/utils';
@@ -38,7 +39,7 @@ import {
   IMenuItem,
   IResourceData,
   ITitleAlarm,
-  PanelModel
+  PanelModel,
 } from '../../typings';
 import { handleRelateAlert } from '../../utils/menu';
 import { VariablesService } from '../../utils/variable';
@@ -79,31 +80,30 @@ class ResourceChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
-      const promiseList = this.panel.targets.map(
-        item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc](
-              {
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions
-                }
+      const promiseList = this.panel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc](
+            {
+              ...variablesService.transformVariables(item.data),
+              ...params,
+              view_options: {
+                ...this.viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              this.clearErrorMsg();
-              return res;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
+            },
+            { needMessage: false }
+          )
+          .then(res => {
+            this.clearErrorMsg();
+            return res;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          })
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item?.length)) {
@@ -138,7 +138,7 @@ class ResourceChart extends CommonSimpleChart {
           ...this.viewOptions.filters,
           ...(this.viewOptions.filters?.current_target || {}),
           ...this.viewOptions,
-          ...this.viewOptions.variables
+          ...this.viewOptions.variables,
         });
         break;
       case 'relate-alert': // 查看相关告警
@@ -167,7 +167,7 @@ class ResourceChart extends CommonSimpleChart {
       ...this.viewOptions.filters,
       ...(this.viewOptions.filters?.current_target || {}),
       ...this.viewOptions,
-      ...this.viewOptions.variables
+      ...this.viewOptions.variables,
     });
     const {
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -175,11 +175,11 @@ class ResourceChart extends CommonSimpleChart {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       data_type_label,
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      bcs_cluster_id
+      bcs_cluster_id,
     } = variablesService.transformVariables(alertFilterable.data);
     const res = await getDataSourceConfig({
       data_source_label,
-      data_type_label
+      data_type_label,
     });
     // 集群ID 换 数据ID
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -231,13 +231,11 @@ class ResourceChart extends CommonSimpleChart {
         this.handleAddStrategy(this.panel, null, this.viewOptions, true);
         break;
       case 1:
-        // eslint-disable-next-line max-len
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
         break;
       case 2:
-        // eslint-disable-next-line no-case-declarations
         const eventTargetStr = alarmStatus.targetStr;
-        // eslint-disable-next-line max-len
+
         window.open(
           location.href.replace(
             location.hash,
@@ -255,13 +253,13 @@ class ResourceChart extends CommonSimpleChart {
       <div class='resource-chart-content'>
         {this.data[0].map(item => (
           <div
-            class='content-item'
             style={{ cursor: item.link ? 'pointer' : '' }}
+            class='content-item'
             onClick={() => this.handleJump(item)}
           >
             <div
-              class={`content-header`}
               style={{ color: item.color || '#313238' }}
+              class={`content-header`}
             >
               <span class='item-val'>{item.value}</span>
               {item.tips && (
@@ -272,7 +270,7 @@ class ResourceChart extends CommonSimpleChart {
                     showOnInit: false,
                     trigger: 'mouseenter',
                     placements: ['top'],
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 />
               )}
@@ -289,16 +287,16 @@ class ResourceChart extends CommonSimpleChart {
       <div class='resource-chart'>
         <ChartHeader
           class='draggable-handle'
-          title={this.panel.title}
           draging={this.panel.draging}
-          showMore={!this.empty && this.showHeaderMoreTool && !!this.panel.options?.alert_filterable}
+          isInstant={this.panel.instant && this.showHeaderMoreTool}
           menuList={this.menuList}
           metrics={this.metrics}
-          isInstant={this.panel.instant && this.showHeaderMoreTool}
-          onMetricClick={this.handleMetricClick}
-          onMenuClick={this.handleMenuToolsSelect}
-          onAllMetricClick={this.handleAllMetricClick}
+          showMore={!this.empty && this.showHeaderMoreTool && !!this.panel.options?.alert_filterable}
+          title={this.panel.title}
           onAlarmClick={this.handleAlarmClick}
+          onAllMetricClick={this.handleAllMetricClick}
+          onMenuClick={this.handleMenuToolsSelect}
+          onMetricClick={this.handleMetricClick}
         />
         {!this.empty ? this.chartContent() : <span class='empty-chart'>{this.emptyText}</span>}
       </div>

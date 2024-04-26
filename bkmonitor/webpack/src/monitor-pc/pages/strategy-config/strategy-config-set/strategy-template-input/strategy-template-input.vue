@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="template-input"
     ref="wrap"
+    class="template-input"
   >
     <div
       ref="input"
@@ -40,14 +40,14 @@
     />
     <div v-show="false">
       <ul
-        class="template-input-list"
         ref="list"
+        class="template-input-list"
       >
         <template v-for="(item, index) in triggerList">
           <li
-            class="list-item"
-            :key="index"
             v-show="!keyword || (item.id && item.id.includes(keyword))"
+            :key="index"
+            class="list-item"
             @mousedown="handleMousedown(item, index)"
           >
             <span class="item-name">{{ item.id }}</span>
@@ -66,34 +66,34 @@ export default {
     // 默认显示的值
     defaultValue: {
       type: String,
-      default: ''
+      default: '',
     },
     // placeholder值
     placeholder: {
       type: String,
-      default: ''
+      default: '',
     },
     // 触发提示的key值
     triggerKey: {
       type: String,
-      default: '{{'
+      default: '{{',
     },
     // 触发提示主动填写后闭合的值
     closeTriggerKey: {
       type: String,
-      default: '}}'
+      default: '}}',
     },
     // 触发提示列表
     triggerList: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     extCls: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   data() {
     return {
@@ -101,7 +101,7 @@ export default {
       keyword: '',
       focus: false,
       defaultPalceholder: this.$t('输入告警模板，使用’{{‘触发变量提示'),
-      selectedRange: null
+      selectedRange: null,
     };
   },
   watch: {
@@ -110,7 +110,7 @@ export default {
         this.$refs.input.innerText = v || '';
         this.focus = v.length > 0;
       }
-    }
+    },
   },
   mounted() {
     this.focus = this.defaultValue.length > 0;
@@ -135,8 +135,7 @@ export default {
           const matchIndex = firstText.lastIndexOf(this.triggerKey);
           if (matchIndex > -1 && !firstText.slice(matchIndex).match(/}}/gm)) {
             const matchText = firstText.slice(matchIndex);
-            this.keyword = matchText.trim().replace(this.triggerKey, '')
-              .replace(this.closeTriggerKey, '');
+            this.keyword = matchText.trim().replace(this.triggerKey, '').replace(this.closeTriggerKey, '');
             this.$nextTick().then(() => {
               this.handlePopoverShow();
               if (!this.keyword || this.triggerList.some(item => item.id.includes(this.keyword))) {
@@ -224,11 +223,11 @@ export default {
           duration: [200, 0],
           offset: `${offsetX}, ${offsetY}`,
           onHidden: this.handleFocusToEnd,
-          extCls: this.extCls
+          extCls: this.extCls,
         });
       } else {
         this.popoverInstance.set({
-          offset: `${offsetX}, ${offsetY}`
+          offset: `${offsetX}, ${offsetY}`,
         });
       }
     },
@@ -269,8 +268,8 @@ export default {
      */
     getInputInstance() {
       return this.$refs.input;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

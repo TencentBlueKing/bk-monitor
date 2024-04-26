@@ -367,9 +367,11 @@ class CollectConfigListResource(Resource):
                         "need_upgrade": self.need_upgrade(item),
                         "config_version": item.deployment_config.plugin_version.config_version,
                         "info_version": item.deployment_config.plugin_version.info_version,
-                        "error_instance_count": 0
-                        if status["task_status"] == TaskStatus.STOPPED
-                        else item.get_cache_data("error_instance_count", 0),
+                        "error_instance_count": (
+                            0
+                            if status["task_status"] == TaskStatus.STOPPED
+                            else item.get_cache_data("error_instance_count", 0)
+                        ),
                         "total_instance_count": item.get_cache_data("total_instance_count", 0),
                         "running_tasks": status["running_tasks"],
                         "label_info": item.label_info,
@@ -610,6 +612,14 @@ class DeleteCollectConfigResource(Resource):
         # 删除采集配置及部署配置
         DeploymentConfigVersion.objects.filter(config_meta_id=data["id"]).delete()
         collect_config.delete()
+
+        # 内置链路健康策略处理
+        # 如果用户还创建了其他的采集配置，则不会从告警组中移除
+        username = get_global_user()
+        bk_biz_id = collect_config.bk_biz_id
+        configs_exist = CollectConfigMeta.objects.filter(bk_biz_id=bk_biz_id, create_user=username).exists()
+        loader = DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=username)
+        loader.delete(remove_user_from_group=not configs_exist)
         return None
 
 

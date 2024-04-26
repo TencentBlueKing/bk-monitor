@@ -19,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from collections import OrderedDict
+
 from django.utils.translation import ugettext as _
 
 from apps.log_databus.constants import EtlConfig, LogPluginInfo, PluginParamLogicOpEnum
@@ -42,7 +44,7 @@ class SysLogScenario(CollectorScenario):
         filters = []
         filter_bucket = list()
         for condition in syslog_conditions:
-            if type(condition) is not dict:
+            if not isinstance(condition, dict):
                 continue
 
             key = condition.get("syslog_field", "")
@@ -94,7 +96,7 @@ class SysLogScenario(CollectorScenario):
         if local:
             host_list = local["host"].split(":")
             syslog_port = host_list[1] if host_list else 0
-            filters = local.get("filters", [])
+            filters = local.get("syslog_filters", [])
             syslog_conditions = list()
 
             if filters:

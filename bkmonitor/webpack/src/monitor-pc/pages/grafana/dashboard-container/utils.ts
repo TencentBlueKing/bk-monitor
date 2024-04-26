@@ -45,21 +45,21 @@ export interface ITreeOptions {
  * 树形列表数据项抽象类
  */
 export class TreeMenuItem {
-  id: number = null; /** id */
-  title = ''; /** 名称 */
-  children: TreeMenuItem[] = []; /** 子项列表 */
-  expend = false; /** 是否展开 */
-  icon = ''; /** 传入的icon */
-  level = 0; /** 当前项的级别 */
-  options: ITreeOptions = {}; /** 配置 */
-  addActive = false; /** 新增按钮处于激活状态 */
-  moreActive = false; /** 更多按钮处于激活状态 */
-  edit = false; /** 编辑状态 */
-  editValue = ''; /** 重命名 */
-  uid = ''; /** 仪表盘、目录的id */
-  isFolder = false;
-  isStarred = false;
-  editable = true;
+  addActive = false; /** id */
+  children: TreeMenuItem[] = []; /** 名称 */
+  edit = false; /** 子项列表 */
+  editValue = ''; /** 是否展开 */
+  editable = true; /** 传入的icon */
+  expend = false; /** 当前项的级别 */
+  icon = ''; /** 配置 */
+  id: number = null; /** 新增按钮处于激活状态 */
+  isFolder = false; /** 更多按钮处于激活状态 */
+  isStarred = false; /** 编辑状态 */
+  level = 0; /** 重命名 */
+  moreActive = false; /** 仪表盘、目录的id */
+  options: ITreeOptions = {};
+  title = '';
+  uid = '';
   constructor(data: ITreeMenuItem, options?: ITreeOptions) {
     const { children = [] } = data;
     Object.entries(data).forEach(item => {
@@ -74,16 +74,6 @@ export class TreeMenuItem {
     this.level = level;
     this.children = children.map(child => new TreeMenuItem(child, { ...options, level: this.level + 1 }));
   }
-  /** 是否为分组 */
-  get isGroup() {
-    return this.isFolder;
-  }
-
-  /** 是否仪表盘 */
-  get isDashboard() {
-    return !this.isFolder;
-  }
-
   /** 当前展示的icon */
   get curIcon() {
     if (this.icon) {
@@ -95,8 +85,18 @@ export class TreeMenuItem {
     return null;
   }
 
+  /** 是否仪表盘 */
+  get isDashboard() {
+    return !this.isFolder;
+  }
+
   /** 是否为通用目录 (id = 0 并且uid = '') */
   get isGeneralFolder() {
     return this.id === 0 && !this.uid;
+  }
+
+  /** 是否为分组 */
+  get isGroup() {
+    return this.isFolder;
   }
 }

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
+
 // @ts-ignore
 __webpack_public_path__ =
   process.env.NODE_ENV === 'production'

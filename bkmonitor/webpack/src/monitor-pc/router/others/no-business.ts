@@ -31,15 +31,15 @@ export default [
     name: 'no-business',
     path: '/no-business/:queryUid?',
     components: {
-      noCache: NoBusiness
+      noCache: NoBusiness,
     },
     meta: {
       title: '无业务',
       navId: '',
       noNavBar: true,
       route: {
-        parent: 'home'
-      }
-    }
-  }
+        parent: 'home',
+      },
+    },
+  },
 ] as RouteConfig[];

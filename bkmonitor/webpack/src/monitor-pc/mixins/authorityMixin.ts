@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
@@ -27,21 +26,22 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import authorityStore from '@store/modules/authority';
 
 Component.registerHooks(['beforeRouteEnter']);
-// eslint-disable-next-line new-cap
+
 export default (authMap: { [propsName: string]: string }) =>
   Component(
-    class authorityMixin extends tsc<{}> {
+    class authorityMixin extends tsc<object> {
       // authority: Record<string, boolean>;
       __bizIdUnWatch__: any;
+      get __BizId__() {
+        return this.$store.getters.bizId;
+      }
       constructor() {
         super();
         this.authority = Object.keys(authMap).reduce((pre: any, cur: string) => ((pre[cur] = false), pre), {});
-      }
-      get __BizId__() {
-        return this.$store.getters.bizId;
       }
       // beforeRouteEnter(to: any, from: any, next: any) {
       //   next((vm: any) => {
@@ -104,7 +104,7 @@ export default (authMap: { [propsName: string]: string }) =>
         }[] = [];
         if (!isShareView) {
           data = await authorityStore.checkAllowedByActionIds({
-            action_ids: actionList
+            action_ids: actionList,
           });
         }
         Object.entries(authMap).forEach(entry => {

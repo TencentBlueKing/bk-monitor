@@ -93,6 +93,8 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
     config.devServer = Object.assign({}, config.devServer || {}, {
       port: devConfig.port,
       host: devConfig.host,
+      open: false,
+      static: [],
       proxy: {
         ...['/api', '/version_log'].reduce(
           (pre, key) => ({

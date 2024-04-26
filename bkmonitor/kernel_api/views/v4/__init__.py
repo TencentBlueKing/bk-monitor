@@ -16,6 +16,7 @@ from .apm import *  # noqa
 from .ascode import *  # noqa
 from .assign import *  # noqa
 from .bcs import *  # noqa
+from .calendars import *  # noqa
 from .collect import *  # noqa
 from .custom_report import *  # noqa
 from .event import *  # noqa

@@ -25,20 +25,21 @@
 -->
 <template>
   <div
-    @click="handleFocus"
     class="step-verify-input"
     :class="{ 'is-empty': showValidate && validator.content }"
+    @click="handleFocus"
   >
     <slot />
     <span
-      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
       v-show="showValidate && validator.content && position === 'right'"
       v-bk-tooltips.top-end="validator"
+      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
     />
     <span
-      class="bottom-text"
       v-show="showValidate && position === 'bottom'"
-    >{{ validator.content }}</span>
+      class="bottom-text"
+      >{{ validator.content }}</span
+    >
   </div>
 </template>
 
@@ -48,26 +49,26 @@ export default {
   props: {
     position: {
       type: String,
-      default: 'bottom'
+      default: 'bottom',
     },
     validator: {
       type: Object,
       default() {
         return {
-          content: this.$t('必填项')
+          content: this.$t('必填项'),
         };
-      }
+      },
     },
     showValidate: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   methods: {
     handleFocus() {
       // this.$emit('update:showValidate', false)
-    }
-  }
+    },
+  },
 };
 </script>
 

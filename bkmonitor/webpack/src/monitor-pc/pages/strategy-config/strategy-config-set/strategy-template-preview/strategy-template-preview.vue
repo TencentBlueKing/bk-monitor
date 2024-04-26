@@ -39,8 +39,8 @@
             v-for="(item, index) in renderData"
             :key="index"
             :class="{ 'tab-active': tabActive === index }"
-            @click="handleTabItemClick(item, index)"
             class="preview-tab-item"
+            @click="handleTabItemClick(item, index)"
           >
             {{ item.label }}
           </li>
@@ -51,9 +51,9 @@
   </monitor-dialog>
 </template>
 <script>
-import { createNamespacedHelpers } from 'vuex';
 import { renderNoticeTemplate } from 'monitor-api/modules/action';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
+import { createNamespacedHelpers } from 'vuex';
 
 import PreviewTemplate from './preview-template';
 
@@ -62,7 +62,7 @@ export default {
   name: 'StrategyTemplatePreview',
   components: {
     PreviewTemplate,
-    MonitorDialog
+    MonitorDialog,
   },
   props: {
     // 是否显示
@@ -70,13 +70,13 @@ export default {
     // 通知模板
     template: {
       type: String,
-      required: true
+      required: true,
     },
     // 监控对象id
     scenario: {
       type: [String, Number],
-      required: false
-    }
+      required: false,
+    },
   },
   data() {
     return {
@@ -84,7 +84,7 @@ export default {
       renderData: [],
       tabActive: 0,
       loading: false,
-      oldTemplate: ''
+      oldTemplate: '',
     };
   },
   computed: {
@@ -95,10 +95,10 @@ export default {
           ...item,
           tabActive: this.tabActive,
           message: item.message.replace(/\n/gim, '</br>').replace(/<style[^>]*>[^<]+<\/style>/gim, ''),
-          type: data.type || ''
+          type: data.type || '',
         })) || []
       );
-    }
+    },
   },
   watch: {
     dialogShow: {
@@ -112,7 +112,7 @@ export default {
           if (this.scenario) {
             data = await this.getRenderNoticeTemplate({
               scenario: this.scenario,
-              template: this.template
+              template: this.template,
             }).finally(() => (this.loading = false));
           } else {
             // 自愈套餐告警模版
@@ -123,8 +123,8 @@ export default {
           }
         }
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   beforeDestroy() {
     this.handleConfirm();
@@ -142,8 +142,8 @@ export default {
     handleConfirm() {
       this.show = false;
       this.$emit('update:dialogShow', false);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

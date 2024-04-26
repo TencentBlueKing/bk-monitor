@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
@@ -122,7 +123,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
     const variablesService = new VariablesService(this.viewOptions);
     this.$api[this.apiData.apiModule]
       [this.apiData.apiFunc]({
-        ...variablesService.transformVariables(this.apiData.data, this.viewOptions.filters)
+        ...variablesService.transformVariables(this.apiData.data, this.viewOptions.filters),
       })
       .then(res => {
         this.taskData = res;
@@ -146,7 +147,6 @@ export default class TaskList extends tsc<IProps, IEvents> {
   /** 搜索操作 */
   @Debounce(300)
   handleSearch() {
-    // eslint-disable-next-line max-len
     this.localTaskData = this.taskData.filter(
       task => task.name?.toLowerCase().indexOf(this.searchKeyword.toLowerCase()) > -1
     );
@@ -174,7 +174,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
   handleListChange(list: TaskDataItem[]) {
     return list.map(item => ({
       id: item.id || '',
-      name: item.name || ''
+      name: item.name || '',
     }));
   }
 
@@ -191,8 +191,8 @@ export default class TaskList extends tsc<IProps, IEvents> {
           <div class='task-list-search-row'>
             <bk-input
               v-model={this.searchKeyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleSearch}
             ></bk-input>
             <bk-button
@@ -210,7 +210,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
                     class={[
                       'task-item',
                       { active: String(task.id) === String(this.activeTask) },
-                      { 'checked-target': this.isTargetCompare && this.compareNode.includes(task.id) }
+                      { 'checked-target': this.isTargetCompare && this.compareNode.includes(task.id) },
                     ]}
                     onClick={() => this.handleTaskChange(task)}
                   >
@@ -222,8 +222,8 @@ export default class TaskList extends tsc<IProps, IEvents> {
           ) : (
             <bk-exception
               class='exception-wrap-item exception-part'
-              type='search-empty'
               scene='part'
+              type='search-empty'
             />
           )}
         </div>

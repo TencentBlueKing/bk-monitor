@@ -31,42 +31,48 @@
     <div class="content">
       <div v-if="alarm.name === 'uptimecheck'">
         <div
-          class="content-item"
           v-for="item in alarm.notice_task"
           :key="item.task_id"
+          class="content-item"
         >
           <a
             class="guide"
             @click="gotoUpcheckTimePage('task', item.task_id)"
-          > {{ $t('立即查看') }} </a>
+          >
+            {{ $t('立即查看') }}
+          </a>
           <svg-icon
             class="item-icon"
             icon-name="hint"
           />
           <div class="item-content">
-            {{ item.task_name }} {{ $t('当前服务可用率') }} <span class="item-warning">{{ item.available }}</span>，{{ $t('建议您关注') }}
+            {{ item.task_name }} {{ $t('当前服务可用率') }} <span class="item-warning">{{ item.available }}</span
+            >，{{ $t('建议您关注') }}
           </div>
         </div>
         <div
-          class="content-item"
           v-for="item in alarm.warning_task"
           :key="item.task_id"
+          class="content-item"
         >
           <a
             class="guide"
             @click="gotoUpcheckTimePage('task', item.task_id)"
-          > {{ $t('立即查看') }} </a>
+          >
+            {{ $t('立即查看') }}
+          </a>
           <svg-icon
             class="item-icon"
             icon-name="hint"
           />
           <div class="item-content">
-            {{ item.task_name }} {{ $t('当前可用率仅') }} <span class="item-warning">{{ item.available }}</span>，{{ $t('服务质量较差，请及时处理') }}
+            {{ item.task_name }} {{ $t('当前可用率仅') }} <span class="item-warning">{{ item.available }}</span
+            >，{{ $t('服务质量较差，请及时处理') }}
           </div>
         </div>
         <div
-          class="content-item"
           v-if="alarm.single_supplier"
+          class="content-item"
         >
           <svg-icon
             class="item-icon"
@@ -81,20 +87,24 @@
             <a
               class="into"
               @click="gotoUpcheckTimePage('node')"
-            > {{ $t('立即接入') }} </a>
+            >
+              {{ $t('立即接入') }}
+            </a>
             {{ $t('（点击跳转到拨测节点页面）') }}
           </div>
         </div>
       </div>
       <div v-else-if="alarm.name === 'service'">
         <div
-          class="content-item"
           v-if="alarm.should_config_strategy"
+          class="content-item"
         >
           <a
             class="guide"
             @click="gotoStrategy"
-          > {{ $t('前往添加') }} </a>
+          >
+            {{ $t('前往添加') }}
+          </a>
           <svg-icon
             class="item-icon"
             icon-name="hint"
@@ -111,7 +121,9 @@
           <a
             class="guide"
             @click="handleGotoLink('scriptCollect')"
-          > {{ $t('马上了解') }} </a>
+          >
+            {{ $t('马上了解') }}
+          </a>
           <svg-icon
             class="item-icon"
             icon-name="hint"
@@ -124,7 +136,9 @@
           <a
             class="guide"
             @click="handleGotoLink('multiInstanceMonitor')"
-          > {{ $t('马上了解') }} </a>
+          >
+            {{ $t('马上了解') }}
+          </a>
           <svg-icon
             class="item-icon"
             icon-name="hint"
@@ -137,7 +151,9 @@
           <a
             class="guide"
             @click="handleGotoLink('componentMonitor')"
-          > {{ $t('马上了解') }} </a>
+          >
+            {{ $t('马上了解') }}
+          </a>
           <svg-icon
             class="item-icon"
             icon-name="hint"
@@ -158,13 +174,15 @@
           </div>
         </div>
         <div
-          class="content-item"
           v-if="!alarm.has_monitor"
+          class="content-item"
         >
           <a
             class="guide"
             @click="gotoStrategy"
-          > {{ $t('立即配置') }} </a>
+          >
+            {{ $t('立即配置') }}
+          </a>
           <svg-icon
             class="item-icon"
             icon-name="hint"
@@ -208,7 +226,7 @@ import documentLinkMixin from '../../../mixins/documentLinkMixin';
 export default {
   name: 'CommonNormal',
   components: {
-    SvgIcon
+    SvgIcon,
   },
   mixins: [gotoPageMixin, documentLinkMixin],
   inject: ['homeItemBizId'],
@@ -217,31 +235,31 @@ export default {
       type: Object,
       default() {
         return {};
-      }
-    }
+      },
+    },
   },
   data() {
     return {
       commonMap: {
         uptimecheck: {
-          title: this.$t('当前拨测任务状态良好，无告警事件产生')
+          title: this.$t('当前拨测任务状态良好，无告警事件产生'),
         },
         service: {
-          title: this.$t('当前被监控的服务运行正常，无告警产生')
+          title: this.$t('当前被监控的服务运行正常，无告警产生'),
         },
         process: {
-          title: this.$t('当前进程状态正常，无告警产生')
+          title: this.$t('当前进程状态正常，无告警产生'),
         },
         os: {
-          title: this.$t('当前主机状态正常，无告警事件产生')
-        }
-      }
+          title: this.$t('当前主机状态正常，无告警事件产生'),
+        },
+      },
     };
   },
   computed: {
     normal() {
       return this.commonMap[this.alarm.name];
-    }
+    },
   },
   methods: {
     gotoUpcheckTimePage(type, taskId) {
@@ -267,13 +285,13 @@ export default {
       } else {
         this.commonGotoPage('config');
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
 <style scoped lang="scss">
-@import "../common/mixins";
+@import '../common/mixins';
 
 @mixin content-dec {
   color: #3a84ff;

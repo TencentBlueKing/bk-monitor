@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 // import { MetricType } from '../../components/metric-selector/typings';
 import { random } from 'monitor-common/utils/utils';
@@ -34,7 +35,6 @@ import FilterPanel, { IFilterData } from '../strategy-config/strategy-config-lis
 import { IGroupData } from '../strategy-config/strategy-config-list/group';
 import { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 import { handleMouseDown, handleMouseMove } from '../strategy-config/util';
-
 import MetricsTable from './metrics-table';
 
 import './metrics-manager.scss';
@@ -44,11 +44,11 @@ const dataSourceCheckedList = [
   { id: 'bk_data', name: window.i18n.t('计算平台指标'), count: 0 },
   { id: 'custom', name: window.i18n.t('自定义指标'), count: 0 },
   { id: 'bk_log_search', name: window.i18n.t('日志平台指标'), count: 0 },
-  { id: 'bk_apm', name: window.i18n.t('应用监控Trace指标'), count: 0 }
+  { id: 'bk_apm', name: window.i18n.t('应用监控Trace指标'), count: 0 },
 ];
 
 @Component
-export default class MetricsManager extends tsc<{}> {
+export default class MetricsManager extends tsc<object> {
   /* 左边容器宽度 */
   drapWidth = 240;
   /* 是否显示左边容器 */
@@ -67,7 +67,7 @@ export default class MetricsManager extends tsc<{}> {
     checkedData: [],
     defaultActiveName: [],
     show: true,
-    key: random(8)
+    key: random(8),
   };
   /* 监控对象列表 */
   scenarioList = [];
@@ -80,13 +80,13 @@ export default class MetricsManager extends tsc<{}> {
     current: 1,
     count: 0,
     limit: 10,
-    showTotalCount: true
+    showTotalCount: true,
   };
   /* 表头列表筛选列表 */
   tableHeaderFilters = {
     metricType: [],
     unit: [],
-    enabled: []
+    enabled: [],
   };
   loading = false;
   tableLoading = false;
@@ -137,7 +137,7 @@ export default class MetricsManager extends tsc<{}> {
       data_source: dataSource,
       tag: '',
       page: this.pagination.current,
-      page_size: this.pagination.limit
+      page_size: this.pagination.limit,
     })
       .then(response => {
         this.handleShowLeft(true);
@@ -154,7 +154,7 @@ export default class MetricsManager extends tsc<{}> {
           count: 0,
           data_source_list: [],
           metric_list: [],
-          scenario_list: []
+          scenario_list: [],
         };
       });
     this.scenarioList = data.scenario_list;
@@ -189,10 +189,10 @@ export default class MetricsManager extends tsc<{}> {
             return {
               id: item.id,
               name: item.name,
-              count
+              count,
             };
           })
-          .filter(item => !!item.count)
+          .filter(item => !!item.count),
       },
       {
         id: 'result_table_label',
@@ -202,8 +202,8 @@ export default class MetricsManager extends tsc<{}> {
             this.$set(item, 'count', scenarioCountMap[item.id] || 0);
             return item;
           })
-          .filter(item => !!item.count)
-      }
+          .filter(item => !!item.count),
+      },
     ];
   }
 
@@ -297,16 +297,16 @@ export default class MetricsManager extends tsc<{}> {
       >
         <div class='metrics-manager-content'>
           <div
+            style={{ width: `${this.drapWidth}px`, display: this.showLeft ? 'block' : 'none' }}
             class={['content-left', { drapActive: this.drapActive }]}
             data-tag='resizeTarget'
-            style={{ width: `${this.drapWidth}px`, display: this.showLeft ? 'block' : 'none' }}
           >
             <div
               class='content-left-drag'
               onMousedown={this.handleMouseDown}
-              onMousemove={this.handleMouseMove}
               onMouseenter={() => (this.drapActive = true)}
               onMouseleave={() => (this.drapActive = false)}
+              onMousemove={this.handleMouseMove}
             ></div>
             <FilterPanel
               key={this.leftFilter.key}
@@ -332,16 +332,16 @@ export default class MetricsManager extends tsc<{}> {
             v-bkloading={{ isLoading: this.tableLoading }}
           >
             <MetricsTable
-              tableData={this.tableData}
-              pagination={this.pagination as any}
               emptyStatusType={this.emptyStatusType}
-              onPageChange={this.handPageChange}
-              onLimitChange={this.handleLimitChange}
+              pagination={this.pagination as any}
+              tableData={this.tableData}
+              onClearFilter={this.handleClearFilter}
               onConditionChange={this.handleConditionChange}
               onDataRetrieval={this.handleToDataRetrieval}
               onDataSourceChange={this.handleDataSourceChange}
               onEnableChange={this.handleEnableChange}
-              onClearFilter={this.handleClearFilter}
+              onLimitChange={this.handleLimitChange}
+              onPageChange={this.handPageChange}
               onRefresh={this.handleRefresh}
             >
               {!this.showLeft ? (

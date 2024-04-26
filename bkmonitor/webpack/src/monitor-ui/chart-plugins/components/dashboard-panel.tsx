@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
@@ -33,7 +33,6 @@ import { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 import { GridItem, GridLayout } from 'monitor-vue-grid-layout';
 
 import { DashboardColumnType, IGridPos, IPanelModel, PanelModel } from '../typings';
-
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
 
@@ -48,7 +47,7 @@ interface IDashbordPanelProps {
   // 自动展示初始化列数
   column?: DashboardColumnType;
   /** 根据column */
-  customHeightFn?: Function | null;
+  customHeightFn?: ((a: any) => number) | null;
   // 是否在分屏展示
   isSplitPanel?: boolean;
   isSingleChart?: boolean;
@@ -80,13 +79,13 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   @Prop({ type: String }) backToType: SceneType;
   @Prop({ default: '' }) dashboardId: string;
   /** 自定义高度计算 */
-  @Prop({ default: null }) customHeightFn: Function | null;
+  @Prop({ default: null }) customHeightFn: ((a: any) => number) | null;
   // 视图布局位置信息
   layout: IGridPos[] = [];
   // 视图实例集合
   localPanels: PanelModel[] = [];
   // 拖拽视图的id
-  movedId: string | number = '';
+  movedId: number | string = '';
   /* 展示收藏弹窗 */
   showCollect = false;
   /* 点击了单个视图保存仪表盘 */
@@ -171,7 +170,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
             x: 0,
             y: prePanel ? prePanel.gridPos.h + prePanel.gridPos.y : 0,
             h: 1,
-            w: 24
+            w: 24,
           };
           prePanel = item;
           if (item.panels?.length) {
@@ -184,10 +183,10 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           item.gridPos = {
             ...item.gridPos,
             x: !panelIndex ? 0 : panelIndex * w,
-            // eslint-disable-next-line no-nested-ternary
+
             y: !panelIndex ? (prePanel ? prePanel.gridPos.h + prePanel.gridPos.y : 0) : prePanel.gridPos.y,
             h: this.customHeightFn?.(this.column) || (this.column === 1 ? 5 : 7),
-            w: isStaticWidth ? 24 : w
+            w: isStaticWidth ? 24 : w,
           };
           // event-log类型图表，最小高度占比为22
           if (item.type === 'event-log' && item.gridPos.h < 22) item.gridPos.h = 22;
@@ -195,8 +194,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
             ...item.options,
             legend: {
               displayMode: this.column === 1 ? 'table' : 'list',
-              placement: this.column === 1 ? 'right' : 'bottom'
-            }
+              placement: this.column === 1 ? 'right' : 'bottom',
+            },
           } as any;
           prePanel = item;
           index += 1;
@@ -211,7 +210,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
         x: 0,
         y,
         w: 24,
-        h: 1
+        h: 1,
       },
       id: random(10),
       options: {},
@@ -220,14 +219,14 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
       title: '',
       type: 'row',
       collapsed: true,
-      subTitle: ''
+      subTitle: '',
     };
   }
   getTransformPanel(panel: IPanelModel) {
     const item = new PanelModel({
       ...panel,
       dashboardId: this.id,
-      panelIds: panel?.panels?.map(item => item.id) || []
+      panelIds: panel?.panels?.map(item => item.id) || [],
     });
     return item;
   }
@@ -253,7 +252,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           curPanel.panels?.length && updateLayout(curPanel.panels);
         } else {
           const curGrid = curPanel.gridPos;
-          // eslint-disable-next-line prefer-const
+
           let { x, y, w } = curGrid;
           const { x: preX, y: preY, h: preH, w: preW } = preGrid;
           if (x !== preX) {
@@ -319,7 +318,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
               this.getTransformPanel({
                 ...item,
                 show: !!panel.collapsed,
-                groupId: rowPanel.id
+                groupId: rowPanel.id,
               })
             );
           list[list.length - 1].panels = childList;
@@ -437,7 +436,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
    * @description: 获取panel item的数据
    * @param {*} id
    */
-  getPanelsItem(id: string | number) {
+  getPanelsItem(id: number | string) {
     let item = this.localPanels.find(set => set.id === id);
     if (item) return item;
     for (let i = 0, len = this.localPanels.length; i < len; i++) {
@@ -571,21 +570,21 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
         ) : (
           [
             <GridLayout
-              layout={this.layout}
-              colNum={24}
-              rowHeight={30}
-              isResizable={true}
-              isDraggable={true}
-              responsive={false}
-              verticalCompact={true}
-              useCssTransforms={false}
-              margin={[16, 8]}
               draggableOptions={{
                 autoScroll: {
-                  container: '#dashboard-panel'
+                  container: '#dashboard-panel',
                 },
-                allowFrom: '.draggable-handle---no'
+                allowFrom: '.draggable-handle---no',
               }}
+              colNum={24}
+              isDraggable={true}
+              isResizable={true}
+              layout={this.layout}
+              margin={[16, 8]}
+              responsive={false}
+              rowHeight={30}
+              useCssTransforms={false}
+              verticalCompact={true}
               on-layout-updated={this.handleLayoutUpdated}
             >
               {this.layout?.slice(0, 1000).map((item, index) => {
@@ -593,9 +592,9 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                 return (
                   <GridItem
                     {...{ props: item }}
-                    class={{ 'row-panel': panel.type === 'row' }}
-                    key={`${item.i}_${index}__key__`}
                     id={`${item.i}__key__`}
+                    key={`${item.i}_${index}__key__`}
+                    class={{ 'row-panel': panel.type === 'row' }}
                     onMove={() => this.handleItemMoving(panel)}
                     onMoved={(i, newX, newY) => this.handleItemMoved(newY, panel)}
                   >
@@ -603,13 +602,13 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                       key={`${item.i}_${index}__key__`}
                       panel={panel}
                       {...{
-                        attrs: this.$attrs
+                        attrs: this.$attrs,
                       }}
                       needCheck={!this.isClusterOfK8s}
+                      onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                       onChartCheck={v => this.handleChartCheck(v, panel)}
                       onCollapse={v => panel.type === 'row' && this.handleCollapse(v, panel)}
                       onCollectChart={() => this.handleCollectChart(panel)}
-                      onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                     />
                   </GridItem>
                 );
@@ -617,14 +616,14 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
             </GridLayout>,
             !this.readonly && this.localPanels.length ? (
               <ChartCollect
+                isCollectSingle={this.isCollectSingle}
                 localPanels={this.localPanels}
                 showCollect={this.showCollect}
-                isCollectSingle={this.isCollectSingle}
                 onCheckAll={() => this.handleCheckAll()}
                 onCheckClose={() => this.handleCheckAll(false)}
                 onShowCollect={(v: boolean) => this.handleShowCollect(v)}
               ></ChartCollect>
-            ) : undefined
+            ) : undefined,
           ]
         )}
       </div>

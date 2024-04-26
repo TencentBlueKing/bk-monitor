@@ -34,13 +34,13 @@ import './timeline-viewing-layer.scss';
 
 const TimelineViewingLayerProps = {
   boundsInvalidator: {
-    type: Number as PropType<any | null | undefined>
+    type: Number as PropType<any | null | undefined>,
   },
   updateViewRangeTime: Function as PropType<TUpdateViewRangeTimeFunction>,
   updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>,
   viewRangeTime: {
-    type: Object as PropType<IViewRangeTime>
-  }
+    type: Object as PropType<IViewRangeTime>,
+  },
 };
 
 type TDraggingLeftLayout = {
@@ -95,7 +95,7 @@ function getNextViewLayout(start: number, position: number): TDraggingLeftLayout
   return {
     isDraggingLeft: start > position,
     left: `${left * 100}%`,
-    width: `${(right - left) * 100}%`
+    width: `${(right - left) * 100}%`,
   };
 }
 
@@ -112,16 +112,16 @@ function getMarkers(viewStart: number, viewEnd: number, from: number, to: number
   const { isDraggingLeft, left, width } = layout;
   return (
     <div
+      style={{ left, width }}
       class={[
         'timeline-viewing-layer-dragged',
         {
           isDraggingLeft,
           isDraggingRight: !isDraggingLeft,
           isReframeDrag: !isShift,
-          isShiftDrag: isShift
-        }
+          isShiftDrag: isShift,
+        },
       ]}
-      style={{ left, width }}
     />
   );
 }
@@ -193,7 +193,7 @@ export default defineComponent({
       onDragMove: handleReframeDragUpdate,
       onDragStart: handleReframeDragUpdate,
       onMouseLeave: handleReframeMouseLeave,
-      onMouseMove: handleReframeMouseMove
+      onMouseMove: handleReframeMouseMove,
     });
 
     onBeforeUnmount(() => {
@@ -204,46 +204,46 @@ export default defineComponent({
       viewingLayerRef,
       draggerReframe,
       viewRangeStore,
-      spanBarCurrentStore
+      spanBarCurrentStore,
     };
   },
 
   render() {
     // const { viewRangeTime } = this.$props;
-    // eslint-disable-next-line max-len
+
     const { cursor, reframe, shiftEnd, shiftStart } = this.viewRangeStore?.viewRange?.value.time as IViewRangeTime;
     // const [viewStart, viewEnd] = current;
     const [viewStart, viewEnd] = this.spanBarCurrentStore?.current.value as [number, number];
-    // eslint-disable-next-line eqeqeq
+
     const haveNextTimeRange = reframe != null || shiftEnd != null || shiftStart != null;
-    let cusrorPosition: string | TNil;
-    // eslint-disable-next-line eqeqeq
+    let cusrorPosition: TNil | string;
+
     if (!haveNextTimeRange && cursor != null && cursor >= viewStart && cursor <= viewEnd) {
       cusrorPosition = `${mapToViewSubRange(viewStart, viewEnd, cursor) * 100}%`;
     }
 
     return (
       <div
-        class='timeline-viewing-layer'
         ref='viewingLayerRef'
+        class='timeline-viewing-layer'
         onMousedown={this.draggerReframe.handleMouseDown}
         onMouseleave={this.draggerReframe.handleMouseLeave}
         onMousemove={this.draggerReframe.handleMouseMove}
       >
-        {/* eslint-disable-next-line eqeqeq */}
+        {}
         {cusrorPosition != null && (
           <div
-            class='timeline-viewing-layer-cursorGuide'
             style={{ left: cusrorPosition }}
+            class='timeline-viewing-layer-cursorGuide'
           />
         )}
-        {/* eslint-disable-next-line eqeqeq */}
+        {}
         {reframe != null && getMarkers(viewStart, viewEnd, reframe.anchor, reframe.shift, false)}
-        {/* eslint-disable-next-line eqeqeq */}
+        {}
         {shiftEnd != null && getMarkers(viewStart, viewEnd, viewEnd, shiftEnd, true)}
-        {/* eslint-disable-next-line eqeqeq */}
+        {}
         {shiftStart != null && getMarkers(viewStart, viewEnd, viewStart, shiftStart, true)}
       </div>
     );
-  }
+  },
 });

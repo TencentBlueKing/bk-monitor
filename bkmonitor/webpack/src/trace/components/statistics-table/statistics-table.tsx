@@ -1,6 +1,5 @@
-/* eslint-disable codecc/comment-ratio */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable codecc/comment-ratio */
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -28,6 +27,7 @@
  */
 import { computed, defineComponent, inject, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Loading, Message, Popover, Table } from 'bkui-vue';
 import { AngleDownFill, AngleUpFill } from 'bkui-vue/lib/icon';
 import { traceDiagram, traceStatistics } from 'monitor-api/modules/apm_trace';
@@ -44,21 +44,21 @@ import './statistics-table.scss';
 const IProps = {
   appName: {
     type: String,
-    default: true
+    default: true,
   },
   traceId: {
     type: String,
-    default: true
+    default: true,
   },
   compareTraceID: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 };
 
 export interface IFilterItem {
   type: string;
-  value: string | number | '';
+  value: '' | number | string;
 }
 
 interface IServiceNameItem {
@@ -96,9 +96,9 @@ interface ITableFilter {
   value: string;
 }
 
-type CustomSortField = 'max_duration' | 'min_duration' | 'sum_duration' | 'P95' | 'count' | '';
-type CustomSortChildField = 'current' | 'refer' | 'difference' | '';
-type SortType = 'desc' | 'asc' | '';
+type CustomSortField = '' | 'P95' | 'count' | 'max_duration' | 'min_duration' | 'sum_duration';
+type CustomSortChildField = '' | 'current' | 'difference' | 'refer';
+type SortType = '' | 'asc' | 'desc';
 
 export default defineComponent({
   name: 'StatisticsTable',
@@ -140,13 +140,13 @@ export default defineComponent({
           list: endpointNameFilterList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field]) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
-            class='link-column'
             key={random(6)}
+            class='link-column'
             onClick={() => handleToEndpoint(row?.['resource.service.name']?.value, row.span_name)}
           >
             <Popover
@@ -157,7 +157,7 @@ export default defineComponent({
             </Popover>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         isUseShow: true,
@@ -167,18 +167,18 @@ export default defineComponent({
           list: serviceNameFilterList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field].value) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
-            class='link-column classify-column'
             key={random(6)}
+            class='link-column classify-column'
             onClick={() => handleToService(row?.['resource.service.name']?.value)}
           >
             <img
-              src={row?.['resource.service.name']?.icon}
               alt=''
+              src={row?.['resource.service.name']?.icon}
             />
             <Popover
               content={row?.['resource.service.name']?.value}
@@ -188,15 +188,15 @@ export default defineComponent({
             </Popover>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         isUseShow: true,
         label: t('数据来源'),
         field: 'resource.sdk.name',
         filter: {
-          list: sourceList
-        }
+          list: sourceList,
+        },
       },
       {
         isUseShow: true,
@@ -206,60 +206,60 @@ export default defineComponent({
           list: categoryList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field].value) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div class='classify-column'>
             <img
-              src={row.kind?.icon}
               alt=''
+              src={row.kind?.icon}
             />
             <span class='link-text'>{row.kind?.text}</span>
           </div>
-        )
+        ),
       },
       {
         label: `${t('最大时间')}（μs）`,
         field: 'max_duration',
         sort: true,
-        width: 140
+        width: 140,
       },
       {
         label: `${t('最小时间')}（μs）`,
         field: 'min_duration',
         sort: true,
-        width: 140
+        width: 140,
       },
       {
         label: `${t('总时间')}（μs）`,
         field: 'sum_duration',
         sort: true,
-        width: 140
+        width: 140,
       },
       {
         label: 'CP95（μs）',
         field: 'P95',
         sort: true,
-        width: 140
+        width: 140,
       },
       {
         label: t('数量'),
         field: 'count',
         sort: true,
-        width: 90
+        width: 90,
       },
       {
         label: t('操作'),
         width: 160,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div style='display: flex;'>
             {/* TODO: 这里需要带什么参数去跳转页面 */}
             <div
+              style='width: 70px;'
               class='link-column'
               onClick={() => handleToTraceQuery(row)}
-              style='width: 70px;'
             >
               <span
                 class='link-text'
@@ -273,24 +273,24 @@ export default defineComponent({
             {/* TODO: 这里需要带什么参数去跳转页面 */}
             <Popover
               content={t('该数据是internal类型，没有对应的观测场景。')}
-              popoverDelay={[200, 0]}
               disabled={!row.is_interval}
+              popoverDelay={[200, 0]}
             >
               <div
-                class='link-column'
-                onClick={() => !row.is_interval && handleToObserve(row)}
                 style={{
                   marginLeft: '10px',
                   color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                  cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
+                  cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
                 }}
+                class='link-column'
+                onClick={() => !row.is_interval && handleToObserve(row)}
               >
                 <span
-                  class='link-text'
                   style={{
                     color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                    cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
+                    cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
                   }}
+                  class='link-text'
                 >
                   {t('观测')}
                 </span>
@@ -298,8 +298,8 @@ export default defineComponent({
               </div>
             </Popover>
           </div>
-        )
-      }
+        ),
+      },
     ];
     /** 表格列配置 */
     const tempDiffTableColumns = [
@@ -311,13 +311,13 @@ export default defineComponent({
           list: endpointNameFilterList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field]) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
-            class='link-column'
             key={random(6)}
+            class='link-column'
             onClick={() => handleToEndpoint(row?.['resource.service.name']?.value, row.span_name)}
           >
             <Popover
@@ -328,7 +328,7 @@ export default defineComponent({
             </Popover>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         isUseShow: true,
@@ -338,18 +338,18 @@ export default defineComponent({
           list: serviceNameFilterList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field].value) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
-            class='link-column classify-column'
             key={random(6)}
+            class='link-column classify-column'
             onClick={() => handleToService(row?.['resource.service.name']?.value)}
           >
             <img
-              src={row?.['resource.service.name']?.icon}
               alt=''
+              src={row?.['resource.service.name']?.icon}
             />
             <Popover
               content={row?.['resource.service.name']?.value}
@@ -359,15 +359,15 @@ export default defineComponent({
             </Popover>
             <i class='icon-monitor icon-fenxiang'></i>
           </div>
-        )
+        ),
       },
       {
         isUseShow: true,
         label: t('数据来源'),
         field: 'resource.sdk.name',
         filter: {
-          list: sourceList
-        }
+          list: sourceList,
+        },
       },
       {
         isUseShow: true,
@@ -377,18 +377,18 @@ export default defineComponent({
           list: categoryList,
           filterFn: (selected, row, column) => {
             return selected.length ? selected.includes(row[column.field].value) : true;
-          }
+          },
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div class='classify-column'>
             <img
-              src={row.kind?.icon}
               alt=''
+              src={row.kind?.icon}
             />
             <span class='link-text'>{row.kind?.text}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -404,23 +404,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'max_duration' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('max_duration', 'current', 'asc')}
                   />
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'max_duration' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('max_duration', 'current', 'desc')}
                   />
                 </span>
@@ -434,23 +434,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'max_duration' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('max_duration', 'refer', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'max_duration' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('max_duration', 'refer', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -464,23 +464,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'max_duration' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('max_duration', 'difference', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'max_duration' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('max_duration', 'difference', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -492,14 +492,14 @@ export default defineComponent({
         width: 181,
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
-            class='custom-cell'
             key={random(6)}
+            class='custom-cell'
           >
             <div class='custom-cell-child'>{setTextEllipsis(String(row.max_duration))}</div>
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.max_duration))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'max_duration')}</div>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -515,23 +515,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'min_duration' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('min_duration', 'current', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'min_duration' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('min_duration', 'current', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -545,23 +545,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'min_duration' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('min_duration', 'refer', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'min_duration' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('min_duration', 'refer', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -575,23 +575,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'min_duration' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('min_duration', 'difference', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'min_duration' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('min_duration', 'difference', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -603,14 +603,14 @@ export default defineComponent({
         width: 181,
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
-            class='custom-cell'
             key={random(6)}
+            class='custom-cell'
           >
             <div class='custom-cell-child'>{setTextEllipsis(String(row.min_duration))}</div>
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.min_duration))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'min_duration')}</div>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -626,23 +626,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'sum_duration' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'current', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'sum_duration' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'current', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -656,23 +656,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'sum_duration' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'refer', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'sum_duration' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'refer', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -686,23 +686,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'sum_duration' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'difference', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'sum_duration' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('sum_duration', 'difference', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -714,14 +714,14 @@ export default defineComponent({
         width: 181,
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
-            class='custom-cell'
             key={random(6)}
+            class='custom-cell'
           >
             <div class='custom-cell-child'>{setTextEllipsis(String(row.sum_duration))}</div>
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.sum_duration))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'sum_duration')}</div>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -737,23 +737,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'P95' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('P95', 'current', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'P95' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('P95', 'current', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -767,23 +767,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'P95' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('P95', 'refer', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'P95' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('P95', 'refer', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -797,23 +797,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'P95' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('P95', 'difference', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'P95' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('P95', 'difference', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -825,14 +825,14 @@ export default defineComponent({
         width: 181,
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
-            class='custom-cell'
             key={random(6)}
+            class='custom-cell'
           >
             <div class='custom-cell-child'>{setTextEllipsis(String(row.P95))}</div>
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.P95))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'P95')}</div>
           </div>
-        )
+        ),
       },
       {
         label: () => (
@@ -848,23 +848,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'count' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('count', 'current', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'count' &&
                       selectedChildField.value === 'current' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('count', 'current', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -878,23 +878,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'count' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('count', 'refer', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'count' &&
                       selectedChildField.value === 'refer' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('count', 'refer', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -908,23 +908,23 @@ export default defineComponent({
                 </span>
                 <span class='sort-icon'>
                   <AngleDownFill
-                    class='icon-up'
                     style={
                       selectedField.value === 'count' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'asc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-up'
                     onClick={() => handleCustomHeaderSort('count', 'difference', 'asc')}
                   ></AngleDownFill>
                   <AngleUpFill
-                    class='icon-down'
                     style={
                       selectedField.value === 'count' &&
                       selectedChildField.value === 'difference' &&
                       selectedSortType.value === 'desc' &&
                       'color: #3a84ff;'
                     }
+                    class='icon-down'
                     onClick={() => handleCustomHeaderSort('count', 'difference', 'desc')}
                   ></AngleUpFill>
                 </span>
@@ -936,25 +936,25 @@ export default defineComponent({
         width: 181,
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div
-            class='custom-cell'
             key={random(6)}
+            class='custom-cell'
           >
             <div class='custom-cell-child'>{setTextEllipsis(String(row.count))}</div>
             <div class='custom-cell-child'>{setTextEllipsis(String(row.comparison.count))}</div>
             <div class='custom-cell-child'>{getDiffValue(row, 'count')}</div>
           </div>
-        )
+        ),
       },
       {
         label: t('操作'),
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div style='display: flex;'>
             {/* TODO: 这里需要带什么参数去跳转页面 */}
             <div
+              style='width: 70px;'
               class='link-column'
               onClick={() => handleToTraceQuery(row)}
-              style='width: 70px;'
             >
               <span
                 class='link-text'
@@ -968,24 +968,24 @@ export default defineComponent({
             {/* TODO: 这里需要带什么参数去跳转页面 */}
             <Popover
               content={t('该数据是internal类型，没有对应的观测场景。')}
-              popoverDelay={[200, 0]}
               disabled={!row.is_interval}
+              popoverDelay={[200, 0]}
             >
               <div
-                class='link-column'
-                onClick={() => !row.is_interval && handleToObserve(row)}
                 style={{
                   marginLeft: '10px',
                   color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                  cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
+                  cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
                 }}
+                class='link-column'
+                onClick={() => !row.is_interval && handleToObserve(row)}
               >
                 <span
-                  class='link-text'
                   style={{
                     color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                    cursor: row.is_interval ? 'not-allowed !important' : 'pointer'
+                    cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
                   }}
+                  class='link-text'
                 >
                   {t('观测')}
                 </span>
@@ -995,8 +995,8 @@ export default defineComponent({
           </div>
         ),
         fixed: 'right',
-        width: 151
-      }
+        width: 151,
+      },
     ];
     /** 默认表格列配置 */
     const tableColumns = ref([]);
@@ -1050,10 +1050,9 @@ export default defineComponent({
               nextVal = next.comparison[selectedField.value];
               break;
             case 'difference':
-              // eslint-disable-next-line max-len
               preVal =
                 (pre[selectedField.value] - pre.comparison[selectedField.value]) / pre.comparison[selectedField.value];
-              // eslint-disable-next-line max-len
+
               nextVal =
                 (next[selectedField.value] - next.comparison[selectedField.value]) /
                 next.comparison[selectedField.value];
@@ -1098,7 +1097,7 @@ export default defineComponent({
         endpoint: 'span_name',
         service: 'resource.service.name',
         source: 'resource.sdk.name',
-        spanKind: 'kind'
+        spanKind: 'kind',
       };
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const group_fields = store.traceViewFilters.map(key => keyMap[key]);
@@ -1127,7 +1126,7 @@ export default defineComponent({
         Message({
           theme: 'error',
           message: `${t('请至少选择一项分组')}`,
-          getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : ''
+          getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : '',
         });
         return;
       }
@@ -1135,7 +1134,7 @@ export default defineComponent({
         app_name: appName,
         trace_id: traceId,
         filter,
-        group_fields
+        group_fields,
       };
       emit('update:loading', true);
       await traceStatistics(params)
@@ -1178,22 +1177,22 @@ export default defineComponent({
         item.span_name &&
           endpointNameFilterList.value.push({
             text: item.span_name,
-            value: item.span_name
+            value: item.span_name,
           });
         item?.['resource.service.name'] &&
           serviceNameFilterList.value.push({
             text: item?.['resource.service.name'].value,
-            value: item?.['resource.service.name'].value
+            value: item?.['resource.service.name'].value,
           });
         item?.['resource.sdk.name'] &&
           sourceList.value.push({
             text: item?.['resource.sdk.name'],
-            value: item?.['resource.sdk.name']
+            value: item?.['resource.sdk.name'],
           });
         item?.kind &&
           categoryList.value.push({
             text: item?.kind.value,
-            value: item?.kind.value
+            value: item?.kind.value,
           });
       });
       endpointNameFilterList.value = deduplicate(endpointNameFilterList.value);
@@ -1254,7 +1253,7 @@ export default defineComponent({
           Message({
             theme: 'error',
             message: `${t('请至少选择一项分组')}`,
-            getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : ''
+            getContainer: isFullscreen ? document.querySelector('.table-wrap.is-show-detail') : '',
           });
           return;
         }
@@ -1265,7 +1264,7 @@ export default defineComponent({
           diff_trace_id: traceID,
           diagram_type: 'statistics',
           group_fields,
-          filter
+          filter,
         };
         emit('update:loading', true);
         await traceDiagram(params)
@@ -1336,13 +1335,13 @@ export default defineComponent({
       if (store.traceViewFilters.includes('endpoint')) {
         query.push({
           key: 'span_name',
-          value: row.span_name
+          value: row.span_name,
         });
       }
       if (store.traceViewFilters.includes('service')) {
         query.push({
           key: 'resource.service.name',
-          value: row?.['resource.service.name']?.value
+          value: row?.['resource.service.name']?.value,
         });
       }
       if (store.traceViewFilters.includes('source')) {
@@ -1350,14 +1349,14 @@ export default defineComponent({
         if ((row?.['resource.sdk.name'] as string).toLowerCase() !== 'opentelemetry') {
           query.push({
             key: 'resource.sdk.name',
-            value: row?.['resource.sdk.name']
+            value: row?.['resource.sdk.name'],
           });
         }
       }
       if (store.traceViewFilters.includes('spanKind')) {
         query.push({
           key: 'kind',
-          value: row?.kind?.value
+          value: row?.kind?.value,
         });
       }
       let queryString = '';
@@ -1365,7 +1364,7 @@ export default defineComponent({
         queryString += `${item.key}: "${item.value}"`;
         if (index < query.length - 1) queryString += ' AND ';
       });
-      // eslint-disable-next-line no-useless-escape
+
       const hash = `#/trace/home?app_name=${props.appName}&search_type=scope&listType=span&trace_id=${props.traceId}&query=${queryString}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
@@ -1408,7 +1407,7 @@ export default defineComponent({
 
     expose({
       handleKeywordFliter,
-      viewCompare
+      viewCompare,
     });
 
     return {
@@ -1421,7 +1420,7 @@ export default defineComponent({
       diffTableSettings,
       reactiveFilter,
       isCompareView,
-      handleColumnSort
+      handleColumnSort,
     };
   },
 
@@ -1447,30 +1446,30 @@ export default defineComponent({
           <Table
             height='100%'
             class='statistics-table'
-            rowHeight={42}
-            settings={this.tableSettings}
+            v-slots={{ empty: () => emptyContent() }}
             columns={this.tableColumns}
             data={this.originalSortTableData}
+            rowHeight={42}
+            settings={this.tableSettings}
             onColumnSort={this.handleColumnSort}
-            v-slots={{ empty: () => emptyContent() }}
           />
         ) : (
           <Table
             height='100%'
             class='statistics-table statistics-diff-table'
-            rowHeight={42}
-            settings={this.diffTableSettings}
-            columns={this.diffTableColumns}
-            data={this.tableData}
             v-slots={{ empty: () => emptyContent() }}
             thead={{
-              height: 84
+              height: 84,
             }}
             border={['row', 'col']}
             cell-class={(option: any) => option.field}
+            columns={this.diffTableColumns}
+            data={this.tableData}
+            rowHeight={42}
+            settings={this.diffTableSettings}
           />
         )}
       </Loading>
     );
-  }
+  },
 });

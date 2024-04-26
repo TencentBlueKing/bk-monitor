@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { IMetricDetail } from './typings';
+
 // 函数组件value
 export interface IFuncValueItem {
   id: number;
@@ -31,8 +34,8 @@ export interface IFuncValueItem {
 }
 
 export interface IIdNameItem {
-  id: string | number;
-  name: string | number;
+  id: number | string;
+  name: number | string;
 }
 
 // 函数组件localValue
@@ -61,21 +64,21 @@ export interface IFuncListItem {
 export interface IFuncListParamsItem {
   name: string;
   default: number | string;
-  list: Array<string | number>;
+  list: Array<number | string>;
 }
 export const levelList: { id: number; name: string }[] = [
   {
     id: 1,
-    name: window.i18n.tc('致命')
+    name: window.i18n.tc('致命'),
   },
   {
     id: 2,
-    name: window.i18n.tc('预警')
+    name: window.i18n.tc('预警'),
   },
   {
     id: 3,
-    name: window.i18n.tc('提醒')
-  }
+    name: window.i18n.tc('提醒'),
+  },
 ];
 
 export interface IActionConfig {
@@ -90,10 +93,15 @@ export interface IActionConfig {
 export const noticeMethod = [
   {
     name: window.i18n.tc('基于分派规则通知'),
-    value: 'by_rule'
+    value: 'by_rule',
   },
   {
     name: window.i18n.tc('默认通知'),
-    value: 'only_notice'
-  }
+    value: 'only_notice',
+  },
 ];
+
+export interface IMultivariateAnomalyDetectionParams {
+  metrics: IMetricDetail[];
+  refleshKey: string;
+}

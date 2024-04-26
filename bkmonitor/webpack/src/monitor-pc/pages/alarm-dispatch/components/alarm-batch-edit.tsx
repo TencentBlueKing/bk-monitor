@@ -31,12 +31,11 @@ import VerifyItem from '../../strategy-config/strategy-config-set-new/components
 import AlarmGroupSelect from '../components/alarm-group-select';
 import { EColumn, ICondtionItem, LEVELLIST } from '../typing';
 import { TGroupKeys, TValueMap } from '../typing/condition';
-
 import ConditionFindReplace, { IListItem } from './condition-find-replace';
 
 import './alarm-batch-edit.scss';
 
-type FiledType = EColumn | 'priority' | 'name' | 'notice' | 'alertSeveritySingle';
+type FiledType = 'alertSeveritySingle' | 'name' | 'notice' | 'priority' | EColumn;
 
 const configFiled = {
   name: window.i18n.tc('修改组名'),
@@ -49,7 +48,7 @@ const configFiled = {
   actionId: window.i18n.tc('修改流程套餐'),
   upgradeConfig: window.i18n.tc('批量设置通知升级'),
   notice: window.i18n.tc('是否开启通知'),
-  isEnabled: window.i18n.tc('批量修改状态')
+  isEnabled: window.i18n.tc('批量修改状态'),
 };
 
 interface IEvent {
@@ -82,7 +81,7 @@ interface IAlarmBatchEditProps {
 }
 
 @Component({
-  name: 'AlarmBatchEdit'
+  name: 'AlarmBatchEdit',
 })
 export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
   @Prop({ default: 'level', type: String }) filed: FiledType;
@@ -117,7 +116,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
     userGroups: '',
     upgradeInterval: '',
     addTag: '',
-    priorityErrorMsg: ''
+    priorityErrorMsg: '',
   };
 
   @Emit('submit')
@@ -133,7 +132,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
         noticeIsEnabled: true,
         userGroups: [],
         upgradeInterval: 30,
-        isEnabled: false
+        isEnabled: false,
       };
     } else if (this.filed === 'userGroups') {
       defaultValue = [];
@@ -201,7 +200,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
    * @param value
    * @returns
    */
-  handlePriorityChange(value: string | number) {
+  handlePriorityChange(value: number | string) {
     if (typeof value === 'string') {
       if (!value) return;
 
@@ -307,7 +306,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
   handleFindReplace() {
     return {
       findData: this.conditionFindReplaceRef.findData,
-      replaceData: this.conditionFindReplaceRef.replaceData
+      replaceData: this.conditionFindReplaceRef.replaceData,
     };
   }
 
@@ -318,7 +317,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
       userGroups: '',
       upgradeInterval: '',
       addTag: '',
-      priorityErrorMsg: ''
+      priorityErrorMsg: '',
     };
   }
 
@@ -343,12 +342,12 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
           <div>
             <bk-input
               ref='priorityInput'
-              type='number'
               max={10000}
               min={1}
-              onInput={this.handlePriorityChange}
-              value={this.data[this.filed]}
               size='small'
+              type='number'
+              value={this.data[this.filed]}
+              onInput={this.handlePriorityChange}
             />
             <span style={{ color: this.errorMsg.priorityErrorMsg ? '#ea3636' : '#979BA5' }}>
               {this.errorMsg.priorityErrorMsg
@@ -360,12 +359,12 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
       case 'userGroups':
         return (
           <AlarmGroupSelect
-            value={this.data[this.filed]}
             loading={this.alarmGroupListLoading}
-            onChange={value => (this.data[this.filed] = value)}
             options={this.alarmGroupList}
-            onTagclick={this.showAlarmGroupDetail}
+            value={this.data[this.filed]}
+            onChange={value => (this.data[this.filed] = value)}
             onRefresh={this.refreshAlarm}
+            onTagclick={this.showAlarmGroupDetail}
           />
         );
 
@@ -386,21 +385,21 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
             <div class='upgrade-form'>
               <VerifyItem errorMsg={this.errorMsg.upgradeInterval}>
                 <i18n
-                  tag='div'
                   class='text'
                   path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
+                  tag='div'
                 >
                   <bk-select
-                    behavior='simplicity'
-                    v-model={this.data[this.filed].upgradeInterval}
-                    onChange={value => this.handleVerifyInterval(value)}
                     width={76}
+                    class='notice-select'
+                    v-model={this.data[this.filed].upgradeInterval}
+                    allow-create={this.data[this.filed].isEnabled && this.data[this.filed].noticeIsEnabled}
+                    behavior='simplicity'
                     disabled={!this.data[this.filed].isEnabled || !this.data[this.filed].noticeIsEnabled}
                     placeholder={this.$t('输入')}
                     zIndex={99999}
-                    allow-create={this.data[this.filed].isEnabled && this.data[this.filed].noticeIsEnabled}
                     allow-enter
-                    class='notice-select'
+                    onChange={value => this.handleVerifyInterval(value)}
                   >
                     <bk-option
                       id={1}
@@ -425,17 +424,17 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
                 <VerifyItem errorMsg={this.errorMsg.userGroups}>
                   <AlarmGroup
                     v-model={this.data[this.filed].userGroups}
+                    disabled={!this.data[this.filed].isEnabled || !this.data[this.filed].noticeIsEnabled}
+                    disabledList={this.alarmDisabledList}
+                    isOpenNewPage={true}
+                    isRefresh={true}
+                    list={this.alarmGroupList}
+                    loading={this.alarmGroupListLoading}
+                    tagClick={this.showAlarmGroupDetail}
                     onChange={() => {
                       this.errorMsg.userGroups = '';
                     }}
-                    isRefresh={true}
-                    loading={this.alarmGroupListLoading}
                     onRefresh={this.refreshAlarm}
-                    disabled={!this.data[this.filed].isEnabled || !this.data[this.filed].noticeIsEnabled}
-                    tagClick={this.showAlarmGroupDetail}
-                    disabledList={this.alarmDisabledList}
-                    list={this.alarmGroupList}
-                    isOpenNewPage={true}
                   />
                 </VerifyItem>
               </div>
@@ -451,14 +450,14 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
           >
             {this.processPackage.map(option => (
               <bk-option
-                key={option.id}
                 id={option.id}
+                key={option.id}
                 name={option.name}
               />
             ))}
             <div
-              slot='extension'
               class='extension-wrap'
+              slot='extension'
             >
               <div
                 class='add-wrap'
@@ -472,11 +471,10 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
                 onClick={this.refreshProcess}
               >
                 {this.processLoading ? (
-                  /* eslint-disable-next-line @typescript-eslint/no-require-imports */
                   <img
+                    class='status-loading'
                     alt=''
                     src={require('../../../static/images/svg/spinner.svg')}
-                    class='status-loading'
                   ></img>
                 ) : (
                   <span class='icon-monitor icon-mc-retry'></span>
@@ -491,10 +489,10 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
           !!this.conditionProps && (
             <ConditionFindReplace
               ref='conditionFindReplace'
-              keyList={this.conditionProps.keyList}
-              valueMap={this.conditionProps.valueMap}
               groupKey={this.conditionProps.groupKey}
               groupKeys={this.conditionProps.groupKeys}
+              keyList={this.conditionProps.keyList}
+              valueMap={this.conditionProps.valueMap}
             ></ConditionFindReplace>
           )
         );
@@ -506,13 +504,13 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
               ref='additionalTags'
               class='mb10'
               v-model={this.data[this.filed]}
-              clearable={false}
               allow-auto-match={true}
+              allow-create={true}
+              clearable={false}
+              has-delete-icon={true}
+              placeholder={this.$t('填写标签，格式key:value')}
               tooltip-key='name'
               onChange={this.handleAdditionalTagsChange}
-              placeholder={this.$t('填写标签，格式key:value')}
-              allow-create={true}
-              has-delete-icon={true}
             ></bk-tag-input>
           </VerifyItem>
         );
@@ -528,8 +526,8 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
               <bk-radio value={item.value}>
                 {item.icon && (
                   <i
-                    class={`${item.icon} icon-level`}
                     style={{ color: item.color }}
+                    class={`${item.icon} icon-level`}
                   />
                 )}
                 {item.name}
@@ -557,13 +555,13 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
             {configFiled[this.filed]}
             {['upgradeConfig', 'notice'].includes(this.filed) && (
               <bk-switcher
-                theme='primary'
                 class='notice-switcher'
+                v-model={this.data[this.filed].noticeIsEnabled}
+                theme='primary'
                 onChange={() => {
                   this.errorMsg.upgradeInterval = '';
                   this.errorMsg.userGroups = '';
                 }}
-                v-model={this.data[this.filed].noticeIsEnabled}
               />
             )}
           </div>
@@ -571,8 +569,8 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
         <div class='alarm-batch-edit-content'>{this.filed && this.getFieldForm(this.filed)}</div>
         <div class='alarm-batch-edit-footer'>
           <bk-button
-            theme='primary'
             disabled={['priority'].includes(this.filed) && !this.isListPage ? !this.canDebug : false}
+            theme='primary'
             onClick={this.handleSubmit}
           >
             {['priority'].includes(this.filed) && !this.isListPage ? this.$t('调试并生效') : this.$t('确认')}

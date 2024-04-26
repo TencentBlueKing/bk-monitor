@@ -26,7 +26,6 @@
 import { Component } from 'vue-property-decorator';
 
 import { ILegendItem, LegendActionType } from '../../typings';
-
 import CommonLegend from './common-legend';
 
 import './map-legend.scss';
@@ -46,15 +45,15 @@ export default class MapLegend extends CommonLegend {
       <div class='map-legend'>
         {this.legendData.map((legend, index) => (
           <div
-            class='map-legend-item'
             key={index}
+            class='map-legend-item'
             onClick={e => this.handleLegendEvent(e, 'click', legend)}
             onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
             onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}
           >
             <span
-              class='legend-icon'
               style={{ backgroundColor: legend.color ? legend.color : '#ccc' }}
+              class='legend-icon'
             ></span>
             <div class='legend-name'>{legend.name}</div>
           </div>

@@ -34,7 +34,7 @@ interface ICheckboxTreeData extends IGroupData {
   id: string;
   value: string[];
   level: number;
-  parent: string | null;
+  parent: null | string;
   indeterminate: boolean;
   child: any[];
   count: number;
@@ -84,8 +84,8 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
       <div style={{ marginLeft: `${level * 20}px` }}>
         <div class='mb10'>
           <bk-checkbox
-            value={data.id}
             indeterminate={data.indeterminate}
+            value={data.id}
             onChange={value => this.handleCheckChange(data, value)}
           >
             {data.name}
@@ -139,7 +139,7 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
     const outputData = this.innerData.reduce<ICheckedData[]>((pre, item) => {
       pre.push({
         id: item.id,
-        values: item?.data?.length ? [...item.value].filter(id => id !== item.id) : [...item.value]
+        values: item?.data?.length ? [...item.value].filter(id => id !== item.id) : [...item.value],
       });
       return pre;
     }, []);
@@ -170,7 +170,7 @@ export default class CheckboxTree extends tsc<ICheckboxTreeProps, ICheckboxTreeE
       value: [],
       parent,
       indeterminate: false,
-      data: item.child?.length ? this.recurrenceData(item.child, level + 1, item.id) : []
+      data: item.child?.length ? this.recurrenceData(item.child, level + 1, item.id) : [],
     }));
   }
 

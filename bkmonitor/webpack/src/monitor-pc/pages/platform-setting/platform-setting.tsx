@@ -29,27 +29,26 @@ import { Component as tsc } from 'vue-tsx-support';
 import NoPermission from '../../components/no-permission/no-permission';
 import DataPipeline from '../data-pipeline/data-pipeline';
 import ResourceRegister from '../resource-register/resource-register';
-
 import * as authorityMap from './authority-map';
 
 import './platform-setting.scss';
 
 enum ENavId {
   dataPipeline = 'dataPipeline',
-  resourceRegister = 'resourceRegister'
+  resourceRegister = 'resourceRegister',
 }
 
 @Component
-export default class PlatformSetting extends tsc<{}> {
+export default class PlatformSetting extends tsc<object> {
   navList = [
     {
       id: ENavId.dataPipeline,
-      name: window.i18n.tc('链路管理')
+      name: window.i18n.tc('链路管理'),
     },
     {
       id: ENavId.resourceRegister,
-      name: window.i18n.tc('资源注册')
-    }
+      name: window.i18n.tc('资源注册'),
+    },
   ];
   curNav = '';
 
@@ -66,8 +65,8 @@ export default class PlatformSetting extends tsc<{}> {
       this.curNav = item.id;
       this.$router.replace({
         query: {
-          nav: item.id
-        }
+          nav: item.id,
+        },
       });
     }
   }
@@ -80,8 +79,8 @@ export default class PlatformSetting extends tsc<{}> {
           <div class='setting-content-left'>
             {this.navList.map(item => (
               <div
-                class={['menu-item', { active: item.id === this.curNav }]}
                 key={item.id}
+                class={['menu-item', { active: item.id === this.curNav }]}
                 onClick={() => this.handleNavChange(item)}
               >
                 {item.name}

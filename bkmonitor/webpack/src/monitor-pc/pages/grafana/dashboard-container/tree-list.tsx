@@ -27,7 +27,6 @@ import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
 
 import Collapse from '../../../components/collapse/collapse';
-
 import { GRAFANA_HOME_ID, MoreType } from './dashboard-aside';
 import IconBtn, { IIconBtnOptions } from './icon-btn';
 import { TreeMenuItem } from './utils';
@@ -50,7 +49,7 @@ export interface IMoreData {
   item: TreeMenuItem;
 }
 @Component({
-  name: 'TreeList'
+  name: 'TreeList',
 })
 export default class TreeList extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) list: TreeMenuItem[];
@@ -74,24 +73,24 @@ export default class TreeList extends tsc<IProps, IEvents> {
         name: window.i18n.tc('重命名'),
         icon: 'icon-bianji',
         style: {
-          'font-size': '20px'
+          'font-size': '20px',
         },
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       {
         id: MoreType.export,
         name: window.i18n.tc('导出'),
         icon: 'icon-xiazai1',
-        hasAuth: true
+        hasAuth: true,
       },
       {
         id: MoreType.delete,
         name: window.i18n.tc('删除'),
         icon: 'icon-mc-delete-line',
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
-      }
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
+      },
     ];
   }
   get addOptions(): IIconBtnOptions[] {
@@ -100,8 +99,8 @@ export default class TreeList extends tsc<IProps, IEvents> {
         id: MoreType.dashboard,
         name: window.i18n.tc('仪表盘'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
-      }
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
+      },
       // {
       //   id: MoreType.dir,
       //   name: window.i18n.tc('目录'),
@@ -116,32 +115,32 @@ export default class TreeList extends tsc<IProps, IEvents> {
         id: MoreType.export,
         name: window.i18n.tc('导出'),
         icon: 'icon-xiazai1',
-        hasAuth: true
+        hasAuth: true,
       },
       {
         id: MoreType.fav,
         name: window.i18n.tc('收藏'),
         icon: 'icon-mc-uncollect',
         style: {
-          'font-size': '12px'
+          'font-size': '12px',
         },
-        hasAuth: true
+        hasAuth: true,
       },
       {
         id: MoreType.unfav,
         name: window.i18n.tc('取消收藏'),
         icon: 'icon-mc-collect',
         style: {
-          'font-size': '12px'
+          'font-size': '12px',
         },
-        hasAuth: true
+        hasAuth: true,
       },
       {
         id: MoreType.delete,
         name: window.i18n.tc('删除'),
         icon: 'icon-mc-delete-line',
-        hasAuth: true
-      }
+        hasAuth: true,
+      },
     ];
   }
   /**
@@ -220,7 +219,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
     }
     this.handleEmitMore({
       option: opt,
-      item
+      item,
     });
   }
 
@@ -257,19 +256,19 @@ export default class TreeList extends tsc<IProps, IEvents> {
       <div class='tree-list'>
         {this.list.map(item => (
           <div
-            class='tree-list-item'
-            key={item.id}
             id={item.uid}
+            key={item.id}
+            class='tree-list-item'
           >
             <div
+              style={{ 'padding-left': this.indentPadding }}
               class={[
                 'list-item-row',
                 {
                   checked: item.uid === this.checked,
-                  edit: item.edit
-                }
+                  edit: item.edit,
+                },
               ]}
-              style={{ 'padding-left': this.indentPadding }}
               onClick={e => this.handleClickRow(e, item)}
               onMouseenter={() => this.handleMouseenter(item)}
               onMouseleave={() => this.handleMouseenter()}
@@ -280,8 +279,8 @@ export default class TreeList extends tsc<IProps, IEvents> {
               {item.edit ? (
                 <div onClick={modifiers.stop(() => {})}>
                   <bk-input
-                    class='rename-input'
                     ref={`input-${item.id}`}
+                    class='rename-input'
                     v-model={item.editValue}
                     onBlur={() => this.handleRename(item)}
                     onEnter={() => this.handleRename(item)}
@@ -299,43 +298,43 @@ export default class TreeList extends tsc<IProps, IEvents> {
                 <span class='list-item-handle'>
                   {item.isFolder && this.checkedGroupItemFocus(this.needAdd, item) && (
                     <IconBtn
-                      iconOnly
                       checked={item.addActive}
                       options={this.addOptions}
-                      onShowChange={show => this.handleAddActive(show, item, 'addActive')}
+                      iconOnly
                       onSelected={opt => this.handleMoreProxy(opt, item)}
+                      onShowChange={show => this.handleAddActive(show, item, 'addActive')}
                     >
                       <i
-                        slot='icon'
                         class='icon-monitor icon-mc-add'
+                        slot='icon'
                       ></i>
                     </IconBtn>
                   )}
                   {this.checkedGroupItemFocus(this.needMore, item) && (
                     <IconBtn
-                      iconOnly
                       checked={item.moreActive}
                       options={this.handleMoreOptions(item)}
-                      onShowChange={show => this.handleAddActive(show, item, 'moreActive')}
+                      iconOnly
                       onSelected={opt => this.handleMoreProxy(opt, item)}
+                      onShowChange={show => this.handleAddActive(show, item, 'moreActive')}
                     >
                       <i
-                        slot='icon'
                         class='icon-monitor icon-mc-more'
+                        slot='icon'
                       ></i>
                     </IconBtn>
                   )}
                   {this.checkedDashboardItemFocus(this.needMore, item) && (
                     <IconBtn
-                      iconOnly
                       checked={item.moreActive}
                       options={this.getDashboardMoreOptions(item)}
-                      onShowChange={show => this.handleAddActive(show, item, 'moreActive')}
+                      iconOnly
                       onSelected={opt => this.handleMoreProxy(opt, item)}
+                      onShowChange={show => this.handleAddActive(show, item, 'moreActive')}
                     >
                       <i
-                        slot='icon'
                         class='icon-monitor icon-mc-more'
+                        slot='icon'
                       ></i>
                     </IconBtn>
                   )}
@@ -344,10 +343,10 @@ export default class TreeList extends tsc<IProps, IEvents> {
             </div>
             {item.isGroup && (
               <Collapse
-                expand={item.expend}
-                renderContent={false}
-                needCloseButton={false}
                 key={`${item.id}-${item.children.length}`}
+                expand={item.expend}
+                needCloseButton={false}
+                renderContent={false}
               >
                 <TreeList
                   checked={this.checked}

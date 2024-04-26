@@ -29,14 +29,13 @@ import { Route } from 'vue-router';
 import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
-
 import * as dataRetrievalAuthMap from './authority-map';
 import DataRetrieval from './data-retrieval';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 const authMap = {
   ...dataRetrievalAuthMap,
-  GRAFANA_MANAGE_AUTH
+  GRAFANA_MANAGE_AUTH,
 };
 
 @Component

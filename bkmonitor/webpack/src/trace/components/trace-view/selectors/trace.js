@@ -25,10 +25,9 @@
  */
 import { createSelector, createStructuredSelector } from 'reselect';
 
+import TreeNode from '../utils/TreeNode';
 import { formatMillisecondTime, formatSecondTime, ONE_SECOND } from '../utils/date';
 import { numberSortComparator } from '../utils/sort';
-import TreeNode from '../utils/TreeNode';
-
 import { getProcessServiceName } from './process';
 import {
   getSpanDuration,
@@ -36,7 +35,7 @@ import {
   getSpanName,
   getSpanProcessId,
   getSpanServiceName,
-  getSpanTimestamp
+  getSpanTimestamp,
 } from './span';
 
 export const getTraceId = trace => trace.traceID;
@@ -50,7 +49,7 @@ const getSpanWithProcess = createSelector(
   state => state.processes,
   (span, processes) => ({
     ...span,
-    process: processes[getSpanProcessId(span)]
+    process: processes[getSpanProcessId(span)],
   })
 );
 
@@ -114,7 +113,7 @@ export const hydrateSpansWithProcesses = trace => {
 
   return {
     ...trace,
-    spans: spans.map(span => getSpanWithProcess({ span, processes }))
+    spans: spans.map(span => getSpanWithProcess({ span, processes })),
   };
 };
 
@@ -173,7 +172,7 @@ export const getTraceServiceCount = createSelector(getTraceServices, services =>
 // for nanosecond-to-millisecond conversions.
 export const DURATION_FORMATTERS = {
   ms: formatMillisecondTime,
-  s: formatSecondTime
+  s: formatSecondTime,
 };
 
 const getDurationFormatterForTrace = createSelector(getTraceDuration, totalDuration =>
@@ -196,7 +195,7 @@ export const getSortedSpans = createSelector(
   ({ trace }) => trace,
   ({ spans }) => spans,
   ({ sort }) => sort,
-  // eslint-disable-next-line max-len
+
   (trace, spans, { dir, comparator, selector }) =>
     [...spans].sort((spanA, spanB) => dir * comparator(selector(spanA, trace), selector(spanB, trace)))
 );
@@ -204,7 +203,7 @@ export const getSortedSpans = createSelector(
 const getTraceSpansByHierarchyPosition = createSelector(getTraceSpanIdsAsTree, tree => {
   const hierarchyPositionMap = new Map();
   let i = 0;
-  // eslint-disable-next-line no-plusplus
+
   tree.walk(spanID => hierarchyPositionMap.set(spanID, i++));
   return hierarchyPositionMap;
 });
@@ -232,7 +231,7 @@ export const getTraceName = createSelector(
     createSelector(hydrateSpansWithProcesses, getParentSpan),
     createStructuredSelector({
       name: getSpanName,
-      serviceName: getSpanServiceName
+      serviceName: getSpanServiceName,
     })
   ),
   ({ name, serviceName }) => `${serviceName}: ${name}`
@@ -266,7 +265,7 @@ export const getTicksForTrace = createSelector(
   ) =>
     [...Array(interval + 1).keys()].map(num => ({
       timestamp: getTraceTimestamp(trace) + getTraceDuration(trace) * (num / interval),
-      width
+      width,
     }))
 );
 
@@ -285,7 +284,6 @@ export const enforceUniqueSpanIds = createSelector(
         const updatedSpan = { ...span, spanID };
 
         if (spanID !== getSpanId(span)) {
-          // eslint-disable-next-line no-console
           console.warn('duplicate spanID in trace replaced', getSpanId(span), 'new:', spanID);
         }
 
@@ -293,7 +291,7 @@ export const enforceUniqueSpanIds = createSelector(
         map.set(getSpanId(span), (map.get(getSpanId(span)) || 0) + 1);
 
         return result.concat([updatedSpan]);
-      }, [])
+      }, []),
     };
   }
 );
@@ -304,6 +302,6 @@ export const dropEmptyStartTimeSpans = createSelector(
   getTraceSpans,
   /* istanbul ignore next */ (trace, spans) => ({
     ...trace,
-    spans: spans.filter(span => !!getSpanTimestamp(span))
+    spans: spans.filter(span => !!getSpanTimestamp(span)),
   })
 );

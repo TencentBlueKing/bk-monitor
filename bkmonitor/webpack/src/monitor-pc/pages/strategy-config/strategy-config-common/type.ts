@@ -29,9 +29,9 @@ export interface IStrategyConfigProps {
   fromRouteName?: string;
   noticeName?: string;
   serviceCategory?: string;
-  taskId?: string | number;
+  taskId?: number | string;
   ip?: string;
-  bkCloudId?: string | number;
+  bkCloudId?: number | string;
   bkEventGroupId?: number;
   timeSeriesGroupId?: number;
   pluginId?: string;
@@ -79,7 +79,7 @@ export interface ILabel {
   value?: string;
 }
 interface IFilterData {
-  id: string | number; // 所属分组ID
+  id: number | string; // 所属分组ID
   values: any[]; // 勾选数据
   name: TranslateResult; // 分组名称
 }

@@ -26,16 +26,17 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import './common-add-dialog.scss';
 
 interface ICommonAddDialogProps {
   show: boolean;
-  placeholder?: string | TranslateResult;
-  title?: string | TranslateResult;
+  placeholder?: TranslateResult | string;
+  title?: TranslateResult | string;
   defaultValue: string;
-  validateTips?: string | TranslateResult;
+  validateTips?: TranslateResult | string;
   showValidateTips?: boolean;
 }
 interface ICommonAddDialogEvent {
@@ -46,8 +47,8 @@ interface ICommonAddDialogEvent {
 @Component
 export default class CommonAddDialog extends tsc<ICommonAddDialogProps, ICommonAddDialogEvent> {
   @Prop() show: boolean;
-  @Prop() placeholder: string | TranslateResult;
-  @Prop() title: string | TranslateResult;
+  @Prop() placeholder: TranslateResult | string;
+  @Prop() title: TranslateResult | string;
   @Prop() defaultValue: string;
   @Prop() validateTips: string;
   @Prop() showValidateTips: boolean;
@@ -78,19 +79,19 @@ export default class CommonAddDialog extends tsc<ICommonAddDialogProps, ICommonA
   render() {
     return (
       <MonitorDialog
-        value={this.show}
+        width='488'
         class='common-add-dialog'
         title={this.title.toString()}
-        width='488'
-        onChange={this.handleShowChange}
+        value={this.show}
         onCancel={this.handleCancel}
+        onChange={this.handleShowChange}
         onConfirm={this.handleConfirm}
       >
         <bk-input
           class={`url-input ${this.showValidateTips ? 'is-error' : ''}`}
-          type='textarea'
           vModel={this.value}
           placeholder={this.placeholder}
+          type='textarea'
           onFocus={this.handleFocus}
         />
         {this.showValidateTips && <div class='validate-tips'>{this.validateTips}</div>}

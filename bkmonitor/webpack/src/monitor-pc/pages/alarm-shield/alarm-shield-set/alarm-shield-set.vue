@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="alarm-shield-config"
     v-bkloading="{ isLoading: loading || inLoading }"
+    class="alarm-shield-config"
   >
     <div class="header">
       <common-nav-bar
@@ -41,14 +41,14 @@
       >
         <bk-tab-panel
           v-for="(item, index) in tab.list
-            .filter((item) =>
+            .filter(item =>
               ['alarm-shield-clone', 'alarm-shield-edit'].includes($route.name)
                 ? item.componentName === curComponent
                 : item.componentName !== 'alarm-shield-event'
             )
-            .map((item) => ({
+            .map(item => ({
               name: item.id,
-              label: item.name
+              label: item.name,
             }))"
           v-bind="item"
           :key="index"
@@ -77,10 +77,10 @@
         <keep-alive>
           <component
             :is="curComponent"
+            v-model="commonDateData"
             :shield-data="shieldData"
             :loading.sync="loading"
             :edit="edit"
-            v-model="commonDateData"
           />
         </keep-alive>
       </div>
@@ -92,10 +92,9 @@ import { frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shi
 
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar.tsx';
-
-import AlarmShieldScope from './alarm-shield-scope/alarm-shield-scope';
 import AlarmShieldDimension from './alarm-shield-dimension.tsx';
 import AlarmShieldEvent from './alarm-shield-event';
+import AlarmShieldScope from './alarm-shield-scope/alarm-shield-scope';
 import AlarmShieldStrategy from './alarm-shield-strategy';
 
 export default {
@@ -105,90 +104,7 @@ export default {
     AlarmShieldStrategy,
     AlarmShieldEvent,
     AlarmShieldDimension,
-    CommonNavBar
-  },
-  data() {
-    return {
-      commonDateData: {
-        shieldCycle: {
-          list: [
-            { label: this.$t('单次'), value: 'single' },
-            { label: this.$t('每天'), value: 'day' },
-            { label: this.$t('每周'), value: 'week' },
-            { label: this.$t('每月'), value: 'month' }
-          ],
-          value: 'single'
-        },
-        noticeDate: {
-          single: {
-            list: [],
-            range: []
-          },
-          day: {
-            list: [],
-            range: ['00:00:00', '23:59:59']
-          },
-          week: {
-            list: [],
-            range: ['00:00:00', '23:59:59']
-          },
-          month: {
-            list: [],
-            range: ['00:00:00', '23:59:59']
-          }
-        },
-        hasTimeRange: true,
-        hasDateRange: true,
-        hasWeekList: true,
-        hasMonthList: true,
-        dateRange: []
-      },
-      inLoading: false,
-      loading: false,
-      tab: {
-        active: 0,
-        list: [
-          { name: this.$t('基于范围进行屏蔽'), id: 0, componentName: 'alarm-shield-scope' },
-          { name: this.$t('基于策略进行屏蔽'), id: 1, componentName: 'alarm-shield-strategy' },
-          { name: this.$t('基于告警事件进行屏蔽'), id: 2, componentName: 'alarm-shield-event' },
-          { name: this.$t('基于维度进行屏蔽'), id: 3, componentName: 'alarm-shield-dimension' }
-        ]
-      },
-      curComponent: '',
-      typeMap: {
-        scope: 'alarm-shield-scope',
-        strategy: 'alarm-shield-strategy',
-        event: 'alarm-shield-event',
-        alert: 'alarm-shield-event',
-        dimension: 'alarm-shield-dimension'
-      },
-      shieldData: {},
-      edit: false
-    };
-  },
-  computed: {
-    navRouteList() {
-      return this.$store.getters.navRouteList;
-    }
-  },
-  created() {
-    // if (this.$route.name === 'alarm-shield-edit') {
-    //   this.handleGetShieldDetail();
-    //   this.curComponent = this.typeMap[this.$route.params.type];
-    //   this.tab.active = this.tab.list.find((item) => item.componentName === this.curComponent).id;
-    //   // this.tab.active = this.tab.list[index].id;
-    // } else {
-    //   this.updateNavData(this.$tc('新建屏蔽'));
-    //   this.curComponent = 'alarm-shield-scope';
-    // }
-
-    // 跳转后根据操作类型处理对应逻辑
-    this.handleGetShieldDetail(this.$route.name);
-    if (this.$route.name === 'alarm-shield-edit') {
-      this.updateNavData(this.$t('route-编辑屏蔽'));
-    } else {
-      this.updateNavData(this.$t('route-新建屏蔽'));
-    }
+    CommonNavBar,
   },
   // beforeRouteEnter(to, from, next) {
   //   next((vm) => {
@@ -210,6 +126,89 @@ export default {
       next();
     }
   },
+  data() {
+    return {
+      commonDateData: {
+        shieldCycle: {
+          list: [
+            { label: this.$t('单次'), value: 'single' },
+            { label: this.$t('每天'), value: 'day' },
+            { label: this.$t('每周'), value: 'week' },
+            { label: this.$t('每月'), value: 'month' },
+          ],
+          value: 'single',
+        },
+        noticeDate: {
+          single: {
+            list: [],
+            range: [],
+          },
+          day: {
+            list: [],
+            range: ['00:00:00', '23:59:59'],
+          },
+          week: {
+            list: [],
+            range: ['00:00:00', '23:59:59'],
+          },
+          month: {
+            list: [],
+            range: ['00:00:00', '23:59:59'],
+          },
+        },
+        hasTimeRange: true,
+        hasDateRange: true,
+        hasWeekList: true,
+        hasMonthList: true,
+        dateRange: [],
+      },
+      inLoading: false,
+      loading: false,
+      tab: {
+        active: 0,
+        list: [
+          { name: this.$t('基于范围进行屏蔽'), id: 0, componentName: 'alarm-shield-scope' },
+          { name: this.$t('基于策略进行屏蔽'), id: 1, componentName: 'alarm-shield-strategy' },
+          { name: this.$t('基于告警事件进行屏蔽'), id: 2, componentName: 'alarm-shield-event' },
+          { name: this.$t('基于维度进行屏蔽'), id: 3, componentName: 'alarm-shield-dimension' },
+        ],
+      },
+      curComponent: '',
+      typeMap: {
+        scope: 'alarm-shield-scope',
+        strategy: 'alarm-shield-strategy',
+        event: 'alarm-shield-event',
+        alert: 'alarm-shield-event',
+        dimension: 'alarm-shield-dimension',
+      },
+      shieldData: {},
+      edit: false,
+    };
+  },
+  computed: {
+    navRouteList() {
+      return this.$store.getters.navRouteList;
+    },
+  },
+  created() {
+    // if (this.$route.name === 'alarm-shield-edit') {
+    //   this.handleGetShieldDetail();
+    //   this.curComponent = this.typeMap[this.$route.params.type];
+    //   this.tab.active = this.tab.list.find((item) => item.componentName === this.curComponent).id;
+    //   // this.tab.active = this.tab.list[index].id;
+    // } else {
+    //   this.updateNavData(this.$tc('新建屏蔽'));
+    //   this.curComponent = 'alarm-shield-scope';
+    // }
+
+    // 跳转后根据操作类型处理对应逻辑
+    this.handleGetShieldDetail(this.$route.name);
+    if (this.$route.name === 'alarm-shield-edit') {
+      this.updateNavData(this.$t('route-编辑屏蔽'));
+    } else {
+      this.updateNavData(this.$t('route-新建屏蔽'));
+    }
+  },
   methods: {
     handleTabChange(active) {
       if (this.tab.active !== active) {
@@ -218,14 +217,14 @@ export default {
       }
     },
     handleCancel(needBack = true) {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         this.$bkInfo({
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => {
             needBack && this.$router.back();
             resolve(true);
           },
-          cancelFn: () => resolve(false)
+          cancelFn: () => resolve(false),
         });
       });
     },
@@ -245,7 +244,7 @@ export default {
           this.edit = true;
           actionTitle = `${this.$t('编辑')} #${this.$route.params.id}`;
           frontendShieldDetail({ id: this.$route.params.id })
-            .then((data) => {
+            .then(data => {
               this.shieldData = data;
             })
             .finally(() => {
@@ -255,7 +254,7 @@ export default {
         case 'alarm-shield-clone':
           actionTitle = `${this.$t('克隆')} #${this.$route.params.id}`;
           frontendCloneInfo({ id: this.$route.params.id })
-            .then((data) => {
+            .then(data => {
               this.shieldData = data;
             })
             .finally(() => {
@@ -277,11 +276,11 @@ export default {
       const routeList = [];
       routeList.push({
         name,
-        id: ''
+        id: '',
       });
       this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -295,7 +294,7 @@ export default {
     height: 88px;
     padding: 0 27px;
     background: #fff;
-    box-shadow: 0 3px 4px 0 rgba(64, 112, 203, .06);
+    box-shadow: 0 3px 4px 0 rgba(64, 112, 203, 0.06);
 
     .common-nav-bar {
       box-shadow: none;

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
 import {
@@ -34,11 +35,10 @@ import {
   IMenuChildItem,
   IMenuItem,
   ITitleAlarm,
-  IViewOptions
+  IViewOptions,
 } from '../../typings';
 import { createMetricTitleTooltips } from '../../utils';
 import { VariablesService } from '../../utils/variable';
-
 import ChartMenu, { IChartTitleMenuEvents } from './chart-title-menu';
 
 import './chart-title.scss';
@@ -86,12 +86,12 @@ interface IChartTitleEvent {
 }
 
 enum AlarmStatus {
-  /** 没有配置策略 */
-  not_confit_strategy = 0,
   /** 已经配置策略 */
   already_config_strategy = 1,
+  /** 没有配置策略 */
+  not_confit_strategy = 0,
   /** 告警中 */
-  on_warning = 2
+  on_warning = 2,
 }
 
 @Component
@@ -148,7 +148,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       showOnInit: false,
       trigger: 'mouseenter',
       placements: ['top'],
-      allowHTML: false
+      allowHTML: false,
     };
   }
   /** aiops title高度不一致，需要特殊向上偏移 */
@@ -196,7 +196,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     const params = {
       metric_ids: [ids],
       ...otherParams,
-      bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId
+      bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId,
     };
     const data = await fetchItemStatus(params).catch(() => ({ [ids]: 0 }));
     this.alarmStatus = data?.[ids];
@@ -261,7 +261,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   handleAlarmClick() {
     return {
       ...this.alarmStatus,
-      targetStr: this.eventSearchStr
+      targetStr: this.eventSearchStr,
     };
   }
   handleShowTips(e: MouseEvent) {
@@ -274,7 +274,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         theme: 'tippy-metric',
         arrow: true,
         placement: 'auto',
-        boundary: 'window'
+        boundary: 'window',
       });
       this.popoverInstance?.show(100);
     }
@@ -318,7 +318,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           <div class='main-title'>
             {this.showMetricAlarm && this.showTitleIcon ? (
               <i
-                v-bk-tooltips={this.alarmTips}
                 class={[
                   'icon-monitor',
                   'alarm-icon',
@@ -326,15 +325,16 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   this.alarmStatus.status === AlarmStatus.already_config_strategy && 'icon-mc-strategy status-strategy',
                   this.alarmStatus.status === AlarmStatus.not_confit_strategy &&
                     'icon-mc-strategy status-strategy-not-config',
-                  this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3'
+                  this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3',
                 ]}
+                v-bk-tooltips={this.alarmTips}
                 onClick={modifiers.stop(this.handleAlarmClick)}
               />
             ) : undefined}
             <div
               class={['title-name', { 'has-more': this.showMore }]}
               v-bk-overflow-tips={{
-                interactive: this.showTitleIcon
+                interactive: this.showTitleIcon,
               }}
             >
               {this.title}
@@ -346,7 +346,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   v-bk-tooltips={{
                     content: this.$t('数据步长'),
                     delay: 200,
-                    appendTo: 'parent'
+                    appendTo: 'parent',
                   }}
                 >
                   {this.metricTitleData.collect_interval}
@@ -356,8 +356,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               (this.$scopedSlots as any)?.customSlot?.(),
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
-                  class='bk-icon icon-info-circle tips-icon'
                   style={{ display: this.showMore ? 'flex' : 'none' }}
+                  class='bk-icon icon-info-circle tips-icon'
                   onMouseenter={this.handleShowTips}
                   onMouseleave={this.handleHideTips}
                 />
@@ -370,56 +370,56 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                     allowHTML: true,
                     boundary: 'window',
                     distance: 0,
-                    placements: ['top']
+                    placements: ['top'],
                   }}
                 />
               ),
               <span class='title-center'></span>,
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
-                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   style={{
-                    display: this.showMore && this.showAddMetric ? 'flex' : 'none'
+                    display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
+                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   v-bk-tooltips={{
                     content: this.$t('添加策略'),
-                    delay: 200
+                    delay: 200,
                   }}
                   onClick={this.handleAllMetricSelect}
                 ></i>
               ) : undefined,
               <span
-                onClick={this.customArea ? this.handleShowMenu.bind(this, 'customArea') : () => {}}
                 style={{
                   marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
-                  display: this.showMore ? 'flex' : 'none'
+                  display: this.showMore ? 'flex' : 'none',
                 }}
+                class='icon-monitor icon-mc-more more-icon icon-btn'
                 v-bk-tooltips={{
                   content: this.$t('更多'),
-                  delay: 200
+                  delay: 200,
                 }}
                 tabindex='undefined'
-                class='icon-monitor icon-mc-more more-icon icon-btn'
-              />
+                onClick={this.customArea ? this.handleShowMenu.bind(this, 'customArea') : () => {}}
+              />,
             ]}
           </div>
           {this.subtitle && <div class='sub-title'>{(this.$scopedSlots as any)?.subTitle?.() || this.subtitle}</div>}
         </div>
         <ChartMenu
-          list={this.menuList}
-          drillDownOption={this.drillDownOption}
-          onShowChildren={this.handleShowChildren}
-          onSelect={this.handleMenuClick}
-          onMetricSelect={this.handleMetricSelect}
-          onChildMenuToggle={this.handleChildMenuToggle}
-          metrics={this.metrics}
-          showAddMetric={this.showAddMetric && this.showMenuAddMetric}
           style={{
             left: `${this.menuLeft}px`,
             display: this.showMenu ? 'flex' : 'none',
-            ...this.menuPosition
+            ...this.menuPosition,
           }}
+          drillDownOption={this.drillDownOption}
+          list={this.menuList}
+          metrics={this.metrics}
+          showAddMetric={this.showAddMetric && this.showMenuAddMetric}
+          onChildMenuToggle={this.handleChildMenuToggle}
+          onMetricSelect={this.handleMetricSelect}
+          onSelect={this.handleMenuClick}
           onSelectChild={this.handleMenuChildClick}
+          onShowChildren={this.handleShowChildren}
         ></ChartMenu>
       </div>
     );

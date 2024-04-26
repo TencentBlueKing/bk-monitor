@@ -45,7 +45,7 @@ export default class NodeTarget extends tsc<INodeTargetProps> {
   @Watch('target', { immediate: true })
   onTargetChange() {
     this.ipValue = {
-      host_list: this.target.host_list
+      host_list: this.target.host_list,
     };
   }
   addNodeTarget() {
@@ -66,14 +66,14 @@ export default class NodeTarget extends tsc<INodeTargetProps> {
           onClick={this.addNodeTarget}
         />
         <MonitorIpSelector
+          disableHostMethod={this.disableHostMethod}
+          keepHostFieldOutput={true}
           mode='dialog'
           panelList={['staticTopo']}
           showDialog={this.showAddNodeTarget}
           showView={true}
-          value={this.ipValue}
           singleHostSelect={true}
-          keepHostFieldOutput={true}
-          disableHostMethod={this.disableHostMethod}
+          value={this.ipValue}
           onChange={this.handleIpChange}
           onCloseDialog={this.closeDialog}
         />

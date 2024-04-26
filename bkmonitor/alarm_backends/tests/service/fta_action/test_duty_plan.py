@@ -1,5 +1,6 @@
 import datetime
 
+import mock
 import pytest
 
 from alarm_backends.service.fta_action.tasks import (
@@ -325,6 +326,47 @@ def duty_group():
     g_slz = UserGroupDetailSlz(data=user_group_data_new)
     g_slz.is_valid(raise_exception=True)
     yield g_slz.save()
+
+
+@pytest.fixture()
+def duty_group_data():
+    duty_rule_data = {
+        "name": "duty rule",
+        "bk_biz_id": 2,
+        "effective_time": "2024-02-22 00:00:00",
+        "end_time": "",
+        "labels": ["mysql", "redis", "business"],
+        "enabled": True,
+        "category": "handoff",
+        "duty_arranges": [
+            {
+                "duty_time": [
+                    {
+                        "work_type": "daily",
+                        "work_days": [],
+                        "work_time_type": "time_range",
+                        "work_time": ["00:00--23:59"],
+                    }
+                ],
+                "duty_users": [
+                    [{"id": "admin", "type": "user"}],
+                    [{"id": "admin1", "type": "user"}],
+                    [{"id": "admin2", "type": "user"}],
+                    [{"id": "admin3", "type": "user"}],
+                ],
+                "group_type": DutyGroupType.SPECIFIED,
+                "group_number": 0,
+            }
+        ],
+    }
+    slz = DutyRuleDetailSlz(data=duty_rule_data)
+    slz.is_valid(raise_exception=True)
+    duty_rule = slz.save()
+
+    user_group_data_new = get_user_group_data()
+    user_group_data_new["duty_rules"] = [duty_rule.id]
+
+    yield user_group_data_new
 
 
 @pytest.fixture()
@@ -1427,3 +1469,32 @@ class TestDutyPlan:
         # 第二个排班计划，已经发送过值班通知，当前忽略
         # 第一个排班计划是三天以后生效，可以忽略最后发送值班通知
         assert send_mail_mock.call_count == 1
+
+
+class TestEffectiveTime:
+    @pytest.mark.parametrize(
+        "create_time, duty_user",
+        [
+            pytest.param("2024-02-22 00:00:00", "admin", id="2024-02-22 00:00:00 -> admin"),
+            pytest.param("2024-02-23 00:00:00", "admin1", id="2024-02-23 00:00:00 -> admin1"),
+            pytest.param("2024-06-23 00:00:00", "admin2", id="2024-06-23 00:00:00 -> admin2"),
+            pytest.param("2026-07-12 00:00:00", "admin3", id="2026-07-12 00:00:00 -> admin3"),
+        ],
+    )
+    def test_user_group_save(self, db_setup, duty_group_data, create_time, duty_user):
+
+        create_time = time_tools.str2datetime(create_time)
+        with mock.patch("bkmonitor.action.serializers.strategy.time_tools.datetime_today", return_value=create_time):
+            g_slz = UserGroupDetailSlz(data=duty_group_data)
+            g_slz.is_valid(raise_exception=True)
+            g_slz.save()
+
+            # 排过一次班，下一次排班时间会大于 create_time
+            assert DutyRuleSnap.objects.filter(next_plan_time__gt=create_time).exists()
+
+            first_duty_plan = (
+                DutyPlan.objects.filter(user_group_id=g_slz.instance.id, is_effective=1)
+                .order_by("start_time")
+                .values()[0]
+            )
+            assert first_duty_plan["users"][0]["id"] == duty_user

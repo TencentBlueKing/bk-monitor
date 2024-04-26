@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, getCurrentInstance, inject, onBeforeUnmount, PropType, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { bkTooltips } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
@@ -48,7 +49,7 @@ import {
   useCommonChartWatch,
   useTimeOffsetInject,
   useTimeRanceInject,
-  useViewOptionsInject
+  useViewOptionsInject,
 } from '../../hooks';
 import {
   ChartTitleMenuType,
@@ -59,7 +60,7 @@ import {
   IMenuItem,
   ITimeSeriesItem,
   ITitleAlarm,
-  PanelModel
+  PanelModel,
 } from '../../typings';
 import {
   downCsvFile,
@@ -68,7 +69,7 @@ import {
   handleRelateAlert,
   handleStoreImage,
   transformSrcData,
-  transformTableDataToCsvStr
+  transformTableDataToCsvStr,
 } from '../../utls/menu';
 
 import './time-series.scss';
@@ -76,17 +77,17 @@ import './time-series.scss';
 const TimeSeriesProps = {
   panel: {
     type: Object as PropType<PanelModel>,
-    required: true
+    required: true,
   },
   // 是否展示图标头部
   showChartHeader: {
     type: Boolean,
-    default: true
+    default: true,
   },
   // 是否展示more tools
   showHeaderMoreTool: {
     type: Boolean,
-    default: false
+    default: false,
   },
   // 自定义时间范围
   customTimeRange: Array as PropType<string[]>,
@@ -96,18 +97,18 @@ const TimeSeriesProps = {
   // 作为单独组件使用 默认用于dashboard
   isUseAlone: {
     type: Boolean,
-    default: false
+    default: false,
   },
   // 使用自定义tooltips
   customTooltip: {
     type: Object as PropType<Record<string, any>>,
-    required: false
-  }
+    required: false,
+  },
 };
 export default defineComponent({
   name: 'TimeSeries',
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: TimeSeriesProps,
   emits: ['loading', 'errorMsg'],
@@ -134,7 +135,7 @@ export default defineComponent({
     // 图例数据
     const legendData = ref<ILegendItem[]>([]);
     // 撤销api请求tokens func
-    let cancelTokens: Function[] = [];
+    let cancelTokens: (() => void)[] = [];
     // 自动粒度降采样
     const downSampleRange = 'auto';
     const startTime = inject<Ref>('startTime') || ref('');
@@ -149,7 +150,7 @@ export default defineComponent({
       .format('YYYY-MM-DD HH:mm:ss');
     const spanDetailActiveTab = inject<Ref>('SpanDetailActiveTab') || ref('');
     // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
-    const enableSelectionRestoreAll = inject<Ref<Boolean>>('enableSelectionRestoreAll') || ref(false);
+    const enableSelectionRestoreAll = inject<Ref<boolean>>('enableSelectionRestoreAll') || ref(false);
     const handleChartDataZoom = inject<(value: any) => void>('handleChartDataZoom') || (() => null);
     const handleRestoreEvent = inject<() => void>('handleRestoreEvent') || (() => null);
     const showRestore = inject<Ref>('showRestore') || ref(false);
@@ -218,7 +219,7 @@ export default defineComponent({
           d: t('{n} 天前', { n: num }),
           w: t('{n} 周前', { n: num }),
           M: t('{n} 月前', { n: num }),
-          current: t('当前')
+          current: t('当前'),
         };
         return map[type || target];
       }
@@ -256,7 +257,7 @@ export default defineComponent({
           maxSource: 0,
           avgSource: 0,
           totalSource: 0,
-          metricField: item.metricField
+          metricField: item.metricField,
         };
         // 动态单位转换
         const unitFormatter = item.unit !== 'none' ? getValueFormat(item.unit || '') : (v: any) => ({ text: v });
@@ -287,9 +288,9 @@ export default defineComponent({
                 borderWidth: hasNoBrother ? 10 : 6,
                 enabled: true,
                 shadowBlur: 0,
-                opacity: 1
+                opacity: 1,
               },
-              traceData
+              traceData,
             } as any;
           }
           return seriesItem;
@@ -327,8 +328,8 @@ export default defineComponent({
           unitFormatter,
           precision,
           lineStyle: {
-            width: 1
-          }
+            width: 1,
+          },
         };
       });
       legendData.value = legendDatas;
@@ -394,9 +395,7 @@ export default defineComponent({
       sampling.push(data[len - 1]);
       sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
       while (precision < 5) {
-        // eslint-disable-next-line no-loop-func
         const samp = sampling.reduce((pre, cur) => {
-          // eslint-disable-next-line no-param-reassign
           (pre as any)[formattter(cur, precision).text] = 1;
           return pre;
         }, {});
@@ -420,7 +419,7 @@ export default defineComponent({
         { value: 1e9, symbol: 'G' },
         { value: 1e12, symbol: 'T' },
         { value: 1e15, symbol: 'P' },
-        { value: 1e18, symbol: 'E' }
+        { value: 1e18, symbol: 'E' },
       ];
       const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
       let i;
@@ -446,7 +445,6 @@ export default defineComponent({
           // this.handleAddStrategy(props.panel, null, viewOptions?.value, true);
           break;
         case 1:
-          // eslint-disable-next-line max-len
           window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
           break;
         case 2:
@@ -481,7 +479,7 @@ export default defineComponent({
         const [startTime, endTime] = handleTransformToTimestamp(timeRange!.value);
         const params = {
           start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-          end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+          end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
         };
         const promiseList: any[] = [];
         const timeShiftList = ['', ...timeOffset!.value];
@@ -492,7 +490,7 @@ export default defineComponent({
         );
         const variablesService = new VariablesService({
           ...viewOptions?.value,
-          interval
+          interval,
         });
         timeShiftList.forEach(time_shift => {
           const list =
@@ -505,20 +503,20 @@ export default defineComponent({
                   ...viewOptions?.value,
                   ...viewOptions?.value.variables,
                   time_shift,
-                  interval
+                  interval,
                 }),
                 down_sample_range: downSampleRangeComputed(
                   downSampleRange,
                   [params.start_time, params.end_time],
                   item.apiFunc
-                )
+                ),
               };
-              // eslint-disable-next-line array-callback-return
+
               if (!item.apiModule) return;
               return currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
                 [item.apiFunc](newPrarams, {
-                  cancelToken: new CancelToken((cb: Function) => cancelTokens.push(cb)),
-                  needMessage: false
+                  cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+                  needMessage: false,
                 })
                 .then((res: { metrics: any; series: any[] }) => {
                   res.metrics?.forEach((metric: { metric_id: string }) => {
@@ -533,7 +531,7 @@ export default defineComponent({
                         timeOffset?.value.length
                           ? `${handleTransformTimeShift((time_shift as string) || 'current')}-`
                           : ''
-                      }${handleSeriesName(item, set) || set.target}`
+                      }${handleSeriesName(item, set) || set.target}`,
                     }))
                   );
                   handleClearErrorMsg();
@@ -554,8 +552,8 @@ export default defineComponent({
               ...item,
               datapoints: item.datapoints.map((point: any[]) => [
                 JSON.parse(point[0])?.anomaly_score ?? point[0],
-                point[1]
-              ])
+                point[1],
+              ]),
             }));
           let seriesList = handleTransformSeries(
             seriesResult.map(item => ({
@@ -565,7 +563,7 @@ export default defineComponent({
               stack: item.stack || random(10),
               unit: item.unit,
               z: 1,
-              traceData: item.trace_data ?? ''
+              traceData: item.trace_data ?? '',
             })) as any
           );
           seriesList = seriesList.map((item: any) => ({
@@ -577,9 +575,9 @@ export default defineComponent({
               }
               return {
                 ...set,
-                value: [set.value[0], set.value[1] !== null ? set.value[1] + minBase.value : null]
+                value: [set.value[0], set.value[1] !== null ? set.value[1] + minBase.value : null],
               };
-            })
+            }),
           }));
           // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
           // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
@@ -587,7 +585,6 @@ export default defineComponent({
           const hasShowSymbol = seriesList.some(item => item.showSymbol);
           if (hasShowSymbol) {
             seriesList.forEach(item => {
-              // eslint-disable-next-line no-param-reassign
               item.data = item.data.map(set => {
                 if (set?.symbolSize) {
                   return {
@@ -597,8 +594,8 @@ export default defineComponent({
                       borderWidth: set.symbolSize > 6 ? 6 : 1,
                       enabled: true,
                       shadowBlur: 0,
-                      opacity: 1
-                    }
+                      opacity: 1,
+                    },
                   };
                 }
                 return set;
@@ -607,9 +604,9 @@ export default defineComponent({
           }
           const formatterFunc = handleSetFormatterFunc(seriesList[0].data);
           // const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
-          // eslint-disable-next-line max-len
+
           const chartBaseOptions = MONITOR_LINE_OPTIONS;
-          // eslint-disable-next-line max-len
+
           const echartOptions = deepmerge(
             deepClone(chartBaseOptions),
             props.panel?.options?.time_series?.echart_option || {},
@@ -630,23 +627,23 @@ export default defineComponent({
                         }
                         return v;
                       }
-                    : (v: number) => handleYxisLabelFormatter(v - minBase.value)
+                    : (v: number) => handleYxisLabelFormatter(v - minBase.value),
                 },
                 splitNumber: height.value < 120 ? 2 : 4,
                 minInterval: 1,
-                scale: !(height.value < 120)
+                scale: !(height.value < 120),
                 // max: v => Math.max(v.max, +maxThreshold),
                 // min: v => Math.min(v.min, +minThreshold)
               },
               xAxis: {
                 axisLabel: {
-                  formatter: formatterFunc || '{value}'
+                  formatter: formatterFunc || '{value}',
                 },
                 splitNumber: Math.ceil(width.value / 80),
-                min: 'dataMin'
+                min: 'dataMin',
               },
               series: seriesList,
-              tooltip: props.customTooltip ?? {}
+              tooltip: props.customTooltip ?? {},
             })
           );
           metrics.value = metricList || [];
@@ -710,7 +707,7 @@ export default defineComponent({
             if (target.data?.query_configs?.length) {
               let queryConfig = deepClone(target.data.query_configs);
               queryConfig = variablesService.transformVariables(queryConfig);
-              // eslint-disable-next-line no-param-reassign
+
               target.data.query_configs = queryConfig;
             }
           });
@@ -797,7 +794,7 @@ export default defineComponent({
       handleMenuClick,
       handleMetricClick,
       handleDblClick,
-      handleRestore
+      handleRestore,
     };
   },
   render() {
@@ -805,26 +802,26 @@ export default defineComponent({
     return (
       <div
         ref='timeSeriesRef'
+        class='time-series'
         onMouseenter={() => (this.isInHover = true)}
         onMouseleave={() => (this.isInHover = false)}
-        class='time-series'
       >
         {this.showChartHeader && this.panel && (
           <ChartTitle
             class='draggable-handle'
-            title={this.panel.title}
-            showMore={this.isInHover}
-            menuList={this.menuList}
-            drillDownOption={this.drillDownOptions}
-            showAddMetric={this.showAddMetric}
             draging={this.panel.draging}
-            metrics={this.metrics}
-            subtitle={this.panel.subTitle || ''}
+            drillDownOption={this.drillDownOptions}
             isInstant={this.panel.instant}
-            onMenuClick={this.handleMenuClick}
+            menuList={this.menuList}
+            metrics={this.metrics}
+            showAddMetric={this.showAddMetric}
+            showMore={this.isInHover}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
-            onMetricClick={this.handleMetricClick}
             onAllMetricClick={this.handleMetricClick}
+            onMenuClick={this.handleMenuClick}
+            onMetricClick={this.handleMetricClick}
             onSelectChild={({ child }) => this.handleMenuClick(child)}
             onUpdateDragging={() => this.panel?.updateDraging(false)}
           />
@@ -832,17 +829,16 @@ export default defineComponent({
         {!this.empty ? (
           <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
-              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
               ref='chartWrapperRef'
+              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChartRef'
-                  height={this.height}
                   width={this.width}
-                  showRestore={this.showRestore}
-                  options={this.options}
                   groupId={this.panel!.dashboardId}
+                  options={this.options}
+                  showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
@@ -853,13 +849,13 @@ export default defineComponent({
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
                 {legend?.displayMode === 'table' ? (
                   <TableLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 ) : (
                   <CommonLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 )}
               </div>
@@ -874,11 +870,11 @@ export default defineComponent({
             v-bk-tooltips={{
               content: <div>{this.errorMsg}</div>,
               extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start'
+              placement: 'top-start',
             }}
           ></span>
         )}
       </div>
     );
-  }
+  },
 });

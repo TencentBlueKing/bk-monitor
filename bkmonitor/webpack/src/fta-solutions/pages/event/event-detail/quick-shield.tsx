@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 import VerifyInput from 'monitor-pc/components/verify-input/verify-input.vue';
@@ -51,7 +52,7 @@ export interface IDetail {
 }
 
 @Component({
-  name: 'QuickShield'
+  name: 'QuickShield',
 })
 export default class MyComponent extends tsc<IQuickShieldProps> {
   /**
@@ -64,7 +65,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   @Inject('authorityFromEventDetail') authorityFromEventDetail;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Inject('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetailFromEventDetail = null;
-  @Prop({ type: Boolean, default: false }) show: Boolean;
+  @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Array, default: () => [] }) details: IDetail[];
   @Prop({ type: Array, default: () => [] }) ids: Array<string>;
   /* 事件中心暂不允许跨业务操作， 此数组只有一个业务 */
@@ -77,7 +78,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
     { name: `1${i18n.t('小时')}`, id: 36 },
     { name: `12${i18n.t('小时')}`, id: 432 },
     { name: `1${i18n.t('天')}`, id: 864 },
-    { name: `7${i18n.t('天')}`, id: 6048 }
+    { name: `7${i18n.t('天')}`, id: 6048 },
   ];
   public timeValue = 18;
   public customTime: any = ['', ''];
@@ -90,7 +91,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         return date.some(item => item.getTime() < today.getTime() || item.getTime() > today.getTime() + 8.64e7 * 181);
       }
       return date.getTime() < today.getTime() || date.getTime() > today.getTime() + 8.64e7 * 181; // 限制用户只能选择半年以内的日期
-    }
+    },
   };
   public levelMap = ['', i18n.t('致命'), i18n.t('提醒'), i18n.t('预警')];
   public desc = '';
@@ -118,10 +119,10 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
       'm+': time.getMinutes(), // 分
       's+': time.getSeconds(), // 秒
       'q+': Math.floor((time.getMonth() + 3) / 3), // 季度
-      S: time.getMilliseconds() // 毫秒
+      S: time.getMilliseconds(), // 毫秒
     };
     if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, `${time.getFullYear()}`.substr(4 - RegExp.$1.length));
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const key in obj) {
       if (new RegExp(`(${key})`).test(fmt)) {
         fmt = fmt.replace(RegExp.$1, RegExp.$1.length === 1 ? obj[key] : `00${obj[key]}`.substr(`${obj[key]}`.length));
@@ -166,8 +167,8 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           type: 1,
           day_list: [],
           week_list: [],
-          end_time: ''
-        }
+          end_time: '',
+        },
       };
       dayjs.locale('en');
       let toTime = `${dayjs(time.begin).to(dayjs(time.end), true)}`;
@@ -179,7 +180,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         ['minutes', 'm'],
         ['minute', 'm'],
         ['years', 'y'],
-        ['year', 'y']
+        ['year', 'y'],
       ];
       tims.forEach(item => {
         toTime = toTime.replace(item[0], item[1]);
@@ -266,8 +267,8 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           <div class='column-content'>{detail.dimension}</div>
         </div>
         <div
-          class='column-item'
           style='margin-bottom: 18px'
+          class='column-item'
         >
           <div class='column-label'> {`${this.$t('触发条件')}：`} </div>
           <div class='column-content'>{detail.trigger}</div>
@@ -294,26 +295,26 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
                 {this.timeList.map((item, index) => (
                   <bk-button
                     key={index}
-                    on-click={e => this.handleScopeChange(e, item.id)}
                     class={['width-item', { 'is-selected': this.timeValue === item.id }]}
+                    on-click={e => this.handleScopeChange(e, item.id)}
                   >
                     {item.name}
                   </bk-button>
                 ))}
                 {this.timeValue !== 0 ? (
                   <bk-button
-                    on-click={e => this.handleScopeChange(e, 0)}
                     class={['custom-width', { 'is-selected': this.timeValue === 0 }]}
+                    on-click={e => this.handleScopeChange(e, 0)}
                   >
                     {this.$t('button-自定义')}
                   </bk-button>
                 ) : (
                   <bk-date-picker
                     ref='time'
-                    type={'datetimerange'}
-                    placeholder={this.$t('选择日期时间范围')}
-                    options={this.options}
                     v-model={this.customTime}
+                    options={this.options}
+                    placeholder={this.$t('选择日期时间范围')}
+                    type={'datetimerange'}
                   ></bk-date-picker>
                 )}
               </div>
@@ -332,11 +333,11 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           <div class='item-label'> {this.$t('屏蔽原因')} </div>
           <div class='item-desc'>
             <bk-input
-              type='textarea'
-              v-model={this.desc}
               width={625}
-              rows={3}
+              v-model={this.desc}
               maxlength={100}
+              rows={3}
+              type='textarea'
             ></bk-input>
           </div>
         </div>
@@ -347,25 +348,25 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   render() {
     return (
       <MonitorDialog
+        width={'804'}
         class='quick-shield-dialog'
+        header-position={'left'}
+        title={this.$t('快捷屏蔽告警')}
         value={this.show}
         on-change={this.handleShowChange}
-        title={this.$t('快捷屏蔽告警')}
-        header-position={'left'}
-        width={'804'}
       >
         {this.getContentComponent()}
         <template slot='footer'>
           <bk-button
+            style='margin-right: 10px'
+            v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
+            disabled={this.loading}
+            theme='primary'
             on-click={() =>
               this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH
                 ? this.handleSubmit()
                 : this.getHandleShowAuthorityDetail(this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH)
             }
-            theme='primary'
-            style='margin-right: 10px'
-            disabled={this.loading}
-            v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
           >
             {this.$t('确定')}
           </bk-button>

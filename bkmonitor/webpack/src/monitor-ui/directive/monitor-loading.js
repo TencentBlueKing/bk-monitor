@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
+
 import Vue from 'vue';
 
 import Loading from '../monitor-loading/monitor-loading.vue';
@@ -64,7 +64,7 @@ loadingDirective.install = Vue => {
         toggleLoading(el, { isLoading: false });
       }
       el.instance?.$destroy?.();
-    }
+    },
   });
 };
 

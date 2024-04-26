@@ -28,10 +28,10 @@
  * @LastEditTime: 2021-06-26 11:33:00
  * @Description:
  */
-/* eslint-disable new-cap */
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+
 import store from '@store/store';
 import { applicationInfoByAppName, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import { IAppSelectOptItem } from '../../pages/home/app-select';
 
@@ -54,10 +54,6 @@ class ApplicationStore extends VuexModule implements IApplicationState {
     return this.pluginsList;
   }
 
-  @Mutation
-  setPluginsList(list: IAppSelectOptItem[]) {
-    this.pluginsList = list;
-  }
   /**
    * 请求应用数据
    * @param name 应用名
@@ -66,7 +62,6 @@ class ApplicationStore extends VuexModule implements IApplicationState {
   getAppInfo(query: IAppInfoQuery): Promise<Record<string, any>> {
     return applicationInfoByAppName(query);
   }
-
   /**
    * 请求插件列表
    */
@@ -79,10 +74,15 @@ class ApplicationStore extends VuexModule implements IApplicationState {
         id: item.id,
         name: item.name,
         icon: item.icon || '',
-        desc: item.short_description || ''
+        desc: item.short_description || '',
       })
     );
     this.setPluginsList(pluginsList);
+  }
+
+  @Mutation
+  setPluginsList(list: IAppSelectOptItem[]) {
+    this.pluginsList = list;
   }
 }
 

@@ -34,7 +34,7 @@ import { throttle } from 'throttle-debounce';
 import './no-business-item.scss';
 
 interface IData {
-  id: string | number;
+  id: number | string;
   name: string;
   space_info?: {
     space_type_id?: string;
@@ -53,8 +53,8 @@ export default class NoBusinessItem extends tsc<IProps> {
     type: Object,
     default: () => ({
       name: '',
-      id: ''
-    })
+      id: '',
+    }),
   })
   data: IData;
 
@@ -64,7 +64,7 @@ export default class NoBusinessItem extends tsc<IProps> {
   /* 暂无权限标签位置 */
   tagPosition = {
     top: 0,
-    left: 0
+    left: 0,
   };
   tagActive = false;
   mousemoveFn = () => {};
@@ -82,7 +82,7 @@ export default class NoBusinessItem extends tsc<IProps> {
       this.loading = true;
       this.url = await getAuthorityDetail({
         action_ids: ['view_business_v2'],
-        bk_biz_id: this.data.id
+        bk_biz_id: this.data.id,
       })
         .then(res => res.apply_url)
         .catch(() => false);
@@ -101,11 +101,11 @@ export default class NoBusinessItem extends tsc<IProps> {
     const tags = spaceTypeTexts(item);
     return tags.map(tag => (
       <div
-        class='type-tag'
         style={{
           color: tag.light.color,
-          backgroundColor: tag.light.backgroundColor
+          backgroundColor: tag.light.backgroundColor,
         }}
+        class='type-tag'
       >
         {tag.name}
       </div>
@@ -128,7 +128,7 @@ export default class NoBusinessItem extends tsc<IProps> {
   handleMousemove(event: MouseEvent) {
     this.tagPosition = {
       top: event.pageY,
-      left: event.pageX
+      left: event.pageX,
     };
   }
   handleMouseenter() {
@@ -158,11 +158,11 @@ export default class NoBusinessItem extends tsc<IProps> {
         >
           {this.tagActive && (
             <span
-              class='err-tag'
               style={{
                 top: `${this.tagPosition.top + 5}px`,
-                left: `${this.tagPosition.left + 5}px`
+                left: `${this.tagPosition.left + 5}px`,
               }}
+              class='err-tag'
             >
               {window.i18n.tc('暂无权限')}
             </span>
@@ -183,10 +183,10 @@ export default class NoBusinessItem extends tsc<IProps> {
             </div>
           </div>
           <div class='skeleton'>
-            {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
+            {}
             <img
-              src={require('../../static/images/svg/business-skeleton.svg')}
               alt=''
+              src={require('../../static/images/svg/business-skeleton.svg')}
             ></img>
           </div>
         </div>
@@ -204,8 +204,8 @@ export default class NoBusinessItem extends tsc<IProps> {
             </bk-exception>
           </div>
           <bk-button
-            theme='primary'
             class='btn'
+            theme='primary'
             onClick={this.handleClick}
           >
             {window.i18n.tc('申请权限')}
