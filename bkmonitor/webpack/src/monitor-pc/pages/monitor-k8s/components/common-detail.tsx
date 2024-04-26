@@ -604,6 +604,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
               max={this.maxIndexListHeight}
               min={INDEX_LIST_MIN_HEIGHT}
               placement={this.indexListPlacement}
+              toggleBefore={() => this.expandIndexList}
               onResizing={this.hanldeResizing}
               onTogglePlacement={this.handleTogglePlacement}
               onTriggerMin={this.handleTriggerMinIndexList}
