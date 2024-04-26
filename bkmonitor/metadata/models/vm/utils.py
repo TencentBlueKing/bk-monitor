@@ -385,10 +385,17 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     # 获取 vm 集群名称
     vm_cluster_name = vm_cluster.get("cluster_name")
 
+    # 获取数据源对应的集群 ID
+    data_type_cluster = get_data_type_cluster(data_id=data_id)
     # 接入 vm 链路
     try:
         data_name = DataSource.objects.get(data_id=data_id).data_name
-        create_vm_data_link(table_id=table_id, data_name=data_name, vm_cluster_name=vm_cluster_name)
+        create_vm_data_link(
+            table_id=table_id,
+            data_name=data_name,
+            vm_cluster_name=vm_cluster_name,
+            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+        )
     except DataSource.DoesNotExist:
         logger.error("create vm data link error, data_id: %s not found", data_id)
         return

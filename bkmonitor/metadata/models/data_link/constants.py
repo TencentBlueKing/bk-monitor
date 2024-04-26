@@ -20,6 +20,21 @@ class DataLinkKind(Enum):
     VMSTORAGEBINDING = "VmStorageBinding"
     DATABUS = "Databus"
 
+    _choices_labels = (
+        (DATAID, "dataids"),
+        (RESULTTABLE, "resulttables"),
+        (VMSTORAGEBINDING, "vmstoragebindings"),
+        (DATABUS, "databuses"),
+    )
+
+    @classmethod
+    def get_choice_value(cls, key: str) -> str:
+        for item in DataLinkKind._choices_labels.value:
+            if key == item[0]:
+                return item[1]
+
+        return ""
+
 
 class DataLinkResourceStatus(Enum):
     """数据链路资源状态

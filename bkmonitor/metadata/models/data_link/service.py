@@ -51,7 +51,9 @@ def apply_data_id(data_name: str) -> bool:
 def get_data_id(data_name: str, namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE) -> Dict:
     """获取数据源对应的 data_id"""
     data_id_name = utils.get_bkdata_data_id_name(data_name)
-    data_id_config = api.bkdata.get_data_link(kind=DataLinkKind.DATAID.value, namespace=namespace, name=data_id_name)
+    data_id_config = api.bkdata.get_data_link(
+        kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value), namespace=namespace, name=data_id_name
+    )
     # 解析数据获取到数据源ID
     phase = data_id_config.get("status", {}).get("phase")
     # 如果状态不是处于正常的终态，则返回 None
@@ -68,7 +70,13 @@ def get_data_id(data_name: str, namespace: Optional[str] = settings.DEFAULT_VM_D
     return {"status": phase, "data_id": None}
 
 
-def create_vm_data_link(table_id: str, data_name: str, vm_cluster_name: str, vm_cluster_id: Optional[int] = None):
+def create_vm_data_link(
+    table_id: str,
+    data_name: str,
+    vm_cluster_name: str,
+    vm_cluster_id: Optional[int] = None,
+    bcs_cluster_id: Optional[str] = None,
+):
     # 获取数据源名称对应的资源，便于后续组装整个链路
     logger.info(
         "create vm data link for table_id: %s, data_name: %s, vm_cluster_name: %s", table_id, data_name, vm_cluster_name
@@ -79,7 +87,7 @@ def create_vm_data_link(table_id: str, data_name: str, vm_cluster_name: str, vm_
     # 渲染资源
     vm_table_id_config = DataLinkResourceConfig.compose_vm_table_id_config(name)
     vm_storage_binding_config = DataLinkResourceConfig.compose_vm_storage_binding(name, name, vm_cluster_name)
-    vm_data_bus_config = DataLinkResourceConfig.compose_vm_data_bus_config(name, name, data_id_name, table_id)
+    vm_data_bus_config = DataLinkResourceConfig.compose_vm_data_bus_config(name, name, data_id_name)
     # 下发资源
     data = {"config": [vm_table_id_config, vm_storage_binding_config, vm_data_bus_config]}
     api.bkdata.apply_data_link(data)
@@ -122,6 +130,7 @@ def create_vm_data_link(table_id: str, data_name: str, vm_cluster_name: str, vm_
     # NOTE: 不需要关心计算平台data_id, 这里设置为-1
     AccessVMRecord.objects.create(
         result_table_id=table_id,
+        bcs_cluster_id=bcs_cluster_id,
         vm_cluster_id=vm_cluster_id,
         bk_base_data_id=-1,
         vm_result_table_id=f"{settings.DEFAULT_BKDATA_BIZ_ID}_{name}",
