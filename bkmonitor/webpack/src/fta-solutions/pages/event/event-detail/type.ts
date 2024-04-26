@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
+
 export interface IDetail {
   id: string; // 告警id
   bk_biz_id: number; // 业务id
@@ -83,15 +83,15 @@ export const setBizIdToPanel = (panels, bkBizId) =>
           ...item,
           panels: item.panels.map(p => ({
             ...p,
-            bk_biz_id: bkBizId
-          }))
+            bk_biz_id: bkBizId,
+          })),
         };
       }
       return item;
     }
     return {
       ...item,
-      bk_biz_id: bkBizId
+      bk_biz_id: bkBizId,
     };
   });
 
@@ -107,7 +107,7 @@ export const getStatusInfo = (status: string, failureType?: string) => {
     framework_code_failure: window.i18n.tc('系统异常'),
     timeout: window.i18n.tc('执行超时'),
     execute_failure: window.i18n.tc('执行失败'),
-    unknown: window.i18n.tc('失败')
+    unknown: window.i18n.tc('失败'),
   };
   let text = statusMap[status];
   if (status === 'failure') {
@@ -115,6 +115,6 @@ export const getStatusInfo = (status: string, failureType?: string) => {
   }
   return {
     status,
-    text
+    text,
   };
 };

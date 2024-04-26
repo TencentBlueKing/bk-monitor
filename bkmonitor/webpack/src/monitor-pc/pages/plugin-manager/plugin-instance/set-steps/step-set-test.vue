@@ -27,8 +27,8 @@
   <div class="step-test">
     <!-- 编辑时的提示 -->
     <div
-      class="hint-container"
       v-if="isShowSkipDebugHint"
+      class="hint-container"
     >
       <i class="icon-monitor icon-tips" />
       {{ $t('本次对插件的编辑不影响采集进程，可以跳过调度阶段直接进行保存。') }}
@@ -51,16 +51,14 @@
                 class="icon-popover"
               >
                 <i
-                  class="icon-monitor icon-mind-fill"
                   v-show="rules.port.validate"
+                  class="icon-monitor icon-mind-fill"
                 />
                 <div slot="content">
                   {{ rules.port.message }}
                 </div>
               </bk-popover>
-              <div class="item-param-name">
-                ${port}=
-              </div>
+              <div class="item-param-name">${port}=</div>
               <verify-input
                 :show-validate.sync="rules.port.validate"
                 :validator="{ content: '' }"
@@ -80,9 +78,7 @@
           </div>
           <div class="item-content">
             <div class="item-param readonly-container">
-              <div class="item-param-name">
-                ${host}=
-              </div>
+              <div class="item-param-name">${host}=</div>
               <bk-input
                 v-model="info.url"
                 class="item-param-input"
@@ -101,14 +97,14 @@
           {{ $t('填写参数') }}
         </div>
         <div
-          class="item-content param-container"
           v-if="isShowParam"
+          class="item-content param-container"
         >
           <template v-for="(item, index) in paramsList">
             <div
-              class="item-param"
               v-if="!item.hasOwnProperty('visible') && !item.disabled"
               :key="index"
+              class="item-param"
               :class="{ 'input-verify': item.isError }"
             >
               <bk-popover
@@ -117,8 +113,8 @@
                 class="icon-popover"
               >
                 <i
-                  class="icon-monitor icon-mind-fill"
                   v-show="item.isError"
+                  class="icon-monitor icon-mind-fill"
                 />
                 <div slot="content">
                   {{ item.errorMessage }}
@@ -147,9 +143,9 @@
                   :validator="{ content: '' }"
                 >
                   <bk-input
+                    v-model="item.default"
                     :placeholder="$t('输入参数值')"
                     :class="['item-param-input', { 'value-password': item.type === 'password' }]"
-                    v-model="item.default"
                     :type="item.type === 'password' ? 'password' : 'text'"
                     @blur="validatePort(item.default, info.plugin_type === 'SNMP' ? 'snmpPort' : 'jmxPort')"
                   />
@@ -157,24 +153,24 @@
                 <!-- 其他情况不需要校验 -->
                 <bk-input
                   v-else
+                  v-model="item.default"
                   :placeholder="$t('输入参数值')"
                   :class="[
                     'item-param-input',
-                    { 'value-password': item.type === 'password' || item.type === 'encrypt' }
+                    { 'value-password': item.type === 'password' || item.type === 'encrypt' },
                   ]"
-                  v-model="item.default"
                   :type="item.type === 'password' || item.type === 'encrypt' ? 'password' : 'text'"
                 />
               </template>
               <!-- 开关 -->
               <div
-                class="switch-wrap"
                 v-else-if="item.type === 'switch'"
+                class="switch-wrap"
               >
                 <bk-switcher
+                  v-model="item.default"
                   true-value="true"
                   false-value="false"
-                  v-model="item.default"
                 />
               </div>
               <!-- 文件 -->
@@ -196,8 +192,8 @@
               >
                 <tag-switch
                   v-for="(value, key) in item.default"
-                  :value="item.default[key]"
                   :key="key"
+                  :value="item.default[key]"
                   :tag-label="key"
                   @input="val => handleTagInput(item, key, val)"
                 />
@@ -207,25 +203,25 @@
                 class="item-param-content"
               >
                 <bk-select
-                  class="params-select"
                   v-if="item.type === 'list'"
                   v-model="item.default"
+                  class="params-select"
                   :clearable="false"
                   @change="handelParamsSelect(item)"
                 >
                   <bk-option
                     v-for="(option, i) in item.election"
-                    :key="i"
                     :id="option.id"
+                    :key="i"
                     :name="option.name"
                     :disabled="option.disabled"
                   />
                 </bk-select>
                 <bk-input
-                  :class="{ 'value-password': item.type === 'password' || item.type === 'encrypt' }"
                   v-if="item.type === 'text' || item.type === 'password' || item.type === 'encrypt'"
-                  :placeholder="$t('输入参数值')"
                   v-model="item.default"
+                  :class="{ 'value-password': item.type === 'password' || item.type === 'encrypt' }"
+                  :placeholder="$t('输入参数值')"
                   :type="item.type === 'password' || item.type === 'encrypt' ? 'password' : 'text'"
                   @blur="handleValidate(item)"
                 />
@@ -235,8 +231,8 @@
         </div>
         <!-- 未定义参数时的提示 -->
         <div
-          class="item-content no-param"
           v-else
+          class="item-content no-param"
         >
           <i class="icon-monitor icon-hint param-icon" />
           <span class="param-text">{{ $t('由于插件定义时未定义参数，此处无需填写。') }}</span>
@@ -249,15 +245,15 @@
         </div>
         <div class="item-content">
           <bk-select
-            class="cycle-select"
             v-model="info.cycle"
+            class="cycle-select"
             :clearable="false"
             width="180"
           >
             <bk-option
               v-for="item in cycleList"
-              :key="item.code"
               :id="item.code"
+              :key="item.code"
               :name="item.name"
             />
           </bk-select>
@@ -265,16 +261,16 @@
       </div>
       <!-- 采集目标 -->
       <div
-        class="step-test-item"
         v-if="info.plugin_type === 'SNMP'"
+        class="step-test-item"
       >
         <div class="item-label item-required">
           {{ $t('采集目标') }}
         </div>
         <div class="item-content">
           <bk-tag-input
-            style="width: 940px"
             v-model="snmpTargets"
+            style="width: 940px"
             :placeholder="$t('输入采集目标主机')"
             :allow-create="true"
             :allow-auto-match="true"
@@ -294,15 +290,16 @@
         </div>
         <div class="item-content param-container">
           <div
-            class="host-container"
             v-for="(item, index) in info.host_info"
             :key="index"
+            class="host-container"
             @click="debugStatus !== 'debugging' && selectHost(item, index)"
           >
             <span
-              class="item-icon icon-arm"
               v-if="item.osType === 'linux_aarch64'"
-            >ARM</span>
+              class="item-icon icon-arm"
+              >ARM</span
+            >
             <i
               v-else
               :class="['item-icon icon-monitor', `icon-${item.osType}`]"
@@ -312,7 +309,8 @@
               <span
                 v-else
                 class="item-placeholder"
-              >{{ $t('点击选择测试目标') }}</span>
+                >{{ $t('点击选择测试目标') }}</span
+              >
             </div>
             <i
               v-show="item.ip"
@@ -324,8 +322,8 @@
       </div>
       <!-- 调试进度 -->
       <div
-        class="step-test-item"
         v-show="isShowDebug"
+        class="step-test-item"
         style="height: 342px"
       >
         <div class="item-label item-label-norequired">
@@ -338,32 +336,33 @@
                 <template v-for="(item, index) in debugHostList">
                   <li
                     v-if="item.ip"
-                    :class="['debug-tab', { 'debug-active': item.osType === activeTab }]"
                     :key="index"
+                    :class="['debug-tab', { 'debug-active': item.osType === activeTab }]"
                     @click="changeTab(index)"
                   >
                     <div class="tab-title">
                       <span
-                        class="title-icon-logo icon-arm"
                         v-if="item.osType === 'linux_aarch64'"
-                      >ARM</span>
+                        class="title-icon-logo icon-arm"
+                        >ARM</span
+                      >
                       <i
                         v-else
                         :class="['icon-monitor title-icon-logo', `icon-${item.osType}`]"
                       />
                       <span class="title-text">{{ item.display_name || item.ip }}</span>
                       <img
-                        src="../../../../static/images/svg/spinner.svg"
                         v-if="item.status === 3"
+                        src="../../../../static/images/svg/spinner.svg"
                         alt=""
-                      >
+                      />
                       <i
-                        class="bk-icon icon-exclamation-circle-shape status-exception title-icon-status"
                         v-else-if="item.status === 2"
+                        class="bk-icon icon-exclamation-circle-shape status-exception title-icon-status"
                       />
                       <div
-                        class="process-status"
                         v-else-if="item.status === 1"
+                        class="process-status"
                       >
                         <span class="process-status-bar bar-1" />
                         <span class="process-status-bar bar-2" />
@@ -394,9 +393,7 @@
               >
                 {{ $t('设置指标&维度') }}
               </div>
-              <div class="desc-text">
-                {{ $t('数据抓取限时') }} <span class="desc-time">600</span> {{ $t('秒') }}
-              </div>
+              <div class="desc-text">{{ $t('数据抓取限时') }} <span class="desc-time">600</span> {{ $t('秒') }}</div>
             </div>
           </div>
         </div>
@@ -410,17 +407,17 @@
         {{ $t('上一步') }}
       </bk-button>
       <bk-button
+        v-show="debugStatus === 'setting' || debugStatus === 'finish'"
         class="reset-btn mc-btn-add"
         :theme="isFirstDebug ? 'success' : 'default'"
-        v-show="debugStatus === 'setting' || debugStatus === 'finish'"
         :disabled="debugLoading || !canStartDebug"
         @click="startDebug"
       >
         {{ isFirstDebug ? $t('开始调试') : $t('重新调试') }}
       </bk-button>
       <bk-button
-        class="reset-btn btn-debugging mc-btn-add"
         v-show="debugStatus === 'debugging'"
+        class="reset-btn btn-debugging mc-btn-add"
       >
         {{ $t('button-调试中') }}
       </bk-button>
@@ -463,7 +460,7 @@ import { CancelToken } from 'monitor-api/index';
 import {
   fetchDebugLogCollectorPlugin,
   startDebugCollectorPlugin,
-  stopDebugCollectorPlugin
+  stopDebugCollectorPlugin,
 } from 'monitor-api/modules/model';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -472,7 +469,6 @@ import formLabelMixin from '../../../../mixins/formLabelMixin';
 import { transformJobUrl } from '../../../../utils/index';
 import MetricDimensionDialog from '../../components/metric-dimension-dialog';
 import TerminalInstance from '../terminal-instance/terminal-instance';
-
 import ImportFile from './components/import-file';
 import SelectHost from './components/select-host';
 import TagSwitch from './tag-switch.vue';
@@ -487,15 +483,15 @@ export default {
     // MonitorDialog,
     ImportFile,
     TagSwitch,
-    MetricDimensionDialog
+    MetricDimensionDialog,
   },
-  inject: ['authority', 'handleShowAuthorityDetail'],
   mixins: [formLabelMixin],
+  inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
     data: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -506,8 +502,8 @@ export default {
         {
           table_name: 'group_default',
           table_desc: this.$t('默认分组'),
-          fields: []
-        }
+          fields: [],
+        },
       ],
       pluginData: {},
       showMetricDialog: false,
@@ -530,22 +526,22 @@ export default {
         cycle: '10', // 数据抓取周期
         config_version: '',
         info_version: '',
-        host_info: [] // 调试目标
+        host_info: [], // 调试目标
       },
       dataTime: '', // 数据时间
       rules: {
         port: {
           validate: false,
-          message: ''
+          message: '',
         },
         jmxPort: {
           validate: false,
-          message: ''
+          message: '',
         },
         snmpPort: {
           validate: false,
-          message: ''
-        }
+          message: '',
+        },
       },
       cycleList: [
         // 数据抓取周期
@@ -554,7 +550,7 @@ export default {
         { code: '30', name: this.$t('30 秒') },
         { code: '60', name: this.$t('1 分钟') },
         { code: '120', name: this.$t('2 分钟') },
-        { code: '300', name: this.$t('5 分钟') }
+        { code: '300', name: this.$t('5 分钟') },
       ],
       activeTab: '',
       paramType: {
@@ -563,15 +559,15 @@ export default {
         pos_cmd: this.$t('位置参数'),
         env: this.$t('环境变量参数'),
         listen_cmd: this.$t('监听参数'),
-        dms_insert: this.$t('维度注入')
+        dms_insert: this.$t('维度注入'),
       },
       // 维度注入类型
       insertType: {
         service: this.$t('服务实例标签'),
-        host: this.$t('主机字段')
+        host: this.$t('主机字段'),
       },
       tippyOptions: {
-        distance: 0
+        distance: 0,
       },
       snmpTargets: [],
       paramsList: [],
@@ -624,7 +620,7 @@ export default {
     // 导航状态
     navToggle() {
       return this.$store.getters.navToggle;
-    }
+    },
   },
   watch: {
     canShowMetricDialog(newV) {
@@ -637,13 +633,13 @@ export default {
             ...groupData.map((item, index) => ({
               table_name: `Group${index + 1}`,
               table_desc: `${this.$t('分组')}${index + 1}`,
-              fields: this.handleMergeData([{ metricJson: item }])
-            }))
+              fields: this.handleMergeData([{ metricJson: item }]),
+            })),
           ];
         }
         this.showMetricDialog = true;
       }
-    }
+    },
   },
   mounted() {
     this.initFormLabelWidth();
@@ -670,23 +666,27 @@ export default {
      * @param {*} data 指标数据
      */
     automaticGrouping(data, allDataList) {
-      const allData =        allDataList
-        || data.reduce(
-          (total, cur) => total.concat(cur?.metricJson?.map(metric => ({
-            osType: cur.osType,
-            ...metric
-          })) || []),
+      const allData =
+        allDataList ||
+        data.reduce(
+          (total, cur) =>
+            total.concat(
+              cur?.metricJson?.map(metric => ({
+                osType: cur.osType,
+                ...metric,
+              })) || []
+            ),
           []
         );
       const groupMap = {};
       const EMPTY_DIMENSIONS = '__is_empty_dimensions__';
-      const getKey = (dimensions) => {
+      const getKey = dimensions => {
         const keys = dimensions.map(dim => dim.dimension_name).sort();
         return keys?.length ? keys.join('-') : EMPTY_DIMENSIONS;
       };
       allData
         .sort((a, b) => b.dimensions.length - a.dimensions.length)
-        .forEach((item) => {
+        .forEach(item => {
           const key = getKey(item.dimensions);
           const groupMapKeyList = Object.keys(groupMap);
           const resKey = groupMapKeyList.find(itemKey => key.split('-').every(k => itemKey.indexOf(k) > -1));
@@ -694,7 +694,7 @@ export default {
           list ? list.push(item) : (groupMap[key] = [item]);
         });
       const result = [];
-      Object.keys(groupMap).forEach((key) => {
+      Object.keys(groupMap).forEach(key => {
         if (key === EMPTY_DIMENSIONS) {
           result.unshift(groupMap[key]);
         } else {
@@ -714,15 +714,15 @@ export default {
         }
         return total;
       }, list);
-      list.map((item) => {
+      list.map(item => {
         item.disabled = false;
-        item.type === 'list'
-          && (item.election = item.election.map((option) => {
+        item.type === 'list' &&
+          (item.election = item.election.map(option => {
             if (typeof option === 'object') return option;
             return {
               id: option,
               name: option,
-              disabled: false
+              disabled: false,
             };
           }));
         this.$set(item, 'isError', false);
@@ -734,10 +734,9 @@ export default {
         return item;
       });
       const securityLevel = list.find(item => item.key === 'security_level');
-      list.forEach((item) => {
+      list.forEach(item => {
         // snmp v3 必选参数
         if (this.info.plugin_type === 'SNMP' && +this.info.collector_json?.snmp_version === 3) {
-          // eslint-disable-line
           const securityLevelValue = securityLevel.default || null;
           let excludes = []; // 非必选选项列表
           let disabledIncludes = []; // 不需要参数
@@ -763,13 +762,13 @@ export default {
               'authentication_protocol',
               'authentication_passphrase',
               'privacy_protocol',
-              'privacy_passphrase'
+              'privacy_passphrase',
             ];
             disabledIncludes = [
               'privacy_passphrase',
               'privacy_protocol',
               'authentication_passphrase',
-              'authentication_protocol'
+              'authentication_protocol',
             ];
           }
           item.required = !excludes.includes(item.key);
@@ -777,7 +776,6 @@ export default {
           // 默认值
           if (item.key === 'authentication_protocol' || item.key === 'privacy_protocol') item.default = 'AES';
         } else if ([1, 2].includes(+this.info.collector_json?.snmp_version)) {
-          // eslint-disable-line
           item.required = true;
         }
       });
@@ -839,13 +837,13 @@ export default {
         config_version: pluginInfo.config_version,
         info_version: pluginInfo.info_version,
         enable_field_blacklist: pluginInfo.enable_field_blacklist,
-        is_split_measurement: pluginInfo.is_split_measurement
+        is_split_measurement: pluginInfo.is_split_measurement,
       };
-      Object.keys(pluginInfo).forEach((item) => {
+      Object.keys(pluginInfo).forEach(item => {
         info[item] = pluginInfo[item];
       });
       // 处理 `pluginInfo.systemList`，并赋值给 `info.host_info`
-      pluginInfo.systemList.forEach((item) => {
+      pluginInfo.systemList.forEach(item => {
         info.host_info.push({
           osName: item.os_type,
           osType: item.os_type,
@@ -859,7 +857,7 @@ export default {
           isDebug: false,
           data: [],
           showInput: false,
-          display_name: ''
+          display_name: '',
         });
       });
     },
@@ -868,7 +866,7 @@ export default {
       this.hostConf = {
         isShow: true,
         id: this.$store.getters.bizId,
-        param: { ...info, index }
+        param: { ...info, index },
       };
     },
     //  处理主机dialog confirm 事件
@@ -894,18 +892,18 @@ export default {
       const hostInfo = data || this.info.host_info;
       //  合并各种操作系统的数据到arr
       const arr = [];
-      hostInfo.forEach((host) => {
+      hostInfo.forEach(host => {
         if (host.metricJson) {
-          host.metricJson.forEach((item) => {
+          host.metricJson.forEach(item => {
             const metric = this.getNewRow('metric', item.metric_name, item.metric_value, item.osType || host.osType);
-            item.dimensions.forEach((el) => {
+            item.dimensions.forEach(el => {
               arr.push(this.getNewRow('dimension', el.dimension_name, el.dimension_value, item.osType || host.osType));
               metric.dimensions.push(el.dimension_name);
               metric.tag_list.push({
                 field_name: el.dimension_name,
                 unit: '--',
                 type: 'string',
-                description: ''
+                description: '',
               });
             });
             arr.push(metric);
@@ -914,7 +912,7 @@ export default {
       });
       //  把不同操作系统的相同指标/维度的Value合并在一起
       const newArr = [];
-      arr.forEach((item) => {
+      arr.forEach(item => {
         const newItem = newArr.find(el => el.name === item.name);
         if (newItem) {
           newItem.value[item.osType] = item.value[item.osType];
@@ -934,10 +932,10 @@ export default {
         allName = [...allName, ...res];
       });
       //  把新增的指标/维度放进默认分组，并刷新 指标维度关联表(dimensions: [])
-      newData.forEach((item) => {
+      newData.forEach(item => {
         const newItem = allName.find(el => el.name === item.name);
         if (newItem) {
-          tableData[newItem.groupIndex].fields.forEach((el) => {
+          tableData[newItem.groupIndex].fields.forEach(el => {
             if (el.name === item.name) {
               el.dimensions = item.dimensions;
             }
@@ -961,22 +959,22 @@ export default {
         metricJson.push({
           table_name: 'group_default',
           table_desc: '',
-          fields: []
+          fields: [],
         });
       } else {
-        metricJson.forEach((group) => {
+        metricJson.forEach(group => {
           group.dimensions = group.fields.reduce((total, item) => {
             if (item.dimensions) total.push(...item.dimensions);
             return total;
           }, []);
-          group.fields.forEach((item) => {
+          group.fields.forEach(item => {
             item.showInput = false;
             item.isCheck = false;
             item.isDel = true;
             item.value = {
               linux: null,
               windows: null,
-              aix: null
+              aix: null,
             };
             if (item.monitor_type === 'metric') {
               item.order = 1;
@@ -988,29 +986,33 @@ export default {
       }
       let allMetric = this.getAllNewMetricDimensions(this.info.host_info);
       const allMetricOld = metricJson.reduce((total, item) => total.concat(item.fields), []);
-      metricJson.forEach((group) => {
+      metricJson.forEach(group => {
         const temp = deepClone(group.fields);
         const groupDim = group.dimensions;
         const fieldsName = group.fields.reduce((total, field) => {
           if (field.monitor_type === 'metric') total.push(field.name);
           return total;
         }, []);
-        allMetric = allMetric.map((metric) => {
+        allMetric = allMetric.map(metric => {
           if (!metric) return null;
           const diemArr = metric.dimensions?.map?.(item => item.dimension_name) || [];
           const newMetric = this.getNewRow('metric', metric.metric_name, metric.metric_value, metric.osType);
-          // eslint-disable-next-line vue/max-len
-          const dimensionsList = metric.dimensions.map(dim => this.getNewRow('dimension', dim.dimension_name, dim.dimension_value, metric.osType));
+
+          const dimensionsList = metric.dimensions.map(dim =>
+            this.getNewRow('dimension', dim.dimension_name, dim.dimension_value, metric.osType)
+          );
           /** 是否存在重复的指标 */
-          // eslint-disable-next-line vue/max-len
-          const isExistMetric = !!allMetricOld.find(old => old.name === newMetric.name || old.sourceName === newMetric.name);
+
+          const isExistMetric = !!allMetricOld.find(
+            old => old.name === newMetric.name || old.sourceName === newMetric.name
+          );
           if (fieldsName.includes(metric.metric_name)) {
             /** 存在的指标 更新指标和维度*/
             const existItem = temp.find(tem => tem.name === newMetric.name || tem.sourceName === newMetric.name);
             if (!!existItem) {
               existItem.value = newMetric.value;
             }
-            dimensionsList.forEach((dim) => {
+            dimensionsList.forEach(dim => {
               const existItem = temp.find(tem => tem.name === dim.name || tem.sourceName === dim.name);
               if (!!existItem) {
                 existItem.value = dim.value;
@@ -1023,7 +1025,7 @@ export default {
           if (!isExistMetric) {
             /** 新的指标添加到具有同维度的分组 */
             if (this.checkArrIntersection(groupDim, diemArr)) {
-              dimensionsList.forEach((dim) => {
+              dimensionsList.forEach(dim => {
                 const existItem = temp.find(tem => tem.name === dim.name || tem.sourceName === dim.name);
                 if (!!existItem) {
                   existItem.value = dim.value;
@@ -1051,20 +1053,21 @@ export default {
         const otherMetricJson = otherGroup.map((item, index) => ({
           table_name: `Group${index + 1 + base}`,
           table_desc: `${this.$t('分组')}${index + 1 + base}`,
-          fields: this.handleMergeData([{ metricJson: item }])
+          fields: this.handleMergeData([{ metricJson: item }]),
         }));
         metricJson = metricJson.concat(otherMetricJson);
       }
 
       // 根据dimensions 生成 tag_list
-      metricJson.forEach((group) => {
-        group.fields.forEach((field) => {
-          field.tag_list =            field.dimensions?.map(dim => ({
-            field_name: dim,
-            unit: '--',
-            type: 'string',
-            description: ''
-          })) || [];
+      metricJson.forEach(group => {
+        group.fields.forEach(field => {
+          field.tag_list =
+            field.dimensions?.map(dim => ({
+              field_name: dim,
+              unit: '--',
+              type: 'string',
+              description: '',
+            })) || [];
         });
       });
       this.metricData = deepClone(metricJson);
@@ -1081,10 +1084,13 @@ export default {
      */
     getAllNewMetricDimensions(list) {
       return list.reduce(
-        (total, cur) => total.concat(cur?.metricJson?.map(metric => ({
-          osType: cur.osType,
-          ...metric
-        })) || []),
+        (total, cur) =>
+          total.concat(
+            cur?.metricJson?.map(metric => ({
+              osType: cur.osType,
+              ...metric,
+            })) || []
+          ),
         []
       );
     },
@@ -1099,7 +1105,7 @@ export default {
           //  数据预览值
           linux: null,
           windows: null,
-          aix: null
+          aix: null,
         },
         showInput: false,
         is_active: true, //  是否启用
@@ -1110,7 +1116,7 @@ export default {
         errValue: false, //  是否重名
         reValue: false, //  是否关键字冲突
         descReValue: false, //  别名是否重名
-        osType //  操作系统类型
+        osType, //  操作系统类型
       };
       item.value[osType] = value;
       if (type === 'metric') {
@@ -1137,10 +1143,10 @@ export default {
         config_version: info.config_version,
         param: {
           collector: {
-            period: info.cycle
+            period: info.cycle,
           },
-          plugin: {}
-        }
+          plugin: {},
+        },
       };
       const { collector, plugin } = params.param;
       if (pluginType === 'Exporter') {
@@ -1150,7 +1156,7 @@ export default {
         const portParam = configJson.find(item => item.name === 'port') || {};
         collector.port = portParam.default.trim() || '';
       }
-      configJson.forEach((item) => {
+      configJson.forEach(item => {
         if (pluginType === 'Pushgateway' && item.mode === 'collector') {
           collector[item.name] = this.getItemParam(item);
         } else if (pluginType === 'Pushgateway' && item.mode !== 'collector') {
@@ -1173,7 +1179,7 @@ export default {
         return {
           filename: item.default,
           file_base64: item.file_base64,
-          type: item.type
+          type: item.type,
         };
       }
       return typeof item.default === 'string' ? item.default.trim() : item.default;
@@ -1183,7 +1189,7 @@ export default {
       this.debugLoading = true;
       const params = this.getDebugParams();
       this.isSelectedTip = this.isSelectedTip || false;
-      this.info.host_info.forEach(async (item) => {
+      this.info.host_info.forEach(async item => {
         // 只对选择了主机的操作系统  status： 1成功  2失败  3调试中
         if (item.ip) {
           if (item.taskId && item.status === 1) {
@@ -1199,10 +1205,10 @@ export default {
               // bk_cloud_id: item.cloudId,
               // ip: item.ip,
               // bk_biz_id: item.bk_biz_id,
-              bk_host_id: item.bk_host_id
-            }
+              bk_host_id: item.bk_host_id,
+            },
           })
-            .then((data) => {
+            .then(data => {
               const taskId = data.task_id;
               item.isDebug = true;
               item.status = 3; // 调试中
@@ -1272,8 +1278,8 @@ export default {
       host.data = [
         {
           status: status !== 2 ? 1 : status,
-          text
-        }
+          text,
+        },
       ];
       host.status = status;
     },

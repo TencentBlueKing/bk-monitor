@@ -25,7 +25,8 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
-import SearchSelect from '@blueking/search-select';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -38,36 +39,36 @@ import {
   transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../../monitor-k8s/utils';
 import { StatusClassNameType } from '../host-tree/host-tree';
 
-import '@blueking/search-select/dist/vue2-full.css';
 import './host-list.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 export const DEFAULT_TAB_LIST = [
   {
     name: window.i18n.tc('全部'),
-    type: 'all'
+    type: 'all',
   },
   {
     type: 'success',
     status: 'success',
     tips: `${window.i18n.t('正常')}  (${window.i18n.t('近3个周期数据')})`,
-    color: 'success'
+    color: 'success',
   },
   {
     type: 'failed',
     status: 'failed',
     tips: `${window.i18n.t('异常')}  (${window.i18n.t('下发采集失败')})`,
-    color: 'failed'
+    color: 'failed',
   },
   {
     type: 'nodata',
     status: 'disabled',
     tips: `${window.i18n.t('无数据')}  (${window.i18n.t('近3个周期数据')})`,
-    color: 'nodata'
-  }
+    color: 'nodata',
+  },
 ];
 export interface IProps {
   panel: PanelModel;
@@ -128,7 +129,7 @@ export default class HostList extends tsc<IProps, IEvents> {
   hostStatusMap = {
     SUCCESS: 'success',
     FAILED: 'failed',
-    NODATA: 'nodata'
+    NODATA: 'nodata',
   };
 
   /** 选中值 默认数据总览*/
@@ -147,18 +148,18 @@ export default class HostList extends tsc<IProps, IEvents> {
       {
         id: 'SUCCESS',
         name: '正常',
-        color: 'success'
+        color: 'success',
       },
       {
         id: 'FAILED',
         name: '失败',
-        color: 'warning'
+        color: 'warning',
       },
       {
         id: 'NODATA',
         name: '无数据',
-        color: 'nodata'
-      }
+        color: 'nodata',
+      },
     ];
     return this.panel.options?.[this.panel?.type]?.status_mapping || defaultStatus;
   }
@@ -168,7 +169,7 @@ export default class HostList extends tsc<IProps, IEvents> {
       id: item.type,
       name: item.name || (this.hostStatusData[item.type]?.count ?? 0),
       tips: item.tips,
-      status: item.status
+      status: item.status,
     }));
   }
 
@@ -210,7 +211,6 @@ export default class HostList extends tsc<IProps, IEvents> {
 
   /** 目标对比选中的主机id */
   get compareTargets() {
-    // eslint-disable-next-line max-len
     return (
       this.viewOptions?.compares?.targets?.map(item => this.panel.targets?.[0]?.handleCreateItemId(item, true)) || []
     );
@@ -251,7 +251,7 @@ export default class HostList extends tsc<IProps, IEvents> {
       this.$api[item.apiModule]
         [item.apiFunc]({
           ...variablesService.transformVariables(item.data),
-          condition_list: transformConditionValueParams(this.searchCondition)
+          condition_list: transformConditionValueParams(this.searchCondition),
         })
         .then(data => {
           const list = typeTools.isObject(data) ? data.data : data;
@@ -284,7 +284,7 @@ export default class HostList extends tsc<IProps, IEvents> {
         const value = total[key];
         if (!value) {
           total[key] = {
-            count: 1
+            count: 1,
           };
         } else {
           value.count += 1;
@@ -328,8 +328,8 @@ export default class HostList extends tsc<IProps, IEvents> {
       ...this.viewOptions,
       filters,
       compares: {
-        targets: []
-      }
+        targets: [],
+      },
     };
     this.$emit('checkedChange');
     return this.handleViewOptionsChange(viewOptions);
@@ -372,7 +372,7 @@ export default class HostList extends tsc<IProps, IEvents> {
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
 
@@ -392,7 +392,7 @@ export default class HostList extends tsc<IProps, IEvents> {
   handleListChange(list) {
     return list.map(item => ({
       ...item,
-      id: this.panel.targets[0].handleCreateItemId(item)
+      id: this.panel.targets[0].handleCreateItemId(item),
     }));
   }
 
@@ -403,14 +403,14 @@ export default class HostList extends tsc<IProps, IEvents> {
     const viewOptions: IViewOptions = {
       ...this.viewOptions,
       compares: {
-        targets: this.localCompareTargets
-      }
+        targets: this.localCompareTargets,
+      },
     };
     this.handleViewOptionsChange(viewOptions);
   }
 
   /** 生成主机主机的状态类名 */
-  getItemStatusClassName(status: string | number): StatusClassNameType {
+  getItemStatusClassName(status: number | string): StatusClassNameType {
     const target = this.statusMapping.find(item => item.id === status);
     return (target.color as StatusClassNameType) || 'none';
   }
@@ -422,14 +422,14 @@ export default class HostList extends tsc<IProps, IEvents> {
         const itemId = this.getItemId(item);
         return (
           <div
-            v-bk-overflow-tips={{ content: item.ip || item.name }}
             class={[
               'host-item-wrap',
               {
                 active: itemId === this.selectId,
-                'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId)
-              }
+                'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
+              },
             ]}
+            v-bk-overflow-tips={{ content: item.ip || item.name }}
             onClick={() => this.handleClickItem(itemId, item)}
           >
             {!!this.hostStatusMap[item.status] ? (
@@ -437,7 +437,7 @@ export default class HostList extends tsc<IProps, IEvents> {
                 class={[
                   'host-status',
                   this.hostStatusMap[item.status],
-                  `status-${this.getItemStatusClassName(item.status)}`
+                  `status-${this.getItemStatusClassName(item.status)}`,
                 ]}
               ></span>
             ) : undefined}
@@ -459,7 +459,7 @@ export default class HostList extends tsc<IProps, IEvents> {
             ) : undefined}
           </div>
         );
-      }
+      },
     };
     return (
       <div
@@ -470,28 +470,27 @@ export default class HostList extends tsc<IProps, IEvents> {
           <div class='host-list-tool'>
             {this.conditionList.length ? (
               <SearchSelect
-                placeholder={this.$t('搜索')}
-                value={this.searchCondition}
-                show-condition={false}
                 clearable={false}
                 data={this.currentConditionList}
+                modelValue={this.searchCondition}
+                placeholder={this.$t('搜索')}
                 onChange={this.handleSearch}
               />
             ) : (
               <bk-input
                 class='host-search'
-                value={this.searchKeyword}
-                right-icon='bk-icon icon-search'
                 placeholder={this.placeholder}
+                right-icon='bk-icon icon-search'
+                value={this.searchKeyword}
                 onInput={this.handleLocalSearch}
               ></bk-input>
             )}
             {this.enableStatusFilter && (
               <StatusTab
-                needAll={false}
-                disabledClickZero
                 v-model={this.currentStatus}
+                needAll={false}
                 statusList={this.statusList}
+                disabledClickZero
                 onChange={this.handleStatusFilter}
               ></StatusTab>
             )}
@@ -507,8 +506,8 @@ export default class HostList extends tsc<IProps, IEvents> {
             {this.isTargetCompare ? (
               <bk-alert
                 class='target-compare-tips'
-                type='info'
                 title={this.$t('选择目标进行对比')}
+                type='info'
               ></bk-alert>
             ) : undefined}
           </div>
@@ -524,17 +523,17 @@ export default class HostList extends tsc<IProps, IEvents> {
               //   : undefined,
               this.hostListData.length ? (
                 <bk-virtual-scroll
-                  style={{ height: `${this.listHeight}px` }}
                   ref='hostListRef'
+                  style={{ height: `${this.listHeight}px` }}
                   item-height={32}
                   scopedSlots={scopedSlots}
                 />
-              ) : undefined
+              ) : undefined,
             ]
           ) : (
             <bk-exception
-              type='empty'
               scene='part'
+              type='empty'
             />
           )}
         </div>

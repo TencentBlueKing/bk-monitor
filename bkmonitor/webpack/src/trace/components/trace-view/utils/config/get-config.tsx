@@ -28,7 +28,6 @@ import _get from 'lodash/get';
 import memoizeOne from 'memoize-one';
 
 import defaultConfig, { deprecations } from '../../constants/default-config';
-
 import processDeprecation from './process-deprecation';
 
 let haveWarnedFactoryFn = false;
@@ -42,7 +41,6 @@ const getConfig = memoizeOne(() => {
   const { getJaegerUiConfig } = window;
   if (typeof getJaegerUiConfig !== 'function') {
     if (!haveWarnedFactoryFn) {
-      // eslint-disable-next-line no-console
       console.warn('Embedded config not available');
       haveWarnedFactoryFn = true;
     }

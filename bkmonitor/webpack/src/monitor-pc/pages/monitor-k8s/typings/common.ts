@@ -43,7 +43,7 @@ export interface IQueryData {
 /**
  * 搜索框条件
  */
-export type IQueryDataSearch = Array<Record<string, string[] | string>>;
+export type IQueryDataSearch = Array<Record<string, string | string[]>>;
 
 /**
  * BkSeachSelect 的值

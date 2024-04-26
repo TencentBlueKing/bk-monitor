@@ -29,6 +29,6 @@ export default [
   {
     path: '/home',
     name: 'home',
-    component: () => import(/* webpackChunkName: "inquire" */ '../../pages/main/inquire')
-  }
+    component: () => import(/* webpackChunkName: "inquire" */ '../../pages/main/inquire'),
+  },
 ] as RouteRecordRaw[];

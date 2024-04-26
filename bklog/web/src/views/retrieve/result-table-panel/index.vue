@@ -56,13 +56,14 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import OriginalLog from './original-log/index.vue';
 import LogClustering from './log-clustering/index.vue';
 import reportLogStore from '@/store/modules/report-log';
 
 export default {
   components: { OriginalLog, LogClustering },
+  inheritAttrs: false,
   props: {
     configData: {
       type: Object,
@@ -88,9 +89,12 @@ export default {
       bkBizId: state => state.bkBizId,
       isExternal: state => state.isExternal
     }),
+    ...mapGetters({
+      isUnionSearch: 'isUnionSearch'
+    }),
     isAiopsToggle() {
       // 日志聚类总开关
-      if (this.isExternal) return false; // 外部版不包含日志聚类
+      if (this.isExternal || this.isUnionSearch) return false; // 外部版或联合查询时不包含日志聚类
       if (window.FEATURE_TOGGLE.bkdata_aiops_toggle !== 'on') return false;
       const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
 
@@ -124,6 +128,7 @@ export default {
   methods: {
     showOriginLog() {
       this.active = 'origin';
+      this.handleChangeTab('origin');
     },
     async handleChangeTab(name) {
       this.$refs?.logClusteringRef?.$refs.fingerRef?.$refs.groupPopover.instance?.hide();

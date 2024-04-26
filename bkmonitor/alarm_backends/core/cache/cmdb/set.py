@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+from django.conf import settings
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from api.cmdb.define import Set
@@ -20,6 +20,7 @@ class SetManager(RefreshByBizMixin, CMDBCacheManager):
     CMDB 集群缓存
     """
 
+    ObjectClass = Set
     type = "set"
     CACHE_KEY = "{prefix}.cmdb.set".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
 
@@ -52,4 +53,6 @@ class SetManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
+    if "set" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+        return
     SetManager.refresh()

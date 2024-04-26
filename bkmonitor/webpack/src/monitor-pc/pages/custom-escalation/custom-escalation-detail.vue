@@ -329,7 +329,6 @@
                 <div class="search-select-wrap">
                   <search-select
                     :value="metricSearchValue"
-                    :show-condition="false"
                     :clearable="false"
                     :data="metricSearchData"
                     @change="handleMetricSearchValue"
@@ -904,7 +903,7 @@
 <script lang="ts">
 import { CreateElement } from 'vue';
 import { Component, Mixins, Ref } from 'vue-property-decorator';
-import SearchSelect from '@blueking/search-select';
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import {
   createOrUpdateGroupingRule,
@@ -937,7 +936,7 @@ import GroupManageDialog, { matchRuleFn } from './group-manage-dialog';
 import GroupSelectMultiple from './group-select-multiple';
 import { csvToArr } from './utils';
 
-import '@blueking/search-select/dist/vue2-full.css';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const NULL_LABEL = '__null_label__';
 

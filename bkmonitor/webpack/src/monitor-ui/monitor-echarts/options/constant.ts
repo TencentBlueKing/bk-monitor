@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable import/prefer-default-export */
 export const colorList = [
   '#7EB26D', // 0: pale green
   '#EAB839', // 1: mustard
@@ -80,5 +79,5 @@ export const colorList = [
   '#FCE2DE',
   '#BADFF4',
   '#F9D9F9',
-  '#DEDAF7'
+  '#DEDAF7',
 ];

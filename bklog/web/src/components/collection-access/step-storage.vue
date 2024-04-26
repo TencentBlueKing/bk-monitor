@@ -551,6 +551,8 @@ export default {
         etl_params: {
           retain_original_text: etlParams.retain_original_text,
           retain_extra_json: etlParams.retain_extra_json ?? false,
+          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
           separator_regexp: etlParams.separator_regexp,
           separator: etlParams.separator
         },
@@ -567,7 +569,9 @@ export default {
       if (etl_config !== 'bk_log_text') {
         const payload = {
           retain_original_text: etlParams.retain_original_text,
-          retain_extra_json: etlParams.retain_extra_json ?? false
+          retain_extra_json: etlParams.retain_extra_json ?? false,
+          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? ''
         };
         if (etl_config === 'bk_log_delimiter') {
           payload.separator = etlParams.separator;
@@ -715,6 +719,8 @@ export default {
           {
             retain_original_text: true,
             retain_extra_json: false,
+            original_text_is_case_sensitive: false,
+            original_text_tokenize_on_chars: '',
             separator_regexp: '',
             separator: ''
             // separator_field_list: ''

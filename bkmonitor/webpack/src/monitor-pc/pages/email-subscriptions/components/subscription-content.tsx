@@ -25,8 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
-import Sortable from 'sortablejs';
+import { Sortable } from 'sortablejs';
 
 import './subscription-content.scss';
 
@@ -51,15 +52,15 @@ interface ISubscriptionContent {
 }
 
 @Component({
-  name: 'SubscriptionContent'
+  name: 'SubscriptionContent',
 })
 export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   @Prop({
     type: Object,
     default: () => ({
       viewData: [],
-      pullData: []
-    })
+      pullData: [],
+    }),
   })
   data: ISubscriptionContent['data'];
   @Prop({ type: String, default: 'view' }) contentType: string;
@@ -67,7 +68,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   curTab = 'view';
   tabList = [
     { name: 'view', label: window.i18n.t('视图截取') },
-    { name: 'full', label: window.i18n.t('整屏截取') }
+    { name: 'full', label: window.i18n.t('整屏截取') },
   ];
   tips = {
     view: window.i18n.t(
@@ -75,7 +76,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     ),
     full: window.i18n.t(
       '整屏截取指截取整个仪表盘，按宽度800截取，方便快速创建一个仪表盘的邮件订阅，因为邮件有大小限制，为保证发送质量会进行长宽限制和切分。并且限制只有一个。'
-    )
+    ),
   };
   tableKey = null;
   curFromIndex = 0;
@@ -154,7 +155,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
         this.sortEndReportContents[to] = this.sortEndReportContents[from];
         this.sortEndReportContents[from] = temp;
         this.curFromIndex = to;
-      }
+      },
     });
   }
 
@@ -173,7 +174,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
       { label: window.i18n.tc('子标题'), key: 'contentTitle' },
       { label: window.i18n.tc('图表数量'), key: 'graphs', width: 150 },
       { label: window.i18n.tc('布局'), key: 'rowPicturesNum', width: 150 },
-      { label: window.i18n.tc('说明'), key: 'contentDetails' }
+      { label: window.i18n.tc('说明'), key: 'contentDetails' },
     ];
     const formatterColumn = (row, column, cellValue) => {
       if (column.property === 'layout') return cellValue + this.$t('个/行');
@@ -181,7 +182,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
       return cellValue;
     };
     const iconSlot = {
-      default: () => <span class='icon-drag'></span>
+      default: () => <span class='icon-drag'></span>,
     };
     const operateSlot = {
       default: props => [
@@ -200,13 +201,13 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
           onClick={() => this.handleDel(props.$index)}
         >
           {this.$t('删除')}
-        </bk-button>
-      ]
+        </bk-button>,
+      ],
     };
     return (
       <bk-table
-        class='drag-table-wrap'
         key={this.tableKey}
+        class='drag-table-wrap'
         data={this.data.viewData}
       >
         <bk-table-column
@@ -216,16 +217,16 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
         {tableColumnsMap.map(item => (
           <bk-table-column
             key={item.key}
+            width={item.width}
+            formatter={formatterColumn}
             label={item.label}
             prop={item.key}
             show-overflow-tooltip={['contentTitle', 'contentDetails'].includes(item.key)}
-            width={item.width}
-            formatter={formatterColumn}
           ></bk-table-column>
         ))}
         <bk-table-column
-          label={this.$t('操作')}
           width={150}
+          label={this.$t('操作')}
           scopedSlots={operateSlot}
         ></bk-table-column>
       </bk-table>
@@ -237,7 +238,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
       { label: window.i18n.tc('子标题'), key: 'contentTitle' },
       { label: window.i18n.tc('说明'), key: 'contentDetails', width: 150 },
       { label: window.i18n.tc('业务'), key: 'curBizId', width: 150 },
-      { label: window.i18n.tc('仪表盘名称'), key: 'curGrafanaName' }
+      { label: window.i18n.tc('仪表盘名称'), key: 'curGrafanaName' },
     ];
     const operateSlot = {
       default: props => [
@@ -256,8 +257,8 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
           onClick={() => this.handleDel(props.$index)}
         >
           {this.$t('删除')}
-        </bk-button>
-      ]
+        </bk-button>,
+      ],
     };
     return (
       <bk-table data={this.data.pullData}>
@@ -267,8 +268,8 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
             return (
               <bk-table-column
                 key={item.key}
-                label={item.label}
                 width={item.width}
+                label={item.label}
                 scopedSlots={{ default: ({ row }) => this.bizIdListNameMap[row.curBizId] || '--' }}
               ></bk-table-column>
             );
@@ -277,26 +278,26 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
             return (
               <bk-table-column
                 key={item.key}
-                label={item.label}
                 width={item.width}
                 scopedSlots={{
-                  default: ({ row }) => row.curGrafanaName || <div class='status-loading'></div>
+                  default: ({ row }) => row.curGrafanaName || <div class='status-loading'></div>,
                 }}
+                label={item.label}
               ></bk-table-column>
             );
           }
           return (
             <bk-table-column
               key={item.key}
+              width={item.width}
               label={item.label}
               prop={item.key}
-              width={item.width}
             ></bk-table-column>
           );
         })}
         <bk-table-column
-          label={this.$t('操作')}
           width={150}
+          label={this.$t('操作')}
           scopedSlots={operateSlot}
         ></bk-table-column>
       </bk-table>
@@ -309,8 +310,8 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
         <div class='content-tab'>
           <bk-tab
             active={this.curTab}
-            on-tab-change={this.handleTabChange}
             type='unborder-card'
+            on-tab-change={this.handleTabChange}
           >
             {this.tabList.map(item => (
               <bk-tab-panel
@@ -326,8 +327,8 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
           <span class='text'>{this.tips[this.curTab]}</span>
         </div>
         <bk-button
-          theme='primary'
           outline={true}
+          theme='primary'
           on-click={this.handleAdd}
         >
           {this.$t('button-添加内容')}

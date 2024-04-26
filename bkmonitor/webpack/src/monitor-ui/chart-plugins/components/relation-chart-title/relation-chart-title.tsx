@@ -25,14 +25,15 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import SearchSelect from '@blueking/search-select';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce } from 'monitor-common/utils/utils';
 import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import StatusTab from '../../plugins/table-chart/status-tab';
 
-import '@blueking/search-select/dist/vue2-full.css';
 import './relation-chart-title.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface IRelationChartTitleProps {
   filterList?: ITableFilterItem[];
@@ -88,7 +89,7 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
   }
   @Debounce(300)
   @Emit('searchChange')
-  handleSearchChange(value: string | number) {
+  handleSearchChange(value: number | string) {
     return value;
   }
   @Debounce(300)
@@ -127,8 +128,8 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
               <div class='empty-node-switcher'>
                 <bk-switcher
                   v-model={this.showEmptyNode}
-                  theme='primary'
                   size='small'
+                  theme='primary'
                   onChange={(v: boolean) => this.handleShowNodata(v)}
                 ></bk-switcher>
                 <span class='switcher-text'>{window.i18n.t('无数据节点')}</span>
@@ -137,22 +138,21 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
             {this.searchType === 'search_select' ? (
               <div class='search-wrapper-input'>
                 <SearchSelect
-                  value={this.conditionList}
-                  show-condition={false}
                   clearable={false}
                   data={this.conditionOptions}
+                  modelValue={this.conditionList}
                   onChange={this.handleConditionChange}
                 />
               </div>
             ) : (
               <bk-input
                 class='search-wrapper-input'
+                v-model={this.keyword}
                 behavior='simplicity'
                 placeholder='搜索'
-                v-model={this.keyword}
-                onEnter={this.handleSearchChange}
-                onBlur={this.handleSearchChange}
                 right-icon='bk-icon icon-search'
+                onBlur={this.handleSearchChange}
+                onEnter={this.handleSearchChange}
               />
             )}
           </div>

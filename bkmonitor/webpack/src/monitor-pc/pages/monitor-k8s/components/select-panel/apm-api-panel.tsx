@@ -25,13 +25,13 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import SearchSelect from '@blueking/search-select';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
@@ -39,12 +39,14 @@ import {
   transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
-import '@blueking/search-select/dist/vue2-full.css';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
+
 import './apm-api-panel.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface ICommonListProps {
   // panel实例
@@ -113,7 +115,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   // active id
@@ -190,7 +192,6 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     const variablesService = new VariablesService(this.scopedVars);
     const checkFilters =
       this.checkboxDict?.reduce((pre, cur) => {
-        // eslint-disable-next-line no-param-reassign
         pre[cur] = true;
         return pre;
       }, {}) || undefined;
@@ -203,7 +204,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
           keyword: this.keyword,
           start_time: startTime,
           end_time: endTime,
-          ...checkFilters
+          ...checkFilters,
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
@@ -219,7 +220,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
             return {
               ...set,
               id,
-              name: set.name || id
+              name: set.name || id,
             };
           });
         })
@@ -247,7 +248,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     if (this.needQueryUpdateUrl) {
       this.handleUpdateQueryData({
         ...this.queryData,
-        selectorSearch
+        selectorSearch,
       });
     }
   }
@@ -258,7 +259,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     if (this.needQueryUpdateUrl) {
       this.handleUpdateQueryData({
         ...this.queryData,
-        keyword: v
+        keyword: v,
       });
     }
   }
@@ -271,7 +272,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
     const value = this.panel.targets[0].handleCreateFilterDictValue(data);
     viewOptions.filters = { ...(value || {}) };
     viewOptions.compares = {
-      targets: []
+      targets: [],
     };
     this.handleTitleChange(data.name);
     this.$emit('change', viewOptions);
@@ -311,18 +312,17 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
         <div class='list-header'>
           {!!this.conditionList.length ? (
             <SearchSelect
-              placeholder={this.$t('搜索')}
-              value={this.searchCondition}
-              show-condition={false}
-              data={this.currentConditionList}
               clearable={false}
+              data={this.currentConditionList}
+              modelValue={this.searchCondition}
+              placeholder={this.$t('搜索')}
               onChange={this.handleSearch}
             />
           ) : (
             <bk-input
               v-model={this.keyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
@@ -344,16 +344,16 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
         {!!this.tabList.length && (
           <bk-tab
             class='list-tab'
-            type='unborder-card'
-            labelHeight={42}
-            on-tab-change={this.handleTabChange}
             active={this.activeTab}
+            labelHeight={42}
+            type='unborder-card'
+            on-tab-change={this.handleTabChange}
           >
             {this.tabList.map(tab => (
               <bk-tab-panel
-                name={tab.id}
                 key={tab.id}
                 label={tab.name}
+                name={tab.id}
               ></bk-tab-panel>
             ))}
           </bk-tab>
@@ -362,13 +362,12 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
           {this.localList?.length ? (
             <bk-virtual-scroll
               ref='virtualInstance'
-              item-height={36}
               scopedSlots={{
                 default: ({ data }) => (
                   <div
-                    onClick={() => this.handleSelect(data)}
                     style={{ '--percent': data.metric?.[this.activeTab]?.percent || data.percent || '0%' }}
                     class={[`list-wrapper-item ${data.id === this.activeId ? 'item-active' : ''}`]}
+                    onClick={() => this.handleSelect(data)}
                   >
                     {!!data.status?.type && (
                       <CommonStatus
@@ -379,14 +378,15 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
                     <span class='item-name'>{data.name || '--'}</span>
                     <span class='item-count'>{this.formaterCount(data)}</span>
                   </div>
-                )
+                ),
               }}
+              item-height={36}
             ></bk-virtual-scroll>
           ) : (
             <bk-exception
               class='exception-part'
-              type='search-empty'
               scene='part'
+              type='search-empty'
             />
           )}
         </div>

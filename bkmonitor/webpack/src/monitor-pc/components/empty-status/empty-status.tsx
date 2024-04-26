@@ -48,7 +48,7 @@ export const defaultTextMap: IEmptyStatusTextMap = {
   empty: window.i18n.t('查无数据'),
   'search-empty': window.i18n.t('搜索结果为空'),
   500: window.i18n.t('数据获取异常'),
-  403: window.i18n.t('无业务权限')
+  403: window.i18n.t('无业务权限'),
 };
 
 @Component
@@ -74,8 +74,8 @@ export default class EmptyStatus extends tsc<IEmptyStatusProps, IEmptyStatusEven
         >
           <span style='margin: 0 3px'>{this.$t('调整关键词')}</span>
           <span
-            class='operation-btn'
             style='margin-left: 3px'
+            class='operation-btn'
             onClick={() => this.handleOperation('clear-filter')}
           >
             {this.$t('清空筛选条件')}
@@ -105,8 +105,8 @@ export default class EmptyStatus extends tsc<IEmptyStatusProps, IEmptyStatusEven
     return (
       <div class='empty-status-container'>
         <bk-exception
-          type={this.type}
           scene={this.scene}
+          type={this.type}
           {...{ props: this.$attrs }}
         >
           <div class='empty-text-content'>

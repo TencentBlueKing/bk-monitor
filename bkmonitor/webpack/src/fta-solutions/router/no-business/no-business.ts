@@ -31,12 +31,12 @@ export default [
     name: 'no-business',
     path: '/no-business',
     components: {
-      noCache: NoBusiness
+      noCache: NoBusiness,
     },
     meta: {
       title: '无业务',
       navId: '',
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

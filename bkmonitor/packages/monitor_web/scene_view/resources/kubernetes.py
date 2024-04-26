@@ -23,15 +23,6 @@ from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q
 from django.db.models.aggregates import Sum
 from django.utils.translation import gettext as _
-from monitor_web.constants import (
-    GRAPH_COLUMN_BAR,
-    GRAPH_NUMBER_CHART,
-    GRAPH_PERCENTAGE_BAR,
-    GRAPH_RATIO_RING,
-    GRAPH_RESOURCE,
-    OVERVIEW_ICON,
-)
-from monitor_web.scene_view.resources.serializers import KubernetesListRequestSerializer
 from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_ci_space
@@ -68,6 +59,15 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.event import EventTypeNormal, EventTypeWarning
 from core.drf_resource import Resource, api, resource
+from monitor_web.constants import (
+    GRAPH_COLUMN_BAR,
+    GRAPH_NUMBER_CHART,
+    GRAPH_PERCENTAGE_BAR,
+    GRAPH_RATIO_RING,
+    GRAPH_RESOURCE,
+    OVERVIEW_ICON,
+)
+from monitor_web.scene_view.resources.serializers import KubernetesListRequestSerializer
 
 logger = logging.getLogger("kubernetes")
 
@@ -716,7 +716,7 @@ class GetKubernetesGrafanaMetricRecords(ApiAuthResource, abc.ABC):
     @staticmethod
     def format_performance_data(validated_request_data: Dict, performance_data):
         data = {}
-        for (key_name, records) in performance_data:
+        for key_name, records in performance_data:
             data[key_name] = records
         return data
 
@@ -750,7 +750,6 @@ class GetKubernetesGrafanaMetricRecords(ApiAuthResource, abc.ABC):
 
 
 class GetKubernetesMetricQueryRecords(ApiAuthResource, abc.ABC):
-
     DATA_SOURCE_CLASS = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
 
     def __init__(self, *args, **kwargs) -> None:
@@ -1212,7 +1211,6 @@ class GetKubernetesWorkloadList(KubernetesResource):
 
 
 class GetKubernetesNode(ApiAuthResource):
-
     # 资源使用率列
     client_sort_fields = {
         "system_cpu_summary_usage": "progress",
@@ -1723,8 +1721,8 @@ class GetKubernetesMonitor(Resource, abc.ABC):
             "bk_biz_id": bk_biz_id,
             "bcs_cluster_id": bcs_cluster_id,
             "monitor_type": self.model_class.PLURAL,
-            "namespace": namespace,
             "bk_monitor_name": bk_monitor_name,
+            "bk_monitor_namespace": namespace,
         }
         item.update_monitor_status(params)
 
@@ -2043,7 +2041,6 @@ class GetKubernetesObjectCount(ApiAuthResource):
 
         results = []
         for resource_name in resources:
-
             if resource_name == "namespace":
                 namespace_count = len(GetKubernetesNamespaces()(params))
                 item = {"label": "Namespace", "value": namespace_count}
@@ -3594,7 +3591,7 @@ class GetKubernetesCpuAnalysis(GetKubernetesMetricQueryRecords):
         # 按从小到大取部分数据
         sorted_data = sorted(data.items(), key=lambda d: d[1] if d[1] else 0, reverse=True)[:top_n]
         graph_data = []
-        for (namespace, value) in sorted_data:
+        for namespace, value in sorted_data:
             graph_data.append(
                 {
                     "name": namespace,
@@ -3612,7 +3609,7 @@ class GetKubernetesCpuAnalysis(GetKubernetesMetricQueryRecords):
     def to_number_resource_graph(self, params: Dict, performance_data: Dict) -> List:
         bcs_cluster_id = params.get("bcs_cluster_id")
         data = {}
-        for (key_name, records) in performance_data:
+        for key_name, records in performance_data:
             if records:
                 records = sorted(records, key=lambda d: d["_time_"], reverse=True)
                 record = records[0]
@@ -3843,7 +3840,7 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         # 按从小到大取部分数据
         sorted_data = sorted(data.items(), key=lambda d: d[1] if d[1] else 0, reverse=True)[:top_n]
         graph_data = []
-        for (namespace, value) in sorted_data:
+        for namespace, value in sorted_data:
             graph_data.append(
                 {
                     "name": namespace,
@@ -3861,7 +3858,7 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
     def to_number_resource_graph(self, params: Dict, performance_data: Dict) -> List:
         bcs_cluster_id = params.get("bcs_cluster_id")
         data = {}
-        for (key_name, records) in performance_data:
+        for key_name, records in performance_data:
             if records:
                 records = sorted(records, key=lambda d: d["_time_"], reverse=True)
                 record = records[0]
@@ -3927,7 +3924,7 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
     @staticmethod
     def format_performance_data(performance_data):
         data = {}
-        for (key_name, records) in performance_data:
+        for key_name, records in performance_data:
             if records:
                 record = records[0]
                 value = record["_result_"]
@@ -4120,7 +4117,7 @@ class GetKubernetesOverCommitAnalysis(Resource):
     @staticmethod
     def format_performance_data(performance_data):
         data = {}
-        for (key_name, records) in performance_data:
+        for key_name, records in performance_data:
             value = -1
             series = records["series"]
             if series:

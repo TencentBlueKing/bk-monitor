@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 export interface IDimensionItem {
-  id: string | number;
+  id: number | string;
   name: string;
   type?: string;
   is_dimension?: boolean;
@@ -42,6 +42,6 @@ export interface IMetricMeta {
   dataSourceLabel: string;
   dataTypeLabel: string;
   metricField: string;
-  resultTableId: string | number;
-  indexSetId?: string | number;
+  resultTableId: number | string;
+  indexSetId?: number | string;
 }

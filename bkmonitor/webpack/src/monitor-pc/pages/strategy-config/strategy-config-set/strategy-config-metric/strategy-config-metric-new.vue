@@ -190,7 +190,7 @@
 </template>
 <script lang="ts">
 import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
-import SearchSelect from '@blueking/search-select';
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricList } from 'monitor-api/modules/strategies';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce, throttle } from 'throttle-debounce';
@@ -209,7 +209,7 @@ import {
   ITimeSelect
 } from '../../../../types/strategy-config/strategy-metric';
 
-import '@blueking/search-select/dist/vue2-full.css';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 @Component({
   name: 'strategy-config-metric-new',
@@ -334,8 +334,8 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
 
   created() {
     this.searchObj.data = this.getSearchOptions();
-    this.handleSearch = debounce(300, false, this.filterMetric);
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.handleSearch = debounce(300, this.filterMetric);
+    this.throttledScroll = throttle(300, this.handleScroll);
     this.dataSource = {
       bk_monitor_time_series: {
         count: 0,

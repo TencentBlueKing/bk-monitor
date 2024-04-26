@@ -163,7 +163,8 @@ def manage_es_storage(es_storages):
     for es_storage in es_storages:
         if es_storage.is_red():
             logger.error(
-                "es cluster health is red, skip index lifecycle; cluster id: %s, cluster domain: %s",
+                "es cluster health is red, skip index lifecycle; name: %s, id: %s, domain: %s",
+                es_storage.storage_cluster.cluster_name,
                 es_storage.storage_cluster.cluster_id,
                 es_storage.storage_cluster.domain_name,
             )
@@ -191,9 +192,15 @@ def manage_es_storage(es_storages):
             es_storage.reallocate_index()
 
             logger.debug("es_storage->[{}] cron task success.".format(es_storage.table_id))
-        except Exception:
-            logger.info(
-                "es_storage->[{}] failed to cron task for->[{}]".format(es_storage.table_id, traceback.format_exc())
+        except Exception as e:
+            # 记录异常集群的信息
+            logger.error(
+                "es_storage: %s index lifecycle failed, name: %s, id: %s, domain: %s, error: %s",
+                es_storage.table_id,
+                es_storage.storage_cluster.cluster_name,
+                es_storage.storage_cluster.cluster_id,
+                es_storage.storage_cluster.domain_name,
+                e,
             )
 
 

@@ -57,7 +57,7 @@
     margin-top: 24px;
     align-items: center;
 
-    @include flex-justify(start);
+    @include flex-justify(flex-start);
 
     > span {
       margin-left: 20px;
@@ -75,7 +75,7 @@
     padding: 0;
   }
 
-  .drag-right {
+  .drag-bottom {
     position: absolute;
     bottom: 53px;
     left: 0px;

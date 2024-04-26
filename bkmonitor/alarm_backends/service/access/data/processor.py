@@ -30,7 +30,6 @@ from kafka.errors import NoBrokersAvailable
 from alarm_backends import constants
 from alarm_backends.cluster import TargetType
 from alarm_backends.core.cache import clear_mem_cache, key
-from alarm_backends.core.cache.key import ACCESS_END_TIME_KEY, REAL_TIME_HOST_TOPIC_KEY
 from alarm_backends.core.cache.result_table import ResultTableCacheManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.cluster import get_cluster
@@ -63,14 +62,17 @@ logger = logging.getLogger("access.data")
 
 
 class BaseAccessDataProcess(base.BaseAccessProcess):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, sub_task_id: str = None, **kwargs):
         super(BaseAccessDataProcess, self).__init__(*args, **kwargs)
-
         self.add_filter(RangeFilter())
         self.add_filter(ExpireFilter())
         self.add_filter(HostStatusFilter())
 
         self.add_fuller(TopoNodeFuller())
+
+        self.sub_task_id = sub_task_id
+        self.batch_count = 1
+        self.process_counts = {}
 
     def post_handle(self):
         # 释放主机信息本地内存
@@ -103,17 +105,27 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         client.zadd(record_key, noise_data)
         client.expire(record_key, key.NOISE_REDUCE_TOTAL_KEY.ttl)
 
-        logger.info(
-            "record_key({record_key}) "
-            "dimension_key({dimension_key})"
-            "strategy({strategy_id}) "
-            "push dimension records({records_length}).".format(
-                record_key=record_key,
-                dimension_key="|".join(noise_reduce_config["dimensions"]),
-                strategy_id=item.strategy.strategy_id,
-                records_length=len(noise_data.keys()),
+        # 非批量任务，记录日志
+        if not self.sub_task_id:
+            logger.info(
+                "record_key({record_key}) "
+                "dimension_key({dimension_key})"
+                "strategy({strategy_id}), item({item_id}), "
+                "push dimension records({records_length}).".format(
+                    record_key=record_key,
+                    dimension_key="|".join(noise_reduce_config["dimensions"]),
+                    strategy_id=item.strategy.strategy_id,
+                    item_id=item.id,
+                    records_length=len(noise_data.keys()),
+                )
             )
-        )
+        else:
+            self.process_counts.setdefault("push_noise_data", {})
+            self.process_counts["push_noise_data"][str(item.id)] = {
+                "record_key": record_key,
+                "dimension_key": "|".join(noise_reduce_config["dimensions"]),
+                "count": len(noise_data.keys()),
+            }
 
     def _push(self, item, record_list, output_client=None, data_list_key=None):
         """
@@ -149,16 +161,24 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         pipeline.execute()
         metrics.ACCESS_PROCESS_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="data").inc(len(record_list))
 
-        logger.info(
-            "output_key({output_key}) "
-            "strategy({strategy_id}), item({item_id}), "
-            "push records({records_length}).".format(
-                output_key=output_key,
-                strategy_id=item.strategy.strategy_id,
-                item_id=item.id,
-                records_length=len(record_list),
+        # 非批量任务，记录日志
+        if not self.sub_task_id:
+            logger.info(
+                "output_key({output_key}) "
+                "strategy({strategy_id}), item({item_id}), "
+                "push records({records_length}).".format(
+                    output_key=output_key,
+                    strategy_id=item.strategy.strategy_id,
+                    item_id=item.id,
+                    records_length=len(record_list),
+                )
             )
-        )
+        else:
+            self.process_counts.setdefault("push_data", {})
+            self.process_counts["push_data"][str(item.id)] = {
+                "output_key": output_key,
+                "count": len(record_list),
+            }
 
     def push(self, records: List = None, output_client=None):
         """
@@ -213,15 +233,22 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
 
 
 class AccessDataProcess(BaseAccessDataProcess):
-    def __init__(self, strategy_group_key, *args, **kwargs):
-        super(AccessDataProcess, self).__init__(strategy_group_key, *args, **kwargs)
+    def __init__(self, strategy_group_key: str, *args, sub_task_id: str = None, **kwargs):
+        super(AccessDataProcess, self).__init__(sub_task_id=sub_task_id, *args, **kwargs)
         self.strategy_group_key = strategy_group_key
+        self.from_timestamp = None
+        self.until_timestamp = None
+
+        if sub_task_id:
+            self.batch_timestamp = int(sub_task_id.split(".")[0])
+        else:
+            self.batch_timestamp = None
 
     def __str__(self):
         return "{}:strategy_group_key({})".format(self.__class__.__name__, self.strategy_group_key)
 
     @cached_property
-    def items(self):
+    def items(self) -> List[Item]:
         data = []
         records = StrategyCacheManager.get_strategy_group_detail(self.strategy_group_key)
         for strategy_id, item_ids in list(records.items()):
@@ -263,29 +290,109 @@ class AccessDataProcess(BaseAccessDataProcess):
         if not self.items:
             return
 
-        # 拉取一次数据，默认相同查询方法的数据拉取状态保持一致
-        first_item: Item = self.items[0]
-        agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
+        if self.sub_task_id:
+            client = key.ACCESS_BATCH_DATA_KEY.client
+            cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
+                strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
+            )
 
+            raw_points: List[str] = client.lrange(cache_key, 0, -1)
+            client.delete(cache_key)
+            points: List[Dict] = [json.loads(point) for point in raw_points]
+        else:
+            now_timestamp = arrow.utcnow().timestamp
+
+            # 设置查询时间范围
+            self.get_query_time_range(now_timestamp)
+
+            # 如果策略更新导致查询时间错位，则跳过本次查询
+            if self.from_timestamp > self.until_timestamp:
+                return
+
+            # 数据查询
+            points = self.query_data(now_timestamp)
+            if not points:
+                return
+
+            # 当点数大于阈值时，将数据拆分为多个批量任务
+            if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
+                points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
+
+        # 过滤重复数据并实例化
+        self.filter_duplicates(points)
+
+    def query_data(self, now_timestamp: int) -> List[Dict]:
+        """
+        数据源查询
+        """
+        first_item = self.items[0]
+
+        # 由于某些数据源需要进行策略分组，因此需要将条件置为空
+        if not (first_item.data_source_types & MULTI_METRIC_DATA_SOURCES):
+            first_item.data_sources[0]._advance_where = []
+
+        # 计算平台指标查询localTime
+        if DataSourceLabel.BK_DATA in first_item.data_source_labels:
+            first_item.data_sources[0].metrics.append({"field": "localTime", "method": "MAX", "alias": "_localTime"})
+
+        try:
+            points = first_item.query_record(self.from_timestamp, self.until_timestamp)
+        except BKAPIError as e:
+            logger.error(e)
+            points = []
+        except Exception as e:  # noqa
+            logger.exception(
+                "strategy_group_key({strategy_group_key}) query records error, {err}".format(
+                    strategy_group_key=self.strategy_group_key, err=e
+                )
+            )
+            points = []
+
+        # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
+        if DataSourceLabel.BK_DATA in first_item.data_source_labels:
+            max_local_time = self.get_max_local_time(points)
+            first_item.data_sources[0].metrics = [
+                m for m in first_item.data_sources[0].metrics if m["field"] != "localTime"
+            ]
+            if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
+                agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
+                key.ACCESS_END_TIME_KEY.client.set(
+                    key.ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key),
+                    str(self.until_timestamp),
+                    # key超时时间低于监控周期，会导致数据缓存丢失
+                    ex=max([key.ACCESS_END_TIME_KEY.ttl, agg_interval * 5]),
+                )
+                logging.info(
+                    f"skip access {self.strategy_group_key} data because data local time is too close."
+                    f"now: {now_timestamp}, local time: {max_local_time.timestamp()}"
+                )
+                return []
+
+        return points
+
+    def get_query_time_range(self, now_timestamp: int):
+        """
+        获取查询时间范围
+        """
+        first_item = self.items[0]
+        agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
         min_last_checkpoint = min([i.item_config["update_time"] for i in self.items])
         checkpoint = Checkpoint(self.strategy_group_key).get(min_last_checkpoint, interval=agg_interval)
         checkpoint = checkpoint // agg_interval * agg_interval
 
-        now_timestamp = arrow.utcnow().timestamp
-
         # 由于存在入库延时问题，每次多往前拉取settings.NUM_OF_COUNT_FREQ_ACCESS个周期的数据
-        from_timestamp = checkpoint - settings.NUM_OF_COUNT_FREQ_ACCESS * agg_interval
+        self.from_timestamp = checkpoint - settings.NUM_OF_COUNT_FREQ_ACCESS * agg_interval
 
-        until_timestamp = None
         # 计算平台类型尝试获取上次未处理完的时间
+        until_timestamp = None
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            end_time_key = ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key)
-            client = ACCESS_END_TIME_KEY.client
+            end_time_key = key.ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key)
+            client = key.ACCESS_END_TIME_KEY.client
 
-            until_timestamp = client.get(end_time_key)
-            if until_timestamp:
+            until_timestamp_str = client.get(end_time_key)
+            if until_timestamp_str:
                 client.delete(end_time_key)
-                until_timestamp = int(until_timestamp)
+                until_timestamp = int(until_timestamp_str)
             else:
                 until_timestamp = 0
 
@@ -299,48 +406,73 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 保证查询时间范围是< until_timestamp 而不是<=即可
             until_timestamp = (now_timestamp - time_delay) // agg_interval * agg_interval
 
-        if from_timestamp > until_timestamp:
-            return
+        self.until_timestamp = until_timestamp
 
-        # 由于某些数据源需要进行策略分组，因此需要将条件置为空
-        if not (first_item.data_source_types & MULTI_METRIC_DATA_SOURCES):
-            first_item.data_sources[0]._advance_where = []
+    def send_batch_data(self, points: List[Dict], batch_threshold: int = 50000) -> List[Dict]:
+        """
+        发送分批处理任务，并返回第一批数据
+        """
+        self.batch_timestamp = int(time.time())
 
-        # 计算平台指标查询localTime
-        if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            first_item.data_sources[0].metrics.append({"field": "localTime", "method": "MAX", "alias": "_localTime"})
+        from alarm_backends.service.access.tasks import run_access_batch_data
 
-        try:
-            item_records = first_item.query_record(from_timestamp, until_timestamp)
-        except BKAPIError as e:
-            logger.error(e)
-            item_records = []
-        except Exception as e:  # noqa
-            logger.exception(
-                "strategy_group_key({strategy_group_key}) query records error, {err}".format(
-                    strategy_group_key=self.strategy_group_key, err=e
+        client = key.ACCESS_BATCH_DATA_KEY.client
+        first_batch_points = []
+        latest_record_timestamp = None
+        last_batch_index, batch_count = 0, 0
+        for index, record in enumerate(points):
+            timestamp = record.get("_time_") or record["time"]
+            # 当数据点数不足或数据同属一个时间点时，数据点记为同一批次
+            if (index - last_batch_index < batch_threshold or latest_record_timestamp == timestamp) and index < len(
+                points
+            ) - 1:
+                latest_record_timestamp = timestamp
+                continue
+
+            # 记录当前批次数
+            batch_count += 1
+
+            if index == len(points) - 1:
+                batch_points = points[last_batch_index:]
+            else:
+                batch_points = points[last_batch_index:index]
+
+            # 第一批数据原地处理
+            if batch_count == 1:
+                first_batch_points = batch_points
+            else:
+                # 将分批数据写入redis
+                sub_task_id = f"{self.batch_timestamp}.{batch_count}"
+                client.lpush(
+                    key.ACCESS_BATCH_DATA_KEY.get_key(
+                        strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
+                    ),
+                    *[json.dumps(point) for point in batch_points],
+                )
+                key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
+
+                # 发起异步任务
+                run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
+
+            # 记录下一轮的起始位置
+            last_batch_index = index
+
+        if batch_count > 1:
+            self.sub_task_id = f"{self.batch_timestamp}.1"
+            self.batch_count = batch_count
+            logger.info(
+                "strategy_group_key({}), split {} access data into {} batch tasks".format(
+                    self.strategy_group_key, len(points), batch_count
                 )
             )
-            item_records = []
 
-        # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
-        if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            max_local_time = self.get_max_local_time(item_records)
-            first_item.data_sources[0].metrics = [
-                m for m in first_item.data_sources[0].metrics if m["field"] != "localTime"
-            ]
-            if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
-                ACCESS_END_TIME_KEY.client.set(
-                    ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key),
-                    str(until_timestamp),
-                    # key超时时间低于监控周期，会导致数据缓存丢失
-                    ex=max([ACCESS_END_TIME_KEY.ttl, agg_interval * 5]),
-                )
-                logging.info(
-                    f"skip access {self.strategy_group_key} data because data local time is too close."
-                    f"now: {now_timestamp}, local time: {max_local_time.timestamp()}"
-                )
-                return
+        return first_batch_points
+
+    def filter_duplicates(self, points: List[Dict]):
+        """
+        过滤重复数据并实例化
+        """
+        first_item = self.items[0]
 
         records = []
         dup_obj = Duplicate(self.strategy_group_key, strategy_id=first_item.strategy.id)
@@ -353,7 +485,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 have_priority = True
                 break
 
-        for record in reversed(item_records):
+        for record in reversed(points):
             point = DataRecord(self.items, record)
             if point.value is not None:
                 # 去除重复数据
@@ -377,25 +509,34 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 日志记录按strategy + item 来记录，方便问题排查
         for item in self.items:
-            logger.info(
-                "strategy({strategy_id}),item({item_id}),"
-                "total_records({total}),"
-                "access records({records_length}),"
-                "duplicate({duplicate_counts}),"
-                "none_point_counts({none_point_counts}),"
-                "strategy_group_key({strategy_group_key}),"
-                "time range({from_datetime} - {until_datetime})".format(
-                    strategy_id=item.strategy.id,
-                    item_id=item.id,
-                    total=len(item_records),
-                    records_length=point_count,
-                    duplicate_counts=duplicate_counts,
-                    none_point_counts=none_point_counts,
-                    strategy_group_key=self.strategy_group_key,
-                    from_datetime=arrow.get(from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
-                    until_datetime=arrow.get(until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+            if not self.sub_task_id:
+                logger.info(
+                    "strategy({strategy_id}),item({item_id}),"
+                    "total_records({total}),"
+                    "access records({records_length}),"
+                    "duplicate({duplicate_counts}),"
+                    "none_point_counts({none_point_counts}),"
+                    "strategy_group_key({strategy_group_key}),"
+                    "time range({from_datetime} - {until_datetime})".format(
+                        strategy_id=item.strategy.id,
+                        item_id=item.id,
+                        total=len(points),
+                        records_length=point_count,
+                        duplicate_counts=duplicate_counts,
+                        none_point_counts=none_point_counts,
+                        strategy_group_key=self.strategy_group_key,
+                        from_datetime=arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                        until_datetime=arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                    )
                 )
-            )
+            else:
+                self.process_counts.setdefault("pull_data", {})
+                self.process_counts["pull_data"][str(item.id)] = {
+                    "total_count": len(points),
+                    "access_count": point_count,
+                    "duplicate_count": duplicate_counts,
+                    "none_point_count": none_point_counts,
+                }
 
     def push(self, records: List = None, output_client=None):
         super(AccessDataProcess, self).push(records=records, output_client=output_client)
@@ -410,18 +551,71 @@ class AccessDataProcess(BaseAccessDataProcess):
         access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(strategy_group_key=self.strategy_group_key)
         key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
 
-        logger.info(
-            "strategy_group_key({}), push records({}), last_checkpoint({})".format(
-                self.strategy_group_key,
-                len(self.record_list),
-                arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
+        # 非批量任务，记录日志
+        if not self.sub_task_id:
+            logger.info(
+                "strategy_group_key({}), push records({}), last_checkpoint({})".format(
+                    self.strategy_group_key,
+                    len(self.record_list),
+                    arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
+                )
             )
-        )
+        else:
+            self.process_counts["total_push_data"] = {
+                "count": len(self.record_list),
+                "last_checkpoint": last_checkpoint,
+            }
 
     def process(self):
         start_time = time.time()
 
         exc = super(AccessDataProcess, self).process()
+
+        client = key.ACCESS_BATCH_DATA_RESULT_KEY.client
+        result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(
+            strategy_group_key=self.strategy_group_key, timestamp=self.batch_timestamp
+        )
+
+        # 如果没有分批任务，直接返回
+        if self.batch_count == 1:
+            metrics.ACCESS_DATA_PROCESS_TIME.labels(strategy_group_key=metrics.TOTAL_TAG).observe(
+                time.time() - start_time
+            )
+            metrics.ACCESS_DATA_PROCESS_COUNT.labels(
+                strategy_group_key=metrics.TOTAL_TAG,
+                status=metrics.StatusEnum.from_exc(exc),
+                exception=exc,
+            ).inc()
+            return
+
+        # 等待分批任务结果
+        batch_results = [
+            {
+                "sub_task_id": self.sub_task_id,
+                "result": not exc,
+                "error": str(exc),
+                "process_counts": self.process_counts,
+            }
+        ]
+        while len(batch_results) < self.batch_count and time.time() - start_time < 5 * constants.CONST_MINUTES:
+            batch_result = client.brpop(result_key, timeout=1)
+            if batch_result:
+                batch_results.append(json.loads(batch_result[1]))
+
+        # 如果有任务未返回结果，记录日志
+        if len(batch_results) < self.batch_count:
+            logger.error(
+                "strategy_group_key({strategy_group_key}) get batch task result timeout,"
+                "expect {expect_count} but only get {actual_count}, result({batch_results})".format(
+                    strategy_group_key=self.strategy_group_key,
+                    expect_count=self.batch_count,
+                    actual_count=len(batch_results),
+                    batch_results=[result["sub_task_id"] for result in batch_results],
+                )
+            )
+
+        # 记录日志
+        self.batch_log(batch_results)
 
         metrics.ACCESS_DATA_PROCESS_TIME.labels(strategy_group_key=metrics.TOTAL_TAG).observe(time.time() - start_time)
         metrics.ACCESS_DATA_PROCESS_COUNT.labels(
@@ -429,6 +623,161 @@ class AccessDataProcess(BaseAccessDataProcess):
             status=metrics.StatusEnum.from_exc(exc),
             exception=exc,
         ).inc()
+
+    def batch_log(self, batch_results: List[Dict]):
+        """
+        汇总分批任务结果并记录日志
+        """
+
+        last_checkpoint, total_push_count = 0, 0
+        for result in batch_results:
+            if not result["result"]:
+                logger.error(
+                    "strategy_group_key({strategy_group_key}) "
+                    "access batch task({sub_task_id}) error({error})".format(
+                        strategy_group_key=self.strategy_group_key,
+                        sub_task_id=result["sub_task_id"],
+                        error=result["error"],
+                    )
+                )
+                continue
+
+            total_push_data = result["process_counts"].get("total_push_data", {})
+            last_checkpoint = max(last_checkpoint, total_push_data.get("last_checkpoint", 0))
+            total_push_count += total_push_data.get("count", 0)
+
+        # 拉取数量记录日志
+        for item in self.items:
+            item_id = str(item.id)
+            total_count, access_count, duplicate_count, none_point_count = 0, 0, 0, 0
+            push_count, push_noise_count = 0, 0
+            output_key, record_key, dimension_key = "", "", ""
+            for result in batch_results:
+                pull_data = result.get("process_counts", {}).get("pull_data", {}).get(item_id, {})
+                total_count += pull_data.get("total_count", 0)
+                access_count += pull_data.get("access_count", 0)
+                duplicate_count += pull_data.get("duplicate_count", 0)
+                none_point_count += pull_data.get("none_point_count", 0)
+
+                push_data = result.get("process_counts", {}).get("push_data", {}).get(item_id, {})
+                push_count += push_data.get("count", 0)
+                output_key = push_data.get("output_key")
+
+                push_noise_data = result.get("process_counts", {}).get("push_noise_data", {}).get(item_id, {})
+                push_noise_count += push_noise_data.get("count", 0)
+                record_key = push_noise_data.get("record_key")
+                dimension_key = push_noise_data.get("dimension_key")
+
+            # 拉取数量记录日志
+            if total_count:
+                logger.info(
+                    "strategy({strategy_id}),item({item_id}),"
+                    "total_records({total}),"
+                    "access records({records_length}),"
+                    "duplicate({duplicate_counts}),"
+                    "none_point_counts({none_point_counts}),"
+                    "strategy_group_key({strategy_group_key}),"
+                    "time range({from_datetime} - {until_datetime})".format(
+                        strategy_id=item.strategy.id,
+                        item_id=item.id,
+                        total=total_count,
+                        records_length=access_count,
+                        duplicate_counts=duplicate_count,
+                        none_point_counts=none_point_count,
+                        strategy_group_key=self.strategy_group_key,
+                        from_datetime=arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                        until_datetime=arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
+                    )
+                )
+
+            # 推送数量记录日志
+            if push_count:
+                logger.info(
+                    "output_key({output_key}) "
+                    "strategy({strategy_id}), item({item_id}), "
+                    "push records({records_length}).".format(
+                        output_key=output_key,
+                        strategy_id=item.strategy.strategy_id,
+                        item_id=item.id,
+                        records_length=push_count,
+                    )
+                )
+
+            # 降噪推送数量记录日志
+            if push_noise_count:
+                logger.info(
+                    "record_key({record_key}) "
+                    "dimension_key({dimension_key})"
+                    "strategy({strategy_id}), item({item_id}), "
+                    "push dimension records({records_length}).".format(
+                        record_key=record_key,
+                        dimension_key=dimension_key,
+                        strategy_id=item.strategy.strategy_id,
+                        item_id=item.id,
+                        records_length=push_noise_count,
+                    )
+                )
+
+        # 总推送数量
+        if total_push_count:
+            logger.info(
+                "strategy_group_key({}), push records({}), last_checkpoint({})".format(
+                    self.strategy_group_key,
+                    total_push_count,
+                    arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
+                )
+            )
+
+            # 记录最后检测点，避免子任务并发导致checkpoint数据不准确
+            checkpoint = Checkpoint(self.strategy_group_key)
+            last_checkpoint = max([checkpoint.get()] + [r.time for r in self.record_list])
+            if last_checkpoint > 0:
+                # 记录检测点 下次从检测点开始重新检查
+                checkpoint.set(last_checkpoint)
+
+
+class AccessBatchDataProcess(AccessDataProcess):
+    """
+    分批任务处理器
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(AccessBatchDataProcess, self).__init__(*args, **kwargs)
+        if self.sub_task_id is None:
+            raise ValueError("sub_task_id is required")
+
+    def pull(self):
+        client = key.ACCESS_BATCH_DATA_KEY.client
+        cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
+            strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
+        )
+
+        points: List[str] = client.lrange(cache_key, 0, -1)
+        client.delete(cache_key)
+        points: List[Dict] = [json.loads(point) for point in points]
+
+        self.filter_duplicates(points)
+
+    def process(self):
+        exc = super().process()
+
+        client = key.ACCESS_BATCH_DATA_RESULT_KEY.client
+        result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(
+            strategy_group_key=self.strategy_group_key, timestamp=self.batch_timestamp
+        )
+
+        client.lpush(
+            result_key,
+            json.dumps(
+                {
+                    "sub_task_id": self.sub_task_id,
+                    "result": not exc,
+                    "error": str(exc),
+                    "process_counts": self.process_counts,
+                }
+            ),
+        )
+        client.expire(result_key, key.ACCESS_BATCH_DATA_RESULT_KEY.ttl)
 
 
 class AccessRealTimeDataProcess(BaseAccessDataProcess):
@@ -453,7 +802,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         self.ip = get_local_ip()
 
         # topic信息缓存key
-        self.topic_cache_key = REAL_TIME_HOST_TOPIC_KEY.get_key()
+        self.topic_cache_key = key.REAL_TIME_HOST_TOPIC_KEY.get_key()
 
         # topics信息
         self.topics: Dict[str, Dict] = {}
@@ -599,7 +948,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                     for host in hosts
                 },
             )
-            self.cache.expire(self.topic_cache_key, REAL_TIME_HOST_TOPIC_KEY.ttl)
+            self.cache.expire(self.topic_cache_key, key.REAL_TIME_HOST_TOPIC_KEY.ttl)
             pipeline.execute()
 
             # 只执行一次或存在停止信号

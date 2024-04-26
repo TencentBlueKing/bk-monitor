@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
+
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import SearchSelect from '@blueking/search-select';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -34,8 +35,8 @@ import { debounce, throttle } from 'throttle-debounce';
 
 import { MetricDetail } from '../typings/index';
 
-import '@blueking/search-select/dist/vue2-full.css';
 import './strategy-metric-alert.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface IStrategyMetricAlertProps {
   isShow: boolean;
@@ -84,7 +85,7 @@ interface ICache {
   [propName: string]: { page?: number; list?: any[]; count?: number; scrollTop?: number; scenarioCounts?: any[] };
 }
 @Component({
-  name: 'StrategyMetricAlert'
+  name: 'StrategyMetricAlert',
 })
 export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, IStrategyMetricAlertEvent> {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
@@ -106,7 +107,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
   searchObj: ISearchObj = {
     // 键值对搜索数据
     keyWord: [],
-    data: []
+    data: [],
   };
   pageSize = 20;
   cache: ICache = {};
@@ -188,13 +189,13 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
   created() {
     this.dataInit();
     this.searchObj.keyWord = [];
-    this.handleSearch = debounce(300, false, this.handleSearchChange);
+    this.handleSearch = debounce(300, this.handleSearchChange);
     this.searchObj.data = this.getSearchOptions();
   }
 
   mounted() {
     this.scrollEl = this.tableRef.$el.querySelector('.bk-table-body-wrapper');
-    this.throttledScroll = throttle(300, false, this.handleTableScroll);
+    this.throttledScroll = throttle(300, this.handleTableScroll);
     this.scrollEl.addEventListener('scroll', this.throttledScroll);
   }
 
@@ -211,7 +212,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
         dataTypeLabel: 'alert',
         sourceType: 'bk_monitor_alert',
         sourceName: `${this.$t('告警策略')}`,
-        list: []
+        list: [],
       },
       bk_fta_alert: {
         count: 0,
@@ -219,8 +220,8 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
         dataTypeLabel: 'alert',
         sourceType: 'bk_fta_alert',
         sourceName: `${this.$t('第三方告警')}`,
-        list: []
-      }
+        list: [],
+      },
     };
     this.oldDataSourec = deepClone(this.dataSource);
     if (isClearChecked) {
@@ -242,8 +243,8 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       bk_fta_alert: [{ id: 'alert_name', name: this.$t('指标名'), children: [] }],
       bk_monitor_alert: [
         { id: 'strategy_name', name: this.$t('策略名称'), children: [] },
-        { id: 'strategy_id', name: this.$t('策略ID'), children: [] }
-      ]
+        { id: 'strategy_id', name: this.$t('策略ID'), children: [] },
+      ],
     };
     return searchObj[this.sourceType];
   }
@@ -264,7 +265,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       ...staticParams,
       conditions: this.seachParams,
       page_size: this.pageSize,
-      page: this.cache?.[cacheKey]?.page ? this.cache[cacheKey].page : 1
+      page: this.cache?.[cacheKey]?.page ? this.cache[cacheKey].page : 1,
     };
     await getMetricListV2(params)
       .then(data => {
@@ -304,7 +305,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       bk_biz_id: this.$store.getters.bizId,
       data_source_label: Array.isArray(dataSource) ? dataSource : [dataSource],
       data_type_label: dataTypeLabel || this.curTableData.dataTypeLabel,
-      result_table_label: this.scenarioType
+      result_table_label: this.scenarioType,
     };
   }
 
@@ -496,7 +497,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
             on-change={v => this.handleCheck(v, row)}
           ></bk-checkbox>
         );
-      }
+      },
     };
     const seeCheckedSlot = {
       default: ({ row }) => (
@@ -504,7 +505,7 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           checked={true}
           on-change={() => this.handleDeleteCheckedMetric(row)}
         ></bk-checkbox>
-      )
+      ),
     };
     const renderHeader = () => {
       const checkedMetricIdList = this.checkData.map((item: any) => item.metric_id);
@@ -514,39 +515,39 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       return (
         <bk-checkbox
           checked={isAllChecked}
-          on-change={this.handleAllCheck}
           disabled={this.curTableData.list.length === 0}
+          on-change={this.handleAllCheck}
         ></bk-checkbox>
       );
     };
     const renderSeeCheckedHeader = () => (
       <bk-checkbox
         checked={true}
-        on-change={() => (this.checkData = [])}
         disabled
+        on-change={() => (this.checkData = [])}
       ></bk-checkbox>
     );
     const checkBox = (
       <bk-table-column
         width={48}
-        scopedSlots={checkboxSlot}
         render-header={renderHeader}
+        scopedSlots={checkboxSlot}
       ></bk-table-column>
     );
     const columnMap = {
       bk_monitor_alert: () => [
         checkBox,
         <bk-table-column
+          width='80'
           label={this.$t('策略ID')}
           prop='metric_field'
-          width='80'
           show-overflow-tooltip
         ></bk-table-column>,
         <bk-table-column
           label={this.$t('策略名称')}
           prop='metric_field_name'
           show-overflow-tooltip
-        ></bk-table-column>
+        ></bk-table-column>,
       ],
       bk_fta_alert: () => [
         checkBox,
@@ -554,29 +555,29 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
           label={this.$t('告警名称')}
           prop='metric_field_name'
           show-overflow-tooltip
-        ></bk-table-column>
+        ></bk-table-column>,
       ],
       seeChecked: () => [
         <bk-table-column
-          width={48}
           key={String(this.isSeeSelected)}
-          scopedSlots={seeCheckedSlot}
+          width={48}
           render-header={renderSeeCheckedHeader}
+          scopedSlots={seeCheckedSlot}
         ></bk-table-column>,
         <bk-table-column
           label={`${this.$t('策略名称')}/${this.$t('告警名称')}`}
           prop='metric_field_name'
           show-overflow-tooltip
-        ></bk-table-column>
-      ]
+        ></bk-table-column>,
+      ],
     };
     return (
       <div class='metric-alert-table'>
         <bk-table
           {...{
             props: {
-              data: this.isSeeSelected ? this.checkData : this.curTableData.list
-            }
+              data: this.isSeeSelected ? this.checkData : this.curTableData.list,
+            },
           }}
           ref='alertTable'
           height={397}
@@ -592,10 +593,10 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
   render() {
     return (
       <MonitorDialog
-        class='strategy-metric-alert'
-        value={this.isShow}
-        title={this.$t('选择关联告警')}
         width={850}
+        class='strategy-metric-alert'
+        title={this.$t('选择关联告警')}
+        value={this.isShow}
         on-change={this.handleShowChange}
       >
         <div v-bkloading={{ isLoading: this.isLoading }}>
@@ -603,12 +604,11 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
             <div class='metric-handle-row'>
               <div class='search-select'>
                 <SearchSelect
-                  value={this.searchObj.keyWord}
+                  clearable={false}
                   data={this.searchObj.data}
+                  modelValue={this.searchObj.keyWord}
                   placeholder={this.$t('关键字搜索')}
                   on-change={this.handleSearch}
-                  show-condition={false}
-                  clearable={false}
                 ></SearchSelect>
               </div>
 
@@ -619,10 +619,10 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
               ></bk-button>
               <div class='see-selected'>
                 <bk-checkbox
-                  checked={false}
-                  true-value={true}
-                  false-value={false}
                   v-model={this.isSeeSelected}
+                  checked={false}
+                  false-value={false}
+                  true-value={true}
                   on-change={this.handleseeSelectedChange}
                 >
                   <div class='selected-text'>
@@ -638,8 +638,8 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
               <ul class='left-list'>
                 {this.scenarioListAll.map(item => (
                   <li
-                    class={['left-list-item', { 'left-list-item-active': this.scenarioType === item.name }]}
                     key={item.name}
+                    class={['left-list-item', { 'left-list-item-active': this.scenarioType === item.name }]}
                     on-click={() => this.handleLeftChange(item.name)}
                   >
                     <span>{item.label}</span>
@@ -674,13 +674,13 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
             v-bk-tooltips={{
               content: this.$t('关联告警需选择多个'),
               disabled: this.isCanAdd,
-              allowHTML: false
+              allowHTML: false,
             }}
           >
             <bk-button
+              disabled={!this.isCanAdd}
               theme='primary'
               onClick={this.handleAdd}
-              disabled={!this.isCanAdd}
             >
               {this.$t('添加')}
             </bk-button>

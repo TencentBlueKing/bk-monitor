@@ -33,11 +33,11 @@ import { messageError } from '@/common/bkmagic';
 import CachedPromise from './cached-promise';
 import RequestQueue from './request-queue';
 import HttpRequst from './_httpRequest';
-import mockList from '@/mock/index.js';
 import serviceList from '@/services/index.js';
 import { context, trace } from '@opentelemetry/api';
 import { makeMessage } from '@/common/util';
 import i18n from '@/language/i18n';
+import { showLoginModal } from '@blueking/login-modal';
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
 // axios 实例
@@ -54,7 +54,6 @@ export const axiosInstance = axios.create({
  */
 axiosInstance.interceptors.request.use(
   config => {
-    // 绝对路径不走 mock
     if (!/^(https|http)?:\/\//.test(config.url)) {
       // const prefix = config.url.indexOf('?') === -1 ? '?' : '&';
       config.url = config.url;
@@ -77,7 +76,7 @@ axiosInstance.interceptors.response.use(
 );
 
 const http = {
-  $request: new HttpRequst(axiosInstance, { mockList, serviceList }),
+  $request: new HttpRequst(axiosInstance, { serviceList }),
   queue: new RequestQueue(),
   cache: new CachedPromise(),
   cancelRequest: requestId => http.queue.cancel(requestId),
@@ -236,8 +235,8 @@ function handleReject(error, config) {
       const loginData = error.response.data;
       if (loginData.has_plain) {
         try {
-          window.LoginModal.$props.loginUrl = loginData.login_url;
-          window.LoginModal.show();
+          const { login_url: loginUrl } = loginData;
+          showLoginModal({ loginUrl });
         } catch (_) {
           handleLoginExpire();
         }

@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VueConstructor } from 'vue';
-import { DirectiveBinding } from 'vue/types/options';
+import { type VueConstructor } from 'vue';
+
+import { type DirectiveBinding } from 'vue/types/options';
 
 interface IElement extends HTMLElement {
   [prop: string]: any;
@@ -39,7 +39,7 @@ interface IOptions {
 const DEFAULT_OPTIONS: IOptions = {
   active: true,
   offset: [12, 0],
-  cls: 'cursor-element'
+  cls: 'cursor-element',
 };
 
 function init(el: IElement, options: IOptions) {
@@ -95,7 +95,7 @@ export default class AuthorityDirective {
       },
       unbind(el: IElement) {
         destroy(el);
-      }
+      },
     });
   }
 }

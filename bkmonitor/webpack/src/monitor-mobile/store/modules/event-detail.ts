@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable new-cap */
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
+
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import { getEventDetail, getEventGraphView } from '../../../monitor-api/modules/mobile_event';
 import store from '../store';
@@ -43,7 +43,7 @@ class Event extends VuexModule {
   @Action
   async getEventDetail(payload) {
     const data = await getEventDetail({
-      event_id: payload.id || -1
+      event_id: payload.id || -1,
     }).catch(() => ({}));
     return transformDataKey(data);
   }

@@ -42,7 +42,9 @@
             <span
               v-show="item.count"
               class="count"
-            >{{ handleCount(item.count) }}</span>
+            >
+              {{ handleCount(item.count) }}
+            </span>
           </div>
         </template>
       </van-tab>
@@ -51,6 +53,7 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
+
 import { Tab, Tabs } from 'vant';
 
 import { ITabItem } from './event-center.vue';
@@ -59,8 +62,8 @@ import { ITabItem } from './event-center.vue';
   name: 'event-tab',
   components: {
     [Tab.name]: Tab,
-    [Tabs.name]: Tabs
-  }
+    [Tabs.name]: Tabs,
+  },
 })
 export default class EventTab extends Vue {
   // tab的配置

@@ -30,6 +30,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { throttle } from 'throttle-debounce';
 
 import { TMode } from './strategy-metric-wrap';
@@ -65,24 +66,24 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
     custom: [
       { label: i18n.t('事件名称'), prop: 'metric_field_name', key: 'name' },
       { label: i18n.t('数据ID'), prop: 'result_table_id', key: 'id' },
-      { label: i18n.t('数据名称'), prop: 'result_table_name', key: 'dataName' }
+      { label: i18n.t('数据名称'), prop: 'result_table_name', key: 'dataName' },
     ],
-    bk_fta: [{ label: i18n.t('告警名称'), prop: 'metric_field_name', key: 'name' }]
+    bk_fta: [{ label: i18n.t('告警名称'), prop: 'metric_field_name', key: 'name' }],
   };
   logTableColumnMap = {
     bk_monitor: [
       { label: i18n.t('采集项ID'), prop: 'related_id', key: 'id' },
-      { label: i18n.t('采集项名称'), prop: 'metric_field_name', key: 'name' }
+      { label: i18n.t('采集项名称'), prop: 'metric_field_name', key: 'name' },
     ],
     bk_log_search: [
       { label: i18n.t('索引集'), prop: 'index_set_name', key: 'index_set_name' },
       { label: i18n.t('索引'), prop: 'result_table_id', key: 'result_table_id' },
-      { label: i18n.t('数据源'), prop: 'scenario_name', key: 'scenario_name' }
+      { label: i18n.t('数据源'), prop: 'scenario_name', key: 'scenario_name' },
     ],
     bk_apm: [
       { label: i18n.t('应用名称'), prop: 'name', key: 'name' },
-      { label: i18n.t('结果表'), prop: 'result_table_id', key: 'result_table_id' }
-    ]
+      { label: i18n.t('结果表'), prop: 'result_table_id', key: 'result_table_id' },
+    ],
   };
   scrollEl: HTMLElement = null;
   throttleScroll: any = () => {};
@@ -90,7 +91,7 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
   get getCurTabTableColumn() {
     const map = {
       event: this.eventTableColumnMap[this.type],
-      log: this.logTableColumnMap[this.type]
+      log: this.logTableColumnMap[this.type],
     };
     return map[this.mode];
   }
@@ -103,7 +104,7 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
   emitCheckedChange(v: number[], rows?: any[]) {
     return {
       ids: v,
-      rows
+      rows,
     };
   }
 
@@ -113,7 +114,7 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
 
   handleBindScrollEvent() {
     this.scrollEl = this.metricTable.$el.querySelector('.bk-table-body-wrapper');
-    this.throttleScroll = throttle(300, false, this.handleTableScroll);
+    this.throttleScroll = throttle(300, this.handleTableScroll);
     this.scrollEl.addEventListener('scroll', this.throttleScroll);
   }
   handleTableScroll(e) {
@@ -140,19 +141,19 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
           value={this.checked.includes(row.metric_id)}
           onChange={v => this.hendleRadioChnage(v, row)}
         ></bk-radio>
-      )
+      ),
     };
     const scopedSlotsLog = {
-      default: ({ row }) => row?.extend_fields?.scenario_name || ''
+      default: ({ row }) => row?.extend_fields?.scenario_name || '',
     };
     return (
       <div class='strategy-metric-table-event'>
         <bk-table
           ref='metricTable'
-          outer-border={false}
           height={397}
-          max-height={397}
           data={this.data || []}
+          max-height={397}
+          outer-border={false}
         >
           <bk-table-column
             width={48}
@@ -163,18 +164,18 @@ export default class StrategyMetricTable extends tsc<IEventTable, IEvent> {
             if (this.mode === 'log' && this.type === 'bk_log_search' && item.key === 'scenario_name') {
               return (
                 <bk-table-column
+                  width={item.width}
                   label={item.label}
                   prop={item.prop}
-                  width={item.width}
                   scopedSlots={scopedSlotsLog}
                 ></bk-table-column>
               );
             }
             return (
               <bk-table-column
+                width={item.width}
                 label={item.label}
                 prop={item.prop}
-                width={item.width}
               ></bk-table-column>
             );
           })}

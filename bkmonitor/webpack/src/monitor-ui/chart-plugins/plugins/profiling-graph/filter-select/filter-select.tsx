@@ -25,6 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { queryLabels, queryLabelValues } from 'monitor-api/modules/apm_profile';
 import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -91,9 +92,9 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
             this.isShowAddFilter = false;
             this.isShowAddDiff = false;
             return true;
-          }
+          },
         },
-        searchable: true
+        searchable: true,
       },
       this.$attrs
     );
@@ -106,7 +107,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
       app_name: this.appName,
       service_name: this.serviceName,
       start: startTime * Math.pow(10, 6),
-      end: endTime * Math.pow(10, 6)
+      end: endTime * Math.pow(10, 6),
     };
     const labels = await queryLabels(params).catch(() => ({ label_keys: [] }));
     this.labelList = (labels.label_keys || []).map(item => ({ id: item, name: item }));
@@ -159,14 +160,14 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
       service_name: this.serviceName,
       start: startTime * Math.pow(10, 6),
       end: endTime * Math.pow(10, 6),
-      label_key: val
+      label_key: val,
     };
     const data = await queryLabelValues(params).catch(() => ({ label_values: [] }));
     const options = (data.label_values || []).map(val => ({ id: val, name: val }));
     (mode === 'filter' ? this.localFilterPanel : this.localDiffPanel).push({
       title: val,
       options,
-      value: []
+      value: [],
     });
   }
 
@@ -182,12 +183,12 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
               <bk-tag-input
                 v-model={item.value}
                 list={item.options}
-                trigger='focus'
-                has-delete-icon
-                clearable
-                allow-create
-                allow-auto-match
                 placeholder={this.$t('输入')}
+                trigger='focus'
+                allow-auto-match
+                allow-create
+                clearable
+                has-delete-icon
                 on-change={() => this.handleSelectValueChange(mode)}
               ></bk-tag-input>
             </span>
@@ -200,11 +201,11 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
             onClick={() => this.handleShowDropDown(mode)}
           ></i>
           <bk-select
-            class='bk-select-wrap'
             ref={`${mode}KeySelectRef`}
+            class='bk-select-wrap'
             onChange={val => this.handleAddFilterChange(val, mode)}
             {...{
-              props: this.addKeyprops
+              props: this.addKeyprops,
             }}
           >
             {this.labelList.map(opt => (
@@ -218,7 +219,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
                     placement: 'right',
                     zIndex: 9999,
                     boundary: document.body,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   {opt.name}
@@ -226,7 +227,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
               </bk-option>
             ))}
           </bk-select>
-        </span>
+        </span>,
       ];
     };
 
@@ -238,9 +239,9 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
           <div class='diff-mode-btn'>
             <span>{this.$t('对比模式')}</span>
             <bk-switcher
-              theme='primary'
-              size='small'
               v-model={this.enableDiffMode}
+              size='small'
+              theme='primary'
               onChange={this.handleDiffModeChange}
             />
           </div>
@@ -249,8 +250,8 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
           <div class='filter-var-select-group diff-select-group'>
             <span class='filter-var-select-group-label'>Comparison：</span>
             <div
-              class='filter-var-select-main'
               style='margin-left: -24px'
+              class='filter-var-select-main'
             >
               {getSelectorTpl('diff')}
             </div>

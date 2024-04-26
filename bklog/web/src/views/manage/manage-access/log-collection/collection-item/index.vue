@@ -176,6 +176,22 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="checkcFields('label')"
+          min-width="200"
+          width="200"
+          :label="$t('标签')"
+          :render-header="$renderHeader"
+        >
+          <template slot-scope="props">
+            <index-set-label-select
+              :row-data="props.row"
+              :label.sync="props.row.tags"
+              :select-label-list="selectLabelList"
+              @refreshLabelList="initLabelSelectList"
+            />
+          </template>
+        </bk-table-column>
+        <bk-table-column
           v-if="checkcFields('es_host_state')"
           :class-name="'td-status'"
           :label="$t('采集状态')"
@@ -566,12 +582,14 @@ import { mapGetters } from 'vuex';
 import * as authorityMap from '../../../../../common/authority-map';
 import CollectionReportView from '../../components/collection-report-view';
 import EmptyStatus from '../../../../../components/empty-status';
+import IndexSetLabelSelect from '../../../../../components/index-set-label-select';
 
 export default {
   name: 'CollectionItem',
   components: {
     CollectionReportView,
-    EmptyStatus
+    EmptyStatus,
+    IndexSetLabelSelect
   },
   mixins: [collectedItemsMixin],
   data() {
@@ -602,6 +620,10 @@ export default {
         id: 'retention',
         label: this.$t('过期时间')
       },
+      {
+        id: 'label',
+        label: this.$t('标签')
+      },
       // 采集状态
       {
         id: 'es_host_state',
@@ -617,12 +639,6 @@ export default {
         id: 'updated_at',
         label: this.$t('更新时间')
       },
-      // 操作
-      {
-        id: 'operation',
-        label: this.$t('操作'),
-        disabled: true
-      },
       // 存储集群
       {
         id: 'storage_cluster_name',
@@ -632,6 +648,12 @@ export default {
       {
         id: 'category_name',
         label: this.$t('数据类型')
+      },
+      // 操作
+      {
+        id: 'operation',
+        label: this.$t('操作'),
+        disabled: true
       }
     ];
 
@@ -660,7 +682,7 @@ export default {
       isAllowedCreate: null,
       columnSetting: {
         fields: settingFields,
-        selectedFields: [...settingFields.slice(3, 8), settingFields[2]]
+        selectedFields: [...settingFields.slice(3, 7), settingFields[2]]
       },
       // 是否支持一键检测
       enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
@@ -672,7 +694,8 @@ export default {
       filterSearchObj: {},
       isFilterSearch: false,
       isShouldPollCollect: false, // 当前列表是否需要轮询
-      settingCacheKey: 'clusterList'
+      settingCacheKey: 'clusterList',
+      selectLabelList: []
     };
   },
   computed: {
@@ -689,6 +712,7 @@ export default {
     scenarioFilters() {
       const { collector_scenario: collectorScenario } = this.globalsData;
       const target = [];
+      // eslint-disable-next-line camelcase
       collectorScenario &&
         collectorScenario.forEach(data => {
           if (data.is_active) {
@@ -720,8 +744,9 @@ export default {
     const { selectedFields } = this.columnSetting;
     this.columnSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
   },
-  mounted() {
+  async mounted() {
     this.needGuide = !localStorage.getItem('needGuide');
+    !this.authGlobalInfo && (await this.initLabelSelectList());
     !this.authGlobalInfo && this.search();
   },
   destroyed() {
@@ -878,7 +903,7 @@ export default {
     requestData() {
       this.isTableLoading = true;
       this.emptyType = this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
-      const { ids } = this.$route.query; // 根据id来检索
+      const ids = this.$route.query.ids; // 根据id来检索
       const collectorIdList = ids ? decodeURIComponent(ids) : [];
       this.$http
         .request('collect/getCollectList', {
@@ -959,7 +984,7 @@ export default {
             }
           })
           .then(res => {
-            const { data } = res;
+            const data = res.data;
             if (data && data.list) {
               const idList = [];
               data.list.forEach(row => {
@@ -1058,6 +1083,15 @@ export default {
       } catch (error) {
         return [];
       }
+    },
+    /** 初始化标签列表 */
+    async initLabelSelectList() {
+      try {
+        const res = await this.$http.request('unionSearch/unionLabelList');
+        this.selectLabelList = res.data;
+      } catch (error) {
+        this.selectLabelList = [];
+      }
     }
   }
 };
@@ -1067,7 +1101,7 @@ export default {
 @import '../../../../../scss/mixins/clearfix';
 @import '../../../../../scss/conf';
 @import '../../../../../scss/devops-common.scss';
-/* stylelint-disable no-descending-specificity */
+
 .collection-item-container {
   padding: 20px 24px;
 
@@ -1109,6 +1143,7 @@ export default {
     overflow-x: auto;
   }
 
+  /* stylelint-disable-next-line no-descending-specificity */
   .operate-column .cell {
     overflow: visible;
   }
@@ -1218,6 +1253,7 @@ export default {
     color: #63656e;
   }
 
+  /* stylelint-disable-next-line no-descending-specificity */
   .text-disabled {
     color: #c4c6cc;
 

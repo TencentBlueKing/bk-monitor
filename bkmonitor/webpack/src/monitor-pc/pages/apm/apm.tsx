@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
 
 import introduce from '../../common/introduce';
@@ -34,7 +35,7 @@ import './apm.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class ApmPage extends tsc<{}> {
+export default class ApmPage extends tsc<object> {
   loading = false;
   appkey = 'apm';
   get apmHost() {
@@ -48,7 +49,7 @@ export default class ApmPage extends tsc<{}> {
   get apmData() {
     return JSON.stringify({
       host: this.apmHost,
-      baseroute: '/apm/'
+      baseroute: '/apm/',
     });
   }
   // 是否显示引导页
@@ -78,8 +79,8 @@ export default class ApmPage extends tsc<{}> {
       data: {
         host: this.apmHost,
         baseroute: '/apm/',
-        $baseStore: this.$store
-      }
+        $baseStore: this.$store,
+      },
     });
     activated(this.appkey, this.$refs.apmPageWrap as HTMLElement);
     window.requestIdleCallback(() => (this.loading = false));
@@ -103,8 +104,8 @@ export default class ApmPage extends tsc<{}> {
     return (
       <div class='apm-wrap'>
         <div
-          class='apm-wrap-iframe'
           ref='apmPageWrap'
+          class='apm-wrap-iframe'
         />
       </div>
     );

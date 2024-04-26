@@ -28,6 +28,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkm_space.define import SpaceTypeEnum
+from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.data_source import load_data_source
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request_username
@@ -588,7 +589,14 @@ class ProxyHostInfo(Resource):
         port = self.get_listen_port()
         proxy_host_info = []
         bk_biz_id = validated_request_data["bk_biz_id"]
-        proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+        proxy_hosts = []
+        try:
+            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+        except NoRelatedResourceError:
+            logger.warning("bk_biz_id: %s not found related resource", bk_biz_id)
+        except Exception as e:
+            logger.warning("get proxies by bk_biz_id(%s) error, %s", bk_biz_id, e)
+
         for host in proxy_hosts:
             bk_cloud_id = int(host["bk_cloud_id"])
             # 默认云区域上报proxy，以settings配置为准！
@@ -910,6 +918,7 @@ class CustomTimeSeriesDetail(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         model_only = serializers.BooleanField(required=False, default=False)
+        with_target = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(pk=params["time_series_group_id"])
@@ -922,7 +931,11 @@ class CustomTimeSeriesDetail(Resource):
         data["access_token"] = config.token
         metrics = copy.deepcopy(config.get_metrics())
         data["metric_json"] = [{"fields": list(metrics.values())}]
-        data["target"] = config.query_target(bk_biz_id=params["bk_biz_id"])
+        data["target"] = []
+        # 新增查询target参数，自定义指标详情页面不需要target，默认不查询
+        if params.get("with_target"):
+            data["target"] = config.query_target(bk_biz_id=params["bk_biz_id"])
+
         append_custom_ts_metric_list_cache.delay(params["time_series_group_id"])
         return data
 

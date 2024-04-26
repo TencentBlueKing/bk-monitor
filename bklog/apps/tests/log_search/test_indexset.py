@@ -86,8 +86,10 @@ CREATE_SUCCESS = {
         "is_active": True,
         "fields_snapshot": None,
         "source_app_code": settings.APP_CODE,
-        "tag_ids": "",
+        "tag_ids": [],
         "is_editable": True,
+        "sort_fields": [],
+        "target_fields": [],
     },
     "code": 0,
     "message": "",
@@ -153,8 +155,10 @@ UPDATE_INDEX_SET = {
     "is_active": True,
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
-    "tag_ids": "[]",
+    "tag_ids": [],
     "is_editable": True,
+    "sort_fields": [],
+    "target_fields": [],
 }
 
 NOT_EDITABLE_RETURN = {
@@ -226,7 +230,7 @@ INDEX_SET_LISTS = {
             "is_active": True,
             "fields_snapshot": "{}",
             "source_app_code": settings.APP_CODE,
-            "tag_ids": "[]",
+            "tags": [],
             "category_name": "其他",
             "scenario_name": "第三方ES",
             "storage_cluster_name": "",
@@ -235,6 +239,8 @@ INDEX_SET_LISTS = {
             "bk_biz_id": 2,
             "permission": {},
             "is_editable": True,
+            "sort_fields": [],
+            "target_fields": [],
         }
     ],
 }
@@ -353,8 +359,10 @@ RETRIEVE_LIST = {
     "is_active": True,
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
-    "tag_ids": "[]",
+    "tag_ids": [],
     "is_editable": True,
+    "sort_fields": [],
+    "target_fields": [],
 }
 
 

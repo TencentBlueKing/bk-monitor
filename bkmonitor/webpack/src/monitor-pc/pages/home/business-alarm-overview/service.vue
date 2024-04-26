@@ -26,16 +26,16 @@
 <template>
   <div class="service">
     <common-unset
-      :alarm="alarm"
       v-if="alarm.status === 'unset'"
+      :alarm="alarm"
     />
     <common-noraml
-      :alarm="alarm"
       v-else-if="alarm.status === 'normal'"
+      :alarm="alarm"
     />
     <service-serious
-      :alarm="alarm"
       v-else-if="alarm.status === 'slight' || alarm.status === 'serious'"
+      :alarm="alarm"
     />
   </div>
 </template>
@@ -50,21 +50,21 @@ export default {
   components: {
     CommonUnset,
     CommonNoraml,
-    ServiceSerious
+    ServiceSerious,
   },
   props: {
     alarm: {
       type: Object,
       default() {
         return {};
-      }
+      },
     },
     homeDays: {
       type: Number,
       default() {
         return 7;
-      }
-    }
-  }
+      },
+    },
+  },
 };
 </script>

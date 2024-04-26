@@ -31,15 +31,13 @@ import i18n from '@/language/i18n';
 import methods from './plugins/methods';
 import VueJsonPretty from 'vue-json-pretty';
 import 'vue-json-pretty/lib/styles.css';
-import cursor from '@/directives/cursor';
 import './directives/index';
 import LogButton from '@/components/log-button';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
 import { renderHeader } from './common/util';
-import './common/global';
 import './static/icons/log-icons.css';
 // 接入OTLP
-import { WebTracerProvider } from '@opentelemetry/web';
+import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 import { ZoneContextManager } from '@opentelemetry/context-zone';
@@ -88,7 +86,6 @@ router.onError(err => {
 
 Vue.component('VueJsonPretty', VueJsonPretty);
 Vue.component('LogButton', LogButton);
-Vue.directive('cursor', cursor);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 

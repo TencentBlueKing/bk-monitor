@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
@@ -56,9 +57,9 @@ export default class EmptyTable extends tsc<IEmptyTableProps, IEmptyTableEvent> 
           {this.emptyType === '403' && (
             <bk-button
               class='item-btn'
+              size='small'
               theme='primary'
               text
-              size='small'
               onClick={this.handleApplyAuth}
             >
               {this.$t('去申请')}

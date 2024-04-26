@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, PropType, ref, watch } from 'vue';
+
 import { Pagination } from 'bkui-vue';
 
 import { Span } from '../../../components/trace-view/typings';
@@ -40,29 +41,29 @@ export default defineComponent({
     // 过滤的 Span Id 列表
     filterSpanIds: {
       type: Array as PropType<string[]>,
-      default: () => []
+      default: () => [],
     },
     // 子标题
     subTitle: {
       type: String,
       required: false,
-      default: ''
+      default: '',
     },
     // 是否折叠
     isCollapsed: {
       type: Boolean,
-      required: false
+      required: false,
     },
     // 对比的 Span 列表
     compareSpanList: {
       type: Array as PropType<Span[]>,
-      default: () => []
+      default: () => [],
     },
     // 对比状态
     isCompare: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['viewDetail', 'listChange'],
   setup(props, { emit }) {
@@ -119,7 +120,7 @@ export default defineComponent({
       currentPage,
       handlePageChange,
       spanListBody,
-      isScrollBody
+      isScrollBody,
     };
   },
   render() {
@@ -151,9 +152,9 @@ export default defineComponent({
           )}
         </div>
         <div
-          class='span-list-body'
           ref='spanListBody'
           style={`flex: ${this.isScrollBody ? 1 : 'unset'}`}
+          class='span-list-body'
         >
           {/* <VirtualRender
           list={this.renderList}
@@ -165,9 +166,9 @@ export default defineComponent({
           <ul class='list-ul'>
             {this.renderList.map(original => (
               <li
-                class={['list-li', { 'is-compare': isCompare }]}
-                style={`border-color: ${original.color}; background-color: ${isCompare ? original.bgColor : '#f5f7fa'}`}
                 key={original.spanID}
+                style={`border-color: ${original.color}; background-color: ${isCompare ? original.bgColor : '#f5f7fa'}`}
+                class={['list-li', { 'is-compare': isCompare }]}
                 onClick={e => {
                   e.stopPropagation();
                   this.showSpanDetail(original);
@@ -184,9 +185,9 @@ export default defineComponent({
                 </div>
                 <div class='list-li-body'>
                   <img
-                    src={original.icon}
                     class='span-icon'
                     alt=''
+                    src={original.icon}
                   />
                   <span class='service-name'>{original.operationName}</span>
                   <span class='start-time'>
@@ -203,17 +204,17 @@ export default defineComponent({
             // 分页组件，用于处理页面切换
             <Pagination
               v-model={this.currentPage} // 当前页码
-              small
+              count={this.localList.length} // 总记录数
+              limit={this.pageLimit} // 当前每页显示的数据数量
               limit-list={[30]} // 每页显示的数据数量列表
               show-limit={false} // 是否显示每页显示数据数量选择器
-              limit={this.pageLimit} // 当前每页显示的数据数量
               show-total-count={false} // 是否显示总记录数
-              count={this.localList.length} // 总记录数
+              small
               onChange={this.handlePageChange} // 页面切换时的回调函数
             />
           )}
         </div>
       </div>
     );
-  }
+  },
 });

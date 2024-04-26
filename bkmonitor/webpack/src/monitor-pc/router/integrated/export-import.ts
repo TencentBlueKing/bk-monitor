@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 import * as exOrInAuth from '../../pages/export-import/authority-map';
@@ -58,26 +58,26 @@ export default [
     path: '/export-import',
     name: 'export-import',
     components: {
-      noCache: ImportExport
+      noCache: ImportExport,
     },
     meta: {
       title: '导入/导出',
       navId: 'export-import',
       authority: {
         map: exOrInAuth,
-        page: exOrInAuth.VIEW_AUTH
+        page: exOrInAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'integrated'
+        parent: 'integrated',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/export-import/export-configuration',
     name: 'export-configuration',
     components: {
-      noCache: ExportConfiguration
+      noCache: ExportConfiguration,
     },
     meta: {
       title: '导出配置',
@@ -85,19 +85,19 @@ export default [
       needBack: true,
       authority: {
         map: exOrInAuth,
-        page: exOrInAuth.MANAGE_EXPORT_CONFIG
+        page: exOrInAuth.MANAGE_EXPORT_CONFIG,
       },
       route: {
-        parent: 'export-import'
+        parent: 'export-import',
       },
-      noNavBar: false
-    }
+      noNavBar: false,
+    },
   },
   {
     path: '/export-import/import-upload',
     name: 'import-configuration-upload',
     components: {
-      noCache: ImportConfigurationUpload
+      noCache: ImportConfigurationUpload,
     },
     meta: {
       title: '导入配置',
@@ -105,22 +105,22 @@ export default [
       needBack: true,
       authority: {
         map: exOrInAuth,
-        page: exOrInAuth.MANAGE_IMPORT_CONFIG
+        page: exOrInAuth.MANAGE_IMPORT_CONFIG,
       },
       route: {
-        parent: 'export-import'
+        parent: 'export-import',
       },
-      noNavBar: false
-    }
+      noNavBar: false,
+    },
   },
   {
     path: '/export-import/import-config',
     name: 'import-configuration',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: ImportConfiguration
+      noCache: ImportConfiguration,
     },
     meta: {
       title: '导入配置',
@@ -128,13 +128,13 @@ export default [
       needBack: true,
       authority: {
         map: exOrInAuth,
-        page: exOrInAuth.MANAGE_IMPORT_CONFIG
+        page: exOrInAuth.MANAGE_IMPORT_CONFIG,
       },
       route: {
-        parent: 'export-import'
+        parent: 'export-import',
       },
-      noNavBar: false
-    }
+      noNavBar: false,
+    },
   },
   {
     path: '/export-import/import-config-detail/:id',
@@ -147,19 +147,19 @@ export default [
       needBack: true,
       authority: {
         map: exOrInAuth,
-        page: exOrInAuth.MANAGE_IMPORT_CONFIG
+        page: exOrInAuth.MANAGE_IMPORT_CONFIG,
       },
       route: {
-        parent: 'export-import'
+        parent: 'export-import',
       },
-      noNavBar: false
-    }
+      noNavBar: false,
+    },
   },
   {
     path: '/export-import/config-history',
     name: 'import-configuration-history',
     components: {
-      noCache: ImportConfigurationHistory
+      noCache: ImportConfigurationHistory,
     },
     meta: {
       title: '导入历史',
@@ -167,22 +167,22 @@ export default [
       needBack: true,
       authority: {
         map: exOrInAuth,
-        page: exOrInAuth.MANAGE_IMPORT_CONFIG
+        page: exOrInAuth.MANAGE_IMPORT_CONFIG,
       },
       route: {
-        parent: 'export-import'
+        parent: 'export-import',
       },
-      noNavBar: false
-    }
+      noNavBar: false,
+    },
   },
   {
     path: '/export-import/config-target',
     name: 'import-configuration-target',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: ImportConfigurationTarget
+      noCache: ImportConfigurationTarget,
     },
     meta: {
       title: '统一添加策略目标',
@@ -190,12 +190,12 @@ export default [
       needBack: true,
       authority: {
         map: exOrInAuth,
-        page: exOrInAuth.MANAGE_IMPORT_CONFIG
+        page: exOrInAuth.MANAGE_IMPORT_CONFIG,
       },
       route: {
-        parent: 'export-import'
+        parent: 'export-import',
       },
-      noNavBar: false
-    }
-  }
+      noNavBar: false,
+    },
+  },
 ] as RouteConfig[];

@@ -29,7 +29,6 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { EventRetrievalViewType } from '../../typings';
-
 import KVList from './kv-list';
 
 import './expand-view-wrapper.scss';
@@ -78,8 +77,8 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
           v-show={this.activeExpandView === 'json'}
         >
           <VueJsonPretty
-            data={this.data}
             collapsedOnClickBrackets={false}
+            data={this.data}
             deep={5}
           />
         </div>

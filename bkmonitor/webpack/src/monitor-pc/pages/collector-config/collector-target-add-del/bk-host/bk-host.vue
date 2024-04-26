@@ -25,25 +25,25 @@
 -->
 <template>
   <div
-    class="hosts"
     v-if="initConfig"
+    class="hosts"
   >
     <div style="margin-bottom: 10px">
       {{ $t('设备IP列表') }}
     </div>
     <bk-tag-input
-      style="margin-bottom: 20px"
       v-if="data.collect_type === 'SNMP'"
       v-model="snmpTargets"
+      style="margin-bottom: 20px"
       :placeholder="$t('输入采集目标主机')"
       :allow-create="true"
       :allow-auto-match="true"
       :has-delete-icon="true"
     />
     <div
-      class="topo-selector-wrapper"
-      ref="topoSelectorWrapper"
       v-else
+      ref="topoSelectorWrapper"
+      class="topo-selector-wrapper"
     >
       <monitor-ip-selector
         v-if="ipSelectorPanels.length && topoSelectorHeight > 10"
@@ -74,28 +74,31 @@
       </topo-selector> -->
     </div>
     <div
+      v-if="config.supportRemote"
       style="margin-bottom: 10px"
-      v-if="config.supportRemote"
-    >{{ $t('采集器主机') }}</div>
+    >
+      {{ $t('采集器主机') }}
+    </div>
     <div
-      class="select-private-host"
       v-if="config.supportRemote"
+      class="select-private-host"
     >
       <div
         class="left"
         @click="handleShow"
       >
         <span
-          class="ip"
           v-if="remoteHost.ip"
-        >{{ remoteHost.ip }}</span>
+          class="ip"
+          >{{ remoteHost.ip }}</span
+        >
         <span v-else> {{ $t('添加采集插件运行主机') }} </span>
         <!-- <span style="color: #3A84FF; cursor: pointer;" @click="handleShow">使用选择器</span> -->
       </div>
       <div class="right">
         <bk-checkbox
-          :disabled="!remoteHost.ip"
           v-model="remoteHost.isCollectingOnly"
+          :disabled="!remoteHost.ip"
         >
           {{ $t('采集专有主机') }}
           <span
@@ -110,9 +113,11 @@
     <div class="footer">
       <bk-button
         theme="primary"
-        @click.stop="handleStart"
         :loading="checkPluginLoading"
-      > {{ $t('开始下发') }} </bk-button>
+        @click.stop="handleStart"
+      >
+        {{ $t('开始下发') }}
+      </bk-button>
       <bk-button @click="handleCancel">
         {{ $t('取消') }}
       </bk-button>
@@ -139,51 +144,51 @@ export default {
   name: 'BkHost',
   components: {
     SelectHost,
-    MonitorIpSelector
+    MonitorIpSelector,
     // TopoSelector
   },
   props: {
     data: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     pageLoading: Boolean,
     step: {
       type: Number,
-      default: 0
+      default: 0,
     },
     diffData: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     config: {
       type: Object,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   data() {
     return {
       initConfig: false,
       host: [],
       conf: {
-        isShow: false
+        isShow: false,
       },
       remoteHost: {
         ip: '',
         bkSupplierId: 0,
-        isCollectingOnly: false
+        isCollectingOnly: false,
       },
       configDetail: {},
       selector: {
         mode: 'edit',
         targetNodeType: 'INSTANCE',
         targetObjectType: 'HOST',
-        checkedData: []
+        checkedData: [],
       },
       agentStatusMap: {
         normal: 'Agent 正常',
         abnormal: 'Agent 异常',
-        not_exist: 'Agent 未安装'
+        not_exist: 'Agent 未安装',
       },
       isNoHost: false,
       nodesMap: new Map(),
@@ -195,7 +200,7 @@ export default {
       ipSelectorPanels: [],
       ipTargetType: 'TOPO',
       originValue: undefined,
-      countInstanceType: 'host'
+      countInstanceType: 'host',
     };
   },
   computed: {
@@ -210,12 +215,12 @@ export default {
         return [
           {
             renderHead: h => h('span', this.$t('服务实例数')),
-            renderCell: (h, row) => h('span', row.node.count || '--')
-          }
+            renderCell: (h, row) => h('span', row.node.count || '--'),
+          },
         ];
       }
       return undefined;
-    }
+    },
   },
   watch: {
     config: {
@@ -232,8 +237,8 @@ export default {
         this.handleConfig(v);
         this.initConfig = true;
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   methods: {
     // handleLoadingChange(status) {
@@ -302,14 +307,14 @@ export default {
           bk_cloud_id: this.remoteHost.bkCloudId,
           bk_supplier_id: this.remoteHost.bkSupplierId,
           bk_host_id: this.remoteHost.bk_host_id,
-          is_collecting_only: this.remoteHost.isCollectingOnly
+          is_collecting_only: this.remoteHost.isCollectingOnly,
         };
       }
       if (this.isSnmp) {
         params.target_nodes = this.snmpTargets.map(ip => ({
           ip,
           bk_cloud_id: 0,
-          bk_supplier_id: 0
+          bk_supplier_id: 0,
         }));
       } else {
         params.target_nodes = data;
@@ -322,26 +327,26 @@ export default {
       }
 
       if (this.$refs.topoSelectorWrapper) {
-        let target = transformValueToMonitor(this.ipCheckValue, this.ipTargetType);;
+        let target = transformValueToMonitor(this.ipCheckValue, this.ipTargetType);
         // 临时处理
         if (['SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(this.ipTargetType)) {
           target = await getNodesByTemplate({
             bk_obj_id: this.ipTargetType,
             bk_inst_ids: target.map(item => item.bk_inst_id),
-            bk_inst_type: this.selector.targetObjectType
+            bk_inst_type: this.selector.targetObjectType,
           }).catch(() => []);
         }
 
         this.$emit('target', {
           target,
           bkTargetType: this.ipTargetType,
-          bkObjType: this.selector.targetObjectType
+          bkObjType: this.selector.targetObjectType,
         });
       } else if (this.isSnmp) {
         this.$emit('target', {
           target: this.snmpTargets,
           bkTargetType: this.selector.targetNodeType,
-          bkObjType: this.selector.targetObjectType
+          bkObjType: this.selector.targetObjectType,
         });
       }
       const save = () => {
@@ -349,23 +354,24 @@ export default {
         const newParams = deepClone({ ...params });
         if (this.config.config_json?.length) {
           // 增删目标的情况下，需要剔除参数中的密码相关参数
-          newParams?.params?.plugin && Object.keys(newParams?.params?.plugin).forEach((key) => {
-            const filter = this.config.config_json.find(configJson => configJson.name === key);
-            filter && (filter.type === 'password') && delete newParams.params.plugin[key];
-          });
+          newParams?.params?.plugin &&
+            Object.keys(newParams?.params?.plugin).forEach(key => {
+              const filter = this.config.config_json.find(configJson => configJson.name === key);
+              filter && filter.type === 'password' && delete newParams.params.plugin[key];
+            });
         }
         saveCollectConfig({ id: this.data.id, ...newParams, operation: 'ADD_DEL' }, { needMessage: false })
-          .then((data) => {
+          .then(data => {
             this.$emit('update:diffData', data.diff_node);
             this.$emit('update:step', 1);
             this.$emit('step-change', true, 0);
             this.$emit('update:pageLoading', false);
           })
-          .catch((res) => {
+          .catch(res => {
             this.$bkMessage({
               theme: 'error',
               message: res.message || this.$t('系统出错了'),
-              ellipsisLine: 0
+              ellipsisLine: 0,
             });
             this.$emit('update:pageLoading', false);
           });
@@ -377,18 +383,22 @@ export default {
         const checkPluginRes = await checkPluginVersion({
           target_node_type: params.target_node_type,
           target_nodes: params.target_nodes,
-          collect_type: 'Process'
-        })
-          .catch(() => ({ result: false }));
+          collect_type: 'Process',
+        }).catch(() => ({ result: false }));
         this.checkPluginLoading = false;
         if (checkPluginRes.result) {
           save();
           return;
         }
         const pluginNames = Object.keys(checkPluginRes.invalid_host || { '--': [] });
-        const linkText = pluginNames.map(pluginName => this.$t('{0}版本低于{1}', [pluginName, (checkPluginRes.plugin_version?.[pluginName] || '--')])).join('、');
+        const linkText = pluginNames
+          .map(pluginName =>
+            this.$t('{0}版本低于{1}', [pluginName, checkPluginRes.plugin_version?.[pluginName] || '--'])
+          )
+          .join('、');
         const hostListText = (checkPluginRes.invalid_host?.[pluginNames[0]] || [])
-          .map(target => target[0]).slice(0, 2)
+          .map(target => target[0])
+          .slice(0, 2)
           .join('、');
         const h = this.$createElement;
         this.$bkInfo({
@@ -406,26 +416,26 @@ export default {
               {
                 style: {
                   cursor: 'pointer',
-                  color: '#3a84ff'
+                  color: '#3a84ff',
                 },
                 attrs: {
                   target: '_blank',
-                  href: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`
+                  href: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
                 },
                 directives: [
                   {
                     value: {
                       content: this.$t('前往节点管理处理'),
-                      placements: ['top']
+                      placements: ['top'],
                     },
-                    name: 'bk-tooltips'
-                  }
-                ]
+                    name: 'bk-tooltips',
+                  },
+                ],
               },
               linkText
             ),
-            h('span', {}, `，${this.$t('可能出现下发失败或无数据上报，是否继续下发')}？`)
-          ])
+            h('span', {}, `，${this.$t('可能出现下发失败或无数据上报，是否继续下发')}？`),
+          ]),
         });
         return;
       }
@@ -445,8 +455,8 @@ export default {
     },
     handleTargetTypeChange(v) {
       this.ipTargetType = v;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

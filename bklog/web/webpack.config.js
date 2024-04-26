@@ -28,7 +28,7 @@ const fs = require('fs');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const CliMonacoWebpackPlugin = require('@blueking/bkmonitor-cli/node_modules/monaco-editor-webpack-plugin');
+const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
 const devHost = 'appdev.bktencent.com';
 const loginHost = 'https://paas-dev.bktencent.com';
@@ -93,6 +93,8 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
     config.devServer = Object.assign({}, config.devServer || {}, {
       port: devConfig.port,
       host: devConfig.host,
+      open: false,
+      static: [],
       proxy: {
         ...['/api', '/version_log'].reduce(
           (pre, key) => ({
@@ -118,6 +120,7 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
           env: {
             proxyUrl: JSON.stringify(devConfig.devProxyUrl),
             devUrl: JSON.stringify(`${devConfig.host}:${devConfig.port}`),
+            devHost: JSON.stringify(`${devConfig.host}`),
             loginHost: JSON.stringify(devConfig.loginHost),
             loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`)
           }

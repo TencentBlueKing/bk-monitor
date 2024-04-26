@@ -49,7 +49,7 @@ dayjs.extend(duration);
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
 dayjs.locale({
   ...(currentLang === 'en' ? en : cn),
-  weekStart: 1
+  weekStart: 1,
 });
 // window.timezone = dayjs.tz.guess();
 // dayjs.tz.setDefault(window.timezone);

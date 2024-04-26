@@ -16,11 +16,16 @@ from django.conf import settings
 from django.db.models import Q
 from django.db.transaction import atomic
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.space.space_data_source import get_real_biz_id
-from metadata.service.vm_storage import query_vm_datalink
+from metadata.service.vm_storage import (
+    get_table_id_from_vm,
+    query_bcs_cluster_vm_rts,
+    query_vm_datalink,
+)
 
 
 class QueryBizByBkBase(Resource):
@@ -144,3 +149,60 @@ class QueryVmDatalink(Resource):
 
     def perform_request(self, data: OrderedDict) -> Dict:
         return query_vm_datalink(data["bk_data_id"])
+
+
+class QueryBcsClusterVmTableIds(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bcs_cluster_id = serializers.CharField(required=True, label="BCS 集群ID")
+
+    def perform_request(self, data: OrderedDict) -> Dict:
+        return query_bcs_cluster_vm_rts(data["bcs_cluster_id"])
+
+
+class SwitchKafkaCluster(Resource):
+    class RequestSerializer(serializers.Serializer):
+        table_id = serializers.CharField(required=False, allow_blank=True, label="结果表ID")
+        bk_base_data_id = serializers.IntegerField(required=False, label="计算平台数据源ID")
+        vm_table_id = serializers.CharField(required=False, allow_blank=True, label="VM结果表ID")
+        kafka_cluster_id = serializers.IntegerField(required=True, label="要切换的kafka集群ID")
+
+        def validate(self, attrs: OrderedDict) -> Dict:
+            # 三个字段不能全为空， table_id 优先级最高，bk_base_data_id次之，最后是 vm 的结果表 id
+            if not (attrs.get("table_id") or attrs.get("bk_base_data_id") or attrs.get("vm_table_id")):
+                raise ValidationError("params [table_id], [bk_base_data_id]及[vm_table_id] is null")
+            # 转换为监控的最小单元 table_id
+            # 如果 table_id 存在，则直接返回
+            data = {"kafka_cluster_id": attrs["kafka_cluster_id"]}
+            if attrs.get("table_id"):
+                data.update({"table_id": attrs["table_id"]})
+                return data
+
+            data.update(get_table_id_from_vm(attrs.get("bk_base_data_id"), attrs.get("vm_table_id")))
+            return data
+
+    def perform_request(self, validated_request_data: OrderedDict) -> None:
+        try:
+            obj = models.KafkaStorage.objects.get(table_id=validated_request_data["table_id"])
+        except models.KafkaStorage.DoesNotExist:
+            raise ValidationError(f"not found kafka storage by table_id: {validated_request_data['table_id']}")
+
+        # 如果相同则直接返回
+        if obj.storage_cluster_id == validated_request_data["kafka_cluster_id"]:
+            return
+
+        obj.storage_cluster_id = validated_request_data["kafka_cluster_id"]
+        obj.save(update_fields=["storage_cluster_id"])
+
+        # 获取数据源
+        try:
+            bk_data_id = models.DataSourceResultTable.objects.get(
+                table_id=validated_request_data["table_id"]
+            ).bk_data_id
+        except models.DataSourceResultTable.DoesNotExist:
+            raise ValidationError(f"not found data source by table_id: {validated_request_data['table_id']}")
+        try:
+            ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
+        except models.DataSource.DoesNotExist:
+            raise ValidationError(f"not found data source by bk_data_id: {bk_data_id}")
+        # 刷新数据源对应的 consul 记录
+        ds.refresh_consul_config()

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { EChartOption } from 'echarts';
+import { type MonitorEchartOptions } from '../types/monitor-echarts';
 
 export interface ILegendItem {
   name: string;
@@ -35,17 +35,20 @@ export interface ILegendItem {
   show: boolean;
   hidden?: boolean;
 }
-export type ChartType = 'bar' | 'line' | 'pie' | 'map' | 'status' | 'text' | 'table' | 'scatter';
+export type ChartType = 'bar' | 'line' | 'map' | 'pie' | 'scatter' | 'status' | 'table' | 'text';
 export interface IChartOptionPorps {
   chartType: ChartType;
   colors: string[];
   showExtremum: boolean;
-  chartOption: EChartOption;
+  chartOption: MonitorEchartOptions;
   lineWidth: number;
 }
 
 export interface IChartInstance {
-  getOptions: (data: any, otherOptions?: EChartOption) => { options: EChartOption; legendData: ILegendItem[] };
+  getOptions: (
+    data: any,
+    otherOptions?: MonitorEchartOptions
+  ) => { options: MonitorEchartOptions; legendData: ILegendItem[] };
 }
 
 export interface IMoreToolItem {
@@ -85,9 +88,9 @@ export interface ITextSeries {
 export interface ITextChartOption {
   series: ITextSeries;
 }
-export type MoreChartToolItem = 'explore' | 'set' | 'strategy' | 'area';
+export type MoreChartToolItem = 'area' | 'explore' | 'set' | 'strategy';
 
-export type IChartOption = EChartOption | IStatusChartOption | ITextChartOption;
+export type IChartOption = IStatusChartOption | ITextChartOption | MonitorEchartOptions;
 
 export interface ITableSeries {
   columns?: { text: string; type: string }[];

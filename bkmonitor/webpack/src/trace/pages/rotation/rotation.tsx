@@ -1,3 +1,4 @@
+/* eslint-disable vue/multi-word-component-names */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,16 +27,16 @@
 import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
-
-import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 import * as authMap from './authority-map';
 import RotationDetail from './rotation-detail';
+import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 
 import './rotation.scss';
 
@@ -52,23 +53,22 @@ function getTimeStr(time: string) {
 }
 
 enum Ecategory {
+  handoff = 'handoff',
   regular = 'regular',
-  handoff = 'handoff'
 }
 
 enum EColunm {
-  name = 'name',
-  type = 'type',
-  label = 'label',
-  relation = 'relation',
-  status = 'status',
-  scope = 'scope',
   enabled = 'enabled',
-  operate = 'operate'
+  label = 'label',
+  name = 'name',
+  operate = 'operate',
+  relation = 'relation',
+  scope = 'scope',
+  status = 'status',
+  type = 'type',
 }
 
 export default defineComponent({
-  // eslint-disable-next-line vue/multi-word-component-names
   name: 'Rotation',
   setup() {
     const { t } = useI18n();
@@ -78,7 +78,7 @@ export default defineComponent({
     const authority = reactive<IAuthority>({
       map: authMap,
       auth: {},
-      showDetail: authorityStore.getAuthorityDetail
+      showDetail: authorityStore.getAuthorityDetail,
     });
     const tableData = reactive({
       loading: false,
@@ -86,11 +86,11 @@ export default defineComponent({
       pagination: {
         current: 1,
         count: 0,
-        limit: 10
+        limit: 10,
       },
       sort: {
         column: '',
-        type: ''
+        type: '',
       },
       columns: [
         {
@@ -98,7 +98,7 @@ export default defineComponent({
           name: t('规则名称'),
           minWidth: 160,
           disabled: true,
-          checked: true
+          checked: true,
         },
         {
           id: EColunm.type,
@@ -111,14 +111,14 @@ export default defineComponent({
             list: [
               {
                 text: t('日常值班'),
-                value: Ecategory.regular
+                value: Ecategory.regular,
               },
               {
                 text: t('交替轮值'),
-                value: Ecategory.handoff
-              }
-            ]
-          }
+                value: Ecategory.handoff,
+              },
+            ],
+          },
         },
         {
           id: EColunm.label,
@@ -128,8 +128,8 @@ export default defineComponent({
           filter: {
             filterFn: () => true,
             checked: [],
-            list: []
-          }
+            list: [],
+          },
         },
         {
           id: EColunm.relation,
@@ -138,8 +138,8 @@ export default defineComponent({
           disabled: false,
           checked: true,
           sort: {
-            value: ''
-          }
+            value: '',
+          },
         },
         {
           id: EColunm.status,
@@ -154,9 +154,9 @@ export default defineComponent({
               { text: statusMap[EStatus.Effective], value: EStatus.Effective },
               { text: statusMap[EStatus.WaitEffective], value: EStatus.WaitEffective },
               { text: statusMap[EStatus.NoEffective], value: EStatus.NoEffective },
-              { text: statusMap[EStatus.Deactivated], value: EStatus.Deactivated }
-            ]
-          }
+              { text: statusMap[EStatus.Deactivated], value: EStatus.Deactivated },
+            ],
+          },
         },
         {
           id: EColunm.scope,
@@ -165,23 +165,23 @@ export default defineComponent({
           disabled: false,
           checked: true,
           sort: {
-            value: ''
-          }
+            value: '',
+          },
         },
         {
           id: EColunm.enabled,
           name: t('启/停'),
           width: 100,
           disabled: true,
-          checked: true
+          checked: true,
         },
         {
           id: EColunm.operate,
           name: t('操作'),
           disabled: true,
-          checked: true
-        }
-      ]
+          checked: true,
+        },
+      ],
     });
     /* 表格设置 */
     const settings = reactive({
@@ -190,25 +190,25 @@ export default defineComponent({
       fields: tableData.columns.map(item => ({
         label: item.name,
         field: item.id,
-        disabled: item.disabled
-      }))
+        disabled: item.disabled,
+      })),
     });
     const searchData = reactive({
       data: [
         {
           name: 'ID',
-          id: 'id'
+          id: 'id',
         },
         {
           name: t('规则名称'),
-          id: 'name'
-        }
+          id: 'name',
+        },
       ],
-      value: []
+      value: [],
     });
     const detailData = reactive({
       show: false,
-      id: ''
+      id: '',
     });
     /* 轮值列表全量数据 */
     const allRotationList = shallowRef([]);
@@ -232,13 +232,13 @@ export default defineComponent({
             labelsSet.add(l);
             filterLabelOptions.push({
               text: l,
-              value: l
+              value: l,
             });
           }
         });
         return {
           ...item,
-          status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
+          status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled),
         };
       });
       (tableData.columns.find(item => item.id === EColunm.label).filter as any).list = filterLabelOptions;
@@ -256,7 +256,7 @@ export default defineComponent({
       const condition = {
         id: [],
         name: [],
-        query: []
+        query: [],
       };
       if (searchData.value.length) {
         needSearch = true;
@@ -277,7 +277,7 @@ export default defineComponent({
       const filterParams = {
         category: [],
         labels: [],
-        status: []
+        status: [],
       };
       tableData.columns.forEach(item => {
         if (item.id === EColunm.type) {
@@ -316,7 +316,7 @@ export default defineComponent({
         return need;
       });
       /* 排序 */
-      if (!!tableData.sort.column) {
+      if (!!tableData.sort.column && !!tableData.sort.type) {
         if (tableData.sort.column === EColunm.relation) {
           filterAllRotationList.sort((a, b) =>
             tableData.sort.type === 'asc'
@@ -342,7 +342,7 @@ export default defineComponent({
     }
     function handleAdd() {
       router.push({
-        name: 'rotation-add'
+        name: 'rotation-add',
       });
     }
     /**
@@ -358,7 +358,7 @@ export default defineComponent({
           onConfirm: () => {
             switchDutyRule({
               ids: [row.id],
-              enabled: value
+              enabled: value,
             })
               .then(() => {
                 resolve(value);
@@ -372,7 +372,7 @@ export default defineComponent({
                           labelsSet.add(l);
                           filterLabelOptions.push({
                             text: l,
-                            value: l
+                            value: l,
                           });
                         }
                       });
@@ -384,7 +384,7 @@ export default defineComponent({
                       }
                       return {
                         ...item,
-                        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
+                        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled),
                       };
                     });
                   })
@@ -396,7 +396,7 @@ export default defineComponent({
           },
           onClosed: () => {
             reject();
-          }
+          },
         });
       });
     }
@@ -408,18 +408,24 @@ export default defineComponent({
     function handleColumnSort(opt) {
       const sort = {
         column: '',
-        type: ''
+        type: '',
       };
       if (opt.type !== 'null') {
         sort.column = opt.column.id;
         sort.type = opt.type;
+      } else {
+        sort.column = opt.column.id;
       }
       tableData.sort = sort;
       const tableColumn = tableData.columns.find(item => item.id === sort.column);
+      tableData.columns.forEach(item => {
+        if (item.id !== sort.column && !!item?.sort) {
+          item.sort.value = '';
+        }
+      });
       if (tableColumn?.sort) {
-        tableColumn.sort.value = sort.type || 'null';
+        tableColumn.sort.value = sort.type || '';
       }
-
       tableData.pagination.current = 1;
       setFilterList();
     }
@@ -474,8 +480,8 @@ export default defineComponent({
       router.push({
         name: 'rotation-edit',
         params: {
-          id: row.id
-        }
+          id: row.id,
+        },
       });
     }
 
@@ -496,13 +502,13 @@ export default defineComponent({
                   loading.value = false;
                   Message({
                     theme: 'success',
-                    message: t('删除成功')
+                    message: t('删除成功'),
                   });
                 })
                 .catch(() => {
                   Message({
                     theme: 'danger',
-                    message: t('删除失败')
+                    message: t('删除失败'),
                   });
                 });
             }, 2000);
@@ -510,7 +516,7 @@ export default defineComponent({
         },
         onClosed: () => {
           //
-        }
+        },
       });
     }
 
@@ -547,8 +553,8 @@ export default defineComponent({
         case EColunm.relation: {
           return !!row.user_groups_count ? (
             <Button
-              text
               theme='primary'
+              text
               onClick={() => handleToAlarmGroup(row)}
             >
               {row.user_groups_count}
@@ -562,7 +568,7 @@ export default defineComponent({
             [EStatus.Deactivated]: 'status-red',
             [EStatus.Effective]: 'status-green',
             [EStatus.WaitEffective]: 'status-yellow',
-            [EStatus.NoEffective]: 'status-grey'
+            [EStatus.NoEffective]: 'status-grey',
           };
           return (
             <span class={['status-label', statusClass[row.status]]}>
@@ -579,24 +585,24 @@ export default defineComponent({
         case EColunm.enabled: {
           return (
             <Popover
-              placement='top'
               arrow={true}
-              trigger={'hover'}
-              popoverDelay={[300, 0]}
               disabled={row.enabled ? row.delete_allowed : true}
+              placement='top'
+              popoverDelay={[300, 0]}
+              trigger={'hover'}
             >
               {{
                 default: () => (
                   <Switcher
+                    beforeChange={v => handleEnableBeforeChange(v, row)}
+                    disabled={!row.delete_allowed && row.enabled}
                     size='small'
                     theme='primary'
                     value={row.enabled}
-                    disabled={!row.delete_allowed && row.enabled}
-                    beforeChange={v => handleEnableBeforeChange(v, row)}
                     onChange={v => (row.enabled = v)}
                   ></Switcher>
                 ),
-                content: () => <span>{t('存在关联的告警组')}</span>
+                content: () => <span>{t('存在关联的告警组')}</span>,
               }}
             </Popover>
           );
@@ -605,54 +611,54 @@ export default defineComponent({
           return (
             <span>
               <Popover
-                placement='top'
                 arrow={true}
-                trigger={'hover'}
-                popoverDelay={[300, 0]}
                 disabled={row.edit_allowed}
+                placement='top'
+                popoverDelay={[300, 0]}
+                trigger={'hover'}
               >
                 {{
                   default: () => (
                     <Button
-                      text
-                      theme='primary'
                       class='mr-8'
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       disabled={!row.edit_allowed}
+                      theme='primary'
+                      text
                       onClick={() =>
                         authority.auth.MANAGE_AUTH ? handleEdit(row) : authority.showDetail([authority.map.MANAGE_AUTH])
                       }
-                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('编辑')}
                     </Button>
                   ),
-                  content: () => <span>{t('当前为全局的')}</span>
+                  content: () => <span>{t('当前为全局的')}</span>,
                 }}
               </Popover>
               <Popover
-                placement='top'
                 arrow={true}
-                trigger={'hover'}
-                popoverDelay={[300, 0]}
                 disabled={row.delete_allowed}
+                placement='top'
+                popoverDelay={[300, 0]}
+                trigger={'hover'}
               >
                 {{
                   default: () => (
                     <Button
-                      text
-                      theme='primary'
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                       disabled={!row.delete_allowed}
+                      theme='primary'
+                      text
                       onClick={() =>
                         authority.auth.MANAGE_AUTH
                           ? handleDelete(row)
                           : authority.showDetail([authority.map.MANAGE_AUTH])
                       }
-                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('删除')}
                     </Button>
                   ),
-                  content: () => <span>{t('存在关联的告警组')}</span>
+                  content: () => <span>{t('存在关联的告警组')}</span>,
                 }}
               </Popover>
             </span>
@@ -679,7 +685,7 @@ export default defineComponent({
       handleSettingChange,
       handlePageChange,
       handleLimitChange,
-      handleSearch
+      handleSearch,
     };
   },
 
@@ -701,41 +707,41 @@ export default defineComponent({
               </Button>
               <SearchSelect
                 class='width-350'
-                placeholder={`ID / ${this.t('规则名称')}`}
-                modelValue={this.searchData.value}
                 data={this.searchData.data}
+                modelValue={this.searchData.value}
+                placeholder={`ID / ${this.t('规则名称')}`}
                 onUpdate:modelValue={v => this.handleSearch(v)}
               ></SearchSelect>
             </div>
             <Loading loading={this.loading}>
               <div class='table-content'>
                 <Table
-                  data={this.tableData.data}
-                  settings={this.settings}
-                  showOverflowTooltip={true}
-                  darkHeader={true}
-                  pagination={false}
-                  onColumnSort={this.handleColumnSort}
-                  onColumnFilter={this.handleColumnFilter}
-                  onSettingChange={this.handleSettingChange}
                   columns={this.tableData.columns
                     .filter(item => this.settings.checked.includes(item.id))
                     .map(item => {
                       return {
                         ...item,
                         label: (col: any) => col.name,
-                        render: ({ row, _column }) => this.handleSetFormater(row, item.id)
+                        render: ({ row, _column }) => this.handleSetFormater(row, item.id),
                       };
                     })}
+                  darkHeader={true}
+                  data={this.tableData.data}
+                  pagination={false}
+                  settings={this.settings}
+                  showOverflowTooltip={true}
+                  onColumnFilter={this.handleColumnFilter}
+                  onColumnSort={this.handleColumnSort}
+                  onSettingChange={this.handleSettingChange}
                 ></Table>
                 <Pagination
                   class='mt-14'
-                  modelValue={this.tableData.pagination.current}
+                  align={'right'}
                   count={this.tableData.pagination.count}
+                  layout={['total', 'limit', 'list']}
                   limit={this.tableData.pagination.limit}
                   location={'right'}
-                  align={'right'}
-                  layout={['total', 'limit', 'list']}
+                  modelValue={this.tableData.pagination.current}
                   onChange={v => this.handlePageChange(v)}
                   onLimitChange={v => this.handleLimitChange(v)}
                 ></Pagination>
@@ -745,11 +751,11 @@ export default defineComponent({
         </div>
 
         <RotationDetail
-          show={this.detailData.show}
           id={this.detailData.id}
+          show={this.detailData.show}
           onShowChange={v => (this.detailData.show = v)}
         ></RotationDetail>
       </div>
     );
-  }
+  },
 });

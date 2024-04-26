@@ -24,7 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
+import { IMetricDetail, MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
+
+export type TGetMetricData = (
+  params: Record<string, any>
+) => { metricList: IMetricDetail[] } | Promise<{ metricList: IMetricDetail[] }> | any;
 
 export type MetricSelectorProps = {
   type?: MetricType;
@@ -33,10 +37,14 @@ export type MetricSelectorProps = {
   metricKey?: string;
   isPromql?: boolean;
   defaultScenario?: string;
+  multiple?: boolean;
+  metricIds?: string[];
+  getMetricData?: TGetMetricData;
 } & MetricPopoverProps;
 
 export type MetricSelectorEvents = {
   onSelected: MetricDetail;
+  onChecked: (obj: { checked: boolean; id: string }) => void;
 } & MetricPopoverEvents;
 
 export interface MetricPopoverProps {

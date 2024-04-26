@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import axios from 'axios';
 import { Alert, Button, Dialog, Upload } from 'bkui-vue';
 import { TextFill as UploadTextFill, Upload as UploadIcon } from 'bkui-vue/lib/icon';
@@ -66,13 +67,13 @@ function valueFlash(set, val, limit) {
 
 const uploadTypeList = [
   { id: ConditionType.Where, name: window.i18n.t('查询项') },
-  { id: ConditionType.Comparison, name: window.i18n.t('对比项') }
+  { id: ConditionType.Comparison, name: window.i18n.t('对比项') },
 ];
 
 enum EFileStatus {
   failure = 'failure',
   running = 'running',
-  success = 'success'
+  success = 'success',
 }
 interface IFileStatus {
   name: string;
@@ -86,16 +87,16 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isCompare: {
       type: Boolean,
-      default: false
+      default: false,
     },
     appName: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   emits: ['showChange', 'refleshFiles'],
   setup(_props, { emit }) {
@@ -108,12 +109,12 @@ export default defineComponent({
       isRunning: boolean;
     }>({
       files: [],
-      isRunning: false
+      isRunning: false,
     });
     /* 对比详情 */
     const compareObj = reactive({
       files: [],
-      isRunning: false
+      isRunning: false,
     });
 
     const cancelObj = reactive<{
@@ -133,7 +134,7 @@ export default defineComponent({
 
     const filesStatus = ref<IFileStatus[]>([]);
 
-    function showChange(v: Boolean) {
+    function showChange(v: boolean) {
       if (!v) {
         searchObj.files.forEach(item => {
           cancelObj?.[item.uid]?.cancel?.();
@@ -163,7 +164,7 @@ export default defineComponent({
           name: options.file.name,
           uid: options.file.uid,
           progress: 0,
-          status: EFileStatus.running
+          status: EFileStatus.running,
         };
         searchObj.files.push(fileOption);
         filesStatus.value.push(fileOption);
@@ -189,7 +190,7 @@ export default defineComponent({
         // 暂时默认传pprof
         file_type: 'pprof',
         file,
-        global_query: 1
+        global_query: 1,
       };
       const cancelTokenSource = axios.CancelToken.source();
       cancelObj[file.uid] = cancelTokenSource;
@@ -246,17 +247,17 @@ export default defineComponent({
       handleUploadTypeChange,
       handleUploadProgress,
       t,
-      cancelUpload
+      cancelUpload,
     };
   },
   render() {
     return (
       <Dialog
-        isShow={this.show}
-        extCls={'profiling-file-upload-component'}
-        title={this.t('上传文件')}
-        dialogType={this.isCompare ? 'operation' : 'show'}
         width={640}
+        extCls={'profiling-file-upload-component'}
+        dialogType={this.isCompare ? 'operation' : 'show'}
+        isShow={this.show}
+        title={this.t('上传文件')}
         onClosed={() => this.showChange(false)}
         onConfirm={() => this.showChange(false)}
       >
@@ -278,12 +279,12 @@ export default defineComponent({
               )}
               <div
                 style={{
-                  display: this.isRunning ? 'none' : undefined
+                  display: this.isRunning ? 'none' : undefined,
                 }}
               >
                 <Upload
-                  size={50}
                   customRequest={this.handleUploadProgress as any}
+                  size={50}
                   // accept={FILES_TYPE.map(f => `.${f}`).join(',')}
                 >
                   {{
@@ -293,27 +294,27 @@ export default defineComponent({
                         <span class='title'>{this.t('点击上传或将文件拖到此处')}</span>
                         <span class='desc'>{this.t('支持{0}等文件格式', [FILES_TYPE_NAME])}</span>
                         <Button
-                          theme='primary'
                           class='upload-btn'
+                          theme='primary'
                         >
                           {this.t('上传')}
                         </Button>
                       </div>
-                    )
+                    ),
                   }}
                 </Upload>
               </div>
               <div
-                class='upload-running-wrap'
                 style={{
-                  display: !this.isRunning ? 'none' : undefined
+                  display: !this.isRunning ? 'none' : undefined,
                 }}
+                class='upload-running-wrap'
               >
                 <div class='file-list'>
                   {this.filesStatus.map(item => (
                     <div
-                      class='file-list-item'
                       key={item.uid}
+                      class='file-list-item'
                     >
                       <div class='file-logo'>
                         <UploadTextFill
@@ -346,10 +347,10 @@ export default defineComponent({
                         </div>
                         <div class='status-progress'>
                           <div
-                            class='progress-line'
                             style={{
-                              width: `${item.progress * 100}%`
+                              width: `${item.progress * 100}%`,
                             }}
+                            class='progress-line'
                           ></div>
                         </div>
                       </div>
@@ -364,9 +365,9 @@ export default defineComponent({
                 </div>
               </div>
             </div>
-          )
+          ),
         }}
       </Dialog>
     );
-  }
+  },
 });

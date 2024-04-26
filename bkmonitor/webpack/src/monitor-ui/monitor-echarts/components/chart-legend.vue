@@ -29,7 +29,7 @@
     class="chart-legend"
   >
     <colgroup>
-      <col style="width: 100%">
+      <col style="width: 100%" />
     </colgroup>
     <thead>
       <tr>
@@ -43,13 +43,13 @@
           <span class="caret-wrapper">
             <i
               class="sort-caret is-asc"
-              @click.self.stop="handleSortChange(title, 1)"
               :class="{ active: sortTitle === title && sort === 1 }"
+              @click.self.stop="handleSortChange(title, 1)"
             />
             <i
               class="sort-caret is-desc"
-              @click.self.stop="handleSortChange(title, 2)"
               :class="{ active: sortTitle === title && sort === 2 }"
+              @click.self.stop="handleSortChange(title, 2)"
             />
           </span>
         </th>
@@ -72,9 +72,11 @@
               <div
                 v-if="title === 'Min'"
                 class="legend-metric"
-                @click="(e) => handleLegendEvent(e, 'click', item)"
-                @mouseenter="(e) => handleLegendEvent(e, 'highlight', item)"
-                @mouseleave="(e) => handleLegendEvent(e, 'downplay', item)"
+                @mousedown="e => handleLegendMouseEvent(e, 'mousedown')"
+                @mousemove="e => handleLegendMouseEvent(e, 'mousemove')"
+                @mouseup="e => handleLegendMouseEvent(e, 'mouseup', item)"
+                @mouseenter="e => handleLegendEvent(e, 'highlight', item)"
+                @mouseleave="e => handleLegendEvent(e, 'downplay', item)"
               >
                 <span
                   class="metric-label"
@@ -84,7 +86,8 @@
                   v-bk-overflow-tips="{ placement: 'top', offset: '100, 0' }"
                   class="metric-name"
                   :style="{ color: item.show ? '#63656e' : '#ccc' }"
-                >{{ item.name }}</span>
+                  >{{ item.name }}</span
+                >
               </div>
               <div class="legend-value">
                 {{ item[title.toLocaleLowerCase()] }}
@@ -101,12 +104,12 @@
   >
     <template v-for="(legend, index) in legendData">
       <div
-        class="common-legend-item"
         v-if="!legend.hidden"
         :key="index"
-        @click="(e) => handleLegendEvent(e, 'click', legend)"
-        @mouseenter="(e) => handleLegendEvent(e, 'highlight', legend)"
-        @mouseleave="(e) => handleLegendEvent(e, 'downplay', legend)"
+        class="common-legend-item"
+        @click="e => handleLegendEvent(e, 'click', legend)"
+        @mouseenter="e => handleLegendEvent(e, 'highlight', legend)"
+        @mouseleave="e => handleLegendEvent(e, 'downplay', legend)"
       >
         <span
           class="legend-icon"
@@ -115,7 +118,9 @@
         <div
           class="legend-name"
           :style="{ color: legend.show ? '#63656e' : '#ccc' }"
-        >{{ legend.name }}</div>
+        >
+          {{ legend.name }}
+        </div>
       </div>
     </template>
   </div>
@@ -126,7 +131,7 @@ import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 import { ILegendItem } from '../options/type-interface';
 
 @Component({
-  name: 'chart-legend'
+  name: 'chart-legend',
 })
 export default class ChartLegend extends Vue {
   @Prop({ required: true }) readonly legendData: ILegendItem[];
@@ -135,9 +140,27 @@ export default class ChartLegend extends Vue {
   list: ILegendItem[] = [];
   sort = 0;
   sortTitle = '';
+  mouseEvent = {
+    isMouseDown: false,
+    isMouseMove: false,
+  };
+
   @Watch('legendData', { immediate: true })
   handleLegendDataChange() {
     this.handleSortChange();
+  }
+
+  handleLegendMouseEvent(e, mouseType: string, item?: ILegendItem) {
+    // 鼠标拖动选中文本不执行点击事件
+    if (mouseType === 'mousedown') {
+      this.mouseEvent.isMouseDown = true;
+    } else if (mouseType === 'mousemove') {
+      if (this.mouseEvent.isMouseDown) this.mouseEvent.isMouseMove = true;
+    } else {
+      !this.mouseEvent.isMouseMove && this.handleLegendEvent(e, 'click', item);
+      this.mouseEvent.isMouseDown = false;
+      this.mouseEvent.isMouseMove = false;
+    }
   }
 
   @Emit('legend-event')
@@ -148,7 +171,8 @@ export default class ChartLegend extends Vue {
     }
     return { actionType: eventType, item };
   }
-  handleSortChange(title?: 'Min' | 'Max' | 'Avg', sort?) {
+
+  handleSortChange(title?: 'Avg' | 'Max' | 'Min', sort?) {
     this.sortTitle = title || '';
     if (title) {
       if (typeof sort === 'number') {
@@ -163,7 +187,7 @@ export default class ChartLegend extends Vue {
     }
     const sortId = title.toLocaleLowerCase();
     this.list = this.legendData.slice().sort((a, b) => {
-      const [aVal] = [a[`${sortId}Raw`] ||  a[sortId].match(/\d+\.?\d+/) || 0];
+      const [aVal] = [a[`${sortId}Raw`] || a[sortId].match(/\d+\.?\d+/) || 0];
       const [bVal] = [b[`${sortId}Raw`] || b[sortId].match(/\d+\.?\d+/) || 0];
       if (this.sort === 1) {
         return +aVal - +bVal;
@@ -175,13 +199,12 @@ export default class ChartLegend extends Vue {
 </script>
 <style lang="scss" scoped>
 .chart-legend {
+  min-width: 400px;
+  overflow: auto;
   font-size: 12px;
-  border-collapse: collapse;
   line-height: 26px;
   color: #63656e;
-  overflow: auto;
-  user-select: none;
-  min-width: 400px;
+  border-collapse: collapse;
 
   tr {
     height: 26px;
@@ -193,9 +216,9 @@ export default class ChartLegend extends Vue {
   }
 
   th {
-    white-space: nowrap;
     padding: 0 12px;
     font-weight: bold;
+    white-space: nowrap;
 
     &:hover {
       cursor: pointer;
@@ -203,31 +226,31 @@ export default class ChartLegend extends Vue {
     }
 
     .caret-wrapper {
+      position: relative;
+      top: -1px;
       display: inline-flex;
+      flex: 20px 0 0;
       flex-direction: column;
       align-items: center;
       height: 20px;
-      flex: 20px 0 0;
+      margin-left: 4px;
       vertical-align: middle;
       cursor: pointer;
-      position: relative;
-      top: -1px;
-      margin-left: 4px;
 
       .sort-caret {
+        position: absolute;
         width: 0;
         height: 0;
-        border: 5px solid transparent;
-        position: absolute;
         margin-left: 4px;
+        border: 5px solid transparent;
 
         &:hover {
           cursor: pointer;
         }
 
         &.is-asc {
-          border-bottom-color: #c0c4cc;
           top: -1px;
+          border-bottom-color: #c0c4cc;
 
           &.active {
             border-bottom-color: #63656e;
@@ -235,8 +258,8 @@ export default class ChartLegend extends Vue {
         }
 
         &.is-desc {
-          border-top-color: #c0c4cc;
           bottom: -1px;
+          border-top-color: #c0c4cc;
 
           &.active {
             border-top-color: #63656e;
@@ -248,9 +271,9 @@ export default class ChartLegend extends Vue {
 
   td {
     display: table-cell;
-    white-space: nowrap;
     padding: 0 6px;
     text-align: right;
+    white-space: nowrap;
 
     .content-wrapper {
       display: flex;
@@ -258,27 +281,27 @@ export default class ChartLegend extends Vue {
       text-align: right;
 
       .legend-metric {
-        text-align: left;
-        margin-right: 9px;
         display: inline-flex;
         align-items: center;
+        margin-right: 9px;
         overflow: hidden;
-        white-space: nowrap;
+        text-align: left;
         text-overflow: ellipsis;
+        white-space: nowrap;
 
         .metric-label {
           display: inline-block;
           width: 12px;
-          height: 4px;
-          background-color: violet;
-          margin-right: 6px;
           min-width: 12px;
+          height: 4px;
+          margin-right: 6px;
+          background-color: violet;
         }
 
         .metric-name {
           overflow: hidden;
-          white-space: nowrap;
           text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         &:hover {
@@ -297,19 +320,19 @@ export default class ChartLegend extends Vue {
 
 .common-legend {
   &-item {
-    float: left;
-    white-space: nowrap;
-    margin-left: 10px;
     display: flex;
     align-items: center;
-    line-height: 16px;
+    float: left;
+    margin-left: 10px;
     font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
 
     .legend-icon {
       width: 12px;
       height: 4px;
-      background-color: violet;
       margin-right: 6px;
+      background-color: violet;
     }
 
     &:hover {

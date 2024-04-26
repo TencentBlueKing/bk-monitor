@@ -34,7 +34,7 @@ export const handleSetTargetDesc = (
 ) => {
   const targetResult = {
     message: '',
-    subMessage: ''
+    subMessage: '',
   };
   // const [{ objectType }] = this.metricData;
   const allHost = new Set();
@@ -52,7 +52,7 @@ export const handleSetTargetDesc = (
       const textMap = {
         TOPO: '{0}个拓扑节点',
         SERVICE_TEMPLATE: '{0}个服务模板',
-        SET_TEMPLATE: '{0}个集群模板'
+        SET_TEMPLATE: '{0}个集群模板',
       };
       targetResult.message = i18n.t(textMap[bkTargetType], [len]) as string;
       const subText = objectType === 'SERVICE' ? '{0}个实例' : '{0}台主机';

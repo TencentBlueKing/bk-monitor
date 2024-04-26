@@ -73,7 +73,7 @@ export default function processDeprecation(
       if (isIgnored) {
         warnings.push(`The value at "${formerKey}" is being ignored in favor of the value at "${currentKey}"`);
       }
-      // eslint-disable-next-line no-console
+
       console.warn(warnings.join('\n'));
     }
   }

@@ -27,18 +27,19 @@
   <article class="export-import">
     <section class="export-import-panel">
       <div
-        class="panel"
         v-for="(item, index) in panel"
         :key="index"
+        class="panel"
       >
-        <span class="panel-icon"><i
-          class="icon-monitor"
-          :class="item.icon"
+        <span class="panel-icon"
+          ><i
+            class="icon-monitor"
+            :class="item.icon"
         /></span>
         <span class="panel-title">{{ item.title }}</span>
         <button
           v-authority="{
-            active: item.type === 'import' ? !authority.MANAGE_IMPORT_CONFIG : !authority.MANAGE_EXPORT_CONFIG
+            active: item.type === 'import' ? !authority.MANAGE_IMPORT_CONFIG : !authority.MANAGE_EXPORT_CONFIG,
           }"
           class="panel-button"
           @click="handleClick(item.type)"
@@ -64,7 +65,6 @@
 
 <script>
 import aurhorityMixinCreate from '../../mixins/authorityMixin';
-
 import * as exportImportAuth from './authority-map';
 
 export default {
@@ -77,15 +77,15 @@ export default {
           icon: 'icon-mc-import',
           title: this.$t('可以批量导入插件,采集配置,策略配置等. 建议:导入的监控目标相同.'),
           btnText: this.$t('导入'),
-          type: 'import'
+          type: 'import',
         },
         {
           icon: 'icon-mc-export icon-export',
           title: this.$t('可以批量导出采集配置,策略配置和相应的依赖. 注意:不包括监控目标.'),
           btnText: this.$t('点击导出'),
-          type: 'export'
-        }
-      ]
+          type: 'export',
+        },
+      ],
     };
   },
   methods: {
@@ -113,8 +113,8 @@ export default {
       this.authority.MANAGE_IMPORT_CONFIG
         ? this.$router.push({ name: 'import-configuration-history' })
         : this.handleShowAuthorityDetail(exportImportAuth.MANAGE_IMPORT_CONFIG);
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -198,7 +198,7 @@ $exportIconColor: #ffd695;
       @include export-import-font(14px, $defaultFontColor);
 
       &:hover {
-        box-shadow: 0px 2px 6px 0px rgba(58, 132, 255, .1);
+        box-shadow: 0px 2px 6px 0px rgba(58, 132, 255, 0.1);
         border: 1px solid $primaryFontColor;
         color: $primaryFontColor;
       }

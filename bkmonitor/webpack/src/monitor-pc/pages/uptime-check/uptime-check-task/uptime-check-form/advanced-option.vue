@@ -27,45 +27,51 @@
   <div class="advanced-option">
     <div class="advanced-form-item">
       <div
-        class="item-label"
         v-en-style="'flex: 0 0 170px'"
-      >{{ $t('周期') }}</div>
+        class="item-label"
+      >
+        {{ $t('周期') }}
+      </div>
       <div class="item-container cycle">
         <!-- <bk-select class="cycle-select" v-model="cycle.value" :clearable="false">
           <bk-option v-for="(time, index) in cycle.list" :key="index" :name="time.name" :id="time.id"></bk-option>
         </bk-select> -->
         <cycle-input
+          v-model="cycle.value"
           :need-auto="false"
           class="cycle-input"
-          v-model="cycle.value"
           :min-sec="10"
         />
       </div>
     </div>
     <div
-      class="advanced-form-item"
       v-show="isHttp"
+      class="advanced-form-item"
     >
       <div
-        class="item-label"
         v-en-style="'flex: 0 0 170px'"
-      >{{ $t('期待返回码') }}</div>
+        class="item-label"
+      >
+        {{ $t('期待返回码') }}
+      </div>
       <div class="item-container code">
         <bk-input
+          v-model="response.code"
           class="code-input"
           :placeholder="$t('HTTP请求返回码，如200，304，404等...')"
-          v-model="response.code"
         />
       </div>
     </div>
     <div
-      class="advanced-form-item"
       v-if="isUdp"
+      class="advanced-form-item"
     >
       <div
-        class="item-label"
         v-en-style="'flex: 0 0 170px'"
-      >{{ $t('等待响应') }}</div>
+        class="item-label"
+      >
+        {{ $t('等待响应') }}
+      </div>
       <div class="item-container flex-center response">
         <bk-switcher
           v-model="waitEmptyResponse"
@@ -73,21 +79,23 @@
           @change="handleWaitEmptyResponse"
         />
         <div
-          class="hint-icon ml10"
           v-bk-tooltips.top="$t('拨测节点采集器版本低于2.7.3.184时该配置不生效，默认等待响应')"
+          class="hint-icon ml10"
         >
           <span class="icon-monitor icon-tips icon" />
         </div>
       </div>
     </div>
     <div
-      class="advanced-form-item"
       v-if="isUdp && waitEmptyResponse"
+      class="advanced-form-item"
     >
       <div
-        class="item-label"
         v-en-style="'flex: 0 0 170px'"
-      >{{ $t('期待响应格式') }}</div>
+        class="item-label"
+      >
+        {{ $t('期待响应格式') }}
+      </div>
       <div class="item-container response-format flex-center">
         <bk-select
           v-model="resFormat"
@@ -95,47 +103,49 @@
         >
           <bk-option
             v-for="item in responseFormatOptions"
-            :key="item.id"
             :id="item.id"
+            :key="item.id"
             :name="item.name"
           />
         </bk-select>
       </div>
     </div>
     <div
-      class="advanced-form-item"
       v-if="!isIcmp && (isUdp ? waitEmptyResponse : true)"
+      class="advanced-form-item"
     >
       <div
-        class="item-label"
         v-en-style="'flex: 0 0 170px'"
-      >{{ $t('期待响应信息') }}</div>
+        class="item-label"
+      >
+        {{ $t('期待响应信息') }}
+      </div>
       <div class="item-container response">
         <bk-select
-          @click.native="handleFocus(true)"
-          @toggle="handleFocus"
+          v-model="response.relation.value"
           class="response-select"
           :style="{ 'border-right-color': focusInput ? '#3c96ff' : focusSelect ? '#3a84ff' : '#c4c6cc' }"
-          v-model="response.relation.value"
           :clearable="false"
+          @click.native="handleFocus(true)"
+          @toggle="handleFocus"
         >
           <bk-option
             v-for="(item, index) in response.relation.list"
-            :key="index"
             :id="item.id"
+            :key="index"
             :name="item.name"
           />
         </bk-select>
         <bk-input
-          @focus="handleFocusInput"
-          @blur="focusInput = false"
+          v-model="response.message"
           :class="['response-input', focusSelect ? 'hide-border' : '']"
           :placeholder="$t('通过指定匹配内容来检查响应是否正确，为空则不做匹配检查')"
-          v-model="response.message"
+          @focus="handleFocusInput"
+          @blur="focusInput = false"
         />
         <div
-          class="hint-icon"
           v-bk-tooltips.top="$t('系统会自动创建该告警策略，响应信息匹配失败将会产生告警。')"
+          class="hint-icon"
         >
           <span class="icon-monitor icon-tips" />
         </div>
@@ -151,37 +161,39 @@
       </div>
     </div> -->
     <div
-      class="advanced-form-item"
       v-if="!isIcmp"
+      class="advanced-form-item"
     >
       <div
-        class="item-label"
         v-en-style="'flex: 0 0 170px'"
-      >{{ $t('地理位置') }}</div>
+        class="item-label"
+      >
+        {{ $t('地理位置') }}
+      </div>
       <div class="item-container location">
         <bk-select
-          class="location-select"
           v-model="location.value"
+          class="location-select"
           searchable
         >
           <bk-option
-            style="width: 212px"
             v-for="(item, index) in location.list"
-            :key="index"
             :id="item.cn"
+            :key="index"
+            style="width: 212px"
             :name="item.cn"
           />
         </bk-select>
         <bk-select
           v-show="citys.length"
-          class="location-select"
           v-model="location.city"
+          class="location-select"
         >
           <bk-option
-            style="width: 212px"
             v-for="(city, index) in citys"
-            :key="index"
             :id="city.cn"
+            :key="index"
+            style="width: 212px"
             :name="city.cn"
           />
         </bk-select>
@@ -215,30 +227,34 @@
     <template v-if="isIcmp">
       <div class="advanced-form-item">
         <div
-          class="item-label"
           v-en-style="'flex: 0 0 200px'"
-        >{{ $t('周期内连续探测') }}</div>
+          class="item-label"
+        >
+          {{ $t('周期内连续探测') }}
+        </div>
         <div class="item-container response">
           <bk-input
+            v-model="response.totalNum"
             type="number"
             :min="1"
             :max="20"
-            v-model="response.totalNum"
             style="width: 160px"
           />
         </div>
       </div>
       <div class="advanced-form-item">
         <div
-          class="item-label"
           v-en-style="'flex: 0 0 170px'"
-        >{{ $t('探测包大小') }}</div>
+          class="item-label"
+        >
+          {{ $t('探测包大小') }}
+        </div>
         <div class="item-container response">
           <bk-input
+            v-model="response.size"
             type="number"
             :min="24"
             :max="65507"
-            v-model="response.size"
             style="width: 160px"
           />
         </div>
@@ -258,27 +274,27 @@ const JOINER = '|';
 export const RESPONSE_FORMAT_OPTIONS = [
   {
     id: 'raw',
-    name: 'raw'
+    name: 'raw',
   },
   {
     id: 'hex',
-    name: 'hex'
-  }
+    name: 'hex',
+  },
 ];
 export default {
   name: 'AdvancedOption',
   components: {
-    CycleInput
+    CycleInput,
   },
   props: {
     protocol: {
       type: String,
-      default: 'HTTP'
+      default: 'HTTP',
     },
     options: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -288,14 +304,14 @@ export default {
         list: [
           {
             id: 1,
-            name: this.$t('1 分钟')
+            name: this.$t('1 分钟'),
           },
           {
             id: 5,
-            name: this.$t('5 分钟')
-          }
+            name: this.$t('5 分钟'),
+          },
         ],
-        value: DEFAULT_INTERVAL
+        value: DEFAULT_INTERVAL,
       },
       response: {
         code: '',
@@ -306,36 +322,36 @@ export default {
           list: [
             {
               id: 'in',
-              name: this.$t('包含')
+              name: this.$t('包含'),
             },
             {
               id: 'nin',
-              name: this.$t('不包含')
+              name: this.$t('不包含'),
             },
             {
               id: 'reg',
-              name: this.$t('正则')
-            }
+              name: this.$t('正则'),
+            },
           ],
-          value: 'nin'
-        }
+          value: 'nin',
+        },
       },
       isSSL: false,
       location: {
         list: [],
         value: '',
-        city: ''
+        city: '',
       },
       headers: [
         {
           list: [],
           name: '',
-          value: ''
-        }
+          value: '',
+        },
       ],
       responseFormatOptions: RESPONSE_FORMAT_OPTIONS,
       resFormat: 'hex',
-      waitEmptyResponse: true
+      waitEmptyResponse: true,
     };
   },
   computed: {
@@ -354,15 +370,15 @@ export default {
     },
     isUdp() {
       return this.protocol === 'UDP';
-    }
+    },
   },
   watch: {
     options: {
       handler(val) {
         this.setAdvancedOptionsData(val);
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   created() {
     this.getHttpHeaders();
@@ -378,12 +394,12 @@ export default {
       this.focusInput = true;
     },
     getHttpHeaders() {
-      getHttpHeaders().then((data) => {
+      getHttpHeaders().then(data => {
         this.headers[0].list = data;
       });
     },
     getLocation() {
-      countryList().then((data) => {
+      countryList().then(data => {
         if (data.length) {
           this.location.list = data;
         }
@@ -400,7 +416,7 @@ export default {
       this.headers.push({
         list: header,
         name: '',
-        value: ''
+        value: '',
       });
     },
     removeHttpHeader(index) {
@@ -408,8 +424,8 @@ export default {
     },
     getValue() {
       const headers = JSON.parse(JSON.stringify(this.headers));
-      const header = headers[0].name && headers[0].value
-        ? headers.map(item => ({ name: item.name, value: item.value })) : [];
+      const header =
+        headers[0].name && headers[0].value ? headers.map(item => ({ name: item.name, value: item.value })) : [];
       const { response } = this;
       const params = {
         total_num: response.totalNum,
@@ -417,10 +433,12 @@ export default {
         period: this.cycle.value,
         response_code: response.code.trim(),
         response: response.message || null,
-        response_format: this.isUdp ? `${this.resFormat || 'hex'}${JOINER}${response.relation.value}` : response.relation.value,
+        response_format: this.isUdp
+          ? `${this.resFormat || 'hex'}${JOINER}${response.relation.value}`
+          : response.relation.value,
         insecure_skip_verify: this.isSSL,
         headers: header,
-        location: { bk_state_name: this.location.value, bk_province_name: this.location.city }
+        location: { bk_state_name: this.location.value, bk_province_name: this.location.city },
       };
       if (this.isUdp) {
         params.wait_empty_response = this.waitEmptyResponse;
@@ -481,8 +499,8 @@ export default {
         {
           list: [],
           name: '',
-          value: ''
-        }
+          value: '',
+        },
       ];
       this.getHttpHeaders();
     },
@@ -493,8 +511,8 @@ export default {
         this.response.relation.value = 'nin';
         this.response.message = '';
       }
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

@@ -35,9 +35,9 @@ import './status-tips.scss';
 // 已下架 REMOVED
 // 已停用 DISABLED
 // 可用 AVAILABLE
-export type StatusType = 'ENABLED' | 'UPDATABLE' | 'NO_DATA' | 'REMOVE_SOON' | 'REMOVED' | 'DISABLED' | 'AVAILABLE';
+export type StatusType = 'AVAILABLE' | 'DISABLED' | 'ENABLED' | 'NO_DATA' | 'REMOVE_SOON' | 'REMOVED' | 'UPDATABLE';
 
-export type MapType<T extends string | number> = { [key in T]?: any };
+export type MapType<T extends number | string> = { [key in T]?: any };
 
 interface StatusTipsProps {
   status: StatusType;
@@ -55,20 +55,20 @@ export default class StatusTips extends tsc<StatusTipsProps> {
     NO_DATA: this.$t('无数据'),
     REMOVE_SOON: this.$t('将下架'),
     REMOVED: this.$t('已下架'),
-    DISABLED: this.$t('已停用')
+    DISABLED: this.$t('已停用'),
   };
 
   colorMap: MapType<StatusType> = {
     UPDATABLE: '#14A568 ',
     NO_DATA: '#EA3535',
     REMOVE_SOON: '#FF9C00',
-    REMOVED: '#ADAFB6'
+    REMOVED: '#ADAFB6',
   };
 
   get lineStyle() {
     return {
       height: `${this.lineHeight}px`,
-      background: this.colorMap[this.status]
+      background: this.colorMap[this.status],
     };
   }
 
@@ -76,14 +76,14 @@ export default class StatusTips extends tsc<StatusTipsProps> {
     return {
       height: `${this.titleHeight}px`,
       background: this.colorMap[this.status],
-      width: `${this.titleWidth}px`
+      width: `${this.titleWidth}px`,
     };
   }
 
   get titleStyle() {
     return {
       marginTop: `-${this.lineHeight / 2}px`,
-      lineHeight: 1
+      lineHeight: 1,
     };
   }
 
@@ -91,12 +91,12 @@ export default class StatusTips extends tsc<StatusTipsProps> {
     return (
       <div class='status-tips'>
         <div
-          class='line'
           style={this.lineStyle}
+          class='line'
         ></div>
         <div
-          class='title'
           style={this.nameStyle}
+          class='title'
         >
           <span style={this.titleStyle}>{this.statusMap[this.status]}</span>
         </div>

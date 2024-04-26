@@ -1,4 +1,3 @@
-/* eslint-disable array-callback-return */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,7 +25,8 @@
  */
 import { Component, Emit, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import SearchSelect from '@blueking/search-select';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { Debounce } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -38,14 +38,14 @@ import {
   ITabelDataFilterItem,
   ITableColumn,
   ITableFilterItem,
-  ITablePagination
+  ITablePagination,
 } from 'monitor-pc/pages/monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
   transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from 'monitor-pc/pages/monitor-k8s/utils';
 
 import ChartHeader from '../../components/chart-title/chart-title';
@@ -54,17 +54,16 @@ import { ITableDataItem } from '../../typings/table-chart';
 import { reviewInterval, setStyle } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
-
 import StatusTab from './status-tab';
 
-import '@blueking/search-select/dist/vue2-full.css';
 import './table-chart.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const STORE_KEY_PREFIX = 'table_chart_store_key_'; /** 图表缓存前缀 */
 
 export enum TABLE_CHART_TYPE {
+  FIELD = 'field',
   TABLE = 'table',
-  FIELD = 'field'
 }
 
 interface INumberChartProps {
@@ -74,7 +73,6 @@ interface ITableChartEvents {
   onChangeHeight?: (v: number) => number;
 }
 @Component
-// eslint-disable-next-line max-len
 export class TableChart extends CommonSimpleChart {
   @Ref() scrollRef: HTMLElement;
   empty = true;
@@ -94,7 +92,7 @@ export class TableChart extends CommonSimpleChart {
     current: 1,
     count: 0,
     limit: 10,
-    showTotalCount: true
+    showTotalCount: true,
   };
   sortKey = '';
   keyword = '';
@@ -197,7 +195,7 @@ export class TableChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const interval = reviewInterval(
         this.viewOptions.interval,
@@ -206,7 +204,7 @@ export class TableChart extends CommonSimpleChart {
       );
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        interval
+        interval,
       });
       const promiseList = this.panel.targets
         .filter(item => item.dataType === TABLE_CHART_TYPE.TABLE)
@@ -230,15 +228,15 @@ export class TableChart extends CommonSimpleChart {
                   keyword: this.keyword,
                   condition_list: transformConditionValueParams(this.conditionList),
                   view_options: {
-                    ...this.viewOptions
-                  }
+                    ...this.viewOptions,
+                  },
                 },
                 {
                   ...this.viewOptions.filters,
                   ...(this.viewOptions.filters?.current_target || {}),
                   ...this.viewOptions,
                   ...this.viewOptions.variables,
-                  interval
+                  interval,
                 }
               ),
               { needMessage: false }
@@ -310,7 +308,7 @@ export class TableChart extends CommonSimpleChart {
           const {
             async_field_key: fieldKey,
             async_field_request_name: fieldRequestName,
-            async_field: asyncField
+            async_field: asyncField,
           } = asyncConfig;
           const dataMap = this.tableData.map(val => {
             if (!val[asyncField]) return null;
@@ -324,13 +322,13 @@ export class TableChart extends CommonSimpleChart {
                   ...item.data,
                   ...params,
                   [fieldKey]: field,
-                  [fieldRequestName]: dataMap
+                  [fieldRequestName]: dataMap,
                 },
                 {
                   ...this.viewOptions.filters,
                   ...(this.viewOptions.filters?.current_target || {}),
                   ...this.viewOptions,
-                  ...this.viewOptions.variables
+                  ...this.viewOptions.variables,
                 }
               ),
               { needMessage: false }
@@ -339,7 +337,6 @@ export class TableChart extends CommonSimpleChart {
               // 组合结果 以键值对形式组合字段值
               const resultMap = res.reduce((pre, cur) => {
                 if (!pre[cur[asyncField]]) {
-                  // eslint-disable-next-line no-param-reassign
                   pre[cur[asyncField]] = cur[field];
                 }
                 return pre;
@@ -359,7 +356,7 @@ export class TableChart extends CommonSimpleChart {
               // 取消字段请求 loading 状态
               const newColumns = this.columns.map(col => ({
                 ...col,
-                asyncable: col.id === field ? false : col.asyncable
+                asyncable: col.id === field ? false : col.asyncable,
               }));
               this.columns = [...newColumns];
             });
@@ -476,43 +473,42 @@ export class TableChart extends CommonSimpleChart {
         {this.hasTitle ? (
           <ChartHeader
             class='draggable-handle'
-            title={this.panel.title}
             draging={this.panel.draging}
-            subtitle={this.panel.subTitle}
             isInstant={this.panel.instant}
             showMore={false}
+            subtitle={this.panel.subTitle}
+            title={this.panel.title}
             onMenuClick={this.handleMenuToolsSelect}
           />
         ) : (
           <div class='draggable-handle drag-area'></div>
         )}
         <div
-          class={['table-chart-contain', { 'no-title': !this.hasTitle }]}
           ref='scrollRef'
+          class={['table-chart-contain', { 'no-title': !this.hasTitle }]}
         >
           {this.columns?.length ? (
             [
               <div class='search-wrapper'>
-                {/* eslint-disable-next-line no-nested-ternary */}
+                {}
                 {this.searchType === 'search_select' ? (
                   <div class='search-wrapper-input'>
                     <SearchSelect
-                      value={this.conditionList}
-                      show-condition={false}
                       data={this.conditionOptions}
+                      modelValue={this.conditionList}
                       onChange={this.handleConditionChange}
                     />
                   </div>
                 ) : this.searchType === 'input' ? (
                   <bk-input
                     class='search-wrapper-input'
-                    placeholder='搜索'
-                    clearable
                     v-model={this.keyword}
-                    onEnter={this.handleSearchChange}
-                    onClear={() => this.handleSearchChange('')}
-                    onChange={this.handleSearchChange}
+                    placeholder='搜索'
                     right-icon='bk-icon icon-search'
+                    clearable
+                    onChange={this.handleSearchChange}
+                    onClear={() => this.handleSearchChange('')}
+                    onEnter={this.handleSearchChange}
                   />
                 ) : (
                   ''
@@ -525,8 +521,8 @@ export class TableChart extends CommonSimpleChart {
                   >
                     {this.checkFilterList.map(item => (
                       <bk-checkbox
-                        value={item.id}
                         key={item.id}
+                        value={item.id}
                       >
                         {item.name}
                       </bk-checkbox>
@@ -546,23 +542,22 @@ export class TableChart extends CommonSimpleChart {
               <CommonTable
                 style='background: #fff;'
                 checkable={false}
-                data={this.tableData}
-                overviewData={this.overviewData}
                 columns={this.columns}
+                data={this.tableData}
                 defaultSize='small'
-                storeKey={!!this.panel.title ? `${STORE_KEY_PREFIX}${this.panel.title}` : ''}
-                paginationType='simple'
-                pagination={this.pagination}
-                showExpand={this.showExpand}
-                jsonViewerDataKey={this.jsonViewerDataKey}
                 jsonViewerDataEmptyText={this.jsonViewerDataEmptyText}
-                onSortChange={this.handleSortChange}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                onLimitChange={this.handleLimitChange}
-                onPageChange={this.handlePageChange}
+                jsonViewerDataKey={this.jsonViewerDataKey}
+                overviewData={this.overviewData}
+                pagination={this.pagination}
+                paginationType='simple'
+                showExpand={this.showExpand}
+                storeKey={!!this.panel.title ? `${STORE_KEY_PREFIX}${this.panel.title}` : ''}
                 onCollect={this.handleCollect}
                 onFilterChange={this.handleFilterChange}
-              />
+                onLimitChange={this.handleLimitChange}
+                onPageChange={this.handlePageChange}
+                onSortChange={this.handleSortChange}
+              />,
             ]
           ) : (
             <div class='empty-text'>{this.emptyText}</div>

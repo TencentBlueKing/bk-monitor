@@ -33,16 +33,34 @@
     <!-- IP 日志路径 -->
     <div class="dialog-label">
       <span class="dialog-title">{{ title }}</span>
-      <span style="margin-right: 10px">IP: {{ params.ip || params.serverIp }}</span>
-      <span
-        v-bk-overflow-tips
-        class="title-overflow"
-        >{{ $t('日志路径') + ': ' + (params.path || params.logfile) }}</span
-      >
+      <template v-if="!targetFields.length">
+        <span style="margin-right: 10px">IP: {{ params.ip || params.serverIp }}</span>
+        <span
+          v-bk-overflow-tips
+          class="title-overflow"
+        >
+          {{ $t('日志路径') + ': ' + (params.path || params.logfile) }}
+        </span>
+      </template>
+      <template v-else>
+        <span
+          v-bk-tooltips.bottom="getTargetFieldsStr"
+          class="title-overflow"
+        >
+          <span
+            v-for="(item, index) of targetFields"
+            :key="index"
+            style="margin-right: 10px"
+          >
+            <span>{{ item }}: </span>
+            <span>{{ params[item] || '/' }}</span>
+          </span>
+        </span>
+      </template>
     </div>
 
     <div class="dialog-bars">
-      <log-filter
+      <data-filter
         :is-screen-full="isScreenFull"
         @handle-filter="handleFilter"
       />
@@ -100,14 +118,14 @@
 <script>
 import logView from '@/components/log-view';
 import FieldsConfig from '@/components/common/fields-config';
-import LogFilter from '../condition-comp/Log-filter';
+import DataFilter from '../condition-comp/data-filter.vue';
 
 export default {
   name: 'ContextLog',
   components: {
     logView,
     FieldsConfig,
-    LogFilter
+    DataFilter
   },
   props: {
     retrieveParams: {
@@ -123,6 +141,10 @@ export default {
     title: {
       type: String,
       require: true
+    },
+    targetFields: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
@@ -172,6 +194,12 @@ export default {
     filedSettingConfigID() {
       // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
+    },
+    getTargetFieldsStr() {
+      return this.targetFields.reduce((acc, cur) => {
+        acc += `${cur}: ${this.params[cur] || '/ '} `;
+        return acc;
+      }, '');
     }
   },
   created() {
@@ -540,11 +568,10 @@ export default {
 }
 
 .log-full-dialog-wrapper {
-  height: calc(100% - 72px);
-  margin-top: 10px;
+  height: 100%;
 
   .dialog-log-markdown {
-    height: calc(100% - 76px);
+    height: calc(100% - 132px);
   }
 
   .dialog-label {

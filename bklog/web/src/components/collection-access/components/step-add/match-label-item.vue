@@ -504,7 +504,7 @@ export default {
     padding: 0 6px;
     overflow: hidden;
     line-height: 30px;
-    justify-content: start;
+    justify-content: flex-start;
     align-items: center;
 
     .operator,

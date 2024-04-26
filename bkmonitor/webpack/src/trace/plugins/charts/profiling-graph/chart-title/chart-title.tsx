@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, PropType, ref } from 'vue';
+
 import { Dropdown, Input } from 'bkui-vue';
 import { ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { debounce } from 'throttle-debounce';
@@ -38,23 +39,23 @@ export default defineComponent({
   props: {
     activeMode: {
       type: String as PropType<ViewModeType>,
-      required: true
+      required: true,
     },
     textDirection: {
       type: String as PropType<DirectionType>,
-      default: 'ltr'
+      default: 'ltr',
     },
     isCompared: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['modeChange', 'textDirectionChange', 'keywordChange', 'download'],
   setup(props, { emit }) {
     const downloadTypeMaps = [
       'png',
       //  'json',
-      'pprof'
+      'pprof',
       //  'html'
     ];
 
@@ -64,7 +65,7 @@ export default defineComponent({
       const list = [
         { id: ViewModeType.Table, icon: 'table' },
         { id: ViewModeType.Combine, icon: 'mc-fenping' },
-        { id: ViewModeType.Flame, icon: 'mc-flame' }
+        { id: ViewModeType.Flame, icon: 'mc-flame' },
       ];
 
       if (!props.isCompared) {
@@ -95,7 +96,7 @@ export default defineComponent({
       handleModeChange,
       handleEllipsisDirectionChange,
       handleKeywordChange,
-      menuClick
+      menuClick,
     };
   },
   render() {
@@ -112,8 +113,8 @@ export default defineComponent({
           ))}
         </div>
         <Input
-          type='search'
           v-model={this.keyword}
+          type='search'
           onInput={this.handleKeywordChange}
         />
         <div class='ellipsis-direction button-group'>
@@ -135,7 +136,6 @@ export default defineComponent({
         </div> */}
 
         <Dropdown
-          placement='bottom-end'
           v-slots={{
             content: () => (
               <Dropdown.DropdownMenu>
@@ -148,8 +148,9 @@ export default defineComponent({
                   </Dropdown.DropdownItem>
                 ))}
               </Dropdown.DropdownMenu>
-            )
+            ),
           }}
+          placement='bottom-end'
         >
           <div class='download-button'>
             <i class='icon-monitor icon-xiazai1'></i>
@@ -157,5 +158,5 @@ export default defineComponent({
         </Dropdown>
       </div>
     );
-  }
+  },
 });

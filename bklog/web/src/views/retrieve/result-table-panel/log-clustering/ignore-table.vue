@@ -114,6 +114,7 @@ export default {
     ExpandView,
     EmptyStatus
   },
+  inheritAttrs: false,
   props: {
     active: {
       type: String,
@@ -200,7 +201,7 @@ export default {
       }, []);
     },
     computedRate(count) {
-      return `${((count / this.tableData.length) * 100).toFixed(2)}%`;
+      return `${((count / this.tableList.length) * 100).toFixed(2)}%`;
     },
     tableRowClick(row) {
       this.$refs.logClusterTable.toggleRowExpansion(row);
@@ -236,7 +237,9 @@ export default {
 <style lang="scss">
 /* stylelint-disable no-descending-specificity */
 .log-cluster-table {
-  color: #313238;
+  font-family: var(--table-fount-family);
+  font-size: var(--table-fount-size);
+  color: var(--table-fount-color);
 
   .bk-table-body td.bk-table-expanded-cell {
     padding: 0;
@@ -268,7 +271,10 @@ export default {
     display: inline-block;
     padding-right: 15px;
     overflow: hidden;
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
     line-height: 20px;
+    color: var(--table-fount-color);
 
     &.is-limit {
       max-height: 96px;

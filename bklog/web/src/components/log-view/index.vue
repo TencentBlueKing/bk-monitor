@@ -24,8 +24,8 @@
   <section class="log-view">
     <pre id="log-content">
       <div
-      v-for="(item, index) in escapedReverseLogList"
-      v-show="checkLineShow(item, index, 'reverse')"
+        v-for="(item, index) in escapedReverseLogList"
+        v-show="checkLineShow(item, index, 'reverse')"
         :key="item.replace(/\s/g, '') + index"
         class="line">
         <span class="line-num">{{ index - reverseLogList.length }}</span>
@@ -282,7 +282,8 @@ export default {
       min-height: 16px;
       padding: 0 15px 0 55px;
       margin: 0;
-      font-size: 12px;
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
       flex-direction: row;
 
       &.log-init {

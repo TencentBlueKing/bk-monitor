@@ -26,7 +26,8 @@
 
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
-import SearchSelect from '@blueking/search-select';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -40,14 +41,13 @@ import {
   IDataSourceItem,
   ISearchObj,
   ISearchOption,
-  IStaticParams
+  IStaticParams,
 } from '../../../../types/strategy-config/strategy-metric';
 import { IScenarioItem, MetricDetail } from '../typings/index';
-
 import HorizontalScrollContainer from './horizontal-scroll-container';
 
-import '@blueking/search-select/dist/vue2-full.css';
 import './strategy-metric-common.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface IStrategyMetricCommon {
   isShow: boolean;
@@ -61,8 +61,8 @@ interface IStrategyMetricCommon {
 }
 interface IOption {
   name: string;
-  id?: string | number;
-  value?: string | number;
+  id?: number | string;
+  value?: number | string;
   children?: IOption[];
 }
 
@@ -78,7 +78,7 @@ interface ICache {
 }
 
 @Component({
-  name: 'StrategyMetricCommon'
+  name: 'StrategyMetricCommon',
 })
 class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
@@ -93,7 +93,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   searchObj: ISearchObj = {
     // 键值对搜索数据
     keyWord: [],
-    data: []
+    data: [],
   };
   scenarioCounts = []; // 各监控对象的count值
   sourceType = 'bk_monitor_time_series'; // 数据来源
@@ -106,7 +106,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   oldCheckedMetricTap = {
     // 已选指标的数据来源及监控对象
     sourceType: '',
-    scenarioType: ''
+    scenarioType: '',
   };
   hoverTimer = null; // tip
   popoverInstance = null;
@@ -117,7 +117,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   isCheckedOther = false; // 是否已选择其他数据来源的指标
   tag = {
     value: '',
-    list: []
+    list: [],
   };
   paramsMap = {
     bk_monitor_time_series: 'fromMonitor', // 监控采集指标
@@ -125,7 +125,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     custom_time_series: 'fromCustomRreporting', // 自定义指标
     custom_event: 'fromCustomRreporting', // 自定义事件
     bk_monitor_event: 'homeLink', // 系统事件
-    log_time_series: 'formLogPlatform' // 日志平台指标
+    log_time_series: 'formLogPlatform', // 日志平台指标
   };
   isSingleChoice = ['bk_data_time_series', 'log_time_series']; // 数据来源单选列表
   isSpecialCMDBDimension = false; // 已选指标维度包含已选维度 bk_inst_id bk_obj_id 则只能进行单选
@@ -172,8 +172,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   created() {
     this.scenarioType = this.monitorType;
     this.searchObj.data = this.getSearchOptions();
-    this.handleSearch = debounce(300, false, this.filterMetric);
-    this.throttledScroll = throttle(300, false, this.handleScroll);
+    this.handleSearch = debounce(300, this.filterMetric);
+    this.throttledScroll = throttle(300, this.handleScroll);
     this.dataSourceInit();
     this.cacheDataInit();
   }
@@ -232,7 +232,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'bk_monitor_time_series',
         sourceName: this.$tc('监控采集指标'),
-        list: []
+        list: [],
       },
       bk_data_time_series: {
         count: 0,
@@ -240,7 +240,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'bk_data_time_series',
         sourceName: this.$tc('计算平台指标'),
-        list: []
+        list: [],
       },
       custom_time_series: {
         count: 0,
@@ -248,7 +248,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'custom_time_series',
         sourceName: this.$tc('自定义指标'),
-        list: []
+        list: [],
       },
       log_time_series: {
         count: 0,
@@ -256,7 +256,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'log_time_series',
         sourceName: this.$tc('日志平台指标'),
-        list: []
+        list: [],
       },
       bk_apm_trace_timeseries: {
         count: 0,
@@ -264,8 +264,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         dataTypeLabel: 'time_series',
         sourceType: 'bk_apm_trace_timeseries',
         sourceName: 'APM',
-        list: []
-      }
+        list: [],
+      },
     };
   }
 
@@ -300,7 +300,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
       conditions: this.seachParams,
       page_size: this.pageSize,
       page: this.cache?.[cacheKey]?.page ? this.cache[cacheKey].page : 1,
-      tag: this.tag.value
+      tag: this.tag.value,
     };
     if (!needResultTableLabel) {
       delete params.result_table_label;
@@ -348,7 +348,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
       bk_biz_id: this.$store.getters.bizId,
       data_source_label: Array.isArray(dataSource) ? dataSource : [dataSource],
       data_type_label: dataTypeLabel || this.curData.dataTypeLabel,
-      result_table_label: this.scenarioType
+      result_table_label: this.scenarioType,
     };
   }
   // 刷新按钮
@@ -486,7 +486,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   handleMetricFieldName(row) {
     const obj = {
       id: '',
-      alias: ''
+      alias: '',
     };
     obj.id =
       this.sourceType === 'log_time_series'
@@ -542,7 +542,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
       placement: 'top-end',
       boundary: 'window',
       sticky: true,
-      interactive: true
+      interactive: true,
     });
     this.popoverConfirmInstance?.show(100);
   }
@@ -557,7 +557,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     const typeMap = {
       other: this.$refs.popoverConfirm,
       uptimeCheck: this.$refs.popoverConfirmUptimeCheck, // 如果选中服务拨测相关指标则只能单选
-      CMDB: this.$refs.popoverSpecialCMDBD // 如果选中CMDB节点维度的聚合则不能多选
+      CMDB: this.$refs.popoverSpecialCMDBD, // 如果选中CMDB节点维度的聚合则不能多选
     };
     this.curPopoverMetric = item;
     this.popConfirmMertricUtil(typeMap[type], e.target);
@@ -619,7 +619,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         theme: 'tippy-metric',
         arrow: true,
         placement: 'auto',
-        boundary: 'window'
+        boundary: 'window',
       });
       this.popoverInstance?.show();
     }, 1000);
@@ -644,12 +644,10 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     this.$router.push({
       name: 'uptime-check',
       params: {
-        taskId: this.uptimeCheckTaskId.toString()
-      }
+        taskId: this.uptimeCheckTaskId.toString(),
+      },
     });
   }
-
-  /* eslint-disable camelcase */
 
   //  监听滚动加载 到底触发加载
   async handleScroll(e: any) {
@@ -670,7 +668,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     const options = [
       // 公共项
       { id: 'metric_field', name: this.$tc('指标名'), children: [] },
-      { id: 'metric_field_name', name: this.$tc('指标别名'), children: [] }
+      { id: 'metric_field_name', name: this.$tc('指标别名'), children: [] },
     ];
     const searchObj = {
       bk_monitor_time_series: [
@@ -681,7 +679,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         { id: 'result_table_id', name: this.$tc('分类ID'), children: [] },
         { id: 'result_table_name', name: this.$tc('分类名'), children: [] },
         { id: 'description', name: this.$tc('含义'), children: [] },
-        { id: 'collect_config', name: this.$tc('采集配置'), children: [] }
+        { id: 'collect_config', name: this.$tc('采集配置'), children: [] },
       ],
       log_time_series: [
         // 日志平台指标
@@ -690,19 +688,19 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         { id: 'related_id', name: this.$tc('索引集ID'), children: [] },
         { id: 'result_table_id', name: this.$tc('索引'), children: [] },
         { id: 'scenario_name', name: this.$tc('数据源类别'), children: [] },
-        { id: 'storage_cluster_name', name: this.$tc('数据源名'), children: [] }
+        { id: 'storage_cluster_name', name: this.$tc('数据源名'), children: [] },
       ],
       bk_data_time_series: [
         // 计算平台指标
         ...options,
-        { id: 'result_table_id', name: this.$tc('表名'), children: [] }
+        { id: 'result_table_id', name: this.$tc('表名'), children: [] },
       ],
       custom_time_series: [
         // 自定义指标
         ...options,
         { id: 'bk_data_id', name: this.$tc('数据ID'), children: [] },
-        { id: 'result_table_name', name: this.$tc('数据名'), children: [] }
-      ]
+        { id: 'result_table_name', name: this.$tc('数据名'), children: [] },
+      ],
     };
     return searchObj[this.sourceType];
   }
@@ -774,7 +772,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     const className = [
       'content-card',
       { 'card-active': this.handleDetermineMetric(this.checkedMetric, item) },
-      { 'card-disabled': item.disabled }
+      { 'card-disabled': item.disabled },
     ];
     if (alias) {
       dom = (
@@ -838,9 +836,9 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   render() {
     return (
       <MonitorDialog
-        value={this.isShow}
-        title={this.$t('选择监控指标')}
         width={960}
+        title={this.$t('选择监控指标')}
+        value={this.isShow}
         zIndex={3000}
         on-change={this.handleShowChange}
       >
@@ -851,11 +849,10 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
           <div class='head'>
             <div class='metric-search'>
               <SearchSelect
-                value={this.searchObj.keyWord}
-                data={this.searchObj.data}
-                placeholder={this.$t('关键字搜索')}
                 clearable={false}
-                show-condition={false}
+                data={this.searchObj.data}
+                modelValue={this.searchObj.keyWord}
+                placeholder={this.$t('关键字搜索')}
                 on-change={this.handleSearch}
               />
             </div>
@@ -872,9 +869,9 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
             <div class='built-in'>
               {this.tag.list.map(item => (
                 <div
-                  on-click={() => this.handleTagClick(item.id)}
-                  class={['built-in-item', { active: this.tag.value === item.id }]}
                   key={item.id}
+                  class={['built-in-item', { active: this.tag.value === item.id }]}
+                  on-click={() => this.handleTagClick(item.id)}
                 >
                   {item.name}
                 </div>
@@ -885,8 +882,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
             <ul class='content-left'>
               {this.scenarioListAll.map(item => (
                 <li
-                  class={['left-item', { 'item-active': this.scenarioType === item.name }]}
                   key={item.name}
+                  class={['left-item', { 'item-active': this.scenarioType === item.name }]}
                   on-click={() => this.handleLeftChange(item.name)}
                 >
                   <span class='left-item-name'>{item.label}</span>
@@ -912,10 +909,10 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
               </div>
               <div class='see-selected'>
                 <bk-checkbox
-                  checked={false}
-                  true-value={true}
-                  false-value={false}
                   v-model={this.isSeeSelected}
+                  checked={false}
+                  false-value={false}
+                  true-value={true}
                   on-change={this.SeeSelectedChange}
                 >
                   <div class='selected-text'>
@@ -926,8 +923,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
               </div>
               {this.curData?.list.length ? (
                 <div
-                  class='metric-common-content'
                   ref='metricContent'
+                  class='metric-common-content'
                 >
                   {this.curData.list.map(item => this.getMetricComponent(item))}
                   {this.getNoMetricComponent('rel')}
@@ -936,8 +933,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
                 <div class='metric-common-content'>
                   <bk-exception
                     class='exception-wrap-item right-empty'
-                    type='empty'
                     scene='part'
+                    type='empty'
                   ></bk-exception>
                 </div>
               )}
@@ -949,9 +946,9 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         <template slot='footer'>
           {!this.readonly ? (
             <bk-button
-              theme='primary'
               style='margin-right: 10px'
               disabled={this.checkedMetric && this.checkedMetric.length === 0}
+              theme='primary'
               on-click={this.handleConfirm}
             >
               {this.$t('添加')}
@@ -976,20 +973,20 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         >
           <span>{`${this.$t('只能同时选择同一数据来源下的指标')}。 ${this.$t('已选【{0}-{1}】指标', [
             scenarioName,
-            sourceName
+            sourceName,
           ])}，`}</span>
           <span
-            on-click={this.handleToCheckedMetric}
             class='text-click'
+            on-click={this.handleToCheckedMetric}
           >{`${this.$t('前往查看')};`}</span>
           <span>{`${this.$t('你也可以')}`}</span>
           <span
-            on-click={this.confirmCheckCurMetric}
             class='text-click'
+            on-click={this.confirmCheckCurMetric}
           >{`${this.$t('清空已选并选择当前指标')}。`}</span>
           <div
-            on-click={this.popoverCancel}
             class='text-click cancel'
+            on-click={this.popoverCancel}
           >
             {this.$t('取消')}
           </div>
@@ -1003,12 +1000,12 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         >
           <span>{`${this.$t('拨测相关指标只能单选')}。`}</span>
           <span
-            on-click={this.confirmCheckCurMetric}
             class='text-click'
+            on-click={this.confirmCheckCurMetric}
           >{`${this.$t('清空已选并选择当前指标')}。`}</span>
           <div
-            on-click={this.popoverCancel}
             class='text-click cancel'
+            on-click={this.popoverCancel}
           >
             {this.$t('取消')}
           </div>
@@ -1022,12 +1019,12 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         >
           <span>{`${this.$t('多指标下不支持cmdb节点维度的聚合')}。`}</span>
           <span
-            on-click={this.confirmCheckCurMetricSpecialCMDBD}
             class='text-click'
+            on-click={this.confirmCheckCurMetricSpecialCMDBD}
           >{`${this.$t('清空已选并选择当前指标')}。`}</span>
           <div
-            on-click={this.popoverCancel}
             class='text-click cancel'
+            on-click={this.popoverCancel}
           >
             {this.$t('取消')}
           </div>
@@ -1035,9 +1032,9 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
       </div>,
       <div style='display: none'>
         <div
-          on-mouseleave={this.handleTipsLeave}
-          class='uptimecheck-tips'
           ref='uptimecheckTips'
+          class='uptimecheck-tips'
+          on-mouseleave={this.handleTipsLeave}
         >
           {this.$t('该指标需设置期望返回码/期望响应信息后才可选取')}
           <span
@@ -1049,7 +1046,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
             {this.$t('前往设置')}{' '}
           </span>
         </div>
-      </div>
+      </div>,
     ];
   }
 }

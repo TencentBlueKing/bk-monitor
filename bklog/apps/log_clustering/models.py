@@ -68,8 +68,8 @@ class AiopsSignatureAndPattern(SoftDeleteModel):
     pattern = models.TextField("pattern")
     origin_pattern = models.TextField(_("原始pattern"), default="")
     label = models.TextField(_("标签"), default="")
-    remark = models.JSONField(_("备注信息"), default=[], null=True, blank=True)
-    owners = models.JSONField(_("负责人"), default=[], null=True, blank=True)
+    remark = models.JSONField(_("备注信息"), default=list, null=True, blank=True)
+    owners = models.JSONField(_("负责人"), default=list, null=True, blank=True)
 
     class Meta:
         index_together = ["model_id", "signature"]
@@ -81,8 +81,8 @@ class ClusteringRemark(SoftDeleteModel):
     origin_pattern = models.TextField(_("原始pattern"), default="")
     groups = models.JSONField(_("分组信息 kv格式"), default=dict, null=True, blank=True)
     group_hash = models.CharField(_("分组hash"), max_length=256)
-    remark = models.JSONField(_("备注信息"), default=[], null=True, blank=True)
-    owners = models.JSONField(_("负责人"), default=[], null=True, blank=True)
+    remark = models.JSONField(_("备注信息"), default=list, null=True, blank=True)
+    owners = models.JSONField(_("负责人"), default=list, null=True, blank=True)
 
     class Meta:
         index_together = ["signature", "group_hash"]
@@ -97,7 +97,7 @@ class ClusteringRemark(SoftDeleteModel):
 
 
 class ClusteringConfig(SoftDeleteModel):
-    group_fields = models.JSONField(_("分组字段 kv格式"), default=dict, null=True, blank=True)
+    group_fields = models.JSONField(_("分组字段"), default=list, null=True, blank=True)
     collector_config_id = models.IntegerField(_("采集项id"), null=True, blank=True)
     collector_config_name_en = models.CharField(_("采集项英文名"), max_length=255, null=True, blank=True)
     index_set_id = models.IntegerField(_("索引集id"), db_index=True)

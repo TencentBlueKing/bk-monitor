@@ -744,6 +744,9 @@ class DimensionDrillManager(AIOPSManager):
             group_bys = []
             src_group_bys = query_config["group_by"]
 
+            if not metric:  # 如果指标不存在，则没有维度需要下钻
+                continue
+
             for dimension in metric.dimensions:
                 # 如果某个维度在过滤条件里，则不对该维度进行下钻
                 if dimension.get("is_dimension", True) and dimension["id"] not in chain(
@@ -766,7 +769,6 @@ class DimensionDrillManager(AIOPSManager):
         }
 
     def get_serving_output(self, metric: MetricListCache, graph_panel: Dict):
-
         processing_id = settings.BK_DATA_DIMENSION_DRILL_PROCESSING_ID
         query_configs = copy.deepcopy(graph_panel["targets"][0]["data"]["query_configs"])
 
@@ -794,7 +796,6 @@ class DimensionDrillManager(AIOPSManager):
         return response["data"]["data"][0]["output"][0]
 
     def fetch_aiops_result(self):
-
         if not self.is_enable():
             # raise AIOpsDisableError({"func": _("维度下钻")})
             raise AIOpsFunctionAccessedError({"func": _("维度下钻")})

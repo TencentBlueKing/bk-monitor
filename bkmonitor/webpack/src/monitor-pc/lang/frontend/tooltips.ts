@@ -259,5 +259,5 @@ export default {
   常规算法不同等级只能各添加一种:
     'For regular detections of different levels, only one type can be added for each level.',
   变量示例: 'Example',
-  点击复制变量: 'Click to copy variables'
+  点击复制变量: 'Click to copy variables',
 };

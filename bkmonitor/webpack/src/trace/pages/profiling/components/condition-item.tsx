@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Select } from 'bkui-vue';
 import { debounce } from 'lodash';
 import { queryLabelValues } from 'monitor-api/modules/apm_profile';
@@ -38,16 +39,16 @@ export default defineComponent({
   props: {
     data: {
       type: Object as PropType<IConditionItem>,
-      default: () => null
+      default: () => null,
     },
     labelList: {
       type: Array as PropType<string[]>,
-      default: () => []
+      default: () => [],
     },
     valueListParams: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   emits: ['change', 'delete'],
   setup(props, { emit }) {
@@ -56,11 +57,11 @@ export default defineComponent({
     const localValue = reactive<IConditionItem>({
       key: '',
       method: 'eq',
-      value: ''
+      value: '',
     });
     const labelStatus = reactive({
       toggle: false,
-      hover: false
+      hover: false,
     });
 
     const scrollLoading = ref(false);
@@ -72,7 +73,7 @@ export default defineComponent({
         newVal && Object.assign(localValue, newVal);
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -97,7 +98,7 @@ export default defineComponent({
         ...props.valueListParams,
         label_key: localValue.key,
         rows,
-        offset
+        offset,
       }).catch(() => ({ label_values: [] }));
       valueList.value = [...valueList.value, ...res.label_values];
       scrollLoading.value = false;
@@ -127,7 +128,7 @@ export default defineComponent({
       getLabelValuesDebounce,
       handleKeyChange,
       handleEmitData,
-      handleDelete
+      handleDelete,
     };
   },
 
@@ -141,27 +142,27 @@ export default defineComponent({
                 label: true,
                 active: this.labelStatus.toggle,
                 hover: this.labelStatus.hover,
-                placeholder: !this.localValue.key
+                placeholder: !this.localValue.key,
               }}
             >
               {this.localValue.key || this.t('选择')}
             </span>
             <div
-              onMouseover={() => (this.labelStatus.hover = true)}
               onMouseout={() => (this.labelStatus.hover = false)}
+              onMouseover={() => (this.labelStatus.hover = true)}
             >
               <Select
-                v-model={this.localValue.key}
                 class='label-select'
-                onToggle={toggle => (this.labelStatus.toggle = toggle)}
-                popover-min-width={120}
+                v-model={this.localValue.key}
                 clearable={false}
+                popover-min-width={120}
                 onChange={this.handleKeyChange}
+                onToggle={toggle => (this.labelStatus.toggle = toggle)}
               >
                 {this.labelList.map(option => (
                   <Select.Option
-                    key={option}
                     id={option}
+                    key={option}
                     name={option}
                   ></Select.Option>
                 ))}
@@ -177,15 +178,15 @@ export default defineComponent({
         <div class='content'>
           <Select
             v-model={this.localValue.value}
-            filterable
             scroll-loading={this.scrollLoading}
-            onScroll-end={this.getLabelValuesDebounce}
+            filterable
             onChange={this.handleEmitData}
+            onScroll-end={this.getLabelValuesDebounce}
           >
             {this.valueList.map(option => (
               <Select.Option
-                key={option}
                 id={option}
+                key={option}
                 name={option}
               ></Select.Option>
             ))}
@@ -193,5 +194,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

@@ -1508,7 +1508,7 @@ class ResultTableField(models.Model):
     }
 
     table_id = models.CharField("结果表名", max_length=128)
-    field_name = models.CharField("字段名", max_length=255)
+    field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
     field_type = models.CharField("字段类型", max_length=32, choices=FIELD_TYPE_CHOICES)
     description = models.TextField("字段描述")
     # 单位存在默认值，默认为空
@@ -2485,7 +2485,7 @@ class ResultTableFieldOption(OptionBase):
     OPTION_INFLUXDB_DISABLED = "influxdb_disabled"
 
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
-    field_name = models.CharField("字段名", max_length=255)
+    field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
     name = models.CharField(
         "option名称",
         choices=(

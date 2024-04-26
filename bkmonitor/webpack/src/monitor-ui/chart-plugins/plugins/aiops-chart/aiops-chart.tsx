@@ -25,7 +25,8 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import echarts from 'echarts';
+
+import { connect } from 'echarts/core';
 
 import loadingIcon from '../../icons/spinner.svg';
 import { PanelModel } from '../../typings';
@@ -62,7 +63,7 @@ export default class AiopsChart extends tsc<IProps> {
   handleConnectEchart() {
     // 等待所以子视图实例创建完进行视图示例的关联 暂定5000ms 后期进行精细化配置
     setTimeout(() => {
-      echarts.connect(this.panels?.[0]?.dashboardId);
+      connect(this.panels?.[0]?.dashboardId);
     }, 5000);
   }
   handleChangeLoading(val: boolean, index: number) {
@@ -102,21 +103,21 @@ export default class AiopsChart extends tsc<IProps> {
             {this.loadingList[index] && (
               <img
                 class='loading-icon'
-                src={loadingIcon}
                 alt=''
+                src={loadingIcon}
               ></img>
             )}
             <LineChart
-              panel={panel}
-              customTimeRange={this.customTimeRange}
-              customMenuList={['screenshot', 'explore', 'set', 'area']}
-              onLoading={val => this.handleChangeLoading(val, index)}
-              onErrorMsg={this.errorMsgFn}
               clearErrorMsg={this.clearErrorMsg}
+              customMenuList={['screenshot', 'explore', 'set', 'area']}
+              customTimeRange={this.customTimeRange}
+              panel={panel}
               showHeaderMoreTool={this.insideList[index]}
               onDataZoom={this.handleDataZoom}
               onDblClick={this.handleDblClick}
               onDimensionsOfSeries={this.handleDimensionsOfSeries}
+              onErrorMsg={this.errorMsgFn}
+              onLoading={val => this.handleChangeLoading(val, index)}
             />
           </div>
         ))}

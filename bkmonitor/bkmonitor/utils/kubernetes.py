@@ -32,9 +32,10 @@ class BcsClusterType:
 class BkmMetricbeatEndpointUpStatus:
     """采集器up指标值 ."""
 
-    statusOK = 1  # HTTP请求正常
-    statusHttpErr = 2  # HTTP请求失败
-    statusInternalErr = 3  # 内部处理异常
+    statusOK = 0  # HTTP请求正常
+    statusUnknownErr = 1  # 未知错误
+    statusCancel = 2  # HTTP请求失败
+    statusTimeout = 3  # 内部处理异常
 
 
 def is_k8s_target(scenario: str) -> bool:

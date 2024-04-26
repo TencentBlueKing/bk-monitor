@@ -1,0 +1,41 @@
+.quick-create-subscription-slider {
+  .bk-sideslider-content {
+    height: calc(100vh - 60px);
+    background-color: #f5f7fa;
+  }
+
+  .quick-create-subscription-slider-container {
+    max-height: calc(100vh - 60px - 52px);
+    padding: 20px 24px;
+    padding-bottom: 10px;
+    overflow-y: auto;
+    background-color: #f5f7fa;
+  }
+
+  .footer-bar {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 10px 40px 10px 24px;
+    background-color: #f5f7fa;
+  }
+}
+
+.test-send-success-dialog-header {
+  font-size: 20px;
+  font-weight: bold;
+  color: #313238;
+  text-align: left;
+}
+
+.test-send-success-dialog-content {
+  padding-top: 14px;
+  margin-left: 30px;
+}
+
+.test-sending-result-dialog {
+  .bk-dialog-header {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding-bottom: 0 !important;
+  }
+}

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
 
 export const SET_TITLE = 'SET_TITLE';
@@ -77,7 +78,6 @@ const state = {
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
   bizIdChangePedding: '', // 业务id是否切换
-  extraDocLinkMap: {}
 };
 
 const mutations = {
@@ -111,7 +111,7 @@ const mutations = {
           return {
             ...item,
             py_text: pyText,
-            pyf_text: pyfText
+            pyf_text: pyfText,
           };
         });
         return;
@@ -192,17 +192,10 @@ const mutations = {
       handleReload();
     }
   },
-  /**
-   * @description: 更新文档链接
-   * @param {Object} data
-   */
-  updateExtraDocLinkMap(state, data) {
-    state.extraDocLinkMap = data;
-  }
 };
 
 export default {
   namespaced: true,
   state,
-  mutations
+  mutations,
 };

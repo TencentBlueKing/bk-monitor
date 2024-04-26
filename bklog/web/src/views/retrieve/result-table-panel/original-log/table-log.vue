@@ -68,6 +68,7 @@
         v-if="logDialog.type === 'realTimeLog'"
         :title="logDialog.title"
         :log-params="logDialog.data"
+        :target-fields="targetFields"
         @toggleScreenFull="toggleScreenFull"
         @close-dialog="hideDialog"
       />
@@ -76,6 +77,7 @@
         :title="logDialog.title"
         :retrieve-params="retrieveParams"
         :log-params="logDialog.data"
+        :target-fields="targetFields"
         @toggleScreenFull="toggleScreenFull"
         @close-dialog="hideDialog"
       />
@@ -99,6 +101,7 @@ export default {
     TableList
   },
   mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
   props: {
     retrieveParams: {
       type: Object,
@@ -117,6 +120,7 @@ export default {
     return {
       limitCount: 2000,
       webConsoleLoading: false,
+      targetFields: [],
       logDialog: {
         title: '',
         type: '',
@@ -134,6 +138,7 @@ export default {
     }),
     ...mapState('globals', ['fieldTypeMap'])
   },
+  inject: ['changeShowUnionSource'],
   methods: {
     // 滚动到顶部
     scrollToTop() {
@@ -195,8 +200,16 @@ export default {
       if (['realTimeLog', 'contextLog'].includes(event)) {
         const contextFields = config.contextAndRealtime.extra?.context_fields;
         const dialogNewParams = {};
-        // 传参配置指定字段
-        if (Array.isArray(contextFields) && contextFields.length) {
+        const { targetFields, sortFields } = config.indexSetValue;
+        const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
+        // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
+        if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
+          this.targetFields = targetFields;
+          fieldParamsKey.forEach(field => {
+            dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
+          });
+        } else if (Array.isArray(contextFields) && contextFields.length) {
+          // 传参配置指定字段
           contextFields.push(config.timeField);
           contextFields.forEach(field => {
             if (field === 'bk_host_id') {
@@ -210,12 +223,14 @@ export default {
         }
         this.openLogDialog(dialogNewParams, event);
       } else if (event === 'webConsole') this.openWebConsole(row);
+      else if (event === 'logSource') this.changeShowUnionSource();
     },
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {
       this.logDialog.type = '';
       this.logDialog.title = '';
       this.logDialog.visible = false;
+      this.targetFields = [];
     },
     // 实时日志或上下文弹窗开启或关闭全屏
     toggleScreenFull(isScreenFull) {
@@ -300,7 +315,10 @@ export default {
     }
 
     .time-field {
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
       font-weight: 700;
+      color: var(--table-fount-color);
       white-space: nowrap;
     }
 
@@ -311,7 +329,7 @@ export default {
         line-height: 20px;
 
         &.is-limit {
-          max-height: 116px;
+          max-height: 106px;
         }
       }
 
@@ -323,13 +341,13 @@ export default {
       }
 
       .origin-str {
-        line-height: 24px;
+        line-height: 20px;
         color: #313238;
       }
 
       .show-whole-btn {
         position: absolute;
-        top: 93px;
+        top: 84px;
         width: 100%;
         height: 24px;
         font-size: 12px;
@@ -348,7 +366,7 @@ export default {
     }
 
     .original-time {
-      padding-top: 14px;
+      padding-top: 12px;
 
       .cell {
         padding-left: 2px;
@@ -395,7 +413,7 @@ export default {
     .visiable-field {
       .str-content {
         &.is-limit {
-          max-height: 100px;
+          max-height: 106px;
         }
       }
 
@@ -408,7 +426,7 @@ export default {
       }
 
       .show-whole-btn {
-        top: 83px;
+        top: 84px;
       }
     }
 
@@ -422,11 +440,13 @@ export default {
     }
 
     &.original-table .bk-table-column-expand .bk-icon {
-      top: 20px;
+      top: 19px;
     }
   }
 
   .render-header {
+    display: inline;
+
     .field-type-icon {
       width: 12px;
       margin: 0 4px 0 0;
@@ -453,6 +473,11 @@ export default {
 
     .timer-formatter {
       transform: translateY(-1px);
+    }
+
+    .lack-index-filed {
+      padding-bottom: 2px;
+      border-bottom: 1px dashed #63656e;
     }
   }
 

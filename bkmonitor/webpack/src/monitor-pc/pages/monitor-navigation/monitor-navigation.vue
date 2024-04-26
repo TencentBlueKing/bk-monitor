@@ -26,20 +26,20 @@
 -->
 <template>
   <div
-    class="monitor-navigation"
     v-bkloading="{ isLoading: loading }"
+    class="monitor-navigation"
     :class="$route.meta.navClass"
   >
     <bk-navigation
       :class="{
         'no-need-menu': !header.needMenu,
-        'custom-content': customContent
+        'custom-content': customContent,
       }"
-      @toggle="handleToggle"
       :need-menu="header.needMenu"
       :side-title="nav.title"
-      @toggle-click="handleToggleClick"
       :default-open="nav.toggle"
+      @toggle="handleToggle"
+      @toggle-click="handleToggleClick"
     >
       <div
         slot="header"
@@ -48,8 +48,8 @@
         <div class="header-title">
           <span
             v-if="$route.meta.needBack"
-            @click="handleBack"
             class="header-title-back icon-monitor icon-back-left"
+            @click="handleBack"
           />
           {{ navTitle && $t('route-' + navTitle).replace('route-', '') }}
           <i
@@ -61,26 +61,26 @@
           <template v-if="$route.name === 'grafana'">
             <set-menu
               ref="setMenu"
-              @click="!hasDashboardAuth && handleUnDashboardAuth()"
               :has-auth="hasDashboardAuth"
               :menu-list="grafanaMenuList"
+              @click="!hasDashboardAuth && handleUnDashboardAuth()"
               @item-click="handleGrafanaMenuClick"
             />
           </template>
         </div>
         <bk-select
           ref="headerSelect"
+          v-model="header.select.value"
           search-with-pinyin
           class="header-select"
-          v-model="header.select.value"
-          @change="handleBizChange"
           searchable
           :clearable="false"
+          @change="handleBizChange"
         >
           <bk-option
             v-for="(option, index) in header.select.list"
-            :key="index"
             :id="option.id"
+            :key="index"
             :name="option.text"
           />
           <div
@@ -90,12 +90,14 @@
             <span
               class="select-extension-btn has-border"
               @click="handleGetBizAuth"
-            >{{ $t('申请业务权限') }}</span>
+              >{{ $t('申请业务权限') }}</span
+            >
             <span
+              v-if="hasDemoBiz"
               class="select-extension-btn"
               @click="handleGotoDemo"
-              v-if="hasDemoBiz"
-            >{{ $t('DEMO') }}</span>
+              >{{ $t('DEMO') }}</span
+            >
           </div>
         </bk-select>
         <bk-popover
@@ -111,9 +113,9 @@
           <template slot="content">
             <ul class="monitor-navigation-help">
               <li
-                class="nav-item"
                 v-for="(item, index) in help.list"
                 :key="index"
+                class="nav-item"
                 @click="handleHelp(item)"
               >
                 {{ item.name }}
@@ -135,14 +137,14 @@
         </bk-popover>
       </div>
       <div
-        class="monitor-logo"
         slot="side-icon"
+        class="monitor-logo"
       >
         <img
           class="monitor-logo-icon"
           src="../../static/images/svg/monitor-logo.svg"
           alt=""
-        >
+        />
       </div>
       <div
         slot="menu"
@@ -157,29 +159,29 @@
           <template v-for="item in nav.list">
             <bk-navigation-menu-group
               v-if="item.children && !!item.children.length"
-              :group-name="nav.toggle ? $t(item.navName || item.name) : $t(item.shortName)"
               :key="item.name"
+              :group-name="nav.toggle ? $t(item.navName || item.name) : $t(item.shortName)"
             >
               <template v-for="child in item.children">
                 <bk-navigation-menu-item
+                  v-if="!child.hidden"
                   :key="child.id"
                   v-bind="child"
-                  v-if="!child.hidden"
                   :href="getNavHref(child)"
-                  @click="handleNavItemClick(child)"
                   :default-active="child.active"
+                  @click="handleNavItemClick(child)"
                 >
                   <span>{{ $t('route-' + (child.navName || child.name)) }}</span>
                 </bk-navigation-menu-item>
               </template>
             </bk-navigation-menu-group>
             <bk-navigation-menu-item
+              v-else
               :key="item.id"
               v-bind="item"
-              v-else
               :href="getNavHref(item)"
-              @click="handleNavItemClick(item)"
               :default-active="item.active"
+              @click="handleNavItemClick(item)"
             >
               <span>{{ $t('route-' + (item.navName || item.name)) }}</span>
             </bk-navigation-menu-item>
@@ -188,15 +190,15 @@
       </div>
       <!-- eslint-disable-next-line vue/no-v-html-->
       <div
+        v-if="$route.name === 'home'"
         slot="footer"
         style="width: 100%"
-        v-if="$route.name === 'home'"
         v-html="footer.html"
       />
       <div
+        v-show="mcMainLoading"
         v-bkloading="{ isLoading: mcMainLoading }"
         class="monitor-main-loading"
-        v-show="mcMainLoading"
       />
       <template>
         <keep-alive>
@@ -221,11 +223,12 @@
 
 <script>
 import Vue from 'vue';
-import { createNamespacedHelpers } from 'vuex';
+
 import BkPaasLogin from '@blueking/paas-login';
 import { getFooter } from 'monitor-api/modules/commons';
 import { copyText, deleteCookie, getUrlParam, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal/index';
+import { createNamespacedHelpers } from 'vuex';
 
 import LogVersion from '../../components/log-version/log-version';
 import LogVersionMixin from '../../components/log-version/log-version-mixin';
@@ -235,7 +238,6 @@ import { SET_BIZ_ID } from '../../store/modules/app';
 import authorityStore from '../../store/modules/authority';
 import PerformanceModule from '../../store/modules/performance';
 import { MANAGE_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
-
 import SetMenu from './set-menu/set-menu';
 
 const { mapMutations } = createNamespacedHelpers('app');
@@ -246,7 +248,7 @@ export default {
     LogVersion,
     AuthorityModal,
     SetMenu,
-    BkPaasLogin
+    BkPaasLogin,
   },
   mixins: [LogVersionMixin, documentLinkMixin],
   data() {
@@ -257,18 +259,18 @@ export default {
         toggle: false,
         submenuActive: false,
         title: this.$t('监控平台'),
-        toggleSet: false
+        toggleSet: false,
       },
       header: {
         select: {
           list: [],
-          value: 0
+          value: 0,
         },
         needMenu: true,
-        setDashboard: false
+        setDashboard: false,
       },
       user: {
-        list: [this.$t('项目管理'), this.$t('权限中心'), this.$t('退出')]
+        list: [this.$t('项目管理'), this.$t('权限中心'), this.$t('退出')],
       },
       loading: false,
       // 帮助列表
@@ -277,40 +279,40 @@ export default {
           {
             id: 'DOCS',
             name: this.$t('产品文档'),
-            href: ''
+            href: '',
           },
           {
             id: 'VERSION',
-            name: this.$t('版本日志')
+            name: this.$t('版本日志'),
           },
           {
             id: 'FAQ',
             name: this.$t('问题反馈'),
-            href: window.ce_url
-          }
-        ]
+            href: window.ce_url,
+          },
+        ],
       },
       // 显示版本日志
       log: {
-        show: false
+        show: false,
       },
       footer: {
-        html: ''
+        html: '',
       },
       grafanaMenuList: [
         {
           id: 'create',
-          name: this.$t('新建仪表盘')
+          name: this.$t('新建仪表盘'),
         },
         {
           id: 'folder',
-          name: this.$t('新建目录')
+          name: this.$t('新建目录'),
         },
         {
           id: 'import',
-          name: this.$t('导入仪表盘')
-        }
-      ]
+          name: this.$t('导入仪表盘'),
+        },
+      ],
     };
   },
   computed: {
@@ -333,7 +335,7 @@ export default {
         'event-center-detail',
         'event-center-action-detail',
         'strategy-config-detail',
-        'collect-config-view'
+        'collect-config-view',
       ].includes(this.$route.name);
     },
     siteUrl() {
@@ -353,7 +355,7 @@ export default {
     },
     hasDashboardAuth() {
       return this.$store.getters['grafana/hasManageAuth'];
-    }
+    },
   },
   watch: {
     '$route.name': {
@@ -362,8 +364,8 @@ export default {
           this.footer.html = await getFooter().catch(() => '');
         }
       },
-      imediadate: true
-    }
+      imediadate: true,
+    },
   },
   beforeCreate() {
     const siteUrl = window.site_url || window.siteUrl;
@@ -392,7 +394,7 @@ export default {
     },
     // 设置全局业务
     handleGlobalBiz() {
-      const bizId = +getUrlParam('bizId')?.replace(/\//gmi, '') || +window.cc_biz_id;
+      const bizId = +getUrlParam('bizId')?.replace(/\//gim, '') || +window.cc_biz_id;
       this.header.select.value = bizId;
       this.header.select.list = this.$store.getters.bizList;
     },
@@ -411,7 +413,7 @@ export default {
         await this.$nextTick();
         if (!this.$router.history.pending) {
           this.$router.push({
-            name: item.id
+            name: item.id,
           });
         }
       }
@@ -419,7 +421,7 @@ export default {
     handleCopyLink() {
       const str = `${window.location.origin + window.location.pathname}`;
       const url = `${str}?bizId=${this.$store.getters.bizId}${location.hash}${PerformanceModule.urlQuery}`;
-      copyText(url, (err) => {
+      copyText(url, err => {
         this.$bkMessage('error', err);
       });
       this.$bkMessage({ theme: 'success', message: this.$t('链接复制成功') });
@@ -478,12 +480,12 @@ export default {
           'alarm-shield-add',
           'alarm-shield-edit',
           'plugin-add',
-          'plugin-edit'
+          'plugin-edit',
         ].includes(this.$route.name)
       ) {
         if (newId !== oldId) {
           this.$router.push({
-            name: newId
+            name: newId,
           });
         }
         return false;
@@ -522,10 +524,10 @@ export default {
     async handleSetDefaultDashboardId() {
       this.header.setDashboard = true;
       const success = await this.$store.dispatch('grafana/setDefaultDashboard');
-      success
-        && this.$bkMessage({
+      success &&
+        this.$bkMessage({
           message: this.$t('设置成功'),
-          theme: 'success'
+          theme: 'success',
         });
       this.header.setDashboard = false;
     },
@@ -549,8 +551,8 @@ export default {
     // 无grafana管理权限时触发
     handleUnDashboardAuth() {
       authorityStore.getAuthorityDetail(GRAFANA_MANAGE_AUTH);
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -595,7 +597,7 @@ export default {
   color: #63656e;
   background: #fff;
   border: 1px solid #e2e2e2;
-  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, .06);
+  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, 0.06);
 
   .nav-item {
     display: flex;
@@ -763,7 +765,7 @@ export default {
 
           &-font {
             line-height: 10px;
-            transform: scale(.75);
+            transform: scale(0.75);
           }
         }
 

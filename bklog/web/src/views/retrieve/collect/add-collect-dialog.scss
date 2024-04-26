@@ -16,11 +16,19 @@
     padding: 0 16px;
     font-size: 12px;
 
+    @include flex-justify(start);
+
     > :first-child {
       display: inline-block;
       min-width: 72px;
       margin-right: 6px;  
       color: #979ba5;
+    }
+
+    > :last-child {
+      flex-direction: column;
+
+      @include flex-justify(center);
     }
   }
 

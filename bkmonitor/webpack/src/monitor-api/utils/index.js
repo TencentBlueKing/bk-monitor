@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable import/prefer-default-export */
 let vue;
 export const setVue = function (instance) {
   vue = instance;
@@ -34,13 +33,13 @@ export const bkMessage = (message, theme = 'error') => {
     vue.prototype.$bkMessage({
       message,
       theme,
-      ellipsisLine: 0
+      ellipsisLine: 0,
     });
   } else {
     vue.config.globalProperties.$Message({
       message,
       theme,
-      ellipsisLine: 0
+      ellipsisLine: 0,
     });
   }
 };
@@ -56,7 +55,6 @@ export const makeMessage = (message, traceparent, needTraceId) => {
   const list = traceparent?.split('-');
   let traceId = traceparent;
   if (list?.length) {
-    // eslint-disable-next-line prefer-destructuring
     traceId = list[1];
   }
   const resMsg = needTraceId

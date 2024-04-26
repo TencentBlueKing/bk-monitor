@@ -1,5 +1,3 @@
-/* eslint-disable prefer-destructuring */
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,13 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 import dayjs from 'dayjs';
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 
-import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
-
 import { IOption } from '../pages/monitor-k8s/typings';
-import store from '../store/store';
 /**
  * 生成一个随机字符串ID
  * @param len 随机ID的长度 默认8位字符
@@ -91,7 +87,7 @@ export const handleTimeRange = (timeRange: number | string | string[]): { startT
   }
   return {
     startTime,
-    endTime
+    endTime,
   };
 };
 /**
@@ -120,8 +116,7 @@ export const ftaUrl = (hash: string): string => {
   if (isDev) {
     url = `${protocol}//${hostname}:7002/${search}${hash}`;
   } else {
-    const { bkPaasHost, siteUrl, bizId } = store.getters.app;
-    const host = `${bkPaasHost}${siteUrl}fta/?bizId=${bizId}`;
+    const host = `${window.bk_paas_host}${window.site_url}fta/?bizId=${window.bk_biz_id}`;
     url = `${host}${hash}`;
   }
   return url;
@@ -133,12 +128,11 @@ export const ftaUrl = (hash: string): string => {
  * @return {string} 转换后的字符串
  */
 export const transformJobUrl = (str: string): string => {
-  const jobUrl = store.getters.jobUrl as string;
   let newStr = '';
   try {
     newStr = str.replace(/<a.*?href="(.*?)".*?>(.*?)<\/a>/g, (...args) => {
       const { 0: aStr, 1: url } = args;
-      const newUrl = /^http/.test(url) ? url : jobUrl + url;
+      const newUrl = /^http/.test(url) ? url : window.bk_job_url + url;
       return aStr.replace(url, newUrl);
     });
   } catch (error) {
@@ -189,13 +183,13 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
       addition?.map(set => ({
         field: set.key,
         operator: set.method,
-        value: (set.value || []).join(',')
+        value: (set.value || []).join(','),
       })) || [],
-    // eslint-disable-next-line camelcase
+
     start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    // eslint-disable-next-line camelcase
+
     end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    time_range
+    time_range,
   };
   queryStr = Object.keys(queryObj).reduce((str, key, i) => {
     const itemVal = queryObj[key];
@@ -228,15 +222,6 @@ export class Storage implements IStorage {
   constructor(express?: number) {
     this.express = express;
   }
-  /** 设置缓存 */
-  set(key: string, value: any, express: number = this.express) {
-    const data: ILocalStroageItem = {
-      value,
-      updateTime: Date.now(),
-      express
-    };
-    localStorage.setItem(key, JSON.stringify(data));
-  }
   /** 获取缓存 */
   get(key: string) {
     const dataStr = localStorage.getItem(key);
@@ -252,6 +237,15 @@ export class Storage implements IStorage {
   /** 移除缓存 */
   remove(key: string) {
     localStorage.removeItem(key);
+  }
+  /** 设置缓存 */
+  set(key: string, value: any, express: number = this.express) {
+    const data: ILocalStroageItem = {
+      value,
+      updateTime: Date.now(),
+      express,
+    };
+    localStorage.setItem(key, JSON.stringify(data));
   }
 }
 
@@ -293,7 +287,7 @@ export const getStrLengOfPx = (str: string, lengPx = 6, lengPxDouble = 13) => {
  * @param min 最小值 单位: px
  * @return number 宽度值 单位: px
  */
-export const getPopoverWidth = (options: IOption[] | IMetricDetail[], padding = 32, min?: number) => {
+export const getPopoverWidth = (options: IMetricDetail[] | IOption[], padding = 32, min?: number) => {
   const width = options.reduce((width, item) => {
     const curWidth = getStrLengOfPx(item.name as string, 6, 13) + padding;
     return Math.max(curWidth, width);

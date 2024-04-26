@@ -42,12 +42,12 @@ export default function renderIntoCanvas(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getFillColor: (serviceName: string) => [number, number, number]
 ) {
-  const fillCache: Map<string, string | TNil> = new Map();
+  const fillCache: Map<string, TNil | string> = new Map();
   const cHeight = items.length < MIN_TOTAL_HEIGHT ? MIN_TOTAL_HEIGHT : Math.min(items.length, MAX_TOTAL_HEIGHT);
   const cWidth = window.innerWidth * 2;
-  // eslint-disable-next-line no-param-reassign
+
   canvas.width = cWidth;
-  // eslint-disable-next-line no-param-reassign
+
   canvas.height = cHeight;
   const itemHeight = Math.min(MAX_ITEM_HEIGHT, Math.max(MIN_ITEM_HEIGHT, cHeight / items.length));
   const itemYChange = cHeight / items.length;

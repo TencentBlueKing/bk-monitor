@@ -120,7 +120,7 @@
         </div>
       </bk-popover>
       <bk-popover
-        v-if="!isExternal"
+        v-if="isShowRetrieveSetting"
         trigger="click"
         placement="bottom-end"
         theme="light bk-select-dropdown"
@@ -268,7 +268,8 @@ export default {
       ],
       settingMenuList: [
         // { id: 'index', name: '全文索引' },
-        { id: 'extract', name: this.$t('button-字段清洗').replace('button-', '') },
+        // !!TODO 先关闭字段清洗入口
+        // { id: 'extract', name: this.$t('button-字段清洗').replace('button-', '') },
         { id: 'clustering', name: this.$t('日志聚类') }
       ],
       accessList: [
@@ -285,7 +286,8 @@ export default {
         // 路由跳转name
         log: 'manage-collection',
         custom: 'custom-report-detail',
-        manage: 'bkdata-index-set-manage',
+        bkdata: 'bkdata-index-set-manage',
+        es: 'es-index-set-manage',
         indexManage: 'log-index-set-manage'
       },
       /** 日志脱敏路由跳转key */
@@ -311,11 +313,12 @@ export default {
       isExternal: state => state.isExternal
     }),
     ...mapGetters({
-      isShowMaskingTemplate: 'isShowMaskingTemplate'
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      isUnionSearch: 'isUnionSearch'
     }),
-    ...mapGetters({
-      isShowMaskingTemplate: 'isShowMaskingTemplate'
-    }),
+    isShowRetrieveSetting() {
+      return !this.isExternal && !this.isUnionSearch;
+    },
     refreshTimeText() {
       if (!this.refreshTimeout) return 'off';
       return this.refreshTimeList.find(item => item.id === this.refreshTimeout).name;
@@ -362,7 +365,7 @@ export default {
   },
   created() {
     this.showCollectIntroGuide = this.userGuideData?.function_guide?.search_favorite ?? false;
-    this.handleRefreshDebounce = debounce(300, false, this.handleRefresh);
+    this.handleRefreshDebounce = debounce(300, this.handleRefresh);
   },
   mounted() {
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
@@ -381,6 +384,9 @@ export default {
     // },
     // 日期变化
     handleTimeRangeChange(val) {
+      if (val.every(item => typeof item === 'string')) {
+        localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(val));
+      }
       this.$emit('update:datePickerValue', val);
       this.setRefreshTime(0);
       this.$emit('datePickerChange');
@@ -475,9 +481,7 @@ export default {
         return;
       }
       // 赋值详情路由的key
-      if (['es', 'bkdata'].includes(detailStr)) {
-        this.detailJumpRouteKey = 'manage';
-      } else if (detailStr === 'setIndex') {
+      if (detailStr === 'setIndex') {
         this.detailJumpRouteKey = 'indexManage';
       } else {
         this.detailJumpRouteKey = detailStr;

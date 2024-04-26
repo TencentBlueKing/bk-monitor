@@ -165,7 +165,6 @@
                   :value="tools.searchValue"
                   :placeholder="$t('搜索')"
                   :data="searchSelectList"
-                  :show-condition="false"
                   @change="handleSearchSelectChange"
                 >
                   <i
@@ -230,7 +229,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import SearchSelect from '@blueking/search-select';
+import SearchSelect from '@blueking/search-select-v3/vue2';
 
 import { DEFAULT_REFLESH_LIST } from '../../../common/constant';
 import MonitorDateRange from '../../../components/monitor-date-range/monitor-date-range.vue';
@@ -249,7 +248,7 @@ import {
   IToolsOption
 } from '../performance-type';
 
-import '@blueking/search-select/dist/vue2-full.css';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const DEAULT_TIME_RANGE = [
   {

@@ -73,7 +73,7 @@ const COLORS_HEX = [
   '#C0A7E0',
   '#E0A7BA',
   '#EBCB8D',
-  '#CBDB95'
+  '#CBDB95',
 ];
 
 // TS needs the precise return type
@@ -107,7 +107,7 @@ export class ColorGenerator {
     if (i === undefined) {
       i = this.currentIdx;
       this.cache.set(key, this.currentIdx);
-      // eslint-disable-next-line no-plusplus
+
       this.currentIdx = ++this.currentIdx % this.colorsHex.length;
     }
 

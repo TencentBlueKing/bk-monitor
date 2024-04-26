@@ -19,21 +19,21 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import copy
 from abc import ABC
 from collections import defaultdict
-from typing import List, Dict, Any
-import copy
+from typing import Any, Dict, List
 
-from elasticsearch_dsl import Search, Q
+from elasticsearch_dsl import Q, Search
 from luqum.auto_head_tail import auto_head_tail
-from luqum.elasticsearch import SchemaAnalyzer, ElasticsearchQueryBuilder
+from luqum.elasticsearch import ElasticsearchQueryBuilder, SchemaAnalyzer
 from luqum.exceptions import ParseError
-from luqum.parser import parser, lexer
+from luqum.parser import lexer, parser
 from luqum.tree import Word
 from luqum.visitor import TreeTransformer
 
+from apps.log_esquery.constants import WILDCARD_PATTERN, WILDCARD_QUERY
 from apps.log_esquery.exceptions import BaseSearchDslException
-from apps.log_esquery.constants import WILDCARD_QUERY, WILDCARD_PATTERN
 from apps.log_search.constants import FieldDataTypeEnum
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 
@@ -42,6 +42,8 @@ type_match_phrase = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 type_match_phrase_query = Dict[str, Dict[str, Dict[str, Any]]]  # pylint: disable=invalid-name
 type_should_list = List[type_match_phrase]  # pylint: disable=invalid-name
 type_should = Dict[str, type_should_list]  # pylint: disable=invalid-name
+type_filter_list = List[type_match_phrase]  # pylint: disable=invalid-name
+type_filter = Dict[str, type_filter_list]  # pylint: disable=invalid-name
 type_bool = Dict[str, type_should]  # pylint: disable=invalid-name
 type_query_string = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 
@@ -159,10 +161,6 @@ class EsQueryBuilder(object):
         return should_list
 
     @classmethod
-    def build_match_phrase(cls, field: str, value: Any) -> type_match_phrase:
-        return {"match_phrase": {field: value}}
-
-    @classmethod
     def build_should_list_wildcard(
         cls, field: str, value_list: List[Any], is_contains: bool = False
     ) -> type_should_list:
@@ -171,6 +169,32 @@ class EsQueryBuilder(object):
             wildcard: type_wildcard = cls.build_wildcard(field=field, value=item, is_contains=is_contains)
             should_list.append(wildcard)
         return should_list
+
+    @classmethod
+    def build_filter(cls, filter_list: type_filter_list) -> type_filter:
+        return {"filter": filter_list}
+
+    @classmethod
+    def build_filter_list(cls, field: str, value_list: List[Any]) -> type_filter_list:
+        filter_list: type_filter_list = []
+        for item in value_list:
+            match_phrase: type_match_phrase = cls.build_match_phrase(field, item)
+            filter_list.append(match_phrase)
+        return filter_list
+
+    @classmethod
+    def build_filter_list_wildcard(
+        cls, field: str, value_list: List[Any], is_contains: bool = False
+    ) -> type_filter_list:
+        filter_list: type_filter_list = []
+        for item in value_list:
+            wildcard: type_wildcard = cls.build_wildcard(field=field, value=item, is_contains=is_contains)
+            filter_list.append(wildcard)
+        return filter_list
+
+    @classmethod
+    def build_match_phrase(cls, field: str, value: Any) -> type_match_phrase:
+        return {"match_phrase": {field: value}}
 
     @classmethod
     def build_wildcard(cls, field: str, value: Any, is_contains: bool = False) -> type_wildcard:
@@ -223,6 +247,10 @@ class BoolQueryOperation(ABC):
             NotContains.OPERATOR: NotContains,
             ContainsMatchPhrase.OPERATOR: ContainsMatchPhrase,
             NotContainsMatchPhrase.OPERATOR: NotContainsMatchPhrase,
+            AllContainsMatchPhrase.OPERATOR: AllContainsMatchPhrase,
+            AllNotContainsMatchPhrase.OPERATOR: AllNotContainsMatchPhrase,
+            AllEqWildcard.OPERATOR: AllEqWildcard,
+            AllNeWildcard.OPERATOR: AllNeWildcard,
         }
         op_target = op_map.get(op, BoolQueryOperation)
         return op_target(bool_dict)
@@ -403,6 +431,40 @@ class ContainsMatchPhrase(IsOneOf):
 class NotContainsMatchPhrase(IsNotOneOf):
     TARGET = "must_not"
     OPERATOR = "not contains match phrase"
+
+
+class AllContainsMatchPhrase(BoolQueryOperation):
+    TARGET = "must"
+    OPERATOR = "all contains match phrase"
+
+    def op(self, field):
+        filter_list: type_filter_list = EsQueryBuilder.build_filter_list(field["field"], field["value"])
+        filters: type_filter = EsQueryBuilder.build_filter(filter_list)
+        a_bool: type_bool = EsQueryBuilder.build_bool(filters)
+        self._set_target_value(a_bool)
+
+
+class AllNotContainsMatchPhrase(AllContainsMatchPhrase):
+    TARGET = "must_not"
+    OPERATOR = "all not contains match phrase"
+
+
+class AllEqWildcard(BoolQueryOperation):
+    TARGET = "must"
+    OPERATOR = "&=~"
+
+    def op(self, field):
+        filter_list: type_should_list = EsQueryBuilder.build_filter_list_wildcard(
+            field=field["field"], value_list=field["value"]
+        )
+        filters: type_filter = EsQueryBuilder.build_filter(filter_list)
+        a_bool: type_bool = EsQueryBuilder.build_bool(filters)
+        self._set_target_value(a_bool)
+
+
+class AllNeWildcard(AllEqWildcard):
+    TARGET = "must_not"
+    OPERATOR = "&!=~"
 
 
 class BoolMustIns(object):

@@ -16,6 +16,7 @@ from .apm import *  # noqa
 from .ascode import *  # noqa
 from .assign import *  # noqa
 from .bcs import *  # noqa
+from .calendars import *  # noqa
 from .collect import *  # noqa
 from .custom_report import *  # noqa
 from .event import *  # noqa
@@ -23,6 +24,7 @@ from .event_plugin import *  # noqa
 from .grafana import *  # noqa
 from .mail_report import *  # noqa
 from .metrics import *  # noqa
+from .new_report import *  # noqa
 from .notice_group import *  # noqa
 from .plugin import *  # noqa
 from .shield import *  # noqa

@@ -77,8 +77,8 @@ export interface ITableRow extends Object {
 
 export interface IOption {
   name: any;
-  id?: string | number;
-  value?: string | number;
+  id?: number | string;
+  value?: number | string;
   children?: IOption[];
 }
 
@@ -88,11 +88,11 @@ export interface ITableOptions {
 }
 
 export interface IConditionValue {
-  condition: '>' | '>=' | '<' | '<=' | '=';
+  condition: '<' | '<=' | '=' | '>' | '>=';
   value: number;
 }
 
-export type FieldValue = string | number | (string | number)[] | IConditionValue[] | (string | number)[][];
+export type FieldValue = (number | string)[] | (number | string)[][] | IConditionValue[] | number | string;
 
 export interface IFieldConfig {
   name: TranslateResult; // 字段中文名称
@@ -112,7 +112,7 @@ export interface IFieldConfig {
 }
 
 export type CheckValue = 0 | 1 | 2; // 0: 无选择 1: 半选 2: 全选
-export type CheckType = 'current' | 'all'; // current: 本页选择；all: 跨页选择
+export type CheckType = 'all' | 'current'; // current: 本页选择；all: 跨页选择
 export interface ICheck {
   type: CheckType;
   value: CheckValue;
@@ -130,7 +130,7 @@ export interface ISort {
   prop: string;
 }
 
-export type InputType = 'select' | 'textarea' | 'checkbox' | 'condition' | 'number' | 'text' | 'cascade';
+export type InputType = 'cascade' | 'checkbox' | 'condition' | 'number' | 'select' | 'text' | 'textarea';
 
 export interface ISelectedValues {
   selectedGroup: string[];
@@ -142,14 +142,14 @@ export interface ISearchItem {
   value: FieldValue;
 }
 
-export type View = 'process' | 'host';
+export type View = 'host' | 'process';
 
 export interface IGroupItem {
   id: string;
   key?: string;
   title: string;
   hidden: boolean;
-  match_type?: ('manual' | 'auto')[];
+  match_type?: ('auto' | 'manual')[];
 }
 export interface IHostGroup {
   id: string;
@@ -177,7 +177,7 @@ export interface IHostDetailParams {
   ip: string;
   cloudId: string;
   processId: string;
-  osType: string | number;
+  osType: number | string;
 }
 
 export interface ITag {
@@ -196,13 +196,13 @@ export type ViewType = 'host' | 'process';
 
 export type ChartType = 0 | 1 | 2;
 export interface ICompareOption {
-  type: 'none' | 'target' | 'time' | 'metric';
-  value: string[] | string | boolean;
+  type: 'metric' | 'none' | 'target' | 'time';
+  value: boolean | string | string[];
 }
 
 export interface IToolsOption {
   timeRange: TimeRangeType;
-  refleshInterval: string[] | number;
+  refleshInterval: number | string[];
   searchValue?: any;
 }
 export interface IQueryOption {
@@ -225,4 +225,4 @@ export interface ISearchSelectList {
   children?: ISearchSelectList[];
 }
 
-export type ICompareChangeType = 'compare' | 'search' | 'interval' | 'timeRange';
+export type ICompareChangeType = 'compare' | 'interval' | 'search' | 'timeRange';
