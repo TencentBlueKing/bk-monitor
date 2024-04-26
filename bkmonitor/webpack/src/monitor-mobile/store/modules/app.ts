@@ -27,10 +27,10 @@
 import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 export interface IAppState {
-  bizId: string | number;
+  bizId: number | string;
   loading?: boolean;
-  collectId: string | number;
-  eventId?: string | number;
+  collectId: number | string;
+  eventId?: number | string;
   alarmNum?: number;
   refresh?: boolean;
   bkBizName: string;
@@ -38,13 +38,21 @@ export interface IAppState {
 
 @Module({ name: 'app', namespaced: true })
 export default class App extends VuexModule implements IAppState {
+  public alarmNum = 0;
   public bizId = -1;
-  public loading = false;
+  public bkBizName = '';
   public collectId = -1;
   public eventId = -1;
-  public alarmNum = 0;
+  public loading = false;
   public refresh = false;
-  public bkBizName = '';
+  get alarmCount() {
+    return this.alarmNum;
+  }
+
+  get curBizId() {
+    return this.bizId;
+  }
+
   @Mutation
   private SET_APP_DATA(data: IAppState) {
     Object.keys(data).forEach(key => {
@@ -55,18 +63,6 @@ export default class App extends VuexModule implements IAppState {
   @Mutation
   private SET_EVENT_ID(eventId: number) {
     this.eventId = eventId;
-  }
-
-  @Mutation
-  private setPageLoading(payload: boolean) {
-    this.loading = !this.refresh && payload;
-    !payload && (this.refresh = false);
-  }
-
-  @Mutation
-  private setRefresh(payload: boolean) {
-    this.loading = false;
-    this.refresh = payload;
   }
 
   @Mutation
@@ -81,11 +77,15 @@ export default class App extends VuexModule implements IAppState {
     }
   }
 
-  get curBizId() {
-    return this.bizId;
+  @Mutation
+  private setPageLoading(payload: boolean) {
+    this.loading = !this.refresh && payload;
+    !payload && (this.refresh = false);
   }
 
-  get alarmCount() {
-    return this.alarmNum;
+  @Mutation
+  private setRefresh(payload: boolean) {
+    this.loading = false;
+    this.refresh = payload;
   }
 }

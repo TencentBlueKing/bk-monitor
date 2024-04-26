@@ -28,7 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { THRESHOLD_METHOD_LIST } from '../../../../../../constant/constant';
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
-
 import ThresholdSelect, { IItem } from './threshold-select';
 
 import './threshold.scss';
@@ -151,8 +150,8 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
         <bk-form
           ref='formRef'
           {...{ props: { model: this.localData } }}
-          rules={this.rules}
           label-width={126}
+          rules={this.rules}
         >
           <bk-form-item
             label={this.$t('告警级别')}
@@ -161,23 +160,23 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
           >
             <bk-select
               ext-cls='level-select'
-              ext-popover-cls='level-select-popover'
-              clearable={false}
               v-model={this.localData.level}
+              clearable={false}
+              ext-popover-cls='level-select-popover'
               prefix-icon={`icon-monitor ${this.levelList[this.localData.level - 1].icon}`}
               onChange={this.emitLocalData}
             >
               {this.levelList.map(level => (
                 <bk-option
-                  key={level.id}
-                  disabled={level.disabled}
                   id={level.id}
-                  name={level.name}
+                  key={level.id}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
                     disabled: !level.disabled,
                     allowHTML: false,
                   }}
+                  disabled={level.disabled}
+                  name={level.name}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>
                   <span class='name'>{level.name}</span>
@@ -187,16 +186,16 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
           </bk-form-item>
 
           <bk-form-item
+            error-display-type='normal'
             label={this.$t('告警条件')}
             property='config'
             required
-            error-display-type='normal'
           >
             <ThresholdSelect
-              readonly={this.readonly}
-              value={this.localData.config}
               method-list={this.methodList}
+              readonly={this.readonly}
               unit={this.needShowUnit ? this.unit : ''}
+              value={this.localData.config}
               onChange={this.handleThresholdSelectChange}
             />
           </bk-form-item>

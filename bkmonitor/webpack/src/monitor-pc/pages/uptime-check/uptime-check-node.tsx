@@ -25,13 +25,13 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { destroyUptimeCheckNode, listUptimeCheckNode } from 'monitor-api/modules/model';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
-
 import HeaderTools, { IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
 import {
@@ -114,7 +114,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     return bizId === Number(this.$store.getters.bizId);
   }
 
-  handleNodeOperate(v: 'edit' | 'delete', row: INodeData) {
+  handleNodeOperate(v: 'delete' | 'edit', row: INodeData) {
     switch (v) {
       case 'edit':
         this.$router.push({
@@ -186,7 +186,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     };
     this.nodesTableData.pagination = pagination;
     this.nodesTableData.data = nodesToTableData(
-      paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData),
+      paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData)
     );
   }
   handleLimitChange(v: number) {
@@ -197,7 +197,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     };
     this.nodesTableData.pagination = pagination;
     this.nodesTableData.data = nodesToTableData(
-      paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData),
+      paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchData)
     );
   }
 
@@ -222,7 +222,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     return v;
   }
 
-  handleSortChange(v: { prop: string; order: 'descending' | 'ascending' | null }) {
+  handleSortChange(v: { prop: string; order: 'ascending' | 'descending' | null }) {
     const columnId = v.prop;
     const { order } = v; // ascending: 升序
     let nodeData = [];
@@ -311,31 +311,31 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
                       },
                     ],
                   }}
-                  onOptionClick={(v: 'edit' | 'delete') => this.handleNodeOperate(v, row)}
+                  onOptionClick={(v: 'delete' | 'edit') => this.handleNodeOperate(v, row)}
                 ></OperateOptions>
               ),
               statusText: (row: INodeData) => (
                 <span
-                  class='status-col'
                   style={{ color: nodeStatusMap[row.status].color }}
+                  class='status-col'
                 >
                   {nodeStatusMap[row.status].text}
                   {row.status.toString() === '-2' && (
                     <i
-                      v-bk-tooltips={{ content: this.$t('该主机实例不存在') }}
                       class='icon-monitor icon-shixiao status-icon'
+                      v-bk-tooltips={{ content: this.$t('该主机实例不存在') }}
                     />
                   )}
                 </span>
               ),
             }}
-            onPageChange={this.handlePageChange}
             onLimitChange={this.handleLimitChange}
+            onPageChange={this.handlePageChange}
             onSortChange={this.handleSortChange}
           >
             <EmptyStatus
-              type={this.emptyStatusType}
               slot='empty'
+              type={this.emptyStatusType}
               onOperation={this.handleOperation}
             />
           </CommonTable>

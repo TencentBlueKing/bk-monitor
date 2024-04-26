@@ -39,10 +39,10 @@ interface IChangeRecordProps {
   show: boolean;
 }
 export interface ILabelRecordMap {
-  createUser?: string | TranslateResult;
-  createTime?: string | TranslateResult;
-  updateUser?: string | TranslateResult;
-  updateTime?: string | TranslateResult;
+  createUser?: TranslateResult | string;
+  createTime?: TranslateResult | string;
+  updateUser?: TranslateResult | string;
+  updateTime?: TranslateResult | string;
 }
 @Component({
   name: 'ChangeRecord',
@@ -82,18 +82,18 @@ export default class MyComponent extends tsc<IChangeRecordProps, { onUpdateShow:
   render() {
     return (
       <bk-dialog
-        value={this.value}
         width='480'
         header-position='left'
         show-footer={false}
         title={this.$t('变更记录')}
+        value={this.value}
         on-value-change={this.handleValueChange}
       >
         <ul class='change-record'>
           {Object.keys(this.labelMap).map(key => (
             <li
-              class='change-record-item'
               key={key}
+              class='change-record-item'
             >
               <span class='item-label'>{this.labelMap[key]}</span>
               <div class='item-content'>{this.recordData[key] || '--'}</div>

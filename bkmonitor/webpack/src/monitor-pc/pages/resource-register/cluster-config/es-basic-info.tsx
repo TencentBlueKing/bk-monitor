@@ -100,86 +100,86 @@ export default class EsBasicInfo extends tsc<IProps> {
       <div>
         <div class='horizontal'>
           <FormItem
+            width={120}
+            errMsg={this.formErrMsg.registered_system}
             title={this.$tc('来源')}
             require
-            errMsg={this.formErrMsg.registered_system}
-            width={120}
           >
             <bk-select
               v-model={this.localFormData.registered_system}
-              onToggle={v => this.handleSelectToggle(v, this.localFormData.registered_system)}
               onChange={this.handleEmitChange}
+              onToggle={v => this.handleSelectToggle(v, this.localFormData.registered_system)}
             >
               {systems.map(option => (
                 <bk-option
-                  key={option.id}
                   id={option.id}
+                  key={option.id}
                   name={option.name}
                 />
               ))}
             </bk-select>
           </FormItem>
           <FormItem
+            width={424}
+            errMsg={this.formErrMsg.address}
             title={this.$tc('ES地址')}
             require
-            errMsg={this.formErrMsg.address}
-            width={424}
           >
             <bk-input
               v-model={this.localFormData.address}
-              onFocus={() => this.clearError()}
               onChange={this.handleEmitChange}
+              onFocus={() => this.clearError()}
             ></bk-input>
           </FormItem>
         </div>
         <div class='horizontal'>
           <FormItem
+            width={270}
+            errMsg={this.formErrMsg.port}
             title={this.$tc('端口')}
             require
-            errMsg={this.formErrMsg.port}
-            width={270}
           >
             <bk-input
               v-model={this.localFormData.port}
-              onFocus={() => this.clearError()}
               onChange={this.handleEmitChange}
+              onFocus={() => this.clearError()}
             ></bk-input>
           </FormItem>
           <FormItem
-            title={this.$tc('协议')}
             width={270}
+            title={this.$tc('协议')}
           >
             <bk-input
               v-model={this.localFormData.schema}
-              onFocus={() => this.clearError()}
               onChange={this.handleEmitChange}
+              onFocus={() => this.clearError()}
             ></bk-input>
           </FormItem>
         </div>
         <div class='horizontal'>
           <FormItem
+            width={270}
+            errMsg={this.formErrMsg.username}
             title={this.$tc('用户名')}
             require
-            errMsg={this.formErrMsg.username}
-            width={270}
           >
             <bk-input
               v-model={this.localFormData.username}
-              onFocus={() => this.clearError()}
               onChange={this.handleEmitChange}
+              onFocus={() => this.clearError()}
             ></bk-input>
           </FormItem>
           <FormItem
+            width={270}
+            errMsg={this.formErrMsg.password}
             title={this.$tc('密码')}
             require
-            errMsg={this.formErrMsg.password}
-            width={270}
           >
             <bk-input
               v-model={this.localFormData.password}
               type='password'
-              onFocus={() => this.clearError()}
               onChange={this.handleEmitChange}
+              onFocus={() => this.clearError()}
             ></bk-input>
           </FormItem>
         </div>

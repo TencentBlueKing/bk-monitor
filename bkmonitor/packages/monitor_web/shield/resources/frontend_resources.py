@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.utils.translation import ugettext as _
-from monitor_web.shield.utils import ShieldDisplayManager
 
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.time_tools import localtime, now
@@ -17,6 +16,7 @@ from bkmonitor.views import serializers
 from constants.shield import ScopeType, ShieldCategory, ShieldStatus
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
+from monitor_web.shield.utils import ShieldDisplayManager
 
 from .backend_resources import ShieldListSerializer
 
@@ -90,6 +90,7 @@ class FrontendShieldListResource(Resource):
                     "cycle_duration": shield_display_manager.get_cycle_duration(shield),
                     "description": shield["description"],
                     "source": shield["source"],
+                    "update_user": shield["update_user"],
                 }
             )
 

@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { eventTopN, searchEvent } from 'monitor-api/modules/alert';
 import { xssFilter } from 'monitor-common/utils/xss';
@@ -35,7 +36,6 @@ import { getEventPaths } from 'monitor-pc/utils/index';
 import { commonAlertFieldMap } from '../event';
 import FilterInput from '../filter-input';
 import { FilterInputStatus, SearchType } from '../typings/event';
-
 import { IDetail } from './type';
 
 import './related-events.scss';
@@ -76,7 +76,7 @@ interface IColumnItem {
     minWidth?: number | string;
     resizable?: boolean;
     formatter?: (value: any, row: any, index: number) => any;
-    sortable?: boolean | 'custom';
+    sortable?: 'custom' | boolean;
     showOverflowTooltip?: boolean;
   };
 }
@@ -85,7 +85,7 @@ interface IEventItem {
   // 关联事件列表字段
   alert_name?: string;
   anomaly_time?: number;
-  assignee?: string[] | null;
+  assignee?: null | string[];
   bk_biz_id?: number;
   bk_cloud_id?: number;
   bk_ingest_time?: number;
@@ -153,8 +153,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
           minWidth: 120,
           formatter: (row: IEventItem) => (
             <span
-              v-bk-tooltips={{ content: row.id, placements: ['top-start'], allowHTML: false }}
               class={`event-status status-${row.severity}`}
+              v-bk-tooltips={{ content: row.id, placements: ['top-start'], allowHTML: false }}
             >
               {row.id}
             </span>
@@ -224,13 +224,13 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
             const tags = row.tags || [];
             return tags.length ? (
               <span
+                class='tags-items'
                 v-bk-tooltips={{
                   content: tags
                     .map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
                     .join(''),
                   allowHTML: true,
                 }}
-                class='tags-items'
               >
                 {tags.slice(0, 2).map(item => [<span class='tags-item'>{`${item.key}: ${item.value}`}</span>, <br />])}
               </span>
@@ -550,8 +550,8 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                 >
                   {(child.tags.slice(0, 4) || []).map((item, index) => (
                     <div
-                      class='content-kv-item'
                       key={index}
+                      class='content-kv-item'
                     >
                       <span class='kv-item-key'>{`${item.key}`}：</span>
                       <span class='kv-item-value'>
@@ -596,14 +596,14 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         <div class='detail-form-bottom'>
           {bottomItems.map((item, index) => (
             <div
-              class='item-col'
               key={index}
+              class='item-col'
             >
               <div class='item-label'>{item.title}</div>
               <div
                 class={['item-content', item?.extCls]}
-                onMouseover={e => item.tip && this.handleRowEnter(e, item.tip)}
                 onMouseout={this.handleRowLeave}
+                onMouseover={e => item.tip && this.handleRowEnter(e, item.tip)}
               >
                 {item.content}
               </div>
@@ -638,35 +638,35 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
             size: 'large',
           },
         }}
-        outer-border={false}
-        header-border={false}
-        header-cell-style={{ background: '#f5f6fa' }}
-        pagination={this.pagination}
         ref='eventTabel'
+        header-cell-style={{ background: '#f5f6fa' }}
         class='related-events-table'
-        on-row-click={handleRowClick}
+        header-border={false}
+        outer-border={false}
+        pagination={this.pagination}
         on-page-change={this.handlePageChange}
         on-page-limit-change={this.handlePageLimitChange}
+        on-row-click={handleRowClick}
         on-sort-change={this.handleSortChange}
       >
         <EmptyStatus
-          type={this.emptyStatusType}
           slot='empty'
+          type={this.emptyStatusType}
           onOperation={this.handleOperation}
         />
         <bk-table-column
-          type='expand'
           width={30}
           scopedSlots={childSlots}
+          type='expand'
         ></bk-table-column>
         {this.tableColumns.map(column => {
           if (!(column.disabled || column.checked)) return undefined;
           return (
             <bk-table-column
               key={`${column.id}`}
+              formatter={row => (!row[column.id] && row[column.id] !== 0 ? '--' : row[column.id])}
               label={column.name}
               prop={column.id}
-              formatter={row => (!row[column.id] && row[column.id] !== 0 ? '--' : row[column.id])}
               {...{ props: column.props }}
             />
           );
@@ -689,18 +689,18 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     return (
       <div class='relatedevents-filter-btn'>
         <bk-popover
-          placement='bottom-end'
           width='515'
+          offset='0, 10'
+          placement='bottom-end'
           theme='light strategy-setting'
           trigger='click'
-          offset='0, 10'
         >
           <div class='filter-btn'>
             <span class='icon-monitor icon-menu-set'></span>
           </div>
           <div
-            slot='content'
             class='relatedevents-tool-popover'
+            slot='content'
           >
             <div class='tool-popover-title'>{this.$t('字段显示设置')}</div>
             <ul class='tool-popover-content'>
@@ -710,9 +710,9 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                   class='tool-popover-content-item'
                 >
                   <bk-checkbox
+                    disabled={item.disabled}
                     value={item.checked}
                     on-change={() => this.handleCheckColChange(item)}
-                    disabled={item.disabled}
                   >
                     {item.name}
                   </bk-checkbox>
@@ -737,11 +737,11 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         v-bkloading={{ isLoading: this.isLoading }}
       >
         <FilterInput
-          value={this.queryString}
-          searchType={this.searchType}
           inputStatus={this.filterInputStatus}
-          valueMap={this.filterValueMap}
           isFillId={true}
+          searchType={this.searchType}
+          value={this.queryString}
+          valueMap={this.filterValueMap}
           on-change={this.handleQueryStringChange}
           on-clear={this.handleQueryStringChange}
         ></FilterInput>

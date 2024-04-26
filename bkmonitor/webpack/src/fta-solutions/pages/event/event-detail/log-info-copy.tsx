@@ -25,13 +25,13 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { listIndexByHost } from 'monitor-api/modules/alert_events';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import TipMsg from '../../setting/components/tip-msg';
-
 import { IDetail } from './type';
 
 import './log-info.scss';
@@ -43,7 +43,7 @@ const collectorScenarioIdMap = {
   es: window.i18n.tc('第三方ES'),
 };
 
-type TStatus = 'RUNNING' | 'SUCCESS' | 'FAILED' | 'PARTFAILED' | 'TERMINATED' | 'UNKNOWN' | 'PREPARE';
+type TStatus = 'FAILED' | 'PARTFAILED' | 'PREPARE' | 'RUNNING' | 'SUCCESS' | 'TERMINATED' | 'UNKNOWN';
 
 const logTableColumns: ITableColumn[] = [
   { id: 'index_set_name', name: window.i18n.tc('索引集名称'), type: 'string' },
@@ -110,7 +110,7 @@ export default class LogInfo extends tsc<IProps> {
   getTableData() {
     this.tableData = this.allData.slice(
       (this.pagination.current - 1) * this.pagination.limit,
-      this.pagination.current * this.pagination.limit,
+      this.pagination.current * this.pagination.limit
     );
   }
 
@@ -129,7 +129,7 @@ export default class LogInfo extends tsc<IProps> {
   handleClick(row) {
     const startTime = encodeURIComponent(dayjs.tz(this.detail.begin_time * 1000).format('YYYY-MM-DD HH:mm:ss'));
     const endTime = encodeURIComponent(
-      dayjs.tz(this.detail.end_time ? this.detail.end_time * 1000 : new Date().getTime()).format('YYYY-MM-DD HH:mm:ss'),
+      dayjs.tz(this.detail.end_time ? this.detail.end_time * 1000 : new Date().getTime()).format('YYYY-MM-DD HH:mm:ss')
     );
     const host = window.bk_log_search_url || window.bklogsearch_host;
     let hostScopes = null;
@@ -179,11 +179,6 @@ export default class LogInfo extends tsc<IProps> {
         {this.allData.length ? (
           <CommonTable
             class='log-table'
-            columns={logTableColumns}
-            data={this.tableData}
-            checkable={false}
-            hasColnumSetting={false}
-            pagination={this.pagination}
             scopedSlots={{
               index_set_scenario_id: row =>
                 collectorScenarioIdMap[row.index_set_scenario_id] || row.index_set_scenario_id,
@@ -198,8 +193,13 @@ export default class LogInfo extends tsc<IProps> {
                 </span>
               ),
             }}
-            onPageChange={this.handlePageChange}
+            checkable={false}
+            columns={logTableColumns}
+            data={this.tableData}
+            hasColnumSetting={false}
+            pagination={this.pagination}
             onLimitChange={this.handleLimitChange}
+            onPageChange={this.handlePageChange}
           ></CommonTable>
         ) : (
           <div class='no-data'>

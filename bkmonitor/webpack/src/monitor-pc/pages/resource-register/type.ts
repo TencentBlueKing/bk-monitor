@@ -25,11 +25,11 @@
  */
 
 export enum EClusterType {
+  Argus = 'argus',
+  ES = 'elasticsearch',
+  Influxdb = 'influxdb',
   Kafka = 'kafka',
   Transfer = 'transfer',
-  Influxdb = 'influxdb',
-  ES = 'elasticsearch',
-  Argus = 'argus',
 }
 
 /* 表格筛选项 */
@@ -61,9 +61,9 @@ export const FILTER_LIST = [
   },
 ];
 export enum EScopes {
+  allSpace = 'all-space',
   currentSpace = 'current-space',
   multiSpace = 'multi-space',
-  allSpace = 'all-space',
   spaceType = 'space-type',
 }
 export const EsSpaceScopes = [
@@ -74,13 +74,13 @@ export const EsSpaceScopes = [
 ];
 
 export enum ETableColumn {
+  description = 'description',
   name = 'name',
-  use = 'use',
+  operate = 'operate',
+  operator = 'operator',
   pipeline = 'pipeline',
   status = 'status',
-  operator = 'operator',
-  description = 'description',
-  operate = 'operate',
+  use = 'use',
 }
 
 export interface IInfluxdbChildData {

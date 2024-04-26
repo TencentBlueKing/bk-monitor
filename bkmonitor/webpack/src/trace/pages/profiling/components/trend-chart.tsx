@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, inject, PropType, provide, Ref, ref, watch } from 'vue';
+
 import { Collapse, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
 import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
@@ -102,7 +103,6 @@ export default defineComponent({
     watch(
       () => [props.queryParams, chartType.value],
       () => {
-        const alias = (props.queryParams as IQueryParams).is_compared ? '' : 'Sample 数';
         const { start, end, ...rest } = props.queryParams as IQueryParams;
         const allTrend = chartType.value === 'all'; // 根据类型构造图表配置
         const type = allTrend ? 'line' : 'bar';
@@ -128,7 +128,7 @@ export default defineComponent({
             {
               api: targetApi,
               datasource: 'time_series',
-              alias,
+              alias: '',
               data: targetData,
             },
           ],
@@ -137,7 +137,7 @@ export default defineComponent({
       {
         immediate: true,
         deep: true,
-      },
+      }
     );
 
     function handleCollapseChange(v) {
@@ -157,35 +157,35 @@ export default defineComponent({
     return (
       <div class='trend-chart'>
         <Collapse.CollapsePanel
-          modelValue={this.collapse}
-          onUpdate:modelValue={this.handleCollapseChange}
           v-slots={{
             content: () => (
               <div
-                class='trend-chart-wrap'
                 ref='chartRef'
+                class='trend-chart-wrap'
               >
                 {this.collapse && this.panel && (
                   <TimeSeries
                     key={this.chartType}
+                    customTooltip={this.chartCustomTooltip}
                     panel={this.panel}
                     showChartHeader={false}
                     showHeaderMoreTool={false}
                     onLoading={val => (this.loading = val)}
-                    customTooltip={this.chartCustomTooltip}
                   />
                 )}
               </div>
             ),
           }}
+          modelValue={this.collapse}
+          onUpdate:modelValue={this.handleCollapseChange}
         >
           <div
             class='trend-chart-header'
             onClick={e => e.stopPropagation()}
           >
             <Radio.Group
-              type='capsule'
               v-model={this.chartType}
+              type='capsule'
             >
               <Radio.Button label='all'>{this.$t('总趋势')}</Radio.Button>
               <Radio.Button label='trace'>{this.$t('Trace 数据')}</Radio.Button>

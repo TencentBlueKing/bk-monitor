@@ -33,4 +33,5 @@ def api_exception_handler(exc, context):
 
     json_data["code"] = code
     json_data.pop("msg", None)
+
     return Response(json_data, content_type="application/json")

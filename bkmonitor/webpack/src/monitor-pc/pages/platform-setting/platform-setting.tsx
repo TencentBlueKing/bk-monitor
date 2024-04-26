@@ -29,7 +29,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import NoPermission from '../../components/no-permission/no-permission';
 import DataPipeline from '../data-pipeline/data-pipeline';
 import ResourceRegister from '../resource-register/resource-register';
-
 import * as authorityMap from './authority-map';
 
 import './platform-setting.scss';
@@ -80,8 +79,8 @@ export default class PlatformSetting extends tsc<object> {
           <div class='setting-content-left'>
             {this.navList.map(item => (
               <div
-                class={['menu-item', { active: item.id === this.curNav }]}
                 key={item.id}
+                class={['menu-item', { active: item.id === this.curNav }]}
                 onClick={() => this.handleNavChange(item)}
               >
                 {item.name}

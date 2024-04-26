@@ -25,15 +25,15 @@
 -->
 <template>
   <div
-    class="strategy-config-target"
     v-bkloading="{ isLoading: loading }"
+    class="strategy-config-target"
   >
     <!-- tips -->
     <!-- <div class="select-tips"><i class="icon-monitor icon-tips"></i>{{ $t('动态：只能选择节点，策略目标按节点动态变更。静态：只能选择主机IP，采集目标不会变更。') }}</div> -->
     <!-- IP选择器 -->
     <div
-      class="target-container"
       ref="targetContainer"
+      class="target-container"
     >
       <!-- <topo-selector
         v-if="isGetDetail"
@@ -52,15 +52,15 @@
         @table-data-change="handleAngChange">
       </topo-selector> -->
       <topo-selector
+        v-if="isGetDetail"
+        ref="topoSelector"
         :tree-height="targetContainerHeight"
         :height="targetContainerHeight"
-        v-if="isGetDetail"
         :target-node-type="selector.targetNodeType"
         :target-object-type="selector.targetObjectType"
         :checked-data="selector.checkedData"
         :preview-width="230"
         :hidden-template="hiddenTemplate"
-        ref="topoSelector"
         @check-change="handleChecked"
       />
     </div>
@@ -68,8 +68,8 @@
       <bk-button
         class="btn"
         theme="primary"
-        @click="handleSaveData"
         :disabled="canSaveEmpty ? false : !checked.length"
+        @click="handleSaveData"
       >
         {{ $t('保存') }}
       </bk-button>
@@ -81,8 +81,8 @@
 </template>
 
 <script>
-import { createNamespacedHelpers } from 'vuex';
 import { bulkEditStrategy, getTargetDetail } from 'monitor-api/modules/strategies';
+import { createNamespacedHelpers } from 'vuex';
 
 import TopoSelector from '../../../components/ip-selector/business/topo-selector-new';
 
@@ -90,14 +90,14 @@ const { mapGetters } = createNamespacedHelpers('strategy-config');
 export default {
   name: 'StrategyConfigTarget',
   components: {
-    TopoSelector
+    TopoSelector,
   },
   props: {
     targetList: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     setConfig: {
       type: Object,
@@ -105,19 +105,19 @@ export default {
         return {
           bizId: '',
           objectType: '',
-          strategyId: 0
+          strategyId: 0,
         };
-      }
+      },
     },
     // 是否允许保存空的目标
     canSaveEmpty: {
       type: Boolean,
-      default: false
+      default: false,
     },
     hiddenTemplate: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   data() {
     return {
@@ -135,21 +135,21 @@ export default {
         mode: 'add',
         targetObjectType: 'HOST',
         targetNodeType: 'INSTANCE',
-        checkedData: []
+        checkedData: [],
       },
       saveData: {
         targetNodes: [],
-        targetNodeType: null
+        targetNodeType: null,
       },
       isBack: false,
       checked: [],
       needCheck: true,
       changeNum: 0,
-      targetContainerHeight: 560
+      targetContainerHeight: 560,
     };
   },
   computed: {
-    ...mapGetters(['strategyParams'])
+    ...mapGetters(['strategyParams']),
   },
   created() {
     this.handleConfig(this.setConfig);
@@ -179,29 +179,31 @@ export default {
     handleSetTargetDesc(params) {
       let message = '';
       let subMessage = '';
-      // eslint-disable-next-line camelcase
+
       const { target_nodes = [], target_node_type = 'TOPO', target_object_type } = params;
       if (!target_nodes.length) return { message, subMessage };
 
       if (['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(target_node_type)) {
-        const count = target_nodes.reduce((pre, item) => Array
-          .from(new Set([...pre, ...(item.all_host || [])])), []).length;
+        const count = target_nodes.reduce(
+          (pre, item) => Array.from(new Set([...pre, ...(item.all_host || [])])),
+          []
+        ).length;
         const textMap = {
           TOPO: '{0}个节点',
           SERVICE_TEMPLATE: '{0}个服务模板',
-          SET_TEMPLATE: '{0}个集群模板'
+          SET_TEMPLATE: '{0}个集群模板',
         };
         message = this.$t(textMap[target_node_type], [target_nodes.length]);
         // 暂时隐藏模板统计信息
-        // eslint-disable-next-line camelcase
-        target_node_type === 'TOPO'
-          && (subMessage = `（ ${this.$t(target_object_type === 'SERVICE' ? '{0}个实例' : '{0}台主机', [count])} ）`);
+
+        target_node_type === 'TOPO' &&
+          (subMessage = `（ ${this.$t(target_object_type === 'SERVICE' ? '{0}个实例' : '{0}台主机', [count])} ）`);
       } else {
         message = this.$t('{0}台主机', [target_nodes.length]);
       }
       return {
         message,
-        subMessage
+        subMessage,
       };
     },
     // 来自编辑新增页面的保持
@@ -221,12 +223,12 @@ export default {
         TOPO: 'host_topo_node',
         INSTANCE: 'ip',
         SERVICE_TEMPLATE: 'host_service_template',
-        SET_TEMPLATE: 'host_set_template'
+        SET_TEMPLATE: 'host_set_template',
       };
       const serviceTargetFieldType = {
         TOPO: 'service_topo_node',
         SERVICE_TEMPLATE: 'service_service_template',
-        SET_TEMPLATE: 'service_set_template'
+        SET_TEMPLATE: 'service_set_template',
       };
       if (this.selector.targetObjectType === 'HOST') {
         field = hostTargetFieldType[params.target_node_type];
@@ -234,15 +236,17 @@ export default {
         field = serviceTargetFieldType[params.target_node_type];
       }
       const targetValues = this.handleCheckedData(params.target_node_type, params.target_nodes);
-      const target = targetValues.length ? [
-        [
-          {
-            field,
-            method: 'eq',
-            value: targetValues
-          }
-        ]
-      ] : [];
+      const target = targetValues.length
+        ? [
+            [
+              {
+                field,
+                method: 'eq',
+                value: targetValues,
+              },
+            ],
+          ]
+        : [];
       const success = await bulkEditStrategy({ id_list: [params.id], edit_data: { target } }).catch(() => false);
       success && this.$bkMessage({ theme: 'success', message: this.$t('修改成功') });
       this.$emit('save-change', true);
@@ -301,14 +305,15 @@ export default {
       saveData.targetNodes = data;
 
       // 编辑态下如果目标节点为空，则取默认type
-      saveData.targetNodeType =        this.selector.mode === 'edit' && !saveData.targetNodes.length ? this.selector.targetNodeType : type;
+      saveData.targetNodeType =
+        this.selector.mode === 'edit' && !saveData.targetNodes.length ? this.selector.targetNodeType : type;
 
       const params = {
         id: selector.strategyId,
         bk_biz_id: selector.bizId,
         target_object_type: selector.targetObjectType,
         target_node_type: saveData.targetNodeType,
-        target_nodes: saveData.targetNodes
+        target_nodes: saveData.targetNodes,
       };
       return params;
     },
@@ -331,18 +336,18 @@ export default {
     handleCheckedData(type, data) {
       const checkedData = [];
       if (type === 'INSTANCE') {
-        data.forEach((item) => {
+        data.forEach(item => {
           checkedData.push({
             bk_cloud_id: item.bk_cloud_id,
             ip: item.ip,
-            bk_supplier_id: item.bk_supplier_id
+            bk_supplier_id: item.bk_supplier_id,
           });
         });
       } else {
         data.forEach(({ bk_obj_id, bk_inst_id }) => {
           checkedData.push({
             bk_obj_id,
-            bk_inst_id
+            bk_inst_id,
           });
         });
       }
@@ -353,8 +358,8 @@ export default {
     },
     handleCancel() {
       this.$emit('cancel', false);
-    }
-  }
+    },
+  },
 };
 </script>
 

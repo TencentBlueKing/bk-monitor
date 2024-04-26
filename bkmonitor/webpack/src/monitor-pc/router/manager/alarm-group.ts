@@ -89,7 +89,7 @@ export default [
     beforeEnter(
       to: Route,
       from: Route,
-      next: (to?: string | false | void | Location | ((vm: Vue) => any) | undefined) => void,
+      next: (to?: ((vm: Vue) => any) | Location | false | string | undefined | void) => void
     ) {
       to.meta.title = to.params.title || '加载中...';
       next();

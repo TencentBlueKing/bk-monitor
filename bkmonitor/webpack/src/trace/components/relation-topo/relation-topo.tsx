@@ -36,6 +36,7 @@ import {
   watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import G6, { Graph, IEdge, INode } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Alert, Popover } from 'bkui-vue';
@@ -180,7 +181,7 @@ export default defineComponent({
         graph?.destroy();
         initGraph();
       },
-      { deep: true },
+      { deep: true }
     );
     watch(
       () => [store.loading, store.traceViewFilters],
@@ -196,7 +197,7 @@ export default defineComponent({
           graph?.destroy();
           initGraph();
         }
-      },
+      }
     );
 
     /** 拓扑图事件监听 */
@@ -800,7 +801,7 @@ export default defineComponent({
             // [0, 0.5]
           ],
         },
-        'rect',
+        'rect'
       );
 
       /** 自定义边 */
@@ -816,7 +817,7 @@ export default defineComponent({
            */
           // setState: (name, value, item) => setEdgeState(name, value, item)
         },
-        'cubic-vertical',
+        'cubic-vertical'
         // 'cubic-horizontal'
       );
 
@@ -1011,7 +1012,7 @@ export default defineComponent({
                   const bgColor = getSingleDiffColor(node.diff_info[span]);
                   compareSpans.push({ ...targetSpan, bgColor, mark });
                   compareOriginalSpans.push(
-                    [...baselineOriginalData, ...currentOriginalData].find(item => span === item.span_id),
+                    [...baselineOriginalData, ...currentOriginalData].find(item => span === item.span_id)
                   );
                 });
               });
@@ -1127,49 +1128,49 @@ export default defineComponent({
       <div class='relation-topo'>
         {this.empty && <div class='empty-chart'>{this.emptyText}</div>}
         <div
-          class='graph-container'
           ref='graphContainer'
+          class='graph-container'
         />
         <div class='graph-tools'>
           <Popover
-            trigger='manual'
-            isShow={this.showThumbnail || this.showLegend}
-            theme='light'
-            placement='top-start'
-            allowHtml={false}
-            arrow={false}
-            zIndex={1001}
-            extCls='topo-thumbnail-popover'
             width={this.graphToolsRect.width}
             height={this.graphToolsRect.height}
-            content={this.topoGraphContent}
+            extCls='topo-thumbnail-popover'
+            allowHtml={false}
+            arrow={false}
             boundary={'parent'}
+            content={this.topoGraphContent}
+            isShow={this.showThumbnail || this.showLegend}
+            placement='top-start'
             renderType='auto'
+            theme='light'
+            trigger='manual'
+            zIndex={1001}
           >
             {{
               default: () => (
                 <GraphTools
                   class='topo-graph-tools'
-                  scaleStep={10}
+                  legendActive={this.showLegend}
                   minScale={10}
+                  scaleStep={10}
                   scaleValue={this.zoomValue}
                   thumbnailActive={this.showThumbnail}
-                  legendActive={this.showLegend}
-                  onShowThumbnail={this.handleShowThumbnail}
-                  onStoreImg={this.downloadAsImage}
                   onScaleChange={this.handleGraphZoom}
                   onShowLegend={this.handleShowLegend}
+                  onShowThumbnail={this.handleShowThumbnail}
+                  onStoreImg={this.downloadAsImage}
                 />
               ),
               content: () => (
                 <div
-                  class='topo-graph-content'
                   ref='topoGraphContent'
+                  class='topo-graph-content'
                 >
                   <div
                     ref='topoThumbnailRef'
-                    class='topo-thumbnail'
                     style={`display: ${this.showLegend ? 'none' : 'block'}`}
+                    class='topo-thumbnail'
                   ></div>
                   {this.showLegend && <ViewLegend />}
                 </div>
@@ -1179,10 +1180,10 @@ export default defineComponent({
         </div>
         {this.compareWarningAlert.length ? (
           <Alert
-            closable
             class='compare-warning-alert'
             theme='warning'
             title={this.compareWarningAlert}
+            closable
           ></Alert>
         ) : (
           ''

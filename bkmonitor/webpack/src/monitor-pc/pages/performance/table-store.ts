@@ -41,20 +41,18 @@ const IP_LIST_MATCH = new RegExp(/((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2
 const IPV6_LIST_MATCH = new RegExp(/([\da-fA-F]{4}:){7}[\da-fA-F]{4}/, 'g');
 const commonTopoLevel = ['biz', 'module', 'set'];
 export default class TableStore {
-  public loading = false;
-  public page = 1;
-  public pageSize: number = +localStorage.getItem('__common_page_size__') || 10;
-  public pageList: Array<number> = [10, 20, 50, 100];
-  public stickyValue = {};
-  public panelKey = '';
-  public sortKey = 'totalAlarmCount';
-  public order = 'descending';
-  public keyWord = '';
-  public total = 0;
-  public unresolveData = [];
-  public cpuData = [];
-  public menmoryData = [];
-  public diskData = [];
+  private bizList: any[] = [];
+  allClusterTopo = [];
+  public allData!: Readonly<Array<ITableRow>>;
+  public cacheClusterMap = new Map();
+  // 缓存options数据的字段
+  public cacheFieldOptionsSet = {
+    bk_host_name: new Set(),
+    bk_os_name: new Set(),
+    bk_cloud_name: new Set(),
+    display_name: new Set(), // 进程选项缓存
+  };
+  public cacheModuleMap = new Map();
   public checkType: CheckType = 'current';
   // public selections: ITableRow[] = []
   public conditionsList: IOption[] = [
@@ -79,7 +77,8 @@ export default class TableStore {
       id: '=',
     },
   ];
-
+  public cpuData = [];
+  public diskData = [];
   public fieldData: Array<IFieldConfig> = [
     {
       name: window.i18n.t('主机'),
@@ -373,21 +372,22 @@ export default class TableStore {
       show: false,
     },
   ];
-  // 缓存options数据的字段
-  public cacheFieldOptionsSet = {
-    bk_host_name: new Set(),
-    bk_os_name: new Set(),
-    bk_cloud_name: new Set(),
-    display_name: new Set(), // 进程选项缓存
-  };
-  public cacheModuleMap = new Map();
-  public cacheClusterMap = new Map();
-  allClusterTopo = [];
-  topoNameMap = {};
   // 缓存当前筛选数据
   public filterData!: Readonly<Array<ITableRow>>;
-  public allData!: Readonly<Array<ITableRow>>;
-  private bizList: any[] = [];
+  public keyWord = '';
+  public loading = false;
+  public menmoryData = [];
+  public order = 'descending';
+
+  public page = 1;
+  public pageList: Array<number> = [10, 20, 50, 100];
+  public pageSize: number = +localStorage.getItem('__common_page_size__') || 10;
+  public panelKey = '';
+  public sortKey = 'totalAlarmCount';
+  public stickyValue = {};
+  topoNameMap = {};
+  public total = 0;
+  public unresolveData = [];
   public constructor(data: Array<any>, options: ITableOptions, bizList: any[]) {
     this.bizList = bizList;
     this.updateData(data, options);
@@ -401,24 +401,21 @@ export default class TableStore {
     return columns;
   }
 
-  public setState(rowId: string, key: string, value: any) {
-    const row = this.allData.find(item => item.rowId === rowId);
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
-      row[key] = value;
+  // 获取级联对象
+  public convertToTree(topo_link, topo_link_display) {
+    if (topo_link.length === 0 || topo_link_display.length === 0) {
+      return null;
     }
+    const id = topo_link.shift();
+    const name = topo_link_display.shift();
+    const node = { id, name };
+    const child = this.convertToTree(topo_link, topo_link_display);
+    if (child) {
+      node.children = [...(node.children || []), child];
+    }
+    return node;
   }
 
-  public updateData(data: Array<any>, options?: ITableOptions) {
-    this.stickyValue = options?.stickyValue || {};
-    this.panelKey = options?.panelKey || '';
-    this.unresolveData = [];
-    this.cpuData = [];
-    this.menmoryData = [];
-    this.diskData = [];
-    this.allData = Object.freeze(data.map(item => Object.seal(this.initRowData(item))));
-    this.allClusterTopo = Object.freeze(this.createTopoTree());
-    this.updateFieldDataOptions();
-  }
   createTopoTree() {
     const topoNameMap = {};
     const list = this.allData.reduce((pre, cur) => {
@@ -516,51 +513,106 @@ export default class TableStore {
     topofield.options = treeList;
     return treeList;
   }
-  public updateFieldDataOptions() {
-    for (const key in this.cacheFieldOptionsSet) {
-      const cacheFieldSet = this.cacheFieldOptionsSet[key];
-      const fieldData = this.fieldData.find(item => item.id === key);
-      if (cacheFieldSet.size && fieldData) {
-        fieldData.options = [];
-        for (const val of cacheFieldSet.values()) {
-          fieldData.options.push({
-            id: val,
-            name: val,
-          });
+  // 关键字匹配
+  public filterDataByKeyword(data: ITableRow[]) {
+    // const keyWord = this.keyWord.trim().toLocaleLowerCase()
+    const keyWord = this.keyWord.trim();
+    const fieldData = this.fieldData.filter(item => item.fuzzySearch);
+    if (isFullIpv6(padIPv6(keyWord))) {
+      const ipv6Keyword = padIPv6(keyWord);
+      const ipv6s = ipv6Keyword.match(IPV6_LIST_MATCH);
+      if (ipv6s?.length > 0) {
+        return data.filter(
+          item => item.bk_host_innerip_v6.includes(keyWord) || ipv6s.includes(item.bk_host_innerip_v6)
+        );
+      }
+    }
+    // 多IP精确/单IP模糊筛选
+    const ips = keyWord.match(IP_LIST_MATCH);
+    if (ips?.length > 0) {
+      return data.filter(item => item.bk_host_innerip.includes(keyWord) || ips.includes(item.bk_host_innerip));
+    }
+    return data.filter(item => {
+      for (let i = 0, len = fieldData.length; i < len; i++) {
+        const field = fieldData[i];
+        let val = '';
+        if (field.id === 'bk_inst_name') {
+          // 模块
+          val = item.moduleInstNames;
+        } else if (field.id === 'display_name') {
+          // 进程名
+          val = item.componentNames;
+        } else if (field.id === 'bk_cluster') {
+          // 集群名
+          val = item.clusterNames;
+        } else {
+          val = item[field.id] || '';
+        }
+        if (typeof val === 'number') {
+          val = `${val}`;
+        }
+        // 耗时操作
+        // val = val.toLocaleLowerCase()
+        if (val.includes(keyWord)) {
+          return true;
         }
       }
-      // 添加空项筛选
-      if (fieldData?.allowEmpt) {
-        fieldData.options.unshift({ id: '__empt__', name: window.i18n.t('- 空 -') });
-      }
-    }
-    const moduleFieldData = this.fieldData.find(item => item.id === 'bk_inst_name');
-    if (moduleFieldData) {
-      moduleFieldData.options = Array.from(this.cacheModuleMap.values()).reduce((pre, cur) => {
-        if (!pre.find(item => item.id === cur.id)) pre.push(cur);
-        return pre;
-      }, []);
-    }
-    // // forEach性能低
-    // for (const key in this.cacheFieldOptionsData) {
-    //   this.cacheFieldOptionsData[key].clear()
-    // }
-    // this.cacheModule.clear()
-    // this.cacheCluster.clear()
+      return false;
+    });
   }
-  // 获取级联对象
-  public convertToTree(topo_link, topo_link_display) {
-    if (topo_link.length === 0 || topo_link_display.length === 0) {
-      return null;
+  public getCompareValue(item: ITableRow, field: IFieldConfig) {
+    let originValue = item[field.id] === undefined ? '' : item[field.id]; // 当 field.id 为 模块、进程、集群、模块\集群时，该值为undefined
+    let curValue = field.value === '' ? '' : field.value; // 筛选条件的值
+    if (['bk_host_innerip', 'bk_host_outerip'].includes(field.id)) {
+      // IP类型的值
+      curValue = (field.value as string).replace(/\n|,/g, '|').replace(/\s+/g, '').split('|');
+    } else if (field.id === 'bk_inst_name') {
+      // 模块名称
+      originValue = item.module ? item.module.map(m => m.bk_inst_name) : [];
+    } else if (field.id === 'display_name') {
+      // 进程名
+      originValue = item.component ? item.component.map(com => com[field.id]) : [];
+    } else if (field.id === 'bk_cluster') {
+      // 集群ID（集群字段是前端拼接的，在initRowData方法里面）
+      originValue = item.bk_cluster.map(cluster => cluster.id);
+    } else if (field.id === 'cluster_module') {
+      // 集群\模块（级联输入）
+      originValue = item.module ? item.module.map(m => m.topo_link, []) : [];
+      // const clusterIds = item.bk_cluster.map(cluster => cluster.id);
+      // originValue = moduleIds.concat(clusterIds);
+    } else if (field.dynamic) {
+      const data = [];
+      item.module?.forEach(m => {
+        const dataIndex = m.topo_link.findIndex(t => t.includes(`${field.id}|`));
+        if (dataIndex > -1) {
+          data.push(m.topo_link[dataIndex]);
+        }
+      });
+      originValue = data;
     }
-    const id = topo_link.shift();
-    const name = topo_link_display.shift();
-    const node = { id, name };
-    const child = this.convertToTree(topo_link, topo_link_display);
-    if (child) {
-      node.children = [...(node.children || []), child];
+    return {
+      originValue,
+      curValue,
+    };
+  }
+  public getTableData() {
+    let data = [...(this.panelKey ? this[this.panelKey] : this.allData)];
+    const fieldData = this.fieldData.filter(field =>
+      Array.isArray(field.value) ? !!field.value.length : field.value !== '' && field.value !== undefined
+    );
+
+    fieldData.forEach(field => {
+      data = data.filter(item => this.isMatchedCondition(item, field));
+    });
+    if (this.keyWord.trim() !== '') {
+      data = this.filterDataByKeyword(data);
     }
-    return node;
+    const sortData = this.sortDataByKey(data);
+    this.total = sortData.length;
+    // 缓存当前过滤后数据，用于分页、换页、指标对比、采集下发和复制IP操作
+    this.filterData = Object.freeze(sortData);
+
+    return JSON.parse(JSON.stringify(this.pagination(sortData)));
   }
 
   // 初始化行属性（扩展属性）
@@ -665,84 +717,6 @@ export default class TableStore {
     return item;
   }
 
-  public getTableData() {
-    let data = [...(this.panelKey ? this[this.panelKey] : this.allData)];
-    const fieldData = this.fieldData.filter(field =>
-      Array.isArray(field.value) ? !!field.value.length : field.value !== '' && field.value !== undefined,
-    );
-
-    fieldData.forEach(field => {
-      data = data.filter(item => this.isMatchedCondition(item, field));
-    });
-    if (this.keyWord.trim() !== '') {
-      data = this.filterDataByKeyword(data);
-    }
-    const sortData = this.sortDataByKey(data);
-    this.total = sortData.length;
-    // 缓存当前过滤后数据，用于分页、换页、指标对比、采集下发和复制IP操作
-    this.filterData = Object.freeze(sortData);
-
-    return JSON.parse(JSON.stringify(this.pagination(sortData)));
-  }
-  // 重新排序缓存数据
-  public reOrderData() {
-    this.filterData = Object.freeze(this.sortDataByKey([...this.filterData]));
-    return JSON.parse(JSON.stringify(this.pagination(this.filterData)));
-  }
-  // 重新分页数据
-  public reLimitData() {
-    // return this.reOrderData()
-    return JSON.parse(JSON.stringify(this.pagination([...this.filterData])));
-  }
-
-  // 关键字匹配
-  public filterDataByKeyword(data: ITableRow[]) {
-    // const keyWord = this.keyWord.trim().toLocaleLowerCase()
-    const keyWord = this.keyWord.trim();
-    const fieldData = this.fieldData.filter(item => item.fuzzySearch);
-    if (isFullIpv6(padIPv6(keyWord))) {
-      const ipv6Keyword = padIPv6(keyWord);
-      const ipv6s = ipv6Keyword.match(IPV6_LIST_MATCH);
-      if (ipv6s?.length > 0) {
-        return data.filter(
-          item => item.bk_host_innerip_v6.includes(keyWord) || ipv6s.includes(item.bk_host_innerip_v6),
-        );
-      }
-    }
-    // 多IP精确/单IP模糊筛选
-    const ips = keyWord.match(IP_LIST_MATCH);
-    if (ips?.length > 0) {
-      return data.filter(item => item.bk_host_innerip.includes(keyWord) || ips.includes(item.bk_host_innerip));
-    }
-    return data.filter(item => {
-      for (let i = 0, len = fieldData.length; i < len; i++) {
-        const field = fieldData[i];
-        let val = '';
-        if (field.id === 'bk_inst_name') {
-          // 模块
-          val = item.moduleInstNames;
-        } else if (field.id === 'display_name') {
-          // 进程名
-          val = item.componentNames;
-        } else if (field.id === 'bk_cluster') {
-          // 集群名
-          val = item.clusterNames;
-        } else {
-          val = item[field.id] || '';
-        }
-        if (typeof val === 'number') {
-          val = `${val}`;
-        }
-        // 耗时操作
-        // val = val.toLocaleLowerCase()
-        if (val.includes(keyWord)) {
-          return true;
-        }
-      }
-      return false;
-    });
-  }
-
   // 条件匹配
   public isMatchedCondition(item: ITableRow, field: IFieldConfig) {
     const { curValue, originValue } = this.getCompareValue(item, field);
@@ -842,41 +816,26 @@ export default class TableStore {
 
     return originValue === curValue;
   }
+  public pagination(data: ITableRow[]) {
+    return data.slice(this.pageSize * (this.page - 1), this.pageSize * this.page);
+  }
+  // 重新分页数据
+  public reLimitData() {
+    // return this.reOrderData()
+    return JSON.parse(JSON.stringify(this.pagination([...this.filterData])));
+  }
 
-  public getCompareValue(item: ITableRow, field: IFieldConfig) {
-    let originValue = item[field.id] === undefined ? '' : item[field.id]; // 当 field.id 为 模块、进程、集群、模块\集群时，该值为undefined
-    let curValue = field.value === '' ? '' : field.value; // 筛选条件的值
-    if (['bk_host_innerip', 'bk_host_outerip'].includes(field.id)) {
-      // IP类型的值
-      curValue = (field.value as string).replace(/\n|,/g, '|').replace(/\s+/g, '').split('|');
-    } else if (field.id === 'bk_inst_name') {
-      // 模块名称
-      originValue = item.module ? item.module.map(m => m.bk_inst_name) : [];
-    } else if (field.id === 'display_name') {
-      // 进程名
-      originValue = item.component ? item.component.map(com => com[field.id]) : [];
-    } else if (field.id === 'bk_cluster') {
-      // 集群ID（集群字段是前端拼接的，在initRowData方法里面）
-      originValue = item.bk_cluster.map(cluster => cluster.id);
-    } else if (field.id === 'cluster_module') {
-      // 集群\模块（级联输入）
-      originValue = item.module ? item.module.map(m => m.topo_link, []) : [];
-      // const clusterIds = item.bk_cluster.map(cluster => cluster.id);
-      // originValue = moduleIds.concat(clusterIds);
-    } else if (field.dynamic) {
-      const data = [];
-      item.module?.forEach(m => {
-        const dataIndex = m.topo_link.findIndex(t => t.includes(`${field.id}|`));
-        if (dataIndex > -1) {
-          data.push(m.topo_link[dataIndex]);
-        }
-      });
-      originValue = data;
+  // 重新排序缓存数据
+  public reOrderData() {
+    this.filterData = Object.freeze(this.sortDataByKey([...this.filterData]));
+    return JSON.parse(JSON.stringify(this.pagination(this.filterData)));
+  }
+
+  public setState(rowId: string, key: string, value: any) {
+    const row = this.allData.find(item => item.rowId === rowId);
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      row[key] = value;
     }
-    return {
-      originValue,
-      curValue,
-    };
   }
 
   public sortDataByKey(data: ITableRow[]) {
@@ -893,7 +852,48 @@ export default class TableStore {
     return data;
   }
 
-  public pagination(data: ITableRow[]) {
-    return data.slice(this.pageSize * (this.page - 1), this.pageSize * this.page);
+  public updateData(data: Array<any>, options?: ITableOptions) {
+    this.stickyValue = options?.stickyValue || {};
+    this.panelKey = options?.panelKey || '';
+    this.unresolveData = [];
+    this.cpuData = [];
+    this.menmoryData = [];
+    this.diskData = [];
+    this.allData = Object.freeze(data.map(item => Object.seal(this.initRowData(item))));
+    this.allClusterTopo = Object.freeze(this.createTopoTree());
+    this.updateFieldDataOptions();
+  }
+
+  public updateFieldDataOptions() {
+    for (const key in this.cacheFieldOptionsSet) {
+      const cacheFieldSet = this.cacheFieldOptionsSet[key];
+      const fieldData = this.fieldData.find(item => item.id === key);
+      if (cacheFieldSet.size && fieldData) {
+        fieldData.options = [];
+        for (const val of cacheFieldSet.values()) {
+          fieldData.options.push({
+            id: val,
+            name: val,
+          });
+        }
+      }
+      // 添加空项筛选
+      if (fieldData?.allowEmpt) {
+        fieldData.options.unshift({ id: '__empt__', name: window.i18n.t('- 空 -') });
+      }
+    }
+    const moduleFieldData = this.fieldData.find(item => item.id === 'bk_inst_name');
+    if (moduleFieldData) {
+      moduleFieldData.options = Array.from(this.cacheModuleMap.values()).reduce((pre, cur) => {
+        if (!pre.find(item => item.id === cur.id)) pre.push(cur);
+        return pre;
+      }, []);
+    }
+    // // forEach性能低
+    // for (const key in this.cacheFieldOptionsData) {
+    //   this.cacheFieldOptionsData[key].clear()
+    // }
+    // this.cacheModule.clear()
+    // this.cacheCluster.clear()
   }
 }

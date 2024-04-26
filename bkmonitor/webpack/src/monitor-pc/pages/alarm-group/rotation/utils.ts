@@ -26,7 +26,6 @@
 
 import { timeRangeMerger } from '../../../../trace/pages/rotation/components/calendar-preview';
 import { randomColor } from '../../../../trace/pages/rotation/utils';
-
 import { IDutyItem } from './typing';
 
 interface IOverlapTimesItem {
@@ -174,8 +173,8 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
             start = totalRangeTime[0];
           }
           return [start, end];
-        }),
-    ),
+        })
+    )
   );
   allRangeTime.sort((a, b) => (a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]));
 
@@ -307,10 +306,10 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
     for (let j = i + 1; j < timeRanges.length; j++) {
       // 两两对比
       const curTimeRanges = JSON.parse(
-        JSON.stringify(timeRanges[i].map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()])),
+        JSON.stringify(timeRanges[i].map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()]))
       ) as number[][];
       const nextTimeRanges = JSON.parse(
-        JSON.stringify(timeRanges[j].map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()])),
+        JSON.stringify(timeRanges[j].map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()]))
       ) as number[][];
       const ranges = getOverlapTowByTow([curTimeRanges, nextTimeRanges]);
       ranges.forEach(range => {
@@ -358,7 +357,7 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
               g.verticalRange[0] >= r.verticalRange[0] &&
               g.verticalRange[1] <= r.verticalRange[1] &&
               g.range.tempRange[0] >= r.range.tempRange[0] &&
-              g.range.tempRange[1] <= r.range.tempRange[1],
+              g.range.tempRange[1] <= r.range.tempRange[1]
           ).length;
         if (temp.length) {
           const pre = temp[temp.length - 1];
@@ -604,7 +603,7 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
 function uniqueByDutyUsers(data: IDutyPreviewParams[]) {
   const result = [];
   data.forEach(item => {
-    const maps = new Map<string | number, Set<string>>();
+    const maps = new Map<number | string, Set<string>>();
     const dutyPlans = item.duty_plans.map(duty => {
       if (!maps.has(duty.user_index)) {
         maps.set(duty.user_index, new Set());

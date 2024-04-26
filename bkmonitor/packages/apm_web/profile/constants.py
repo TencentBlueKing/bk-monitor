@@ -60,3 +60,9 @@ class DataType(TextChoices):
     @classmethod
     def get_name(cls, key):
         return dict(DataType.choices).get(key, key.upper())
+
+
+class CallGraph:
+    BASE_SIZE = 0.5
+    MAX_SIZE = 2
+    MIN_SIZE = 0.2

@@ -44,7 +44,7 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
   @Inject('reportEventLog') reportEventLog: (eventType: string) => void;
 
   /** 当前选中指标 */
-  active: string | null = null;
+  active: null | string = null;
 
   @Watch('list', { immediate: true })
   handleChange(val) {

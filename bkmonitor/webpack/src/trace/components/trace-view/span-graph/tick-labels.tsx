@@ -43,12 +43,12 @@ const TickLabels = (props: ITickLabelsProps) => {
     ticks.push(
       <div
         key={portion}
-        class='label'
         style={style}
+        class='label'
         data-test='tick'
       >
         {formatDuration(duration * portion)}
-      </div>,
+      </div>
     );
   }
 

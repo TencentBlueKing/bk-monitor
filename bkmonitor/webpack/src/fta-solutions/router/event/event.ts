@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { RouteConfig } from 'vue-router';
+
 import * as eventCenterAuth from 'monitor-pc/pages/event-center/authority-map';
 
 const Event = () => import(/* webpackChunkName: "Event" */ '../../pages/event/event');

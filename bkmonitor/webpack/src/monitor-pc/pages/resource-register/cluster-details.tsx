@@ -130,8 +130,8 @@ export default class ClusterDetails extends tsc<IProps> {
   detailsItem(item: { name: string; content: any }, key) {
     return (
       <div
-        class='content-item'
         key={key}
+        class='content-item'
       >
         <span class='lable'>{item.name}: </span>
         <span class='content'>{item.content || '--'}</span>
@@ -142,16 +142,16 @@ export default class ClusterDetails extends tsc<IProps> {
   render() {
     return (
       <bk-sideslider
+        width={400}
         ext-cls='resource-register-cluster-details-sides'
         isShow={this.show}
         quick-close={true}
         transfer={true}
-        width={400}
         {...{ on: { 'update:isShow': this.emitIsShow } }}
       >
         <div
-          slot='header'
           class='header-wrap'
+          slot='header'
         >
           <span class='header-title'>{this.clusterName}</span>
           <bk-button

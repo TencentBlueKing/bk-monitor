@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 export enum TabEnum {
+  Configuration = 'configuration',
   DataLink = 'DataLink',
+  FieldDetails = 'fieldDetails',
   StorageState = 'StorageState',
   TargetDetail = 'targetDetail',
-  Configuration = 'configuration',
-  FieldDetails = 'fieldDetails',
 }
 
 export interface DetailData {
@@ -42,6 +42,6 @@ export interface DetailData {
 
 export enum TCollectorAlertStage {
   collecting = 'collecting',
-  transfer = 'transfer',
   storage = 'storage',
+  transfer = 'transfer',
 }

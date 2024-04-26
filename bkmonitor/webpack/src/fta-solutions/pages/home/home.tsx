@@ -25,6 +25,7 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Big from 'big.js';
 import dayjs from 'dayjs';
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
@@ -35,7 +36,7 @@ import BusinessItem, { IData } from './business-item';
 
 import './home.scss';
 
-export const initUnit = (num: number, type: 'num' | '%' | 'time') => {
+export const initUnit = (num: number, type: '%' | 'num' | 'time') => {
   const numObj: { num: number | string; unit: string } = {
     num: 0,
     unit: '',
@@ -98,7 +99,7 @@ interface IDataOverview {
     icon: string;
     num: number;
     unit: string;
-    type: 'num' | '%' | 'time';
+    type: '%' | 'num' | 'time';
     borderRight?: boolean;
     tip?: string;
     allowHtml?: boolean;
@@ -239,7 +240,7 @@ export default class Home extends tsc<IHomeProps> {
   scrollLoading = false;
   businessLoading = false;
   scrollEl = null;
-  throttledScroll: throttle<(e: any) => Promise<void>> | (() => void) = () => {};
+  throttledScroll: (() => void) | throttle<(e: any) => Promise<void>> = () => {};
 
   created() {
     this.throttledScroll = throttle(300, this.handleScroll);
@@ -420,7 +421,7 @@ export default class Home extends tsc<IHomeProps> {
       // const timeRange = 86400000 * this.dataOverview.timeChecked;
       if (params.activeFilterId) {
         window.open(
-          `${location.origin}${location.pathname}?bizId=${params.id}/#/event-center?activeFilterId=${params.activeFilterId}`,
+          `${location.origin}${location.pathname}?bizId=${params.id}/#/event-center?activeFilterId=${params.activeFilterId}`
         );
       } else {
         window.open(`${location.origin}${location.pathname}?bizId=${params.id}/#/event-center`);
@@ -458,16 +459,16 @@ export default class Home extends tsc<IHomeProps> {
                 </span>
                 <span class='right'>
                   <bk-select
-                    v-model={this.dataOverview.timeChecked}
                     ext-cls='time-select'
+                    v-model={this.dataOverview.timeChecked}
                     clearable={false}
                     popover-width={70}
                     on-change={() => this.init(true)}
                   >
                     {this.dataOverview.timeOption.map(option => (
                       <bk-option
-                        key={option.id}
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       ></bk-option>
                     ))}
@@ -501,8 +502,8 @@ export default class Home extends tsc<IHomeProps> {
                     </span>
                     <span class='item-bottom'>
                       <img
-                        src={this.getSvgIcon(item.icon)}
                         alt=''
+                        src={this.getSvgIcon(item.icon)}
                       />
                       <span class='title'>{item.name}</span>
                     </span>
@@ -518,23 +519,23 @@ export default class Home extends tsc<IHomeProps> {
                 </span>
                 <span class='right'>
                   <bk-input
+                    v-model={this.businessOverview.searchValue}
                     placeholder={this.$t('输入')}
                     right-icon='bk-icon icon-search'
-                    v-model={this.businessOverview.searchValue}
-                    on-right-icon-click={() => this.isCanSearch() && this.init()}
-                    on-enter={() => this.isCanSearch() && this.init()}
                     on-blur={() => this.isCanSearch() && this.init()}
+                    on-enter={() => this.isCanSearch() && this.init()}
+                    on-right-icon-click={() => this.isCanSearch() && this.init()}
                   ></bk-input>
                   <bk-select
+                    ext-cls='filter-select'
                     v-model={this.businessOverview.filterItem}
                     clearable={false}
-                    ext-cls='filter-select'
                     on-change={() => this.init()}
                   >
                     {this.businessOverview.filterList.map(option => (
                       <bk-option
-                        key={option.id}
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       ></bk-option>
                     ))}
@@ -548,8 +549,8 @@ export default class Home extends tsc<IHomeProps> {
                 >
                   {this.businessOverview.data.map((item, index) => (
                     <BusinessItem
-                      data={item}
                       key={index}
+                      data={item}
                       onFavorite={(v: boolean) => this.handleFavorite(v, index)}
                       onToEvent={this.handleToEvent}
                     ></BusinessItem>
@@ -557,9 +558,9 @@ export default class Home extends tsc<IHomeProps> {
                 </div>
               ) : (
                 <bk-exception
+                  ext-cls='home-no-data'
                   v-bkloading={{ isLoading: this.businessLoading }}
                   type='empty'
-                  ext-cls='home-no-data'
                 >
                   <span class='home-no-data-msg'>{this.$t('无数据')}</span>
                 </bk-exception>
@@ -578,7 +579,7 @@ export default class Home extends tsc<IHomeProps> {
             </div>
             <div>
               {window.i18n.tc(
-                '总持续时间：所有告警的首次异常时间到下一个状态变更的时间点，如确认/屏蔽/恢复/关闭/已解决',
+                '总持续时间：所有告警的首次异常时间到下一个状态变更的时间点，如确认/屏蔽/恢复/关闭/已解决'
               )}
             </div>
           </div>

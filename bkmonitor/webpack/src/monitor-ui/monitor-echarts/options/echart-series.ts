@@ -27,8 +27,8 @@ import { ChartType, ILegendItem } from './type-interface';
 
 export default class EchartsSeries {
   public chartType: Partial<ChartType>;
-  public series = [];
   public colors = [];
+  public series = [];
   public constructor(chartType: ChartType, seriesData = [], colors = []) {
     this.chartType = chartType;
     this.series = seriesData;
@@ -109,26 +109,6 @@ export default class EchartsSeries {
     });
     return { legendData, series };
   }
-  // 设置阈值线
-  public handleSetThresholdLine(thresholdLine: { value: number; name: string }[]) {
-    return {
-      symbol: [],
-      label: {
-        show: true,
-        position: 'insideStartTop',
-      },
-      lineStyle: {
-        color: '#FD9C9C',
-        type: 'dashed',
-        distance: 3,
-        width: 1,
-      },
-      data: thresholdLine.map(item => ({
-        name: item.name,
-        yAxis: item.value,
-      })),
-    };
-  }
   // 设置阈值面板
   public handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
     return {
@@ -152,6 +132,26 @@ export default class EchartsSeries {
         },
       ]),
       opacity: 0.1,
+    };
+  }
+  // 设置阈值线
+  public handleSetThresholdLine(thresholdLine: { value: number; name: string }[]) {
+    return {
+      symbol: [],
+      label: {
+        show: true,
+        position: 'insideStartTop',
+      },
+      lineStyle: {
+        color: '#FD9C9C',
+        type: 'dashed',
+        distance: 3,
+        width: 1,
+      },
+      data: thresholdLine.map(item => ({
+        name: item.name,
+        yAxis: item.value,
+      })),
     };
   }
 }

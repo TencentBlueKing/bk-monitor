@@ -590,6 +590,12 @@ class TimeSeriesDataSource(DataSource):
 
     DEFAULT_TIME_FIELD = "time"
 
+    def rollback_query(self):
+        pass
+
+    def switch_unify_query(self, bk_biz_id):
+        raise NotImplementedError("Not implemented yet")
+
     @classmethod
     def init_by_query_config(cls, query_config: Dict, *args, bk_biz_id=0, name="", **kwargs):
         """
@@ -1021,29 +1027,51 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
 
     DEFAULT_TIME_FIELD = "dtEventTimeStamp"
 
-    @classmethod
-    def using_unify_query(cls, bk_biz_id):
-        # 灰度状态： 灰度业务列表不包含0业务表示灰度中
-        grayscale = 0 not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
-        if grayscale:
-            # 灰度数据源基于业务进行灰度
-            return bk_biz_id in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
-        # 不灰度就是全量(灰度列表包含 0 业务)
-        return True
+    def switch_unify_query(self, bk_biz_id):
+        def _check(bk_biz_id):
+            # __init__ 之前的会有该判定被调用， 此时属性还未被赋值
+            # 1. 如果使用了查询函数，会走统一查询模块
+            if getattr(self, "functions", []):
+                return True
+            # 2. 不支持一次查询多个指标，使用 bksql
+            # 当 metrics 有多个时，表示特殊逻辑
+            if len(getattr(self, "metrics", [])) > 1:
+                return False
+            # 3. 灰度状态： 灰度业务列表不包含0业务表示灰度中
+            grayscale = 0 not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
+            if grayscale:
+                # 3.1 灰度数据源基于业务进行灰度
+                return bk_biz_id in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
+            # 4. 不灰度就是全量(灰度列表包含 0 业务)
+            return True
 
-    def _update_params_by_advance_method(self):
-        if len(self.metrics) > 1 and not self.functions:
-            # 如果使用了查询函数，会走统一查询模块
-            # 只有多指标情况下, bksql，需要高级过滤转换。
-            self.ADVANCE_CONDITION_METHOD = AdvanceConditionMethod
+        self._using_unify_query = _check(bk_biz_id)
+        if self._using_unify_query:
+            if getattr(self, "_advance_where", []):
+                # 使用unify-query，不处理高级条件
+                self.ADVANCE_CONDITION_METHOD = []
+                self.where = self._advance_where
+                self._advance_where = []
+        else:
+            if hasattr(self, "_advance_where"):
+                # 实例初始化完成后的判定，需要重新处理高级条件
+                self.rollback_query()
 
-        return super(BkdataTimeSeriesDataSource, self)._update_params_by_advance_method()
+        return self._using_unify_query
+
+    def rollback_query(self):
+        # 回退 bksql, 高级过滤转换。
+        self.ADVANCE_CONDITION_METHOD = AdvanceConditionMethod
+        if self._advance_where:
+            # 已经处理过高级条件，不重复处理
+            return
+        self._update_params_by_advance_method()
 
     def __init__(self, *args, **kwargs):
         # datasource初始化部分基于 init_by_query_config， 部分是直接初始化
         # 风险： 初始化参数中可能不存在业务id信息
         bk_biz_id = kwargs.get("bk_biz_id")
-        if bk_biz_id and self.using_unify_query(bk_biz_id):
+        if bk_biz_id and self.switch_unify_query(bk_biz_id):
             # 当计算平台查询走unify-query的时候，不额外处理高级过滤方法
             # 影响函数： _update_params_by_advance_method
             self.ADVANCE_CONDITION_METHOD = []

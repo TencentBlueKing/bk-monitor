@@ -42,9 +42,10 @@ class GetUserResource(UserManageAPIGWResource):
     action = "/retrieve_user/"
     method = "GET"
 
-    def perform_request(self, validated_request_data):
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(GetUserResource, self).full_request_data(validated_request_data)
         validated_request_data.update({"id": validated_request_data["bk_username"]})
-        return super(GetUserResource, self).perform_request(validated_request_data)
+        return validated_request_data
 
 
 class GetAllUserResource(UserManageAPIGWResource):

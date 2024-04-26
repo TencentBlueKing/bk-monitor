@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { actionDetail, searchAlert } from 'monitor-api/modules/alert';
 import { isZh } from 'monitor-pc/common/constant';
@@ -33,16 +34,16 @@ import { getStatusInfo } from './type';
 
 import './action-detail.scss';
 
-const queryString = (type: 'trigger' | 'defense', id) => {
+const queryString = (type: 'defense' | 'trigger', id) => {
   if (type === 'trigger') {
     return isZh() ? `处理记录ID: ${id}` : `action_id: ${id}`;
   }
   return isZh() ? `收敛记录ID: ${id}` : `converge_id: ${id}`;
 };
 export const handleToAlertList = (
-  type: 'trigger' | 'defense',
+  type: 'defense' | 'trigger',
   detailInfo: { create_time: number; end_time: number; id: string; converge_id?: number },
-  bizId,
+  bizId
 ) => {
   // const queryStringUrl = `queryString="${encodeURI(queryString(type, detailInfo.id))}"`;
   const curUnix = dayjs.tz().unix() * 1000;
@@ -56,8 +57,8 @@ export const handleToAlertList = (
   window.open(
     `${location.origin}${location.pathname}?bizId=${bizId}/#/event-center?queryString=${queryString(
       type,
-      detailInfo.id,
-    )}&timeRange=${startTime}&timeRange=${endTime}`,
+      detailInfo.id
+    )}&timeRange=${startTime}&timeRange=${endTime}`
   );
 };
 
@@ -146,7 +147,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
     this.tableData.defense = defense.alerts;
     this.loading = false;
   }
-  queryString(type: 'trigger' | 'defense') {
+  queryString(type: 'defense' | 'trigger') {
     const { id } = this.detailInfo;
     return `${queryString(type, id)}`;
   }
@@ -155,12 +156,12 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
    * @param {*} type
    * @return {*}
    */
-  handleToAlertList(type: 'trigger' | 'defense') {
+  handleToAlertList(type: 'defense' | 'trigger') {
     const { create_time: createTime, end_time: endTime, id, converge_id: convergeId } = this.detailInfo;
     handleToAlertList(
       type,
       { create_time: createTime, end_time: endTime, id, converge_id: convergeId },
-      this.detailInfo.bk_biz_id || this.$store.getters.bizId,
+      this.detailInfo.bk_biz_id || this.$store.getters.bizId
     );
   }
   handlePopoverShow(e: MouseEvent, content: string) {
@@ -179,7 +180,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
 
   handleToActionDetail() {
     window.open(
-      `${location.origin}${location.pathname}?bizId=${this.detailInfo.bk_biz_id}/#/set-meal-edit/${this.detailInfo.action_config_id}`,
+      `${location.origin}${location.pathname}?bizId=${this.detailInfo.bk_biz_id}/#/set-meal-edit/${this.detailInfo.action_config_id}`
     );
   }
 
@@ -194,7 +195,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
         `<div class="description-desc">${this.$t('告警内容')}：${description || '--'}</div>`,
       ]
         .filter(Boolean)
-        .join(''),
+        .join('')
     );
   }
 
@@ -206,11 +207,11 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
     };
     const severity = severity => (
       <span
-        class='severity'
         style={{
           borderLeft: `4px solid ${level[severity].color}`,
           color: level[severity].color,
         }}
+        class='severity'
       >
         {level[severity].label}
       </span>
@@ -234,18 +235,18 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
     return (
       <bk-table data={tableData}>
         <bk-table-column
-          label={this.$t('告警ID')}
           width='150'
+          label={this.$t('告警ID')}
           scopedSlots={{ default: props => props.row.id }}
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('告警名称')}
           width='200'
+          label={this.$t('告警名称')}
           scopedSlots={{ default: props => props.row.alert_name }}
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('告警级别')}
           width='100'
+          label={this.$t('告警级别')}
           scopedSlots={{ default: props => severity(props.row.severity) }}
         ></bk-table-column>
         <bk-table-column
@@ -361,8 +362,8 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                 <div class='table-title first'>
                   {this.$t('触发的告警')}
                   <i18n
-                    path='仅展示最近10条，更多详情请{0}'
                     class='msg'
+                    path='仅展示最近10条，更多详情请{0}'
                   >
                     <span
                       class='table-title-link'
@@ -381,8 +382,8 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                 <div class='table-title'>
                   {this.$t('防御的告警')}
                   <i18n
-                    path='仅展示最近10条，更多详情请{0}'
                     class='msg'
+                    path='仅展示最近10条，更多详情请{0}'
                   >
                     <span
                       class='table-title-link'

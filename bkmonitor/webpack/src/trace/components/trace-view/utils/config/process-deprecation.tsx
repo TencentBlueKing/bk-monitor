@@ -49,7 +49,7 @@ interface IDeprecation {
 export default function processDeprecation(
   config: Record<string, any>,
   deprecation: IDeprecation,
-  issueWarning: boolean,
+  issueWarning: boolean
 ) {
   const { formerKey, currentKey } = deprecation;
   if (_has(config, formerKey)) {

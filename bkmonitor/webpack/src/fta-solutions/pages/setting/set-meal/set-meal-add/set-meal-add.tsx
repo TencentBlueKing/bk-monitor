@@ -26,11 +26,11 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
 import { SET_NAV_ROUTE_LIST } from 'monitor-pc/store/modules/app';
 
 import SetMealAddModule from '../../../../store/modules/set-meal-add';
-
 import MealBasicInfo from './meal-basic-info/meal-basic-info';
 import MealContentNew, { IMealTypeList } from './meal-content/meal-content';
 import {
@@ -278,13 +278,13 @@ export default class SetMealAdd extends tsc<object> {
         v-bkloading={{ isLoading: this.isLoading }}
       >
         <div
-          class='set-meal-left'
           style={{ width: this.rightShow ? 'calc(100% - 400px)' : 'calc(100% - 16px)' }}
+          class='set-meal-left'
         >
           <div class='set-meal-wrapper'>
             <div
-              class='set-warpper-container'
               style={{ width: this.rightShow ? 'calc(100% - 400px)' : 'calc(100% - 16px)' }}
+              class='set-warpper-container'
             >
               <div class='set-warpper'>
                 <div
@@ -301,11 +301,11 @@ export default class SetMealAdd extends tsc<object> {
               </div>
               <MealContentNew
                 ref='mealContentRef'
-                type={this.type}
-                name={this.basicInfo.name}
                 mealData={this.mealData}
                 mealTypeList={this.mealTypeList}
+                name={this.basicInfo.name}
                 refreshKey={this.refreshKey}
+                type={this.type}
                 onChange={data => (this.mealData = data)}
               ></MealContentNew>
               <div class='operate-warpper'>
@@ -319,8 +319,8 @@ export default class SetMealAdd extends tsc<object> {
               </div>
             </div>
             <div
-              class='set-meal-right'
               style={{ width: this.rightShow ? '400px' : '16px' }}
+              class='set-meal-right'
             >
               <MealDesc
                 pluginType={this.mealData.pluginType}

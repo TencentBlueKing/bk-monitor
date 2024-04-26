@@ -157,28 +157,28 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
       <div class='collector-plugin-selector-component'>
         <bk-select
           class='select-big'
-          value={this.pluginId}
-          ext-popover-cls='collector-plugin-selector-component-options'
-          searchable
           clearable={false}
           disabled={this.disabled}
+          ext-popover-cls='collector-plugin-selector-component-options'
+          value={this.pluginId}
+          searchable
           on-selected={value => this.handleSelector(value)}
         >
           {this.realList.map(item => (
             <bk-option
-              key={item.plugin_id}
               id={item.plugin_id}
+              key={item.plugin_id}
               name={`${item.plugin_display_name || item.plugin_id}${
                 ![LOG_PLUGIN_ID, PROCESS_PLUGIN_ID].includes(item.plugin_id) ? ` (${item.plugin_id})` : ''
               } - ${pluginTypeMap[item.plugin_type]}`}
             >
               <span class='plugin-option'>
                 <div
-                  class='plugin-logo'
                   style={{
                     'background-image': item.logo ? `url(data:image/gif;base64,${item.logo})` : 'none',
                     'background-color': item.logo ? '' : colorMap[item.plugin_type],
                   }}
+                  class='plugin-logo'
                 >
                   {item.logo ? '' : item.plugin_display_name.slice(0, 1).toLocaleUpperCase()}
                 </div>
@@ -196,8 +196,8 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
           >
             <div class='bottom-add'>
               <i
-                class='bk-icon icon-plus-circle'
                 style={{ marginRight: '5px' }}
+                class='bk-icon icon-plus-circle'
               ></i>
               {window.i18n.tc('新建插件')}
             </div>

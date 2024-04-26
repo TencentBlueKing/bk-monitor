@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
@@ -32,7 +33,6 @@ import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import { DashboardColumnType, IPanelModel, ObservablePanelField, PanelModel } from '../typings';
-
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
 
@@ -52,7 +52,7 @@ interface IDashbordPanelProps {
   needOverviewBtn?: boolean;
   backToType?: SceneType;
   /** 根据column */
-  customHeightFn?: Function | null;
+  customHeightFn?: ((a: any) => number) | null;
   dashboardId?: string;
   matchFields?: Record<string, any>;
 }
@@ -81,13 +81,13 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   @Prop({ default: '' }) dashboardId: string;
   @Prop({ type: Object }) matchFields: Record<string, any>;
   /** 自定义高度 */
-  @Prop({ default: null }) customHeightFn: Function | null;
+  @Prop({ default: null }) customHeightFn: ((a: any) => number) | null;
   // 视图实例集合
   // localPanels: PanelModel[] = [];
   /** 需要有响应式变化的属性 */
   observablePanelsField: ObservablePanelField = {};
   // 拖拽视图的id
-  movedId: string | number = '';
+  movedId: number | string = '';
   /* 展示收藏弹窗 */
   showCollect = false;
   /* 点击了单个视图保存仪表盘 */
@@ -235,7 +235,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
               ...item,
               show: !!panel.collapsed,
               groupId: rowPanel.id,
-            }),
+            })
           );
           list.push(...childList);
         }
@@ -372,7 +372,8 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
             <div class='flex-dashboard'>
               {(this as any).localPanels.slice(0, 1000).map((panel, index) => (
                 <div
-                  class={{ 'flex-dashboard-item': true, 'row-panel': panel.type === 'row' }}
+                  id={`${panel.id}__key__`}
+                  key={`${panel.id}__key__`}
                   style={{
                     width: `calc(${(1 / +this.column) * 100}% - 16px)`,
                     maxWidth: `calc(${(1 / +this.column) * 100}% - 16px)`,
@@ -382,28 +383,27 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
                       ? this.customHeightFn(this.column)
                       : panel.realHeight || (this.column === 1 ? '182px' : '256px'),
                   }}
-                  key={`${panel.id}__key__`}
-                  id={`${panel.id}__key__`}
+                  class={{ 'flex-dashboard-item': true, 'row-panel': panel.type === 'row' }}
                 >
                   <ChartWrapper
                     key={`${panel.id}__key__`}
-                    panel={panel}
-                    collapse={this.observablePanelsField[panel.id].collapsed}
                     chartChecked={this.observablePanelsField[panel.id].checked}
+                    collapse={this.observablePanelsField[panel.id].collapsed}
+                    panel={panel}
+                    onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                     onChartCheck={v => this.handleChartCheck(v, panel)}
                     onCollapse={v => panel.type === 'row' && this.handleCollapse(v, panel)}
                     onCollectChart={() => this.handleCollectChart(panel)}
-                    onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                   />
                 </div>
               ))}
             </div>,
             (this as any).localPanels.length ? (
               <ChartCollect
+                isCollectSingle={this.isCollectSingle}
                 localPanels={(this as any).localPanels}
                 observablePanelsField={this.observablePanelsField}
                 showCollect={this.showCollect}
-                isCollectSingle={this.isCollectSingle}
                 onCheckAll={() => this.handleCheckAll()}
                 onCheckClose={() => this.handleCheckAll(false)}
                 onShowCollect={(v: boolean) => this.handleShowCollect(v)}

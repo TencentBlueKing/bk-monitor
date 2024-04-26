@@ -75,18 +75,18 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+
 import { Col, List, Row } from 'vant';
 
 import SelectButton from '../../components/select-button/select-button.vue';
 import EventCenterModule from '../../store/modules/event-center';
-
 import EventListItem from './event-list-item.vue';
 import EventTab from './event-tab.vue';
 
 export interface ITabItem {
   title: string;
   shortTitle?: string;
-  value: string | number;
+  value: number | string;
   count: number;
 }
 export interface IListItem {

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type VueConstructor } from 'vue';
+
 import { type DirectiveBinding, type DirectiveOptions } from 'vue/types/options';
 
 import { random } from '../utils/utils';
@@ -41,7 +42,7 @@ interface IBindValue {
   defaultWidth: number; // 默认宽度
   autoHidden: boolean; // 超出最小宽度时是否自动隐藏
   isShow: boolean; // 是否展示
-  theme: 'normal' | 'simple' | 'dotted'; // 拖拽按钮主题
+  theme: 'dotted' | 'normal' | 'simple'; // 拖拽按钮主题
   placement: 'left' | 'right'; // 拖拽侧栏的位置 默认left
   onHidden?: () => void; // 隐藏回调
   onWidthChange?: (width: number) => void; // 宽度更新
@@ -68,7 +69,7 @@ const getBindValue = (data: IBindValue): IBindValue => {
 const handleMouseMove = (event: MouseEvent) => {
   if (!insertedEl) return;
   const { maxWidth, minWidth, autoHidden, onHidden, onWidthChange, placement } = getBindValue(
-    insertedEl._bk_monitor_drag.value as IBindValue,
+    insertedEl._bk_monitor_drag.value as IBindValue
   );
   const rect = insertedEl.getBoundingClientRect();
   let width = placement === 'left' ? event.clientX - rect.left : rect.right - event.clientX;

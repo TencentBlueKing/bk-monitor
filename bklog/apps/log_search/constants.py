@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 """
 from enum import Enum
 
+from django.apps import apps
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
@@ -947,6 +948,10 @@ class FieldDateFormatEnum(ChoicesEnum):
         description: DEMO
         :return: list[dict{id, name, description}]
         """
+        # 解决循环引用问题
+        FieldDateFormat = apps.get_model('log_databus', 'FieldDateFormat')
+        # 加入自定义时间格式
+        custom_time_format = FieldDateFormat.get_field_date_format()
         return [
             {
                 "id": "yyyy-MM-dd HH:mm:ss",
@@ -1142,7 +1147,7 @@ class FieldDateFormatEnum(ChoicesEnum):
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },
-        ]
+        ] + custom_time_format
 
 
 # 监控保留字

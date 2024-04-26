@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, nextTick, ref, watch } from 'vue';
+
 import { UseTopoChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/topo-graph/use-topo';
 
 import './topo-graph.scss';
@@ -55,7 +56,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     return {
@@ -67,8 +68,8 @@ export default defineComponent({
   render() {
     return (
       <div
-        class='profiling-topo-graph'
         ref='containerRef'
+        class='profiling-topo-graph'
       >
         <div
           ref='imageRef'

@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { DecimalCount } from '../types/displayValue';
-
 import getCategories from './categories';
 import { toDateTimeValueFormatter } from './dateTimeFormatters';
 import { currency, decimalSIPrefix, getOffsetFromSIPrefix } from './symbolFormatters';
@@ -43,7 +42,7 @@ export type ValueFormatter = (
   value: number,
   decimals?: DecimalCount,
   scaledDecimals?: DecimalCount,
-  timeZone?,
+  timeZone?
 ) => FormattedValue;
 
 export interface ValueFormat {
@@ -100,7 +99,7 @@ export function toFixedScaled(
   decimals: DecimalCount,
   scaledDecimals: DecimalCount,
   additionalDecimals: number,
-  ext?: string,
+  ext?: string
 ): FormattedValue {
   if (scaledDecimals === null || scaledDecimals === undefined) {
     return { text: toFixed(value, decimals), suffix: ext };
@@ -201,7 +200,7 @@ function buildFormats() {
   hasBuiltIndex = true;
 }
 
-export function getValueFormat(id?: string | null): ValueFormatter {
+export function getValueFormat(id?: null | string): ValueFormatter {
   if (!hasBuiltIndex) {
     buildFormats();
   }

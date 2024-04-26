@@ -27,9 +27,9 @@
   <ul class="chart-menu">
     <template v-for="item in menuList">
       <li
-        class="chart-menu-item"
-        :key="item.id"
         v-if="list.includes(item.id)"
+        :key="item.id"
+        class="chart-menu-item"
         @mousedown="handleMenuClick(item)"
       >
         <i
@@ -58,7 +58,7 @@ interface menuItem {
   nextIcon?: string;
 }
 @Component({
-  name: 'chart-menu'
+  name: 'chart-menu',
 })
 export default class ChartMenu extends Vue {
   @Prop({ default: () => [] }) list: string[];
@@ -69,40 +69,40 @@ export default class ChartMenu extends Vue {
         name: this.$t('保存到仪表盘').toString(),
         checked: false,
         id: 'save',
-        icon: 'mc-mark'
+        icon: 'mc-mark',
       },
       {
         name: this.$t('截图到本地').toString(),
         checked: false,
         id: 'screenshot',
-        icon: 'mc-camera'
+        icon: 'mc-camera',
       },
       {
         name: this.$t('查看大图').toString(),
         checked: false,
         id: 'fullscreen',
-        icon: 'fullscreen'
+        icon: 'fullscreen',
       },
       {
         name: this.$t('检索').toString(),
         checked: false,
         id: 'explore',
         icon: 'mc-retrieval',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: this.$t('添加策略').toString(),
         checked: false,
         id: 'strategy',
         icon: 'mc-strategy',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: this.$t('相关告警').toString(),
         checked: false,
         id: 'relate-alert',
         icon: 'mc-menu-alert',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: this.$t('Y轴固定最小值为0').toString(),
@@ -110,7 +110,7 @@ export default class ChartMenu extends Vue {
         id: 'set',
         nextName: this.$t('Y轴自适应').toString(),
         icon: 'mc-yaxis',
-        nextIcon: 'mc-yaxis-scale'
+        nextIcon: 'mc-yaxis-scale',
       },
       {
         name: this.$t('面积图').toString(),
@@ -118,8 +118,8 @@ export default class ChartMenu extends Vue {
         id: 'area',
         nextName: this.$t('线性图').toString(),
         icon: 'mc-area',
-        nextIcon: 'mc-line'
-      }
+        nextIcon: 'mc-line',
+      },
     ];
   }
   @Emit('menu-click')
@@ -131,49 +131,55 @@ export default class ChartMenu extends Vue {
 </script>
 <style lang="scss" scoped>
 .chart-menu {
-  width: 182px;
+  position: absolute;
+  z-index: 999;
   display: flex;
   flex-direction: column;
+  width: 182px;
+  padding: 6px 0;
+  font-size: 12px;
   background: #fff;
   border: 1px solid #dcdee5;
   border-radius: 2px;
-  box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, .15);
-  padding: 6px 0;
-  font-size: 12px;
-  position: absolute;
-  z-index: 999;
+  box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.15);
+
   &-item {
     display: flex;
-    width: 100%;
-    align-items: center;
     flex: 0 0 32px;
+    align-items: center;
+    width: 100%;
     padding-left: 12px;
-    color: #63656e;
     font-weight: normal;
-    &:hover {
-      background: #f5f6fa;
-      color: #3a84ff;
-      cursor: pointer;
-      .menu-icon {
-        color: #3a84ff;
-      }
-    }
+    color: #63656e;
+
     .menu-icon,
     %menu-icon {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
       width: 12px;
       height: 12px;
       margin-right: 12px;
+      font-size: 14px;
       color: #979ba5;
     }
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+      background: #f5f6fa;
+
+      .menu-icon {
+        color: #3a84ff;
+      }
+    }
+
     .link-icon {
-      color: #979ba5;
       margin-left: auto;
+      color: #979ba5;
 
       @extend %menu-icon;
+
       &:hover {
         color: #3a84ff;
       }

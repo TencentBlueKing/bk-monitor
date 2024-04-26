@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import './header-tools.scss';
@@ -43,7 +44,7 @@ interface IHeaderToolsEvents {
   onSearch?: string;
 }
 
-export type IClickType = 'createNode' | 'createTask' | 'createGroup' | 'import';
+export type IClickType = 'createGroup' | 'createNode' | 'createTask' | 'import';
 
 @Component({
   name: 'HeaderTools',
@@ -85,8 +86,8 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
           {this.option.showNode && (
             <bk-button
               class='left-btn'
-              theme='primary'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
+              theme='primary'
               on-click={() =>
                 this.authority.MANAGE_AUTH
                   ? this.handleCreate('createNode')
@@ -100,8 +101,8 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
           {this.option.showTask && (
             <bk-button
               class='left-btn'
-              theme='primary'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
+              theme='primary'
               on-click={() =>
                 this.authority.MANAGE_AUTH ? this.handleCreate('createTask') : this.handleShowAuthorityDetail()
               }
@@ -137,9 +138,9 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
         <div class='right'>
           <bk-input
             class='search-input'
+            v-model={this.searchValue}
             placeholder={this.$t('输入')}
             right-icon='bk-icon icon-search'
-            v-model={this.searchValue}
             clearable
             on-change={(v: string) => this.handleSearch(v)}
           ></bk-input>

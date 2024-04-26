@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/member-ordering */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -30,7 +31,116 @@ import { lineOrBarOptions } from './echart-options-config';
 import { IChartInstance, ILegendItem } from './type-interface';
 
 export default class MonitorLineSeries extends MonitorBaseSeries implements IChartInstance {
+  private handleGetMaxAndMinThreholds(series: any[] = []) {
+    let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
+    thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
+      pre.push(...cur.map((set: any) => set.yAxis));
+      if (index === thresholdList.length - 1) {
+        return Array.from(new Set(pre));
+      }
+      return pre;
+    }, []);
+    return {
+      minThreshold: Math.min(...thresholdList),
+      maxThreshold: Math.max(...thresholdList),
+    };
+  }
+  private handleSetThresholdArea(thresholdLine: any[]) {
+    const data = this.handleSetThresholdAreaData(thresholdLine);
+    return {
+      label: {
+        show: false,
+      },
+      data,
+    };
+  }
+  private handleSetThresholdAreaData(thresholdLine: any[]) {
+    const threshold = thresholdLine.filter(item => item.method && !['eq', 'neq'].includes(item.method));
+
+    const openInterval = ['gte', 'gt']; // 开区间
+    const closedInterval = ['lte', 'lt']; // 闭区间
+
+    const data = [];
+
+    for (let index = 0; index < threshold.length; index++) {
+      const current = threshold[index];
+      const nextThreshold = threshold[index + 1];
+      // 判断是否为一个闭合区间
+      let yAxis = undefined;
+      if (
+        openInterval.includes(current.method) &&
+        nextThreshold &&
+        nextThreshold.condition === 'and' &&
+        closedInterval.includes(nextThreshold.method) &&
+        nextThreshold.yAxis >= current.yAxis
+      ) {
+        yAxis = nextThreshold.yAxis;
+        index += 1;
+      } else if (
+        closedInterval.includes(current.method) &&
+        nextThreshold &&
+        nextThreshold.condition === 'and' &&
+        openInterval.includes(nextThreshold.method) &&
+        nextThreshold.yAxis <= current.yAxis
+      ) {
+        yAxis = nextThreshold.yAxis;
+        index += 1;
+      } else if (openInterval.includes(current.method)) {
+        yAxis = 'max';
+      } else if (closedInterval.includes(current.method)) {
+        yAxis = current.yAxis < 0 ? current.yAxis : 0;
+      }
+
+      yAxis !== undefined &&
+        data.push([
+          {
+            ...current,
+          },
+          {
+            yAxis,
+            y: yAxis === 'max' ? '0%' : '',
+          },
+        ]);
+    }
+    return data;
+  }
+
+  // 设置阈值线
+  private handleSetThresholdLine(thresholdLine: any[]) {
+    return {
+      symbol: [],
+      label: {
+        show: true,
+        position: 'insideStartTop',
+      },
+      lineStyle: {
+        color: '#FD9C9C',
+        type: 'dashed',
+        distance: 3,
+        width: 1,
+      },
+      emphasis: {
+        label: {
+          show: true,
+          formatter(v: any) {
+            return `${v.name || ''}: ${v.value}`;
+          },
+        },
+      },
+      data: thresholdLine.map((item: any) => ({
+        ...item,
+        label: {
+          show: true,
+          formatter() {
+            return '';
+          },
+        },
+      })),
+    };
+  }
+
   public defaultOption: any;
+
   public constructor(props: any) {
     super(props);
     this.defaultOption = deepMerge(
@@ -44,12 +154,13 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
             },
           },
         },
-        { arrayMerge: this.overwriteMerge },
+        { arrayMerge: this.overwriteMerge }
       ),
       this.chartOption,
-      { arrayMerge: this.overwriteMerge },
+      { arrayMerge: this.overwriteMerge }
     );
   }
+
   public getOptions(data: any, otherOptions = {}): any {
     let { series } = data || {};
     series = deepMerge([], series);
@@ -118,115 +229,5 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       }),
       legendData,
     };
-  }
-
-  // 设置阈值线
-  private handleSetThresholdLine(thresholdLine: any[]) {
-    return {
-      symbol: [],
-      label: {
-        show: true,
-        position: 'insideStartTop',
-      },
-      lineStyle: {
-        color: '#FD9C9C',
-        type: 'dashed',
-        distance: 3,
-        width: 1,
-      },
-      emphasis: {
-        label: {
-          show: true,
-          formatter(v: any) {
-            return `${v.name || ''}: ${v.value}`;
-          },
-        },
-      },
-      data: thresholdLine.map((item: any) => ({
-        ...item,
-        label: {
-          show: true,
-          formatter() {
-            return '';
-          },
-        },
-      })),
-    };
-  }
-
-  private handleGetMaxAndMinThreholds(series: any[] = []) {
-    let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
-    thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
-      pre.push(...cur.map((set: any) => set.yAxis));
-      if (index === thresholdList.length - 1) {
-        return Array.from(new Set(pre));
-      }
-      return pre;
-    }, []);
-    return {
-      minThreshold: Math.min(...thresholdList),
-      maxThreshold: Math.max(...thresholdList),
-    };
-  }
-
-  private handleSetThresholdArea(thresholdLine: any[]) {
-    const data = this.handleSetThresholdAreaData(thresholdLine);
-    return {
-      label: {
-        show: false,
-      },
-      data,
-    };
-  }
-
-  private handleSetThresholdAreaData(thresholdLine: any[]) {
-    const threshold = thresholdLine.filter(item => item.method && !['eq', 'neq'].includes(item.method));
-
-    const openInterval = ['gte', 'gt']; // 开区间
-    const closedInterval = ['lte', 'lt']; // 闭区间
-
-    const data = [];
-
-    for (let index = 0; index < threshold.length; index++) {
-      const current = threshold[index];
-      const nextThreshold = threshold[index + 1];
-      // 判断是否为一个闭合区间
-      let yAxis = undefined;
-      if (
-        openInterval.includes(current.method) &&
-        nextThreshold &&
-        nextThreshold.condition === 'and' &&
-        closedInterval.includes(nextThreshold.method) &&
-        nextThreshold.yAxis >= current.yAxis
-      ) {
-        yAxis = nextThreshold.yAxis;
-        index += 1;
-      } else if (
-        closedInterval.includes(current.method) &&
-        nextThreshold &&
-        nextThreshold.condition === 'and' &&
-        openInterval.includes(nextThreshold.method) &&
-        nextThreshold.yAxis <= current.yAxis
-      ) {
-        yAxis = nextThreshold.yAxis;
-        index += 1;
-      } else if (openInterval.includes(current.method)) {
-        yAxis = 'max';
-      } else if (closedInterval.includes(current.method)) {
-        yAxis = current.yAxis < 0 ? current.yAxis : 0;
-      }
-
-      yAxis !== undefined &&
-        data.push([
-          {
-            ...current,
-          },
-          {
-            yAxis,
-            y: yAxis === 'max' ? '0%' : '',
-          },
-        ]);
-    }
-    return data;
   }
 }

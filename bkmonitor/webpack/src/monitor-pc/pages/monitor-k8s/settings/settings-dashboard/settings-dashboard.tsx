@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -576,8 +577,8 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
           <bk-tab
             class='settings-tab'
             active={this.tabActive}
-            type='unborder-card'
             before-toggle={this.handleBeforeToggle}
+            type='unborder-card'
             on-tab-change={this.handleTabChange}
           >
             {this.bookMarkData.map(
@@ -585,11 +586,11 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                 item.mode === 'auto' && (
                   <bk-tab-panel
                     key={item.id}
-                    name={item.id}
                     label={item.name}
+                    name={item.id}
                     render-label={tabItemTpl}
                   ></bk-tab-panel>
-                ),
+                )
             )}
           </bk-tab>
         ) : null}
@@ -632,8 +633,8 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                       <span class='export-btn'>
                         <MonitorImport
                           accept={'.csv'}
-                          return-text={true}
                           base64={false}
+                          return-text={true}
                           onChange={this.handleImportChange}
                         >
                           <span class='icon-monitor icon-xiazai2'></span>
@@ -697,8 +698,8 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
                       {this.groupList.map(item => (
                         <bk-option
                           id={item.id}
-                          name={item.title}
                           key={item.id}
+                          name={item.title}
                         ></bk-option>
                       ))}
                     </bk-select>
@@ -714,29 +715,29 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
               })()}
               <SortPanel
                 ref='sortPanel'
-                is-not-dialog={true}
-                is-dashboard-panel={true}
-                enableAutoGrouping={this.enableAutoGrouping}
                 v-model={this.showChartSort}
-                groups-data={this.orderList}
                 default-order-list={this.defaultOrderList}
+                enableAutoGrouping={this.enableAutoGrouping}
+                groups-data={this.orderList}
+                is-dashboard-panel={true}
+                is-not-dialog={true}
+                on-add-group-change={this.handleAddGroupChange}
+                on-auto-rule-change={this.handleAutoRuleChange}
+                on-checked-change={v => (this.isChecked = v)}
+                on-checked-count={v => (this.curSelectCount = v)}
+                on-groups-change={this.groupsChange}
+                on-order-list-change={this.handleOrderListChange}
                 on-reset={this.handleReset}
                 on-restore={this.handleRestore}
                 on-save={this.handleSortChange}
-                on-groups-change={this.groupsChange}
-                on-auto-rule-change={this.handleAutoRuleChange}
-                on-add-group-change={this.handleAddGroupChange}
-                on-order-list-change={this.handleOrderListChange}
-                on-checked-change={v => (this.isChecked = v)}
-                on-checked-count={v => (this.curSelectCount = v)}
               ></SortPanel>
             </div>
           </div>
         ) : (
           <bk-exception
             class='set-var-no-data'
-            type='empty'
             scene='part'
+            type='empty'
           />
         )}
       </div>

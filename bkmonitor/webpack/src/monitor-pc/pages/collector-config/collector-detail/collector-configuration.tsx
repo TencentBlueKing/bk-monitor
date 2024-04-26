@@ -25,6 +25,7 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { renameCollectConfig } from 'monitor-api/modules/collecting';
 import { copyText } from 'monitor-common/utils/utils.js';
 
@@ -34,16 +35,16 @@ import { PLUGIN_MANAGE_AUTH } from '../authority-map';
 import './collector-configuration.scss';
 
 enum ETargetColumn {
+  IP = 'IP',
+  agentStatus = 'agentStatus',
+  catetory = 'catetory',
+  cloudName = 'cloudName',
   name = 'name',
   objectType = 'objectType',
-  catetory = 'catetory',
-  agentStatus = 'agentStatus',
-  cloudName = 'cloudName',
-  IP = 'IP',
 }
 
 interface IProps {
-  id: string | number;
+  id: number | string;
   show: boolean;
   collectConfigData?: any;
   detailData?: any;
@@ -298,9 +299,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
       <div class='collector-configuration-component'>
         <div class='header-right-link'>
           <bk-button
-            theme='primary'
-            v-authority={{ active: !this.authority.MANAGE_AUTH && this.collectConfigData?.status !== 'STOPPED' }}
             class='width-88 mr-8'
+            v-authority={{ active: !this.authority.MANAGE_AUTH && this.collectConfigData?.status !== 'STOPPED' }}
+            theme='primary'
             outline
             onClick={() =>
               this.authority.MANAGE_AUTH || this.collectConfigData?.status === 'STOPPED'
@@ -324,12 +325,12 @@ export default class CollectorConfiguration extends tsc<IProps> {
                       <span>
                         {this.input.show ? (
                           <bk-input
-                            class='edit-input width-150'
                             ref={`input${key}`}
-                            maxlength={50}
+                            class='edit-input width-150'
                             v-model={this.input.copyName}
-                            onKeydown={this.handleLabelKey}
+                            maxlength={50}
                             onBlur={this.handleTagClickout}
+                            onKeydown={this.handleLabelKey}
                           ></bk-input>
                         ) : (
                           <span
@@ -396,8 +397,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
                     );
                   }
                   return this.basicInfo?.[key];
-                })(),
-              ),
+                })()
+              )
             )}
             {this.runtimeParams.length
               ? formItem(
@@ -405,8 +406,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
                   <ul class='param-list  mt--6'>
                     {this.runtimeParams.map((item, index) => (
                       <li
-                        class='param-list-item'
                         key={index}
+                        class='param-list-item'
                       >
                         <span class='item-name'>{item.name}</span>
                         {['password', 'encrypt'].includes(item.type) ? (
@@ -418,7 +419,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                         )}
                       </li>
                     ))}
-                  </ul>,
+                  </ul>
                 )
               : undefined}
           </div>
@@ -429,8 +430,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
           {!!this.targetInfo?.table_data?.length && (
             <bk-button
               class='mt-10'
-              theme='primary'
               size='small'
+              theme='primary'
               text
               onClick={() => this.handleCopyTarget()}
             >
@@ -451,15 +452,6 @@ export default class CollectorConfiguration extends tsc<IProps> {
                   return (
                     <bk-table-column
                       key={key}
-                      prop={column.id}
-                      label={(() => {
-                        if (column.id === ETargetColumn.objectType) {
-                          return this.basicInfo?.target_object_type === 'SERVICE'
-                            ? this.$t('实例数')
-                            : this.$t('主机数');
-                        }
-                        return column.name;
-                      })()}
                       // width={column.width}
                       formatter={(row: any) => {
                         switch (column.id) {
@@ -473,8 +465,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
                             if (row.labels.length) {
                               return row.labels.map((l, lIndex) => (
                                 <span
-                                  class='classifiy-label'
                                   key={lIndex}
+                                  class='classifiy-label'
                                 >
                                   <span class='label-name'>{l.first}</span>
                                   <span class='label-name'>{l.second}</span>
@@ -488,6 +480,15 @@ export default class CollectorConfiguration extends tsc<IProps> {
                           }
                         }
                       }}
+                      label={(() => {
+                        if (column.id === ETargetColumn.objectType) {
+                          return this.basicInfo?.target_object_type === 'SERVICE'
+                            ? this.$t('实例数')
+                            : this.$t('主机数');
+                        }
+                        return column.name;
+                      })()}
+                      prop={column.id}
                     ></bk-table-column>
                   );
                 })}
@@ -505,8 +506,6 @@ export default class CollectorConfiguration extends tsc<IProps> {
                   return (
                     <bk-table-column
                       key={key}
-                      prop={column.id}
-                      label={column.name}
                       // width={column.width}
                       formatter={(row: any) => {
                         switch (column.id) {
@@ -528,6 +527,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
                           }
                         }
                       }}
+                      label={column.name}
+                      prop={column.id}
                     ></bk-table-column>
                   );
                 })}

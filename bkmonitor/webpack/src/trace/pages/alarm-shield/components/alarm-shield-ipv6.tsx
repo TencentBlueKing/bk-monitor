@@ -57,7 +57,7 @@ export default defineComponent({
           setTimeout(() => (inited.value = true), 100);
         });
       },
-      { immediate: true },
+      { immediate: true }
     );
     watch(
       () => props.checkedValue,
@@ -66,7 +66,7 @@ export default defineComponent({
           [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]],
         };
       },
-      { immediate: true },
+      { immediate: true }
     );
     function getPanelListByDimension(v: string) {
       if (v === 'instance') return ['serviceInstance'];
@@ -75,7 +75,7 @@ export default defineComponent({
       return [];
     }
     function clearMask() {
-      const clear = (els: NodeListOf<Element> | Element[]) => {
+      const clear = (els: Element[] | NodeListOf<Element>) => {
         els.forEach((el: Element) => {
           el.parentNode.removeChild(el);
         });
@@ -96,12 +96,12 @@ export default defineComponent({
           {!!panelList.value.length && (
             <MonitorIpSelector
               mode={'dialog'}
-              panelList={panelList.value}
-              showView={true}
-              showDialog={inited.value && props.showDialog}
-              value={ipCheckValue.value}
               originalValue={props.originCheckedValue}
+              panelList={panelList.value}
+              showDialog={inited.value && props.showDialog}
+              showView={true}
               showViewDiff={props.showViewDiff}
+              value={ipCheckValue.value}
               onChange={handleIpChange}
               onCloseDialog={closeDialog}
             ></MonitorIpSelector>

@@ -93,12 +93,12 @@ export default class AlarmShieldIpv6 extends tsc<IAlarmShieldIpv6Props> {
         {this.panelList.length > 0 && (
           <MonitorIpSelector
             mode={'dialog'}
-            panelList={this.panelList}
-            showView={true}
-            showDialog={this.inited && this.showDialog}
-            value={this.ipCheckValue}
             originalValue={this.originCheckedValue}
+            panelList={this.panelList}
+            showDialog={this.inited && this.showDialog}
+            showView={true}
             showViewDiff={this.showViewDiff}
+            value={this.ipCheckValue}
             onChange={this.handleIpChange}
             onCloseDialog={this.closeDialog}
           />

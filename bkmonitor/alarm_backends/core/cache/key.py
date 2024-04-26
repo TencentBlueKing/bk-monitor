@@ -939,3 +939,23 @@ APM_PROFILE_DISCOVER_LOCK = register_key_with_config(
         "backend": "service",
     }
 )
+
+ACCESS_BATCH_DATA_KEY = register_key_with_config(
+    {
+        "label": "[access]分批数据key",
+        "key_type": "list",
+        "key_tpl": "access.batch.{strategy_group_key}.{sub_task_id}",
+        "ttl": 300,
+        "backend": "service",
+    }
+)
+
+ACCESS_BATCH_DATA_RESULT_KEY = register_key_with_config(
+    {
+        "label": "[access]分批数据处理结果key",
+        "key_type": "list",
+        "key_tpl": "access.batch.result.{strategy_group_key}.{timestamp}",
+        "ttl": 300,
+        "backend": "service",
+    }
+)

@@ -25,6 +25,7 @@
  */
 import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
 
@@ -39,7 +40,7 @@ export class CommonSimpleChart
     ToolsMxin,
     ResizeMixin,
     LegendMixin,
-    ErrorMsgMixins,
+    ErrorMsgMixins
   )
   implements ICommonCharts
 {
@@ -63,7 +64,7 @@ export class CommonSimpleChart
   /** 更新queryData */
   @Inject('handleUpdateQueryData') handleUpdateQueryData: (queryData: IQueryData) => void;
   // 当前使用的业务id
-  @InjectReactive('bkBizId') readonly bkBizId: string | number;
+  @InjectReactive('bkBizId') readonly bkBizId: number | string;
 
   // 变量对应
   get scopedVars() {

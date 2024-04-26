@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, onMounted, PropType, reactive, ref, toRefs, watch } from 'vue';
+
 import { debounce, deepClone } from 'monitor-common/utils/utils';
 
 import { IFavList, IFavoriteItem } from '../../../typings';
@@ -186,7 +187,7 @@ export default defineComponent({
         state.localValue = deepClone(newVal);
         handleOverflowDebounce();
       },
-      { immediate: true },
+      { immediate: true }
     );
 
     return {
@@ -207,14 +208,14 @@ export default defineComponent({
     return (
       <div
         ref='favoritesList'
-        tabindex={-1}
         class={['favorites-list-wrap', { 'is-expand': this.isExpand }]}
+        tabindex={-1}
         onBlur={() => this.handleFavoriteBlur()}
         onClick={() => this.handleExpandMore()}
       >
         <div
-          class='fav-main'
           ref='favMain'
+          class='fav-main'
         >
           <div class='box-shadow'></div>
           <span class='fav-label'>{this.$t('收藏')}</span>
@@ -223,8 +224,8 @@ export default defineComponent({
             class={['fav-list-wrap', { 'allow-scroll': this.allowScroll && this.isExpand }]}
           >
             <ul
-              class='fav-list'
               ref='favListRef'
+              class='fav-list'
             >
               {this.localValue.map((item, index) => (
                 <li

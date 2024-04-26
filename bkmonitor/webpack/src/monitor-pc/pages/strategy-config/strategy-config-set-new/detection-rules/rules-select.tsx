@@ -66,7 +66,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
       {
         ai: [] as IDetectionTypeItem[],
         convention: [] as IDetectionTypeItem[],
-      },
+      }
     );
   }
 
@@ -91,11 +91,11 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
       <div class='rules-select-wrap'>
         {!this.show ? (
           <bk-button
+            ext-cls='rule-add-btn'
+            disabled={this.readonly}
+            size='small'
             text
             on-click={this.showChange}
-            size='small'
-            disabled={this.readonly}
-            ext-cls='rule-add-btn'
           >
             <div class='rule-add'>
               <span class='icon-monitor icon-mc-add'></span>
@@ -119,17 +119,17 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
                 {this.induceTypeList.ai.map(item => (
                   <div
                     class={['type-list-item', item.disabled && 'disabled']}
-                    onClick={() => this.handleTypeChange(item)}
                     v-bk-tooltips={{
                       content: item.disabled ? item.disabledTip : item.tip,
                       disabled: !item.disabled,
                       allowHTML: false,
                     }}
+                    onClick={() => this.handleTypeChange(item)}
                   >
                     <img
-                      src={item.icon}
-                      alt=''
                       class='type-icon'
+                      alt=''
+                      src={item.icon}
                     />
                     <span>{item.name}</span>
                   </div>
@@ -142,17 +142,17 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
                 {this.induceTypeList.convention.map(item => (
                   <div
                     class={['type-list-item', item.disabled && 'disabled']}
-                    onClick={() => this.handleTypeChange(item)}
                     v-bk-tooltips={{
                       content: item.disabled ? item.disabledTip : item.tip,
                       disabled: !item.disabled,
                       allowHTML: false,
                     }}
+                    onClick={() => this.handleTypeChange(item)}
                   >
                     <img
-                      src={item.icon}
-                      alt=''
                       class='type-icon'
+                      alt=''
+                      src={item.icon}
                     />
                     <span>{item.name}</span>
                   </div>

@@ -26,6 +26,7 @@
 import VueI18n, { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { copyText } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { EmptyStatusOperationType } from 'monitor-pc/components/empty-status/types';
@@ -56,7 +57,7 @@ type tableType = 'field' | 'tag';
 
 interface ITabPanelItem {
   id: tableType;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
 }
 @Component
 export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeEvent> {
@@ -224,10 +225,10 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
   detailSideslider() {
     return (
       <bk-sideslider
-        quickClose
         width={420}
         is-show={this.sideslideShow}
         quick-close={true}
+        quickClose
         {...{ on: { 'update:isShow': (v: boolean) => (this.sideslideShow = v) } }}
       >
         <div
@@ -265,11 +266,11 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
   fieldDialog() {
     return (
       <bk-dialog
-        v-model={this.dialogShow}
         width={480}
-        title={this.$t('添加字段')}
-        header-position='left'
+        v-model={this.dialogShow}
         confirm-fn={this.handleSaveFieldChange}
+        header-position='left'
+        title={this.$t('添加字段')}
       >
         <div class='dialog-content'>
           {this.searchType === 'alert' && (
@@ -277,8 +278,8 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
               {this.panelList.map(item => (
                 <bk-button
                   key={item.id}
-                  onClick={() => this.handleAlertTabChange(item.id)}
                   class={{ 'tab-btn': true, 'is-selected': this.activePanel === item.id }}
+                  onClick={() => this.handleAlertTabChange(item.id)}
                 >
                   {item.name}
                 </bk-button>
@@ -288,14 +289,14 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
           {this.activePanel === 'field' ? (
             <bk-checkbox-group
               key='filed'
+              class='check-group'
               value={this.analyzeFields.slice()}
               on-change={this.handleFieldChange}
-              class='check-group'
             >
               {Object.keys(this.curFieldMap).map(key => (
                 <bk-checkbox
-                  class='check-group-item'
                   key={key}
+                  class='check-group-item'
                   value={key}
                 >
                   <span
@@ -311,14 +312,14 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
             this.searchType === 'alert' && (
               <bk-checkbox-group
                 key='tag'
+                class='check-group'
                 value={this.analyzeFields.slice()}
                 on-change={this.handleTagChange}
-                class='check-group'
               >
                 {this.analyzeTagList.map(item => (
                   <bk-checkbox
-                    class='check-group-item'
                     key={item.id}
+                    class='check-group-item'
                     value={item.id}
                   >
                     <span
@@ -362,22 +363,22 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                   </span>
                 </div>
                 <bk-progress
-                  class='process-item'
-                  theme='success'
-                  strokeWidth={6}
-                  color='#8DD3B5'
-                  show-text={false}
                   key={index}
+                  class='process-item'
+                  color='#8DD3B5'
                   percent={chart.percent}
+                  show-text={false}
+                  strokeWidth={6}
+                  theme='success'
                 />
               </div>
               <i
-                onClick={() => this.handleAddQueryString(item, chart, 'add')}
                 class='bk-icon icon-enlarge-line search-icon'
+                onClick={() => this.handleAddQueryString(item, chart, 'add')}
               />
               <i
-                onClick={() => this.handleAddQueryString(item, chart, 'del')}
                 class='bk-icon icon-narrow-line search-icon'
+                onClick={() => this.handleAddQueryString(item, chart, 'del')}
               />
             </li>
           ))
@@ -411,8 +412,8 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
             {this.analyzeData.map(item =>
               this.curFieldMap?.[item.field] || item.buckets.length ? (
                 <li
-                  class='alert-analyze-item'
                   key={item.field}
+                  class='alert-analyze-item'
                 >
                   <div class='item-title'>
                     {/* <i class="icon-drag"/> */}
@@ -431,10 +432,10 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                     </span>
                     {item.bucket_count > 5 ? (
                       <bk-button
-                        disabled={!item.bucket_count}
-                        onClick={() => item.bucket_count && this.handleDetailFieldChange(item.field)}
                         class='check-btn'
+                        disabled={!item.bucket_count}
                         text
+                        onClick={() => item.bucket_count && this.handleDetailFieldChange(item.field)}
                       >
                         {this.$t('查看全部')}
                       </bk-button>
@@ -442,11 +443,11 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                   </div>
                   {this.chartItemComponent(item, 5)}
                   <i
-                    onClick={() => this.handleDeleteFieldAnalyze(item.field)}
                     class='icon-monitor icon-mc-close-fill delete-icon'
+                    onClick={() => this.handleDeleteFieldAnalyze(item.field)}
                   />
                 </li>
-              ) : undefined,
+              ) : undefined
             )}
           </ul>
         ) : (

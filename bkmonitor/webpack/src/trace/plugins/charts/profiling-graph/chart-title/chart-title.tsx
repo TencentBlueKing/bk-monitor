@@ -25,6 +25,8 @@
  */
 
 import { computed, defineComponent, PropType, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+
 import { Dropdown, Input } from 'bkui-vue';
 import { ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { debounce } from 'throttle-debounce';
@@ -51,6 +53,8 @@ export default defineComponent({
   },
   emits: ['modeChange', 'textDirectionChange', 'keywordChange', 'download'],
   setup(props, { emit }) {
+    const { t } = useI18n();
+
     const downloadTypeMaps = [
       'png',
       //  'json',
@@ -62,13 +66,13 @@ export default defineComponent({
 
     const viewModeList = computed<ViewModeItem[]>(() => {
       const list = [
-        { id: ViewModeType.Table, icon: 'table' },
-        { id: ViewModeType.Combine, icon: 'mc-fenping' },
-        { id: ViewModeType.Flame, icon: 'mc-flame' },
+        { id: ViewModeType.Table, icon: 'table', label: t('表格') },
+        { id: ViewModeType.Combine, icon: 'mc-fenping', label: t('表格和火焰图') },
+        { id: ViewModeType.Flame, icon: 'mc-flame', label: t('火焰图') },
       ];
 
       if (!props.isCompared) {
-        list.push({ id: ViewModeType.Topo, icon: 'Component' });
+        list.push({ id: ViewModeType.Topo, icon: 'Component', label: t('功能调用图') });
       }
 
       return list;
@@ -105,6 +109,11 @@ export default defineComponent({
           {this.viewModeList.map(mode => (
             <div
               class={`button-group-item ${this.activeMode === mode.id ? 'active' : ''}`}
+              v-bk-tooltips={{
+                content: mode.label,
+                placement: 'top',
+                delay: 300,
+              }}
               onClick={() => this.handleModeChange(mode.id)}
             >
               <i class={`icon-monitor icon-${mode.icon}`}></i>
@@ -112,8 +121,8 @@ export default defineComponent({
           ))}
         </div>
         <Input
-          type='search'
           v-model={this.keyword}
+          type='search'
           onInput={this.handleKeywordChange}
         />
         <div class='ellipsis-direction button-group'>
@@ -135,7 +144,6 @@ export default defineComponent({
         </div> */}
 
         <Dropdown
-          placement='bottom-end'
           v-slots={{
             content: () => (
               <Dropdown.DropdownMenu>
@@ -150,6 +158,7 @@ export default defineComponent({
               </Dropdown.DropdownMenu>
             ),
           }}
+          placement='bottom-end'
         >
           <div class='download-button'>
             <i class='icon-monitor icon-xiazai1'></i>

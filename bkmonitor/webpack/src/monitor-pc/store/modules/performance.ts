@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 import { getTopoTree } from 'monitor-api/modules/commons';
 import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
 import {
@@ -33,6 +32,7 @@ import {
   searchHostInfo,
   searchHostMetric,
 } from 'monitor-api/modules/performance';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 // import { savePanelOrder, deletePanelOrder } from 'monitor-api/modules/data_explorer';
 import store from '../store';
@@ -53,22 +53,22 @@ interface IUpdateConfig {
 }
 
 interface IConditionValue {
-  condition: '>' | '>=' | '<' | '<=' | '=';
+  condition: '<' | '<=' | '=' | '>' | '>=';
   value: number;
 }
 interface ISearchItem {
   id: string;
-  value: string | number | (string | number)[] | IConditionValue[];
+  value: (number | string)[] | IConditionValue[] | number | string;
 }
 
 export interface ICurNode {
   id: string; // ip + cloudId 或者 bkInstId + bkObjId
   ip?: string;
-  cloudId?: string | number;
+  cloudId?: number | string;
   bkInstId?: number | string;
   bkObjId?: string;
   type: 'host' | 'node'; // host类型时：IP、bkCloudId不为空；node类型时：bkInstId、bkObjId不为空
-  processId?: string | number;
+  processId?: number | string;
   osType?: number;
 }
 // todo 老代码
@@ -80,55 +80,49 @@ export const SET_URL_QUERY = 'SET_URL_QUERY';
 
 @Module({ name: 'performance', dynamic: true, namespaced: true, store })
 class Performance extends VuexModule {
-  // todo 老代码
-  public list: any[] = [];
-  public rows: any = null;
-  public proc = '';
-  public type = 'performance';
   // 列表条件
   public conditions: ISearchItem[] = [];
-
-  // 主机列表
-  public hosts: Readonly<any[]> = [];
-  // 主机拓扑树数据
-  public hostToppTreeData = [];
-
-  // 主机进程列表
-  public processList = [];
+  // 当前节点信息
+  public curNode: ICurNode = { id: '', type: 'host' };
   // 主机仪表盘配置列表
   public hostConfigList = [];
   // 主机仪表盘配置排序列表
   public hostOrderList = [];
+  // 主机拓扑树数据
+  public hostToppTreeData = [];
+
+  // 主机列表
+  public hosts: Readonly<any[]> = [];
+  // todo 老代码
+  public list: any[] = [];
+
+  public proc = '';
   // 进程仪表盘视图配置列表
   public processConfigList = [];
+  // 主机进程列表
+  public processList = [];
   // 进程仪表盘配置排序列表
   public processOrderList = [];
-  // 当前节点信息
-  public curNode: ICurNode = { id: '', type: 'host' };
-
-  public storeKeyword = '';
+  public rows: any = null;
   public storeFilterList: Readonly<any[]> = [];
 
-  public get hostList() {
-    return this.list;
+  public storeKeyword = '';
+  public type = 'performance';
+
+  // 当前主机状态信息
+  public get curHostStatus() {
+    return this.hosts.find(item => item.bk_host_innerip === this.curNode.ip) || {};
   }
 
-  public get curProcessList() {
-    return this.processList || [];
-  }
   public get curProcess() {
     return this.curNode?.processId;
   }
-
-  public get targetList() {
-    return this.list.map(item => ({ id: `${item.bk_cloud_id}-${item.bk_host_innerip}`, name: item.bk_host_innerip }));
+  public get curProcessList() {
+    return this.processList || [];
   }
 
   public get dashboardConfigList() {
     return this.hostConfigList;
-  }
-  public get processDashboardConfigList() {
-    return this.processConfigList;
   }
 
   public get dashboardHostOrderList() {
@@ -138,38 +132,44 @@ class Performance extends VuexModule {
     return this.processOrderList;
   }
 
-  public get row() {
-    return this.rows;
+  // 筛选主机列表
+  public get filterHostList() {
+    return this.storeFilterList;
+  }
+  // 拓扑树
+  public get filterHostTopoTreeList() {
+    return this.hostToppTreeData;
+  }
+
+  public get hostList() {
+    return this.list;
+  }
+
+  // 搜索keyword
+  public get keyword() {
+    return this.storeKeyword;
   }
 
   public get process() {
     return this.proc;
   }
 
-  public get viewType() {
-    return this.type;
+  public get processDashboardConfigList() {
+    return this.processConfigList;
+  }
+  public get row() {
+    return this.rows;
+  }
+  public get targetList() {
+    return this.list.map(item => ({ id: `${item.bk_cloud_id}-${item.bk_host_innerip}`, name: item.bk_host_innerip }));
   }
 
   // 获取URL参数
   public get urlQuery() {
     return this.conditions.length ? `?search=${JSON.stringify(this.conditions)}` : '';
   }
-  // 搜索keyword
-  public get keyword() {
-    return this.storeKeyword;
-  }
-  // 筛选主机列表
-  public get filterHostList() {
-    return this.storeFilterList;
-  }
-
-  // 拓扑树
-  public get filterHostTopoTreeList() {
-    return this.hostToppTreeData;
-  }
-  // 当前主机状态信息
-  public get curHostStatus() {
-    return this.hosts.find(item => item.bk_host_innerip === this.curNode.ip) || {};
+  public get viewType() {
+    return this.type;
   }
 
   @Mutation
@@ -178,110 +178,18 @@ class Performance extends VuexModule {
   }
 
   @Mutation
-  public [SET_PERFORMANCE_ROW](row) {
-    this.rows = row;
-  }
-
-  @Mutation
   public [SET_PERFORMANCE_PROCESS](process = '') {
     this.proc = process;
   }
 
   @Mutation
+  public [SET_PERFORMANCE_ROW](row) {
+    this.rows = row;
+  }
+
+  @Mutation
   public [SET_PERFORMANCE_VIEWTYPE](viewType = 'performance') {
     this.type = viewType;
-  }
-
-  @Mutation
-  public setConditions(data = []) {
-    this.conditions = data;
-  }
-
-  // 主机列表数据
-  @Mutation
-  public setHostList(data: any[] = []) {
-    this.hosts = Object.freeze(data);
-  }
-
-  // 设置主机进程缓存
-  @Mutation
-  public setProcessList(data) {
-    this.processList = data;
-  }
-
-  // 设置主机仪表盘配置列表
-  @Mutation
-  public setHostConfigList(data) {
-    this.hostConfigList = data;
-  }
-  // 设置进程仪表盘配置列表
-  @Mutation
-  public setProcessConfigList(data) {
-    this.processConfigList = data;
-  }
-
-  @Mutation
-  public setHostOrderList(data) {
-    this.hostOrderList = data;
-  }
-  @Mutation
-  public setProcessOrderList(data) {
-    this.processOrderList = data;
-  }
-
-  // 设置主机进程缓存
-  @Mutation
-  public setProcessId(processId: string | number) {
-    this.curNode = {
-      ...this.curNode,
-      processId,
-    };
-  }
-
-  @Mutation
-  public setCurNode(data: ICurNode) {
-    this.curNode = data;
-  }
-
-  @Mutation
-  public setKeyWord(keyword: string) {
-    this.storeKeyword = keyword;
-    this.storeFilterList = keyword
-      ? this.hosts.filter(item =>
-          [
-            'bk_host_innerip',
-            'bk_host_outerip',
-            'k_host_name',
-            'bk_os_name',
-            'bk_biz_name',
-            'bk_cluster',
-            'module',
-            'component',
-          ].some(key => {
-            let hostProp = item[key] || '';
-            if (typeof hostProp === 'string') {
-              return hostProp.includes(keyword);
-            }
-            if (key === 'module' || key === 'bk_cluster') {
-              hostProp = item.module;
-              return hostProp.some(set => set.topo_link_display.some(child => child.includes(keyword)));
-            }
-            return hostProp.some(set => set.display_name.includes(keyword));
-          }),
-        )
-      : this.hosts;
-  }
-
-  @Mutation
-  public setTopoTreeList(treeData: any) {
-    this.hostToppTreeData = treeData;
-  }
-
-  // 获取用户置顶配置
-  @Action
-  public async getUserConfigList(params): Promise<IUserConfig[]> {
-    const data = await listUserConfig(params).catch(() => []);
-    return data;
   }
 
   // 创建用户置顶配置
@@ -290,14 +198,14 @@ class Performance extends VuexModule {
     const result = await createUserConfig(params).catch(() => ({}));
     return result;
   }
-  // 更新用户置顶配置
+
+  // 获取主机详情
   @Action
-  public async updateUserConfig(params: IUpdateConfig) {
-    const result = await partialUpdateUserConfig(params.id, { value: params.value })
-      .then(() => true)
-      .catch(() => false);
-    return result;
+  public async getHostDetail(params) {
+    const data = await hostPerformanceDetail(params).catch(() => ({}));
+    return data;
   }
+
   // 获取主机列表信息
   @Action
   public async getHostPerformance(): Promise<any[]> {
@@ -331,11 +239,11 @@ class Performance extends VuexModule {
     }));
     return data;
   }
-
+  // 获取节点详情
   @Action
-  public async searchHostMetric(params: any) {
-    const hostsMap = await searchHostMetric(params).catch(() => []);
-    return hostsMap;
+  public async getNodeDetail(params) {
+    const data = await hostTopoNodeDetail(params).catch(() => ({}));
+    return data;
   }
 
   // 获取主机拓扑树列表
@@ -344,11 +252,103 @@ class Performance extends VuexModule {
     params = {
       instance_type: 'host',
       remove_empty_nodes: true,
-    },
+    }
   ) {
     const data = await getTopoTree(params).catch(() => []);
     this.setTopoTreeList(data);
     return data;
+  }
+  // 获取用户置顶配置
+  @Action
+  public async getUserConfigList(params): Promise<IUserConfig[]> {
+    const data = await listUserConfig(params).catch(() => []);
+    return data;
+  }
+
+  @Action
+  public async searchHostMetric(params: any) {
+    const hostsMap = await searchHostMetric(params).catch(() => []);
+    return hostsMap;
+  }
+
+  @Mutation
+  public setConditions(data = []) {
+    this.conditions = data;
+  }
+
+  @Mutation
+  public setCurNode(data: ICurNode) {
+    this.curNode = data;
+  }
+
+  // 设置主机仪表盘配置列表
+  @Mutation
+  public setHostConfigList(data) {
+    this.hostConfigList = data;
+  }
+
+  // 主机列表数据
+  @Mutation
+  public setHostList(data: any[] = []) {
+    this.hosts = Object.freeze(data);
+  }
+
+  @Mutation
+  public setHostOrderList(data) {
+    this.hostOrderList = data;
+  }
+  @Mutation
+  public setKeyWord(keyword: string) {
+    this.storeKeyword = keyword;
+    this.storeFilterList = keyword
+      ? this.hosts.filter(item =>
+          [
+            'bk_host_innerip',
+            'bk_host_outerip',
+            'k_host_name',
+            'bk_os_name',
+            'bk_biz_name',
+            'bk_cluster',
+            'module',
+            'component',
+          ].some(key => {
+            let hostProp = item[key] || '';
+            if (typeof hostProp === 'string') {
+              return hostProp.includes(keyword);
+            }
+            if (key === 'module' || key === 'bk_cluster') {
+              hostProp = item.module;
+              return hostProp.some(set => set.topo_link_display.some(child => child.includes(keyword)));
+            }
+            return hostProp.some(set => set.display_name.includes(keyword));
+          })
+        )
+      : this.hosts;
+  }
+  // 设置进程仪表盘配置列表
+  @Mutation
+  public setProcessConfigList(data) {
+    this.processConfigList = data;
+  }
+
+  // 设置主机进程缓存
+  @Mutation
+  public setProcessId(processId: number | string) {
+    this.curNode = {
+      ...this.curNode,
+      processId,
+    };
+  }
+
+  // 设置主机进程缓存
+  @Mutation
+  public setProcessList(data) {
+    this.processList = data;
+  }
+
+  @Mutation
+  public setProcessOrderList(data) {
+    this.processOrderList = data;
   }
 
   // @Action
@@ -373,18 +373,18 @@ class Performance extends VuexModule {
   //   }
   // }
 
-  // 获取主机详情
-  @Action
-  public async getHostDetail(params) {
-    const data = await hostPerformanceDetail(params).catch(() => ({}));
-    return data;
+  @Mutation
+  public setTopoTreeList(treeData: any) {
+    this.hostToppTreeData = treeData;
   }
 
-  // 获取节点详情
+  // 更新用户置顶配置
   @Action
-  public async getNodeDetail(params) {
-    const data = await hostTopoNodeDetail(params).catch(() => ({}));
-    return data;
+  public async updateUserConfig(params: IUpdateConfig) {
+    const result = await partialUpdateUserConfig(params.id, { value: params.value })
+      .then(() => true)
+      .catch(() => false);
+    return result;
   }
 }
 

@@ -24,54 +24,16 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop, Vue } from 'vue-property-decorator';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { ILegendItem, LegendActionType, MonitorEchartOptions } from '../typings';
 
 @Component
 export default class ResizeMixin extends Vue {
+  legendData: ILegendItem[];
   // 鼠标是否进入图表内
   @Prop({ default: false, type: Boolean }) showHeaderMoreTool: boolean;
-  legendData: ILegendItem[];
-  handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
-    if (this.legendData.length < 2) {
-      return;
-    }
-    const chartInstance = this.$refs.baseChart as any;
-    if (actionType === 'shift-click') {
-      chartInstance.dispatchAction({
-        type: !item.show ? 'legendSelect' : 'legendUnSelect',
-        name: item.name,
-      });
-      item.show = !item.show;
-      this.$emit('selectLegend', this.legendData);
-    } else if (actionType === 'click') {
-      const hasOtherShow = this.legendData.filter(item => !item.hidden).some(set => set.name !== item.name && set.show);
-      this.legendData.forEach(legend => {
-        chartInstance.dispatchAction({
-          type:
-            legend.name === item.name ||
-            !hasOtherShow ||
-            (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
-              ? 'legendSelect'
-              : 'legendUnSelect',
-          name: legend.name,
-        });
-        legend.show = legend.name === item.name || !hasOtherShow;
-      });
-      this.$emit('selectLegend', this.legendData);
-    }
-  }
-  handleSetLegendEvent() {
-    const chartInstance = this.$refs.baseChart as any;
-    chartInstance?.instance.on('legendselected', this.handleLegendChange);
-    chartInstance?.instance.on('legendunselected', this.handleLegendChange);
-  }
-  handleUnSetLegendEvent() {
-    const chartInstance = this.$refs.baseChart as any;
-    chartInstance?.instance?.off?.('legendselected', this.handleLegendChange);
-    chartInstance?.instance?.off?.('legendunselected', this.handleLegendChange);
-  }
   handleLegendChange() {
     if (!this.showHeaderMoreTool) {
       // const item = this.legendData.find(item => item.name === e.name);
@@ -121,6 +83,35 @@ export default class ResizeMixin extends Vue {
 
     chartInstance.instance.setOption(targetOption);
   }
+  handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
+    if (this.legendData.length < 2) {
+      return;
+    }
+    const chartInstance = this.$refs.baseChart as any;
+    if (actionType === 'shift-click') {
+      chartInstance.dispatchAction({
+        type: !item.show ? 'legendSelect' : 'legendUnSelect',
+        name: item.name,
+      });
+      item.show = !item.show;
+      this.$emit('selectLegend', this.legendData);
+    } else if (actionType === 'click') {
+      const hasOtherShow = this.legendData.filter(item => !item.hidden).some(set => set.name !== item.name && set.show);
+      this.legendData.forEach(legend => {
+        chartInstance.dispatchAction({
+          type:
+            legend.name === item.name ||
+            !hasOtherShow ||
+            (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
+              ? 'legendSelect'
+              : 'legendUnSelect',
+          name: legend.name,
+        });
+        legend.show = legend.name === item.name || !hasOtherShow;
+      });
+      this.$emit('selectLegend', this.legendData);
+    }
+  }
   // pie-chart 选中图例事件
   handleSelectPieLegend({
     actionType,
@@ -157,5 +148,15 @@ export default class ResizeMixin extends Vue {
       });
       this.handleResetPieChart(option, needResetChart, hideLabel);
     }
+  }
+  handleSetLegendEvent() {
+    const chartInstance = this.$refs.baseChart as any;
+    chartInstance?.instance.on('legendselected', this.handleLegendChange);
+    chartInstance?.instance.on('legendunselected', this.handleLegendChange);
+  }
+  handleUnSetLegendEvent() {
+    const chartInstance = this.$refs.baseChart as any;
+    chartInstance?.instance?.off?.('legendselected', this.handleLegendChange);
+    chartInstance?.instance?.off?.('legendunselected', this.handleLegendChange);
   }
 }

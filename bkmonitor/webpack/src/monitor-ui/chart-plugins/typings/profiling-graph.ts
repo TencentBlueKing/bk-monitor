@@ -27,9 +27,9 @@
 import { TranslateResult } from 'vue-i18n';
 
 export enum ViewModeType {
-  Table = 'table',
   Combine = 'combine',
   Flame = 'flame',
+  Table = 'table',
   Topo = 'topo',
 }
 
@@ -41,6 +41,7 @@ export enum TextDirectionType {
 export interface ViewModeItem {
   id: ViewModeType;
   icon: string;
+  label: string;
 }
 
 export interface ProfilingTableItem {
@@ -52,7 +53,7 @@ export interface ProfilingTableItem {
   displayTotal?: string;
   location?: string;
   color?: string;
-  diff?: string;
+  diff?: number;
   baseline?: number;
   comparison?: number;
   mark?: string;
@@ -60,9 +61,9 @@ export interface ProfilingTableItem {
 
 export interface TableColumn {
   id: string;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
   sort?: string;
-  mode?: 'normal' | 'diff';
+  mode?: 'diff' | 'normal';
 }
 
 export interface ITableTipsDetail {
@@ -78,11 +79,12 @@ export interface ITableTipsDetail {
   displayTotal?: string;
   selfPercent?: string;
   totalPercent?: string;
-  proportion?: string | number;
+  proportion?: number | string;
   duration?: string;
   diffDuration?: string;
   diffValue?: number | string;
   id?: string;
+  diff?: number;
 }
 
 export interface IQueryParams {

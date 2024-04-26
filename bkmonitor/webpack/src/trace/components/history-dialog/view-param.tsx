@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
+
 import { Dialog, Tag } from 'bkui-vue';
 
 import './view-param.scss';
@@ -59,11 +60,11 @@ export default defineComponent({
   render() {
     return (
       <Dialog
-        title={this.title}
-        isShow={this.visible}
-        dialogType={'show'}
-        onUpdate:isShow={this.valueChange}
         width={400}
+        dialogType={'show'}
+        isShow={this.visible}
+        title={this.title}
+        onUpdate:isShow={this.valueChange}
       >
         {!!(this.$slots?.default?.() as any)?.props ? (
           this.$slots?.default?.()
@@ -71,8 +72,8 @@ export default defineComponent({
           <div class='param-body'>
             {this.list.map((item: any, index) => (
               <div
-                class='item'
                 key={index}
+                class='item'
               >
                 <div class='label'>{item.label} ：</div>
                 {Array.isArray(item.value) ? (

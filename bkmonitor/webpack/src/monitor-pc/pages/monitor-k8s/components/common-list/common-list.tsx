@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -32,7 +33,6 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
@@ -42,6 +42,8 @@ import {
   updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
+
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
 import './common-list.scss';
 
@@ -134,7 +136,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     return this.list.filter(item =>
       (item.name.includes(this.keyword) || item.id.toString().includes(this.keyword)) && this.currentStatus === 'all'
         ? true
-        : item.status?.type === this.currentStatus,
+        : item.status?.type === this.currentStatus
     );
   }
 
@@ -214,7 +216,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
               name: set.name || id,
             };
           });
-        }),
+        })
     );
     const [data] = await Promise.all(promiseList).catch(() => {
       this.emptyType = '500';
@@ -321,18 +323,18 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
         <div class='list-header'>
           {this.conditionList.length ? (
             <bk-search-select
-              placeholder={this.$t('搜索')}
               vModel={this.searchCondition}
-              show-condition={false}
               data={this.currentConditionList}
+              placeholder={this.$t('搜索')}
+              show-condition={false}
               show-popover-tag-change={false}
               onChange={this.handleSearch}
             />
           ) : (
             <bk-input
               v-model={this.keyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
@@ -355,19 +357,18 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
           {this.localList?.length ? (
             <bk-virtual-scroll
               ref='virtualInstance'
-              item-height={32}
               scopedSlots={{
                 default: ({ data }) => {
                   const itemId = this.panel.targets[0]?.handleCreateItemId(data);
                   return (
                     <div
-                      onClick={() => this.handleSelectedItem(data)}
                       class={[
                         `list-wrapper-item ${data.id === this.activeId ? 'item-active' : ''}`,
                         {
                           'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
                         },
                       ]}
+                      onClick={() => this.handleSelectedItem(data)}
                     >
                       {!!data.status?.type && (
                         <CommonStatus
@@ -399,6 +400,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
                   );
                 },
               }}
+              item-height={32}
             ></bk-virtual-scroll>
           ) : (
             <EmptyStatus

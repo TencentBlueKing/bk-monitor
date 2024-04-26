@@ -162,9 +162,9 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
             property='link'
           >
             <bk-switcher
+              v-model={this.localForm.show_panel_count}
               size='large'
               theme='primary'
-              v-model={this.localForm.show_panel_count}
               onChange={this.handleValueChange}
             ></bk-switcher>
           </bk-form-item>

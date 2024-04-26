@@ -46,27 +46,25 @@
         class="notice-item notice-input"
         :class="{ 'verify-show': rule.isMemberValue }"
       >
-        <div
-          class="notice-item-label notice-input-label"
-        >{{ $t('通知对象') }}</div>
+        <div class="notice-item-label notice-input-label">{{ $t('通知对象') }}</div>
         <verify-input
           :show-validate.sync="rule.isMemberValue"
           :validator="{ content: $t('至少添加一个通知对象') }"
         >
           <div class="notice-item-content">
             <div
-              class="over-input"
               v-if="isShowOverInput"
+              class="over-input"
             >
               <img
                 src="../../../static/images/svg/spinner.svg"
                 class="status-loading"
                 alt=""
-              >
+              />
             </div>
             <member-selector
-              class="bk-member-selector"
               v-model="member.value"
+              class="bk-member-selector"
               :group-list="groupList"
             />
           </div>
@@ -90,9 +88,8 @@
                 :key="index"
                 class="checkbox-group"
                 :value="item.type"
-              >{{
-                item.label
-              }}</bk-checkbox>
+                >{{ item.label }}</bk-checkbox
+              >
             </bk-checkbox-group>
           </div>
         </verify-input>
@@ -115,12 +112,12 @@
             >
               <div class="input-demo mlr-10">
                 <bk-input
+                  v-model="noticeNumber"
                   type="number"
                   :max="1440"
                   :min="1"
-                  v-model="noticeNumber"
-                  @change="handleTriggerNumber"
                   placeholder="0"
+                  @change="handleTriggerNumber"
                 />
               </div>
             </i18n>
@@ -141,7 +138,7 @@ export default {
   name: 'AlarmShieldNotice',
   components: {
     VerifyInput,
-    MemberSelector
+    MemberSelector,
   },
   data() {
     return {
@@ -153,14 +150,14 @@ export default {
       member: {
         data: [],
         value: [],
-        noticeWayError: false
+        noticeWayError: false,
       },
       setWay: [],
       rule: {
         isNotificationMethod: false,
         isMemberValue: false,
-        isNoticeNumber: false
-      }
+        isNoticeNumber: false,
+      },
     };
   },
   computed: {
@@ -169,9 +166,9 @@ export default {
       const list = this.member.data.find(item => item.id === 'group')?.children || [];
       return list.map(item => ({
         ...item,
-        username: item.id
+        username: item.id,
       }));
-    }
+    },
   },
   created() {
     this.bizId = this.$store.getters.bizId;
@@ -192,26 +189,26 @@ export default {
     handleNoticeReceiver() {
       const { data } = this.member;
       const groupList = data.find(item => item.id === 'group')?.children || [];
-      const result = this.member.value.map((id) => {
+      const result = this.member.value.map(id => {
         const isGroup = groupList.find(group => group.id === id);
         return {
           logo: '',
           display_name: '',
           type: isGroup ? 'group' : 'user',
-          id
+          id,
         };
       });
       return result;
     },
     async getNoticeData() {
       getReceiver()
-        .then((data) => {
+        .then(data => {
           this.member.data = data;
         })
         .finally(() => {
           this.isShowOverInput = false;
         });
-      this.setWay = (await getNoticeWay({ bk_biz_id: this.bizId }) || []).filter(item => item.channel === 'user');
+      this.setWay = ((await getNoticeWay({ bk_biz_id: this.bizId })) || []).filter(item => item.channel === 'user');
     },
     getNoticeConfig() {
       const { rule } = this;
@@ -226,7 +223,7 @@ export default {
         return {
           notice_receiver: this.handleNoticeReceiver(),
           notice_way: this.notificationMethod,
-          notice_time: this.noticeNumber
+          notice_time: this.noticeNumber,
         };
       }
       return true;
@@ -236,8 +233,8 @@ export default {
       this.member.value = data.member.value;
       this.notificationMethod = data.notificationMethod;
       this.noticeNumber = data.noticeNumber;
-    }
-  }
+    },
+  },
 };
 </script>
 

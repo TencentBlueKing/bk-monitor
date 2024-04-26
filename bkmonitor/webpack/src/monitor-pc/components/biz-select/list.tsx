@@ -27,7 +27,6 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
-
 import { ThemeType } from './biz-select';
 
 import './list.scss';
@@ -56,8 +55,8 @@ interface ItagsItem {
   type: ETagsType;
 }
 export enum ETagsType {
-  BKCC = 'bkcc' /** 业务 */,
   BCS = 'bcs' /** 容器项目 */,
+  BKCC = 'bkcc' /** 业务 */,
   BKCI = 'bkci' /** 蓝盾项目 */,
   BKSAAS = 'bksaas' /** 蓝鲸应用 */,
   MONITOR = 'monitor' /** 监控空间 */,
@@ -111,8 +110,8 @@ export default class List extends tsc<IProps, IEvents> {
                     <span class='list-item-right'>
                       {child.tags?.map?.(tag => (
                         <span
-                          class='list-item-tag'
                           style={{ ...SPACE_TYPE_MAP[tag.id]?.[this.theme] }}
+                          class='list-item-tag'
                         >
                           {SPACE_TYPE_MAP[tag.id]?.name}
                         </span>
@@ -126,8 +125,8 @@ export default class List extends tsc<IProps, IEvents> {
         ) : (
           <bk-exception
             class='no-data'
-            type='search-empty'
             scene='part'
+            type='search-empty'
           />
         )}
       </div>

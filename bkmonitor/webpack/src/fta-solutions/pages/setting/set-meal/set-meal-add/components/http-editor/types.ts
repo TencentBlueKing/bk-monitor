@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export type TMethod = 'POST' | 'GET';
+export type TMethod = 'GET' | 'POST';
 export interface IHttpData {
   method: TMethod;
   url: string;
@@ -47,7 +47,7 @@ export interface IRaw {
   content: string;
 }
 
-export type THeaderType = 'Params' | 'Authorization' | 'Headers' | 'Body' | 'Seting';
+export type THeaderType = 'Authorization' | 'Body' | 'Headers' | 'Params' | 'Seting';
 
 export interface IHeaderInfo {
   insecure_skip_verify?: boolean;
@@ -56,7 +56,7 @@ export interface IHeaderInfo {
   enable?: boolean;
   desc: string;
   hide?: boolean;
-  value?: string | ISetingValue | IParamsValueItem[];
+  value?: IParamsValueItem[] | ISetingValue | string;
   type?: string;
   bearer_token?: IToken;
   basic_auth?: IUserInfo;

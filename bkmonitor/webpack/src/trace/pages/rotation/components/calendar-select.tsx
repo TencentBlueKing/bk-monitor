@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import './calendar-select.scss';
@@ -75,7 +76,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     const contentTextRef = ref();
@@ -83,7 +84,7 @@ export default defineComponent({
       () => sortLocalValue.value,
       val => {
         contentTextRef.value.innerText = val.length ? val.join('、') : t('选择');
-      },
+      }
     );
 
     function handleBlur(e: Event) {
@@ -232,8 +233,8 @@ export default defineComponent({
       <div class='calendar-select-component'>
         {this.label && (
           <div
-            class='label'
             style={{ width: `${this.labelWidth}px` }}
+            class='label'
           >
             {this.label}
           </div>
@@ -244,13 +245,13 @@ export default defineComponent({
         >
           <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']}></i>
           <Popover
-            trigger='click'
-            is-show={this.show}
-            theme='light'
             width='250'
             extCls='calendar-select-popover component'
             arrow={false}
+            is-show={this.show}
             placement='bottom-start'
+            theme='light'
+            trigger='click'
             onAfterHidden={this.handleAfterHidden}
           >
             {{

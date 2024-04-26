@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { listStickySpaces } from 'monitor-api/modules/commons';
 import {
   createDashboardOrFolder,
@@ -45,7 +46,6 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { ISpaceItem } from '../../../types';
 import { WATCH_SPACE_STICKY_LIST } from '../../app';
-
 import FavList, { IFavListItem } from './fav-list';
 import IconBtn, { IIconBtnOptions } from './icon-btn';
 import { IMoreData } from './tree-list';
@@ -190,7 +190,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     if (!this.keywork) return [];
     const res = this.grafanaList.reduce((total, item) => {
       const res = item.children.filter(
-        child => child.title.toLocaleLowerCase().indexOf(this.keywork.toLocaleLowerCase()) > -1,
+        child => child.title.toLocaleLowerCase().indexOf(this.keywork.toLocaleLowerCase()) > -1
       );
       total = [...total, ...res];
       return total;
@@ -630,13 +630,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         <div class='grafana-aside-main'>
           <div class='grafana-biz'>
             <BizSelect
-              value={+this.bizId}
               bizList={this.bizIdList}
               minWidth={380}
-              theme={'dark'}
               stickyList={this.spacestickyList}
-              onOpenSpaceManager={this.handleOpenSpace}
+              theme={'dark'}
+              value={+this.bizId}
               onChange={this.handleBizChange}
+              onOpenSpaceManager={this.handleOpenSpace}
             />
           </div>
           {/* 如果没有收藏仪表盘，就不显示空列表。 */}
@@ -645,8 +645,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               <FavList
                 checked={this.checked}
                 list={this.favList}
-                onUnstarred={this.handleUnstarred}
                 onSelected={this.handleSelectedFav}
+                onUnstarred={this.handleUnstarred}
               ></FavList>
             </div>
           )}
@@ -659,9 +659,9 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 {this.$t('全部')}
               </span>
               <IconBtn
-                iconOnly
-                checked={this.searchActive}
                 class='search-icon'
+                checked={this.searchActive}
+                iconOnly
                 onClick={this.handleShowSearch}
               >
                 <bk-icon
@@ -672,13 +672,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               {process.env.APP !== 'external' && (
                 <IconBtn
                   class='no-wrap'
-                  title={this.$tc('新增')}
                   options={this.addOptions}
+                  title={this.$tc('新增')}
                   onSelected={this.handleAdd}
                 >
                   <bk-icon
-                    slot='icon'
                     class='add-icon'
+                    slot='icon'
                     type='plus'
                   />
                 </IconBtn>
@@ -690,8 +690,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             >
               <div class='grafana-handle-main'>
                 <bk-input
-                  right-icon='bk-icon icon-search'
                   v-model={this.keywork}
+                  right-icon='bk-icon icon-search'
                   onInput={this.handleSearchInput}
                 ></bk-input>
               </div>
@@ -726,8 +726,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 data={this.grafanaList}
                 defaultExpend={false}
                 onMore={this.handleTreeMore}
-                onSelected={this.handleSelectedGrafana}
                 onRename={this.handleRename}
+                onSelected={this.handleSelectedGrafana}
               ></TreeMenu>
             </div>
           )}
@@ -736,12 +736,12 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             <div class='garfana-link'>
               {this.linkList.map(item => (
                 <span
+                  class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   v-bk-tooltips={{
                     content: item.tips,
                     extCls: 'garfana-link-tips',
                     allowHTML: false,
                   }}
-                  class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   onClick={() => this.handleLinkTo(item)}
                 >
                   <i class={['icon-monitor', item.icon]}></i>
@@ -752,12 +752,12 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           }
         </div>
         <bk-dialog
-          title={this.$t(this.isDashboard ? '新建仪表盘' : '新增目录')}
-          header-position='left'
           width={480}
-          zIndex={1}
           ext-cls='dashboard-add-dialog'
           v-model={this.showAddForm}
+          header-position='left'
+          title={this.$t(this.isDashboard ? '新建仪表盘' : '新增目录')}
+          zIndex={1}
           show-footer
           onCancel={this.handleCancel}
         >
@@ -772,17 +772,17 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             formType='vertical'
           >
             <bk-form-item
-              required
-              property='name'
               label={this.$t(this.isDashboard ? '仪表盘名称' : '目录名称')}
+              property='name'
+              required
             >
               <bk-input v-model={this.formData.name}></bk-input>
             </bk-form-item>
             {this.isDashboard && (
               <bk-form-item
-                required
-                property='dir'
                 label={this.$t('所属目录')}
+                property='dir'
+                required
               >
                 <bk-select v-model={this.formData.dir}>
                   {this.dirList.map(item => (
@@ -796,8 +796,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             )}
           </bk-form>
           <div
-            slot='footer'
             class='dashboard-add-dialog-footer'
+            slot='footer'
           >
             <bk-button
               disabled={this.loading}

@@ -28,15 +28,17 @@
     <done :options="options">
       <template #text>
         <div
-          class="fix-same-code"
           v-if="nodeType === 'INSTANCE'"
+          class="fix-same-code"
         >
           <span class="text fix-same-code">
             {{ $t('共成功{type}了', { type: options.type }) }}
-            <span class="num success">{{ options.successTotal }}</span> {{ suffixName }}</span>
-          <span
-            class="fix-same-code text"
-          >,{{ $t('失败') }} <span class="num fail fix-same-code">{{ options.failTotal }}</span> {{ suffixName }}</span>
+            <span class="num success">{{ options.successTotal }}</span> {{ suffixName }}</span
+          >
+          <span class="fix-same-code text"
+            >,{{ $t('失败') }} <span class="num fail fix-same-code">{{ options.failTotal }}</span>
+            {{ suffixName }}</span
+          >
         </div>
         <div
           v-else
@@ -44,22 +46,28 @@
         >
           <span class="text fix-same-code">
             {{ $t('共成功{type}了', { type: options.type }) }} <span class="num">{{ hosts.contents.length }}</span>
-            {{ $t('个节点内的') }} <span class="num success fix-same-code">{{ options.successTotal }}</span> {{ suffixName }}</span>
-          <span class="fix-same-code text">,{{ $t('失败') }} <span class="num fail">{{ options.failTotal }}</span> {{ suffixName }}</span>
+            {{ $t('个节点内的') }} <span class="num success fix-same-code">{{ options.successTotal }}</span>
+            {{ suffixName }}</span
+          >
+          <span class="fix-same-code text"
+            >,{{ $t('失败') }} <span class="num fail">{{ options.failTotal }}</span> {{ suffixName }}</span
+          >
         </div>
       </template>
       <template #footer>
         <bk-button
+          v-if="type !== 'STARTED'"
           theme="primary"
           @click="handleGoStrategy"
-          v-if="type !== 'STARTED'"
         >
           {{ $t('button-策略配置') }}
         </bk-button>
         <bk-button
-          theme="primary"
           v-if="false"
-        > {{ $t('视图配置') }} </bk-button>
+          theme="primary"
+        >
+          {{ $t('视图配置') }}
+        </bk-button>
         <bk-button @click="close">
           {{ $t('button-关闭') }}
         </bk-button>
@@ -73,21 +81,21 @@ import Done from '../../collector-add/config-done/loading-done';
 export default {
   name: 'StopDone',
   components: {
-    Done
+    Done,
   },
   props: {
     data: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     hosts: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     type: {
       type: String,
-      default: 'STOPPED'
-    }
+      default: 'STOPPED',
+    },
   },
   data() {
     return {
@@ -98,15 +106,15 @@ export default {
         text: '',
         type: '',
         successTotal: 0,
-        failTotal: 0
+        failTotal: 0,
       },
-      nodeType: 'INSTANCE'
+      nodeType: 'INSTANCE',
     };
   },
   computed: {
     suffixName() {
       return this.data.objectTypeEn === 'HOST' ? this.$t('台主机') : this.$t('个实例');
-    }
+    },
   },
   created() {
     const type = {
@@ -114,7 +122,7 @@ export default {
       STOPPED: this.$t('启用'),
       CREATE: this.$t('创建'),
       ROLLBACK: this.$t('回滚'),
-      UPGRADE: this.$t('升级')
+      UPGRADE: this.$t('升级'),
     };
     this.options.type = type[this.type];
     this.options.title = `${this.$t('配置已')}${this.options.type}`;
@@ -132,12 +140,12 @@ export default {
         params: {
           baseInfo: {
             scenario: this.data.serviceLabel,
-            name: this.data.name
-          }
-        }
+            name: this.data.name,
+          },
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

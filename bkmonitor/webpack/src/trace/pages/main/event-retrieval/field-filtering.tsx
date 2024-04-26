@@ -25,12 +25,12 @@
  */
 import { defineComponent, PropType, reactive, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Exception } from 'bkui-vue';
 import { deepClone } from 'monitor-common/utils/utils';
 import { type FieldListType, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
 import { useTraceStore } from '../../../store/modules/trace';
-
 import FieldList, { IDimissionItem, TraceFieldValue } from './field-list';
 
 import './field-filtering.scss';
@@ -183,7 +183,7 @@ export default defineComponent({
           const total = dimensions.length;
           return { ...item, dimensions, total };
         });
-      },
+      }
     );
 
     watch(
@@ -194,7 +194,7 @@ export default defineComponent({
           const total = dimensions.length;
           return { ...item, dimensions, total };
         });
-      },
+      }
     );
 
     watch(
@@ -205,7 +205,7 @@ export default defineComponent({
           const total = dimensions.length;
           return { ...item, dimensions, total };
         });
-      },
+      }
     );
 
     watch(
@@ -216,7 +216,7 @@ export default defineComponent({
           const total = dimensions.length;
           return { ...item, dimensions, total };
         });
-      },
+      }
     );
 
     // 调用类型 的映射对象，将 value 转成 text 用作显示。
@@ -318,15 +318,15 @@ export default defineComponent({
         <div class='field-list-wrap'>
           {localValue.value.length ? (
             <FieldList
-              value={localValue.value}
               total={total.value}
+              value={localValue.value}
               onAddCondition={handleAddCondition}
               onShowMoreChange={handleShowMoreChange}
             />
           ) : (
             <Exception
-              type='empty'
               scene='part'
+              type='empty'
             ></Exception>
           )}
         </div>

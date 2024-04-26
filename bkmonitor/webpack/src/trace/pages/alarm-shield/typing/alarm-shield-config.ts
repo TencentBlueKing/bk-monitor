@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 export enum EShieldCycle {
-  single = 'single',
   day = 'day',
-  week = 'week',
   month = 'month',
+  single = 'single',
+  week = 'week',
 }
 export type INoticeDate = {
   [key in EShieldCycle]: {
-    list: { id: string; name: string }[] | (number | string)[];
+    list: (number | string)[] | { id: string; name: string }[];
     range: string[];
   };
 } & {

@@ -1126,7 +1126,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
                 # 否则此处发现rp配置不一致，需要修复
                 # 修复前根据新的duration判断shard的长度，并修改为合适的shard
                 try:
-                    shard_group_duration = InfluxDBHostInfo.judge_shard()
+                    shard_group_duration = InfluxDBHostInfo.judge_shard(self.source_duration_time)
                 except ValueError as e:
                     logger.error(
                         "table->[{}] rp->[{} | {}] is updated on host->[{}] failed: [{}]".format(
@@ -1154,7 +1154,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
             else:
                 # 创建前根据新的duration判断shard的长度，并修改为合适的shard
                 try:
-                    shard_group_duration = InfluxDBHostInfo.judge_shard()
+                    shard_group_duration = InfluxDBHostInfo.judge_shard(self.source_duration_time)
                 except ValueError as e:
                     logger.error(
                         "table->[{}] rp->[{} | {}] is create on host->[{}] failed: [{}]".format(

@@ -55,12 +55,12 @@ export default class TraceRetrieval extends tsc<object> {
     return (
       <div class='alarm-shield-wrap'>
         <bk-weweb
-          setShodowDom={true}
-          class='alarm-shield-wrap-iframe'
-          url={this.alarmShieldUrl}
-          showSourceCode={true}
           id={wewebId}
+          class='alarm-shield-wrap-iframe'
           data={this.alarmShieldData}
+          setShodowDom={true}
+          showSourceCode={true}
+          url={this.alarmShieldUrl}
         />
       </div>
     );

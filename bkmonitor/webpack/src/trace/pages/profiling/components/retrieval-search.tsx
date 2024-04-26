@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 import { listApplicationServices, queryLabels } from 'monitor-api/modules/apm_profile';
@@ -39,7 +40,6 @@ import {
   SearchType,
   ToolsFormData,
 } from '../typings';
-
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';
 
@@ -91,14 +91,14 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
     watch(
       () => toolsFormData.value.timeRange,
       () => {
-        getLabelList();
+        // getLabelList();
         getApplicationList();
-      },
+      }
     );
 
     /**
@@ -303,8 +303,8 @@ export default defineComponent({
                 <div class='content'>
                   <Switcher
                     modelValue={this.localFormData.isComparison}
-                    theme='primary'
                     size='small'
+                    theme='primary'
                     onChange={this.handleComparisonChange}
                   />
                 </div>
@@ -312,7 +312,7 @@ export default defineComponent({
             ]}
 
             <div class='search-panel'>
-              <div class='search-title'>{this.t('查询项')}</div>
+              <div class='search-title'>{this.t('当前查询项')}</div>
               {this.localFormData.where.map((item, index) => (
                 <ConditionItem
                   class='condition-item'
@@ -333,7 +333,7 @@ export default defineComponent({
             </div>
             {this.localFormData.isComparison && (
               <div class='search-panel'>
-                <div class='search-title'>{this.t('对比项')}</div>
+                <div class='search-title'>{this.t('参照查询项')}</div>
                 {this.localFormData.comparisonWhere.map((item, index) => (
                   <ConditionItem
                     class='condition-item'

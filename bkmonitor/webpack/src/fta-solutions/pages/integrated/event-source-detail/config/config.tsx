@@ -25,13 +25,13 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getEventPluginToken } from 'monitor-api/modules/event_plugin';
 import { copyText } from 'monitor-common/utils/utils';
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import RulesViewer from '../rules-viewer/rules-viewer';
 import { EPluginType, IAlertConfigTable, INormalizationTable, IPushConfigData, TPluginType } from '../types';
-
 import PullForm from './pull-form';
 
 import './config.scss';
@@ -173,8 +173,8 @@ export default class Config extends tsc<IConfig> {
                 <tbody>
                   <tr>
                     <td
-                      class='label right'
                       style='width: 80px'
+                      class='label right'
                     >
                       {this.$t('用户名')}
                     </td>
@@ -186,8 +186,8 @@ export default class Config extends tsc<IConfig> {
                   </tr>
                   <tr>
                     <td
-                      class='label right'
                       style='width: 80px'
+                      class='label right'
                     >
                       {this.$t('使用SSL')}
                     </td>
@@ -250,8 +250,8 @@ export default class Config extends tsc<IConfig> {
           {this.tutorialMd ? (
             <Viewer
               class='md-viewer'
-              value={this.tutorialMd}
               flowchartStyle={true}
+              value={this.tutorialMd}
             ></Viewer>
           ) : (
             <div style='margin-bottom: 16px;'>{this.$t('暂无')}</div>
@@ -265,17 +265,17 @@ export default class Config extends tsc<IConfig> {
             <bk-table
               key={`${this.normalizationTable.length || 0}${this.id}normalization`}
               class='table-wrap'
-              data={this.normalizationTable}
               border={false}
+              data={this.normalizationTable}
               outer-border={false}
             >
               {this.fieldMapTableColumnlist.map(item => (
                 <bk-table-column
                   key={item.key}
-                  label={item.label}
-                  prop={item.prop}
                   width={item.width}
                   formatter={item.formatter}
+                  label={item.label}
+                  prop={item.prop}
                   scopedSlots={item.key === 'type' ? typeColumnScopedSlots : null}
                 ></bk-table-column>
               ))}
@@ -296,9 +296,9 @@ export default class Config extends tsc<IConfig> {
               {this.noticeNameTableColumnlist.map(item => (
                 <bk-table-column
                   key={item.key}
+                  width={item.width}
                   label={item.label}
                   prop={item.prop}
-                  width={item.width}
                   scopedSlots={scopedSlots(item.key)}
                 ></bk-table-column>
               ))}

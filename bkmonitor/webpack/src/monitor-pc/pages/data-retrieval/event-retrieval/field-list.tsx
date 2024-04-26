@@ -66,7 +66,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
   handleAddConditon(
     method: FieldListType.AddConditionType,
     item: FieldValue,
-    val: FieldFilteringType.IFieldValue,
+    val: FieldFilteringType.IFieldValue
   ): IFilterCondition.localValue {
     return {
       key: item.field,
@@ -129,10 +129,10 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
                     <span class='percent'>{val.percent}%</span>
                   </div>
                   <bk-progress
-                    theme='success'
                     percent={val.percent / 100}
                     show-text={false}
                     stroke-width={6}
+                    theme='success'
                   ></bk-progress>
                 </div>
                 <i
@@ -169,12 +169,12 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
           <bk-collapse-item
             key={item.key}
             class={['collapse-item', { 'is-empty': !item.dimensions?.length }]}
-            name={item.key}
-            disabled={!item.dimensions?.length}
             scopedSlots={{
               default: () => titleSlot(item, index),
               content: () => contentSlot(item),
             }}
+            disabled={!item.dimensions?.length}
+            name={item.key}
           ></bk-collapse-item>
         ))}
       </bk-collapse>

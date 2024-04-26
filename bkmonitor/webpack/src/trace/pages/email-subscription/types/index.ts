@@ -26,16 +26,16 @@
 export type TestSendingTarget = 'all' | 'self';
 
 export enum FrequencyType {
+  /** 按天 */
+  dayly = 2,
   /** 按小时 */
   hourly = 5,
   /** 按月 */
   monthly = 4,
-  /** 按周 */
-  weekly = 3,
-  /** 按天 */
-  dayly = 2,
   /** 仅一次 */
   onlyOnce = 1,
+  /** 按周 */
+  weekly = 3,
 }
 
 // 订阅详情 对象 开始
@@ -54,7 +54,7 @@ export type TimeFrequency = {
 };
 
 export type ScenarioConfig = {
-  index_set_id: number | null;
+  index_set_id: null | number;
   pattern_level: string;
   log_display_count: number;
   year_on_year_hour: number;
@@ -75,7 +75,7 @@ export type Subscriber = {
 };
 
 export type Channel = {
-  channel_name: 'user' | 'email' | 'wxbot';
+  channel_name: 'email' | 'user' | 'wxbot';
   is_enabled: boolean;
   subscribers: Subscriber[];
   send_text?: string;

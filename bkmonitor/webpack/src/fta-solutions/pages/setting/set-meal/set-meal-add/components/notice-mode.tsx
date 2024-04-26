@@ -59,7 +59,7 @@ export interface INoticeWayValue {
 }
 interface INoticeWays {
   name: string;
-  receivers?: string[] | string;
+  receivers?: string | string[];
 }
 interface INoticeModeEvent {
   onChange?: INoticeWayValue[];
@@ -249,8 +249,8 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                       <div class='th-title'>
                         {item.icon ? (
                           <img
-                            alt=''
                             class='title-icon'
+                            alt=''
                             src={`data:image/png;base64,${item.icon}`}
                           ></img>
                         ) : undefined}
@@ -277,8 +277,8 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                 <tr>
                   <td class='first-col'>
                     <div
-                      class='cell'
                       key={item.title}
+                      class='cell'
                     >
                       {this.showlevelMark && <span class={`level-mark level-mark-${item.level}`}></span>}
                       <span class={[this.showlevelMark ? `level-title-${item.level}` : undefined]}>{item.title}</span>
@@ -292,22 +292,22 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                       ]}
                     >
                       <div
-                        class={['cell', { 'wxwork-bot': notice.name === robot.wxworkBot }]}
                         key={notice.type}
+                        class={['cell', { 'wxwork-bot': notice.name === robot.wxworkBot }]}
                       >
                         {this.readonly ? (
                           <i class={['icon-monitor', notice.checked ? 'icon-mc-check-small' : undefined]}></i>
                         ) : ['bkchat', 'wxwork-bot'].includes(notice.name) ? undefined : (
                           <bk-checkbox
-                            size={'small'}
-                            v-model={notice.checked}
-                            theme='primary'
                             v-bk-tooltips={{
                               content: `${this.$t('电话按通知对象顺序依次拨打,用户组里无法保证顺序')}`,
                               placements: ['top'],
                               boundary: 'window',
                               disabled: notice.type !== 'voice',
                             }}
+                            v-model={notice.checked}
+                            size={'small'}
+                            theme='primary'
                             on-change={() => this.handleParams()}
                           ></bk-checkbox>
                         )}
@@ -338,15 +338,15 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                         )}
                         {notice.name === 'bkchat' && (
                           <div
-                            class='chat-group'
                             style={{ textAlign: 'start' }}
+                            class='chat-group'
                           >
                             <bk-select
                               v-model={notice.receivers}
-                              readonly={this.readonly}
-                              multiple={true}
                               display-tag={true}
+                              multiple={true}
                               placeholder='请选择通知方式'
+                              readonly={this.readonly}
                               on-change={v => {
                                 notice.checked = !!v?.length;
                                 this.handleParams();
@@ -355,18 +355,18 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               {this.bkchatList.map(bkchat => (
                                 <bk-option
                                   id={bkchat.id}
-                                  name={bkchat.name}
                                   key={bkchat.id + bkchat.name}
+                                  name={bkchat.name}
                                 />
                               ))}
                               <div
-                                slot='extension'
                                 style='cursor: pointer;'
+                                slot='extension'
                                 onClick={this.handleJumpAddGroup}
                               >
                                 <i
-                                  class='bk-icon icon-plus-circle'
                                   style={{ marginRight: '5px' }}
+                                  class='bk-icon icon-plus-circle'
                                 ></i>
                                 {this.$tc('新增群组')}
                               </div>

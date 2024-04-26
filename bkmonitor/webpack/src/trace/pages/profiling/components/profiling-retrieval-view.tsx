@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType } from 'vue';
+
 import { Button } from 'bkui-vue';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
 import { IQueryParams } from '../../../typings/trace';
 import { DataTypeItem } from '../typings/profiling-retrieval';
-
 import TrendChart from './trend-chart';
 
 import './profiling-retrieval-view.scss';

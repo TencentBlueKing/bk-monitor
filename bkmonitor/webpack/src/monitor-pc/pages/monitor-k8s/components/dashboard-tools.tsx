@@ -35,7 +35,6 @@ import TimeRange, { TimeRangeType } from '../../../components/time-range/time-ra
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../../components/time-range/utils';
 import { PANEL_INTERVAL_LIST } from '../../../constant/constant';
 import { COMMON_SETTINGS_LIST, IMenuItem } from '../typings';
-
 import ListMenu from './list-menu';
 
 import './dashboard-tools.scss';
@@ -93,8 +92,8 @@ interface IHeadToolEvent {
   // 选择menu触发
   onSelectedMenu: (v: IMenuItem) => void;
   // 选择粒度
-  onDownSampleRangeChange?: (v: string | number) => void;
-  onIntervalChange?: (v: string | number) => void;
+  onDownSampleRangeChange?: (v: number | string) => void;
+  onIntervalChange?: (v: number | string) => void;
   // 选择时区
   onTimezoneChange?: (v: string) => void;
 }
@@ -398,21 +397,21 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
       <div class='dashboard-tools'>
         {this.showInterval && (
           <MonitorDropdown
-            icon={'icon-lidu'}
             class='dashboard-tools-interval'
             v-model={this.intervalValue}
-            list={this.intervalList}
+            icon={'icon-lidu'}
             iconTitle={window.i18n.tc('汇聚周期')}
+            list={this.intervalList}
             on-change={this.handleIntervalChange}
           />
         )}
         {this.showDownSampleRange && (
           <MonitorDropdown
-            icon={'icon-lidu'}
             class='dashboard-tools-interval'
             v-model={this.downSampleRangeValue}
-            list={this.downSampleRangeList}
+            icon={'icon-lidu'}
             iconTitle={window.i18n.tc('粒度')}
+            list={this.downSampleRangeList}
             readonly={true}
             on-change={this.handlDownSampleRangeChange}
           />
@@ -423,22 +422,22 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
           ) : (
             <TimeRange
               class='dashboard-tools-timerange'
-              value={this.curTimeRange}
               timezone={this.timezone}
-              onTimezoneChange={this.handleTimezoneChange}
+              value={this.curTimeRange}
               onChange={this.handleTimeRangeChange}
+              onTimezoneChange={this.handleTimezoneChange}
             />
           ))}
         {<span></span>}
         <MonitorDropdown
-          icon='icon-zidongshuaxin'
           class={`dashboard-tools-interval ${this.readonly ? 'is-readonly' : ''}`}
           v-model={this.refleshIntervalValue}
-          text-active={this.refleshInterval !== -1}
-          on-on-icon-click={() => this.$emit('immediateReflesh')}
-          on-change={this.handleRefleshChange}
+          icon='icon-zidongshuaxin'
           isRefleshInterval={true}
           list={this.refleshList}
+          text-active={this.refleshInterval !== -1}
+          on-change={this.handleRefleshChange}
+          on-on-icon-click={() => this.$emit('immediateReflesh')}
         />
         <span class='dashboard-tools-more'>
           {this.showSplitPanel && (
@@ -457,8 +456,8 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
           {this.showListMenu && !!this.menuList?.length && (
             <ListMenu
               list={this.menuList}
-              onMenuSelect={this.handleSettingsMenuSelect}
               onHidden={this.handleSetSettings}
+              onMenuSelect={this.handleSettingsMenuSelect}
               onShow={this.handleSetSettings}
             >
               <div class='more-button'>

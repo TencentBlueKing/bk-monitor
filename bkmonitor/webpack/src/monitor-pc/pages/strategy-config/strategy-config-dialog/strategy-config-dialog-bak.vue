@@ -36,43 +36,43 @@
     @confirm="handleConfirm"
   >
     <div
-      class="strategy-dialog-wrap"
       v-bkloading="{ isLoading: loading || isLoading }"
+      class="strategy-dialog-wrap"
     >
       <div
         v-if="setType !== 7"
         class="num-tips"
       >
-        <i18n
-          path="已选择{0}个策略"
-        ><span class="num-text">&nbsp;{{ checkedList.length }}&nbsp;</span></i18n>
+        <i18n path="已选择{0}个策略"
+          ><span class="num-text">&nbsp;{{ checkedList.length }}&nbsp;</span></i18n
+        >
       </div>
       <!-- 告警组 -->
       <template v-if="setType === 0">
         <div class="from-item-wrap">
-          <div class="alarm-group-label">
-            {{ $t('告警组') }} <span class="asterisk">*</span>
-          </div>
+          <div class="alarm-group-label">{{ $t('告警组') }} <span class="asterisk">*</span></div>
           <bk-select
+            v-if="dialogShow"
+            v-model="data.alarmGroup"
             class="alarm-notice-list"
             behavior="simplicity"
             multiple
-            v-model="data.alarmGroup"
             :clearable="false"
             searchable
-            v-if="dialogShow"
           >
             <bk-option
               v-for="(option, index) in groupList"
-              :key="index"
               :id="option.id"
+              :key="index"
               :name="option.name"
             />
           </bk-select>
           <span
             v-if="data.noticeGroupError"
             class="notice-error-msg error-msg-font"
-          > {{ $t('选择告警组') }} </span>
+          >
+            {{ $t('选择告警组') }}
+          </span>
         </div>
       </template>
       <!-- 触发条件 -->
@@ -84,36 +84,36 @@
           >
             <bk-input
               behavior="simplicity"
-              @change="handleFormatNumber(arguments, 'triggerCondition', 'cycleOne')"
               class="number-input w56"
+              v-model="data.triggerCondition.cycleOne"
               type="number"
               :show-controls="false"
               :min="1"
               :max="60"
-              v-model="data.triggerCondition.cycleOne"
+              @change="handleFormatNumber(arguments, 'triggerCondition', 'cycleOne')"
             />
             <bk-select
+              v-model="data.triggerCondition.type"
               behavior="simplicity"
               style="width: 64px"
               :clearable="false"
-              v-model="data.triggerCondition.type"
             >
               <bk-option
                 v-for="(option, index) in triggerTypeList"
-                :key="index"
                 :id="option.id"
+                :key="index"
                 :name="option.name"
               />
             </bk-select>
             <bk-input
               behavior="simplicity"
-              @change="handleFormatNumber(arguments, 'triggerCondition', 'count')"
               class="number-input w56"
+              v-model="data.triggerCondition.count"
               type="number"
               :show-controls="false"
               :min="1"
               :max="numbersScope.countMax"
-              v-model="data.triggerCondition.count"
+              @change="handleFormatNumber(arguments, 'triggerCondition', 'count')"
             />
           </i18n>
           <span
@@ -129,13 +129,13 @@
         <div class="modify-trigger-condition">
           <i18n path="连续{0}个周期内不满足触发条件表示恢复">
             <bk-input
+              v-model="data.recover.val"
               behavior="simplicity"
-              @change="handleFormatNumber(arguments, 'recover', 'val')"
               class="number-input"
               type="number"
               :show-controls="false"
               :min="1"
-              v-model="data.recover.val"
+              @change="handleFormatNumber(arguments, 'recover', 'val')"
             />
           </i18n>
         </div>
@@ -152,13 +152,13 @@
           {{ $t('若告警未恢复并且未确认，则每隔') }}
           <bk-input
             behavior="simplicity"
-            @change="handleFormatNumber(arguments, 'notice', 'val')"
             class="number-input"
+            v-model="data.notice.val"
             type="number"
             :show-controls="false"
             :min="1"
             :max="1440"
-            v-model="data.notice.val"
+            @change="handleFormatNumber(arguments, 'notice', 'val')"
           />
           {{ $t('分钟进行告警') }}
         </div>
@@ -177,34 +177,38 @@
             path="{0}当数据连续丢失{1}个周期触发无数据告警"
           >
             <bk-switcher
-              class="inline-switcher"
               v-model="data.openAlarmNoData"
+              class="inline-switcher"
               size="small"
               theme="primary"
             />
             <bk-input
               behavior="simplicity"
+              v-model="data.noDataAlarm.cycle"
               :disabled="!data.openAlarmNoData"
-              @change="handleFormatNumber(arguments, 'noDataAlarm', 'cycle')"
               class="number-input"
               type="number"
               :show-controls="false"
               :min="1"
-              v-model="data.noDataAlarm.cycle"
+              @change="handleFormatNumber(arguments, 'noDataAlarm', 'cycle')"
             />
           </i18n>
         </div>
         <span
           v-if="data.noDataCycleError"
           class="no-data-error-msg error-msg-font"
-        > {{ $t('仅支持整数') }} </span>
+        >
+          {{ $t('仅支持整数') }}
+        </span>
       </template>
       <!-- 告警恢复通知 -->
       <template v-else-if="setType === 4">
         <bk-checkbox
-          class="alarm-recover"
           v-model="data.alarmNotice"
-        > {{ $t('告警恢复通知') }} </bk-checkbox>
+          class="alarm-recover"
+        >
+          {{ $t('告警恢复通知') }}
+        </bk-checkbox>
       </template>
       <!-- 启停策略 -->
       <template v-else-if="setType === 6">
@@ -213,7 +217,8 @@
             <bk-radio
               style="margin-right: 58px"
               :value="true"
-            >{{ $t('启用') }}</bk-radio>
+              >{{ $t('启用') }}</bk-radio
+            >
             <bk-radio :value="false">
               {{ $t('停用') }}
             </bk-radio>
@@ -236,9 +241,8 @@
           <span
             class="default-template"
             @click="alertNotificationTemplate.messageTemplate = messageTemplate"
-          >{{
-            $t('填充默认模板')
-          }}</span>
+            >{{ $t('填充默认模板') }}</span
+          >
           <template-input
             ref="templateInput"
             :default-value="alertNotificationTemplate.messageTemplate"
@@ -253,28 +257,28 @@
       <!-- 标签 -->
       <template v-else-if="setType === 10">
         <div class="from-item-wrap">
-          <div class="alarm-group-label">
-            {{ $t('标签') }} <span class="asterisk">*</span>
-          </div>
+          <div class="alarm-group-label">{{ $t('标签') }} <span class="asterisk">*</span></div>
           <multi-label-select
             style="width: 100%; margin-bottom: 40px"
             mode="select"
             behavior="simplicity"
             :auto-get-list="true"
             :checked-node="data.labels"
-            @loading="(v) => (isLoading = v)"
-            @checkedChange="(v) => (data.labels = v)"
+            @loading="v => (isLoading = v)"
+            @checkedChange="v => (data.labels = v)"
           />
           <span
             v-if="data.labelsError"
             class="notice-error-msg error-msg-font"
-          > {{ $t('选择标签') }} </span>
+          >
+            {{ $t('选择标签') }}
+          </span>
         </div>
       </template>
       <template v-else-if="setType === 11">
         <div
-          class="alarm-handling"
           v-bkloading="{ isLoading: alarmHandlingData.loading }"
+          class="alarm-handling"
         >
           <div class="alarm-handling-tip">
             <span class="icon-monitor icon-hint" />
@@ -291,7 +295,7 @@
               :group-list="alarmHandlingData.groupList"
               :readonly="alarmHandlingData.readonly"
               :is-preview="false"
-              @change="(val) => (alarmHandlingData.value = val)"
+              @change="val => (alarmHandlingData.value = val)"
               @addGroup="handleCancel"
             />
           </div>
@@ -309,9 +313,11 @@
       <bk-button
         v-else
         theme="primary"
-        @click="handleConfirm"
         :disabled="loading"
-      > {{ $t('保存') }} </bk-button>
+        @click="handleConfirm"
+      >
+        {{ $t('保存') }}
+      </bk-button>
       <bk-button @click="handleCancel">
         {{ $t('取消') }}
       </bk-button>
@@ -332,32 +338,32 @@ export default {
   components: {
     TemplateInput,
     MultiLabelSelect,
-    AlarmHandling
+    AlarmHandling,
   },
   props: {
     setType: {
       type: Number,
-      required: true
+      required: true,
     },
     groupList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     dialogShow: Boolean,
     selectList: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     checkedList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     loading: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   data() {
     return {
@@ -365,56 +371,56 @@ export default {
       typeMap: [
         {
           title: this.$t('修改告警组'),
-          width: 400
+          width: 400,
         },
         {
           title: this.$t('修改触发条件'),
-          width: 480
+          width: 480,
         },
         {
           title: this.$t('修改通知间隔'),
-          width: 480
+          width: 480,
         },
         {
           title: this.$t('修改无数据告警'),
-          width: 400
+          width: 400,
         },
         {
           title: this.$t('批量修改告警恢复通知'),
-          width: 400
+          width: 400,
         },
         {
           title: this.$t('修改恢复条件'),
-          width: 480
+          width: 480,
         },
         {
           title: this.$t('启/停策略'),
-          width: 400
+          width: 400,
         },
         {
           title: this.$t('删除策略'),
-          width: 480
+          width: 480,
         },
         {
           title: this.$t('增删目标'),
-          width: 480
+          width: 480,
         },
         {
           title: this.$t('修改告警模版'),
-          width: 480
+          width: 480,
         },
         {
           title: this.$t('修改标签'),
-          width: 400
+          width: 400,
         },
         {
           title: this.$t('修改告警模版'),
-          width: 640
-        }
+          width: 640,
+        },
       ],
       triggerTypeList: [{ id: 1, name: this.$t('累计') }],
       numbersScope: {
-        countMax: 5
+        countMax: 5,
       },
       data: {
         labels: [],
@@ -423,16 +429,16 @@ export default {
           cycleOne: 5,
           count: 4,
           cycleTwo: 5,
-          type: 1
+          type: 1,
         },
         recover: {
-          val: 5
+          val: 5,
         },
         notice: {
-          val: 120
+          val: 120,
         },
         noDataAlarm: {
-          cycle: 5
+          cycle: 5,
         },
         openAlarmNoData: true,
         alarmNotice: true,
@@ -442,12 +448,12 @@ export default {
         recoverCycleError: false,
         noDataCycleError: false,
         enAbled: false,
-        labelsError: false
+        labelsError: false,
       },
       cachInitData: null,
       alertNotificationTemplate: {
         messageTemplate: '',
-        triggerList: []
+        triggerList: [],
       },
       messageTemplate: `{{content.level}}
 {{content.begin_time}}
@@ -471,14 +477,14 @@ export default {
         strategyId: '',
         groupList: [],
         loading: false,
-        key: 1
-      }
+        key: 1,
+      },
     };
   },
   computed: {
     curItem() {
       return this.typeMap[this.setType] || {};
-    }
+    },
   },
   watch: {
     async dialogShow(v) {
@@ -510,7 +516,7 @@ export default {
           this.alarmHandlingData.loading = false;
         }
       }
-    }
+    },
   },
   created() {
     this.cachInitData = JSON.parse(JSON.stringify(this.data));
@@ -533,18 +539,18 @@ export default {
     },
     // 获取告警组数据
     getAlarmGroupList() {
-      return listUserGroup().then((data) => {
+      return listUserGroup().then(data => {
         this.alarmHandlingData.groupList = data.map(item => ({
           id: item.id,
           name: item.name,
-          receiver: item?.users?.map(rec => rec.display_name) || []
+          receiver: item?.users?.map(rec => rec.display_name) || [],
         }));
-        !this.alarmHandlingData.value.length
-          && this.alarmHandlingData.value.push({
+        !this.alarmHandlingData.value.length &&
+          this.alarmHandlingData.value.push({
             signal: 'abnormal',
             config_id: 1,
             user_groups: [],
-            show: true
+            show: true,
           });
       });
     },
@@ -613,14 +619,15 @@ export default {
     async generationParam() {
       const setTypeMap = {
         0: () => (this.validateGroupList() ? false : { notice_group_list: this.data.alarmGroup }),
-        1: () => (this.validateTriggerCondition()
-          ? false
-          : {
-            trigger_config: {
-              count: parseInt(this.data.triggerCondition.count, 10),
-              check_window: parseInt(this.data.triggerCondition.cycleOne, 10)
-            }
-          }),
+        1: () =>
+          this.validateTriggerCondition()
+            ? false
+            : {
+                trigger_config: {
+                  count: parseInt(this.data.triggerCondition.count, 10),
+                  check_window: parseInt(this.data.triggerCondition.cycleOne, 10),
+                },
+              },
         2: () => (this.validateRecoveAlarmCondition() ? false : { alarm_interval: parseInt(this.data.notice.val, 10) }),
         3: () => {
           if (this.data.openAlarmNoData && this.validateNoDataAlarmCycle()) {
@@ -628,11 +635,11 @@ export default {
           }
           return this.data.openAlarmNoData
             ? {
-              no_data_config: {
-                continuous: parseInt(this.data.noDataAlarm.cycle, 10),
-                is_enabled: this.data.openAlarmNoData
+                no_data_config: {
+                  continuous: parseInt(this.data.noDataAlarm.cycle, 10),
+                  is_enabled: this.data.openAlarmNoData,
+                },
               }
-            }
             : { no_data_config: { is_enabled: this.data.openAlarmNoData } };
         },
         4: () => ({ send_recovery_alarm: this.data.alarmNotice }),
@@ -648,14 +655,14 @@ export default {
             .catch(() => false);
           return validate
             ? {
-              actions: this.alarmHandlingData.value
-            }
+                actions: this.alarmHandlingData.value,
+              }
             : false;
-        }
+        },
       };
       return setTypeMap[this.setType] ? setTypeMap[this.setType]() : {};
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -834,7 +841,7 @@ export default {
       background-color: #f0f8ff;
       border: 1px solid #a3c5fd;
       border-radius: 2px;
-      transition: height ease-in-out .3s;
+      transition: height ease-in-out 0.3s;
 
       div {
         color: #63656e;

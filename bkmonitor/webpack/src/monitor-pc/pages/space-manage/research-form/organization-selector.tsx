@@ -25,6 +25,7 @@
  */
 import { Component, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getUserDepartments, listDepartments } from 'monitor-api/modules/commons';
 
 import './organization-selector.scss';
@@ -40,7 +41,7 @@ const typeIndexs = {
   dept: 1,
   center: 2,
 };
-type IType = 'bg' | 'dept' | 'center';
+type IType = 'bg' | 'center' | 'dept';
 
 interface ISelectItem {
   list: IItem[];
@@ -78,7 +79,7 @@ export default class OrganizationSelector extends tsc<IProps> {
   }
 
   /* 获取单个列表 */
-  async getSelectList(type: IType, id: string | number) {
+  async getSelectList(type: IType, id: number | string) {
     const index = typeIndexs[type];
     this.allSelectList[index].loading = true;
     const data = await listDepartments({
@@ -145,20 +146,20 @@ export default class OrganizationSelector extends tsc<IProps> {
       <div class='organization-selector-component'>
         {this.allSelectList.map(item => (
           <div
-            class='item-wrap'
             key={item.type}
+            class='item-wrap'
           >
             <bk-select
               v-model={item.value}
+              clearable={false}
               loading={item.loading}
               searchable
-              clearable={false}
               onSelected={() => this.handleSelected(item.type)}
             >
               {item.list.map(option => (
                 <bk-option
-                  key={option.id}
                   id={option.id}
+                  key={option.id}
                   name={option.name}
                 ></bk-option>
               ))}

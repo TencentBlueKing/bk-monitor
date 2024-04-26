@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils';
 
 import MoreConfig from './components/more-config';
@@ -35,8 +36,8 @@ import './influxdb-group.scss';
 // 连通性测试状态
 enum ConnectionStatus {
   default = '',
-  success = 'success',
   fail = 'fail',
+  success = 'success',
 }
 // 表单模板，用于初始化数据
 const formDataTemplate = {
@@ -260,22 +261,22 @@ export default class InfluxdbTest extends tsc<object> {
     return (
       <div class='influxdb-test'>
         <bk-sideslider
+          width={640}
           isShow={this.isShow}
           quick-close={true}
-          width={640}
           transfer={true}
           on={{ 'update:isShow': this.emitShowChange }}
           on-hidden={this.handleSliderHidden}
         >
           <div
-            slot='header'
             class='cluster-operation-title'
+            slot='header'
           >
             {this.$tc(`${this.influxdbGroupTitle}influxdb组`)}
           </div>
           <div
-            slot='content'
             class='cluster-operation-content'
+            slot='content'
           >
             <div class='influxdb-group'>
               <div class='info-title'>{this.$tc('基础信息')}</div>
@@ -285,9 +286,9 @@ export default class InfluxdbTest extends tsc<object> {
                   <bk-input
                     class={this.localFormErrMsg.influxdbGroupName && 'error-item'}
                     v-model={this.localFormData.influxdbGroupName}
-                    onFocus={() => this.clearError('single', 'influxdbGroupName')}
                     onBlur={() => this.singleFieldValidate(this.localFormData.influxdbGroupName, 'influxdbGroupName')}
                     onChange={() => (this.localFormErrMsg.influxdbGroupName = '')}
+                    onFocus={() => this.clearError('single', 'influxdbGroupName')}
                   />
                   <div class='group-form-item-error-msg'>{this.localFormErrMsg.influxdbGroupName}</div>
                 </div>
@@ -296,8 +297,8 @@ export default class InfluxdbTest extends tsc<object> {
                 <div class='influxdb-group-list'>
                   {this.localFormData.influxdbGroupList.map((group, index) => (
                     <div
-                      class='group-item'
                       key={group.instanceName + index}
+                      class='group-item'
                     >
                       <div class='group-header'>
                         <div class='group-title'>{group.title}</div>
@@ -323,15 +324,15 @@ export default class InfluxdbTest extends tsc<object> {
                           <bk-input
                             class={this.localFormErrMsg.formList[index].instanceName && 'error-item'}
                             v-model={group.instanceName}
-                            onFocus={() => this.clearError('single', 'instanceName', index)}
                             onBlur={() =>
                               this.singleFieldValidate(
                                 this.localFormData.influxdbGroupList[index].instanceName,
                                 'instanceName',
-                                index,
+                                index
                               )
                             }
                             onChange={() => (this.localFormErrMsg.formList[index].instanceName = '')}
+                            onFocus={() => this.clearError('single', 'instanceName', index)}
                           />
                           <div class='group-form-item-error-msg'>
                             {this.localFormErrMsg.formList[index].instanceName}
@@ -343,15 +344,15 @@ export default class InfluxdbTest extends tsc<object> {
                             <bk-input
                               class={this.localFormErrMsg.formList[index].host && 'error-item'}
                               v-model={group.host}
-                              onFocus={() => this.clearError('single', 'host', index)}
                               onBlur={() =>
                                 this.singleFieldValidate(
                                   this.localFormData.influxdbGroupList[index].host,
                                   'host',
-                                  index,
+                                  index
                                 )
                               }
                               onChange={() => (this.localFormErrMsg.formList[index].host = '')}
+                              onFocus={() => this.clearError('single', 'host', index)}
                             />
                             <div class='group-form-item-error-msg'>{this.localFormErrMsg.formList[index].host}</div>
                           </div>
@@ -360,15 +361,15 @@ export default class InfluxdbTest extends tsc<object> {
                             <bk-input
                               class={this.localFormErrMsg.formList[index].port && 'error-item'}
                               v-model={group.port}
-                              onFocus={() => this.clearError('single', 'port', index)}
                               onBlur={() =>
                                 this.singleFieldValidate(
                                   this.localFormData.influxdbGroupList[index].port,
                                   'port',
-                                  index,
+                                  index
                                 )
                               }
                               onChange={() => (this.localFormErrMsg.formList[index].port = '')}
+                              onFocus={() => this.clearError('single', 'port', index)}
                             />
                             <div class='group-form-item-error-msg'>{this.localFormErrMsg.formList[index].port}</div>
                           </div>
@@ -379,15 +380,15 @@ export default class InfluxdbTest extends tsc<object> {
                             <bk-input
                               class={this.localFormErrMsg.formList[index].userName && 'error-item'}
                               v-model={group.userName}
-                              onFocus={() => this.clearError('single', 'userName', index)}
                               onBlur={() =>
                                 this.singleFieldValidate(
                                   this.localFormData.influxdbGroupList[index].userName,
                                   'userName',
-                                  index,
+                                  index
                                 )
                               }
                               onChange={() => (this.localFormErrMsg.formList[index].userName = '')}
+                              onFocus={() => this.clearError('single', 'userName', index)}
                             />
                             <div class='group-form-item-error-msg'>{this.localFormErrMsg.formList[index].userName}</div>
                           </div>
@@ -397,15 +398,15 @@ export default class InfluxdbTest extends tsc<object> {
                               class={this.localFormErrMsg.formList[index].password && 'error-item'}
                               v-model={group.password}
                               type='password'
-                              onFocus={() => this.clearError('single', 'password', index)}
                               onBlur={() =>
                                 this.singleFieldValidate(
                                   this.localFormData.influxdbGroupList[index].password,
                                   'password',
-                                  index,
+                                  index
                                 )
                               }
                               onChange={() => (this.localFormErrMsg.formList[index].password = '')}
+                              onFocus={() => this.clearError('single', 'password', index)}
                             />
                             <div class='group-form-item-error-msg'>{this.localFormErrMsg.formList[index].password}</div>
                           </div>
@@ -429,9 +430,9 @@ export default class InfluxdbTest extends tsc<object> {
               {
                 <div class='connection-test'>
                   <bk-button
-                    theme='primary'
                     loading={this.connectTestButtonLoading}
                     outline={this.connectionStatus === ConnectionStatus.success}
+                    theme='primary'
                     onClick={this.handleConnectTest}
                   >
                     {this.$tc('连通性测试')}
@@ -462,8 +463,8 @@ export default class InfluxdbTest extends tsc<object> {
             </div>
             <MoreConfig
               card-title={window.i18n.tc('更多配置')}
-              responsible={this.localFormData.responsible}
               description={this.localFormData.description}
+              responsible={this.localFormData.responsible}
               on-data-change={val => Object.assign(this.localFormData, val)}
             >
               <div class='influxdb-group-config'>
@@ -471,8 +472,8 @@ export default class InfluxdbTest extends tsc<object> {
                   <div class='influxdb-form-item-content mb6'>{this.$tc('备份恢复速率')}</div>
                   <bk-input
                     v-model={this.localFormData.backupRecoverySpeed}
-                    type='number'
                     placeholder={this.$t('0')}
+                    type='number'
                   />
                 </div>
                 <div class='one-fourth-item mb24'>
@@ -493,15 +494,15 @@ export default class InfluxdbTest extends tsc<object> {
             </MoreConfig>
           </div>
           <div
-            slot='footer'
             class='footer-operation-wrapper'
+            slot='footer'
           >
             <div class='button-wrapper'>
               <bk-button
-                theme='primary'
                 class='footer-button'
                 disabled={this.connectionStatus !== ConnectionStatus.success}
                 loading={this.submitButtonLoading}
+                theme='primary'
                 onClick={() => this.handleSubmit(false)}
               >
                 {this.$tc('提交')}

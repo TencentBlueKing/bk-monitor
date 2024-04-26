@@ -26,21 +26,22 @@
 <template>
   <ul class="log-list">
     <li
-      class="log-list-item"
       v-for="(item, index) in list"
-      :key="item.logId"
       v-show="item.show"
+      :key="item.logId"
+      class="log-list-item"
     >
       <div class="item-title">
         <span
+          v-if="item.collapse"
           class="item-title-set icon-monitor"
           :class="[item.expand ? 'icon-mc-minus-plus' : 'icon-mc-plus-fill']"
           @click="beforeCollapseChange(item, index)"
-          v-if="item.collapse"
         />
-        <span class="item-title-icon"><i
-          class="icon-monitor"
-          :class="item.logIcon"
+        <span class="item-title-icon"
+          ><i
+            class="icon-monitor"
+            :class="item.logIcon"
         /></span>
         <span class="item-title-date">{{ item.expand ? item.time : item.expandTime }}</span>
       </div>
@@ -51,12 +52,14 @@
             <span
               v-bk-tooltips.top="{
                 content: item.sourceTime ? `${$t('数据时间:')}${item.sourceTime}` : ``,
-                disabled: !item.sourceTime
+                disabled: !item.sourceTime,
               }"
               :class="{ 'tip-dashed': item.operate === 'CREATE' || item.operate === 'CONVERGE' }"
             >
               {{
-                item.count > 1 ? `${$t('当前事件流水过多，收敛{count}条。',{ count: item.count })}` : item.contents[0] || '--'
+                item.count > 1
+                  ? `${$t('当前事件流水过多，收敛{count}条。', { count: item.count })}`
+                  : item.contents[0] || '--'
               }}
             </span>
             <span
@@ -70,17 +73,20 @@
           <template v-else-if="item.operate === 'ANOMALY_NOTICE'">
             {{ item.contents[0] }}
             <span
-              class="notice-group"
               v-for="text in item.contents[1]"
               :key="text"
-            >{{ text }}</span>
+              class="notice-group"
+              >{{ text }}</span
+            >
             {{ item.contents[2] }}
             <span class="notice-status">{{ alertStatusMap[item.contents[3]] }}</span>
             {{ item.contents.length > 4 ? item.contents[4] : '' }}
             <span
               class="can-click"
               @click="handleNoticeDetail(item.actionId)"
-            > {{ $t('点击查看明细') }} </span>
+            >
+              {{ $t('点击查看明细') }}
+            </span>
           </template>
           <template v-else-if="item.operate === 'ACK'">
             {{ item.contents[0] }}<span class="alarm-ack">{{ item.contents[1] }}</span>
@@ -96,7 +102,7 @@
               "
               :class="{
                 'tip-dashed':
-                  i === item.index && item.sourceTime && (item.operate === 'CREATE' || item.operate === 'CONVERGE')
+                  i === item.index && item.sourceTime && (item.operate === 'CREATE' || item.operate === 'CONVERGE'),
               }"
             >
               {{ content || '--' }}
@@ -110,14 +116,15 @@
       </div>
     </li>
     <li
-      class="log-list-loading"
       v-show="loading"
+      class="log-list-loading"
     >
       <img
         alt=""
         class="loading-img"
         src="../../../static/images/svg/spinner.svg"
-      > {{ $t('正加载更多内容…') }}
+      />
+      {{ $t('正加载更多内容…') }}
     </li>
   </ul>
 </template>
@@ -129,15 +136,15 @@ export default {
   props: {
     list: {
       type: Array,
-      required: true
+      required: true,
     },
     loading: Boolean,
     defaultClickCollapseIndex: {
       type: Number,
       deafult() {
         return -1;
-      }
-    }
+      },
+    },
   },
   data() {
     return {
@@ -147,15 +154,15 @@ export default {
         CREATE: this.$t('# 告警触发 # '),
         CONVERGE: this.$t('# 告警收敛 # '),
         RECOVER: this.$t('# 告警恢复 # '),
-        CLOSE: this.$t('# 告警关闭 # ')
+        CLOSE: this.$t('# 告警关闭 # '),
       },
       alertStatusMap: {
         SUCCESS: this.$t('成功'),
         FAILED: this.$t('失败'),
         SHIELDED: this.$t('已屏蔽'),
-        PARTIAL_SUCCESS: this.$t('部分失败')
+        PARTIAL_SUCCESS: this.$t('部分失败'),
       },
-      disabledClick: false
+      disabledClick: false,
     };
   },
   watch: {
@@ -165,8 +172,8 @@ export default {
           this.disabledClick = false;
           this.handleCollapseChange(this.list[index], index);
         }
-      }
-    }
+      },
+    },
   },
   mounted() {
     addListener(this.$el, this.listenLogListResize);
@@ -219,8 +226,8 @@ export default {
     },
     handleGotoShieldStrategy(shieldId) {
       this.$emit('goto-strategy', shieldId);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

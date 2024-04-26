@@ -137,22 +137,22 @@ export function handleExplore(
   panel: PanelModel,
   scopedVars: IViewOptions & Record<string, any>,
   timeRange: string[],
-  autoNavTo = true,
+  autoNavTo = true
 ) {
   const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
   const variablesService = new VariablesService(scopedVars);
   targets.forEach(target => {
     target.data.query_configs =
-      target?.data?.query_configs.map((queryConfig: string | Record<string, any>) =>
-        queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars),
+      target?.data?.query_configs.map((queryConfig: Record<string, any> | string) =>
+        queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars)
       ) || [];
   });
   /** 判断跳转日志检索 */
   const isLog = targets.some(item =>
     item.data.query_configs.some(
       (set: { data_source_label: string; data_type_label: string }) =>
-        set.data_source_label === 'bk_log_search' && set.data_type_label === 'log',
-    ),
+        set.data_source_label === 'bk_log_search' && set.data_type_label === 'log'
+    )
   );
   if (!autoNavTo) return targets;
   if (isLog) {
@@ -175,7 +175,7 @@ export function handleExplore(
     window.open(
       `${commOpenUrl('#/data-retrieval/')}?targets=${encodeURIComponent(JSON.stringify(targets))}&from=${
         timeRange[0]
-      }&to=${timeRange[1]}`,
+      }&to=${timeRange[1]}`
     );
   }
 }
@@ -201,7 +201,7 @@ export const getMetricId = (
   index_set_id?: string,
   bkmonitor_strategy_id?: string,
   custom_event_name?: string,
-  alert_name?: string,
+  alert_name?: string
 ) => {
   const metaId = `${data_source_label}|${data_type_label}`;
   switch (metaId) {
@@ -237,7 +237,7 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
           item.data_type_label,
           item.metrics?.[0]?.field,
           item.table,
-          item.index_set_id,
+          item.index_set_id
         );
         metricIdMap[metricId] = 'true';
       });
@@ -373,7 +373,7 @@ export function handleAddStrategy(
   panel: PanelModel,
   metric: IExtendMetricData | null,
   scopedVars: IViewOptions & Record<string, any>,
-  timeRange: string[],
+  timeRange: string[]
 ) {
   try {
     let result: any = null;
@@ -382,7 +382,7 @@ export function handleAddStrategy(
     const interval = reviewInterval(
       scopedVars.interval!,
       dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-      panel.collect_interval,
+      panel.collect_interval
     );
     const variablesService = new VariablesService({ ...scopedVars, interval });
     if (!metric) {
@@ -393,7 +393,7 @@ export function handleAddStrategy(
       targets.forEach(target => {
         target.data?.query_configs?.forEach((queryConfig: any) => {
           const resultMetrics = result.query_configs.map(
-            (item: { metrics: { field: any }[] }) => item.metrics[0].field,
+            (item: { metrics: { field: any }[] }) => item.metrics[0].field
           );
           if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
             let config = deepClone(queryConfig);

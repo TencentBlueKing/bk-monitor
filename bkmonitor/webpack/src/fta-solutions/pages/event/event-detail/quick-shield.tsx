@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 import VerifyInput from 'monitor-pc/components/verify-input/verify-input.vue';
@@ -266,8 +267,8 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           <div class='column-content'>{detail.dimension}</div>
         </div>
         <div
-          class='column-item'
           style='margin-bottom: 18px'
+          class='column-item'
         >
           <div class='column-label'> {`${this.$t('触发条件')}：`} </div>
           <div class='column-content'>{detail.trigger}</div>
@@ -294,26 +295,26 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
                 {this.timeList.map((item, index) => (
                   <bk-button
                     key={index}
-                    on-click={e => this.handleScopeChange(e, item.id)}
                     class={['width-item', { 'is-selected': this.timeValue === item.id }]}
+                    on-click={e => this.handleScopeChange(e, item.id)}
                   >
                     {item.name}
                   </bk-button>
                 ))}
                 {this.timeValue !== 0 ? (
                   <bk-button
-                    on-click={e => this.handleScopeChange(e, 0)}
                     class={['custom-width', { 'is-selected': this.timeValue === 0 }]}
+                    on-click={e => this.handleScopeChange(e, 0)}
                   >
                     {this.$t('button-自定义')}
                   </bk-button>
                 ) : (
                   <bk-date-picker
                     ref='time'
-                    type={'datetimerange'}
-                    placeholder={this.$t('选择日期时间范围')}
-                    options={this.options}
                     v-model={this.customTime}
+                    options={this.options}
+                    placeholder={this.$t('选择日期时间范围')}
+                    type={'datetimerange'}
                   ></bk-date-picker>
                 )}
               </div>
@@ -332,11 +333,11 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           <div class='item-label'> {this.$t('屏蔽原因')} </div>
           <div class='item-desc'>
             <bk-input
-              type='textarea'
-              v-model={this.desc}
               width={625}
-              rows={3}
+              v-model={this.desc}
               maxlength={100}
+              rows={3}
+              type='textarea'
             ></bk-input>
           </div>
         </div>
@@ -347,25 +348,25 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   render() {
     return (
       <MonitorDialog
+        width={'804'}
         class='quick-shield-dialog'
+        header-position={'left'}
+        title={this.$t('快捷屏蔽告警')}
         value={this.show}
         on-change={this.handleShowChange}
-        title={this.$t('快捷屏蔽告警')}
-        header-position={'left'}
-        width={'804'}
       >
         {this.getContentComponent()}
         <template slot='footer'>
           <bk-button
+            style='margin-right: 10px'
+            v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
+            disabled={this.loading}
+            theme='primary'
             on-click={() =>
               this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH
                 ? this.handleSubmit()
                 : this.getHandleShowAuthorityDetail(this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH)
             }
-            theme='primary'
-            style='margin-right: 10px'
-            disabled={this.loading}
-            v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
           >
             {this.$t('确定')}
           </bk-button>
