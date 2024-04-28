@@ -31,7 +31,7 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import { findRight, handleTimeRange, ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
+import { findRight, ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
 
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
@@ -777,15 +777,15 @@ export default class TimeSeriesForecast extends LineChart {
       item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log')
     );
     if (isLog) {
-      const { startTime, endTime } = handleTimeRange(this.timeRange);
+      const [startTime, endTime] = this.timeRange;
       const queryConfig = targets[0].data.query_configs[0];
       const retrieveParams: ILogUrlParams = {
         // 检索参数
         bizId: `${this.$store.getters.bizId}`,
         keyword: queryConfig.query_string, // 搜索关键字
         addition: queryConfig.where || [],
-        start_time: startTime * 1000,
-        end_time: endTime * 1000,
+        start_time: startTime,
+        end_time: endTime,
         time_range: 'customized',
       };
       const indexSetId = queryConfig.index_set_id;
