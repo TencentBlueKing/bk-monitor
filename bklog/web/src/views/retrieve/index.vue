@@ -845,7 +845,7 @@ export default {
         } else {
           // 之前是单选
           this.indexId = ids[0];
-          if (isChangeIndexId) this.retrieveLog(params);
+          if (isChangeIndexId || isFavoriteSearch) this.retrieveLog(params);
         }
         this.$store.commit('updateUnionIndexList', []);
       }
