@@ -12,6 +12,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='logindexset',
             name='result_window',
-            field=models.IntegerField(blank=True, null=True, verbose_name='单次导出的日志条数'),
+            field=models.IntegerField(default=10000, verbose_name='单次导出的日志条数'),
         ),
     ]

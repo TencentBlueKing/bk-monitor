@@ -90,7 +90,7 @@ CREATE_SUCCESS = {
         "is_editable": True,
         "sort_fields": [],
         "target_fields": [],
-        "result_window": None,
+        "result_window": 10000,
     },
     "code": 0,
     "message": "",
@@ -160,7 +160,7 @@ UPDATE_INDEX_SET = {
     "is_editable": True,
     "sort_fields": [],
     "target_fields": [],
-    "result_window": None,
+    "result_window": 10000,
 }
 
 NOT_EDITABLE_RETURN = {
@@ -243,7 +243,7 @@ INDEX_SET_LISTS = {
             "is_editable": True,
             "sort_fields": [],
             "target_fields": [],
-            "result_window": None,
+            "result_window": 10000,
         }
     ],
 }
@@ -366,7 +366,7 @@ RETRIEVE_LIST = {
     "is_editable": True,
     "sort_fields": [],
     "target_fields": [],
-    "result_window": None,
+    "result_window": 10000,
 }
 
 
