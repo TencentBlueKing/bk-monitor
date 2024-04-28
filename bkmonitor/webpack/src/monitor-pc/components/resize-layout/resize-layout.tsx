@@ -113,8 +113,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     const asideEl = this.bkResizeLayoutRef.$el.querySelector('.bk-resize-layout-aside');
     asideEl.style.height = `${height}px`;
     this.asideHeight = height;
-    // this.handleAfterResize();
-    this.handleAfterResizeImmediately();
+    this.handleAfterResize();
     enableAnimation &&
       setTimeout(() => {
         this.needAnimation = false;
@@ -179,16 +178,6 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     };
   }
 
-  /* 立即执行 无需防抖 */
-  @Emit('afterResize')
-  handleAfterResizeImmediately() {
-    this.isResizing = false;
-    return {
-      mainHeight: this.mainHeight,
-      asideHeight: this.asideHeight,
-    };
-  }
-
   render() {
     return (
       <bk-resize-layout
@@ -209,7 +198,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
         placement={this.localPlacement}
         collapsible
         immediate
-        on-after-resize={this.handleAfterResizeImmediately}
+        on-after-resize={this.handleAfterResize}
         onResizing={this.handleResizing}
       >
         <div

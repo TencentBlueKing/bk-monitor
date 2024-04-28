@@ -883,6 +883,28 @@ class SaveCollectConfigResource(Resource):
                     raise serializers.ValidationError(_("主机id和ip/bk_cloud_id不能同时为空"))
                 return attrs
 
+        class MetricRelabelConfigSerializer(serializers.Serializer):
+            """指标重新标记配置对应的模板变量序列化器。
+
+            对应模板
+            {% if metric_relabel_configs %}
+                metric_relabel_configs:
+            {% for config in metric_relabel_configs %}
+                  - source_labels: [{{ config.source_labels | join: "', '" }}]
+                    {% if config.regex %}regex: '{{ config.regex }}'{% endif %}
+                    action: {{ config.action }}
+                    {% if config.target_label %}target_label: '{{ config.target_label }}'{% endif %}
+                    {% if config.replacement %}replacement: '{{ config.replacement }}'{% endif %}
+            {% endfor %}
+            {% endif %}
+            """
+
+            source_labels = serializers.ListField(child=serializers.CharField(), label="源标签列表")
+            regex = serializers.CharField(label="正则表达式")
+            action = serializers.CharField(required=False, label="操作类型")
+            target_label = serializers.CharField(required=False, label="目标标签")
+            replacement = serializers.CharField(required=False, label="替换内容")
+
         id = serializers.IntegerField(required=False, label="采集配置ID")
         name = serializers.CharField(required=True, label="采集配置名称")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -901,6 +923,8 @@ class SaveCollectConfigResource(Resource):
         params = serializers.DictField(required=True, label="采集配置参数")
         label = serializers.CharField(required=True, label="二级标签")
         operation = serializers.ChoiceField(default="EDIT", choices=["EDIT", "ADD_DEL"], label="操作类型")
+        # 供第三方接口调用
+        metric_relabel_configs = MetricRelabelConfigSerializer(many=True, default=list, label="指标重新标记配置")
 
         def validate(self, attrs):
             # 校验采集对象类型和采集目标类型搭配是否正确，且不同类型的节点列表字段正确
@@ -977,6 +1001,10 @@ class SaveCollectConfigResource(Resource):
                     target_nodes.append({"bk_host_id": node["bk_host_id"]})
                 else:
                     target_nodes.append({"ip": node["ip"], "bk_cloud_id": node["bk_cloud_id"]})
+
+        # 将重新标记配置参数嵌入到部署配置参数中
+        data["params"]["collector"]["metric_relabel_configs"] = data.pop("metric_relabel_configs")
+
         deployment_config_params = {
             "plugin_version": collector_plugin.packaged_release_version,
             "target_node_type": data["target_node_type"],
