@@ -972,6 +972,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
 
+    profile_bk_biz_id = models.IntegerField("Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)")
     retention = models.IntegerField("过期时间", null=True)
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)
@@ -984,26 +985,27 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **option):
-        bk_biz_id = int(bk_biz_id)
+        profile_bk_biz_id = bk_biz_id
         if bk_biz_id < 0:
             # 非业务创建 profile 将创建在公共业务下
-            bk_biz_id = settings.BK_DATA_BK_BIZ_ID
+            profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
 
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
-            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name, profile_bk_biz_id=profile_bk_biz_id)
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
         essentials = BkDataDorisProvider.from_datasource_instance(
             obj,
             maintainer=get_global_user() if not apm_maintainers else f"{get_global_user()},{apm_maintainers}",
             operator=get_global_user(),
+            name_stuffix=bk_biz_id,
         ).provider(**option)
 
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
         obj.retention = essentials["retention"]
-        obj.save(update_fields=["bk_data_id", "result_table_id", "updated"])
+        obj.save(update_fields=["bk_data_id", "result_table_id", "updated", "retention"])
         return
 
     @classmethod

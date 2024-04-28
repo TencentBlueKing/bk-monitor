@@ -86,6 +86,8 @@ export default {
   'Span 详情': 'Span Detail',
   重置图表: 'Reset Chart',
   '高亮相似 Span': 'Highlight Similar Span',
+  '高亮相似 Node': 'Highlight Similar Node',
+  复制函数名称: 'Copy Function Name',
   内网IPv4: 'Intranet IPv4',
   外网IPv4: 'Extranet IPv4',
   内网IPv6: 'Intranet IPv6',

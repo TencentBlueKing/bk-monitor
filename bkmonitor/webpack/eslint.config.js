@@ -60,7 +60,7 @@ const jsVueFiles = [
   'src/monitor-pc/pages/global-config/**/*.vue',
   'src/monitor-pc/pages/home/**/*.vue',
   'src/monitor-pc/pages/monitor-navigation/**/*.vue',
-  'src/monitor-pc/pages/performance/**/*.vue',
+  'src/monitor-pc/pages/performance/*.vue',
   'src/monitor-pc/pages/plugin-manager/**/*.vue',
   'src/monitor-pc/pages/service-classify/**/*.vue',
   'src/monitor-pc/pages/shell-collector/**/*.vue',

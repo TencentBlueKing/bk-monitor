@@ -103,7 +103,6 @@ export default defineComponent({
     watch(
       () => [props.queryParams, chartType.value],
       () => {
-        const alias = (props.queryParams as IQueryParams).is_compared ? '' : 'Sample 数';
         const { start, end, ...rest } = props.queryParams as IQueryParams;
         const allTrend = chartType.value === 'all'; // 根据类型构造图表配置
         const type = allTrend ? 'line' : 'bar';
@@ -129,7 +128,7 @@ export default defineComponent({
             {
               api: targetApi,
               datasource: 'time_series',
-              alias,
+              alias: '',
               data: targetData,
             },
           ],

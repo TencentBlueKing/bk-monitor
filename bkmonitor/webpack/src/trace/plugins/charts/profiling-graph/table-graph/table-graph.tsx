@@ -27,7 +27,9 @@
 import { defineComponent, PropType, ref, shallowRef, Teleport, watch } from 'vue';
 
 import { Exception } from 'bkui-vue';
+import { deepClone } from 'monitor-common/utils';
 import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
+import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils';
 import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
 import { ITableTipsDetail, ProfilingTableItem, TableColumn } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
@@ -80,9 +82,9 @@ export default defineComponent({
     /** 表格数据 */
     const tableData = ref<ProfilingTableItem[]>([]);
     const tableColumns = ref<TableColumn[]>([
-      { id: 'Location', name: 'Location', sort: '' },
-      { id: 'Self', name: 'Self', mode: 'normal', sort: '' },
-      { id: 'Total', name: 'Total', mode: 'normal', sort: '' },
+      { id: 'name', name: 'Location', sort: '' },
+      { id: 'self', name: 'Self', mode: 'normal', sort: '' },
+      { id: 'total', name: 'Total', mode: 'normal', sort: '' },
       { id: 'baseline', name: window.i18n.t('查询项'), mode: 'diff', sort: '' },
       { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
       { id: 'diff', name: 'Diff', mode: 'diff', sort: '' },
@@ -93,6 +95,8 @@ export default defineComponent({
     });
     const tipDetail = shallowRef<ITableTipsDetail>({});
     const localIsCompared = ref(false);
+    const sortKey = ref('');
+    const sortType = ref('');
 
     watch(
       () => props.data,
@@ -101,7 +105,9 @@ export default defineComponent({
           self: Math.max(...val.map(item => item.self)),
           total: Math.max(...val.map(item => item.total)),
         };
+        sortKey.value = '';
         getTableData();
+        tableColumns.value = tableColumns.value.map(item => ({ ...item, sort: '' }));
       },
       {
         immediate: true,
@@ -116,17 +122,21 @@ export default defineComponent({
     );
 
     function getTableData() {
-      tableData.value = props.data
-        .filter(item => (!!props.filterKeyword ? item.name.includes(props.filterKeyword) : true))
-        .map(item => {
-          const palette = Object.values(ColorTypes);
-          const colorIndex = getHashVal(item.name) % palette.length;
-          const color = palette[colorIndex];
-          return {
-            ...item,
-            color,
-          };
-        });
+      const filterList = deepClone(
+        props.data
+          .filter(item => (!!props.filterKeyword ? item.name.includes(props.filterKeyword) : true))
+          .map(item => {
+            const palette = Object.values(ColorTypes);
+            const colorIndex = getHashVal(item.name) % palette.length;
+            const color = palette[colorIndex];
+            return {
+              ...item,
+              color,
+            };
+          })
+      );
+
+      tableData.value = sortTableGraph(filterList, sortKey.value, sortType.value);
       localIsCompared.value = props.isCompared;
     }
     // Self 和 Total 值的展示
@@ -158,21 +168,24 @@ export default defineComponent({
     }
     /** 列字段排序 */
     function handleSort(col: TableColumn) {
-      let sortKey;
       switch (col.sort) {
         case 'asc':
           col.sort = 'desc';
-          sortKey = `-${col.id}`;
+          sortType.value = 'desc';
+          sortKey.value = col.id;
           break;
         case 'desc':
           col.sort = '';
-          sortKey = undefined;
+          sortType.value = '';
+          sortKey.value = undefined;
           break;
         default:
           col.sort = 'asc';
-          sortKey = col.id;
+          sortType.value = 'asc';
+          sortKey.value = col.id;
       }
       emit('sortChange', sortKey);
+      getTableData();
       tableColumns.value = tableColumns.value.map(item => {
         return {
           ...item,
@@ -194,7 +207,7 @@ export default defineComponent({
         axisTop = axisTop;
       }
 
-      const { name, self, total, baseline, comparison, mark = '' } = row;
+      const { name, self, total, baseline, comparison, mark = '', diff = 0 } = row;
       const totalItem = tableData.value[0];
 
       tipDetail.value = {
@@ -206,6 +219,7 @@ export default defineComponent({
         baseline,
         comparison,
         mark,
+        diff,
         selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
         totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`,
       };
@@ -240,12 +254,11 @@ export default defineComponent({
         return <span style={`color: ${row.mark === 'removed' ? '#ff5656' : '#2dcb56'}`}>{row.mark}</span>;
       }
 
-      const { baseline, comparison } = row;
-      const diffVal = (baseline - comparison) / comparison;
+      const { diff } = row;
 
-      if (diffVal === 0) return <span style='color:#dddfe3'>0%</span>;
+      if (diff === 0) return <span style='color:#dddfe3'>0%</span>;
 
-      return <span style={`color:${diffVal > 0 ? '#ff5656' : '#2dcb56'}`}>{`${(diffVal * 100).toFixed(0)}%`}</span>;
+      return <span style={`color:${diff > 0 ? '#ff5656' : '#2dcb56'}`}>{`${(diff * 100).toFixed(2)}%`}</span>;
     };
 
     return (
@@ -335,9 +348,9 @@ export default defineComponent({
                   ? [
                       <thead>
                         <th></th>
-                        <th>Baseline</th>
-                        <th>Comparison</th>
-                        <th>Diff</th>
+                        <th>{this.$t('当前')}</th>
+                        <th>{this.$t('参照')}</th>
+                        <th>{this.$t('差异')}</th>
                       </thead>,
                     ]
                   : [

@@ -187,16 +187,17 @@ export default defineComponent({
       textDirection.value = val;
     };
     /** 表格排序 */
-    const handleSortChange = async (sortKey: string) => {
-      const params = getParams({
-        diagram_types: ['table'],
-        sort: sortKey,
-      });
-      const data = await query(params).catch(() => false);
-      if (data) {
-        highlightId.value = -1;
-        tableData.value = data.table_data?.items ?? [];
-      }
+    const handleSortChange = () => {
+      // const params = getParams({
+      //   diagram_types: ['table'],
+      //   sort: sortKey
+      // });
+      // const data = await query(params).catch(() => false);
+      // if (data) {
+      //   highlightId.value = -1;
+      //   tableData.value = data.table_data?.items ?? [];
+      // }
+      highlightId.value = -1;
     };
     /** 下载 */
     const handleDownload = async (type: string) => {

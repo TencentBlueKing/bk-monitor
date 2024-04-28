@@ -149,6 +149,12 @@ export default defineComponent({
       .add(1, 'hour')
       .format('YYYY-MM-DD HH:mm:ss');
     const spanDetailActiveTab = inject<Ref>('SpanDetailActiveTab') || ref('');
+    // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
+    const enableSelectionRestoreAll = inject<Ref<boolean>>('enableSelectionRestoreAll') || ref(false);
+    const handleChartDataZoom = inject<(value: any) => void>('handleChartDataZoom') || (() => null);
+    const handleRestoreEvent = inject<() => void>('handleRestoreEvent') || (() => null);
+    const showRestore = inject<Ref>('showRestore') || ref(false);
+
     // 主机标签页需要特殊处理：因为这里的开始\结束时间是从当前 span 数据的开始时间（-1小时）和结束时间（+1小时）去进行提交、而非直接 inject 时间选择器的时间区间。
     /**
      * 20230807 注意：目前能打开主机标签页的方式有以下两种方式。
@@ -336,7 +342,7 @@ export default defineComponent({
       const lastItem = seriesData[seriesData.length - 1];
       const val = new Date('2010-01-01').getTime();
       const getXVal = (timeVal: any) => {
-        if (!val) return val;
+        if (!timeVal) return timeVal;
         return timeVal[0] > val ? timeVal[0] : timeVal[1];
       };
       const minX = Array.isArray(firstItem) ? getXVal(firstItem) : getXVal(firstItem?.value);
@@ -425,10 +431,11 @@ export default defineComponent({
       return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
     }
     function dataZoom(startTime: string, endTime: string) {
-      // this.isCustomTimeRange
-      //   ? this.$emit('dataZoom', startTime, endTime)
-      //   : this.getPanelData(startTime, endTime);
-      getPanelData(startTime, endTime);
+      if (enableSelectionRestoreAll.value) {
+        handleChartDataZoom([startTime, endTime]);
+      } else {
+        getPanelData(startTime, endTime);
+      }
     }
     /** 处理点击左侧响铃图标 跳转策略的逻辑 */
     function handleAlarmClick(alarmStatus: ITitleAlarm) {
@@ -733,6 +740,13 @@ export default defineComponent({
     function handleClearErrorMsg() {
       props.isUseAlone ? (errorMsg.value = '') : props.clearErrorMsg();
     }
+    function handleRestore() {
+      if (!!enableSelectionRestoreAll.value) {
+        handleRestoreEvent();
+      } else {
+        dataZoom(undefined, undefined);
+      }
+    }
     return {
       ...unWathChartData,
       ...useLegendRet,
@@ -766,6 +780,7 @@ export default defineComponent({
       viewOptions,
       options,
       t,
+      showRestore,
       downSampleRangeComputed,
       handleTransformTimeShift,
       handleTimeOffset,
@@ -779,6 +794,7 @@ export default defineComponent({
       handleMenuClick,
       handleMetricClick,
       handleDblClick,
+      handleRestore,
     };
   },
   render() {
@@ -820,11 +836,12 @@ export default defineComponent({
                 <BaseEchart
                   ref='baseChartRef'
                   width={this.width}
-                  height={this.height}
                   groupId={this.panel!.dashboardId}
                   options={this.options}
-                  onDataZoom={this.getPanelData}
+                  showRestore={this.showRestore}
+                  onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
+                  onRestore={this.handleRestore}
                 />
               )}
             </div>

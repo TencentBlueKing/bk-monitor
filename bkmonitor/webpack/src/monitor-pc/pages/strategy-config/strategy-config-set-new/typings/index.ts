@@ -170,7 +170,7 @@ export class MetricDetail {
   unit_suffix_id = 'NONE';
   unit_suffix_list: ICommonItem[] = [];
   use_frequency = 0;
-  constructor(public metricDetail?: IMetricDetail) {
+  constructor(public metricDetail?: Partial<IMetricDetail>) {
     if (!metricDetail) return;
     Object.keys(metricDetail).forEach(key => {
       if (key === 'unit_suffix_list') {
@@ -323,6 +323,7 @@ export class MetricDetail {
   }
   // 是否可设置多指标计算
   get canSetMetricCalc() {
+    if (this.data_source_label === 'bk_data') return true;
     return (
       ['bk_monitor|time_series', 'custom|time_series'].includes(this.metricMetaId) &&
       !this.result_table_id.match(/^uptimecheck/i) &&
@@ -335,7 +336,8 @@ export class MetricDetail {
       (['bk_monitor|time_series', 'custom|time_series'].includes(this.metricMetaId) &&
         !this.result_table_id.match(/^uptimecheck/i) &&
         !this.isSpecialCMDBDimension) ||
-      this.data_type_label === 'alert'
+      this.data_type_label === 'alert' ||
+      this.data_source_label === 'bk_data'
     );
   }
   // 是否可设置检索语句

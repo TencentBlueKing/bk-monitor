@@ -142,6 +142,8 @@ export default defineComponent({
      */
     function handleSelectFileToggle(v: boolean) {
       selectToggle.value = v;
+      // 每次打开下拉框都更新下拉列表数据状态
+      if (v) handleRefleshFiles();
     }
 
     function statusRender(status: EFileStatus, needName = true) {
@@ -205,7 +207,7 @@ export default defineComponent({
           </Button>
 
           <div class='file-select'>
-            {this.isCompare && <div class='label where'>{this.t('查询项')}</div>}
+            {this.isCompare && <div class='label where'>{this.t('当前查询项')}</div>}
             <Select
               popoverOptions={{
                 extCls: 'upload-select-popover',
@@ -262,7 +264,7 @@ export default defineComponent({
           </div>
           {this.isCompare && (
             <div class='file-select'>
-              {this.isCompare && <div class='label comparison'>{this.t('对比项')}</div>}
+              {this.isCompare && <div class='label comparison'>{this.t('参照查询项')}</div>}
               <Select
                 popoverOptions={{
                   extCls: 'upload-select-popover',

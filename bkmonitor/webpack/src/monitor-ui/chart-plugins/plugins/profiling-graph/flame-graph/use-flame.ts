@@ -131,6 +131,10 @@ export class FlameChart<D extends BaseDataType> {
    * @description 高亮节点
    */
   highlightNodeId(highlightId: number) {
+    // 如果当前有高亮相似node 先取消
+    if (!!this.zoomData.highlightName) {
+      this.zoomData.highlightName = '';
+    }
     this.zoomData.highlightId = highlightId;
     this.zoomGraph({
       ...this.zoomData,

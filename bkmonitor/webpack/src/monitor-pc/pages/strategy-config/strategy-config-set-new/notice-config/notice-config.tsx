@@ -103,7 +103,7 @@ export interface INoticeValue {
       count: number;
       dimensions: string[];
     };
-    assign_mode: AssignModeType[];
+    assign_mode?: AssignModeType[];
     upgrade_config?: {
       is_enabled: boolean;
       user_groups: number[];
