@@ -13,7 +13,7 @@ from typing import List, Tuple
 
 import mock
 import pytest
-from mockredis.redis import mock_redis_client
+from mockredis import mock_redis_client
 
 from api.bcs_cluster_manager.default import FetchClustersResource
 from api.cmdb.default import GetHostByIP

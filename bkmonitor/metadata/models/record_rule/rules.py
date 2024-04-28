@@ -9,16 +9,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 import json
 import logging
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Optional, Set, Union
 
 import yaml
 from django.conf import settings
 from django.db import models
+from django.utils.timezone import now as tz_now
 
+from bkmonitor.dataflow.auth import ensure_has_permission_with_rt_id
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.time_format import parse_duration
+from constants.dataflow import ConsumingMode
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.models.common import BaseModelWithTime
@@ -90,19 +94,58 @@ class RecordRule(BaseModelWithTime):
         """获取源结果表列表"""
         # 通过指标和所属空间，查询需要预计算的结果表
         # 获取空间所在记录的ID
-        from metadata.models import AccessVMRecord, ResultTableField
+        from metadata.models import (
+            AccessVMRecord,
+            ResultTableField,
+            TimeSeriesGroup,
+            TimeSeriesMetric,
+        )
 
         tid_data_ids = get_space_table_id_data_id(space_type=space_type, space_id=space_id)
         # 过滤指标
         # 项目下可用结果表不会太多
-        table_ids = list(
+        table_ids = set(
             ResultTableField.objects.filter(table_id__in=list(tid_data_ids.keys()), field_name__in=metrics).values_list(
                 "table_id", flat=True
             )
         )
+        # 如果没有对应的结果表，则返回空
+        if not table_ids:
+            logger.error(
+                "table_ids not found, space_type: %s, space_id: %s, metrics: %s", space_type, space_id, metrics
+            )
+            return []
+        # 再过滤一遍数据，减少结果表数量
+        tid_group_id = {
+            ts["table_id"]: ts["time_series_group_id"]
+            for ts in TimeSeriesGroup.objects.filter(table_id__in=table_ids).values("table_id", "time_series_group_id")
+        }
+        begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
+        group_ids = set(
+            TimeSeriesMetric.objects.filter(
+                last_modify_time__gte=begin_time, group_id__in=tid_group_id.values(), field_name__in=metrics
+            ).values_list("group_id", flat=True)
+        )
+        # 拼装结果表
+        tids = []
+        for tid in table_ids:
+            if tid in tid_group_id:
+                if tid_group_id[tid] in group_ids:
+                    tids.append(tid)
+            else:
+                tids.append(tid)
+
+        if not tids:
+            logger.error(
+                "tids not found or metric expired, space_type: %s, space_id: %s, metrics: %s",
+                space_type,
+                space_id,
+                metrics,
+            )
+            return []
         # 过滤到对应的 vm 结构表
         return list(
-            AccessVMRecord.objects.filter(result_table_id__in=table_ids).values_list("vm_result_table_id", flat=True)
+            AccessVMRecord.objects.filter(result_table_id__in=tids).values_list("vm_result_table_id", flat=True)
         )
 
     @classmethod
@@ -143,6 +186,7 @@ class ResultTableFlow(BaseModelWithTime):
                     "result_table_id": tid,
                     "name": tid,
                     "from_result_table_ids": [tid],
+                    "from_nodes": [],
                 }
             )
         return nodes
@@ -169,6 +213,7 @@ class ResultTableFlow(BaseModelWithTime):
             "outputs": [
                 {"bk_biz_id": settings.DEFAULT_BKDATA_BIZ_ID, "fields": [], "output_name": name, "table_name": name}
             ],
+            "bk_biz_id": settings.BK_DATA_BK_BIZ_ID,
             "from_result_table_ids": from_result_table_ids,
             "dedicated_config": dedicated_config,
             "from_nodes": from_nodes,
@@ -208,6 +253,11 @@ class ResultTableFlow(BaseModelWithTime):
         except RecordRule.DoesNotExist:
             logger.error("table_id: %s not found record rule", table_id)
             return False
+        # 检测是否资源已经授权
+        for tid in rule_obj.src_vm_table_ids:
+            ensure_has_permission_with_rt_id(
+                settings.BK_DATA_PROJECT_MAINTAINER, tid, settings.BK_DATA_RECORD_RULE_PROJECT_ID
+            )
         nodes = cls.compose_source_node(rule_obj.src_vm_table_ids)
         # 添加预计算节点
         nodes.append(cls.compose_process_node(table_id, rule_obj.src_vm_table_ids))
@@ -230,17 +280,43 @@ class ResultTableFlow(BaseModelWithTime):
         return True
 
     @classmethod
-    def start_flow(self, flow_id: int) -> bool:
-        """启动 flow"""
+    def start_flow(self, flow_id: int, consuming_mode: Optional[str] = ConsumingMode.Current) -> bool:
+        """启动 flow
+
+        NOTE:
+        - 如果要初始启动，则可以把数据设置为尾部模式，避免历史数据，影响新数据处理的延迟
+        - 如果要重启，则可以把数据处理模式设置为继续
+
+        """
         # 组装请求参数
         req_data = {
-            "consuming_mode": "continue",
-            "resource_sets": {"stream": "default_inland_stream"},
+            "consuming_mode": consuming_mode,
+            "cluster_group": settings.BK_DATA_FLOW_CLUSTER_GROUP,
             "flow_id": flow_id,
         }
         try:
             api.bkdata.start_data_flow(req_data)
             return True
         except BKAPIError as e:
-            logger.error("start data flow error: %s", e)
+            logger.error("start data flow error, flow_id: %s, error: %s", flow_id, e)
+            return False
+
+    @classmethod
+    def stop_flow(cls, flow_id: int):
+        """停止 flow"""
+        try:
+            api.bkdata.stop_data_flow({"flow_id": flow_id})
+            return True
+        except BKAPIError as e:
+            logger.error("stop data flow error, flow_id: %s, error: %s", flow_id, e)
+            return False
+
+    @classmethod
+    def delete_flow(cls, flow_id: int) -> bool:
+        """删除 flow"""
+        try:
+            api.bkdata.delete_data_flow({"flow_id": flow_id})
+            return True
+        except BKAPIError as e:
+            logger.error("delete data flow error, flow_id: %s, error: %s", flow_id, e)
             return False

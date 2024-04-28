@@ -182,20 +182,22 @@ class SpaceTableIDRedis:
         }
         _table_id_detail = {}
         for obj in record_rule_objs:
-            _table_id_detail[obj["table_id"]] = {
-                "vm_rt": obj["dst_vm_table_id"],
-                "storage_id": obj["vm_cluster_id"],
-                "cluster_name": "",
-                "storage_name": vm_cluster_id_name.get(obj["vm_cluster_id"], ""),
-                "db": "",
-                "measurement": "",
-                "tags_key": [],
-                "fields": obj["rule_metrics"],
-                "measurement_type": "bk_split_measurement",
-                "bcs_cluster_id": "",
-                "data_label": "",
-                "bk_data_id": None,
-            }
+            _table_id_detail[obj["table_id"]] = json.dumps(
+                {
+                    "vm_rt": obj["dst_vm_table_id"],
+                    "storage_id": obj["vm_cluster_id"],
+                    "cluster_name": "",
+                    "storage_name": vm_cluster_id_name.get(obj["vm_cluster_id"], ""),
+                    "db": "",
+                    "measurement": "",
+                    "tags_key": [],
+                    "fields": list(obj["rule_metrics"].values()),
+                    "measurement_type": "bk_split_measurement",
+                    "bcs_cluster_id": "",
+                    "data_label": "",
+                    "bk_data_id": None,
+                }
+            )
         return _table_id_detail
 
     def _push_bkcc_space_table_ids(

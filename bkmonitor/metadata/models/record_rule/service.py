@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 
 from django.db.transaction import atomic
 
+from constants.dataflow import ConsumingMode
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.models.record_rule.constants import DEFAULT_RULE_TYPE, RecordRuleStatus
@@ -43,11 +44,12 @@ class RecordRuleService:
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_record_rule(self):
-        """创建预计算规则
-        NOTE: 暂时不记录到rt及rt field中
-        """
+        """创建预计算规则"""
         bksql_metrics = RecordRule.transform_bk_sql_and_metrics(self.rule_config)
         src_rts = RecordRule.get_src_table_ids(self.space_type, self.space_id, bksql_metrics["metrics"])
+        if not src_rts:
+            logger.error("no valid table id found for record_name: %s", self.record_name)
+            return
         # 转换到监控结果表
         table_id = generate_table_id(self.space_type, self.space_id, self.record_name)
         dst_rt = RecordRule.get_dst_table_id(table_id)
@@ -84,18 +86,32 @@ class RecordRuleService:
             logger.error("create record rule error: %s", e)
             raise
 
+    def _create_result_table(self, space_type: str, space_id: str, table_id: str):
+        """创建结果表"""
+        biz_id = models.Space.objects.get_biz_id_by_space(space_type, space_id)
+        models.ResultTable.objects.create(
+            table_id=table_id,
+            table_name_zh=table_id,
+            is_custom_table=True,
+            default_storage="influxdb",
+            creator="system",
+            bk_biz_id=biz_id,
+        )
+
     def _create_table_id_fields(self, table_id: str, metrics: List):
         """创建rt的字段"""
         objs = []
         for metric in metrics:
             objs.append(
-                {
-                    "table_id": table_id,
-                    "field_name": metric,
-                    "field_type": models.ResultTableField.FIELD_TYPE_STRING,
-                    "description": metric,
-                    "tag": models.ResultTableField.FIELD_TAG_METRIC,
-                }
+                models.ResultTableField(
+                    **{
+                        "table_id": table_id,
+                        "field_name": metric,
+                        "field_type": models.ResultTableField.FIELD_TYPE_STRING,
+                        "description": metric,
+                        "tag": models.ResultTableField.FIELD_TAG_METRIC,
+                    }
+                )
             )
         models.ResultTableField.objects.bulk_create(objs, batch_size=BULK_CREATE_BATCH_SIZE)
 
@@ -114,15 +130,18 @@ class BkDataFlow:
         self.space_id = space_id
         self.table_id = table_id
 
-    def start_flow(self) -> bool:
+    def start_flow(self, check_status: bool = True, consuming_mode: Optional[str] = ConsumingMode.Tail) -> bool:
         """启动数据流"""
         # 如果flow已经启动，则不需要再次启动
-        if RecordRule.objects.filter(
-            space_type=self.space_type,
-            space_id=self.space_id,
-            table_id=self.table_id,
-            status=RecordRuleStatus.RUNNING.value,
-        ).exists():
+        if (
+            RecordRule.objects.filter(
+                space_type=self.space_type,
+                space_id=self.space_id,
+                table_id=self.table_id,
+                status=RecordRuleStatus.RUNNING.value,
+            ).exists()
+            and check_status
+        ):
             logger.error("table_id: %s flow already started", self.table_id)
             return False
         # 创建 flow
@@ -138,7 +157,8 @@ class BkDataFlow:
 
         # 启动 flow
         flow_id = obj.flow_id
-        if not ResultTableFlow.start_flow(flow_id):
+        # 初次启动，设置数据处理模式为尾部处理
+        if not ResultTableFlow.start_flow(flow_id, consuming_mode):
             return False
         # 设置预计算状态为running
         RecordRule.objects.filter(space_type=self.space_type, space_id=self.space_id, table_id=self.table_id).update(
@@ -146,3 +166,25 @@ class BkDataFlow:
         )
 
         logger.info("create start flow task success, table_id: %s, flow_id: %s", self.table_id, flow_id)
+        return True
+
+    def update_flow(self) -> bool:
+        """更新flow
+        NOTE: 针对预计算场景，当变动节点时，除了最后的存储节点外，其它节点都需要更新，因此，采用删除flow，重新创建flow的方式处理
+        """
+        try:
+            obj = ResultTableFlow.objects.get(table_id=self.table_id)
+        except ResultTableFlow.DoesNotExist:
+            logger.error("ResultTableFlow does not exist: %s", self.table_id)
+            return False
+        flow_id = obj.flow_id
+        # 停止flow
+        if not ResultTableFlow.stop_flow(flow_id):
+            return False
+        # NOTE: 等待20s, 待 flow 结束，删除 flow
+        # 删除flow
+        if not ResultTableFlow.delete_flow(flow_id):
+            return False
+        # 重新创建flow
+        self.start_flow(check_status=False, consuming_mode=ConsumingMode.Current)
+        return True
