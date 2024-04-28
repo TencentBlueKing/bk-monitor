@@ -49,8 +49,10 @@ import AlarmGroup from '../strategy-config-set-new/components/alarm-group';
 import CommonItem from '../strategy-config-set-new/components/common-form-item';
 import { IGroupItem } from '../strategy-config-set-new/components/group-select';
 import VerifyItem from '../strategy-config-set-new/components/verify-item';
+import DetectionRules from '../strategy-config-set-new/detection-rules/detection-rules';
 import { DEFAULT_TIME_RANGES } from '../strategy-config-set-new/judging-condition/judging-condition';
 import { actionOption, intervalModeList, noticeOptions } from '../strategy-config-set-new/notice-config/notice-config';
+import { IDetectionConfig, MetricDetail } from '../strategy-config-set-new/typings';
 
 import './strategy-config-dialog.scss';
 
@@ -116,6 +118,10 @@ const TYPE_MAP = {
     title: window.i18n.tc('批量通知升级'),
     width: 480,
   },
+  21: {
+    title: window.i18n.tc('批量修改算法'),
+    width: 640,
+  },
 };
 
 // 通知间隔类型
@@ -149,6 +155,7 @@ interface IProps {
   groupList?: IGroup[];
   dialogShow?: boolean;
   setType?: number;
+  selectMetricData?: MetricDetail[];
 }
 interface IEvents {
   onGetGroupList?: void;
@@ -163,8 +170,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) groupList: IGroup[];
   @Prop({ type: Boolean, default: false }) dialogShow: boolean;
   @Prop({ type: Number, default: 0 }) setType: number;
+  @Prop({ type: Array, default: () => [] }) selectMetricData: MetricDetail[];
 
   @Ref('alarmHandlingList') alarmHandlingListRef: AlarmHandlingList;
+  @Ref('detection-rules') readonly detectionRulesEl: DetectionRules;
 
   isLoading = false;
   data = {
@@ -236,6 +245,15 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   alarmGroupList: IAlarmGroupList[] = [];
   // 自动填充所需列表
   messageTemplateList = [];
+
+  // 检测规则数据
+  detectionConfig: IDetectionConfig = {
+    unit: '',
+    unitType: '', // 单位类型
+    unitList: [],
+    connector: 'and',
+    data: [],
+  };
 
   cachInitData = {};
 
@@ -455,6 +473,16 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       18: () => ({ notice: { options: { converge_config: { need_biz_converge: this.data.needBizConverge } } } }),
       20: () =>
         this.validUpgradeConfig() ? false : { notice: { options: { upgrade_config: this.data.upgrade_config } } },
+      21: async () => {
+        try {
+          await this.detectionRulesEl.validate();
+          return {
+            algorithms: this.detectionConfig.data,
+          };
+        } catch (error) {
+          return false;
+        }
+      },
     };
     return setTypeMap[this.setType]?.() || {};
   }
@@ -575,6 +603,11 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   handleUpgradeIntervalChange(val: string) {
     const num = parseInt(val, 10);
     this.data.upgrade_config.upgrade_interval = isNaN(num) ? 1 : num;
+  }
+
+  // 检测算法值更新
+  handleDetectionRulesChange(v) {
+    this.detectionConfig.data = v;
   }
 
   // 所有选项组件
@@ -965,6 +998,22 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             </div>
           </div>
         );
+      case 21 /** 修改算法 */:
+        return (
+          <div class='detection-rules'>
+            <DetectionRules
+              ref='detection-rules'
+              connector={this.detectionConfig.connector}
+              dataMode={'converge'}
+              isEdit={false}
+              metricData={this.selectMetricData}
+              needShowUnit={true}
+              unit={this.detectionConfig.unit}
+              unitType={this.detectionConfig.unitType}
+              onChange={this.handleDetectionRulesChange}
+            ></DetectionRules>
+          </div>
+        );
       default:
         return '';
     }
@@ -973,7 +1022,11 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   render() {
     return (
       <bk-dialog
-        class='strategy-list-dialog'
+        width={this.curItem.width}
+        class={{ 'strategy-list-dialog': true, 'detection-rules-dialog': this.setType === 21 }}
+        escClose={false}
+        headerPosition={'left'}
+        maskClose={false}
         title={this.curItem.title}
         width={this.curItem.width}
         escClose={false}

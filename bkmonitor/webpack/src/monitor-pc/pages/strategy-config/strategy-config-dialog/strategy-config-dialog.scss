@@ -415,9 +415,26 @@
       }
     }
   }
+
+  .detection-rules {
+    max-height: calc(80vh - 120px);
+    padding-bottom: 24px;
+    overflow-y: auto;
+    font-size: 12px;
+
+    .rules-category-list .type-list .type-list-item {
+      width: 157px;
+    }
+  }
 }
 
 .strategy-list-dialog {
+  &.detection-rules-dialog {
+    .bk-dialog {
+      top: 10vh;
+    }
+  }
+
   .bk-dialog-body {
     padding-top: 0;
     padding-bottom: 0;
