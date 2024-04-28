@@ -183,7 +183,7 @@ export default {
         finishShowConf = finishShowConf.filter(item => item.stepStr !== 'stepMasking');
       }
       // 判断是否以及完成过一次步骤 有table_id的情况视为完成过一次完整的步骤  隐藏下发和完成两个步骤
-      if (this.isFinishCreateStep) {
+      if (this.isFinishCreateStep && !this.isSwitch) {
         finishShowConf = finishShowConf.filter(item => !['stepIssued', 'stepResult'].includes(item.stepStr));
       }
       return finishShowConf;
