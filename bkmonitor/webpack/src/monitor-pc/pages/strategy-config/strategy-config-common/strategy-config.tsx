@@ -1410,6 +1410,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             16: this.$t('批量修改通知间隔成功'),
             17: this.$t('批量修改通知模板成功'),
             18: this.$t('批量修改告警风暴开关成功'),
+            20: this.$t('批量修改通知升级成功'),
+            21: this.$t('批量修改算法成功'),
           };
           this.handleGetListData();
           if (this.header.value === 6) {

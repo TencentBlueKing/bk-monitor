@@ -52,7 +52,7 @@ import VerifyItem from '../strategy-config-set-new/components/verify-item';
 import DetectionRules from '../strategy-config-set-new/detection-rules/detection-rules';
 import { DEFAULT_TIME_RANGES } from '../strategy-config-set-new/judging-condition/judging-condition';
 import { actionOption, intervalModeList, noticeOptions } from '../strategy-config-set-new/notice-config/notice-config';
-import { IDetectionConfig, MetricDetail } from '../strategy-config-set-new/typings';
+import { MetricDetail } from '../strategy-config-set-new/typings';
 
 import './strategy-config-dialog.scss';
 
@@ -115,11 +115,11 @@ const TYPE_MAP = {
     width: 480,
   },
   20: {
-    title: window.i18n.tc('批量通知升级'),
+    title: window.i18n.tc('修改通知升级'),
     width: 480,
   },
   21: {
-    title: window.i18n.tc('批量修改算法'),
+    title: window.i18n.tc('修改算法'),
     width: 640,
   },
 };
@@ -228,11 +228,19 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     /** 通知升级 */
     upgrade_config: {
       /** 通知升级开关 */
-      is_enabled: false,
+      is_enabled: true,
       /** 通知升级间隔 */
       upgrade_interval: 1,
       /** 通知升级告警组 */
       user_groups: [],
+    },
+    // 检测规则数据
+    detectionConfig: {
+      unit: '',
+      unitType: '', // 单位类型
+      unitList: [],
+      connector: 'and',
+      data: [],
     },
   };
   triggerTypeList = [{ id: 1, name: window.i18n.tc('累计') }];
@@ -245,15 +253,6 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   alarmGroupList: IAlarmGroupList[] = [];
   // 自动填充所需列表
   messageTemplateList = [];
-
-  // 检测规则数据
-  detectionConfig: IDetectionConfig = {
-    unit: '',
-    unitType: '', // 单位类型
-    unitList: [],
-    connector: 'and',
-    data: [],
-  };
 
   cachInitData = {};
 
@@ -477,7 +476,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         try {
           await this.detectionRulesEl.validate();
           return {
-            algorithms: this.detectionConfig.data,
+            algorithms: this.data.detectionConfig.data,
           };
         } catch (error) {
           return false;
@@ -607,7 +606,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
 
   // 检测算法值更新
   handleDetectionRulesChange(v) {
-    this.detectionConfig.data = v;
+    this.data.detectionConfig.data = v;
   }
 
   // 所有选项组件
@@ -1002,14 +1001,15 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         return (
           <div class='detection-rules'>
             <DetectionRules
+              key={+this.dialogShow}
               ref='detection-rules'
-              connector={this.detectionConfig.connector}
+              connector={this.data.detectionConfig.connector}
               dataMode={'converge'}
               isEdit={false}
               metricData={this.selectMetricData}
               needShowUnit={true}
-              unit={this.detectionConfig.unit}
-              unitType={this.detectionConfig.unitType}
+              unit={this.data.detectionConfig.unit}
+              unitType={this.data.detectionConfig.unitType}
               onChange={this.handleDetectionRulesChange}
             ></DetectionRules>
           </div>
@@ -1028,11 +1028,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         headerPosition={'left'}
         maskClose={false}
         title={this.curItem.title}
-        width={this.curItem.width}
-        escClose={false}
         value={this.dialogShow}
-        maskClose={false}
-        headerPosition={'left'}
         on-after-leave={this.handleAfterLeave}
         on-confirm={this.handleConfirm}
       >
