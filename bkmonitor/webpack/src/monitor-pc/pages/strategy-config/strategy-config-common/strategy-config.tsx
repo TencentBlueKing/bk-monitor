@@ -1669,6 +1669,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         this.header.keywordObj.push(item);
       }
     });
+    this.header.keywordObj = [...this.header.keywordObj];
     this.handleGetListData(false, 1);
   }
   handleShowFilterPanel() {
