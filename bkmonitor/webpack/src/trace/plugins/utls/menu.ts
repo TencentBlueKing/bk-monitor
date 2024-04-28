@@ -156,15 +156,15 @@ export function handleExplore(
   );
   if (!autoNavTo) return targets;
   if (isLog) {
-    const { startTime, endTime } = handleTimeRange(timeRange as any);
+    const [startTime, endTime] = timeRange;
     const queryConfig = targets[0].data.query_configs[0];
     const retrieveParams: ILogUrlParams = {
       // 检索参数
       bizId: window.cc_biz_id.toString(),
       keyword: queryConfig.query_string, // 搜索关键字
       addition: queryConfig.where || [],
-      start_time: startTime * 1000,
-      end_time: endTime * 1000,
+      start_time: startTime,
+      end_time: endTime,
       time_range: 'customized',
     };
     const indexSetId = queryConfig.index_set_id;
