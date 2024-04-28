@@ -31,7 +31,7 @@ import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { deepClone } from 'monitor-common/utils/utils';
 import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import { handleTimeRange, ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
+import { ILogUrlParams, transformLogUrlQuery } from 'monitor-pc/utils';
 
 import { IExtendMetricData, IViewOptions, PanelModel } from '../typings';
 import { downFile, filterDictConvertedToWhere, queryConfigTransform, reviewInterval } from '../utils';
@@ -188,15 +188,15 @@ export default class ToolsMixin extends Vue {
     );
     if (!autoNavTo) return targets;
     if (isLog) {
-      const { startTime, endTime } = handleTimeRange((this as any).timeRange);
+      const [start_time, end_time] = this.toolTimeRange || [];
       const queryConfig = targets[0].data.query_configs[0];
       const retrieveParams: ILogUrlParams = {
         // 检索参数
         bizId: `${this.$store.getters.bizId}`,
         keyword: queryConfig.query_string, // 搜索关键字
         addition: queryConfig.where || [],
-        start_time: startTime * 1000,
-        end_time: endTime * 1000,
+        start_time,
+        end_time,
         time_range: 'customized',
       };
       const indexSetId = queryConfig.index_set_id;

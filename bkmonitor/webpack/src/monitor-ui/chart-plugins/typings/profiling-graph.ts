@@ -41,6 +41,7 @@ export enum TextDirectionType {
 export interface ViewModeItem {
   id: ViewModeType;
   icon: string;
+  label: string;
 }
 
 export interface ProfilingTableItem {
@@ -52,7 +53,7 @@ export interface ProfilingTableItem {
   displayTotal?: string;
   location?: string;
   color?: string;
-  diff?: string;
+  diff?: number;
   baseline?: number;
   comparison?: number;
   mark?: string;
@@ -83,6 +84,7 @@ export interface ITableTipsDetail {
   diffDuration?: string;
   diffValue?: number | string;
   id?: string;
+  diff?: number;
 }
 
 export interface IQueryParams {

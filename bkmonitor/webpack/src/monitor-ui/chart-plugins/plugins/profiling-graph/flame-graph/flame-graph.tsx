@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { HierarchyNode } from 'd3-hierarchy';
-import { Debounce } from 'monitor-common/utils/utils';
+import { copyText, Debounce } from 'monitor-common/utils/utils';
 import MonitorResizeLayout from 'monitor-pc/components/resize-layout/resize-layout';
 
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
@@ -175,25 +175,26 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               let diffDuration = '';
               let diffValue = 0;
               if (this.isCompared && d.data?.diff_info) {
-                const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison);
+                const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison / 1000);
                 diffDuration = diffText + diffSuffix;
                 diffValue =
                   d.data.diff_info.comparison === 0 || d.data.diff_info.mark === 'unchanged'
                     ? 0
-                    : +(
-                        ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
-                        d.data.diff_info.comparison
-                      ).toFixed(2);
+                    : d.data.diff_info.diff;
+                // : +(
+                //     ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
+                //     d.data.diff_info.comparison
+                //   ).toFixed(2);
               }
               let axisLeft = e.pageX - (boundryBody ? 0 : this.svgRect.left);
               let axisTop = e.pageY - (boundryBody ? 0 : this.svgRect.top);
-              if (axisLeft + 240 > window.innerWidth) {
-                axisLeft = axisLeft - 220 - 16;
+              if (axisLeft + 360 > window.innerWidth) {
+                axisLeft = axisLeft - 340 - 16;
               } else {
                 axisLeft = axisLeft + 16;
               }
-              if (axisTop + 120 > window.innerHeight) {
-                axisTop = axisTop - 120;
+              if (axisTop + 180 > window.innerHeight) {
+                axisTop = axisTop - 180;
               } else {
                 axisTop = axisTop;
               }
@@ -315,9 +316,9 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
    */
   handleContextMenuClick(item: ICommonMenuItem) {
     this.contextMenuRect.left = -1;
-    // if (item.id === 'span') {
-    //   return this.contextMenuRect.spanId && emit('showSpanDetail', this.contextMenuRect.spanId);
-    // }
+    if (item.id === 'copy') {
+      copyText(this.contextMenuRect.spanName);
+    }
     if (item.id === 'reset') {
       this.initScale();
       this.$emit('updateHighlightId', -1);
@@ -488,7 +489,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                             {this.tipDetail.mark === 'added' ? (
                               <span class='tips-added'>{this.tipDetail.mark}</span>
                             ) : (
-                              `${this.tipDetail.diffValue}%`
+                              `${((this.tipDetail.diffValue as number) * 100).toFixed(2)}%`
                             )}
                           </td>,
                         ]}
@@ -515,7 +516,6 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                   class='menu-item'
                   onClick={() => this.handleContextMenuClick(item)}
                 >
-                  <i class={`menu-item-icon icon-monitor ${item.icon}`} />
                   <span class='menu-item-text'>{item.name}</span>
                 </li>
               ))}

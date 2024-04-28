@@ -29,6 +29,7 @@ import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
 import { query } from 'monitor-api/modules/apm_profile';
+import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
 import {
   BaseDataType,
@@ -171,7 +172,7 @@ export default defineComponent({
                     needCancel: true,
                   }
                 ).catch(() => false)
-              )?.diagrams?.flame_data ?? false;
+              )?.flame_data ?? false;
 
           if (data) {
             if (props.diffTraceId) {
@@ -204,25 +205,26 @@ export default defineComponent({
                   let diffDuration = '';
                   let diffValue = 0;
                   if (props.isCompared && d.data?.diff_info) {
-                    const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison);
+                    const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison / 1000);
                     diffDuration = diffText + diffSuffix;
                     diffValue =
                       d.data.diff_info.comparison === 0 || d.data.diff_info.mark === 'unchanged'
                         ? 0
-                        : +(
-                            ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
-                            d.data.diff_info.comparison
-                          ).toFixed(2);
+                        : d.data.diff_info.diff;
+                    // +(
+                    //     ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
+                    //     d.data.diff_info.comparison
+                    //   ).toFixed(2);
                   }
                   let axisLeft = e.pageX - (boundryBody ? 0 : svgRect.left);
                   let axisTop = e.pageY - (boundryBody ? 0 : svgRect.top);
-                  if (axisLeft + 240 > window.innerWidth) {
-                    axisLeft = axisLeft - 220 - 16;
+                  if (axisLeft + 360 > window.innerWidth) {
+                    axisLeft = axisLeft - 340 - 16;
                   } else {
                     axisLeft = axisLeft + 16;
                   }
-                  if (axisTop + 120 > window.innerHeight) {
-                    axisTop = axisTop - 120;
+                  if (axisTop + 180 > window.innerHeight) {
+                    axisTop = axisTop - 180;
                   } else {
                     axisTop = axisTop;
                   }
@@ -373,8 +375,8 @@ export default defineComponent({
      */
     function handleContextMenuClick(item: ICommonMenuItem) {
       contextMenuRect.value.left = -1;
-      if (item.id === 'span') {
-        return contextMenuRect.value.spanId && emit('showSpanDetail', contextMenuRect.value.spanId);
+      if (item.id === 'copy') {
+        copyText(contextMenuRect.value.spanName);
       }
       if (item.id === 'reset') {
         initScale();
@@ -572,7 +574,7 @@ export default defineComponent({
                                 {this.tipDetail.mark === 'added' ? (
                                   <span class='tips-added'>{this.tipDetail.mark}</span>
                                 ) : (
-                                  `${this.tipDetail.diffValue}%`
+                                  `${((this.tipDetail.diffValue as number) * 100).toFixed(2)}%`
                                 )}
                               </td>,
                             ]}
@@ -600,7 +602,6 @@ export default defineComponent({
                     class='menu-item'
                     onClick={() => this.handleContextMenuClick(item)}
                   >
-                    <i class={`menu-item-icon icon-monitor ${item.icon}`} />
                     <span class='menu-item-text'>{item.name}</span>
                   </li>
                 ))}

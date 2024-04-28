@@ -500,6 +500,6 @@ export interface ILogUrlParams {
   time_range?: 'customized'; // 带了时间start_time end_time必填
   keyword: string; // 搜索关键字
   addition: IAddition[]; // 搜索条件 即监控的汇聚条件
-  start_time?: number; // 起始时间
-  end_time?: number; // 终止时间
+  start_time?: string; // 起始时间
+  end_time?: string; // 终止时间
 }

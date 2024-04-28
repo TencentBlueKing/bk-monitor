@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import math
+import re
 from collections import deque
 from dataclasses import dataclass
 from io import BytesIO
@@ -15,7 +16,7 @@ from typing import Any, List
 
 from graphviz import Digraph
 
-from apm_web.profile.constants import CallGraphResponseDataMode
+from apm_web.profile.constants import CallGraph, CallGraphResponseDataMode
 from apm_web.profile.converter import Converter
 from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
 
@@ -90,9 +91,10 @@ def dot_color(score: float, is_back_ground: bool = False) -> str:
     return "#{:02x}{:02x}{:02x}".format(int(r * 255.0), int(g * 255.0), int(b * 255.0))
 
 
-def generate_svg_data(data: dict):
+def generate_svg_data(tree: FunctionTree, data: dict):
     """
     生成 svg 图片数据
+    :param tree 功能树调用树
     :param data call_graph 数据
     """
 
@@ -104,13 +106,36 @@ def generate_svg_data(data: dict):
         ratio_str = f"{ratio:.2%}"
         title = f"""
         {node["name"]}
-        {node["self"]} of {node["value"]} ({ratio_str})
+        {display_time(node["value"])} of {display_time(data["call_graph_all"])} ({ratio_str})
         """
         node_color = dot_color(score=ratio)
-        dot.node(str(node["id"]), label=title, style="filled", fillcolor=node_color)
+
+        width, height = calculate_node_size(ratio)
+        dot.node(
+            str(node["id"]),
+            label=title,
+            style="filled",
+            fillcolor=node_color,
+            width=str(width),
+            height=str(height),
+            tooltip=node["name"],
+        )
 
     for edge in call_graph_data.get("call_graph_relation", []):
-        dot.edge(str(edge["source_id"]), str(edge["target_id"]), label=f'{edge["value"]} {data["unit"]}')
+        tooltip = (
+            tree.nodes_map.get(edge["source_id"]).name
+            if edge["source_id"] in tree.nodes_map
+            else "unknown" + "->" + tree.nodes_map.get(edge["target_id"]).name
+            if edge["target_id"] in tree.nodes_map
+            else "unknown"
+        )
+
+        dot.edge(
+            str(edge["source_id"]),
+            str(edge["target_id"]),
+            label=f'{display_time(edge["value"])}',
+            tooltip=tooltip,
+        )
 
     svg_data = dot.pipe(format="svg")
     try:
@@ -118,8 +143,45 @@ def generate_svg_data(data: dict):
             res = svg_buffer.read().decode()
     except Exception as e:
         raise ValueError(f"generate_svg_data, read call graph data failed , error: {e}")
+
+    res = re.sub(r'<title>.*?</title>', '', res, flags=re.DOTALL)
     data["call_graph_data"] = res
     return data
+
+
+def calculate_node_size(percentage):
+    """根据百分比计算节点大小"""
+
+    percentage = max(0, min(1, percentage))
+
+    node_size = CallGraph.BASE_SIZE + percentage * (CallGraph.MAX_SIZE - CallGraph.MIN_SIZE)
+
+    return node_size, CallGraph.BASE_SIZE
+
+
+def display_time(timestamp_microseconds):
+    """将纳秒时间戳转为可读形式"""
+    time_in_seconds = timestamp_microseconds / 1000000000
+
+    hours = time_in_seconds // 3600
+    if hours >= 1:
+        remaining_minutes = (time_in_seconds % 3600) // 60
+        return f"{int(hours)}h{int(remaining_minutes)}m"
+
+    minutes = time_in_seconds // 60
+    if minutes >= 1:
+        remaining_seconds = time_in_seconds % 60
+        return f"{int(minutes)}m{remaining_seconds:.2f}s"
+
+    milliseconds = time_in_seconds * 1000
+    if milliseconds < 1000:
+        return f"{milliseconds:.0f}ms"
+
+    microseconds = milliseconds * 1000
+    if microseconds < 1000:
+        return f"{microseconds:.0f}μs"
+
+    return f"{time_in_seconds:.2f}s"
 
 
 @dataclass
@@ -141,7 +203,7 @@ class CallGraphDiagrammer:
         if options.get("data_mode") and options.get("data_mode") == CallGraphResponseDataMode.IMAGE_DATA_MODE:
             # 补充 sample_type 信息
             data.update(c.get_sample_type())
-            return generate_svg_data(data)
+            return generate_svg_data(tree, data)
         return data
 
     def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:

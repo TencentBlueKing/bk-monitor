@@ -62,6 +62,18 @@ export default defineComponent({
     });
     provide<Ref<ToolsFormData>>('toolsFormData', toolsFormData);
 
+    // 是否展示复位
+    const showRestore = ref<boolean>(false);
+    // 时间范围缓存用于复位功能
+    const cacheTimeRange = ref('');
+    provide<Ref<boolean>>('showRestore', showRestore);
+    // 是否开启（框选/复位）全部操作
+    const enableSelectionRestoreAll = computed(() => searchState.formData.type === SearchType.Profiling);
+    provide<Ref<boolean>>('enableSelectionRestoreAll', enableSelectionRestoreAll);
+    // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+    provide('handleChartDataZoom', handleChartDataZoom);
+    provide('handleRestoreEvent', handleRestoreEvent);
+
     /** 当前选择服务的详情数据 */
     const selectServiceData = ref<ServicesDetail>();
     /** 查询数据状态 */
@@ -274,6 +286,20 @@ export default defineComponent({
       }
     }
 
+    // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+    function handleChartDataZoom(value) {
+      if (JSON.stringify(toolsFormData.value.timeRange) !== JSON.stringify(value)) {
+        cacheTimeRange.value = JSON.parse(JSON.stringify(toolsFormData.value.timeRange));
+        toolsFormData.value.timeRange = value;
+        showRestore.value = true;
+      }
+    }
+
+    function handleRestoreEvent() {
+      toolsFormData.value.timeRange = JSON.parse(JSON.stringify(cacheTimeRange.value));
+      showRestore.value = false;
+    }
+
     return {
       t,
       isEmpty,
@@ -374,7 +400,7 @@ export default defineComponent({
       <div class='profiling-page'>
         <div class='page-header'>
           <PageHeader
-            v-model={this.toolsFormData}
+            data={this.toolsFormData}
             isShowSearch={this.searchState.isShow}
             onChange={this.handleToolFormDataChange}
             onImmediateRefresh={this.handleQuery}
@@ -447,6 +473,7 @@ export default defineComponent({
         {this.isFull && (
           <Dialog
             ext-cls='full-dialog'
+            dialog-type='show'
             draggable={false}
             header-align='center'
             is-show={this.isFull}
