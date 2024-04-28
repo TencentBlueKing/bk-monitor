@@ -347,8 +347,8 @@ importers:
         specifier: ^2.0.3
         version: 2.0.3(dompurify@3.1.0)
       '@blueking/search-select-v3':
-        specifier: 0.0.1-beta.6
-        version: 0.0.1-beta.6(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16)
+        specifier: 0.0.1-beta.8
+        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16)
       '@blueking/user-selector':
         specifier: ^1.0.12
         version: 1.0.12
@@ -459,8 +459,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/search-select-v3':
-        specifier: 0.0.1-beta.6
-        version: 0.0.1-beta.6(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16)
+        specifier: 0.0.1-beta.8
+        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16)
       '@toast-ui/editor':
         specifier: ^3.2.2
         version: 3.2.2
@@ -2428,8 +2428,8 @@ packages:
       dompurify: 3.1.0
     dev: false
 
-  /@blueking/search-select-v3@0.0.1-beta.6(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16):
-    resolution: {integrity: sha512-quyduzuG/aja3RPWXrOTqfWh0a9I2WuubXahlUDd6P8eh1rz1ykFjV6M9O/SNBpVZQuvkRZMup99PCkMmbrwbQ==}
+  /@blueking/search-select-v3@0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16):
+    resolution: {integrity: sha512-0Wg/GbGM9ryQ/R3SdiYa8hwlYWK8CMw8XcAgInEQRHZ+W6BrFzitk28PYPUGsJh0zDVwiOpRHQF1AhiJtp4baQ==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
