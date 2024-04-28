@@ -174,7 +174,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   /** 内容区域的高度 */
   contentHeight = 0;
   indexListHeight = 500;
-  cancelToken: Function = null;
+  cancelToken = null;
   oldParams: Record<string, any> = null;
   /** 索引列表位置 */
   indexListPlacement = 'bottom';
@@ -318,7 +318,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
       this.oldParams = { ...params };
       const data = await (this as any).$api[item.apiModule]
         [item.apiFunc](params, {
-          cancelToken: new CancelToken((cb: Function) => (this.cancelToken = cb)),
+          cancelToken: new CancelToken(cb => (this.cancelToken = cb)),
         })
         .catch(() => []);
       this.data =
@@ -356,7 +356,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     }
   }
   /** 拖拽改变组件宽度 */
-  handleDragChange(width: number, swipeRight: boolean, cancelFn: Function) {
+  handleDragChange(width: number, swipeRight: boolean, cancelFn) {
     if (this.specialDrag) {
       let showMode: ShowModeType = 'default';
       if (swipeRight && width < this.maxWidthVal - 3) {
@@ -423,13 +423,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   }
 
   /** 拖拽索引列表更新高度 */
-  @Debounce(300)
   handleResizeContentHeight(data: IUpdateHeight) {
-    // if (!this.expandIndexList) return;
-    this.contentHeight = data.mainHeight - 48;
-    this.indexListHeight = Math.max(data.asideHeight, INDEX_LIST_MIN_HEIGHT);
-  }
-  handleResizeContentHeightImmediately(data) {
     this.contentHeight = data.mainHeight - 48;
     this.indexListHeight = Math.max(data.asideHeight, INDEX_LIST_MIN_HEIGHT);
   }
@@ -451,11 +445,12 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   initIndexListHeight() {
     if (!!this.indexList.length && this.$el) {
       const data = this.storage.get(INDEX_LIST_DEFAULT_CONFIG_KEY);
-      this.indexListHeight = this.$el.clientHeight / 2;
       if (!!data) {
         this.indexListHeight = data.height;
         this.indexListPlacement = data.placement;
         this.expandIndexList = data.expand;
+      } else {
+        this.indexListHeight = this.$el.clientHeight / 2;
       }
       this.resizeLayoutRef.updateAside({ height: this.indexListHeight }, false);
     }
@@ -610,7 +605,6 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
               min={INDEX_LIST_MIN_HEIGHT}
               placement={this.indexListPlacement}
               toggleBefore={() => this.expandIndexList}
-              onAfterResize={this.handleResizeContentHeightImmediately}
               onResizing={this.hanldeResizing}
               onTogglePlacement={this.handleTogglePlacement}
               onTriggerMin={this.handleTriggerMinIndexList}
