@@ -77,7 +77,6 @@ import EventTable, { IShowDetail } from './event-table';
 import FilterInput from './filter-input';
 import MonitorDrag from './monitor-drag';
 import AdvancedFilterSkeleton from './skeleton/advanced-filter-skeleton';
-import FilterListSkeleton from './skeleton/filter-list-skeleton';
 import {
   AnlyzeField,
   EBatchAction,
@@ -89,7 +88,7 @@ import {
   IEventItem,
   SearchType,
 } from './typings/event';
-import { getOperatorDisabled } from './utils';
+import { getOperatorDisabled, INIT_COMMON_FILTER_DATA } from './utils';
 
 import './event.scss';
 // 有权限的业务id
@@ -238,8 +237,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   @InjectReactive('refleshImmediate') readonly panelRefleshImmediate: string;
 
   @Ref('filterInput') filterInputRef: FilterInput;
-  commonFilterData: ICommonTreeItem[] = [];
-  commonFilterLoading = false;
+  commonFilterData: ICommonTreeItem[] = INIT_COMMON_FILTER_DATA;
+  commonFilterLoading = true;
   /* 默认事件范围为近24小时 */
   timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
   /* 时区 */
@@ -2121,11 +2120,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           }}
           class={`event-filter ${this.isSplitEventPanel ? 'hidden' : ''}`}
         >
-          {this.commonFilterData.length ? (
-            <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
-          ) : (
-            <FilterListSkeleton></FilterListSkeleton>
-          )}
+          <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
           <div class='filter-search'>
             <div class='search-title'>{this.$t('高级筛选')}</div>
             {this.advancedFilterLoading ? (
