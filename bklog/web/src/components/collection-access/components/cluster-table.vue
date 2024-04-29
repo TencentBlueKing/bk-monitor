@@ -29,6 +29,12 @@
       >
         <span class="bk-icon icon-angle-up-fill"></span>
         <p>{{ tableShowType ? $t('共享集群') : $t('业务独享集群') }}</p>
+        <p
+          v-if="!tableShowType"
+          class="title-tips"
+        >
+          {{ $t('您可以随时切换所选集群。切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。') }}
+        </p>
       </div>
     </div>
     <div
@@ -294,6 +300,11 @@ export default {
       .icon-angle-up-fill {
         margin: 0 10px;
         font-size: 16px;
+      }
+
+      .title-tips {
+        margin-left: 12px;
+        color: #3a84ff;
       }
 
       &.is-active {

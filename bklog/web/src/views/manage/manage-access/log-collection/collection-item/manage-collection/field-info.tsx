@@ -22,7 +22,7 @@
 
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop } from 'vue-property-decorator';
-import { Table, TableColumn, Popover } from 'bk-magic-vue';
+import { Table, TableColumn, Popover, Button } from 'bk-magic-vue';
 import { getFlatObjValues } from '@/common/util';
 import $http from '../../../../../../api';
 import './field-info.scss';
@@ -34,6 +34,9 @@ interface IProps {
 @Component
 export default class FieldInfo extends tsc<IProps> {
   @Prop({ type: Object, default: () => ({}) }) collectorData: object;
+  @Prop({ type: Object, default: () => ({}) }) editAuthData: object;
+  @Prop({ type: Boolean, default: false }) editAuth: boolean;
+  @Prop({ type: Boolean, default: false }) isShowEditBtn: boolean;
 
   pagination = {
     /** 当前页数 */
@@ -307,6 +310,23 @@ export default class FieldInfo extends tsc<IProps> {
     }
   }
 
+  handleClickEdit() {
+    if (!this.editAuth && this.editAuthData) {
+      this.$store.commit('updateAuthDialogData', this.editAuthData);
+      return;
+    }
+    const params = {
+      collectorId: this.$route.params.collectorId
+    };
+    this.$router.push({
+      name: 'collectField',
+      params,
+      query: {
+        spaceUid: this.$store.state.spaceUid
+      }
+    });
+  }
+
   render() {
     const nickNameSlot = {
       default: ({ row }) => <span>{row.field_alias || '--'}</span>
@@ -394,6 +414,19 @@ export default class FieldInfo extends tsc<IProps> {
 
     return (
       <div class='field-info-table'>
+        {this.isShowEditBtn && (
+          <div class='edit-btn-container'>
+            <Button
+              v-cursor={{ active: !this.editAuth }}
+              theme='default'
+              style='min-width: 88px; color: #3a84ff'
+              onClick={() => this.handleClickEdit()}
+            >
+              {this.$t('编辑')}
+            </Button>
+          </div>
+        )}
+
         <Table
           data={this.tableShowList}
           size='small'
