@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
 import ResizeContainer from '../../../../../components/resize-container/resize-container';
@@ -37,10 +38,9 @@ import {
   ISelectListItem,
   ISetingValue,
   THeaderType,
-  TMethod
+  TMethod,
 } from '../components/http-editor/types';
 import { localDataConvertToRequest } from '../components/http-editor/utils';
-
 import { IWebhook } from './meal-content-data';
 import { setVariableToString, variableJsonVerify } from './utils';
 
@@ -53,7 +53,7 @@ interface IProps {
   isOnlyHttp?: boolean; // 是否只显示头部http数据
   validatorHasVariable?: boolean;
   variableList?: { example: string; id: string }[];
-  pluginId?: string | number;
+  pluginId?: number | string;
 }
 
 interface IEvents {
@@ -65,7 +65,7 @@ interface IEvents {
 const QUERY_REG = new RegExp(/\?(([^?&=]+)=([^?&=]*)&?)+/);
 
 @Component({
-  name: 'HttpCallBack'
+  name: 'HttpCallBack',
 })
 export default class HttpCallBack extends tsc<IProps, IEvents> {
   // 编辑状态
@@ -78,7 +78,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
   /* 所有变量 用于校验 */
   @Prop({ default: () => [], type: Array }) readonly variableList: { example: string; id: string }[];
   /* 当前插件id */
-  @Prop({ default: 0, type: [String, Number] }) pluginId: string | number;
+  @Prop({ default: 0, type: [String, Number] }) pluginId: number | string;
 
   data: IWebhook = {};
 
@@ -86,13 +86,13 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
 
   httpData: IHttpData = {
     method: 'GET',
-    url: ''
+    url: '',
   };
 
   tabActive: THeaderType = 'Params';
 
   errorMsg = {
-    url: ''
+    url: '',
   };
   rawErrorMsg = '';
 
@@ -101,7 +101,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       key: 'Params',
       name: `${window.i18n.t('参数')}`,
       desc: '',
-      value: []
+      value: [],
     },
     {
       key: 'Authorization',
@@ -109,14 +109,14 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       desc: '',
       type: 'none',
       bearer_token: { token: '' },
-      basic_auth: { username: '', password: '' }
+      basic_auth: { username: '', password: '' },
     },
     {
       key: 'Headers',
       name: `${window.i18n.t('头信息')}`,
       desc: '',
       hide: true,
-      value: []
+      value: [],
     },
     {
       key: 'Body',
@@ -125,7 +125,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       type: 'default',
       form_data: [],
       x_www_form_urlencoded: [],
-      raw: { type: 'text', content: '' }
+      raw: { type: 'text', content: '' },
     },
     {
       key: 'Seting',
@@ -136,54 +136,54 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
         retryInterval: 2,
         maxRetryTimes: 2,
         needPoll: false,
-        notifyInterval: 120
-      }
-    }
+        notifyInterval: 120,
+      },
+    },
   ];
 
   methodList: string[] = ['POST', 'GET'];
   authRadioList: ISelectListItem[] = [
     { id: 'none', name: `${window.i18n.t('无需认证')}` },
     { id: 'bearer_token', name: 'Bearer Token' },
-    { id: 'basic_auth', name: 'Basic Auth' }
+    { id: 'basic_auth', name: 'Basic Auth' },
   ];
   BodyRadioList: ISelectListItem[] = [
     { id: 'default', name: `${window.i18n.t('默认')}` },
     { id: 'form_data', name: 'form-data' },
     { id: 'x_www_form_urlencoded', name: 'x-www-form-urlencoded' },
-    { id: 'raw', name: 'raw' }
+    { id: 'raw', name: 'raw' },
   ];
   setingInputList: ISelectListItem[] = [
     { id: 'timeout', name: `${window.i18n.t('请求超时')}`, unit: 's' },
     { id: 'retryInterval', name: `${window.i18n.t('重试间隔')}`, unit: 's' },
     { id: 'maxRetryTimes', name: `${window.i18n.t('重试次数')}`, unit: `${window.i18n.t('次')}` },
     { id: 'needPoll', name: `${window.i18n.t('是否周期回调')}`, unit: '' },
-    { id: 'notifyInterval', name: `${window.i18n.t('回调间隔')}`, unit: `${window.i18n.t('分钟')}` }
+    { id: 'notifyInterval', name: `${window.i18n.t('回调间隔')}`, unit: `${window.i18n.t('分钟')}` },
   ];
   paramTableColumns: any = [
     { label: '', prop: 'isEnabled', width: 31 },
     { label: `${window.i18n.t('字段名')}`, prop: 'key' },
     { label: `${window.i18n.t('值')}`, prop: 'value' },
     { label: `${window.i18n.t('描述')}`, prop: 'desc' },
-    { label: '', prop: 'handle', width: 48 }
+    { label: '', prop: 'handle', width: 48 },
   ];
   headersTableColumns: any = [
     { label: '', prop: 'isEnabled', width: 31, type: 'selection' },
     { label: `${window.i18n.t('字段名')}`, prop: 'key' },
     { label: `${window.i18n.t('值')}`, prop: 'value' },
     { label: `${window.i18n.t('描述')}`, prop: 'desc' },
-    { label: '', prop: 'handle', width: 48 }
+    { label: '', prop: 'handle', width: 48 },
   ];
 
   headerHideTips = {
     true: {
       placement: 'top',
-      content: `${window.i18n.t('点击展开全部')}`
+      content: `${window.i18n.t('点击展开全部')}`,
     },
     false: {
       placement: 'top',
-      content: `${window.i18n.t('点击隐藏默认')}`
-    }
+      content: `${window.i18n.t('点击隐藏默认')}`,
+    },
   };
 
   /**
@@ -194,7 +194,6 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
   }
 
   get checkUrl(): boolean {
-    // eslint-disable-next-line no-useless-escape
     return /(^(((ht|f)tps?):\/\/)[\w-]+(\.[\w-]+)+([\w.,@?^=%&:/~+#-{}]*[\w@?^=%&/~+#-{}])?$)|({{[\w\.]+?}})/.test(
       this.httpData.url
     );
@@ -213,12 +212,12 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
     const res = {
       method: this.httpData.method,
       url: this.httpData.url,
-      ...this.oldValue
+      ...this.oldValue,
     };
     return {
       riskLevel: this.data.riskLevel,
       timeout: this.data.timeout,
-      res
+      res,
     };
   }
 
@@ -395,9 +394,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
     const typeNameMap = {
       json: 'JSON',
       xml: 'XML',
-      html: 'HTML'
+      html: 'HTML',
     };
-    // eslint-disable-next-line no-useless-escape
+
     const isVar = /{{[\w\.]+?}}/.test(content);
     if (content && type === 'json') {
       let target = '';
@@ -441,7 +440,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
    * @param {*} deleteFn
    * @return {*}
    */
-  paramInputScopedSlots(data, changeFn?: Function, deleteFn?) {
+  paramInputScopedSlots(data: any, changeFn?: (data: any) => void, deleteFn?: () => void) {
     return {
       default: props => {
         const index = props.$index;
@@ -479,10 +478,10 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             {this.isEdit && prop ? (
               <bk-input
                 class='table-input'
-                behavior='simplicity'
-                placeholder='请输入'
-                disabled={item.isBuiltin === undefined ? false : item.isBuiltin}
                 v-model={item[prop]}
+                behavior='simplicity'
+                disabled={item.isBuiltin === undefined ? false : item.isBuiltin}
+                placeholder='请输入'
                 onChange={changeFn}
               />
             ) : (
@@ -490,7 +489,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             )}
           </span>
         );
-      }
+      },
     };
   }
 
@@ -515,8 +514,8 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
           {this.authRadioList.map(item => (
             <bk-radio
               key={item.id}
-              value={item.id}
               disabled={!this.isEdit}
+              value={item.id}
             >
               {item.name}
             </bk-radio>
@@ -526,8 +525,8 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
           <div class='auth-params-wrap'>
             <div class='auth-params-label'>Token</div>
             <bk-input
-              class='input'
               style={{ width: !this.isEdit ? 'none' : '520px' }}
+              class='input'
               v-model={data.token}
               behavior='simplicity'
               disabled={!this.isEdit}
@@ -551,10 +550,10 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
               <div class='auth-params-label'>{this.$t('密码')}</div>
               <bk-input
                 class='input'
-                type='password'
                 v-model={data.password}
                 behavior='simplicity'
                 disabled={!this.isEdit}
+                type='password'
                 onInput={this.authParamInput}
               ></bk-input>
             </div>
@@ -582,9 +581,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
           {this.paramTableColumns.map((item, i) => (
             <bk-table-column
               key={i}
+              width={item.width}
               label={item.label}
               prop={item.prop}
-              width={item.width}
               {...{ scopedSlots }}
             ></bk-table-column>
           ))}
@@ -617,11 +616,11 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
         {hideCount ? (
           <div class='handle-hide-defult'>
             <i
+              class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
               v-bk-tooltips={{
                 content: this.headerHideTips[`${isHide}`],
-                allowHTML: false
+                allowHTML: false,
               }}
-              class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
               onClick={() => (this.curHeaderData.hide = !isHide)}
             ></i>
             {isHide ? (
@@ -635,9 +634,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
           {this.headersTableColumns.map((item, i) => (
             <bk-table-column
               key={i}
+              width={item.width}
               label={item.label}
               prop={item.prop}
-              width={item.width}
               {...{ scopedSlots }}
             ></bk-table-column>
           ))}
@@ -655,7 +654,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       { id: 'text', name: 'Text' },
       { id: 'json', name: 'JSON' },
       { id: 'html', name: 'HTML' },
-      { id: 'xml', name: 'XML' }
+      { id: 'xml', name: 'XML' },
     ];
     const { curHeaderData } = this;
     const radioChange = () => {
@@ -682,8 +681,8 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             {this.BodyRadioList.map(item => (
               <bk-radio
                 key={item.id}
-                value={item.id}
                 disabled={!this.isEdit}
+                value={item.id}
               >
                 <span>{item.name}</span>
               </bk-radio>
@@ -693,16 +692,16 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             <bk-select
               class='select select-wrap'
               v-model={data.type}
+              behavior='simplicity'
               clearable={false}
               disabled={!this.isEdit}
               popover-min-width={100}
-              behavior='simplicity'
               onSelected={() => this.handleRawBlur(data.type, data.content)}
             >
               {rowTypeList.map(option => (
                 <bk-option
-                  key={option.id}
                   id={option.id}
+                  key={option.id}
                   name={option.name}
                 ></bk-option>
               ))}
@@ -718,12 +717,12 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             >
               <bk-input
                 class='textarea'
-                type={'textarea'}
-                disabled={!this.isEdit}
-                onInput={this.bodyParamInput}
                 v-model={data.content}
+                disabled={!this.isEdit}
+                type={'textarea'}
                 onBlur={() => this.handleRawBlur(data.type, data.content)}
                 onFocus={() => (this.rawErrorMsg = '')}
+                onInput={this.bodyParamInput}
               ></bk-input>
               {this.rawErrorMsg && <p style='margin: 0; color: #ff5656;'>{this.rawErrorMsg}</p>}
             </ResizeContainer>
@@ -737,9 +736,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             {this.paramTableColumns.map((item, i) => (
               <bk-table-column
                 key={i}
+                width={item.width}
                 label={item.label}
                 prop={item.prop}
-                width={item.width}
                 {...{ scopedSlots }}
               ></bk-table-column>
             ))}
@@ -771,10 +770,10 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
               item,
               <bk-switcher
                 class='switch'
-                theme='primary'
-                size='small'
-                disabled={!this.isEdit}
                 vModel={valueKeyMap[item.id]}
+                disabled={!this.isEdit}
+                size='small'
+                theme='primary'
                 on-change={this.setingChange}
               />
             );
@@ -784,13 +783,13 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
               item,
               <bk-input
                 class='input'
-                behavior='simplicity'
-                onInput={this.setingChange}
-                type='number'
-                showControls={false}
                 vModel={valueKeyMap[item.id]}
-                disabled={!(valueKeyMap as ISetingValue).needPoll || !this.isEdit}
                 v-bk-tooltips={{ content: this.$t('开启周期回调'), disabled: (valueKeyMap as ISetingValue).needPoll }}
+                behavior='simplicity'
+                disabled={!(valueKeyMap as ISetingValue).needPoll || !this.isEdit}
+                showControls={false}
+                type='number'
+                onInput={this.setingChange}
               />
             );
           }
@@ -798,12 +797,12 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             item,
             <bk-input
               class='input'
-              behavior='simplicity'
-              onInput={this.setingChange}
-              type='number'
-              showControls={false}
-              disabled={!this.isEdit}
               vModel={valueKeyMap[item.id]}
+              behavior='simplicity'
+              disabled={!this.isEdit}
+              showControls={false}
+              type='number'
+              onInput={this.setingChange}
             />
           );
         })}
@@ -845,8 +844,8 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
           'http-editor-wrap',
           {
             'http-editor-is-edit': this.isEdit,
-            'http-editor-has-label': this.label
-          }
+            'http-editor-has-label': this.label,
+          },
         ]}
       >
         {
@@ -856,14 +855,14 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
               <bk-select
                 class='select'
                 v-model={this.httpData.method}
-                clearable={false}
                 behavior='simplicity'
+                clearable={false}
                 onChange={this.methodChange}
               >
                 {this.methodList.map(option => (
                   <bk-option
-                    key={option}
                     id={option}
+                    key={option}
                     name={option}
                   ></bk-option>
                 ))}
@@ -875,10 +874,10 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 <bk-input
                   class='url-input'
                   v-model={this.httpData.url}
+                  behavior='simplicity'
+                  placeholder={this.$tc('输入请求 URL')}
                   onChange={this.urlChange}
                   onFocus={this.urlFocus}
-                  placeholder={this.$tc('输入请求 URL')}
-                  behavior='simplicity'
                 ></bk-input>
               </VerifyItem>
             </div>
@@ -922,9 +921,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
           <div>
             {this.isEdit && (
               <bk-button
+                style={{ marginTop: '16px' }}
                 theme='primary'
                 outline
-                style={{ marginTop: '16px' }}
                 onClick={this.handleDebug}
               >
                 {this.$t('调试')}
@@ -933,19 +932,19 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             {this.isEdit ? (
               <div class='sensitivity-failure-judgment'>
                 <CommonItem
-                  title={this.$tc('失败判断')}
                   class='failure'
+                  title={this.$tc('失败判断')}
                 >
                   <i18n
-                    path='当执行{0}分钟未结束按失败处理。'
                     class='failure-text'
+                    path='当执行{0}分钟未结束按失败处理。'
                   >
                     <bk-input
                       class='input-inline'
                       v-model={this.data.timeout}
                       behavior={'simplicity'}
-                      type={'number'}
                       showControls={false}
+                      type={'number'}
                       on-change={() => this.emitLocalHeaderInfo()}
                     ></bk-input>
                   </i18n>
@@ -954,14 +953,14 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
             ) : (
               <div class='sensitivity-failure-judgment'>
                 <div
-                  class='content-form-item'
                   style={{ marginTop: '16px' }}
+                  class='content-form-item'
                 >
                   <div class='form-item-label'>{this.$t('失败处理')}</div>
                   <div class='form-item-content'>
                     <i18n
-                      path='当执行{0}分钟未结束按失败处理。'
                       class='failure-text'
+                      path='当执行{0}分钟未结束按失败处理。'
                     >
                       {this.data.timeout}
                     </i18n>

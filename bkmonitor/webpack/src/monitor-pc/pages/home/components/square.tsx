@@ -36,10 +36,10 @@ interface ISquareEvents {
 }
 
 @Component({
-  name: 'Square'
+  name: 'Square',
 })
 export default class Square extends tsc<ISquareProps, ISquareEvents> {
-  @Prop({ type: String, default: 'unset' }) status: String;
+  @Prop({ type: String, default: 'unset' }) status: string;
 
   @Emit('statusChange')
   clickHandle(e: Event) {

@@ -34,13 +34,13 @@ import './filter-panel.scss';
 
 // 勾选的数据（筛选表格）
 export interface IFilterData {
-  id: string | number; // 所属分组ID
+  id: number | string; // 所属分组ID
   values: any[]; // 勾选数据
   name: TranslateResult; // 分组名称
 }
 interface ITreeNode {
   children?: any[];
-  id: string | number;
+  id: number | string;
   data: any;
 }
 // 属性
@@ -83,7 +83,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
 
   get filterPanelStyle() {
     return {
-      width: `${this.width}px`
+      width: `${this.width}px`,
     };
   }
 
@@ -111,13 +111,13 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
           )}
           <div class={['filter-panel-body', { 'show-scrollbar': this.isShowScrollbar }]}>
             <Group
-              data={this.data}
-              on-clear={this.handleClear}
-              theme='filter'
-              defaultActiveName={this.defaultActiveName}
               scopedSlots={{
-                default: ({ item }) => this.collapseItemContentSlot(item)
+                default: ({ item }) => this.collapseItemContentSlot(item),
               }}
+              data={this.data}
+              defaultActiveName={this.defaultActiveName}
+              theme='filter'
+              on-clear={this.handleClear}
             ></Group>
           </div>
         </section>
@@ -143,16 +143,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
     const defaultCheckedNodes = group ? group.values.map(value => value.id) : [];
     return (
       <bk-big-tree
-        data={data}
-        default-expand-all
-        show-checkbox
-        expand-icon=''
-        collapse-icon=''
         ext-cls='filter-panel-tree'
-        padding={0}
-        check-on-click
-        expand-on-click={false}
-        default-checked-nodes={defaultCheckedNodes}
         scopedSlots={{
           default: ({ data }) => (
             <span class='check-label-content'>
@@ -165,8 +156,17 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
               </span>
               <span class='label-count'>{data.count || 0}</span>
             </span>
-          )
+          ),
         }}
+        collapse-icon=''
+        data={data}
+        default-checked-nodes={defaultCheckedNodes}
+        expand-icon=''
+        expand-on-click={false}
+        padding={0}
+        check-on-click
+        default-expand-all
+        show-checkbox
         on-check-change={(id, node) => this.handleTreeCheckChange(id, node, item)}
       ></bk-big-tree>
     );
@@ -212,7 +212,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         this.filterData.push({
           id: item.id,
           name: item.name,
-          values: JSON.parse(JSON.stringify(node.data.children))
+          values: JSON.parse(JSON.stringify(node.data.children)),
         });
       }
     } else {
@@ -224,7 +224,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         this.filterData.push({
           id: item.id,
           name: item.name,
-          values: [node.data]
+          values: [node.data],
         });
       }
     }

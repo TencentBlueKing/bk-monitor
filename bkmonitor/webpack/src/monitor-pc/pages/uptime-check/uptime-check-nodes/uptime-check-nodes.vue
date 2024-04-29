@@ -25,18 +25,18 @@
 -->
 <template>
   <div
-    class="node-page-container"
     v-monitor-loading="{ isLoading: loading }"
+    class="node-page-container"
   >
     <div v-show="!showCreateCard">
       <div class="header">
         <div class="create-node">
           <bk-button
+            v-authority="{
+              active: !authority.MANAGE_AUTH,
+            }"
             theme="primary"
             class="mc-btn-add"
-            v-authority="{
-              active: !authority.MANAGE_AUTH
-            }"
             @click="authority.MANAGE_AUTH ? addNode() : handleShowAuthorityDetail(uptimeAuth.MANAGE_AUTH)"
           >
             {{ $t('新建') }}
@@ -45,10 +45,10 @@
         <bk-input
           :placeholder="$t('节点名称/IP')"
           right-icon="bk-icon icon-search"
-          @change="search"
           :value="searchWord"
           style="width: 320px"
           clearable
+          @change="search"
         />
       </div>
       <div class="node-table">
@@ -161,26 +161,26 @@
           </bk-table-column>
         </bk-table>
         <div
-          class="uptime-check-node-footer"
           v-show="table.total"
+          class="uptime-check-node-footer"
         >
           <bk-pagination
             class="list-pagination"
-            @change="handlePageChange"
-            @limit-change="handleLimitChange"
             align="right"
             :current.sync="table.page"
             :limit="table.pageSize"
             :count="table.total"
             :limit-list="table.pageList"
             show-total-count
+            @change="handlePageChange"
+            @limit-change="handleLimitChange"
           />
         </div>
       </div>
     </div>
     <div
-      class="not-nodes"
       v-show="showCreateCard"
+      class="not-nodes"
     >
       <div class="desc">
         {{ $t('暂无拨测节点') }}
@@ -193,10 +193,10 @@
           {{ $t('创建一个私有或云拨测节点，用于探测服务的质量与可用性') }}
         </div>
         <span
-          class="create-btn"
           v-authority="{
-            active: !authority.MANAGE_AUTH
+            active: !authority.MANAGE_AUTH,
           }"
+          class="create-btn"
           @click="authority.MANAGE_AUTH ? addNode() : handleShowAuthorityDetail(uptimeAuth.MANAGE_AUTH)"
         >
           {{ $t('立即新建') }}
@@ -205,23 +205,22 @@
     </div>
     <div v-show="false">
       <div
-        class="popover-content"
         ref="popoverContent"
+        class="popover-content"
       >
         <div class="popover-hint">
           <div
-            class="hint-upgrade"
             v-if="popover.data.status === '2'"
+            class="hint-upgrade"
           >
             <div class="hint-text">
-              {{ $t('当前采集器版本过低') }}（ {{ popover.data.version }} ），{{
-                $t('联系系统管理员升级至最新版本')
-              }}（ {{ popover.data.right_version }}）
+              {{ $t('当前采集器版本过低') }}（ {{ popover.data.version }} ），{{ $t('联系系统管理员升级至最新版本') }}（
+              {{ popover.data.right_version }}）
             </div>
           </div>
           <div
-            class="hint-deploy"
             v-else-if="popover.data.status === '-1'"
+            class="hint-deploy"
           >
             <div class="hint-text">
               <span class="text-content"> {{ $t('bkmonitorbeat采集器异常或版本过低，请至节点管理处理') }} </span>
@@ -229,8 +228,8 @@
             <div class="hint-btn">
               <bk-button
                 class="btn-cancel"
-                @click.stop="handleStatusPopoverHide"
                 :text="true"
+                @click.stop="handleStatusPopoverHide"
               >
                 {{ $t('取消') }}
               </bk-button>
@@ -259,15 +258,15 @@ import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-
 export default {
   name: 'UptimeCheckNodes',
   components: {
-    DeleteSubtitle
+    DeleteSubtitle,
   },
   mixins: [commonPageSizeMixin],
   inject: ['authority', 'handleShowAuthorityDetail', 'uptimeAuth'],
   props: {
     fromRouteName: {
       type: String,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
@@ -285,37 +284,37 @@ export default {
         page: 1,
         pageSize: 10,
         pageList: [10, 20, 50, 100],
-        total: 0
+        total: 0,
       },
       showCreateCard: false,
       statusColorMap: {
         0: {
           className: 'normal',
-          text: this.$t('正常')
+          text: this.$t('正常'),
         },
         1: {
           className: 'initing',
-          text: this.$t('初始化中...')
+          text: this.$t('初始化中...'),
         },
         '-1': {
           className: 'error',
-          text: this.$t('异常')
+          text: this.$t('异常'),
         },
         2: {
           className: 'warning',
-          text: this.$t('升级')
-        }
+          text: this.$t('升级'),
+        },
       },
       search() {},
       popover: {
         active: -1,
         instance: null,
-        data: {}
+        data: {},
       },
       delSubTitle: {
         title: window.i18n.t('节点名称'),
-        name: ''
-      }
+        name: '',
+      },
     };
   },
   activated() {
@@ -346,8 +345,9 @@ export default {
       this.handleTableData();
     },
     handleTableData() {
-      const tableData = this.nodes.filter(item => item.ip.indexOf(this.searchWord) > -1
-       || item.name.indexOf(this.searchWord) > -1);
+      const tableData = this.nodes.filter(
+        item => item.ip.indexOf(this.searchWord) > -1 || item.name.indexOf(this.searchWord) > -1
+      );
       const start = this.table.pageSize * (this.table.page - 1);
       const end = this.table.pageSize * this.table.page;
       const data = tableData.slice(start, end);
@@ -380,13 +380,13 @@ export default {
             .finally(() => {
               this.loading = false;
             });
-        }
+        },
       });
     },
     getNodes(loading = true) {
       this.loading = loading;
       return listUptimeCheckNode()
-        .then((data) => {
+        .then(data => {
           this.showCreateCard = !data.length;
           if (!this.showCreateCard) {
             this.nodes = data;
@@ -404,7 +404,7 @@ export default {
     },
     addNode() {
       this.$router.push({
-        name: 'uptime-check-node-add'
+        name: 'uptime-check-node-add',
       });
     },
     handleEdit(data) {
@@ -413,8 +413,8 @@ export default {
         params: {
           id: data.id,
           bizId: data.bk_biz_id,
-          title: this.$t('编辑拨测节点')
-        }
+          title: this.$t('编辑拨测节点'),
+        },
       });
     },
     pollNodeData() {
@@ -449,7 +449,7 @@ export default {
         distance: 0,
         duration: [325, 300],
         // offset: '-35, 0',
-        appendTo: () => e.target
+        appendTo: () => e.target,
       });
       // .instances[0]
       popover.instance.show(100);
@@ -466,8 +466,8 @@ export default {
       this.$emit('set-task', name);
       // this.SET_KEY_WORD(`${this.$t('节点:')}${name}`)
       // this.$store.commit('uptime-check-task/SET_KEY_WORD', )
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

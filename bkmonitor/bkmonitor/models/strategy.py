@@ -167,12 +167,14 @@ class AlgorithmModel(Model):
         TimeSeriesForecasting = "TimeSeriesForecasting"
         AbnormalCluster = "AbnormalCluster"
         MultivariateAnomalyDetection = "MultivariateAnomalyDetection"
+        HostAnomalyDetection = "HostAnomalyDetection"
 
     AIOPS_ALGORITHMS = [
         AlgorithmChoices.IntelligentDetect,
         AlgorithmChoices.TimeSeriesForecasting,
         AlgorithmChoices.AbnormalCluster,
         AlgorithmChoices.MultivariateAnomalyDetection,
+        AlgorithmChoices.HostAnomalyDetection,
     ]
 
     ALGORITHM_CHOICES = (
@@ -192,6 +194,7 @@ class AlgorithmModel(Model):
         (AlgorithmChoices.TimeSeriesForecasting, _lazy("时序预测算法")),
         (AlgorithmChoices.AbnormalCluster, _lazy("离群检测算法")),
         (AlgorithmChoices.MultivariateAnomalyDetection, _lazy("多指标异常检测算法")),
+        (AlgorithmChoices.HostAnomalyDetection, _lazy("主机异常检测算法")),
     )
 
     strategy_id = models.IntegerField("关联策略ID", db_index=True)
@@ -807,7 +810,7 @@ class DutyPlan(Model):
     # 是否有效，替换原来的is_active字段，这样可以设置索引
     is_effective = models.IntegerField("是否有效", default=0, db_index=True)
     start_time = models.CharField("当前轮班生效开始时间", null=False, max_length=32, default="1970-01-01 00:00:00")
-    finished_time = models.CharField("当前轮班生效结束时间", null=True, max_length=32)
+    finished_time = models.CharField("当前轮班生效结束时间", null=True, max_length=32, db_index=True)
 
     users = models.JSONField(verbose_name="当前告警处理值班人员", default=dict)
     work_times = models.JSONField("工作时间段", default=list)

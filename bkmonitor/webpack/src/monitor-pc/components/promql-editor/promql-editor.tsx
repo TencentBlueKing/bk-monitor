@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { parser } from '@prometheus-io/lezer-promql';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { throttle } from 'throttle-debounce';
@@ -68,7 +69,7 @@ class PlaceholderWidget {
   }
   getPosition() {
     return {
-      preference: monaco.editor.OverlayWidgetPositionPreference.TOP_CENTER
+      preference: monaco.editor.OverlayWidgetPositionPreference.TOP_CENTER,
     };
   }
   update() {
@@ -85,7 +86,7 @@ const defalutOptions = {
   glyphMargin: false,
   folding: false,
   minimap: {
-    enabled: false
+    enabled: false,
   },
   fontSize: 14,
   fontFamily: 'Menlo, Monaco, "Courier New", monospace',
@@ -103,58 +104,55 @@ const defalutOptions = {
     verticalScrollbarSize: 0,
     horizontal: 'hidden',
     horizontalScrollbarSize: 0,
-    alwaysConsumeMouseWheel: false
+    alwaysConsumeMouseWheel: false,
   },
   padding: {
     top: 4,
     bottom: 8,
     right: 0,
-    left: 0
+    left: 0,
   },
   suggest: () => ({
-    showWords: false
+    showWords: false,
   }),
   lineHeight: 19,
   suggestFontSize: 12,
   suggestLineHeight: 19,
-  cursorStyle: 'line-thin'
+  cursorStyle: 'line-thin',
 };
 export interface IPromqlMonacoEditorProps {
   width?: string;
   height?: string;
-  value?: string | null;
+  value?: null | string;
   defaultValue?: string;
   language?: string;
-  theme?: string | null;
+  theme?: null | string;
   options?: object;
   overrideServices?: object;
-  // editorWillMount?: Function;
-  editorDidMount?: Function;
-  editorWillUnmount?: Function;
-  onChange?: Function;
-  executeQuery?: Function;
-  className?: string | null;
-  uri?: Function;
+  className?: null | string;
   readonly?: boolean;
   minHeight?: number;
   isError?: boolean;
   onBlur?: (value: string, hasErr: boolean) => void;
   onFocus?: () => void;
+  onChange?: (v: string) => void;
+  executeQuery?: (v: boolean) => void;
+  uri?: (v: any) => void;
 }
 @Component
 export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Ref('containerElement') readonly containerElement?: HTMLDivElement;
   @Prop({ default: 68 }) readonly minHeight: number;
   @Prop({ default: false }) readonly isError: boolean;
-  @Prop({ default: null }) readonly value: string | null;
+  @Prop({ default: null }) readonly value: null | string;
   @Prop({ default: '' }) readonly defaultValue?: string;
   @Prop({ default: 'promql' }) readonly language?: string;
-  @Prop({ default: null }) readonly theme?: string | null;
+  @Prop({ default: 'vs' }) readonly theme?: null | string;
   @Prop({ default: () => defalutOptions }) readonly options: object;
   @Prop({ default: () => ({}) }) readonly overrideServices?: object;
-  @Prop({ default: null }) readonly className?: string | null;
-  @Prop({ default: () => null }) readonly executeQuery: Function;
-  @Prop() readonly uri?: Function;
+  @Prop({ default: null }) readonly className?: null | string;
+  @Prop({ default: () => null }) readonly executeQuery: (v: boolean) => void;
+  @Prop() readonly uri?: (v: any) => void;
   @Prop({ default: false }) readonly: boolean;
 
   editor: monaco.editor.IStandaloneCodeEditor | null = null;
@@ -168,7 +166,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   throttleUpdateLayout = () => {};
 
   created() {
-    this.throttleUpdateLayout = throttle(300, false, this.updateLayout);
+    this.throttleUpdateLayout = throttle(300, this.updateLayout);
   }
 
   mounted() {
@@ -177,7 +175,9 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
 
   beforeDestroy() {
     this.destroyMonaco();
-    this.roInstance?.disconnect?.();
+  }
+  deactivated() {
+    this.destroyMonaco();
   }
 
   onChange(value: string) {
@@ -218,7 +218,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           error ? `Error parsing "${error}"` : 'Parse error'
         }. The query appears to be incorrect and could fail to be executed.`,
         severity: monaco.MarkerSeverity.Error,
-        ...boundary
+        ...boundary,
       }));
       monaco.editor.setModelMarkers(model, this.language, markers);
     });
@@ -232,7 +232,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       keybindings: [monaco.KeyCode.Enter],
       id: 'enter',
       label: 'enter',
-      run: (editor: monaco.editor.ICodeEditor): void | Promise<void> => {
+      run: (editor: monaco.editor.ICodeEditor): Promise<void> | void => {
         const suggestController = editor.getContribution('editor.contrib.suggestController') as any;
         const suggestCount = suggestController.widget.value._state || 0;
         if (suggestCount <= 0) {
@@ -240,7 +240,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         } else {
           editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
         }
-      }
+      },
     });
     setTimeout(() => {
       this.updateLayout();
@@ -276,7 +276,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           ...(this.className ? { extraEditorClassName: this.className } : {}),
           ...finalOptions,
           ...(this.theme ? { theme: this.theme } : {}),
-          readOnly: this.readonly
+          readOnly: this.readonly,
         },
         this.overrideServices
       );
@@ -313,8 +313,8 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
         [
           {
             range: model.getFullModelRange(),
-            text: this.value
-          }
+            text: this.value,
+          },
         ],
         undefined
       );
@@ -336,7 +336,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       const { model, ...optionsWithoutModel } = this.options as any;
       this.editor.updateOptions({
         ...(this.className ? { extraEditorClassName: this.className } : {}),
-        ...optionsWithoutModel
+        ...optionsWithoutModel,
       });
     }
   }
@@ -346,7 +346,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
       const { model, ...optionsWithoutModel } = this.options as any;
       this.editor.updateOptions({
         ...(this.className ? { extraEditorClassName: this.className } : {}),
-        ...optionsWithoutModel
+        ...optionsWithoutModel,
       });
     }
   }
@@ -359,6 +359,8 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   }
   destroyMonaco() {
     this.editor?.dispose?.();
+    monaco.editor.getModels().forEach(model => model.dispose());
+    this.roInstance?.disconnect?.();
   }
 
   initResize(e: Event) {
@@ -384,15 +386,15 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   render() {
     return (
       <div
-        class={['promql-editor-component', { 'is-error': this.isError }]}
         style={{
           minHeight: `${this.minHeight}px`,
-          height: `${this.wrapHeight <= 0 ? this.minHeight : this.wrapHeight}px`
+          height: `${this.wrapHeight <= 0 ? this.minHeight : this.wrapHeight}px`,
         }}
+        class={['promql-editor-component', { 'is-error': this.isError }]}
       >
         <div
-          class='promql-editor'
           ref='containerElement'
+          class='promql-editor'
         />
         <div
           class='resize-vertical-drop'

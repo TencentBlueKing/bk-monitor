@@ -32,7 +32,7 @@ import { getPopoverWidth } from '../../utils';
 import './custom-select.scss';
 
 export interface ICustomSelectProps {
-  value?: string[] | string;
+  value?: string | string[];
   multiple?: boolean;
   options?: IOption[];
   searchable?: boolean;
@@ -75,9 +75,9 @@ export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectE
             this.isShow = false;
             this.handleShowChange(false);
             return true;
-          }
+          },
         },
-        searchable: true
+        searchable: true,
       },
       this.$attrs
     );
@@ -111,8 +111,8 @@ export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectE
           {...{
             props: this.props,
             on: {
-              ...this.$listeners
-            }
+              ...this.$listeners,
+            },
           }}
           class='bk-select-wrap'
         >

@@ -104,7 +104,7 @@ export default class QueryStatement extends tsc<{}> {
           ></span>
           <div id='retrieve-help-tips-content'>
             <div>
-              {this.$t('可输入SQL语句进行快速查询')}
+              {this.$t('可输入DSL语句进行快速查询')}
               <a
                 class='tips-link'
                 onClick={() => this.handleGotoLink('queryString')}
@@ -123,7 +123,7 @@ export default class QueryStatement extends tsc<{}> {
             <div class='title'>{this.$t('通配符匹配：')}</div>
             <div class='detail'>{'qu?ck bro*'}</div>
             <div class='title'>{this.$t('正则匹配：')}</div>
-            <div class='detail'>{'name:/joh?n(ath[oa]n/'}</div>
+            <div class='detail'>{'name:/joh?n(ath[oa]n)/'}</div>
             <div class='title'>{this.$t('范围匹配：')}</div>
             <div class='detail'>{'count:[1 TO 5]'}</div>
             <div class='detail'>{'count:[1 TO 5}'}</div>

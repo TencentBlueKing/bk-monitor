@@ -65,7 +65,6 @@ export default class CollectDialog extends tsc<IProps> {
   searchFieldsList = []; // 表单模式显示字段
   isDisableSelect = false; // 是否禁用 所属组下拉框
   isShowAddGroup = true;
-  // groupName = '';
   verifyData = {
     groupName: ''
   };
@@ -88,7 +87,9 @@ export default class CollectDialog extends tsc<IProps> {
       search_fields: []
     },
     is_enable_display_fields: false,
+    index_set_ids: [],
     index_set_name: '',
+    index_set_names: [],
     visible_type: 'public',
     display_fields: []
   };
@@ -111,7 +112,9 @@ export default class CollectDialog extends tsc<IProps> {
       search_fields: []
     },
     is_enable_display_fields: false,
+    index_set_ids: [],
     index_set_name: '',
+    index_set_names: [],
     visible_type: 'public',
     display_fields: []
   };
@@ -213,6 +216,14 @@ export default class CollectDialog extends tsc<IProps> {
 
   get showFieldsLabel() {
     return this.favoriteData.is_enable_display_fields ? this.$t('显示字段') : this.$t('当前字段');
+  }
+
+  get unionIndexList() {
+    return this.$store.state.unionIndexList;
+  }
+
+  get isUnionSearch() {
+    return this.$store.getters.isUnionSearch;
   }
 
   mounted() {
@@ -359,19 +370,12 @@ export default class CollectDialog extends tsc<IProps> {
   async handleUpdateFavorite(subData) {
     const { index_set_id, params, name, group_id, display_fields, visible_type, id, is_enable_display_fields } =
       subData;
-    const {
-      // host_scopes,
-      ip_chooser,
-      addition,
-      keyword,
-      search_fields
-    } = params;
+    const { ip_chooser, addition, keyword, search_fields } = params;
     const data = {
       name,
       group_id,
       display_fields,
       visible_type,
-      // host_scopes,
       ip_chooser,
       addition,
       keyword,
@@ -382,6 +386,12 @@ export default class CollectDialog extends tsc<IProps> {
       Object.assign(data, {
         index_set_id,
         space_uid: this.spaceUid
+      });
+    }
+    if (this.isUnionSearch) {
+      Object.assign(data, {
+        index_set_ids: this.unionIndexList,
+        index_set_type: 'union'
       });
     }
     const requestStr = this.isCreateFavorite ? 'createFavorite' : 'updateFavorite';
@@ -439,6 +449,10 @@ export default class CollectDialog extends tsc<IProps> {
   }
 
   render() {
+    const indexSetName = () => {
+      const { index_set_name: indexSetName, index_set_names: indexSetNames } = this.favoriteData;
+      return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
+    };
     return (
       <Dialog
         value={this.value}
@@ -449,7 +463,6 @@ export default class CollectDialog extends tsc<IProps> {
         render-directive='if'
         width={640}
         position={{ top: this.positionTop }}
-        mask-close={false}
         auto-close={false}
         on-value-change={this.handleValueChange}
         on-confirm={this.handleSubmitFormData}
@@ -467,7 +480,7 @@ export default class CollectDialog extends tsc<IProps> {
         >
           <div class='edit-information'>
             <span>{this.$t('索引集')}</span>
-            <span>{this.favoriteData.index_set_name}</span>
+            <span>{indexSetName()}</span>
           </div>
           <div class='edit-information'>
             <span>{this.$t('查询语句')}</span>

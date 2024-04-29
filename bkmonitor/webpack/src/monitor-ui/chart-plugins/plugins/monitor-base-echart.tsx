@@ -25,13 +25,13 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { hexToRgbA } from 'monitor-common/utils/utils';
 
 import { ICurPoint } from '../typings';
 import { echarts, type MonitorEchartOptions } from '../typings/index';
-
 import BaseEchart, { IChartEvent, IChartProps } from './base-echart';
 
 import './base-echart.scss';
@@ -64,13 +64,13 @@ class MonitorBaseEchart extends BaseEchart {
                     this.curPoint.xAxis = params.value;
                     this.curPoint.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
                   }
-                }
+                },
               },
               crossStyle: {
                 color: 'transparent',
                 opacity: 0,
-                width: 0
-              }
+                width: 0,
+              },
             },
             appendToBody: true,
             formatter: p => this.handleSetTooltip(p),
@@ -79,11 +79,11 @@ class MonitorBaseEchart extends BaseEchart {
               const chartRect = this.$el.getBoundingClientRect();
               const posRect = {
                 x: chartRect.x + +pos[0],
-                y: chartRect.y + +pos[1]
+                y: chartRect.y + +pos[1],
               };
               const position = {
                 left: 0,
-                top: 0
+                top: 0,
               };
               const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
               if (canSetBootom > 0) {
@@ -99,8 +99,8 @@ class MonitorBaseEchart extends BaseEchart {
               }
               if (contentSize[0]) this.tooltipSize = contentSize;
               return position;
-            }
-          }
+            },
+          },
         },
         this.options
       )
@@ -126,7 +126,7 @@ class MonitorBaseEchart extends BaseEchart {
     if (batch.startValue && batch.endValue) {
       window.requestAnimationFrame(() => {
         (this as any).instance.dispatchAction({
-          type: 'restore'
+          type: 'restore',
         });
       });
       const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
@@ -172,7 +172,7 @@ class MonitorBaseEchart extends BaseEchart {
         (this as any).instance.setOption(this.getMonitorEchartOptions(), {
           notMerge: true,
           lazyUpdate: false,
-          silent: true
+          silent: true,
         });
         (this as any).curChartOption = (this as any).instance.getOption();
         this.initChartAction();
@@ -198,9 +198,9 @@ class MonitorBaseEchart extends BaseEchart {
         series: options.series.map((item, index) => ({
           ...item,
           areaStyle: {
-            color: isArea ? hexToRgbA(options.color[index % options.color.length], 0.2) : 'transparent'
-          }
-        }))
+            color: isArea ? hexToRgbA(options.color[index % options.color.length], 0.2) : 'transparent',
+          },
+        })),
       });
     }
   }
@@ -212,8 +212,8 @@ class MonitorBaseEchart extends BaseEchart {
         ...options,
         yAxis: {
           scale: needScale,
-          min: needScale ? 'dataMin' : 0
-        }
+          min: needScale ? 'dataMin' : 0,
+        },
       });
     }
   }
@@ -227,7 +227,7 @@ class MonitorBaseEchart extends BaseEchart {
         seriesIndex: -1,
         dataIndex: -1,
         xAxis: '',
-        yAxis: ''
+        yAxis: '',
       };
       return;
     }
@@ -253,7 +253,7 @@ class MonitorBaseEchart extends BaseEchart {
               seriesIndex: item.seriesIndex,
               dataIndex: item.dataIndex,
               xAxis: item.value[0],
-              yAxis: item.value[1]
+              yAxis: item.value[1],
             };
           }
           if (item.value[1] === null) return undefined;
@@ -299,13 +299,13 @@ class MonitorBaseEchart extends BaseEchart {
     return (
       <div class='chart-base-wrap'>
         <div
-          class='chart-base'
           ref='chartInstance'
           style={{ minHeight: `${1}px` }}
-          onMouseover={this.handleMouseover}
-          onMouseleave={this.handleMouseleave}
+          class='chart-base'
           onClick={this.handleClick}
           onDblclick={this.handleDblClick}
+          onMouseleave={this.handleMouseleave}
+          onMouseover={this.handleMouseover}
         ></div>
         {this.showRestore && (
           <span

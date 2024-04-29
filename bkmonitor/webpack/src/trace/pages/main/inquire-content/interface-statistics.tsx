@@ -27,12 +27,12 @@
 import { computed, defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+
 import { Popover, Table } from 'bkui-vue';
 
 import { formatDuration } from '../../../components/trace-view/utils/date';
 import { SPAN_KIND_MAPS } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
-
 import { TraceListType } from './trace-list';
 
 import './interface-statistics.scss';
@@ -42,16 +42,16 @@ export default defineComponent({
   props: {
     interfaceTypeList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     sourceTypeList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     filterList: {
       type: Object as PropType<TraceListType>,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   setup(props) {
     const route = useRoute();
@@ -63,10 +63,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('接口名')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('接口名')}</span>
           </Popover>
@@ -74,9 +74,9 @@ export default defineComponent({
         field: 'span_name',
         filter: {
           list: props.filterList.span_name,
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: string }) => (
           <div>
             <span
@@ -86,15 +86,15 @@ export default defineComponent({
               {cell}
             </span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('所属Service')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('所属Service')}</span>
           </Popover>
@@ -102,9 +102,9 @@ export default defineComponent({
         field: 'service_name',
         filter: {
           list: props.filterList['resource.service.name'],
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: string }) => (
           <div>
             <span
@@ -114,20 +114,20 @@ export default defineComponent({
               {cell}
             </span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('来源类型')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('来源类型')}</span>
           </Popover>
         ),
-        field: 'source'
+        field: 'source',
         // 只有一个 OTel ，不需要过滤
         // filter: {
         //   // list: traceListFilter.span_name,
@@ -137,10 +137,10 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('接口类型')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('接口类型')}</span>
           </Popover>
@@ -149,22 +149,22 @@ export default defineComponent({
         width: 160,
         filter: {
           list: props.filterList.kind,
-          filterFn: () => true as any
+          filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell }: { cell: string }) => (
           <div>
             <span title={SPAN_KIND_MAPS[cell]}>{SPAN_KIND_MAPS[cell]}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('Span数量')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('Span数量')}</span>
           </Popover>
@@ -173,16 +173,16 @@ export default defineComponent({
         field: 'span_count',
         sort: {
           sortScope: 'all',
-          value: ''
-        }
+          value: '',
+        },
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('错误数')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('错误数')}</span>
           </Popover>
@@ -191,16 +191,16 @@ export default defineComponent({
         field: 'error_count',
         sort: {
           sortScope: 'all',
-          value: ''
-        }
+          value: '',
+        },
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('错误率')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('错误率')}</span>
           </Popover>
@@ -208,16 +208,16 @@ export default defineComponent({
         field: 'error_rate',
         sort: {
           sortScope: 'all',
-          value: ''
-        }
+          value: '',
+        },
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('平均耗时')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('平均耗时')}</span>
           </Popover>
@@ -226,21 +226,21 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
+          value: '',
         },
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('P90耗时')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('P90耗时')}</span>
           </Popover>
@@ -249,21 +249,21 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
+          value: '',
         },
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: () => (
           <Popover
-            popoverDelay={[500, 0]}
             content={t('P50耗时')}
-            theme='light'
             placement='right'
+            popoverDelay={[500, 0]}
+            theme='light'
           >
             <span class='th-label'>{t('P50耗时')}</span>
           </Popover>
@@ -272,13 +272,13 @@ export default defineComponent({
         width: 120,
         sort: {
           sortScope: 'all',
-          value: ''
+          value: '',
         },
         render: ({ cell }: { cell: number }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
-        )
+        ),
       },
       {
         label: t('操作'),
@@ -287,9 +287,9 @@ export default defineComponent({
         render: ({ cell, data }: { cell: Record<string, string>; data: any }) => (
           <div style='display: flex;'>
             <div
+              style='width: 40px;'
               class='link-column'
               onClick={() => handleToTraceQuery(data)}
-              style='width: 40px;'
             >
               <span
                 class='link-text'
@@ -301,9 +301,9 @@ export default defineComponent({
             </div>
 
             <div
+              style='margin-left: 10px;'
               class='link-column'
               onClick={() => handleToObserve(data)}
-              style='margin-left: 10px;'
             >
               <span
                 class='link-text'
@@ -314,8 +314,8 @@ export default defineComponent({
               <i class='icon-monitor icon-fenxiang'></i>
             </div>
           </div>
-        )
-      }
+        ),
+      },
     ];
 
     const filteredTableColumn = computed(() => tableColumn);
@@ -341,24 +341,24 @@ export default defineComponent({
           selectedCondition: { label: '=', value: 'equal' },
           isInclude: true,
           //   读 data
-          selectedConditionValue: [data.kind]
+          selectedConditionValue: [data.kind],
         },
         span_name: {
           // 固定写死
           selectedCondition: { label: '=', value: 'equal' },
           isInclude: true,
           //   读 data
-          selectedConditionValue: [data.span_name]
+          selectedConditionValue: [data.span_name],
         },
         'resource.service.name': {
           // 固定写死
           selectedCondition: { label: '=', value: 'equal' },
           isInclude: true,
           //   读 data
-          selectedConditionValue: [data.service_name]
-        }
+          selectedConditionValue: [data.service_name],
+        },
       };
-      // eslint-disable-next-line no-useless-escape
+
       const hash = `#/trace/home??app_name=${
         route.query.app_name
       }&search_type=scope&listType=trace&conditionList=${JSON.stringify(conditionList)}`;
@@ -389,10 +389,10 @@ export default defineComponent({
         style='height: 100%'
         height='100%'
         class='interface-statistics-table'
-        rowHeight={40}
         border={['outer']}
         columns={filteredTableColumn.value}
         data={store.interfaceStatisticsList}
+        rowHeight={40}
         settings={store.tableSettings.interfaceStatistics as any}
         onSettingChange={handleTableSettingChange}
         // TODO：后期确认空数据的设计样式
@@ -401,10 +401,10 @@ export default defineComponent({
     );
     return {
       tableContent,
-      store
+      store,
     };
   },
   render() {
     return this.tableContent();
-  }
+  },
 });

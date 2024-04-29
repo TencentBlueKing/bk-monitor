@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import DataRetrieval from './data-retrieval';
 
 @Component
-export default class LogRetrieval extends tsc<{}> {
+export default class LogRetrieval extends tsc<object> {
   render() {
     return <DataRetrieval />;
   }

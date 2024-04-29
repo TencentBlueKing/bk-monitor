@@ -26,11 +26,10 @@
 import { ofType } from 'vue-tsx-support';
 
 import { IOption } from '../../pages/performance/performance-type';
-
 import Component from './dropdown-menu.vue';
 
 export interface IDropdowProps {
-  value?: string | number;
+  value?: number | string;
   list?: IOption[];
   icon?: string;
   showName?: boolean;
@@ -40,6 +39,6 @@ export interface IDropdowProps {
   isRefleshInterval?: boolean;
 }
 export interface IDropdowEvent {
-  onChange: string | number;
+  onChange: number | string;
 }
 export default ofType<IDropdowProps, IDropdowEvent>().convert(Component);

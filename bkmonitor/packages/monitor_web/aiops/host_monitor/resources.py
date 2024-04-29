@@ -27,7 +27,6 @@ from monitor_web.aiops.host_monitor.constant import (
     GROUP_BY_METRIC_FIELDS,
     NO_ACCESS_METRIC_ANOMALY_RANGE_COLOR,
     QUERY_METRIC_FIELDS,
-    NoAccessException,
 )
 from monitor_web.aiops.host_monitor.serializers import HostSerializer
 from monitor_web.aiops.host_monitor.utils import (
@@ -241,8 +240,8 @@ class HostIntelligenAnomalyBaseResource(Resource):
         biz_ai_setting = AiSetting(bk_biz_id=bk_biz_id)
 
         if not biz_ai_setting.multivariate_anomaly_detection.host.is_access_aiops():
-            err_msg = "bk_biz_id({}) host scene not access aiops".format(bk_biz_id)
-            raise NoAccessException(err_msg)
+            logger.error("bk_biz_id({}) host scene not access aiops".format(bk_biz_id))
+            return []
 
         intelligent_detect = biz_ai_setting.multivariate_anomaly_detection.host.intelligent_detect
 

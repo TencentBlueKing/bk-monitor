@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
 import './favorites-list.scss';
@@ -90,7 +91,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
     e.stopPropagation();
     return {
       config: data.config,
-      name: data.name
+      name: data.name,
     };
   }
 
@@ -104,7 +105,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
     const listWidth = list.offsetWidth;
     let totalWidth = 0;
     await this.$nextTick();
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const i in childs) {
       const item = childs[i] as HTMLDivElement;
       if (!item.className || item.className.indexOf('fav-list-item') === -1) continue;
@@ -226,7 +227,6 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
   }
 
   handleHighlight(item: IFavList.favList) {
-    // eslint-disable-next-line max-len
     const isSame =
       JSON.stringify(item.config) ===
       JSON.stringify(this.checkedValue?.config?.config || this.checkedValue?.config || {});
@@ -240,8 +240,8 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
         onClick={() => this.handleExpandMore()}
       >
         <div
-          class={['fav-main', { 'is-expanded': !this.isCollapsed }]}
           ref='favMain'
+          class={['fav-main', { 'is-expanded': !this.isCollapsed }]}
         >
           <div class='box-shadow'></div>
           <span class='fav-label'>{this.$t('收藏')}</span>
@@ -250,8 +250,8 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
             class={['fav-list-wrap', { 'allow-scroll': this.allowScroll && this.isExpand }]}
           >
             <ul
-              class='fav-list'
               ref='favList'
+              class='fav-list'
             >
               {this.localValue.map((item, index) => (
                 <li

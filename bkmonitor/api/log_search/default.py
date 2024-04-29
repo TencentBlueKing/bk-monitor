@@ -303,6 +303,15 @@ class UpdateIndexSetResource(IndexSetResource):
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
 
 
+class DeleteIndexSetResource(LogSearchAPIGWResource):
+    """
+    删除索引集
+    """
+
+    action = "/delete_index_set/{index_set_id}/"
+    method = "DELETE"
+
+
 class SearchPatternResource(LogSearchAPIGWResource):
     """
     查询索引集模型

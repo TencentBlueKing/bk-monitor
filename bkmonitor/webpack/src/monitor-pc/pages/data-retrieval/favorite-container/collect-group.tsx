@@ -26,10 +26,10 @@
 
 import { Component, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 
 import { FavoriteIndexType, IFavList } from '../typings';
-
 import GroupDropdown from './component/group-dropdown';
 
 import './collect-group.scss';
@@ -84,7 +84,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
         onHidden: () => {
           this.favoriteMessageInstance?.destroy();
           this.favoriteMessageInstance = null;
-        }
+        },
       });
       this.favoriteMessageInstance.show(500);
     }
@@ -105,8 +105,8 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
     const collectDropdownSlot = item => (
       <div onClick={() => (this.clickDrop = true)}>
         <GroupDropdown
-          dropType={'collect'}
           data={item}
+          dropType={'collect'}
           groupList={this.groupList}
         />
       </div>
@@ -118,8 +118,8 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
             'group-title fl-jcsb',
             {
               'is-active': !this.isClickIcon,
-              'is-move-cur': !this.isSearchFilter && !this.isCannotChange
-            }
+              'is-move-cur': !this.isSearchFilter && !this.isCannotChange,
+            },
           ]}
           onMouseenter={() => (this.isHoverTitle = true)}
           onMouseleave={() => (this.isHoverTitle = false)}
@@ -143,7 +143,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
               <div
                 class={{
                   'group-item-left': true,
-                  'active-name': this.isActiveFavorite(item.id)
+                  'active-name': this.isActiveFavorite(item.id),
                 }}
               >
                 <span

@@ -25,14 +25,14 @@
 -->
 <template>
   <div
-    class="host-detail"
     v-bkloading="{ isLoading: loading }"
+    class="host-detail"
     :class="{ 'detail-loading': loading }"
   >
     <template v-if="!loading">
       <div
-        class="host-detail-desc"
         v-if="tables.length"
+        class="host-detail-desc"
       >
         <i class="icon-monitor icon-tips" /> {{ $t('该内容是对') }} {{ tables.config_info.name }} {{ $t('进行') }}“
         <span class="desc-operate">{{ operatorMap[tables.config_info.last_operation] }}</span> ”{{
@@ -64,7 +64,6 @@ import { collectInstanceStatus } from 'monitor-api/modules/collecting';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as collectAuth from '../authority-map';
 import EmptyDetail from '../collector-add/config-delivery/empty-target';
-
 import CollectorHostStatus from './collector-host-status';
 
 export default {
@@ -72,13 +71,13 @@ export default {
   components: {
     CollectorHostStatus,
     // ConfigDeploy,
-    EmptyDetail
+    EmptyDetail,
   },
   mixins: [authorityMixinCreate(collectAuth)],
   provide() {
     return {
       authority: this.authority,
-      handleShowAuthorityDetail: this.handleShowAuthorityDetail
+      handleShowAuthorityDetail: this.handleShowAuthorityDetail,
     };
   },
   data() {
@@ -95,9 +94,9 @@ export default {
         ADD_DEL: this.$t('增删目标'),
         START: this.$t('启用'),
         STOP: this.$t('停用'),
-        AUTO_DEPLOYING: this.$t('自动执行')
+        AUTO_DEPLOYING: this.$t('自动执行'),
       },
-      statusList: ['PENDING', 'RUNNING', 'DEPLOYING', 'STARTING', 'STOPPING']
+      statusList: ['PENDING', 'RUNNING', 'DEPLOYING', 'STARTING', 'STOPPING'],
     };
   },
   async created() {
@@ -108,9 +107,9 @@ export default {
       this.loading = false;
       this.$store.commit(
         'app/SET_NAV_TITLE',
-        `${this.$t('route-' + '执行详情').replace('route-', '')}`
-          + '-'
-          + `#${this.$route.params.id} ${this.tables.config_info.name}`
+        `${this.$t('route-' + '执行详情').replace('route-', '')}` +
+          '-' +
+          `#${this.$route.params.id} ${this.tables.config_info.name}`
       );
     });
   },
@@ -120,7 +119,7 @@ export default {
   methods: {
     getHosts(count) {
       return collectInstanceStatus({ id: this.id })
-        .then((data) => {
+        .then(data => {
           if (count !== this.pollingCount) return;
           this.tables = this.handleData(data);
           this.needPolling = data.contents.some(item => item.child.some(set => this.statusList.includes(set.status)));
@@ -148,7 +147,7 @@ export default {
     },
     handleRefreshData() {
       return collectInstanceStatus({ id: this.id })
-        .then((data) => {
+        .then(data => {
           this.tables = this.handleData(data);
         })
         .catch(() => {});
@@ -159,7 +158,7 @@ export default {
       const sumData = {
         pending: {},
         success: {},
-        failed: {}
+        failed: {},
       };
       content.forEach((item, index) => {
         item.failedNum = 0;
@@ -167,7 +166,7 @@ export default {
         item.successNum = 0;
         item.table = [];
         item.expand = oldContent?.length && oldContent[index] ? oldContent[index].expand : item.child.length > 0;
-        item.child.forEach((set) => {
+        item.child.forEach(set => {
           if (set.status === 'SUCCESS') {
             item.successNum += 1;
             sumData.success[set.instance_id] = set.instance_id;
@@ -187,7 +186,7 @@ export default {
       data.headerData = headerData;
       headerData.total = headerData.successNum + headerData.failedNum + headerData.pendingNum;
       return data;
-    }
+    },
     // async handleSetPolling (v) {
     //     this.ajaxMark = true
     //     if (v) {
@@ -209,7 +208,7 @@ export default {
     //         clearTimeout(this.timer)
     //     }
     // }
-  }
+  },
 };
 </script>
 <style lang="scss" scoped>

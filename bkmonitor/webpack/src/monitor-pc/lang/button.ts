@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -299,6 +298,11 @@ export default {
   添加授权: 'Add',
   编辑授权: 'Edit',
   变更授权人: 'Change Auth Person',
+  表格: 'Table',
+  表格和火焰图: 'Tables and Flamegraph',
+  功能调用图: 'GraphViz',
+  当前查询项: 'Current Query Item',
+  参照查询项: 'Comparison Item',
 
   // 查看
   查看变更记录: 'Changelog',
@@ -458,5 +462,5 @@ export default {
   测试发送: 'Test Send',
   跳转至场景查看: 'Jump to Scene View',
   发送给自己: 'Send to yourself',
-  查看单据详情: 'View document details'
+  查看单据详情: 'View document details',
 };

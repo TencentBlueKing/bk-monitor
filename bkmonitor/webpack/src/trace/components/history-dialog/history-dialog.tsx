@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType, ref } from 'vue';
+
 import { bkTooltips, Popover } from 'bkui-vue';
 
 import ViewParam from './view-param';
@@ -33,21 +34,21 @@ import './history-dialog.scss';
 export default defineComponent({
   name: 'HistoryDialog',
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: {
     showCallback: {
       type: Function as PropType<Promise<void> | any>,
-      default: () => null
+      default: () => null,
     },
     list: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     title: {
       type: String,
-      default: window.i18n.t('变更记录')
-    }
+      default: window.i18n.t('变更记录'),
+    },
   },
   setup(props) {
     const visible = ref(false);
@@ -68,7 +69,7 @@ export default defineComponent({
 
     return {
       handleHistoryClick,
-      visible
+      visible,
     };
   },
   render() {
@@ -84,9 +85,9 @@ export default defineComponent({
         >
           <span class='icon-monitor icon-lishijilu icon'></span>
           <ViewParam
+            list={this.list}
             title={this.title}
             visible={this.visible}
-            list={this.list}
             onChange={val => (this.visible = val)}
           >
             {this.$slots.default?.()}
@@ -94,5 +95,5 @@ export default defineComponent({
         </div>
       </Popover>
     );
-  }
+  },
 });

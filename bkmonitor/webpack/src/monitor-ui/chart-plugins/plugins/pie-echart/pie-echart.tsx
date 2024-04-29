@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils/utils';
@@ -39,7 +40,7 @@ import {
   IMenuItem,
   LegendActionType,
   MonitorEchartOptions,
-  PanelModel
+  PanelModel,
 } from '../../typings';
 import CommonSimpleChart from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
@@ -81,10 +82,10 @@ class PieChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const viewOptions = {
-        ...this.viewOptions
+        ...this.viewOptions,
       };
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
@@ -93,8 +94,8 @@ class PieChart extends CommonSimpleChart {
               ...item.data,
               ...params,
               view_options: {
-                ...viewOptions
-              }
+                ...viewOptions,
+              },
             },
             { needMessage: false }
           )
@@ -144,18 +145,18 @@ class PieChart extends CommonSimpleChart {
           {
             label: {
               show: false,
-              position: 'center'
+              position: 'center',
             },
             labelLine: {
               normal: {
-                show: false
-              }
+                show: false,
+              },
             },
             radius: ['45%', '70%'],
             data: dataList,
-            type: 'pie'
-          }
-        ]
+            type: 'pie',
+          },
+        ],
       })
     ) as MonitorEchartOptions;
   }
@@ -203,24 +204,24 @@ class PieChart extends CommonSimpleChart {
       >
         <ChartHeader
           class='draggable-handle'
-          title={this.panelTitle}
           draging={this.panel.draging}
-          showMore={this.showHeaderMoreTool}
-          metrics={this.metrics}
           isInstant={this.panel.instant}
+          metrics={this.metrics}
+          showMore={this.showHeaderMoreTool}
+          title={this.panelTitle}
           onMenuClick={this.handleMenuToolsSelect}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         {!this.empty ? (
           <div class='pie-echart-content right-legend'>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               <BaseEchart
                 ref='baseChart'
-                height={this.height}
                 width={this.width}
+                height={this.height}
                 options={this.chartOption}
               />
             </div>

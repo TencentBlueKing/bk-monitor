@@ -31,15 +31,15 @@ export default [
     name: 'ai-settings',
     path: '/ai-settings',
     components: {
-      noCache: AiSettings
+      noCache: AiSettings,
     },
     meta: {
       title: 'AI设置',
       noNavBar: false,
       navId: 'ai-settings',
       route: {
-        parent: 'manager'
-      }
-    }
-  }
+        parent: 'manager',
+      },
+    },
+  },
 ].filter(Boolean) as RouteConfig[];

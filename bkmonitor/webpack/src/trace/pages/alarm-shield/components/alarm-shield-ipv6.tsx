@@ -38,7 +38,7 @@ export default defineComponent({
     checkedValue: { type: Object as PropType<IIpV6Value>, default: () => ({}) },
     originCheckedValue: { type: Object as PropType<IIpV6Value>, default: () => ({}) },
     onChange: { type: Function as PropType<(v: { value: IIpV6Value }) => void>, default: () => {} },
-    onCloseDialog: { type: Function as PropType<(v: boolean) => void>, default: () => {} }
+    onCloseDialog: { type: Function as PropType<(v: boolean) => void>, default: () => {} },
   },
   setup(props) {
     const panelList = ref<string[]>([]);
@@ -51,7 +51,7 @@ export default defineComponent({
         inited.value = false;
         nextTick(() => {
           ipCheckValue.value = {
-            [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]]
+            [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]],
           };
           panelList.value = getPanelListByDimension(v);
           setTimeout(() => (inited.value = true), 100);
@@ -63,7 +63,7 @@ export default defineComponent({
       () => props.checkedValue,
       () => {
         ipCheckValue.value = {
-          [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]]
+          [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]],
         };
       },
       { immediate: true }
@@ -75,7 +75,7 @@ export default defineComponent({
       return [];
     }
     function clearMask() {
-      const clear = (els: NodeListOf<Element> | Element[]) => {
+      const clear = (els: Element[] | NodeListOf<Element>) => {
         els.forEach((el: Element) => {
           el.parentNode.removeChild(el);
         });
@@ -96,12 +96,12 @@ export default defineComponent({
           {!!panelList.value.length && (
             <MonitorIpSelector
               mode={'dialog'}
-              panelList={panelList.value}
-              showView={true}
-              showDialog={inited.value && props.showDialog}
-              value={ipCheckValue.value}
               originalValue={props.originCheckedValue}
+              panelList={panelList.value}
+              showDialog={inited.value && props.showDialog}
+              showView={true}
               showViewDiff={props.showViewDiff}
+              value={ipCheckValue.value}
               onChange={handleIpChange}
               onCloseDialog={closeDialog}
             ></MonitorIpSelector>
@@ -113,10 +113,10 @@ export default defineComponent({
       renderFn,
       inited,
       panelList,
-      ipCheckValue
+      ipCheckValue,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

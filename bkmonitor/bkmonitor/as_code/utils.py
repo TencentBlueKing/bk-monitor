@@ -118,7 +118,7 @@ def create_conditions_expression(configs: List[Dict]):
             continue
 
         if isinstance(values[0], str) or method not in number_methods:
-            expression = f"{key}{method_mapping[method]}\"{','.join(values)}\""
+            expression = f"{key}{method_mapping[method]}\"{','.join([str(v) for v in values])}\""
         else:
             expression = f"{key}{method_mapping[method]}{','.join([str(v) for v in values])}"
 

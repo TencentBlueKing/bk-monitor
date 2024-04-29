@@ -34,7 +34,7 @@ interface ICommonItemProps {
 }
 
 @Component({
-  name: 'CommonItem'
+  name: 'CommonItem',
 })
 export default class CommonItem extends tsc<ICommonItemProps> {
   @Prop({ type: String, default: '' }) title: string;

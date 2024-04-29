@@ -186,7 +186,7 @@ class MonitorEventAdapter:
         }
 
         try:
-            if "bk_host_id" in agg_dimensions and data_dimensions.get("bk_host_id"):
+            if data_dimensions.get("bk_host_id"):
                 bk_host_id = data_dimensions.pop("bk_host_id")
                 return EventTargetType.HOST, str(bk_host_id), data_dimensions
             elif "bk_target_ip" in agg_dimensions:

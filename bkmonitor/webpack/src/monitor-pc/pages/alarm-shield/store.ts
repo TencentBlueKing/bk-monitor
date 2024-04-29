@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 export default class TableStore {
+  public count: number;
   public data: {
     id: string;
     bizId: string;
@@ -38,10 +39,9 @@ export default class TableStore {
     dimensionConfig: string;
   }[];
   public keyword: string;
-  public count: number;
   public page: number;
-  public pageSize: number;
   public pageList: number[];
+  public pageSize: number;
   public constructor(originData = [], count) {
     this.data = [];
     this.setDefaultStore();
@@ -69,7 +69,7 @@ export default class TableStore {
         failureTime: item.failure_time,
         description: item.description,
         status: item.status,
-        dimensionConfig: item.dimension_config
+        dimensionConfig: item.dimension_config,
       });
       i += 1;
     }

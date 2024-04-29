@@ -106,7 +106,7 @@ export default class GroupSelectMultiple extends tsc<IProps> {
   }
 
   @Emit('toggle')
-  handleToggle(v: Boolean) {
+  handleToggle(v: boolean) {
     return v;
   }
 
@@ -118,10 +118,10 @@ export default class GroupSelectMultiple extends tsc<IProps> {
       >
         <span class='btn-content'>{this.$slots?.default}</span>
         <bk-select
-          ext-popover-cls={'group-select-multiple-component-dropdown-content'}
-          class='select-dropdown'
           ref='selectDropdown'
+          class='select-dropdown'
           v-model={this.localValue}
+          ext-popover-cls={'group-select-multiple-component-dropdown-content'}
           popover-min-width={162}
           multiple
           onSelected={this.handleSelectChange}
@@ -129,10 +129,8 @@ export default class GroupSelectMultiple extends tsc<IProps> {
         >
           {this.list.map((item, index) => (
             <bk-option
-              key={index}
               id={item.id}
-              name={item.name}
-              disabled={this.getIsDisabel(item.id)}
+              key={index}
               v-bk-tooltips={
                 !this.getIsDisabel(item.id)
                   ? { disabled: true }
@@ -140,14 +138,16 @@ export default class GroupSelectMultiple extends tsc<IProps> {
                       content: this.$t('由匹配规则{0}生成', [this.getDisableTip(item.id)]),
                       placements: ['right'],
                       boundary: 'window',
-                      allowHTML: false
+                      allowHTML: false,
                     }
               }
+              disabled={this.getIsDisabel(item.id)}
+              name={item.name}
             ></bk-option>
           ))}
           <div
-            slot='extension'
             style='cursor: pointer'
+            slot='extension'
           >
             {this.$slots?.extension}
           </div>

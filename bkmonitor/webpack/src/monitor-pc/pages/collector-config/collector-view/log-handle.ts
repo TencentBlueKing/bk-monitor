@@ -26,7 +26,6 @@
 // 日志采集特殊处理
 import { COLLECT_CHART_TYPE } from '../../../constant/constant';
 import { IFilterCondition } from '../../data-retrieval/typings/index';
-
 import { selectAllItemKey } from './variable-settings.tsx';
 
 interface hideOptions {
@@ -50,7 +49,7 @@ const logCollectInit = (collectType: string): hideOptions => {
       viewSortHide: true,
       compareHide: true,
       searchHide: true,
-      dashboardHide: true
+      dashboardHide: true,
     };
   }
   return {
@@ -58,7 +57,7 @@ const logCollectInit = (collectType: string): hideOptions => {
     viewSortHide: false,
     compareHide: false,
     searchHide: false,
-    dashboardHide: false
+    dashboardHide: false,
   };
 };
 
@@ -113,7 +112,7 @@ const logEventRetrievalParams = (handleGroupsData, variableData, Method = 'AVG')
           group_by: timeSeriesParams[0].group_by,
           filter_dict: timeSeriesParams[0].filter_dict,
           method: Method,
-          where: timeSeriesParams[0].where
+          where: timeSeriesParams[0].where,
         },
         variableData
       );

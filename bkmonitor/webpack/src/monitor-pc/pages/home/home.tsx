@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
 import { initUnit } from 'fta-solutions/pages/home/home';
@@ -36,11 +37,10 @@ import { throttle } from 'throttle-debounce';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import NoBussiness from '../no-business/no-business.vue';
-
-import BusinessItemBigSkeleton from './skeleton/business-item-big-skeleton';
 import BusinessItemBig from './business-item-big';
 import NoBusinessItem from './no-business-item';
 import OverviewContent, { IData as IDataOverviewData } from './overview-content';
+import BusinessItemBigSkeleton from './skeleton/business-item-big-skeleton';
 
 import './home.scss';
 
@@ -63,7 +63,7 @@ const FILTER_LIST = [
   { id: 3, name: window.i18n.tc('无告警') },
   { id: 4, name: window.i18n.tc('测试中') },
   { id: 5, name: window.i18n.tc('已上线') },
-  { id: 6, name: window.i18n.tc('置顶') }
+  { id: 6, name: window.i18n.tc('置顶') },
 ];
 
 // 过滤选项对应的参数
@@ -73,13 +73,13 @@ const FILTER_PARAMS_MAP = {
   3: { alert_filter: 'no_alert' },
   4: { life_cycle: 1 },
   5: { life_cycle: 2 },
-  6: { sticky_only: true }
+  6: { sticky_only: true },
 };
 
 @Component({
-  name: 'Home'
+  name: 'Home',
 })
-export default class Home extends tsc<{}> {
+export default class Home extends tsc<object> {
   // 数据总览
   dataOverview: IDataOverview = {
     timeChecked: 7,
@@ -87,7 +87,7 @@ export default class Home extends tsc<{}> {
       { id: 1, name: window.i18n.tc('1 天') },
       { id: 7, name: window.i18n.tc('7 天') },
       { id: 15, name: window.i18n.tc('15 天') },
-      { id: 30, name: window.i18n.tc('一个月') }
+      { id: 30, name: window.i18n.tc('一个月') },
     ],
     data: [
       {
@@ -98,7 +98,7 @@ export default class Home extends tsc<{}> {
         unit: '',
         type: 'num',
         borderRight: true,
-        tip: window.i18n.tc('空间数量指个人有权限的空间数量')
+        tip: window.i18n.tc('空间数量指个人有权限的空间数量'),
       },
       {
         id: 'event',
@@ -107,7 +107,7 @@ export default class Home extends tsc<{}> {
         num: 0,
         unit: '',
         type: 'num',
-        tip: window.i18n.tc('总事件数指通过策略检测产生的所有告警明细，具体查看告警事件的关联事件')
+        tip: window.i18n.tc('总事件数指通过策略检测产生的所有告警明细，具体查看告警事件的关联事件'),
       },
       {
         id: 'alert',
@@ -116,7 +116,7 @@ export default class Home extends tsc<{}> {
         num: 0,
         unit: '',
         type: 'num',
-        tip: window.i18n.tc('总告警数指告警事件中告警数量的总和')
+        tip: window.i18n.tc('总告警数指告警事件中告警数量的总和'),
       },
       {
         id: 'action',
@@ -126,7 +126,7 @@ export default class Home extends tsc<{}> {
         unit: '',
         type: 'num',
         borderRight: true,
-        tip: window.i18n.tc('执行数指告警事件中执行记录数量的总和')
+        tip: window.i18n.tc('执行数指告警事件中执行记录数量的总和'),
       },
       {
         id: 'noise_reduction_ratio',
@@ -135,7 +135,7 @@ export default class Home extends tsc<{}> {
         num: 0,
         unit: '',
         type: '%',
-        tip: window.i18n.tc('降噪比=(总事件数-总告警数) / 总事件数 ， 降噪比越大表示告警收敛效果好')
+        tip: window.i18n.tc('降噪比=(总事件数-总告警数) / 总事件数 ， 降噪比越大表示告警收敛效果好'),
       },
       {
         id: 'auto_recovery_ratio',
@@ -145,7 +145,7 @@ export default class Home extends tsc<{}> {
         unit: '',
         type: '%',
         borderRight: true,
-        tip: window.i18n.tc('自愈覆盖率指致命告警有告警处理(除工单外) / 总致命告警数，致命告警建议补齐自愈能力')
+        tip: window.i18n.tc('自愈覆盖率指致命告警有告警处理(除工单外) / 总致命告警数，致命告警建议补齐自愈能力'),
       },
       {
         id: 'mtta',
@@ -155,7 +155,7 @@ export default class Home extends tsc<{}> {
         unit: '',
         type: 'time',
         tip: 'mttaTipRef',
-        allowHtml: true
+        allowHtml: true,
       },
       {
         id: 'mttr',
@@ -165,16 +165,16 @@ export default class Home extends tsc<{}> {
         unit: '',
         type: 'time',
         tip: 'mttrTipRef',
-        allowHtml: true
-      }
-    ]
+        allowHtml: true,
+      },
+    ],
   };
 
   businessOverview: IBusinessOverview = {
     searchValue: '',
     filterItem: 1,
     filterList: FILTER_LIST,
-    data: []
+    data: [],
   };
 
   emptyStatusType: EmptyStatusType = 'empty';
@@ -197,7 +197,7 @@ export default class Home extends tsc<{}> {
   oldSearchValue = '';
 
   showGuide = false;
-  throttledScroll: Function = () => {};
+  throttledScroll: (() => void) | throttle<(e: any) => Promise<void> | void> = () => {};
 
   get homeDays() {
     return this.dataOverview.timeChecked;
@@ -244,7 +244,7 @@ export default class Home extends tsc<{}> {
       page: 1,
       page_size: this.firstPageSize,
       allowed_only: !Boolean(this.businessOverview.searchValue),
-      ...FILTER_PARAMS_MAP[this.businessOverview.filterItem]
+      ...FILTER_PARAMS_MAP[this.businessOverview.filterItem],
     };
     const data: any = await this.getStatistics(params);
     if (data.error) this.emptyStatusType = '500';
@@ -286,23 +286,23 @@ export default class Home extends tsc<{}> {
             id: 'noise_reduction_ratio',
             name: window.i18n.tc('降噪比'),
             count: noiseReductionRatio.num,
-            unit: noiseReductionRatio.unit
+            unit: noiseReductionRatio.unit,
           },
           {
             id: 'auto_recovery_ratio',
             name: window.i18n.tc('自愈覆盖率'),
             count: autoRecoveryRatio.num,
-            unit: autoRecoveryRatio.unit
+            unit: autoRecoveryRatio.unit,
           },
           { id: 'mtta', name: 'MTTA', count: mtta.num, unit: mtta.unit },
-          { id: 'mttr', name: 'MTTR', count: mttr.num, unit: mttr.unit }
+          { id: 'mttr', name: 'MTTR', count: mttr.num, unit: mttr.unit },
         ];
         dataCounts = dataCounts.map(item => {
           const target = this.dataOverview.data?.find?.(set => set.id === item.id);
           return {
             ...item,
             tip: target?.tip,
-            allowHtml: target.allowHtml
+            allowHtml: target.allowHtml,
           };
         });
         return {
@@ -312,7 +312,7 @@ export default class Home extends tsc<{}> {
           eventCounts: [
             { id: 'event', name: window.i18n.tc('事件数'), count: event.num, unit: event.unit },
             { id: 'alert', name: window.i18n.tc('告警数'), count: alert.num, unit: alert.unit },
-            { id: 'action', name: window.i18n.tc('执行数'), count: action.num, unit: action.unit }
+            { id: 'action', name: window.i18n.tc('执行数'), count: action.num, unit: action.unit },
           ],
           seriesData: item.alert.levels,
           countSum: item.alert.levels.reduce((acc, cur) => acc + cur.count, 0),
@@ -320,14 +320,14 @@ export default class Home extends tsc<{}> {
           isFavorite: item.is_favorite,
           isSticky: item.is_sticky,
           isDemo: item.is_demo,
-          isAllowed: item.is_allowed
+          isAllowed: item.is_allowed,
         };
       }
       return {
         ...item,
         name: item.bk_biz_name,
         id: item.bk_biz_id,
-        isAllowed: item.is_allowed
+        isAllowed: item.is_allowed,
       };
     });
   }
@@ -347,7 +347,7 @@ export default class Home extends tsc<{}> {
         page: this.page,
         page_size: this.pageSize,
         allowed_only: !Boolean(this.businessOverview.searchValue),
-        ...FILTER_PARAMS_MAP[this.businessOverview.filterItem]
+        ...FILTER_PARAMS_MAP[this.businessOverview.filterItem],
       };
       const data: any = await this.getStatistics(params);
       this.getUpdataTime(data.update_time);
@@ -431,16 +431,16 @@ export default class Home extends tsc<{}> {
                 </span>
                 <span class='right'>
                   <bk-select
-                    v-model={this.dataOverview.timeChecked}
                     ext-cls='time-select'
+                    v-model={this.dataOverview.timeChecked}
                     clearable={false}
                     popover-width={70}
                     on-change={() => this.init(true)}
                   >
                     {this.dataOverview.timeOption.map(option => (
                       <bk-option
-                        key={option.id}
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       ></bk-option>
                     ))}
@@ -463,23 +463,23 @@ export default class Home extends tsc<{}> {
                 </span>
                 <span class='right'>
                   <bk-input
+                    v-model={this.businessOverview.searchValue}
                     placeholder={this.$t('输入空间ID、空间名')}
                     right-icon='bk-icon icon-search'
-                    v-model={this.businessOverview.searchValue}
-                    on-right-icon-click={() => this.isCanSearch() && this.init()}
-                    on-enter={() => this.isCanSearch() && this.init()}
                     on-blur={() => this.isCanSearch() && this.init()}
+                    on-enter={() => this.isCanSearch() && this.init()}
+                    on-right-icon-click={() => this.isCanSearch() && this.init()}
                   ></bk-input>
                   <bk-select
+                    ext-cls='filter-select'
                     v-model={this.businessOverview.filterItem}
                     clearable={false}
-                    ext-cls='filter-select'
                     on-change={() => this.init()}
                   >
                     {this.businessOverview.filterList.map(option => (
                       <bk-option
-                        key={option.id}
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       ></bk-option>
                     ))}
@@ -540,10 +540,10 @@ export default class Home extends tsc<{}> {
         ></div>
         <MonitorDialog
           class='no-business-guide'
+          fullScreen={true}
+          needFooter={false}
           value={this.showGuide}
           onChange={v => (this.showGuide = v)}
-          needFooter={false}
-          fullScreen={true}
         >
           <div class='no-business-guide-body'>
             <NoBussiness />

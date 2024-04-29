@@ -19,10 +19,11 @@ from uuid import UUID
 from weakref import ReferenceType
 from weakref import ref as weak_ref
 
-from apm_web.utils import percentile
-from constants.apm import OtlpKey, SpanKind
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.trace import StatusCode
+
+from apm_web.utils import percentile
+from constants.apm import OtlpKey, SpanKind
 
 logger = logging.getLogger(__name__)
 
@@ -765,7 +766,7 @@ class TraceTree:
             parent_id = span[OtlpKey.PARENT_SPAN_ID]
 
             # root's parent_id is empty
-            if parent_id not in all_spans_map:
+            if parent_id not in all_spans_map or parent_id == span["span_id"]:
                 root = SpanNode.make_root(span, config)
                 self.add_root(root, config)
 
@@ -781,12 +782,14 @@ class TraceTree:
                 # parent has not been added
                 needing_parents[parent_id].append(node)
             else:
-                # parent already added
-                self.nodes_map[parent_id].add_child(node)
+                if node.id != parent_id:
+                    # parent already added
+                    self.nodes_map[parent_id].add_child(node)
 
             # if this node is other's parent, and needs to be added
             for child in needing_parents[node.id]:
-                node.add_child(child)
+                if child.id != node.id:
+                    node.add_child(child)
 
     def add_aggregations(self, node: SpanNode):
         for agg_type, (agg_map, agg_cls) in self._aggregations.items():
@@ -898,9 +901,14 @@ class TraceTree:
         if not self.is_ready:
             raise ValueError("Can not call build_extras when tree is not ready yet.")
 
+        processed_nodes = set()
+
         def build_node_extras(node: SpanNode):
             """Building node extras."""
+            if node.id in processed_nodes:
+                return []
 
+            processed_nodes.add(node.id)
             for child in node.children:
                 build_node_extras(child)
 

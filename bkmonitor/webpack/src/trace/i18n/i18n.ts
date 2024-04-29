@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { createI18n } from 'vue-i18n';
+
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
 import { mergeI18nJson } from 'monitor-pc/i18n/commmon';
@@ -44,8 +45,8 @@ const i18n = createI18n({
   // allowComposition: true,
   // legacy: false,
   messages: {
-    ...mergeI18nJson()
-  }
+    ...mergeI18nJson(),
+  },
 });
 window.i18n = i18n.global;
 export default i18n;

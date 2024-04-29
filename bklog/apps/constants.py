@@ -139,7 +139,6 @@ FULL_TEXT_SEARCH_FIELD_NAME = _("全文检索")
 
 DEFAULT_FIELD_OPERATOR = "~="
 FIELD_GROUP_OPERATOR = "()"
-NOT_OPERATOR = "NOT"
 PLUS_OPERATOR = "+"
 PROHIBIT_OPERATOR = "-"
 
@@ -152,6 +151,63 @@ BRACKET_DICT = {"[": "]", "(": ")", "{": "}"}
 
 # 最大语法修复次数
 MAX_RESOLVE_TIMES = 10
+
+# Lucene数值类字段操作符
+LUCENE_NUMERIC_OPERATORS = ["<", "<=", ">", ">=", "="]
+# Lucene数值类类型列表
+LUCENE_NUMERIC_TYPES = ["long", "integer", "short", "double", "float"]
+
+
+class LuceneReservedLogicOperatorEnum(ChoicesEnum):
+    """
+    Lucene保留逻辑操作符枚举
+    """
+    AND = "AND"
+    OR = "OR"
+    NOT = "NOT"
+
+    _choices_keys = (AND, OR, NOT)
+
+
+# Lucene保留字符
+LUCENE_RESERVED_CHARS = ["+", "-", "=", "&", "&&", ">", "<", "!", "(", ")", "}", "[", "]", '"', "~", "*", "?", ":", "/"]
+# 全角冒号
+FULL_WIDTH_COLON = "："
+# 全角字符转半角字符
+FULL_WIDTH_CHAR_MAP = {
+    "（": "(",
+    "）": ")",
+    "【": "[",
+    "】": "]",
+    "］": "]",
+    "［": "[",
+    "｛": "{",
+    "｝": "}",
+    "＋": "+",
+    "－": "-",
+    "＝": "=",
+    "＆": "&",
+    "＜": "<",
+    "＞": ">",
+    "！": "!",
+    "＂": '"',
+    "～": "~",
+    "＊": "*",
+    "？": "?",
+    "：": ":",
+    "／": "/",
+    "”": '"',
+    "“": '"',
+    "‘": "'",
+    "’": "'",
+    "，": ",",
+    "。": ".",
+    "、": "\\",
+    "；": ";",
+    "·": ".",
+    "《": "<",
+    "》": ">",
+}
 
 # 默认JOB执行脚本超时时间
 DEFAULT_EXECUTE_SCRIPT_TIMEOUT = 600
@@ -318,6 +374,9 @@ class ViewSetActionEnum(ChoicesEnum):
     SEARCH_VIEWSET_HISTORY = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="history"
     )
+    SEARCH_VIEWSET_OPTION_HISTORY = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="option_history"
+    )
     SEARCH_VIEWSET_CONFIG = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="config"
     )
@@ -419,6 +478,10 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="IpChooserConfigViewSet",
         default_permission=True,
     )
+    # ======================================= 收藏联合查询-FavoriteUnionSearchViewSet =======================================
+    FAVORITE_UNION_SEARCH_VIEWSET_LIST = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteUnionSearchViewSet", view_action="list"
+    )
     # ======================================= BizsViewSet =======================================
     # BizsViewSet, get_display_name 默认允许
     BIZS_VIEWSET_HOST_DISPLAY_NAME = ViewSetAction(
@@ -449,6 +512,7 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_EXPORT,
         SEARCH_VIEWSET_ASYNC_EXPORT,
         SEARCH_VIEWSET_HISTORY,
+        SEARCH_VIEWSET_OPTION_HISTORY,
         SEARCH_VIEWSET_GET_EXPORT_HISTORY,
         SEARCH_VIEWSET_CONFIG,
         SEARCH_VIEWSET_CREATE_CONFIG,
@@ -476,6 +540,8 @@ class ViewSetActionEnum(ChoicesEnum):
         FAVORITE_GROUP_VIEWSET_CREATE,
         FAVORITE_GROUP_VIEWSET_UPDATE,
         FAVORITE_GROUP_VIEWSET_DESTROY,
+        # =================================== 收藏联合查询-FavoriteUnionSearchViewSet ==================================
+        FAVORITE_UNION_SEARCH_VIEWSET_LIST,
         # ======================================= IP选择器 =======================================
         IP_CHOOSER_TOPO_VIEWSET,
         IP_CHOOSER_HOST_VIEWSET,

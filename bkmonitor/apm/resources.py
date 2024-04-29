@@ -57,6 +57,7 @@ from apm.models.profile import ProfileService
 from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
+from apm_web.profile.constants import DataType
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -1650,4 +1651,5 @@ class QueryProfileServiceDetailResource(Resource):
         if validated_data.get("data_type"):
             params["data_type"] = validated_data["data_type"]
 
-        return ProfileService.objects.filter(**params).order_by("created_at")
+        # TODO 一期暂时过滤除 CPU 外的数据类型
+        return ProfileService.objects.filter(**params).exclude(~Q(data_type=DataType.CPU.value)).order_by("created_at")

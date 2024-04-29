@@ -29,12 +29,13 @@ export default [
   {
     path: '/report',
     name: 'report',
-    component: () => import(/* webpackChunkName: "report" */ '../../pages/email-subscription/email-subscription-config')
+    component: () =>
+      import(/* webpackChunkName: "report" */ '../../pages/email-subscription/email-subscription-config'),
   },
   {
     path: '/report/create',
     name: 'create-report',
     component: () =>
-      import(/* webpackChunkName: "create-report" */ '../../pages/email-subscription/create-subscription')
-  }
+      import(/* webpackChunkName: "create-report" */ '../../pages/email-subscription/create-subscription'),
+  },
 ] as RouteRecordRaw[];

@@ -77,7 +77,7 @@ export const handleTimeRange = (timeRange: number | string | string[]): { startT
   }
   return {
     startTime,
-    endTime
+    endTime,
   };
 };
 
@@ -91,7 +91,7 @@ export const queryConfigTransform = (queryConfig: any, viewOptions: IViewOptions
   ...queryConfig,
   group_by: viewOptions?.group_by?.length ? viewOptions?.group_by : queryConfig?.group_by,
   interval: viewOptions?.interval || queryConfig?.interval,
-  method: viewOptions?.method || queryConfig?.method
+  method: viewOptions?.method || queryConfig?.method,
 });
 /**
  * @description: 转换跳转日志平台所需的url参数
@@ -108,13 +108,13 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
       addition?.map(set => ({
         field: set.key,
         operator: set.method,
-        value: (set.value || []).join(',')
+        value: (set.value || []).join(','),
       })) || [],
-    // eslint-disable-next-line camelcase
+
     start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    // eslint-disable-next-line camelcase
+
     end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    time_range
+    time_range,
   };
   queryStr = Object.keys(queryObj).reduce((str, key, i) => {
     const itemVal = (queryObj as any)[key];
@@ -143,7 +143,7 @@ export function handleExplore(
   const variablesService = new VariablesService(scopedVars);
   targets.forEach(target => {
     target.data.query_configs =
-      target?.data?.query_configs.map((queryConfig: string | Record<string, any>) =>
+      target?.data?.query_configs.map((queryConfig: Record<string, any> | string) =>
         queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars)
       ) || [];
   });
@@ -156,16 +156,16 @@ export function handleExplore(
   );
   if (!autoNavTo) return targets;
   if (isLog) {
-    const { startTime, endTime } = handleTimeRange(timeRange as any);
+    const [startTime, endTime] = timeRange;
     const queryConfig = targets[0].data.query_configs[0];
     const retrieveParams: ILogUrlParams = {
       // 检索参数
       bizId: window.cc_biz_id.toString(),
       keyword: queryConfig.query_string, // 搜索关键字
       addition: queryConfig.where || [],
-      start_time: startTime * 1000,
-      end_time: endTime * 1000,
-      time_range: 'customized'
+      start_time: startTime,
+      end_time: endTime,
+      time_range: 'customized',
     };
     const indexSetId = queryConfig.index_set_id;
     const queryStr = transformLogUrlQuery(retrieveParams);
@@ -284,8 +284,8 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   tableTdArr = data[0].datapoints.map(set => [
     {
       value: dayjs.tz(set[1]).format('YYYY-MM-DD HH:mm:ss'),
-      originValue: set[1]
-    }
+      originValue: set[1],
+    },
   ]);
   data.forEach(item => {
     item.datapoints.forEach((set, index) => {
@@ -293,14 +293,14 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
         max: false,
         min: false,
         value: set[0],
-        originValue: set[0]
+        originValue: set[0],
       });
     });
   });
   // 计算极值
   const maxMinMap = tableThArr.map(() => ({
     max: null,
-    min: null
+    min: null,
   }));
   tableThArr.forEach((th, index) => {
     if (index > 0) {
@@ -331,7 +331,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   });
   return {
     tableThArr,
-    tableTdArr
+    tableTdArr,
   };
 };
 
@@ -388,7 +388,7 @@ export function handleAddStrategy(
     if (!metric) {
       result = {
         expression: '',
-        query_configs: []
+        query_configs: [],
       };
       targets.forEach(target => {
         target.data?.query_configs?.forEach((queryConfig: any) => {
@@ -410,7 +410,7 @@ export function handleAddStrategy(
             config = variablesService.transformVariables(config);
             result = {
               ...target.data,
-              query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)]
+              query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
             };
           }
         });

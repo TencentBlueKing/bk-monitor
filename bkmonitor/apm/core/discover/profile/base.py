@@ -34,6 +34,9 @@ class Discover(abc.ABC):
         self.app_name = datasource.app_name
         self.retention = datasource.retention
         self.result_table_id = datasource.result_table_id
+        logger.info(
+            f"InitDiscover: bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} table_id: {self.result_table_id}"
+        )
 
     def discover(self, start_time, end_time):
         raise NotImplementedError

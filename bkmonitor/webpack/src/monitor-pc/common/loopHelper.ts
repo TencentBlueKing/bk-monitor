@@ -24,29 +24,16 @@
  * IN THE SOFTWARE.
  */
 class LoopHelper {
+  public intervalTimer: number;
   public loopHelper: number;
   public timeoutTimer: number;
-  public intervalTimer: number;
   public constructor() {
     this.loopHelper = null;
     this.timeoutTimer = null;
   }
 
-  public setTimeout(cb, interval) {
-    // 实现setTimeout功能
-    const { now } = Date;
-    const stime = now();
-    let etime = stime;
-    const loop = () => {
-      this.timeoutTimer = requestAnimationFrame(loop);
-      etime = now();
-      if (etime - stime >= interval) {
-        cb();
-        cancelAnimationFrame(this.timeoutTimer);
-      }
-    };
-    this.timeoutTimer = requestAnimationFrame(loop);
-    return this.timeoutTimer;
+  public clearInterval() {
+    cancelAnimationFrame(this.intervalTimer);
   }
 
   public clearTimeout() {
@@ -71,8 +58,21 @@ class LoopHelper {
     return this.intervalTimer;
   }
 
-  public clearInterval() {
-    cancelAnimationFrame(this.intervalTimer);
+  public setTimeout(cb, interval) {
+    // 实现setTimeout功能
+    const { now } = Date;
+    const stime = now();
+    let etime = stime;
+    const loop = () => {
+      this.timeoutTimer = requestAnimationFrame(loop);
+      etime = now();
+      if (etime - stime >= interval) {
+        cb();
+        cancelAnimationFrame(this.timeoutTimer);
+      }
+    };
+    this.timeoutTimer = requestAnimationFrame(loop);
+    return this.timeoutTimer;
   }
 }
 

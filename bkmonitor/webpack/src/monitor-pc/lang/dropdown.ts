@@ -86,6 +86,8 @@ export default {
   'Span 详情': 'Span Detail',
   重置图表: 'Reset Chart',
   '高亮相似 Span': 'Highlight Similar Span',
+  '高亮相似 Node': 'Highlight Similar Node',
+  复制函数名称: 'Copy Function Name',
   内网IPv4: 'Intranet IPv4',
   外网IPv4: 'Extranet IPv4',
   内网IPv6: 'Intranet IPv6',
@@ -94,5 +96,5 @@ export default {
   日期选择: 'Date selection',
   指定时间: 'Specify time',
   我申请的: 'My Application',
-  我的订阅: 'My Subscription'
+  我的订阅: 'My Subscription',
 };

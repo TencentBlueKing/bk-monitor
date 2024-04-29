@@ -27,8 +27,8 @@ import { ChartType, ILegendItem } from './type-interface';
 
 export default class EchartsSeries {
   public chartType: Partial<ChartType>;
-  public series = [];
   public colors = [];
+  public series = [];
   public constructor(chartType: ChartType, seriesData = [], colors = []) {
     this.chartType = chartType;
     this.series = seriesData;
@@ -47,7 +47,7 @@ export default class EchartsSeries {
         avg: 0,
         total: 0,
         color: this.colors[index % this.colors.length],
-        show: true
+        show: true,
       };
       item.data.forEach((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && seriesItem[1]) {
@@ -65,11 +65,11 @@ export default class EchartsSeries {
                 borderWidth: 6,
                 enabled: true,
                 shadowBlur: 0,
-                opacity: 1
+                opacity: 1,
               },
               label: {
-                show: false
-              }
+                show: false,
+              },
             };
           } else {
             const hasBrother = pre && next && pre.length && next.length && !pre[1] && !next[1];
@@ -80,8 +80,8 @@ export default class EchartsSeries {
                 borderWidth: hasBrother ? 4 : 1,
                 enabled: true,
                 shadowBlur: 0,
-                opacity: 1
-              }
+                opacity: 1,
+              },
             };
           }
         } else if (seriesItem.symbolSize) {
@@ -96,7 +96,7 @@ export default class EchartsSeries {
         showSymbol,
         symbol: 'circle',
         z: 4,
-        smooth: 0.2
+        smooth: 0.2,
       };
       if (thresholdLine?.length) {
         seriesItem.markLine = this.handleSetThresholdLine(thresholdLine);
@@ -109,26 +109,6 @@ export default class EchartsSeries {
     });
     return { legendData, series };
   }
-  // 设置阈值线
-  public handleSetThresholdLine(thresholdLine: { value: number; name: string }[]) {
-    return {
-      symbol: [],
-      label: {
-        show: true,
-        position: 'insideStartTop'
-      },
-      lineStyle: {
-        color: '#FD9C9C',
-        type: 'dashed',
-        distance: 3,
-        width: 1
-      },
-      data: thresholdLine.map(item => ({
-        name: item.name,
-        yAxis: item.value
-      }))
-    };
-  }
   // 设置阈值面板
   public handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
     return {
@@ -139,19 +119,39 @@ export default class EchartsSeries {
         borderWidth: 1,
         borderColor: '#FFE9D5',
         shadowColor: '#FFF5EC',
-        shadowBlur: 0
+        shadowBlur: 0,
       },
       data: plotBands.map(item => [
         {
           xAxis: item.from,
-          yAxis: 0
+          yAxis: 0,
         },
         {
           xAxis: item.to || 'max',
-          yAxis: 'max' // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
-        }
+          yAxis: 'max', // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
+        },
       ]),
-      opacity: 0.1
+      opacity: 0.1,
+    };
+  }
+  // 设置阈值线
+  public handleSetThresholdLine(thresholdLine: { value: number; name: string }[]) {
+    return {
+      symbol: [],
+      label: {
+        show: true,
+        position: 'insideStartTop',
+      },
+      lineStyle: {
+        color: '#FD9C9C',
+        type: 'dashed',
+        distance: 3,
+        width: 1,
+      },
+      data: thresholdLine.map(item => ({
+        name: item.name,
+        yAxis: item.value,
+      })),
     };
   }
 }

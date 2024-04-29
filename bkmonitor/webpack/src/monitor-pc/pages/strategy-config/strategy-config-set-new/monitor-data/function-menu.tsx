@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -33,10 +34,10 @@ import './function-menu.scss';
 export interface IFunctionParam {
   id?: string;
   name?: string;
-  default: string | number;
-  value?: string | number;
+  default: number | string;
+  value?: number | string;
   edit?: boolean;
-  shortlist: string[] | number[];
+  shortlist: number[] | string[];
 }
 
 export interface IFunctionItem {
@@ -70,12 +71,11 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
 
   get filterList() {
     if (!this.keyword) return this.list;
-    return this.list.filter(
-      func => func?.children?.some(item => item.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()))
+    return this.list.filter(func =>
+      func?.children?.some(item => item.name.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()))
     );
   }
   get activeFuncList() {
-    // eslint-disable-next-line max-len
     return (
       this.filterList
         .find(item => item.id === this.activeFuncType)
@@ -131,7 +131,7 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
       interactive: true,
       boundary: 'window',
       offset: -1,
-      distance: 12
+      distance: 12,
     });
     this.popoverInstance?.show?.(100);
   }
@@ -157,14 +157,14 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
         </div>
         <div style='display: none;'>
           <div
-            class='function-menu-panel'
             ref='menuPanel'
+            class='function-menu-panel'
           >
             <bk-input
               class='panel-search'
-              rightIcon='bk-icon icon-search'
               behavior='simplicity'
               placeholder={this.$t('搜索函数')}
+              rightIcon='bk-icon icon-search'
               value={this.keyword}
               on-change={this.handleKeywordChange}
             ></bk-input>
@@ -173,8 +173,8 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
                 <ul class='panel-item'>
                   {this.filterList.map((item: IFunctionItem) => (
                     <li
-                      class={['list-item', { 'item-active': item.id === this.activeFuncType }]}
                       key={item.id}
+                      class={['list-item', { 'item-active': item.id === this.activeFuncType }]}
                       on-mouseenter={() => this.handleFuncTypeMouseenter(item)}
                     >
                       {item.name}
@@ -189,8 +189,8 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
                     (item: IFunctionItem) =>
                       item.id.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()) && (
                         <li
-                          class={['list-item', { 'item-active': item.id === this.activeFuncId }]}
                           key={item.id}
+                          class={['list-item', { 'item-active': item.id === this.activeFuncId }]}
                           on-click={() => this.handleSelectFunc(item)}
                           on-mouseenter={() => this.handleFuncMouseenter(item)}
                         >

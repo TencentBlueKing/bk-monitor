@@ -25,16 +25,17 @@
  */
 
 import { computed, defineComponent, ref, watch } from 'vue';
+
 import { Slider } from 'bkui-vue';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
-import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { useTraceStore } from '../../store/modules/trace';
 import { formatDuration } from '../trace-view/utils/date';
-
 import BarChart from './bar-chart';
 import { BASE_BAR_OPTIONS, DURATION_AVERAGE_COUNT, DurationDataModal } from './utils';
+
+import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './chart-filtering.scss';
 
@@ -68,7 +69,7 @@ export default defineComponent({
       scaleRange: [0, DURATION_AVERAGE_COUNT], // 刻度范围
       min: 0, // 最小值
       max: 0, // 最大值
-      step: 0 // 步长 / 刻度
+      step: 0, // 步长 / 刻度
     });
 
     /** trace列表数据 */
@@ -84,7 +85,7 @@ export default defineComponent({
         scaleRange: [0, DURATION_AVERAGE_COUNT],
         min,
         max,
-        step
+        step,
       };
 
       if (store.filterTraceList.length) {
@@ -106,7 +107,7 @@ export default defineComponent({
       if (listData.value.length) {
         durationModal.value = new DurationDataModal(listData.value);
         const { minDuration, maxDuration, durationStep, xAxisData, seriesData } = durationModal.value;
-        // eslint-disable-next-line max-len
+
         const echartOptions = deepmerge(deepClone(BASE_BAR_OPTIONS), {});
         chartOptions.value = Object.freeze(
           deepmerge(echartOptions, {
@@ -119,7 +120,7 @@ export default defineComponent({
                 const startLabel = formatDuration(Number(start || 0));
                 const endLabel = formatDuration(Number(end || 0));
                 return `${startLabel} - ${endLabel} : ${params.value}`;
-              }
+              },
             },
             series: {
               data: seriesData,
@@ -128,10 +129,10 @@ export default defineComponent({
               barCategoryGap: -1,
               itemStyle: {
                 normal: {
-                  color: (params: any) => formatterDurationFunc(params, xAxisData)
-                }
-              }
-            }
+                  color: (params: any) => formatterDurationFunc(params, xAxisData),
+                },
+              },
+            },
           })
         ) as MonitorEchartOptions;
         handleSetDurationSlider(minDuration, maxDuration, durationStep);
@@ -185,7 +186,7 @@ export default defineComponent({
       barChartref,
       chartOptions,
       durationSlider,
-      handleDurationChange
+      handleDurationChange,
     };
   },
   render() {
@@ -208,15 +209,15 @@ export default defineComponent({
             <Slider
               class='slider-range'
               v-model={this.durationSlider.curValue}
-              range
-              minValue={this.durationSlider.min}
               maxValue={this.durationSlider.max}
+              minValue={this.durationSlider.min}
               step={this.durationSlider.step}
+              range
               onChange={this.handleDurationChange}
             />
           </div>
         )}
       </div>
     );
-  }
+  },
 });

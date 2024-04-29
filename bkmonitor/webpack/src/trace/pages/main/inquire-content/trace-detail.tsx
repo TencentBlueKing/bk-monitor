@@ -33,9 +33,10 @@ import {
   reactive,
   ref,
   toRefs,
-  watch
+  watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/index';
@@ -67,19 +68,19 @@ const { TabPanel } = Tab;
 const TraceDetailProps = {
   isInTable: {
     type: Boolean,
-    default: false
+    default: false,
   },
   appName: {
     type: String,
-    default: true
+    default: true,
   },
   traceID: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 };
 
-type IPanelEnum = 'timeline' | 'topo' | 'statistics' | 'flame' | 'sequence';
+type IPanelEnum = 'flame' | 'sequence' | 'statistics' | 'timeline' | 'topo';
 
 interface ITabItem {
   id: string; // id
@@ -90,7 +91,7 @@ interface ITabItem {
 interface IState {
   activePanel: IPanelEnum;
   searchKeywords: string[];
-  selectClassifyFilters: { [key: string]: string | number };
+  selectClassifyFilters: { [key: string]: number | string };
   tabPanels: ITabItem[];
   matchedSpanIds: number;
   traceMainStyle: string;
@@ -119,7 +120,7 @@ export default defineComponent({
     const cacheFilterToolsValues = {
       waterFallAndTopo: ['duration'],
       sequenceAndFlame: [''],
-      statistics: ['endpoint', 'service']
+      statistics: ['endpoint', 'service'],
     };
     let resizeObserver: any = null;
     const state = reactive<IState>({
@@ -139,7 +140,7 @@ export default defineComponent({
         { id: 'topo', name: t('节点拓扑'), icon: 'Component' },
         { id: 'statistics', name: t('表格统计'), icon: 'table' },
         { id: 'sequence', name: t('时序图'), icon: 'Sequence' },
-        { id: 'flame', name: t('火焰图'), icon: 'Flame' }
+        { id: 'flame', name: t('火焰图'), icon: 'Flame' },
       ],
       isClassifyFilter: false,
       filterSpanIds: [],
@@ -147,7 +148,7 @@ export default defineComponent({
       isCollapsefilter: false,
       isCompareView: false,
       compareTraceID: '',
-      compareSpanList: []
+      compareSpanList: [],
     });
     const traceView = ref(null);
     const traceDetailElem = ref(null);
@@ -163,7 +164,7 @@ export default defineComponent({
     const viewTool = ref(null);
     const traceGraphResize = ref(null);
     const compareSelect = ref(null);
-    let resetFilterListFunc: Function | null = null;
+    let resetFilterListFunc: (() => void) | null = null;
     /** span list 面板宽度 */
     const spanListWidth = ref(350);
     /** 记录 span list 面板关闭前宽度 由于组件参数执行顺序问题 需要记录关闭前重新打开后进行初始化 */
@@ -199,7 +200,7 @@ export default defineComponent({
       }, 0)
     );
     // 层级数
-    // eslint-disable-next-line prefer-spread
+
     const spanDepth = computed<number>(
       () =>
         Math.max.apply(
@@ -208,7 +209,7 @@ export default defineComponent({
         ) + 1
     );
     /** 工具栏过滤选项 */
-    // eslint-disable-next-line max-len
+
     const filterToolList = computed(() =>
       TRACE_INFO_TOOL_FILTERS.filter(item => item.show && item.effect.includes(state.activePanel))
     );
@@ -232,7 +233,7 @@ export default defineComponent({
         (msg: string) => {
           Message({
             message: msg,
-            theme: 'error'
+            theme: 'error',
           });
           return;
         },
@@ -241,7 +242,7 @@ export default defineComponent({
       Message({
         message: t('复制成功'),
         theme: 'success',
-        width: 200
+        width: 200,
       });
     };
     /**
@@ -338,7 +339,7 @@ export default defineComponent({
         // 统计过滤参数
         const filterDict: IFilterItem = {
           type: classify.type,
-          value: classify.type === 'service' ? classify.filter_value : ''
+          value: classify.type === 'service' ? classify.filter_value : '',
         };
         (statisticsElem.value as any).handleKeywordFliter(filterDict);
       } else if (['timeline', 'topo'].includes(state.activePanel)) {
@@ -442,12 +443,11 @@ export default defineComponent({
           comps?.handleKeywordFliter(val);
           break;
         case 'statistics':
-          // eslint-disable-next-line no-case-declarations
           let filterDict: IFilterItem | null = null; // 统计内容搜索参数
           if (val.length) {
             filterDict = {
               type: 'keyword',
-              value: val.toString()
+              value: val.toString(),
             };
           }
           comps?.handleKeywordFliter(filterDict);
@@ -528,11 +528,11 @@ export default defineComponent({
           bk_biz_id: window.bk_biz_id,
           app_name: props.appName,
           trace_id: traceId,
-          displays
+          displays,
         };
 
         await traceDetail(params, {
-          cancelToken: new CancelToken((c: any) => (searchCancelFn = c))
+          cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
         }).then(async data => {
           await store.setTraceData({ ...data, appName: props.appName, trace_id: traceId });
           contentLoading.value = false;
@@ -542,7 +542,7 @@ export default defineComponent({
           // 由于 瀑布图/拓扑图 和 时序图/火焰图 的选项有重叠部分 需要做差异同步
           cacheFilterToolsValues.waterFallAndTopo = [
             ...cacheFilterToolsValues.waterFallAndTopo.filter(item => item === 'duration'),
-            ...val
+            ...val,
           ];
         } else cacheFilterToolsValues.waterFallAndTopo = val;
       }
@@ -570,7 +570,7 @@ export default defineComponent({
       }
     };
     /** 时序图过滤 span */
-    const handleSpanListFilter = (spanList: string[], subTitle = '', filterFunc: Function) => {
+    const handleSpanListFilter = (spanList: string[], subTitle = '', filterFunc: () => void) => {
       !spanList?.length && resetFilterListFunc?.();
       resetFilterListFunc = filterFunc;
       state.filterSpanIds = spanList;
@@ -641,7 +641,7 @@ export default defineComponent({
         Message({
           message: t('对比的TraceID相同'),
           theme: 'warning',
-          width: 200
+          width: 200,
         });
         return;
       }
@@ -732,7 +732,7 @@ export default defineComponent({
       compareSelect,
       handleCompareSpanListChange,
       filterKeywords,
-      updateCompareStatus
+      updateCompareStatus,
     };
   },
 
@@ -743,10 +743,10 @@ export default defineComponent({
 
     return (
       <Loading
-        zIndex={99999}
-        loading={this.isLoading}
-        class={`trace-detail-wrapper is-fix ${isInTable ? 'is-table-detail' : ''} ${this.isSticky ? 'is-sticky' : ''}`}
         ref='traceDetailElem'
+        class={`trace-detail-wrapper is-fix ${isInTable ? 'is-table-detail' : ''} ${this.isSticky ? 'is-sticky' : ''}`}
+        loading={this.isLoading}
+        zIndex={99999}
       >
         {this.isInTable && (
           <div
@@ -760,9 +760,9 @@ export default defineComponent({
         <div class='header'>
           <span class='trace-id'>{traceId}</span>
           <Popover
-            theme='light'
-            placement='right'
             content={this.$t('复制 TraceID')}
+            placement='right'
+            theme='light'
           >
             <span
               class='icon-monitor icon-mc-copy'
@@ -770,9 +770,9 @@ export default defineComponent({
             />
           </Popover>
           <Popover
-            theme='light'
-            placement='right'
             content={this.$t('复制链接')}
+            placement='right'
+            theme='light'
           >
             <span
               class='icon-monitor icon-copy-link'
@@ -781,8 +781,8 @@ export default defineComponent({
           </Popover>
         </div>
         <div
-          class={['base-message', { 'is-wrap': this.isbaseMessageWrap }]}
           ref='baseMessage'
+          class={['base-message', { 'is-wrap': this.isbaseMessageWrap }]}
         >
           <div class='message-item'>
             <label>{this.$t('产生时间')}</label>
@@ -793,8 +793,8 @@ export default defineComponent({
             <span>{formatDuration(traceInfo?.trace_duration)}</span>
             {traceInfo?.time_error && (
               <Popover
-                placement='top'
                 content={this.$t('时间经过校准，注意服务所在时钟是否同步')}
+                placement='top'
               >
                 <span class='icon-monitor icon-tips'></span>
               </Popover>
@@ -828,25 +828,24 @@ export default defineComponent({
                     this.selectClassifyFilters[card.filter_key] === card.filter_value &&
                     (this.selectClassifyFilters.app_name
                       ? this.selectClassifyFilters.app_name === card.app_name
-                      : !card.app_name)
-                }
+                      : !card.app_name),
+                },
               ]}
-              // eslint-disable-next-line @typescript-eslint/no-misused-promises
               onClick={() => this.handleSelectFilters(card)}
             >
               {card.type === 'service' && (
                 <span
-                  class='service-mark'
                   style={`background:${card.color}`}
+                  class='service-mark'
                 />
               )}
-              {/* eslint-disable-next-line no-nested-ternary */}
+              {}
               {card.type === 'service' ? (
                 card.icon ? (
                   <img
                     class='service-icon'
-                    src={card.icon}
                     alt=''
+                    src={card.icon}
                   />
                 ) : (
                   ''
@@ -860,13 +859,11 @@ export default defineComponent({
           ))}
         </div>
         <div
-          class='trace-main'
           ref='traceMainElem'
+          class='trace-main'
         >
           <MonitorTab
             class='trace-main-tab'
-            active={this.activePanel}
-            onTabChange={this.handleTabChange}
             v-slots={{
               setting: () =>
                 // 时序图暂不支持
@@ -877,21 +874,21 @@ export default defineComponent({
                         ref='compareSelect'
                         appName={this.appName}
                         targetTraceID={this.compareTraceID}
-                        onCompare={this.handleCompare}
                         onCancel={this.handleCancelCompare}
+                        onCompare={this.handleCompare}
                       />
                     ) : (
                       ''
                     )}
                     <SearchBar
                       ref='searchBarElem'
+                      clearSearch={this.clearSearch}
                       limitClassify={!!Object.keys(this.selectClassifyFilters).length}
-                      trackFilter={val => this.trackFilter(val)}
-                      resultCount={this.matchedSpanIds}
                       nextResult={this.nextResult}
                       prevResult={this.prevResult}
-                      clearSearch={this.clearSearch}
+                      resultCount={this.matchedSpanIds}
                       showResultCount={this.activePanel !== 'statistics'}
+                      trackFilter={val => this.trackFilter(val)}
                     />
                     {['timeline', 'flame'].includes(this.activePanel) ? (
                       <div class='ellipsis-direction'>
@@ -924,22 +921,24 @@ export default defineComponent({
                   </div>
                 ) : (
                   ''
-                )
+                ),
             }}
+            active={this.activePanel}
+            onTabChange={this.handleTabChange}
           >
             {this.tabPanels.map(item => (
               <TabPanel
                 key={item.id}
-                name={item.id}
-                label={item.name}
                 v-slots={{
                   label: () => (
                     <span class='tab-label'>
                       <i class={`icon-monitor icon-${item.icon}`}></i>
                       {item.name}
                     </span>
-                  )
+                  ),
                 }}
+                label={item.name}
+                name={item.id}
               />
             ))}
           </MonitorTab>
@@ -966,21 +965,21 @@ export default defineComponent({
                 >
                   {this.filterToolList.map(kind => (
                     <Checkbox
-                      label={kind.id}
-                      size='small'
                       disabled={
                         this.activePanel === 'statistics' &&
                         this.traceViewFilters.length === 1 &&
                         this.traceViewFilters.includes(kind.id)
                       }
+                      label={kind.id}
+                      size='small'
                     >
                       {/* 增加特殊过滤类型说明 */}
                       <Popover
-                        placement='top'
                         key={kind.id}
                         content={kind.desc}
-                        popoverDelay={[500, 0]}
                         disabled={!kind.desc}
+                        placement='top'
+                        popoverDelay={[500, 0]}
                       >
                         <span>{kind.label}</span>
                       </Popover>
@@ -1005,12 +1004,12 @@ export default defineComponent({
           </div>
           {this.traceTree && (
             <div
-              class='tab-panel-content'
               style={this.traceMainStyle}
+              class='tab-panel-content'
             >
               <Loading
-                zIndex={9999999}
                 loading={this.contentLoading}
+                zIndex={9999999}
               >
                 {/* 瀑布图 */}
                 {this.activePanel === 'timeline' && (
@@ -1022,14 +1021,14 @@ export default defineComponent({
                 {/* 拓扑视图 */}
                 {this.activePanel === 'topo' && (
                   <RelationTopo
-                    ref='relationTopo'
-                    onUpdate:loading={this.contentLoadingChange}
                     key={traceInfo?.root_span_id || ''}
+                    ref='relationTopo'
                     compareTraceID={this.compareTraceID}
                     updateMatchedSpanIds={this.updateMatchedSpanIds}
+                    onCompareSpanListChange={this.handleCompareSpanListChange}
                     onShowSpanDetail={this.handleShowSpanDetails}
                     onSpanListChange={this.handleSpanListFilter}
-                    onCompareSpanListChange={this.handleCompareSpanListChange}
+                    onUpdate:loading={this.contentLoadingChange}
                   />
                 )}
                 {/* 统计视图 */}
@@ -1037,64 +1036,64 @@ export default defineComponent({
                   <div class='statistics-container'>
                     <StatisticsTable
                       ref='statisticsElem'
-                      onUpdate:loading={this.contentLoadingChange}
                       appName={appName}
-                      traceId={traceId}
                       compareTraceID={this.compareTraceID}
+                      traceId={traceId}
+                      onUpdate:loading={this.contentLoadingChange}
                     />
                   </div>
                 )}
                 {/* 火焰图 */}
                 {this.activePanel === 'flame' && (
                   <FlameGraphV2
-                    onUpdate:loading={this.contentLoadingChange}
-                    traceId={traceId}
                     appName={appName}
                     diffTraceId={this.compareTraceID}
+                    filterKeywords={this.filterKeywords}
                     filters={this.traceViewFilters}
                     textDirection={this.ellipsisDirection}
-                    filterKeywords={this.filterKeywords}
-                    onShowSpanDetail={this.handleShowSpanDetails}
+                    traceId={traceId}
                     onDiffTraceSuccess={this.updateCompareStatus}
+                    onShowSpanDetail={this.handleShowSpanDetails}
+                    onUpdate:loading={this.contentLoadingChange}
                   />
                 )}
                 {this.activePanel === 'sequence' && (
                   <SequenceGraph
-                    onUpdate:loading={this.contentLoadingChange}
-                    traceId={traceId}
                     appName={appName}
-                    onSpanListChange={this.handleSpanListFilter}
-                    onShowSpanDetail={this.handleShowSpanDetails}
                     filters={this.traceViewFilters}
+                    traceId={traceId}
+                    onShowSpanDetail={this.handleShowSpanDetails}
+                    onSpanListChange={this.handleSpanListFilter}
+                    onUpdate:loading={this.contentLoadingChange}
                   />
                 )}
               </Loading>
               <ResizeLayout
+                key={this.activePanel}
                 ref='traceGraphResize'
                 class={`trace-graph-resize ${this.showSpanList && !this.contentLoading ? 'is-visibility' : ''}`}
-                key={this.activePanel}
-                immediate
                 border={false}
-                placement='right'
-                collapsible
-                triggerWidth={12}
                 initialDivide={'350px'}
-                onResizing={this.handleSpanListResizing}
+                placement='right'
+                triggerWidth={12}
+                collapsible
+                immediate
                 onCollapse-change={this.handleSpanListCollapseChange}
+                onResizing={this.handleSpanListResizing}
               >
                 {{
                   main: () => <div></div>,
                   aside: () => (
                     <SpanList
-                      subTitle={this.filterSpanSubTitle}
+                      compareSpanList={this.compareSpanList}
                       filterSpanIds={this.filterSpanIds}
                       isCollapsed={this.isCollapsefilter}
-                      onViewDetail={this.handleShowSpanDetails}
-                      onListChange={this.handleSpanListFilter}
                       isCompare={this.isCompareView}
-                      compareSpanList={this.compareSpanList}
+                      subTitle={this.filterSpanSubTitle}
+                      onListChange={this.handleSpanListFilter}
+                      onViewDetail={this.handleShowSpanDetails}
                     />
-                  )
+                  ),
                 }}
               </ResizeLayout>
             </div>
@@ -1109,12 +1108,12 @@ export default defineComponent({
           </div>
         )}
         <SpanDetails
-          show={this.showSpanDetails}
           isFullscreen={this.isFullscreen}
+          show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
           onShow={v => (this.showSpanDetails = v)}
         />
       </Loading>
     );
-  }
+  },
 });

@@ -77,12 +77,12 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
       (this as any).instance?.setOption({
         yAxis: {
           splitNumber: 2,
-          scale: false
-        }
+          scale: false,
+        },
       });
     }
     (this as any).instance?.resize({
-      silent: true
+      silent: true,
     });
   }
   @Watch('width')
@@ -90,11 +90,11 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     (this as any).instance?.setOption({
       xAxis: {
         splitNumber: Math.ceil(this.width / 150),
-        min: 'dataMin'
-      }
+        min: 'dataMin',
+      },
     });
     (this as any).instance?.resize({
-      silent: true
+      silent: true,
     });
   }
   mounted() {
@@ -149,7 +149,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     this.dispatchAction({
       type: 'takeGlobalCursor',
       key: 'dataZoomSelect',
-      dataZoomSelectActive: true
+      dataZoomSelectActive: true,
     });
   }
   initChartEvent() {
@@ -185,13 +185,13 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   render() {
     return (
       <div
-        class='chart-base'
         ref='chartInstance'
         style={{ minHeight: `${1}px` }}
-        onMouseover={this.handleMouseover}
-        onMouseleave={this.handleMouseleave}
+        class='chart-base'
         onClick={this.handleClick}
         onDblclick={this.handleDblClick}
+        onMouseleave={this.handleMouseleave}
+        onMouseover={this.handleMouseover}
       />
     );
   }

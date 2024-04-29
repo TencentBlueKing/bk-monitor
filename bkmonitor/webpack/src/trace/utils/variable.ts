@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-param-reassign */
+
 /* eslint-disable @typescript-eslint/member-ordering */
 
 import { deepClone } from 'monitor-common/utils/utils';
@@ -35,9 +34,6 @@ export type ScopedVars = Record<string, any>;
 export class VariablesService {
   private index: ScopedVars;
   private regex = variableRegex;
-  constructor(variables?: ScopedVars) {
-    this.index = variables;
-  }
   private getVariableAtIndex(name: string) {
     if (!name) {
       return undefined;
@@ -50,6 +46,12 @@ export class VariablesService {
       return null;
     }
     return scopedVar;
+  }
+  constructor(variables?: ScopedVars) {
+    this.index = variables;
+  }
+  hasVariables(input: any) {
+    return !!JSON.stringify(input).match(variableRegex);
   }
   public replace(target?: string, scopedVars?: ScopedVars): any {
     if (!target) {
@@ -84,9 +86,6 @@ export class VariablesService {
       return value;
     });
     return isObj ? value : val;
-  }
-  hasVariables(input: any) {
-    return !!JSON.stringify(input).match(variableRegex);
   }
   /**
    * @description: 变量翻译

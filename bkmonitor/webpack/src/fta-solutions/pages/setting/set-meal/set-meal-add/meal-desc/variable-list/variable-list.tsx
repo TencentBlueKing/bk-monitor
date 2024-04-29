@@ -36,7 +36,7 @@ interface IVariableListProps {
   pluginType?: string;
 }
 @Component({
-  name: 'VariableList'
+  name: 'VariableList',
 })
 export default class VariableList extends tsc<IVariableListProps> {
   @Prop({ default: '', type: String }) pluginType: string;
@@ -74,7 +74,7 @@ export default class VariableList extends tsc<IVariableListProps> {
         boundary: 'window',
         placement: 'top-end',
         offset: '-50, 0',
-        extCls: 'meal-variable-tip'
+        extCls: 'meal-variable-tip',
       });
     if (this.tablePopover) {
       this.tablePopover.show(100);
@@ -102,7 +102,7 @@ export default class VariableList extends tsc<IVariableListProps> {
       document.execCommand('copy');
       this.$bkMessage({
         theme: 'success',
-        message: `${i18n.t('已复制到剪贴板')}。`
+        message: `${i18n.t('已复制到剪贴板')}。`,
       });
     }
     document.body.removeChild(input);
@@ -110,7 +110,7 @@ export default class VariableList extends tsc<IVariableListProps> {
 
   protected render() {
     const scopedSlots = {
-      default: props => <span>{props.row.name}</span>
+      default: props => <span>{props.row.name}</span>,
     };
     return (
       <div class='variable-content'>
@@ -120,8 +120,8 @@ export default class VariableList extends tsc<IVariableListProps> {
             {...{
               props: {
                 active: this.variableActive,
-                type: 'unborder-card'
-              }
+                type: 'unborder-card',
+              },
             }}
           >
             {this.variablePanels.map((item, index) => (
@@ -136,12 +136,12 @@ export default class VariableList extends tsc<IVariableListProps> {
           <bk-table
             {...{
               props: {
-                data: this.variableTable[this.variableActive]
-              }
+                data: this.variableTable[this.variableActive],
+              },
             }}
+            on-row-click={this.handleRowClick}
             on-row-mouse-enter={this.handleRowEnter}
             on-row-mouse-leave={this.handleRowLeave}
-            on-row-click={this.handleRowClick}
           >
             <bk-table-column
               label={this.$t('变量名')}
@@ -151,8 +151,8 @@ export default class VariableList extends tsc<IVariableListProps> {
               {...{
                 props: {
                   label: this.$t('含义'),
-                  prop: 'desc'
-                }
+                  prop: 'desc',
+                },
               }}
             ></bk-table-column>
           </bk-table>

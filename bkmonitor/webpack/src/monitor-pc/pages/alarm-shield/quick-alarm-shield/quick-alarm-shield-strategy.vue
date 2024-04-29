@@ -28,23 +28,25 @@
     :value="isShowStrategy"
     theme="primary"
     :header-position="'left'"
-    @after-leave="handleAfterLeave"
     :confirm-fn="handleSubmit"
     :title="$t('快捷屏蔽策略')"
     width="773px"
+    @after-leave="handleAfterLeave"
   >
     <div
-      class="quick-alarm-shield-stratrgy"
       v-bkloading="{ isLoading: loading }"
+      class="quick-alarm-shield-stratrgy"
     >
       <div
-        class="stratrgy-item"
         v-if="!loading"
+        class="stratrgy-item"
       >
         <div
           class="item-label item-before"
           style="width: 66px"
-        >{{ $t('屏蔽时间') }}</div>
+        >
+          {{ $t('屏蔽时间') }}
+        </div>
         <verify-input
           :show-validate.sync="rule.customTime"
           :validator="{ content: $t('至少选择一种时间') }"
@@ -69,11 +71,11 @@
             </bk-button>
             <bk-date-picker
               v-else
+              ref="time"
               v-model="customTime"
               :options="options"
               :placeholder="$t('选择时间范围')"
               :type="'datetimerange'"
-              ref="time"
             />
           </div>
         </verify-input>
@@ -93,8 +95,8 @@
         </div>
         <div>
           <bk-input
-            :type="'textarea'"
             v-model="desc"
+            :type="'textarea'"
             width="625"
             :rows="3"
             :maxlength="100"
@@ -118,15 +120,15 @@ export default {
   name: 'QuickAlarmShieldStratrgy',
   components: {
     VerifyInput,
-    StrategyDetail
+    StrategyDetail,
   },
   mixins: [quickAlarmShieldMixin, strategyMapMixin],
   props: {
     isShowStrategy: {
       type: Boolean,
-      default: false
+      default: false,
     },
-    strategyId: Number
+    strategyId: Number,
   },
   data() {
     return {
@@ -135,10 +137,10 @@ export default {
       desc: '',
       typeLabel: '',
       rule: {
-        customTime: false
+        customTime: false,
       },
       loading: false,
-      strategyData: {}
+      strategyData: {},
     };
   },
   watch: {
@@ -148,8 +150,8 @@ export default {
           this.handleDialogShow();
         }
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     handleSubmit(v) {
@@ -162,18 +164,18 @@ export default {
           end_time: time.end,
           dimension_config: {
             id: [this.strategyId],
-            level: [this.strategyData?.detects[0].level]
+            level: [this.strategyData?.detects[0].level],
           },
           cycle_config: {
             begin_time: '',
             type: 1,
             day_list: [],
             week_list: [],
-            end_time: ''
+            end_time: '',
           },
           shield_notice: false,
           description: this.desc,
-          is_quick: true
+          is_quick: true,
         };
         addShield(params)
           .then(() => {
@@ -196,7 +198,7 @@ export default {
     getDetailStrategy() {
       if (this.strategyId) {
         getStrategyV2({ id: this.strategyId })
-          .then((res) => {
+          .then(res => {
             this.strategyData = res;
           })
           .finally(() => {
@@ -209,12 +211,12 @@ export default {
     },
     handleToStrategy() {
       const params = {
-        strategyId: this.strategyId
+        strategyId: this.strategyId,
       };
       this.$emit('update:isShowStrategy', false);
       this.$router.push({ name: 'alarm-shield-add', params });
-    }
-  }
+    },
+  },
 };
 </script>
 

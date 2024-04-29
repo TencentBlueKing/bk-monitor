@@ -1,4 +1,3 @@
-/* eslint-disable no-underscore-dangle */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,17 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
+
 import axios from 'axios';
 import { getCookie } from 'monitor-common/utils/utils';
 import qs from 'qs';
 
 import { authorityStore, bkMessage, makeMessage } from '../utils/index';
+
 // 错误请求处理 3314001(名称重复)
 const noMessageCode = [3314001, 3310003];
 const errorHandle = (response, config) => {
   const traceparent = config?.headers?.traceparent;
-  const resMessage = makeMessage(response.data.message || '求出错了！', traceparent, config.needTraceId);
+  const resMessage = makeMessage(response.data.message || '请求出错了！', traceparent, config.needTraceId);
   switch (response.status) {
     case 502:
       if (config.needMessage) bkMessage(resMessage);
@@ -52,7 +52,7 @@ const errorHandle = (response, config) => {
           window.location.href = `${window.bk_paas_host.replace(/\/$/g, '')}/login/`;
         };
         const { data } = response;
-        // eslint-disable-next-line camelcase
+
         if (data?.has_plain) {
           try {
             if (data.login_url) {
@@ -64,14 +64,14 @@ const errorHandle = (response, config) => {
               }
               const url = new URL(data.login_url);
               const curl = url.searchParams.get('c_url');
+              url.protocol = location.protocol;
               if (curl) {
                 url.searchParams.set('c_url', curl.replace(/^http:/, location.protocol));
-                window.LoginModal.$props.loginUrl = url.href;
+                window.showLoginModal({ loginUrl: url.href });
               } else {
-                window.LoginModal.$props.loginUrl = data.login_url;
+                window.showLoginModal({ loginUrl: data.login_url.replace(/^http:/, location.protocol) });
               }
             }
-            window.LoginModal.show();
           } catch (_) {
             handleLoginExpire();
           }
@@ -110,9 +110,8 @@ const instance = axios.create({
   },
   baseURL:
     (window.__BK_WEWEB_DATA__?.host || '').replace(/\/$/, '') +
-    // eslint-disable-next-line no-nested-ternary
     (process.env.NODE_ENV === 'production' ? window.site_url : process.env.APP === 'mobile' ? '/weixin' : '/'),
-  xsrfCookieName: 'X-CSRFToken'
+  xsrfCookieName: 'X-CSRFToken',
 });
 instance.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded';
 

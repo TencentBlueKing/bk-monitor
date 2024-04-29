@@ -72,6 +72,7 @@ class CheckCMSIResource(CMSIBaseResource):
                     invalid = receivers
             return {"username_check": {"invalid": invalid}, "message": str(e)}
         except Exception as e:
+            self.report_api_failure_metric(error_code=getattr(e, 'code', 0), exception_type=type(e).__name__)
             # 其他没有处理到的异常，默认发送失败
             return {"username_check": {"invalid": receivers}, "message": str(e)}
 
@@ -84,12 +85,11 @@ class GetMsgType(CMSIBaseResource):
     action = "get_msg_type"
     method = "GET"
 
-    def perform_request(self, validated_request_data):
-        result = super(GetMsgType, self).perform_request(validated_request_data)
-        for msg_type in result:
+    def render_response_data(self, validated_request_data, response_data):
+        for msg_type in response_data:
             msg_type["channel"] = "user"
         if settings.WXWORK_BOT_WEBHOOK_URL:
-            result.append(
+            response_data.append(
                 {
                     "icon": "iVBORw0KGgoAAAANSUhEUgAAANcAAADICAMAAABMI4TJAAACvlBMVEUAAAAA//8AgP8Aqv8AgL8AmcwAqtU"
                     "Aktsgn98"
@@ -140,7 +140,7 @@ class GetMsgType(CMSIBaseResource):
                 }
             )
         if settings.BKCHAT_API_BASE_URL:
-            result.append(
+            response_data.append(
                 {
                     "icon": "iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAMAAACahl6sAAACglBMVEUAAAD///+A//+qqv+/v/+ZzP+q1f+Stv+fv/"
                     "+qxv+ZzP+iuf+qv/+dxP+kyP+qzP+fv/+qxv+hyf+mv/+ewv+ixf+myP+fyv+jwv+nxP+hxv+kyP+nwf+ixP+lxf+f"
@@ -183,7 +183,7 @@ class GetMsgType(CMSIBaseResource):
                 }
             )
 
-        return result
+        return response_data
 
 
 class SendMsg(CheckCMSIResource):
