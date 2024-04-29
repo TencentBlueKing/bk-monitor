@@ -16,7 +16,13 @@ from django.conf import settings
 from prometheus_client.exposition import push_to_gateway
 from prometheus_client.utils import INF
 
-from core.prometheus.base import REGISTRY, BkCollectorRegistry, Counter, Histogram, Gauge
+from core.prometheus.base import (
+    REGISTRY,
+    BkCollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+)
 from core.prometheus.tools import get_metric_agg_gateway_url, udp_handler
 
 logger = logging.getLogger(__name__)
@@ -462,8 +468,7 @@ CELERY_TASK_EXECUTE_TIME = Histogram(
 
 
 ALARM_CONTEXT_GET_FIELD_TIME = Histogram(
-    name="bkmonitor_alarm_context_get_field_time", documentation="处理套餐上下文字段获取耗时",
-    labelnames=("field", "exception")
+    name="bkmonitor_alarm_context_get_field_time", documentation="处理套餐上下文字段获取耗时", labelnames=("field", "exception")
 )
 
 # redis 指标
@@ -539,7 +544,7 @@ COMMANDS_PROCESSED_TOTAL = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-COMMANDS_TOTAL = Counter(
+COMMANDS_TOTAL = Gauge(
     name="redis_commands_total",
     documentation="Total number of calls per command",
     labelnames=("node_type", "mastername", "role", "cmd"),
@@ -557,35 +562,35 @@ CONFIG_MAXMEMORY = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-CONNECTIONS_RECEIVED_TOTAL = Counter(
+CONNECTIONS_RECEIVED_TOTAL = Gauge(
     name="redis_connections_received_total",
     documentation="Total number of connections accepted by the server",
     labelnames=("node_type", "mastername", "role"),
 )
 
-CPU_SYS_CHILDREN_SECONDS_TOTAL = Counter(
+CPU_SYS_CHILDREN_SECONDS_TOTAL = Gauge(
     name="redis_cpu_sys_children_seconds_total",
     documentation="System CPU consumed by the background processes",
     labelnames=("node_type", "mastername", "role"),
 )
 
-CPU_SYS_SECONDS_TOTAL = Counter(
+CPU_SYS_SECONDS_TOTAL = Gauge(
     name="redis_cpu_sys_seconds_total",
     documentation="System CPU consumed by the Redis server, which is the sum of system CPU consumed "
-                  "by all threads of the server process (main thread and background threads)",
+    "by all threads of the server process (main thread and background threads)",
     labelnames=("node_type", "mastername", "role"),
 )
 
-CPU_USER_CHILDREN_SECONDS_TOTAL = Counter(
+CPU_USER_CHILDREN_SECONDS_TOTAL = Gauge(
     name="redis_cpu_user_children_seconds_total",
     documentation="User CPU consumed by the background processes",
     labelnames=("node_type", "mastername", "role"),
 )
 
-CPU_USER_SECONDS_TOTAL = Counter(
+CPU_USER_SECONDS_TOTAL = Gauge(
     name="redis_cpu_user_seconds_total",
     documentation="User CPU consumed by the Redis server, which is the sum of user CPU consumed "
-                  "by all threads of the server process (main thread and background threads)",
+    "by all threads of the server process (main thread and background threads)",
     labelnames=("node_type", "mastername", "role"),
 )
 
@@ -625,7 +630,7 @@ EVICTED_KEYS_TOTAL = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-EXPIRED_KEYS_TOTAL = Counter(
+EXPIRED_KEYS_TOTAL = Gauge(
     name="redis_expired_keys_total",
     documentation="number of keys that has expired",
     labelnames=("node_type", "mastername", "role"),
@@ -679,7 +684,7 @@ EXPORTER_SCRAPE_DURATION_SECONDS_COUNT = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-EXPORTER_SCRAPES_TOTAL = Counter(
+EXPORTER_SCRAPES_TOTAL = Gauge(
     name="redis_exporter_scrapes_total",
     documentation="Current total redis scrapes",
     labelnames=("node_type", "mastername", "role"),
@@ -688,8 +693,19 @@ EXPORTER_SCRAPES_TOTAL = Counter(
 INSTANCE_INFO = Gauge(
     name="redis_instance_info",
     documentation="Information about the Redis instance",
-    labelnames=("node_type", "mastername", "role", "os", "redis_version", "redis_build_id", "maxmemory_policy",
-                "run_id", "tcp_port", "redis_mode", "process_id"),
+    labelnames=(
+        "node_type",
+        "mastername",
+        "role",
+        "os",
+        "redis_version",
+        "redis_build_id",
+        "maxmemory_policy",
+        "run_id",
+        "tcp_port",
+        "redis_mode",
+        "process_id",
+    ),
 )
 
 KEYSPACE_HITS_TOTAL = Gauge(
@@ -725,7 +741,7 @@ LATEST_FORK_SECONDS = Gauge(
 LAZYFREE_PENDING_OBJECTS = Gauge(
     name="redis_lazyfree_pending_objects",
     documentation="The number of objects waiting to be freed (as a result of calling UNLINK, "
-                  "or FLUSHDB and FLUSHALL with the ASYNC option)",
+    "or FLUSHDB and FLUSHALL with the ASYNC option)",
     labelnames=("node_type", "mastername", "role"),
 )
 
@@ -762,7 +778,7 @@ MEMORY_USED_LUA_BYTES = Gauge(
 MEMORY_USED_OVERHEAD_BYTES = Gauge(
     name="redis_memory_used_overhead_bytes",
     documentation="The sum in bytes of all overheads that the server allocated "
-                  "for managing its internal data structures",
+    "for managing its internal data structures",
     labelnames=("node_type", "mastername", "role"),
 )
 
@@ -775,7 +791,7 @@ MEMORY_USED_PEAK_BYTES = Gauge(
 MEMORY_USED_RSS_BYTES = Gauge(
     name="redis_memory_used_rss_bytes",
     documentation="Number of bytes that Redis allocated as seen by the operating system (a.k.a resident set size). "
-                  "This is the number reported by tools such as top(1) and ps(1)",
+    "This is the number reported by tools such as top(1) and ps(1)",
     labelnames=("node_type", "mastername", "role"),
 )
 
@@ -791,13 +807,13 @@ MIGRATE_CACHED_SOCKETS_TOTAL = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-NET_INPUT_BYTES_TOTAL = Counter(
+NET_INPUT_BYTES_TOTAL = Gauge(
     name="redis_net_input_bytes_total",
     documentation="Total input bytes",
     labelnames=("node_type", "mastername", "role"),
 )
 
-NET_OUTPUT_BYTES_TOTAL = Counter(
+NET_OUTPUT_BYTES_TOTAL = Gauge(
     name="redis_net_output_bytes_total",
     documentation="Total output bytes",
     labelnames=("node_type", "mastername", "role"),
@@ -923,7 +939,7 @@ START_TIME_SECONDS = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-TARGET_SCRAPE_REQUEST_ERRORS_TOTAL = Counter(
+TARGET_SCRAPE_REQUEST_ERRORS_TOTAL = Gauge(
     name="redis_target_scrape_request_errors_total",
     documentation="Errors in requests to the exporter",
     labelnames=("node_type", "mastername", "role"),
@@ -1019,7 +1035,7 @@ AOF_CURRENT_SIZE = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-RDB_LAST_BGSAVE_TIME_SEC = Counter(
+RDB_LAST_BGSAVE_TIME_SEC = Gauge(
     name="redis_rdb_last_bgsave_time_sec",
     documentation="aof最后一次落地所消耗的时长",
     labelnames=("node_type", "mastername", "role"),
@@ -1031,39 +1047,27 @@ RDB_CHANGES_SINCE_LAST_SAVE = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-USED_CPU_SYS = Counter(
+USED_CPU_SYS = Gauge(
     name="redis_used_cpu_sys",
     documentation="Redis系统CPU消耗差值",
     labelnames=("node_type", "mastername", "role"),
 )
 
-USED_CPU_USER = Counter(
+USED_CPU_USER = Gauge(
     name="redis_used_cpu_user",
     documentation="Redis用户CPU消耗差值",
     labelnames=("node_type", "mastername", "role"),
 )
 
-USED_CPU_SYS_CHILDREN = Counter(
+USED_CPU_SYS_CHILDREN = Gauge(
     name="redis_used_cpu_sys_children",
     documentation="CPU用户子进程消耗差值",
     labelnames=("node_type", "mastername", "role"),
 )
 
-TOTAL_CONNECTIONS_RECEIVED = Counter(
+TOTAL_CONNECTIONS_RECEIVED = Gauge(
     name="redis_total_connections_received",
     documentation="每分钟接收的连接数差值",
-    labelnames=("node_type", "mastername", "role"),
-)
-
-KEYSPACE_HITS = Counter(
-    name="redis_keyspace_hits",
-    documentation="键命中次数差值",
-    labelnames=("node_type", "mastername", "role"),
-)
-
-KEYSPACE_MISSES = Counter(
-    name="redis_keyspace_misses",
-    documentation="键未命中次数差值",
     labelnames=("node_type", "mastername", "role"),
 )
 
@@ -1073,21 +1077,9 @@ LATEST_FORK_USEC = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-TOTAL_COMMANDS_PROCESSED = Counter(
+TOTAL_COMMANDS_PROCESSED = Gauge(
     name="redis_total_commands_processed",
     documentation="执行的命令次数差值",
-    labelnames=("node_type", "mastername", "role"),
-)
-
-EXPIRED_KEYS = Gauge(
-    name="redis_expired_keys",
-    documentation="过期了的key数量差值",
-    labelnames=("node_type", "mastername", "role"),
-)
-
-EVICTED_KEYS = Gauge(
-    name="redis_evicted_keys",
-    documentation="剔除了的key数量",
     labelnames=("node_type", "mastername", "role"),
 )
 
@@ -1169,7 +1161,7 @@ DB_KEYS_EXPIRING = Gauge(
     labelnames=("node_type", "mastername", "role"),
 )
 
-API_FAILED_REQUESTS_TOTAL = Counter(
+API_FAILED_REQUESTS_TOTAL = Gauge(
     name="bkmonitor_api_failed_requests_total",
     documentation="API调用失败计数",
     labelnames=("action", "module", "code", "role", "exception", "user_name"),
