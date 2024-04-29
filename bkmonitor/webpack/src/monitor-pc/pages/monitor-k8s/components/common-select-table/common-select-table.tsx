@@ -33,6 +33,7 @@ import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
 import {
@@ -329,19 +330,20 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
         })
     );
     const [data] = await Promise.all(promiseList).catch(() => [[]]);
-
     if (isScrollLoad) {
       // 分页加载 追加表格数据
       this.tableData.push(...data);
     } else {
-      this.$el.querySelector('.bk-table-body-wrapper').scrollTop = 0;
-      this.tableData.splice(0, this.tableData.length, ...data);
-      this.getCheckedItemName();
-      this.resizeObsever();
       this.loading = false;
       this.isSortRefresh = false;
       this.isInit = true;
-      this.filterFields = {};
+      this.$nextTick(() => {
+        this.$el.querySelector('.bk-table-body-wrapper').scrollTop = 0;
+        this.tableData.splice(0, this.tableData.length, ...data);
+        this.getCheckedItemName();
+        this.resizeObsever();
+        this.filterFields = {};
+      });
     }
   }
   /** 选中设置 */
@@ -539,7 +541,6 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
       <div
         ref='selectTablePanel'
         class='common-select-table'
-        v-bkloading={{ isLoading: this.loading }}
       >
         <div class={['list-header', { 'flex-header': this.width > 1000 }]}>
           <div class='search-bar'>
@@ -602,28 +603,32 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
               <span>{`${this.panel?.title}${this.$t('概览')}`}</span>
             </div>
           )}
-          <CommonTable
-            key={this.refreshKey}
-            ref='tableRef'
-            height='100%'
-            class={this.getTableClasses()}
-            calcColumnWidth={this.handleColumnWidth}
-            checkable={false}
-            columns={this.columns}
-            data={this.tableData}
-            defaultSize='small'
-            hasColnumSetting={this.showHeader && this.showMode === 'list'}
-            highlightCurrentRow={true}
-            overviewData={this.overviewData}
-            pagination={null}
-            showHeader={this.showHeader}
-            stripe={true}
-            onFilterChange={this.handleFilterChange}
-            onRowClick={this.handleSelectDetail}
-            onScrollEnd={this.handleScrollEnd}
-            onSortChange={this.handleSortChange}
-            onSwitchOverview={this.handleOverviewChange}
-          ></CommonTable>
+          {!this.loading ? (
+            <CommonTable
+              key={this.refreshKey}
+              ref='tableRef'
+              height='100%'
+              class={this.getTableClasses()}
+              calcColumnWidth={this.handleColumnWidth}
+              checkable={false}
+              columns={this.columns}
+              data={this.tableData}
+              defaultSize='small'
+              hasColnumSetting={this.showHeader && this.showMode === 'list'}
+              highlightCurrentRow={true}
+              overviewData={this.overviewData}
+              pagination={null}
+              showHeader={this.showHeader}
+              stripe={true}
+              onFilterChange={this.handleFilterChange}
+              onRowClick={this.handleSelectDetail}
+              onScrollEnd={this.handleScrollEnd}
+              onSortChange={this.handleSortChange}
+              onSwitchOverview={this.handleOverviewChange}
+            ></CommonTable>
+          ) : (
+            <TableSkeleton type={4} />
+          )}
         </div>
         {this.showScrollLoadBar && <div class='scroll-load-bar'>{handleLoadBarText()}</div>}
       </div>
