@@ -211,9 +211,7 @@ export default {
     watchQueryIndexValue: {
       immediate: true,
       handler() {
-        if ((!this.isUnionSearch && this.routeIndexSet) || (this.isUnionSearch && this.unionIndexList?.length)) {
-          this.requestFiledConfig();
-        }
+        if (this.routeIndexSet) this.requestFiledConfig();
       }
     }
   },
@@ -254,7 +252,8 @@ export default {
       try {
         const res = await this.$http.request('retrieve/getFieldsListConfig', {
           data: {
-            ...(this.isUnionSearch ? { index_set_ids: this.unionIndexList } : { index_set_id: this.routeIndexSet }),
+            index_set_id: this.routeIndexSet,
+            index_set_ids: this.unionIndexList,
             scope: 'default',
             index_set_type: this.isUnionSearch ? 'union' : 'single'
           }

@@ -561,7 +561,6 @@ export default {
     }
   },
   created() {
-    this.checkInitSearch();
     this.getGlobalsData();
   },
   mounted() {
@@ -573,26 +572,12 @@ export default {
     window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
   },
   methods: {
-    /** 检查初始化检索类型 根据路由 unionList 参数 */
-    checkInitSearch() {
-      // 首次通过url访问页面
-      const { params, query } = this.$route;
-      // 路由参数不存在索引集ID 但包含联合查询unionList索引集ID参数 说明此链接为带有联合查询类型
-      if (!params?.indexId && !!query.unionList) {
-        const list = JSON.parse(decodeURIComponent(query.unionList));
-        this.$store.commit('updateUnionIndexList', list);
-      }
-    },
     /** 索引集更变时的数据初始化 */
-    initIndexSetChangeFn(val, isUnionSearch = false) {
-      this.isSearchAllowed = isUnionSearch
-        ? val?.every(
-            item =>
-              this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
-                authorityMap.SEARCH_LOG_AUTH
-              ]
-          )
-        : !!this.indexSetList.find(item => item.index_set_id === val)?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+    initIndexSetChangeFn(val) {
+      const option = this.indexSetList.find(item => item.index_set_id === val);
+      this.indexSetItem = option ? option : { index_set_name: '', indexName: '', scenario_name: '', scenario_id: '' };
+      // eslint-disable-next-line camelcase
+      this.isSearchAllowed = !!option?.permission?.[authorityMap.SEARCH_LOG_AUTH];
       if (this.isSearchAllowed) this.authPageInfo = null;
       this.resetRetrieveCondition();
       this.resetFavoriteValue();
@@ -738,13 +723,11 @@ export default {
               return;
             }
             this.hasAuth = true;
+
             if (indexId) {
               // 1、初始进入页面带ID；2、检索ID时切换业务；
               const indexItem = indexSetList.find(item => item.index_set_id === indexId);
               this.indexId = indexItem ? indexItem.index_set_id : indexSetList[0].index_set_id;
-              this.retrieveLog();
-            } else if (this.isUnionSearch && this.indexSetList?.length) {
-              // 初始化联合查询
               this.retrieveLog();
             } else {
               // 直接进入检索页
@@ -846,7 +829,7 @@ export default {
       if (selectIsUnionSearch) {
         if (!this.compareArrays(ids, this.unionIndexList) || isFavoriteSearch) {
           this.shouldUpdateFields = true;
-          this.initIndexSetChangeFn(ids, true);
+          this.initIndexSetChangeFn(this.indexId);
           this.$store.commit('updateUnionIndexList', ids);
           this.catchUnionBeginList = [];
           this.retrieveLog(params);
@@ -1131,7 +1114,7 @@ export default {
      * @param {Boolean} isRequestChartsAndHistory 检索时是否请求历史记录和图表
      */
     async retrieveLog(historyParams, isRequestChartsAndHistory = true) {
-      if ((!this.isUnionSearch && !this.indexId) || (this.isUnionSearch && !this.unionIndexList.length)) return;
+      if (!this.indexId) return;
       await this.$nextTick();
       this.basicLoading = true;
       this.$refs.resultHeader && this.$refs.resultHeader.pauseRefresh();
@@ -1139,14 +1122,12 @@ export default {
       // 是否有检索的权限
       const paramData = {
         action_ids: [authorityMap.SEARCH_LOG_AUTH],
-        resources: this.isUnionSearch
-          ? this.unionIndexList.map(indexSet => ({ type: 'indices', id: indexSet }))
-          : [
-              {
-                type: 'indices',
-                id: this.indexId
-              }
-            ]
+        resources: [
+          {
+            type: 'indices',
+            id: this.indexId
+          }
+        ]
       };
       if (this.isSearchAllowed === null) {
         // 直接从 url 进入页面 checkAllowed && getApplyData
@@ -1342,12 +1323,9 @@ export default {
       };
       this.$router.push({
         name: 'retrieve',
-        // 联合查询不需要路由索引集ID
-        params: this.isUnionSearch
-          ? undefined
-          : {
-              indexId: this.indexId
-            },
+        params: {
+          indexId: this.indexId
+        },
         query: queryObj
       });
       // 接口请求
