@@ -28,6 +28,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './table-skeleton.scss';
 
+interface IConfigModel {
+  colWidths: number[];
+  rowHeights: number[];
+  config: (Record<string, string> | number)[][];
+  rowGap?: number;
+}
+
 function getSkeStyle(config) {
   if (typeof config === 'object') {
     return config;
@@ -112,6 +119,26 @@ const config03 = {
   ],
 };
 
+const config04 = {
+  colWidths: [0.67, 0.33],
+  rowHeights: new Array(12).fill(16),
+  rowGap: 16,
+  config: [
+    [175, 0],
+    [52, 40],
+    [72, 49],
+    [96, 58],
+    [62, 45],
+    [135, 75],
+    [85, 70],
+    [68, 47],
+    [103, 60],
+    [80, 50],
+    [135, 74],
+    [171, 88],
+  ],
+};
+
 interface IProps {
   type?: number;
 }
@@ -120,7 +147,7 @@ interface IProps {
 export default class TableSkeleton extends tsc<IProps> {
   @Prop({ type: Number, default: 1 }) type: number;
 
-  get config() {
+  get config(): IConfigModel {
     if (this.type === 1) {
       return config01;
     }
@@ -129,6 +156,9 @@ export default class TableSkeleton extends tsc<IProps> {
     }
     if (this.type === 3) {
       return config03;
+    }
+    if (this.type === 4) {
+      return config04;
     }
     return config01;
   }
@@ -139,6 +169,9 @@ export default class TableSkeleton extends tsc<IProps> {
         {this.config.config.map((item, index) => (
           <div
             key={index}
+            style={{
+              marginBottom: `${this.config.rowGap || 22}px`,
+            }}
             class='common-table-skeleton-row'
           >
             {item.map((pItem, pIndex) => (

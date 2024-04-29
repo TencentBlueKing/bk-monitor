@@ -40,6 +40,7 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { UPTIME_CHECK_LIST } from '../monitor-k8s//typings/tools';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
@@ -49,6 +50,7 @@ import HeaderTools, { IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
 import TaskCard, { IData as ItaskItem, IOptionTypes as ITaskCardOperate } from './components/task-card';
 import UploadContent from './components/upload-content';
+import TaskCardSkeleton from './skeleton/task-card-skeleton';
 import { IActive as IUptimeCheckType } from './uptime-check';
 import {
   getGroupToTaskData,
@@ -128,6 +130,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
 
   emptyStatusType: EmptyStatusType = 'empty';
 
+  loading = false;
+
   // 搜索数据
   get searchTaskData(): ITaskData['task_data'] {
     return searchTaskData(this.searchValue, this.data.task_data);
@@ -166,7 +170,6 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     this.data = data;
     this.taskTableData = taskTableDataInit(data.task_data);
     this.searchValue = this.nodeName ? `${this.$t('节点:')}${this.nodeName}` : this.searchValue || '';
-
     setTimeout(() => {
       const { query } = this.$route;
       this.searchValue = this.searchValue || query.queryString?.toString() || '';
@@ -252,9 +255,10 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   }
 
   // loading
-  @Emit('loading')
+  // @Emit('loading')
   handleLoading(v: boolean) {
-    return v;
+    // return v;
+    this.loading = v;
   }
 
   // 新增任务组时的校验
@@ -674,83 +678,87 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           onCreate={this.handleHeaderCreate}
           onSearch={(v: string) => this.handleSearch(v)}
         ></HeaderTools>
-        <CommonTable
-          style={{ marginTop: '16px' }}
-          {...{ props: taskCommonTableProps }}
-          scopedSlots={{
-            operate: (row: ItaskItem) => (
-              <OperateOptions
-                options={{
-                  outside: [
-                    {
-                      id: 'edit',
-                      name: window.i18n.tc('button-编辑'),
-                      authority: this.authority.MANAGE_AUTH,
-                      authorityDetail: this.authorityMap.MANAGE_AUTH,
-                    },
-                    {
-                      id: 'delete',
-                      name: window.i18n.tc('删除'),
-                      authority: this.authority.MANAGE_AUTH,
-                      authorityDetail: this.authorityMap.MANAGE_AUTH,
-                    },
-                  ],
-                  popover: [
-                    {
-                      id: 'clone',
-                      name: window.i18n.tc('克隆'),
-                      authority: this.authority.MANAGE_AUTH,
-                      authorityDetail: this.authorityMap.MANAGE_AUTH,
-                    },
-                  ],
-                }}
-                onOptionClick={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, row.id)}
-              ></OperateOptions>
-            ),
-            name: (row: ItaskItem) => (
-              <span
-                class='task-name'
-                onClick={() => this.handleTaskNameClick(row.id)}
-              >
-                {row.name}
-              </span>
-            ),
-            enable: (row: ItaskItem) => (
-              <bk-switcher
-                disabled={taskSwitchDisabled(row.status)}
-                preCheck={() => this.taskSwitchChangePreCheck(row.id, row.status)}
-                size={'small'}
-                theme={'primary'}
-                value={taskSwitch(row.status)}
-                on-change={this.handleTaskSwitchChange}
-              ></bk-switcher>
-            ),
-            statusText: (row: ItaskItem) => (
-              <span style={{ color: taskStatusTextColor(row.status) }}>{taskStatusMap[row.status]}</span>
-            ),
-            progress: (row: ItaskItem) => (
-              <div>
-                {<div>{row.available !== null ? `${row.available}%` : '--'}</div>}
-                <bk-progress
-                  color={tableAvailableProcessColor(row.available, row.status)}
-                  percent={Number((row.available * 0.01).toFixed(2)) || 0}
-                  showText={false}
-                ></bk-progress>
-              </div>
-            ),
-          }}
-          data={this.taskTableData.data}
-          pagination={this.taskTableData.pagination}
-          onLimitChange={this.handleTaskTableLimitChange}
-          onPageChange={this.handleTaskTablePageChange}
-          onSortChange={this.handleSortChange}
-        >
-          <EmptyStatus
-            slot='empty'
-            type={this.emptyStatusType}
-            onOperation={this.handleOperation}
-          />
-        </CommonTable>
+        {this.loading ? (
+          <TableSkeleton class='mt-16'></TableSkeleton>
+        ) : (
+          <CommonTable
+            style={{ marginTop: '16px' }}
+            {...{ props: taskCommonTableProps }}
+            scopedSlots={{
+              operate: (row: ItaskItem) => (
+                <OperateOptions
+                  options={{
+                    outside: [
+                      {
+                        id: 'edit',
+                        name: window.i18n.tc('button-编辑'),
+                        authority: this.authority.MANAGE_AUTH,
+                        authorityDetail: this.authorityMap.MANAGE_AUTH,
+                      },
+                      {
+                        id: 'delete',
+                        name: window.i18n.tc('删除'),
+                        authority: this.authority.MANAGE_AUTH,
+                        authorityDetail: this.authorityMap.MANAGE_AUTH,
+                      },
+                    ],
+                    popover: [
+                      {
+                        id: 'clone',
+                        name: window.i18n.tc('克隆'),
+                        authority: this.authority.MANAGE_AUTH,
+                        authorityDetail: this.authorityMap.MANAGE_AUTH,
+                      },
+                    ],
+                  }}
+                  onOptionClick={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, row.id)}
+                ></OperateOptions>
+              ),
+              name: (row: ItaskItem) => (
+                <span
+                  class='task-name'
+                  onClick={() => this.handleTaskNameClick(row.id)}
+                >
+                  {row.name}
+                </span>
+              ),
+              enable: (row: ItaskItem) => (
+                <bk-switcher
+                  disabled={taskSwitchDisabled(row.status)}
+                  preCheck={() => this.taskSwitchChangePreCheck(row.id, row.status)}
+                  size={'small'}
+                  theme={'primary'}
+                  value={taskSwitch(row.status)}
+                  on-change={this.handleTaskSwitchChange}
+                ></bk-switcher>
+              ),
+              statusText: (row: ItaskItem) => (
+                <span style={{ color: taskStatusTextColor(row.status) }}>{taskStatusMap[row.status]}</span>
+              ),
+              progress: (row: ItaskItem) => (
+                <div>
+                  {<div>{row.available !== null ? `${row.available}%` : '--'}</div>}
+                  <bk-progress
+                    color={tableAvailableProcessColor(row.available, row.status)}
+                    percent={Number((row.available * 0.01).toFixed(2)) || 0}
+                    showText={false}
+                  ></bk-progress>
+                </div>
+              ),
+            }}
+            data={this.taskTableData.data}
+            pagination={this.taskTableData.pagination}
+            onLimitChange={this.handleTaskTableLimitChange}
+            onPageChange={this.handleTaskTablePageChange}
+            onSortChange={this.handleSortChange}
+          >
+            <EmptyStatus
+              slot='empty'
+              type={this.emptyStatusType}
+              onOperation={this.handleOperation}
+            />
+          </CommonTable>
+        )}
       </div>
     );
   }
@@ -764,62 +772,67 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           onSearch={(v: string) => this.handleSearch(v)}
         ></HeaderTools>
         {this.groupDataTask.show ? (
-          this.searchGroupToTaskData.length ? (
-            <CardsContainer style={{ marginTop: '20px' }}>
+          <CardsContainer style={{ marginTop: '20px' }}>
+            <span
+              class='card-container-header'
+              slot='title'
+            >
               <span
-                class='card-container-header'
-                slot='title'
+                class='header-btn'
+                onClick={this.handleBackGroup}
               >
-                <span
-                  class='header-btn'
-                  onClick={this.handleBackGroup}
-                >
-                  {this.$t('拨测任务')}
-                </span>
-                <span class='header-arrow'>{'>'}</span>
-                <span class='header-name'>{this.groupDataTask.groupName}</span>
+                {this.$t('拨测任务')}
               </span>
-              {this.searchGroupToTaskData.map(item => (
-                <TaskCard
-                  data={item}
-                  onCardClick={(id: number) => this.handleTaskCardClick(id)}
-                  onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
-                ></TaskCard>
-              ))}
-            </CardsContainer>
-          ) : undefined
+              <span class='header-arrow'>{'>'}</span>
+              <span class='header-name'>{this.groupDataTask.groupName}</span>
+            </span>
+            {this.searchGroupToTaskData.map(item => (
+              <TaskCard
+                data={item}
+                onCardClick={(id: number) => this.handleTaskCardClick(id)}
+                onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
+              ></TaskCard>
+            ))}
+          </CardsContainer>
         ) : (
           [
-            this.searchGroupData.length ? (
-              <CardsContainer
-                style={{ marginTop: '20px' }}
-                title={this.$tc('拨测任务组')}
-                showSeeAll
-              >
-                {this.searchGroupData.map(item => (
-                  <GroupCard
-                    data={item}
-                    dragStatus={this.dragStatus}
-                    onCardClick={(id: number) => this.handleGroupCardClick(id)}
-                    onDropItem={v => this.handleDropItem(v)}
-                    onOperate={(v: IGroupCardOperate) => this.handleGroupCardOperate(v, item.id)}
-                  ></GroupCard>
-                ))}
-              </CardsContainer>
-            ) : undefined,
+            <CardsContainer
+              style={{ marginTop: '20px' }}
+              title={this.$tc('拨测任务组')}
+              showSeeAll
+            >
+              {this.loading
+                ? new Array(2).fill(null).map((_item, index) => <TaskCardSkeleton key={index}></TaskCardSkeleton>)
+                : this.searchGroupData.map(item => (
+                    <GroupCard
+                      data={item}
+                      dragStatus={this.dragStatus}
+                      onCardClick={(id: number) => this.handleGroupCardClick(id)}
+                      onDropItem={v => this.handleDropItem(v)}
+                      onOperate={(v: IGroupCardOperate) => this.handleGroupCardOperate(v, item.id)}
+                    ></GroupCard>
+                  ))}
+            </CardsContainer>,
             this.searchTaskData.length ? (
               <CardsContainer
                 style={{ marginTop: '12px' }}
                 title={this.$tc('拨测任务')}
               >
-                {this.searchTaskData.map(item => (
-                  <TaskCard
-                    data={item}
-                    onCardClick={(id: number) => this.handleTaskCardClick(id)}
-                    onDragStatus={(v: IDragStatus) => this.handleDragStatus(v)}
-                    onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
-                  ></TaskCard>
-                ))}
+                {this.loading
+                  ? new Array(6).fill(null).map((_item, index) => (
+                      <TaskCardSkeleton
+                        key={index}
+                        type={2}
+                      ></TaskCardSkeleton>
+                    ))
+                  : this.searchTaskData.map(item => (
+                      <TaskCard
+                        data={item}
+                        onCardClick={(id: number) => this.handleTaskCardClick(id)}
+                        onDragStatus={(v: IDragStatus) => this.handleDragStatus(v)}
+                        onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
+                      ></TaskCard>
+                    ))}
               </CardsContainer>
             ) : undefined,
           ]
