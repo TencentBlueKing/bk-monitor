@@ -311,7 +311,7 @@ export default class QueryStatement extends tsc<{}> {
   @Watch('unionIndexList', { immediate: true, deep: true })
   initUnionList(val) {
     this.indexSearchType = !!val.length ? 'union' : 'single';
-    this.selectTagCatchIDList = !!val.length ? val : this.indexId ? [this.indexId] : [];
+    this.selectTagCatchIDList = !!val.length ? val : [this.indexId];
   }
 
   @Emit('selected')
@@ -331,7 +331,7 @@ export default class QueryStatement extends tsc<{}> {
   /** 选中索引集 */
   handleSelectIndex(val) {
     if (this.isAloneType) {
-      if (val[0]) this.selectAloneVal = [val[val.length - 1]];
+      if (val[0]) this.selectAloneVal = [val[1]];
       this.handleCloseSelectPopover();
     } else {
       this.selectTagCatchIDList = val.filter(item => item !== '-1');
@@ -364,13 +364,13 @@ export default class QueryStatement extends tsc<{}> {
     this.isShowSelectPopover = val;
     if (val) {
       // 打开索引集下拉框 初始化单选的数据
-      this.selectAloneVal = this.indexId ? [this.indexId] : [];
+      this.selectAloneVal = [this.indexId];
       if (this.isUnionSearch) {
         this.indexSearchType = 'union';
         this.selectTagCatchIDList = this.unionIndexList;
       } else {
         this.indexSearchType = 'single';
-        this.selectTagCatchIDList = this.indexId ? [this.indexId] : [];
+        this.selectTagCatchIDList = [this.indexId];
       }
       // 获取多选收藏
       this.getMultipleFavoriteList();
@@ -383,15 +383,7 @@ export default class QueryStatement extends tsc<{}> {
       // 监听选中的标签是否超过2行
       this.initResizeGroupStyle();
     } else {
-      if (!this.selectTagCatchIDList.length) {
-        if (this.indexSearchType === 'single' && this.changeTypeCatchIDlist.length) {
-          this.selectTagCatchIDList = [...this.changeTypeCatchIDlist];
-          this.indexSearchType = 'union';
-        } else {
-          this.indexSearchType = 'single';
-        }
-      }
-
+      if (!this.selectTagCatchIDList.length) this.indexSearchType = 'single';
       this.aloneHistory = [];
       this.multipleHistory = [];
       this.changeTypeCatchIDlist = [];
@@ -494,7 +486,7 @@ export default class QueryStatement extends tsc<{}> {
 
     if (type === 'single') {
       this.changeTypeCatchIDlist = this.selectTagCatchIDList;
-      this.selectTagCatchIDList = this.indexId ? [this.indexId] : [];
+      this.selectTagCatchIDList = [this.indexId];
     } else {
       this.selectTagCatchIDList = this.changeTypeCatchIDlist;
     }
