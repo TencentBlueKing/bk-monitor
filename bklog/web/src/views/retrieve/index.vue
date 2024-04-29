@@ -1606,7 +1606,10 @@ export default {
         .filter(Boolean);
       this.showShowUnionSource(true);
       this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
-      this.setDefaultTableColumn();
+      // 初始化的时候不进行设置自适应宽度 当前dom还没挂在在页面 导致在第一次检索时isSetDefaultTableColumn参数为true 无法更新自适应宽度
+      if (this.isSetDefaultTableColumn) {
+        this.setDefaultTableColumn();
+      }
     },
     sessionShowFieldObj() {
       // 显示字段缓存
