@@ -292,7 +292,7 @@ class Permission(object):
         """
         判断资源是否为demo业务的资源
         """
-        if not settings.DEMO_BIZ_ID or int(settings.DEMO_BIZ_ID) <= 0:
+        if not settings.DEMO_BIZ_ID or int(settings.DEMO_BIZ_ID or 0) <= 0:
             return False
         if not resources:
             return False
@@ -514,7 +514,7 @@ class Permission(object):
         if not policies:
             # 如果策略是空，则说明没有任何权限，若存在Demo业务，返回Demo业务，否则返回空
             for space in space_list:
-                if int(settings.DEMO_BIZ_ID) == space.bk_biz_id:
+                if int(settings.DEMO_BIZ_ID or 0) == space.bk_biz_id:
                     return [space]
             return []
 
@@ -530,7 +530,7 @@ class Permission(object):
             is_allowed = self.iam_client._eval_expr(expr, obj_set)
 
             # 如果是demo业务，也直接加到业务列表中
-            if is_allowed or int(settings.DEMO_BIZ_ID) == space.bk_biz_id:
+            if is_allowed or int(settings.DEMO_BIZ_ID or 0) == space.bk_biz_id:
                 results.append(space)
 
         return results
@@ -562,7 +562,7 @@ class Permission(object):
         if not policies:
             # 如果策略是空，则说明没有任何权限，若存在Demo业务，返回Demo业务，否则返回空
             for business in business_list:
-                if int(settings.DEMO_BIZ_ID) == business.bk_biz_id:
+                if int(settings.DEMO_BIZ_ID or 0) == business.bk_biz_id:
                     return [business]
             return []
 
@@ -578,7 +578,7 @@ class Permission(object):
             is_allowed = self.iam_client._eval_expr(expr, obj_set)
 
             # 如果是demo业务，也直接加到业务列表中
-            if is_allowed or int(settings.DEMO_BIZ_ID) == business.bk_biz_id:
+            if is_allowed or int(settings.DEMO_BIZ_ID or 0) == business.bk_biz_id:
                 results.append(business)
 
         return results
