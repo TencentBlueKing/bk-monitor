@@ -77,6 +77,7 @@ import EventTable, { IShowDetail } from './event-table';
 import FilterInput from './filter-input';
 import MonitorDrag from './monitor-drag';
 import AdvancedFilterSkeleton from './skeleton/advanced-filter-skeleton';
+import FilterListSkeleton from './skeleton/filter-list-skeleton';
 import {
   AnlyzeField,
   EBatchAction,
@@ -2120,7 +2121,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           }}
           class={`event-filter ${this.isSplitEventPanel ? 'hidden' : ''}`}
         >
-          <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
+          {this.commonFilterData.length ? (
+            <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
+          ) : (
+            <FilterListSkeleton></FilterListSkeleton>
+          )}
           <div class='filter-search'>
             <div class='search-title'>{this.$t('高级筛选')}</div>
             {this.advancedFilterLoading ? (

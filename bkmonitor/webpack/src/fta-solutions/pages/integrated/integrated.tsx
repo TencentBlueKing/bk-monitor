@@ -37,6 +37,8 @@ import Group, { IGroupData } from './group';
 import Header, { ViewType } from './header';
 import InstallPluginDialog, { IData as ICurrentPluginData } from './install-plugin-dialog';
 import List from './list';
+import IntegratedCardSkeleton from './skeleton/integrated-card-skeleton';
+import IntegratedFilterSkeleton from './skeleton/integrated-filter-skeleton';
 import { MapType } from './status-tips';
 
 import './integrated.scss';
@@ -324,7 +326,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
     return (
       <section
         class='integrated'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         {/* 筛选条件 */}
         <div
@@ -335,16 +337,20 @@ export default class Integrated extends tsc<IIntegratedProps> {
           }}
           class='integrated-filter'
         >
-          <Group
-            scopedSlots={{
-              default: ({ item }) => this.filterGroupSlot(item),
-            }}
-            data={this.filterPanelData}
-            defaultActiveName={this.defaultActiveFilterGroup}
-            theme='filter'
-            onActiveChange={v => (this.defaultActiveFilterGroup = v)}
-            onClear={this.handleClearChecked}
-          ></Group>
+          {this.loading ? (
+            <IntegratedFilterSkeleton></IntegratedFilterSkeleton>
+          ) : (
+            <Group
+              scopedSlots={{
+                default: ({ item }) => this.filterGroupSlot(item),
+              }}
+              data={this.filterPanelData}
+              defaultActiveName={this.defaultActiveFilterGroup}
+              theme='filter'
+              onActiveChange={v => (this.defaultActiveFilterGroup = v)}
+              onClear={this.handleClearChecked}
+            ></Group>
+          )}
           <MonitorDrag on-move={this.handleDragFilter} />
         </div>
         {/* 插件内容 */}
@@ -358,28 +364,33 @@ export default class Integrated extends tsc<IIntegratedProps> {
             onViewChange={this.handleViewTypeChange}
           ></Header>
           {/* 过滤空组 */}
-          {this.listPluginData?.length ? (
-            <Group
-              scopedSlots={{
-                default: ({ item }) => this.contentGroupSlot(item),
-              }}
-              data={this.listPluginData}
-              defaultActiveName={this.defaultActiveContentGroup}
-              theme='bold'
-              onActiveChange={v => (this.defaultActiveContentGroup = v)}
-            />
-          ) : (
-            <div class='integrated-content-empty'>
-              {!this.loading ? (
-                <bk-exception
-                  scene='page'
-                  type='empty'
-                >
-                  {this.$t('暂无数据')}
-                </bk-exception>
-              ) : undefined}
-            </div>
-          )}
+          {(() => {
+            if (this.loading) {
+              return <IntegratedCardSkeleton></IntegratedCardSkeleton>;
+            }
+            return this.listPluginData?.length ? (
+              <Group
+                scopedSlots={{
+                  default: ({ item }) => this.contentGroupSlot(item),
+                }}
+                data={this.listPluginData}
+                defaultActiveName={this.defaultActiveContentGroup}
+                theme='bold'
+                onActiveChange={v => (this.defaultActiveContentGroup = v)}
+              />
+            ) : (
+              <div class='integrated-content-empty'>
+                {!this.loading ? (
+                  <bk-exception
+                    scene='page'
+                    type='empty'
+                  >
+                    {this.$t('暂无数据')}
+                  </bk-exception>
+                ) : undefined}
+              </div>
+            );
+          })()}
         </div>
         <EventSourceDetail
           id={this.curDetailId}

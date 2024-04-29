@@ -1,0 +1,22 @@
+@import '../../../static/scss/mixin.scss';
+
+.event-filter-list-skeleton {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 357px;
+  padding: 16px 0;
+  color: #63656e;
+  border-bottom: 1px solid #dcdee5;
+
+  @include simple-class-style('h', 16);
+
+  &-item {
+    position: relative;
+    display: flex;
+    flex: 0 0 36px;
+    height: 36px;
+    padding: 0 24px 0 20px;
+    margin: 0;
+  }
+}
