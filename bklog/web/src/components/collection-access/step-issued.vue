@@ -213,15 +213,17 @@
             data-test-id="collectionDistribution_button_previous"
             :disabled="hasRunning"
             @click="prevHandler"
-            >{{ $t('上一步') }}</bk-button
           >
+            {{ $t('上一步') }}
+          </bk-button>
           <bk-button
             theme="primary"
             data-test-id="collectionDistribution_button_nextStep"
             :disabled="hasRunning"
             @click="nextHandler"
-            >{{ $t('下一步') }}</bk-button
           >
+            {{ $t('下一步') }}
+          </bk-button>
         </template>
       </template>
       <bk-button

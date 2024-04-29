@@ -36,7 +36,7 @@
       <section class="access-step-wrapper">
         <div
           class="fixed-steps"
-          :style="{ height: getShowStepsConf.length * 76 + 'px' }"
+          :style="{ height: `${getShowStepsConfHeightNum}px` }"
         >
           <bk-steps
             theme="primary"
@@ -49,7 +49,7 @@
           </bk-steps>
           <div
             class="step-arrow"
-            :style="{ top: curStep * 76 - 38 + 'px' }"
+            :style="{ top: `${getCurStepArrowTopNum}px` }"
           ></div>
         </div>
       </section>
@@ -97,6 +97,8 @@ import stepResult from './step-result';
 import stepMasking from './step-masking.tsx';
 import advanceCleanLand from '@/components/collection-access/advance-clean-land';
 import * as authorityMap from '../../common/authority-map';
+/** 左侧侧边栏一个步骤元素的高度 */
+const ONE_STEP_HEIGHT = 76;
 
 export default {
   name: 'AccessSteps',
@@ -194,6 +196,14 @@ export default {
         ...step,
         icon: index + 1
       }));
+    },
+    /** 左侧展示的步骤总高度 */
+    getShowStepsConfHeightNum() {
+      return this.getShowStepsConf.length * ONE_STEP_HEIGHT;
+    },
+    /** 箭头样式的top */
+    getCurStepArrowTopNum() {
+      return this.curStep * ONE_STEP_HEIGHT - 38;
     },
     /** 当前展示的组件 */
     getCurrentComponent() {
@@ -293,23 +303,24 @@ export default {
             // 容器环境  非启用停用 非克隆状态则展示容器日志步骤
             if (!this.isPhysics && !this.isSwitch && type !== 'clone') this.isContainerStep = true;
             const finishPag = this.getShowStepsConf.slice(-1).icon;
-            let jumpPage = 1;
+            let jumpComponentStr = 'stepAdd';
             switch (this.operateType) {
               case 'edit': // 完成或者未完成编辑都从第一步走
-                jumpPage = 1;
+                jumpComponentStr = 'stepAdd';
                 break;
               case 'field':
-                jumpPage = this.getShowStepsConf.find(item => item.stepStr === 'stepField').icon;
+                jumpComponentStr = 'stepField';
                 break;
               case 'storage':
-                jumpPage = this.getShowStepsConf.find(item => item.stepStr === 'stepStorage').icon;
+                jumpComponentStr = 'stepStorage';
                 break;
               case 'masking':
-                jumpPage = this.getShowStepsConf.find(item => item.stepStr === 'stepMasking').icon;
+                jumpComponentStr = 'stepMasking';
                 break;
               default:
                 break;
             }
+            const jumpPage = this.getShowStepsConf.find(item => item.stepStr === jumpComponentStr).icon;
             // 审批通过后编辑直接进入第三步字段提取，否则进入第二步容量评估
             this.curStep = this.isItsm && this.applyData.itsm_ticket_status === 'applying' ? finishPag : jumpPage;
           }
