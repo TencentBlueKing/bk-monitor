@@ -561,7 +561,6 @@ export default {
     }
   },
   created() {
-    this.checkInitSearch();
     this.getGlobalsData();
   },
   mounted() {
@@ -573,15 +572,32 @@ export default {
     window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
   },
   methods: {
-    /** 检查初始化检索类型 根据路由 unionList 参数 */
-    checkInitSearch() {
+    /** 检查初始化检索类型 根据路由 unionList、tags 参数 */
+    checkIsUnionSearch() {
       // 首次通过url访问页面
       const { params, query } = this.$route;
-      // 路由参数不存在索引集ID 但包含联合查询unionList索引集ID参数 说明此链接为带有联合查询类型
-      if (!params?.indexId && !!query.unionList) {
-        const list = JSON.parse(decodeURIComponent(query.unionList));
-        this.$store.commit('updateUnionIndexList', list);
+
+      // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
+      if (!params?.indexId) {
+        const unionArr = query?.unionList ? JSON.parse(decodeURIComponent(query.unionList)) : [];
+        if (unionArr.length) {
+          this.$store.commit('updateUnionIndexList', unionArr);
+          return true;
+        }
+
+        const tagArr = query?.tags?.split(',') ?? [];
+        const indexSetMatch = this.indexSetList
+          .filter(item => item.tags.some(tag => tagArr.includes(tag.name)))
+          .map(val => val.index_set_id);
+        if (indexSetMatch.length) {
+          this.$store.commit('updateUnionIndexList', indexSetMatch);
+          return true;
+        }
+
+        return false;
       }
+
+      return false;
     },
     /** 索引集更变时的数据初始化 */
     initIndexSetChangeFn(val, isUnionSearch = false) {
@@ -743,7 +759,7 @@ export default {
               const indexItem = indexSetList.find(item => item.index_set_id === indexId);
               this.indexId = indexItem ? indexItem.index_set_id : indexSetList[0].index_set_id;
               this.retrieveLog();
-            } else if (this.isUnionSearch && this.indexSetList?.length) {
+            } else if (this.isInitPage && this.checkIsUnionSearch()) {
               // 初始化联合查询
               this.retrieveLog();
             } else {
