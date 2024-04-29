@@ -33,25 +33,23 @@
       v-else-if="!basicLoading && !isCleaning"
       class="access-container"
     >
-      <section
-        v-if="isShowStepDom"
-        class="access-step-wrapper"
-      >
+      <section class="access-step-wrapper">
         <div
           class="fixed-steps"
-          :style="{ height: stepList.length * 76 + 'px' }"
+          :style="{ height: `${getShowStepsConfHeightNum}px` }"
         >
           <bk-steps
-            v-if="stepList.length"
             theme="primary"
             direction="vertical"
-            :cur-step.sync="showSteps"
-            :steps="stepList"
+            :controllable="isFinishCreateStep"
+            :cur-step.sync="curStep"
+            :steps="getShowStepsConf"
+            :before-change="stepChangeBeforeFn"
           >
           </bk-steps>
           <div
             class="step-arrow"
-            :style="{ top: curStep * 76 - 38 + 'px' }"
+            :style="{ top: `${getCurStepArrowTopNum}px` }"
           ></div>
         </div>
       </section>
@@ -60,106 +58,25 @@
         v-bkloading="{ isLoading: containerLoading, zIndex: 10 }"
         class="access-step-container"
       >
-        <template v-if="isItsmAndNotStartOrStop">
-          <step-add
-            v-if="curStep === 1"
-            :container-loading.sync="containerLoading"
-            :operate-type="operateType"
-            :is-physics.sync="isPhysics"
-            :is-update.sync="isUpdate"
-            @stepChange="num => stepChange(num, 'add')"
-          />
-          <step-issued
-            v-if="curStep === 2"
-            :operate-type="operateType"
-            :is-switch="isSwitch"
-            @stepChange="stepChange"
-          />
-          <step-field
-            v-if="curStep === 3"
-            :cur-step="curStep"
-            :operate-type="operateType"
-            @changeIndexSetId="updateIndexSetId"
-            @stepChange="stepChange"
-            @changeClean="isCleaning = true"
-          />
-          <step-storage
-            v-if="curStep === 4"
-            :cur-step="curStep"
-            :operate-type="operateType"
-            @changeIndexSetId="updateIndexSetId"
-            @stepChange="stepChange"
-            @setAssessmentItem="setAssessmentItem"
-            @changeSubmit="changeSubmit"
-          />
-          <step-masking
-            v-if="curStep === 5 && isShowMaskingTemplate"
-            :cur-step="curStep"
-            :operate-type="operateType"
-            :cur-collect="curCollect"
-            @stepChange="stepChange"
-            @changeIndexSetId="updateIndexSetId"
-            @changeSubmit="changeSubmit"
-          />
-          <step-result
-            v-if="isFinish"
-            :operate-type="operateType"
-            :is-switch="isSwitch"
-            :index-set-id="indexSetId"
-            :apply-data="applyData"
-            @stepChange="stepChange"
-          />
-        </template>
-        <template v-else>
-          <step-add
-            v-if="curStep === 1 && !isSwitch"
-            :operate-type="operateType"
-            :container-loading.sync="containerLoading"
-            :is-physics.sync="isPhysics"
-            :is-update.sync="isUpdate"
-            @stepChange="num => stepChange(num, 'add')"
-          />
-          <step-issued
-            v-if="(curStep === 2 && !isSwitch) || (curStep === 1 && isSwitch)"
-            :operate-type="operateType"
-            :is-switch="isSwitch"
-            @stepChange="stepChange"
-          />
-          <step-field
-            v-if="curStep === 3"
-            :cur-step="curStep"
-            :operate-type="operateType"
-            @changeIndexSetId="updateIndexSetId"
-            @stepChange="stepChange"
-            @changeClean="isCleaning = true"
-          />
-          <step-storage
-            v-if="curStep === 4"
-            :cur-step="curStep"
-            :operate-type="operateType"
-            @changeIndexSetId="updateIndexSetId"
-            @stepChange="stepChange"
-            @setAssessmentItem="setAssessmentItem"
-            @changeSubmit="changeSubmit"
-          />
-          <step-masking
-            v-if="curStep === 5 && isShowMaskingTemplate"
-            :cur-step="curStep"
-            :operate-type="operateType"
-            :cur-collect="curCollect"
-            @stepChange="stepChange"
-            @changeIndexSetId="updateIndexSetId"
-            @changeSubmit="changeSubmit"
-          />
-          <step-result
-            v-if="isFinish"
-            :operate-type="operateType"
-            :is-switch="isSwitch"
-            :index-set-id="indexSetId"
-            :apply-data="applyData"
-            @stepChange="stepChange"
-          />
-        </template>
+        <component
+          :is="getCurrentComponent"
+          ref="currentRef"
+          :operate-type="operateType"
+          :is-physics.sync="isPhysics"
+          :is-update.sync="isUpdate"
+          :is-switch="isSwitch"
+          :index-set-id="indexSetId"
+          :apply-data="applyData"
+          :is-container-step="isContainerStep"
+          :is-finish-create-step="isFinishCreateStep"
+          :container-loading.sync="containerLoading"
+          :force-show-component.sync="forceShowComponent"
+          @setAssessmentItem="v => (applyData = v)"
+          @changeIndexSetId="v => (indexSetId = v)"
+          @changeSubmit="v => (isSubmit = v)"
+          @changeClean="isCleaning = true"
+          @stepChange="stepChange"
+        ></component>
       </section>
     </div>
     <advance-clean-land
@@ -171,7 +88,6 @@
 
 <script>
 import { mapState, mapGetters } from 'vuex';
-import { stepsConf, finishRefer } from './step';
 import AuthContainerPage from '@/components/common/auth-container-page';
 import stepAdd from './step-add';
 import stepIssued from './step-issued';
@@ -181,6 +97,8 @@ import stepResult from './step-result';
 import stepMasking from './step-masking.tsx';
 import advanceCleanLand from '@/components/collection-access/advance-clean-land';
 import * as authorityMap from '../../common/authority-map';
+/** 左侧侧边栏一个步骤元素的高度 */
+const ONE_STEP_HEIGHT = 76;
 
 export default {
   name: 'AccessSteps',
@@ -191,8 +109,8 @@ export default {
     stepField,
     stepStorage,
     stepResult,
-    advanceCleanLand,
-    stepMasking
+    stepMasking,
+    advanceCleanLand
   },
   data() {
     return {
@@ -204,15 +122,36 @@ export default {
       isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
       operateType: '',
       curStep: 1, // 组件步骤
-      showSteps: 1, // 判断容器日志所用的展示步骤
       isPhysics: true, // 采集配置是否是物理环境
       indexSetId: '',
-      stepList: [],
       globals: {},
       itsmTicketIsApplying: false,
       applyData: {},
       containerLoading: false, // 容器日志提交loading
-      isShowStepDom: true
+      /** 是否是容器步骤 */
+      isContainerStep: false,
+      /** 是否完成过一次创建步骤 */
+      isFinishCreateStep: false,
+      /** 强制渲染的组件 */
+      forceShowComponent: '',
+      /** 步骤所对应的组件 */
+      // componentStepObj: {
+      //   1: 'stepAdd',
+      //   2: 'stepIssued',
+      //   3: 'stepField',
+      //   4: 'stepStorage',
+      //   5: 'stepMasking',
+      //   6: 'stepResult'
+      // },
+      /** 侧边栏所有的步骤 */
+      stepsConf: [
+        { title: this.$t('采集配置'), icon: 1, stepStr: 'stepAdd' },
+        { title: this.$t('采集下发'), icon: 2, stepStr: 'stepIssued' },
+        { title: this.$t('字段清洗'), icon: 3, stepStr: 'stepField' },
+        { title: this.$t('存储'), icon: 4, stepStr: 'stepStorage' },
+        { title: this.$t('日志脱敏'), icon: 5, stepStr: 'stepMasking' },
+        { title: this.$t('完成'), icon: 6, stepStr: 'stepResult' }
+      ]
     };
   },
   computed: {
@@ -223,30 +162,59 @@ export default {
     ...mapGetters(['bkBizId']),
     ...mapGetters(['spaceUid']),
     ...mapGetters(['isShowMaskingTemplate']),
-    isCommon() {
-      return ['add', 'edit'].some(item => item === this.operateType);
-    },
-    isCommonFinish() {
-      // 存储操作完成的情况 table_id
-      return ['add', 'edit'].some(item => this.operateType.search(item) !== -1);
-    },
+    /** 是否是启停状态 */
     isSwitch() {
       return ['start', 'stop'].some(item => item === this.operateType);
     },
     isItsmAndNotStartOrStop() {
       return this.isItsm && this.operateType !== 'start' && this.operateType !== 'stop';
     },
-    isFinish() {
-      if (this.isItsmAndNotStartOrStop) {
-        return this.curStep === this.finishStepNum;
+    /** 左侧展示的步骤 */
+    showStepsConf() {
+      let finishShowConf = this.stepsConf;
+      // 启停情况下只有采集下发和完成两个步骤
+      if (this.isSwitch) {
+        finishShowConf = finishShowConf.filter(item => ['stepIssued', 'stepResult'].includes(item.stepStr));
       }
-      // 非开关步骤下需要判断当前是否是日志脱敏步骤 如果不是 则当前step + 1 与stepFinish结束步骤保持同步
-      const isMaskingStep = this.isSwitch || this.isShowMaskingTemplate;
-      return finishRefer[this.operateType] === (isMaskingStep ? this.curStep : this.curStep + 1);
+      // 容器日志没有下发步骤
+      if (this.isContainerStep) {
+        finishShowConf = finishShowConf.filter(item => item.stepStr !== 'stepIssued');
+      }
+      // 判断当前业务是否展示脱敏 若不展示 隐藏脱敏步骤
+      if (!this.isShowMaskingTemplate) {
+        finishShowConf = finishShowConf.filter(item => item.stepStr !== 'stepMasking');
+      }
+      // 判断是否以及完成过一次步骤 有table_id的情况视为完成过一次完整的步骤  隐藏下发和完成两个步骤
+      if (this.isFinishCreateStep && !this.isSwitch) {
+        finishShowConf = finishShowConf.filter(item => !['stepIssued', 'stepResult'].includes(item.stepStr));
+      }
+      return finishShowConf;
     },
-    /** 根据是否开启脱敏功能确定完成的步骤 */
-    finishStepNum() {
-      return this.isShowMaskingTemplate ? 6 : 5;
+    /** 左侧展示的步骤更新icon的number */
+    getShowStepsConf() {
+      return this.showStepsConf.map((step, index) => ({
+        ...step,
+        icon: index + 1
+      }));
+    },
+    /** 左侧展示的步骤总高度 */
+    getShowStepsConfHeightNum() {
+      return this.getShowStepsConf.length * ONE_STEP_HEIGHT;
+    },
+    /** 箭头样式的top */
+    getCurStepArrowTopNum() {
+      return this.curStep * ONE_STEP_HEIGHT - 38;
+    },
+    /** 当前展示的组件 */
+    getCurrentComponent() {
+      // 强制展示组件
+      if (this.forceShowComponent) return this.forceShowComponent;
+      const showComponent = {};
+      // 根据展示的组件重置步骤 让curStep与组件对应
+      this.getShowStepsConf.forEach(item => {
+        showComponent[item.icon] = item.stepStr;
+      });
+      return showComponent[this.curStep];
     }
   },
   watch: {
@@ -316,7 +284,9 @@ export default {
         // 克隆时 请求初始数据
         try {
           const detailRes = await this.getDetail();
-          this.operateType = routeType === 'edit' && detailRes.table_id ? 'editFinish' : routeType; // 若存在table_id则只有三步
+          // 是否完成过一次完整的步骤
+          this.isFinishCreateStep = !!detailRes.table_id;
+          this.operateType = routeType;
         } catch (e) {
           console.warn(e);
           this.operateType = routeType;
@@ -330,30 +300,29 @@ export default {
           if (statusRes.data[0].status === 'PREPARE') {
             // 准备中编辑时跳到第一步，所以不用修改步骤
           } else {
-            const finishPag = this.finishStepNum;
-            let jumpPage = 1;
+            // 容器环境  非启用停用 非克隆状态则展示容器日志步骤
+            if (!this.isPhysics && !this.isSwitch && type !== 'clone') this.isContainerStep = true;
+            const finishPag = this.getShowStepsConf.slice(-1).icon;
+            let jumpComponentStr = 'stepAdd';
             switch (this.operateType) {
-              case ('edit', 'editFinish'): // 未完成编辑
-                jumpPage = 1;
+              case 'edit': // 完成或者未完成编辑都从第一步走
+                jumpComponentStr = 'stepAdd';
                 break;
               case 'field':
-                jumpPage = 3;
+                jumpComponentStr = 'stepField';
                 break;
               case 'storage':
-                jumpPage = 4;
+                jumpComponentStr = 'stepStorage';
                 break;
               case 'masking':
-                jumpPage = 5;
+                jumpComponentStr = 'stepMasking';
                 break;
               default:
                 break;
             }
+            const jumpPage = this.getShowStepsConf.find(item => item.stepStr === jumpComponentStr).icon;
             // 审批通过后编辑直接进入第三步字段提取，否则进入第二步容量评估
             this.curStep = this.isItsm && this.applyData.itsm_ticket_status === 'applying' ? finishPag : jumpPage;
-          }
-          // 容器环境  非启用停用 非克隆状态则展示容器日志步骤
-          if (!this.isPhysics && !this.isSwitch && type !== 'clone') {
-            this.operateType = 'container';
           }
         } catch (e) {
           console.warn(e);
@@ -361,41 +330,13 @@ export default {
       } else {
         this.operateType = routeType;
       }
-      // 脱敏隐藏左侧步骤Dom
-      if (type === 'masking') {
-        this.isShowStepDom = false;
-      }
-      this.setSteps();
       this.basicLoading = false;
     },
     setSteps() {
-      // 判断当前是否是物理环境 用于切换setp的数组
-      if (this.isPhysics || this.isSwitch) {
-        this.showSteps = this.curStep;
-      } else {
-        // 容器环境 非启用 停用情况 当前页若是采集配置则跳过采集下发直接进入字段提取步骤展示
-        this.showSteps = this.curStep === 1 ? 1 : this.curStep - 1;
-      }
       // 新增  并且为容器环境则步骤变为容器步骤 步骤为第一步时不判断
-      if (this.operateType === 'add' && !this.isPhysics && this.curStep !== 1) {
-        this.operateType = 'container';
-      }
-      const stepList = stepsConf[this.operateType];
-
-      // 判断当前业务是否展示脱敏 若不展示 隐藏脱敏步骤
-      const newStepList = this.isShowMaskingTemplate ? stepList : stepList.filter(item => !item.isMasking);
-
-      this.stepList = JSON.parse(JSON.stringify(newStepList));
-
-      this.stepList.forEach((step, index) => {
-        if (index < this.showSteps - 1) {
-          // step.icon = 'check-1'; // 组件bug。已完成的步骤无法为空icon。或者其它样式。需优化
-        } else {
-          step.icon = index + 1;
-        }
-      });
+      if (this.operateType === 'add' && !this.isPhysics && this.curStep !== 1) this.isContainerStep = true;
     },
-    stepChange(num, type = null) {
+    stepChange(num) {
       if (num === 'back') {
         this.$router.push({
           name: 'log-collection',
@@ -405,17 +346,8 @@ export default {
         });
         return;
       }
-      // 第一步骤 容器环境没有采集下发流程 跳2步
-      if (type === 'add' && !this.isPhysics && !num) {
-        this.curStep = this.curStep + 2;
-        return;
-      }
       this.curStep = num || this.curStep + 1;
     },
-    updateIndexSetId(indexId) {
-      this.indexSetId = indexId;
-    },
-
     // 获取详情
     getDetail() {
       return new Promise((resolve, reject) => {
@@ -457,11 +389,23 @@ export default {
         }
       });
     },
-    changeSubmit(isSubmit) {
-      this.isSubmit = isSubmit;
-    },
-    setAssessmentItem(item) {
-      this.applyData = item;
+    /** 步骤切换时触发该函数 */
+    stepChangeBeforeFn() {
+      /** 编辑状态切换步骤时 判断下是否修改过当前的值 */
+      const isUpdateSubmitValue = this.$refs.currentRef?.getIsUpdateSubmitValue?.() || false;
+      if (!isUpdateSubmitValue) {
+        this.forceShowComponent = '';
+        return true;
+      }
+      return new Promise(resolve => {
+        this.$bkInfo({
+          title: this.$t('是否放弃本次操作？'),
+          confirmFn: () => {
+            this.forceShowComponent = '';
+            resolve(true);
+          }
+        });
+      });
     }
   }
 };
