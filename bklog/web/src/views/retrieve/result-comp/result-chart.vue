@@ -284,7 +284,10 @@ export default {
         }
       }
 
-      if (!!this.$route.params?.indexId) {
+      if (
+        (!this.isUnionSearch && !!this.$route.params?.indexId) ||
+        (this.isUnionSearch && this.unionIndexList?.length)
+      ) {
         // 从检索切到其他页面时 表格初始化的时候路由中indexID可能拿不到 拿不到 则不请求图表
         const urlStr = this.isUnionSearch ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
         const queryData = {
