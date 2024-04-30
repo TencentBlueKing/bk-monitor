@@ -754,7 +754,6 @@ export default {
               return;
             }
             this.hasAuth = true;
-
             if (indexId) {
               // 1、初始进入页面带ID；2、检索ID时切换业务；
               const indexItem = indexSetList.find(item => item.index_set_id === indexId);
