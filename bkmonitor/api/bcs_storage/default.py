@@ -35,7 +35,9 @@ class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         if field:
             request_url = f"{request_url}&field={field}"
 
-        return request_url.format(**validated_request_data)
+        url = request_url.format(**validated_request_data)
+        validated_request_data.clear()
+        return url
 
     def get_headers(self):
         headers = super(BcsStorageBaseResource, self).get_headers()
