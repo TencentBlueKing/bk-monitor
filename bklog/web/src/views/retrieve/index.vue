@@ -572,12 +572,43 @@ export default {
     window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
   },
   methods: {
+    /** 检查初始化检索类型 根据路由 unionList、tags 参数 */
+    checkIsUnionSearch() {
+      // 首次通过url访问页面
+      const { params, query } = this.$route;
+
+      // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
+      if (!params?.indexId) {
+        const unionArr = query?.unionList ? JSON.parse(decodeURIComponent(query.unionList)) : [];
+        if (unionArr.length) {
+          this.$store.commit('updateUnionIndexList', unionArr);
+          return true;
+        }
+
+        const tagArr = query?.tags?.split(',') ?? [];
+        const indexSetMatch = this.indexSetList
+          .filter(item => item.tags.some(tag => tagArr.includes(tag.name)))
+          .map(val => val.index_set_id);
+        if (indexSetMatch.length) {
+          this.$store.commit('updateUnionIndexList', indexSetMatch);
+          return true;
+        }
+
+        return false;
+      }
+
+      return false;
+    },
     /** 索引集更变时的数据初始化 */
-    initIndexSetChangeFn(val) {
-      const option = this.indexSetList.find(item => item.index_set_id === val);
-      this.indexSetItem = option ? option : { index_set_name: '', indexName: '', scenario_name: '', scenario_id: '' };
-      // eslint-disable-next-line camelcase
-      this.isSearchAllowed = !!option?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+    initIndexSetChangeFn(val, isUnionSearch = false) {
+      this.isSearchAllowed = isUnionSearch
+        ? val?.every(
+            item =>
+              this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
+                authorityMap.SEARCH_LOG_AUTH
+              ]
+          )
+        : !!this.indexSetList.find(item => item.index_set_id === val)?.permission?.[authorityMap.SEARCH_LOG_AUTH];
       if (this.isSearchAllowed) this.authPageInfo = null;
       this.resetRetrieveCondition();
       this.resetFavoriteValue();
@@ -723,11 +754,13 @@ export default {
               return;
             }
             this.hasAuth = true;
-
             if (indexId) {
               // 1、初始进入页面带ID；2、检索ID时切换业务；
               const indexItem = indexSetList.find(item => item.index_set_id === indexId);
               this.indexId = indexItem ? indexItem.index_set_id : indexSetList[0].index_set_id;
+              this.retrieveLog();
+            } else if (this.isInitPage && this.checkIsUnionSearch()) {
+              // 初始化联合查询
               this.retrieveLog();
             } else {
               // 直接进入检索页
@@ -829,7 +862,7 @@ export default {
       if (selectIsUnionSearch) {
         if (!this.compareArrays(ids, this.unionIndexList) || isFavoriteSearch) {
           this.shouldUpdateFields = true;
-          this.initIndexSetChangeFn(this.indexId);
+          this.initIndexSetChangeFn(ids, true);
           this.$store.commit('updateUnionIndexList', ids);
           this.catchUnionBeginList = [];
           this.retrieveLog(params);
@@ -1114,7 +1147,7 @@ export default {
      * @param {Boolean} isRequestChartsAndHistory 检索时是否请求历史记录和图表
      */
     async retrieveLog(historyParams, isRequestChartsAndHistory = true) {
-      if (!this.indexId) return;
+      if ((!this.isUnionSearch && !this.indexId) || (this.isUnionSearch && !this.unionIndexList.length)) return;
       await this.$nextTick();
       this.basicLoading = true;
       this.$refs.resultHeader && this.$refs.resultHeader.pauseRefresh();
@@ -1122,12 +1155,14 @@ export default {
       // 是否有检索的权限
       const paramData = {
         action_ids: [authorityMap.SEARCH_LOG_AUTH],
-        resources: [
-          {
-            type: 'indices',
-            id: this.indexId
-          }
-        ]
+        resources: this.isUnionSearch
+          ? this.unionIndexList.map(indexSet => ({ type: 'indices', id: indexSet }))
+          : [
+              {
+                type: 'indices',
+                id: this.indexId
+              }
+            ]
       };
       if (this.isSearchAllowed === null) {
         // 直接从 url 进入页面 checkAllowed && getApplyData
@@ -1323,9 +1358,12 @@ export default {
       };
       this.$router.push({
         name: 'retrieve',
-        params: {
-          indexId: this.indexId
-        },
+        // 联合查询不需要路由索引集ID
+        params: this.isUnionSearch
+          ? undefined
+          : {
+              indexId: this.indexId
+            },
         query: queryObj
       });
       // 接口请求
