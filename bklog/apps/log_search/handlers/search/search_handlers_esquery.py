@@ -907,14 +907,11 @@ class SearchHandler(object):
         @param sorted_fields:
         @return:
         """
-        sorted_list = self._get_user_sorted_list(sorted_fields)
+        search_after_size = len(search_result["hits"]["hits"])
+        result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
-        request_count, surplus_number = divmod(self.size, max_result_window)
-        if surplus_number:
-            request_count += 1
-        for i in range(request_count):
-            if surplus_number and i == request_count - 1:
-                max_result_window = surplus_number
+        sorted_list = self._get_user_sorted_list(sorted_fields)
+        while search_after_size == max_result_window and result_size < self.size:
             search_after = []
             for sorted_field in sorted_list:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))
@@ -947,6 +944,8 @@ class SearchHandler(object):
                 ),
             )
 
+            search_after_size = len(search_result["hits"]["hits"])
+            result_size += search_after_size
             yield self._deal_query_result(search_result)
 
     def scroll_result(self, scroll_result):

@@ -105,7 +105,7 @@ class TestSearchHandler(TestCase):
         logs_result = []
         for result in search_after_result:
             logs_result.extend(result["list"])
-        self.assertEqual(len(logs_result), SEARCH_DICT["size"])
+        self.assertEqual(len(logs_result), 90000)
 
     @patch("apps.api.BkLogApi.scroll", lambda _, data_api_retry_cls: SEARCH_RESULT)
     @patch(
