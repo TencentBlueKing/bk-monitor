@@ -54,8 +54,9 @@ import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
 import { IGroupData } from '../strategy-config-list/group';
+import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
-import { handleMouseDown, handleMouseMove } from '../util';
+import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util';
 
 import DeleteSubtitle from './delete-subtitle';
 import { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
@@ -109,10 +110,12 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       { id: 8, name: i18n.t('增删目标') },
       { id: 10, name: i18n.t('修改标签') },
       // { id: 11, name: i18n.t('修改处理套餐') }
+      { id: 21, name: i18n.t('修改算法') },
       { id: 12, name: i18n.t('修改生效时间段') },
       { id: 13, name: i18n.t('修改处理套餐') },
       { id: 14, name: i18n.t('修改告警组') },
       { id: 15, name: i18n.t('修改通知场景') },
+      { id: 20, name: i18n.t('修改通知升级') },
       { id: 16, name: i18n.t('修改通知间隔') },
       { id: 17, name: i18n.t('修改通知模板') },
       { id: 18, name: i18n.t('修改告警风暴开关') },
@@ -295,6 +298,83 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
 
   get isFta() {
     return this.strategyType === 'fta';
+  }
+
+  get uptimeCheckMap() {
+    const local = {
+      available: DetectionRuleTypeEnum.Threshold,
+      task_duration: DetectionRuleTypeEnum.Threshold,
+      message: DetectionRuleTypeEnum.PartialNodes,
+      response_code: DetectionRuleTypeEnum.PartialNodes,
+    };
+    const list = this.$store.getters['strategy-config/uptimeCheckMap'];
+    return list || local;
+  }
+
+  get hasEditDetection() {
+    let canSetDetEctionRules = true;
+    const res = this.table.select.map(item => {
+      // 检测算法是否禁用枚举
+      const detectionDisabledStatusMap = {
+        [DetectionRuleTypeEnum.IntelligentDetect]: false,
+        [DetectionRuleTypeEnum.TimeSeriesForecasting]: false,
+        [DetectionRuleTypeEnum.AbnormalCluster]: false,
+        [DetectionRuleTypeEnum.Threshold]: false,
+        [DetectionRuleTypeEnum.YearRound]: false,
+        [DetectionRuleTypeEnum.RingRatio]: false,
+        [DetectionRuleTypeEnum.PartialNodes]: true,
+      };
+
+      const { queryConfigs } = item;
+      const uptimeItem = this.uptimeCheckMap?.[queryConfigs?.[0]?.metric_field];
+      const { data_source_label: dataSourceLabel, data_type_label: dataTypeLabel, functions } = queryConfigs?.[0] || {};
+
+      const isCanSetAiops =
+        queryConfigs?.length === 1 &&
+        ['bk_data', 'bk_monitor'].includes(dataSourceLabel) &&
+        dataTypeLabel === 'time_series' &&
+        !functions?.length;
+
+      if (canSetDetEctionRules) {
+        // 指标拥有设置检测算法的功能
+        canSetDetEctionRules =
+          `${dataSourceLabel}|${dataTypeLabel}` !== 'bk_monitor|event' && dataTypeLabel !== 'alert';
+      }
+
+      Object.keys(detectionDisabledStatusMap).forEach((key: DetectionRuleTypeEnum) => {
+        if (!canSetDetEctionRules) detectionDisabledStatusMap[key] = true;
+
+        // ICMP协议的拨测服务开放所有的检测算法选项、HTTP、TCP、UDP协议仅有静态阈值检测算法
+        if (uptimeItem) {
+          if (!queryConfigs?.[0]?.isICMP) {
+            detectionDisabledStatusMap[key] = key !== uptimeItem;
+          }
+        }
+
+        // 智能检测算法 | 时序预测算法一致 | 离群检测
+        if (
+          [
+            DetectionRuleTypeEnum.IntelligentDetect,
+            DetectionRuleTypeEnum.TimeSeriesForecasting,
+            DetectionRuleTypeEnum.AbnormalCluster,
+          ].includes(key)
+        ) {
+          if (!isCanSetAiops) {
+            detectionDisabledStatusMap[key] = true;
+          }
+          if (!window.enable_aiops) {
+            detectionDisabledStatusMap[key] = true;
+          }
+        }
+      });
+      return detectionDisabledStatusMap;
+    });
+    return compareObjectsInArray(Object.values(res)) && canSetDetEctionRules;
+  }
+
+  get selectMetric() {
+    if (!this.table.select.length) return [];
+    return this.table.select[0].queryConfigs.map(item => new MetricDetail({ ...item }));
   }
 
   @Watch('table.data')
@@ -985,8 +1065,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       item.targetNodeType = item.node_type;
       if (target.instance_type === 'HOST') {
         if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO'].includes(target.node_type)) {
-          // eslint-disable-next-line
-          item.target = `${this.$t(textMap[target.node_type],[target.node_count])} （${this.$t('共{0}台主机', [target.instance_count])}）`;
+          item.target = `${this.$t(textMap[target.node_type], [target.node_count])} （${this.$t('共{0}台主机', [target.instance_count])}）`;
         } else if (target.node_type === 'INSTANCE') {
           item.target = this.$t('{0}台主机', [target.node_count]);
         }
@@ -1331,6 +1410,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
             16: this.$t('批量修改通知间隔成功'),
             17: this.$t('批量修改通知模板成功'),
             18: this.$t('批量修改告警风暴开关成功'),
+            20: this.$t('批量修改通知升级成功'),
+            21: this.$t('批量修改算法成功'),
           };
           this.handleGetListData();
           if (this.header.value === 6) {
@@ -1698,12 +1779,17 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   }
   // 批量操作下的选项是否不可点击
   isBatchItemDisabled(option: any) {
-    return (option.id === 8 && (this.isFta || !this.isSameObjectType)) || (option.id === 9 && this.isFta);
+    return (
+      (option.id === 8 && (this.isFta || !this.isSameObjectType)) ||
+      (option.id === 9 && this.isFta) ||
+      (option.id === 21 && !this.hasEditDetection)
+    );
   }
   batchItemDisabledTip(option: any) {
     const tipMap = {
       9: this.$t('无需修改告警模板'),
       8: this.isFta ? this.$t('无需设置监控目标') : this.$t('监控对象不一致'),
+      21: this.$t('各数据源的可用算法不兼容'),
     };
     return tipMap[option.id];
   }
@@ -2448,13 +2534,14 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         </ul>
       </div>,
       <StrategyConfigDialog
-        loading={this.dialogLoading}
         checked-list={this.idList}
-        group-list={this.groupList}
         dialog-show={this.dialog.show}
+        group-list={this.groupList}
+        loading={this.dialogLoading}
+        selectMetricData={this.selectMetric}
         set-type={this.header.value}
-        onGetGroupList={this.getGroupList}
         onConfirm={this.handleMuchEdit}
+        onGetGroupList={this.getGroupList}
         onHideDialog={this.handleDialogChange}
       ></StrategyConfigDialog>,
       <AlarmShieldStrategy

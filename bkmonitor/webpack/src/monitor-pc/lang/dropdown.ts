@@ -45,6 +45,8 @@ export default {
   修改无数据告警: 'Edit No-Data Alarm',
   修改告警恢复通知: 'Edit Alarm-recovery Notification',
   修改告警风暴开关: 'Edit Alarm-storm',
+  修改通知升级: 'Edit Notification Upgrade',
+  修改算法: 'Modify Algorithm',
   批量删除策略: 'Delete Rules',
   批量修改状态: 'Edit State',
   批量替换成: 'Bulk Replace',

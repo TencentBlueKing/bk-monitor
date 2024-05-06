@@ -95,7 +95,8 @@ export default class TableStore {
       const noticeGroupList = item.notice.user_groups;
       const noticeGroupNameList = item.notice.user_group_list.map(item => item?.name);
       const intervalNotifyMode = intervalModeNames[item.notice.config.interval_notify_mode] || '';
-      const queryConfig = item.items[0].query_configs[0];
+      const queryConfigs = item.items[0].query_configs;
+      const queryConfig = queryConfigs[0];
       const dataTypeLabelName = dataTypeLabelNames[queryConfig.data_type_label];
       const dataMode =
         dataModeNames[
@@ -170,6 +171,7 @@ export default class TableStore {
         shieldInfo: item.shield_info,
         abnormalAlertCount: item.alert_count || 0,
         metricDescriptionList: item.metric_description_list,
+        queryConfigs,
         itemDescription: this.getItemDescription(item.items[0].query_configs),
         intervalNotifyMode,
         dataTypeLabelName,
