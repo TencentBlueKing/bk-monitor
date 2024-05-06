@@ -19,6 +19,7 @@ from django.db.models import Q
 from django.utils.timezone import now as tz_now
 
 from metadata import models
+from metadata.models.constants import DEFAULT_MEASUREMENT
 from metadata.models.space import utils
 from metadata.models.space.constants import (
     ALL_SPACE_TYPE_TABLE_ID_LIST,
@@ -116,7 +117,12 @@ class SpaceTableIDRedis:
                 RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(rt_dl_map.keys()))
         logger.info("push redis data_label_to_result_table")
 
-    def push_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: Optional[bool] = False):
+    def push_table_id_detail(
+        self,
+        table_id_list: Optional[List] = None,
+        is_publish: Optional[bool] = False,
+        include_es_table_ids: Optional[bool] = False,
+    ):
         """推送结果表的详细信息"""
         logger.info("start to push table_id detail data, table_id_list: %s", json.dumps(table_id_list))
         table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list)
@@ -159,12 +165,61 @@ class SpaceTableIDRedis:
             detail["bk_data_id"] = table_id_data_id.get(table_id, 0)
             _table_id_detail[table_id] = json.dumps(detail)
 
+        # 追加 es 结果表
+        if include_es_table_ids:
+            _table_id_detail.update(self._compose_es_table_id_detail(table_id_list))
+
         # 推送数据
         if _table_id_detail:
             RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
             if is_publish:
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
         logger.info("push redis result_table_detail")
+
+    def push_es_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: bool = False):
+        """推送 es 结果表的详细信息"""
+        logger.info("start to push es table_id detail data, table_id_list: %s")
+        table_id_detail = self._compose_es_table_id_detail(table_id_list)
+        if table_id_detail:
+            RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, table_id_detail)
+            if is_publish:
+                RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(table_id_detail.keys()))
+        logger.info("push es table_id detail successfully")
+
+    def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
+        """组装 es 结果表的详细信息"""
+        logger.info("start to compose es table_id detail data")
+
+        # 这里要过来的结果表不会太多
+        if table_id_list:
+            table_ids = models.ESStorage.objects.filter(table_id__in=table_id_list).values(
+                "table_id", "storage_cluster_id"
+            )
+        else:
+            table_ids = models.ESStorage.objects.values("table_id", "storage_cluster_id")
+        # 组装数据
+        # NOTE: 这里针对一段式的追加一个`__default__`
+        # 组装需要的数据，字段相同
+        data = {}
+        for record in table_ids:
+            tid = record["table_id"]
+            try:
+                db, measurement = tid.split(".", 1)
+            except ValueError:
+                db = tid
+                measurement = DEFAULT_MEASUREMENT
+                # NOTE: 事件相关的结果表，需要添加一个后缀，以便 unify query 查询使用
+                # 如: bkmonitor_event_1584590 => bkmonitor_event_1584590.__default__
+                tid = f"{db}.{measurement}"
+
+            data[tid] = json.dumps(
+                {
+                    "storage_id": record.get("storage_cluster_id", 0),
+                    "db": db,
+                    "measurement": measurement,
+                }
+            )
+        return data
 
     def _push_bkcc_space_table_ids(
         self,

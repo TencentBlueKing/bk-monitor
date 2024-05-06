@@ -622,7 +622,7 @@ def push_and_publish_space_router(
 
     space_client = SpaceTableIDRedis()
     space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish)
+    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_push_and_publish_space_router")
