@@ -1509,7 +1509,7 @@ export default {
             // 物理环境编辑情况
             if (this.isFinishCreateStep) {
               // 修改过非基本信息的值 重新下发 不改变步骤 直接展示下发组件 否则直接回列表
-              if (this.getIsUpdateSubmitValue() && !this.isContainerStep) {
+              if (this.isUpdateIssuedShowValue() && !this.isContainerStep) {
                 this.$emit('update:force-show-component', 'stepIssued');
               } else {
                 this.cancel();
@@ -2269,10 +2269,15 @@ export default {
       window.open(url, '_blank');
     },
     /** 判断除基本信息外是否有更改过值 */
-    getIsUpdateSubmitValue() {
+    isUpdateIssuedShowValue() {
       const params = this.handleParams();
       const { description, collector_config_name, ...otherVal } = params;
       return !deepEqual(this.editComparedData, otherVal);
+    },
+    /** 判断是否有改值 */
+    getIsUpdateSubmitValue() {
+      const params = this.handleParams();
+      return !deepEqual(this.localParams, params);
     }
   }
 };

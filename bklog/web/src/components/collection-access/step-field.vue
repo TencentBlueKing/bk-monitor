@@ -610,6 +610,17 @@
           >
             {{ $t('取消') }}
           </bk-button>
+          <!-- 保存模板 -->
+          <bk-button
+            v-if="activePanel === 'base'"
+            theme="default"
+            class="ml10"
+            data-test-id="fieldExtractionBox_button_saveTemplate"
+            :disabled="!hasFields || isSetDisabled"
+            @click="openTemplateDialog(true)"
+          >
+            {{ $t('保存模板') }}
+          </bk-button>
         </template>
       </div>
 
@@ -1211,6 +1222,8 @@ export default {
             } else {
               // 新建/编辑清洗模板
               this.messageSuccess(this.$t('保存成功'));
+              this.isLoading = false;
+              this.basicLoading = false;
               // 清洗模板编辑则返回模板列表
               if (this.isTempField) {
                 this.$emit('changeSubmit', true);
