@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import abc
+import collections
 import json
 import logging
 import operator
@@ -522,18 +523,32 @@ class FetchK8sPodListByClusterResource(CacheResource):
     def perform_request(self, params):
         bcs_cluster_id = params["bcs_cluster_id"]
         namespace_list = params["namespace_list"]
-        node_field = self.get_node_field()
-        replica_set_field = self.get_replica_set_field()
-        pod_field = self.get_pod_field()
-        job_field = self.get_job_field()
-        [node_list, replica_set_list, pod_data, job_list] = api.bcs_storage.fetch.bulk_request(
+        node_list, replica_set_list, pod_data, job_list = api.bcs_storage.fetch.bulk_request(
             [
-                {"cluster_id": bcs_cluster_id, "type": "Node", "field": node_field},
-                {"cluster_id": bcs_cluster_id, "type": "ReplicaSet", "field": replica_set_field},
-                {"cluster_id": bcs_cluster_id, "type": "Pod", "field": pod_field},
-                {"cluster_id": bcs_cluster_id, "type": "Job", "field": job_field},
+                {"cluster_id": bcs_cluster_id, "type": "Node", "field": self.get_node_field()},
+                {"cluster_id": bcs_cluster_id, "type": "ReplicaSet", "field": self.get_replica_set_field()},
+                {"cluster_id": bcs_cluster_id, "type": "Pod", "field": self.get_pod_field()},
+                {"cluster_id": bcs_cluster_id, "type": "Job", "field": self.get_job_field()},
             ]
         )
+
+        # node的ip与name的映射
+        node_ip_name_map = {}
+        for node in node_list:
+            node_parser = KubernetesNodeJsonParser(node)
+            node_ip_name_map[node_parser.node_ip] = node_parser.name
+
+        # workload的ownerReferences映射
+        workload_map = {"ReplicaSet": replica_set_list, "Job": job_list}
+        workload_parent_map = collections.defaultdict(lambda: collections.defaultdict(list))
+        for workload_type, workload_list in workload_map.items():
+            for workload in workload_list:
+                workload_metadata = workload.get("metadata", {})
+                workload_owner_references = workload_metadata.get("ownerReferences", [])
+                if not workload_owner_references:
+                    continue
+                workload_parent_map[workload_type][workload_metadata["name"]] = workload_owner_references
+
         data = []
         namespace_set = set(namespace_list)
         for pod in pod_data:
@@ -556,33 +571,33 @@ class FetchK8sPodListByClusterResource(CacheResource):
             pod_name = pod_parser.name
             status = pod_parser.service_status
 
-            workloads = pod_parser.get_workloads(replica_set_list, job_list)
-            workload_name = workloads["workload_name"]
-            workload_type = workloads["workload_type"]
-            owner_references = workloads["owner_references"]
-
+            # 获取pod关联的workload
+            workload_type, workload_name = "", ""
             pod_workloads = []
-            for owner_reference in owner_references:
-                pod_workloads.append(
-                    {
-                        "key": owner_reference.get("kind"),
-                        "value": owner_reference.get("name"),
-                    }
-                )
+            owner_references = pod_parser.metadata.get("ownerReferences", [])
+            for index, owner_reference in enumerate(owner_references):
+                kind, name = owner_reference["kind"], owner_reference["name"]
+                pod_workloads.append({"key": kind, "value": name})
+                p_owner_references = workload_parent_map.get(kind, {}).get(name, [])
+
+                # 记录关联的workload
+                if not workload_type:
+                    workload_type, workload_name = kind, name
+
+                # 记录关联的workload的父级
+                for p_owner_reference in p_owner_references:
+                    kind, name = p_owner_reference["kind"], p_owner_reference["name"]
+                    pod_workloads.append({"key": kind, "value": name})
+
+                    # 只尝试获取第一个OwnerReference关联的workload的父级
+                    if index == 0:
+                        workload_type, workload_name = kind, name
 
             resources = pod_parser.resources
             requests_cpu = resources["requests_cpu"]
             limits_cpu = resources["limits_cpu"]
             requests_memory = resources["requests_memory"]
             limits_memory = resources["limits_memory"]
-
-            # 获得节点名称
-            node_name = ""
-            for node in node_list:
-                node_parser = KubernetesNodeJsonParser(node)
-                node_item_ip = node_parser.node_ip
-                if node_item_ip == node_ip:
-                    node_name = node_parser.name
 
             data.append(
                 {
@@ -611,7 +626,7 @@ class FetchK8sPodListByClusterResource(CacheResource):
                             "value": get_bytes_unit_human_readable(limits_memory),
                         },
                     ],
-                    "node_name": node_name,
+                    "node_name": node_ip_name_map.get(node_ip, ""),
                     "node_ip": node_ip,
                     "workloads": pod_workloads,
                     "workload_type": workload_type,
