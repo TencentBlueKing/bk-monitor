@@ -26,6 +26,9 @@ import typing
 from collections import defaultdict
 from functools import partial
 
+from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
+
 from apps.api import CCApi
 from apps.grafana.constants import (
     CMDB_EXTEND_FIELDS,
@@ -46,8 +49,6 @@ from bk_dataview.grafana import client
 from bkm_ipchooser.constants import ObjectType
 from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
 
 
 class GrafanaQueryHandler:
@@ -324,7 +325,7 @@ class GrafanaQueryHandler:
             "bk_biz_id": self.bk_biz_id,
             "keyword": query_dict.get("query_string", ""),
             "aggs": aggs,
-            "is_desensitize": False
+            "is_desensitize": False,
         }
         search_handler = SearchHandler(query_dict["result_table_id"], search_dict)
         result = search_handler.search(search_type=None)
@@ -382,10 +383,9 @@ class GrafanaQueryHandler:
         for r in result["origin_log_list"]:
             row = self._flat_row(r)
             rows.append([row.get(field) for field in fields])
-
-        # 按照 grafana 的要求，第一个字段的名称必须为time
-        fields[0] = "time"
-
+        # 确保time字段存在
+        if "time" not in fields:
+            fields[0] = "time"
         table = {
             "columns": [{"text": field} for field in fields],
             "rows": rows,
@@ -626,7 +626,6 @@ class GrafanaQueryHandler:
         value_dict = {}
 
         for instance in instances:
-
             if not self.is_match_condition(instance, conditions_config):
                 continue
 
