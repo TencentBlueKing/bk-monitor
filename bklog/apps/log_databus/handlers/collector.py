@@ -2558,19 +2558,12 @@ class CollectorHandler(object):
         if result_table:
             return data
 
-        # 如果采集名不以8位日期结尾, data.allowed返回True, 反之返回False
-        match = re.match(r"^(?!.*\d{8}$).*", collector_config_name_en)
+        # 如果采集名不以6-8数字结尾, data.allowed返回True, 反之返回False
+        match = re.match(r"^(?!.*\d{6,8}$).*", collector_config_name_en)
         if match:
             data.update({"allowed": True})
         else:
-            tail_data = collector_config_name_en[-8:]
-            year, month, day = int(tail_data[0:4]), int(tail_data[4:6]), int(tail_data[6:8])
-            # 尝试将字符串解析为日期
-            try:
-                datetime.datetime(year, month, day)
-                data.update({"allowed": False})
-            except ValueError:
-                data.update({"allowed": True})
+            data.update({"allowed": False})
         return data
 
     def _pre_check_bk_data_name(self, model_fields: dict, bk_data_name: str):
