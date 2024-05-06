@@ -383,10 +383,9 @@ class GrafanaQueryHandler:
         for r in result["origin_log_list"]:
             row = self._flat_row(r)
             rows.append([row.get(field) for field in fields])
-
-        # 按照 grafana 的要求，第一个字段的名称必须为time
-        fields[0] = "time_"
-
+        # 确保time字段存在
+        if "time" not in fields:
+            fields[0] = "time"
         table = {
             "columns": [{"text": field} for field in fields],
             "rows": rows,
