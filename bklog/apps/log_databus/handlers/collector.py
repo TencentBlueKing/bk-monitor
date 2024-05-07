@@ -2558,7 +2558,12 @@ class CollectorHandler(object):
         if result_table:
             return data
 
-        data["allowed"] = True
+        # 如果采集名不以6-8数字结尾, data.allowed返回True, 反之返回False
+        match = re.match(r"^(?!.*\d{6,8}$).*", collector_config_name_en)
+        if match:
+            data.update({"allowed": True})
+        else:
+            data.update({"allowed": False})
         return data
 
     def _pre_check_bk_data_name(self, model_fields: dict, bk_data_name: str):
