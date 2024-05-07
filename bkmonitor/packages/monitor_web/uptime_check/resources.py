@@ -1445,7 +1445,7 @@ class UpdateTaskRunningStatusResource(Resource):
                     return UptimeCheckTask.Status.RUNNING, log, nodeman_task_id
                 else:
                     logger.info("celery period task: 订阅任务%s启动失败" % subscription_id)
-                    logger.info("error_log: %s") % log
+                    logger.info("error_log: %s" % log)
                     return UptimeCheckTask.Status.START_FAILED, log, nodeman_task_id
 
     def perform_request(self, task_id):
