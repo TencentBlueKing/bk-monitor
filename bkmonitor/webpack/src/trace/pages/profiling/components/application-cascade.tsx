@@ -94,10 +94,8 @@ export default defineComponent({
       /** 服务名称 */
       serviceName: null,
     });
-    const inputText = computed(() => {
-      if (!selectValue.appName || !selectValue.serviceName) return '';
-      return `${selectValue.appName} / ${selectValue.serviceName}`;
-    });
+
+    const inputText = ref('');
 
     watch(
       () => props.value,
@@ -133,6 +131,7 @@ export default defineComponent({
       if (val.name === selectValue.serviceName) return;
       selectValue.serviceName = val.name;
       showPopover.value = false;
+      inputText.value = `${selectValue.appName} / ${selectValue.serviceName}`;
       emit('change', [selectValue.appName, selectValue.serviceName]);
     }
 
