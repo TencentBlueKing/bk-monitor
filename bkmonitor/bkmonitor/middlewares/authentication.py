@@ -63,7 +63,8 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
 
             # grafana、as_code场景权限模式：替换请求用户为令牌创建者
             if record.type.lower() in ["as_code", "grafana"]:
-                user = auth.authenticate(username="system")
+                username = "system" if record.type.lower() == "as_code" else "admin"
+                user = auth.authenticate(username=username)
                 auth.login(request, user)
                 request.skip_check = True
             else:
