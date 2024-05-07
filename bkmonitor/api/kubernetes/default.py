@@ -1546,7 +1546,24 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
         workload_type_list = params.get("workload_type_list")
         if not workload_type_list:
             workload_type_list = api.kubernetes.fetch_k8s_workload_type_list({"bcs_cluster_id": bcs_cluster_id})
+
+        # 计算关联pod的资源情况
         pod_list = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
+        workload_resources_map = collections.defaultdict(
+            lambda: {"requests_cpu": 0, "limits_cpu": 0, "requests_memory": 0, "limits_memory": 0, "pod_names": []}
+        )
+        for pod in pod_list:
+            if not pod.get("workload_type"):
+                continue
+            pod_resource = workload_resources_map[
+                (pod["workload_type"], pod["workload_name"], pod["namespace"], pod["bcs_cluster_id"])
+            ]
+            pod_resource["requests_cpu"] += pod.get("requests_cpu", 0)
+            pod_resource["limits_cpu"] += pod.get("limits_cpu", 0)
+            pod_resource["requests_memory"] += pod.get("requests_memory", 0)
+            pod_resource["limits_memory"] += pod.get("limits_memory", 0)
+            pod_resource["pod_names"].append(pod["name"])
+
         workload_field = self.get_workload_field()
         for workload_type in workload_type_list:
             items = api.bcs_storage.fetch(
@@ -1571,30 +1588,10 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
                 workload_status = workload_specification.workload_status
                 top_workload_type = workload_specification.top_workload_type
 
-                # 获得管理的POD
-                pod_name_list = []
-                requests_cpu = 0
-                limits_cpu = 0
-                requests_memory = 0
-                limits_memory = 0
-                for pod in pod_list:
-                    pod_workload_type = pod.get("workload_type", [])
-                    pod_workload_name = pod.get("workload_name", [])
-                    pod_namespace = pod.get("namespace", [])
-                    pod_bcs_cluster_id = pod.get("bcs_cluster_id", [])
-                    if (
-                        workload_type in pod_workload_type
-                        and workload_name in pod_workload_name
-                        and workload_namespace == pod_namespace
-                        and pod_bcs_cluster_id == bcs_cluster_id
-                    ):
-                        pod_name_list.append(pod.get("name"))
-                        requests_cpu += pod.get("requests_cpu", 0)
-                        limits_cpu += pod.get("limits_cpu", 0)
-                        requests_memory += pod.get("requests_memory", 0)
-                        limits_memory += pod.get("limits_memory", 0)
-
-                # 忽略中间的workoad
+                workload_resource = workload_resources_map[
+                    (workload_type, workload_name, workload_namespace, bcs_cluster_id)
+                ]
+                # 忽略中间的workload
                 item = {
                     "bcs_cluster_id": bcs_cluster_id,
                     "workload_type": workload_type,
@@ -1602,35 +1599,35 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
                     "workload_name": workload_name,
                     "workload_labels": workload_labels,
                     "name": workload_name,
-                    "requests_cpu": requests_cpu,
-                    "limits_cpu": limits_cpu,
-                    "requests_memory": requests_memory,
-                    "limits_memory": limits_memory,
+                    "requests_cpu": workload_resource["requests_cpu"],
+                    "limits_cpu": workload_resource["limits_cpu"],
+                    "requests_memory": workload_resource["requests_memory"],
+                    "limits_memory": workload_resource["limits_memory"],
                     "resources": [
                         {
                             "key": "requests.cpu",
-                            "value": requests_cpu,
+                            "value": workload_resource["requests_cpu"],
                         },
                         {
                             "key": "limits.cpu",
-                            "value": limits_cpu,
+                            "value": workload_resource["limits_cpu"],
                         },
                         {
                             "key": "requests.memory",
-                            "value": get_bytes_unit_human_readable(requests_memory),
+                            "value": get_bytes_unit_human_readable(workload_resource["requests_memory"]),
                         },
                         {
                             "key": "limits.memory",
-                            "value": get_bytes_unit_human_readable(limits_memory),
+                            "value": get_bytes_unit_human_readable(workload_resource["limits_memory"]),
                         },
                     ],
                     "namespace": workload_namespace,
                     "images": "\n".join(image_list),
                     "label_list": label_list,
                     "labels": workload_labels,
-                    "pod_count": len(pod_name_list),
+                    "pod_count": len(workload_resource["pod_names"]),
                     "container_number": container_number,
-                    "pod_name": pod_name_list,
+                    "pod_name": workload_resource["pod_names"],
                     "created_at": creation_timestamp,
                     "age": age,
                 }
