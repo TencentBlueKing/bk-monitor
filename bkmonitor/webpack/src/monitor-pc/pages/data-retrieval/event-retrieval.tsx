@@ -28,7 +28,6 @@ import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { destroyTimezone } from '../../i18n/dayjs';
-
 import DataRetrieval from './data-retrieval';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);

@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getAlarmConfig, updateAlarmConfig } from 'monitor-api/modules/healthz';
 
 import MemberSelector from '../alarm-group/alarm-group-add/member-selector.vue';
@@ -112,15 +113,15 @@ export default class HealthzAlarm extends tsc<object> {
       >
         <div class='healthz-alarm-title'>{this.$t('通知设置')}</div>
         <bk-form
+          ref='validateForm'
           labelWidth={200}
           rules={this.rules}
-          ref='validateForm'
         >
           <bk-form-item
+            error-display-type='normal'
             label={this.$t('通知方式')}
             property='alarm_type'
             required
-            error-display-type='normal'
           >
             <bk-checkbox-group
               class='healthz-alarm-type'
@@ -131,8 +132,8 @@ export default class HealthzAlarm extends tsc<object> {
                 .filter(v => !!window.platform.te || v !== 'rtx')
                 .map(key => (
                   <bk-checkbox
-                    label={key}
                     key={key}
+                    label={key}
                   >
                     <span class={`image-${key}`} />
                   </bk-checkbox>
@@ -140,12 +141,11 @@ export default class HealthzAlarm extends tsc<object> {
             </bk-checkbox-group>
           </bk-form-item>
           <bk-form-item
-            required
+            class='member-item healthz-alarm-role'
+            error-display-type='normal'
             label={this.$t('通知人员')}
             property='alarm_role'
-            class='member-item'
-            error-display-type='normal'
-            class='healthz-alarm-role'
+            required
           >
             <MemberSelector
               style='width: 300px'
@@ -164,11 +164,11 @@ export default class HealthzAlarm extends tsc<object> {
           <bk-form-item>
             <bk-button
               style='margin-right: 3px;'
+              disabled={!this.formData.alarm_role?.length || !this.formData.alarm_type?.length}
+              loading={this.loading}
               theme='primary'
               title='提交'
               onClick={this.validate}
-              loading={this.loading}
-              disabled={!this.formData.alarm_role?.length || !this.formData.alarm_type?.length}
             >
               {this.$t('保存')}
             </bk-button>

@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getHostInfo } from 'monitor-api/modules/scene_view';
 
 import introduce from '../../../common/introduce';
@@ -76,9 +77,11 @@ export default class PerformanceDetail extends tsc<object> {
         params = { bk_host_id: vm.id };
       }
       vm.loading = true;
-      const { bk_os_type, bk_cloud_id, ip, bk_host_id, display_name } = await getHostInfo(params).catch(() => ({
-        bk_os_type: '',
-      }));
+      const { bk_os_type, bk_cloud_id, ip, bk_host_id, display_name } = await getHostInfo(params)
+        .then(data => ({ ...data }))
+        .catch(() => ({
+          bk_os_type: '',
+        }));
       vm.routeList = [
         {
           id: '',
@@ -129,20 +132,20 @@ export default class PerformanceDetail extends tsc<object> {
       >
         {!this.loading && (
           <CommonPage
+            defalutMethod={'MAX'}
+            defaultViewOptions={this.viewOptions}
             sceneId={this.viewOptions.variables?.display_name ? 'process' : 'host'}
             sceneType={'detail'}
-            defaultViewOptions={this.viewOptions}
-            defalutMethod={'MAX'}
             onTitleChange={this.headerTitleChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
-              needBack={true}
-              navMode={'share'}
               callbackRouterBack={this.handleBack}
+              navMode={'share'}
+              needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             />
           </CommonPage>
         )}

@@ -32,7 +32,7 @@ export default class WaterMakerMixin extends Vue {
   mounted() {
     if (window.graph_watermark) {
       (this.$el as HTMLDivElement).style.backgroundImage = `url('${watermarkMaker(
-        window.user_name || window.username,
+        window.user_name || window.username
       )}')`;
     }
   }

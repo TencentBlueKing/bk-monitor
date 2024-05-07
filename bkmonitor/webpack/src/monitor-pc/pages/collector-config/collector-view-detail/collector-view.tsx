@@ -112,24 +112,24 @@ export default class CollectorView extends tsc<object> {
       <div class='collect-view'>
         {this.sceneId && (
           <CommonPage
+            defaultViewOptions={this.viewOptions}
+            isMergeMenuList={true}
+            menuList={this.menuList}
             sceneId={this.sceneId}
             sceneType={'detail'}
-            menuList={this.menuList}
-            isMergeMenuList={true}
-            title={this.$tc('数据采集')}
             showListMenu={this.bizId === this.$store.getters.bizId}
-            defaultViewOptions={this.viewOptions}
+            title={this.$tc('数据采集')}
+            onMenuSelect={this.handleMenuSelect}
             // onPageTitleChange={this.handlePageTitleChange}
             onTitleChange={this.headerTitleChange}
-            onMenuSelect={this.handleMenuSelect}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
-              needBack={true}
               navMode={'share'}
+              needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             ></CommonNavBar>
           </CommonPage>
         )}

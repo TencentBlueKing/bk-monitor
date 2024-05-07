@@ -25,6 +25,7 @@
  */
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils/utils';
 import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
@@ -44,7 +45,7 @@ import { IDetail } from './type';
 export const createAutoTimerange = (
   startTime: number,
   endTime: number,
-  interval = 60,
+  interval = 60
 ): { startTime: string; endTime: string } => {
   // const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
   const INTERVAL_5 = 5 * interval * 1000;
@@ -149,7 +150,7 @@ export default class AiopsChartEvent extends tsc<IProps> {
     const { startTime, endTime } = createAutoTimerange(
       this.detail.begin_time,
       this.detail.end_time,
-      this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval,
+      this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval
     );
     this.timeRange = [startTime, endTime];
   }

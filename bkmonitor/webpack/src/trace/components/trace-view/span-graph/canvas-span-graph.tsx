@@ -27,7 +27,6 @@
 import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
 
 import colorGenerator from '../utils/color-generator';
-
 import renderIntoCanvas from './render-into-canvas';
 
 import './canvas-span-graph.scss';
@@ -68,7 +67,7 @@ export default defineComponent({
       () => {
         draw();
       },
-      { deep: true },
+      { deep: true }
     );
 
     onMounted(() => {

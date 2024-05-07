@@ -39,27 +39,37 @@ interface IChartItem {
 }
 
 export class DurationDataModal {
-  sourceList: ITraceListItem[] | ISpanListItem[] = [];
-  /** 最小耗时 */
-  minDuration = 0;
-  /** 最大耗时 */
-  maxDuration = 0;
-  /** 横坐标耗时步长 */
-  durationStep = 0;
   /** 满足chart的数据源 */
   chartData: IChartItem[] = [];
-  /** x轴数据 */
-  xAxisData: string[] = [];
+  /** 横坐标耗时步长 */
+  durationStep = 0;
+  /** 最大耗时 */
+  maxDuration = 0;
+  /** 最小耗时 */
+  minDuration = 0;
   /** series值 */
   seriesData: any[] = [];
+  sourceList: ISpanListItem[] | ITraceListItem[] = [];
+  /** x轴数据 */
+  xAxisData: string[] = [];
 
-  constructor(list: ITraceListItem[] | ISpanListItem[]) {
+  constructor(list: ISpanListItem[] | ITraceListItem[]) {
     this.sourceList = list;
     this.initDate(list);
   }
 
+  handleFilter(start: number, end: number) {
+    const store = useTraceStore();
+    if (start === this.minDuration && end === this.maxDuration) return [];
+
+    return this.sourceList.filter(val => {
+      const curVal = store.listType === 'trace' ? val.trace_duration : val.elapsed_time;
+      return curVal >= start && curVal <= end;
+    });
+  }
+
   /** 初始化数据 */
-  initDate(list: ITraceListItem[] | ISpanListItem[]) {
+  initDate(list: ISpanListItem[] | ITraceListItem[]) {
     const store = useTraceStore();
     const durationList = list.map(val => (store.listType === 'trace' ? val.trace_duration : val.elapsed_time)); // trace列表耗时集合数组
     this.minDuration = Math.min(...durationList); // 最小耗时
@@ -83,16 +93,6 @@ export class DurationDataModal {
 
     this.xAxisData = this.chartData.map((val: IChartItem) => val.xAxis);
     this.seriesData = this.chartData.map((val: IChartItem) => (val.yAxis.length === 0 ? null : val.yAxis.length));
-  }
-
-  handleFilter(start: number, end: number) {
-    const store = useTraceStore();
-    if (start === this.minDuration && end === this.maxDuration) return [];
-
-    return this.sourceList.filter(val => {
-      const curVal = store.listType === 'trace' ? val.trace_duration : val.elapsed_time;
-      return curVal >= start && curVal <= end;
-    });
   }
 }
 

@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { createApplication, metaConfigInfo } from 'monitor-api/modules/apm_meta';
 import { Debounce } from 'monitor-common/utils/utils';
 import { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -32,7 +33,6 @@ import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import { ICreateAppFormData } from '../../home/app-list';
 import NavBar from '../../home/nav-bar';
-
 import PluginStatusTag from './plugin-status-tag';
 import SelectSystem, { ICardItem, IListDataItem } from './select-system';
 import SettingParams, { IEsClusterInfo } from './setting-params';
@@ -354,35 +354,35 @@ export default class AppAdd extends tsc<object> {
     return (
       <div class='app-add-wrap'>
         <NavBar
-          routeList={this.routeList}
           handlerPosition={'center'}
+          routeList={this.routeList}
         >
           <bk-steps
             class='app-add-steps-list'
             slot='handler'
-            steps={this.steps}
             cur-step={this.currentStep}
+            steps={this.steps}
           ></bk-steps>
         </NavBar>
         <div class='app-add-content'>
           <div
-            class='app-add-content-main'
             style={`background-color: ${this.currentStep !== 1 ? '#fff' : ''}`}
+            class='app-add-content-main'
           >
             {
               [
                 <SelectSystem
-                  loading={this.loading}
                   listData={this.listData}
-                  onNextStep={this.handleNext}
+                  loading={this.loading}
                   onChange={info => (this.appInfo = info)}
+                  onNextStep={this.handleNext}
                 ></SelectSystem>,
                 <SettingParams
-                  loading={this.loading}
                   appInfoData={this.appInfo}
+                  currentPlugin={this.currentPlugin}
+                  loading={this.loading}
                   setupData={this.setupData}
                   onPreStep={() => (this.currentStep = 1)}
-                  currentPlugin={this.currentPlugin}
                   onSubmit={this.handleSubmit}
                 ></SettingParams>,
               ][this.currentStep - 1]
@@ -392,9 +392,9 @@ export default class AppAdd extends tsc<object> {
                 <i class='icon-monitor icon-check'></i>
                 <div class='success-text'>{this.$t('新建应用成功')}</div>
                 <i18n
-                  tag='div'
                   class='jump-link-row'
                   path='{0}秒后将自动跳转至{1}'
+                  tag='div'
                 >
                   <span class='time'>{this.countdown}</span>
                   <span
@@ -416,18 +416,18 @@ export default class AppAdd extends tsc<object> {
                     {this.pluginStatusList.map(item => (
                       <PluginStatusTag
                         class='status-item'
-                        icon={item.icon}
                         checked={item.checked}
-                        text={item.text}
+                        icon={item.icon}
                         iconFontSize={item.fontSize}
+                        text={item.text}
                         tips={item.tips}
                       />
                     ))}
                   </div>
                 </div>
                 <Viewer
-                  value={this.pluginDescMd}
                   class='md-viewer'
+                  value={this.pluginDescMd}
                 ></Viewer>
               </div>
             </SideSlider>

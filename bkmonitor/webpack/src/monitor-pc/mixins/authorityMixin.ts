@@ -26,6 +26,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import authorityStore from '@store/modules/authority';
 
 Component.registerHooks(['beforeRouteEnter']);
@@ -35,12 +36,12 @@ export default (authMap: { [propsName: string]: string }) =>
     class authorityMixin extends tsc<object> {
       // authority: Record<string, boolean>;
       __bizIdUnWatch__: any;
+      get __BizId__() {
+        return this.$store.getters.bizId;
+      }
       constructor() {
         super();
         this.authority = Object.keys(authMap).reduce((pre: any, cur: string) => ((pre[cur] = false), pre), {});
-      }
-      get __BizId__() {
-        return this.$store.getters.bizId;
       }
       // beforeRouteEnter(to: any, from: any, next: any) {
       //   next((vm: any) => {
@@ -64,7 +65,7 @@ export default (authMap: { [propsName: string]: string }) =>
         authorityMap &&
           this.handleInitPageAuthority(
             Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
-            isSpecialEvent,
+            isSpecialEvent
           );
       }
       // created() {
@@ -128,5 +129,5 @@ export default (authMap: { [propsName: string]: string }) =>
       public handleShowAuthorityDetail(actionId: string) {
         authorityStore.getAuthorityDetail(actionId || this.$route.meta.authority?.map?.MANAGE_AUTH);
       }
-    },
+    }
   );

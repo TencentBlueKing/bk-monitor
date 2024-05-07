@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getUnitInfo } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -46,7 +47,6 @@ import {
   IDetectionTypeRuleData,
   MetricDetail,
 } from '../typings/index';
-
 import { ChartType } from './components/intelligent-detect/intelligent-detect';
 import RuleWrapper from './components/rule-wrapper/rule-wrapper';
 import { IModelData } from './components/time-series-forecast/time-series-forecast';
@@ -494,21 +494,21 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         <div class='detection-header'>
           <div class='left-des'>
             <i18n
-              path='同级别的各算法之间是{0}的关系'
               class='i18n-path'
+              path='同级别的各算法之间是{0}的关系'
             >
               <bk-select
                 class='inline-select'
-                value={this.connector}
                 behavior='simplicity'
                 clearable={false}
                 readonly={this.readonly}
+                value={this.connector}
                 onChange={this.emitConnector}
               >
                 {this.algorithmRelationship.map(opt => (
                   <bk-option
-                    key={opt.id}
                     id={opt.id}
+                    key={opt.id}
                     name={opt.name}
                   />
                 ))}
@@ -519,8 +519,8 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
             <div class='right-btn'>
               <span class=''>{this.$t('单位')}:&nbsp;</span>
               <MonitorSelect
-                disabled={this.readonly}
                 class='unit-select'
+                disabled={this.readonly}
                 list={this.unitList}
                 value={this.unit}
                 onChange={this.handleUnitChange}
@@ -539,21 +539,21 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
             >
               <RuleWrapper
                 key={item.key}
-                rule={item}
-                index={index}
-                readonly={this.readonly}
-                select-rule-data={this.localValue}
-                is-realtime={this.isRealtime}
-                is-edit={this.isEdit}
                 data={item.data}
+                index={index}
+                is-edit={this.isEdit}
+                is-realtime={this.isRealtime}
                 metricData={this.metricData}
-                unit={this.unitDisplay}
+                readonly={this.readonly}
                 resultTableId={this.metricData[0]?.intelligent_detect?.result_table_id}
-                onDelete={() => this.handleDeleteRule(index)}
-                onDataChange={val => this.handleRuleDataChange(val, item)}
-                onModelChange={data => this.handleModelChange(data, item)}
+                rule={item}
+                select-rule-data={this.localValue}
+                unit={this.unitDisplay}
                 onChartTypeChange={this.handleAiopsChartTypeChange}
+                onDataChange={val => this.handleRuleDataChange(val, item)}
+                onDelete={() => this.handleDeleteRule(index)}
                 onInitVM={val => this.ruleWrapVMInit(val, index)}
+                onModelChange={data => this.handleModelChange(data, item)}
               />
             </div>
           ))}
@@ -561,8 +561,8 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         {/* 添加按钮 */}
         <RulesSelect
           ref='rulesAddSelectRef'
-          readonly={this.readonly}
           isFirst={this.localValue.length === 0}
+          readonly={this.readonly}
           typeList={this.detectionTypeListFilter}
           onTypeChange={this.handleAddRuleType}
         ></RulesSelect>

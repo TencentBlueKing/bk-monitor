@@ -30,9 +30,9 @@
 -->
 <template>
   <div
+    v-bkloading="{ isLoading: pageLoading }"
     class="alarm-group-add"
     :class="{ loading: pageLoading }"
-    v-bkloading="{ isLoading: pageLoading }"
   >
     <div class="alarm-group-item">
       <div class="item-label item-required">
@@ -43,16 +43,16 @@
         style="width: 503px"
       >
         <bk-select
+          v-model="bizList.value"
           :clearable="false"
           style="width: 503px"
           readonly
-          v-model="bizList.value"
           :placeholder="$t('输入所属空间')"
         >
           <bk-option
             v-for="(option, index) in bizList.data"
-            :key="index"
             :id="option.id"
+            :key="index"
             :name="option.text"
           />
         </bk-select>
@@ -72,8 +72,8 @@
           :validator="{ content: $t('输入告警组名称') }"
         >
           <bk-input
-            :maxlength="128"
             v-model="name"
+            :maxlength="128"
             :placeholder="$t('输入')"
           />
         </verify-input>
@@ -92,25 +92,27 @@
       </div>
       <div class="item-container">
         <div
-          class="over-input"
           v-if="isShowOverInput"
+          class="over-input"
         >
           <img
             alt=""
             src="../../../static/images/svg/spinner.svg"
             class="status-loading"
-          >
+          />
         </div>
         <!-- 人员选择器 -->
         <member-selector
-          style="width: 100%"
           v-model="member.value"
+          style="width: 100%"
           :group-list="defaultGroupList"
         />
         <span
           v-if="rule.member"
           class="error-message"
-        > {{ $t('选择通知对象') }} </span>
+        >
+          {{ $t('选择通知对象') }}
+        </span>
       </div>
     </div>
     <div
@@ -138,12 +140,12 @@
                   class="item-img"
                   :src="item.icon"
                   alt=""
-                >
+                />
                 {{ item.label }}
                 <i
-                  class="icon-monitor icon-remind"
                   v-if="item.type === 'wxwork-bot'"
                   v-bk-tooltips.top="$t('获取群ID方法', { name: item.name })"
+                  class="icon-monitor icon-remind"
                 />
               </div>
             </th>
@@ -163,10 +165,10 @@
                 <div class="cell">
                   <bk-switcher
                     v-if="notice.type === 'voice'"
+                    :ref="'voice-' + index"
                     v-model="notice.checked"
                     size="small"
                     theme="primary"
-                    :ref="'voice-' + index"
                     @change="handleShowTips(arguments[0], index)"
                   />
                   <bk-switcher
@@ -176,12 +178,12 @@
                     theme="primary"
                   />
                   <bk-input
+                    v-if="notice.type === 'wxwork-bot' && notice.checked"
                     v-model="notice.workGroupId"
                     class="wechat-work-group ml10"
                     :placeholder="$t('输入群ID,多个ID以分号隔开')"
                     type="textarea"
                     :rows="3"
-                    v-if="notice.type === 'wxwork-bot' && notice.checked"
                   />
                 </div>
               </td>
@@ -217,9 +219,9 @@
       </div>
       <div class="item-container">
         <bk-input
+          v-model="message"
           type="textarea"
           :maxlength="100"
-          v-model="message"
           :placeholder="$t('输入')"
         />
       </div>
@@ -229,45 +231,54 @@
         theme="primary"
         :title="$t('提交')"
         @click="handleSubmit"
-      > {{ $t('提交') }} </bk-button>
+      >
+        {{ $t('提交') }}
+      </bk-button>
       <bk-button
         theme="default"
         :title="$t('取消')"
         @click="handleCancel"
-      > {{ $t('取消') }} </bk-button>
+      >
+        {{ $t('取消') }}
+      </bk-button>
     </div>
   </div>
 </template>
 
 <script>
-import { mapActions } from 'vuex';
 import { noticeGroupConfig, noticeGroupDetail } from 'monitor-api/modules/notice_group';
+import { mapActions } from 'vuex';
 
 import VerifyInput from '../../../components/verify-input/verify-input';
 import documentLinkMixin from '../../../mixins/documentLinkMixin';
-
 import MemberSelector from './member-selector';
 
 export default {
   name: 'AlarmGroupAdd',
   components: {
     VerifyInput,
-    MemberSelector
+    MemberSelector,
   },
   mixins: [documentLinkMixin],
+  beforeRouteEnter(to, from, next) {
+    next(v => {
+      const vm = v;
+      vm.fromRoute = from.name;
+    });
+  },
   data() {
     return {
       id: null,
       pageLoading: true,
       bizList: {
         data: [],
-        value: ''
+        value: '',
       },
       name: '',
       member: {
         // 通知人员数据
         data: [],
-        value: []
+        value: [],
       },
       noticeWay: [], // 通知方式
       noticeData: [], // 通知方式勾选数据
@@ -278,31 +289,31 @@ export default {
         name: false,
         member: false,
         noticeWay: false,
-        workGroupId: false
+        workGroupId: false,
       },
       levelMap: {
         1: this.$t('致命'),
         2: this.$t('预警'),
-        3: this.$t('提醒')
+        3: this.$t('提醒'),
       },
       iconMap: {
         weixin: 'icon-mc-weixin',
         mail: 'icon-mc-youjian',
         sms: 'icon-mc-duanxin',
         voice: 'icon-mc-dianhua',
-        'wxwork-bot': 'icon-qiye-weixin'
+        'wxwork-bot': 'icon-qiye-weixin',
       },
       fromRoute: '',
       popoverInstance: null,
       isShowOverInput: true,
       // 默认的告警组列表
-      defaultGroupList: []
+      defaultGroupList: [],
     };
   },
   computed: {
     // 通知方式全部为机器人时，通知对象可为空
     isAllwxwork() {
-      return this.noticeData.every((item) => {
+      return this.noticeData.every(item => {
         const set = item.list.filter(set => set.checked);
         return set.length === 1 && set[0].type === 'wxwork-bot';
       });
@@ -312,14 +323,14 @@ export default {
       const temp = this.member.data;
       const list = temp ? temp.reduce((total, item) => total.concat(item.children), []) : [];
       return list.map(item => item.id);
-    }
+    },
   },
   async created() {
     this.bizList.data = this.$store.getters.bizList;
     this.bizList.value = +this.$store.getters.bizId;
     // 获取通知对象数据
     this.getReceiver()
-      .then((data) => {
+      .then(data => {
         this.member.data = data;
         const groupData = data.find(item => item.id === 'group');
         groupData.type = 'group';
@@ -331,7 +342,7 @@ export default {
       });
     this.noticeWay = await this.getNoticeWay();
     // 替换数据中对应的icon的展示样式
-    this.noticeWay.forEach((way) => {
+    this.noticeWay.forEach(way => {
       way.icon = `data:image/png;base64,${way.icon}`;
     });
     if (typeof this.$route.params.id !== 'undefined') {
@@ -346,12 +357,6 @@ export default {
     }
     this.pageLoading = false;
   },
-  beforeRouteEnter(to, from, next) {
-    next((v) => {
-      const vm = v;
-      vm.fromRoute = from.name;
-    });
-  },
   methods: {
     ...mapActions('alarm-group', ['noticeGroupDetail', 'getNoticeWay', 'getReceiver']),
     // 渲染通知方式表
@@ -359,7 +364,7 @@ export default {
       const tableData = [];
       // 渲染初始表格
       Object.keys(this.levelMap).forEach((key, index) => {
-        const list = this.noticeWay.map((set) => {
+        const list = this.noticeWay.map(set => {
           if (set.type === 'wxwork-bot') {
             return { type: set.type, checked: false, workGroupId: '' };
           }
@@ -368,7 +373,7 @@ export default {
         tableData.push({
           list,
           level: key,
-          title: this.levelMap[index + 1]
+          title: this.levelMap[index + 1],
         });
       });
       this.noticeData = tableData.reverse();
@@ -377,13 +382,13 @@ export default {
     handleNoticeReceiver() {
       const { data } = this.member;
       const groupList = data.find(item => item.id === 'group')?.children || [];
-      const result = this.member.value.map((id) => {
+      const result = this.member.value.map(id => {
         const isGroup = groupList.find(group => group.id === id);
         return {
           display_name: '',
           logo: '',
           id,
-          type: isGroup ? 'group' : 'user'
+          type: isGroup ? 'group' : 'user',
         };
       });
       return result;
@@ -393,10 +398,10 @@ export default {
       const params = {
         1: [],
         2: [],
-        3: []
+        3: [],
       };
-      this.noticeData.forEach((item) => {
-        item.list.forEach((way) => {
+      this.noticeData.forEach(item => {
+        item.list.forEach(way => {
           if (way.checked) {
             params[item.level].push(way.type);
           }
@@ -407,11 +412,11 @@ export default {
     // 获取企业微信群通知方式信息
     handleGetWechatWorkGroupData() {
       const params = {};
-      this.noticeData.forEach((item) => {
+      this.noticeData.forEach(item => {
         // 企业微信群实现方式不一样，有单独的字段
         item.list
           .filter(set => set.type === 'wxwork-bot')
-          .forEach((way) => {
+          .forEach(way => {
             if (way.checked) {
               params[item.level] = way.workGroupId;
             }
@@ -426,7 +431,7 @@ export default {
       const resList = this.noticeData.map(item => item.list.some(way => way.checked));
       this.rule.noticeWay = !resList.every(bol => bol);
       // 企业微信群ID必填
-      this.rule.workGroupId = this.noticeData.some((item) => {
+      this.rule.workGroupId = this.noticeData.some(item => {
         const way = item.list.find(way => way.type === 'wxwork-bot');
         return way?.checked && !way.workGroupId;
       });
@@ -444,7 +449,7 @@ export default {
         message: this.message,
         notice_way: this.handleNoticeWayData(),
         notice_receiver: this.handleNoticeReceiver(),
-        webhook_url: this.webhookUrl
+        webhook_url: this.webhookUrl,
       };
       if (this.id) {
         params.id = this.id;
@@ -462,15 +467,15 @@ export default {
             name: 'strategy-config-edit',
             params: {
               alarmGroupId: data.id,
-              id: this.$route.params.strategyId
-            }
+              id: this.$route.params.strategyId,
+            },
           });
         } else if (this.fromRoute === 'strategy-config-add') {
           this.$router.replace({
             name: 'strategy-config-add',
             params: {
-              alarmGroupId: data.id
-            }
+              alarmGroupId: data.id,
+            },
           });
         } else {
           this.$router.back();
@@ -485,7 +490,7 @@ export default {
     },
     // 编辑 获取告警组详情
     getEditData(id) {
-      return noticeGroupDetail({ id }).then((data) => {
+      return noticeGroupDetail({ id }).then(data => {
         this.$store.commit('app/SET_NAV_TITLE', `${this.$t('编辑')} - #${id} ${data.name}`);
         this.bizList.value = data.bk_biz_id;
         this.name = data.name;
@@ -497,19 +502,19 @@ export default {
           const noticeWay = {
             1: data.notice_way['1'] || [],
             2: data.notice_way['2'] || [],
-            3: data.notice_way['3'] || []
+            3: data.notice_way['3'] || [],
           };
           const tableData = [];
           Object.keys(noticeWay).forEach((key, index) => {
             // 渲染初始表格
-            const list = this.noticeWay.map((set) => {
+            const list = this.noticeWay.map(set => {
               if (set.type === 'wxwork-bot') {
                 return { type: set.type, checked: false, workGroupId: '' };
               }
               return { type: set.type, checked: false };
             });
             // 对应勾选
-            noticeWay[key].forEach((notice) => {
+            noticeWay[key].forEach(notice => {
               const listItem = list.find(set => set.type === notice);
               listItem && (listItem.checked = true);
             });
@@ -524,7 +529,7 @@ export default {
             tableData.push({
               list,
               level: key,
-              title: this.levelMap[index + 1]
+              title: this.levelMap[index + 1],
             });
           });
           this.noticeData = tableData.reverse();
@@ -550,7 +555,7 @@ export default {
         flipBehavior: 'bottom',
         trigger: 'manul',
         placement: 'top',
-        duration: [200, 0]
+        duration: [200, 0],
       });
       // 显示
       this.popoverInstance.show(100);
@@ -572,12 +577,13 @@ export default {
         .replace(/[;\s,]\s*/g, ';');
       const pasteList = str.toString().split(';');
       const list = pasteList.map(item => item.replace(/\([\s\S]*\)$/, ''));
-      const effectiveIds = list.filter(item => this.effectiveMemberIdList.includes(item)
-      && !this.member.value.includes(item));
+      const effectiveIds = list.filter(
+        item => this.effectiveMemberIdList.includes(item) && !this.member.value.includes(item)
+      );
       this.member.value = this.member.value.concat(effectiveIds);
       return [];
-    }
-  }
+    },
+  },
 };
 </script>
 

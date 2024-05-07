@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
 import { Component, merge, Vue2 } from '@blueking/ip-selector/dist/vue2.6.x.esm';
 
 export default options => {
@@ -47,7 +48,7 @@ export default options => {
                 ...result,
                 [item]: newValue[item],
               }),
-              {},
+              {}
             );
 
             app._props[propName] = Object.freeze(v);
@@ -68,7 +69,7 @@ export default options => {
           },
           {
             immediate: true,
-          },
+          }
         );
         propWatchStack.push(unwatch);
       });

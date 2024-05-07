@@ -99,8 +99,8 @@ export default class StatusTablList extends tsc<IStatusTablListProps, IStatusTab
       <div class='collect-view-status-tab'>
         {this.tabList.map(item => (
           <div
-            class={['tab-item', { active: item.type === this.type }]}
             key={item.type}
+            class={['tab-item', { active: item.type === this.type }]}
             v-bk-tooltips={{ content: item?.tips || '', disabled: item.type === 'all', allowHTML: false }}
             onClick={() => this.handleClickTab(item)}
           >

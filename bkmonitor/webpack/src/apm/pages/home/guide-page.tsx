@@ -25,10 +25,10 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { handleGotoLink } from 'monitor-pc/common/constant';
 
 import AppStore from '../../store/modules/app';
-
 import { IGuideLink } from './app-list';
 import { IAppSelectOptItem } from './app-select';
 
@@ -162,7 +162,7 @@ export default class GuidePage extends tsc<IProps, IEvents> {
                     >
                       {item.title}
                     </span>
-                  ) : undefined,
+                  ) : undefined
                 )}
               </div>
             </div>

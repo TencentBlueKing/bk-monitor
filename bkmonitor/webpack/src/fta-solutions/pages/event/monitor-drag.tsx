@@ -25,11 +25,12 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import './monitor-drag.scss';
 
-type ThemeType = 'normal' | 'line' | 'line-round';
+type ThemeType = 'line' | 'line-round' | 'normal';
 interface IMonitorDragProps {
   minWidth?: number;
   maxWidth?: number;
@@ -139,9 +140,9 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
         const left = Math.min(
           Math.max(
             vm.minWidth,
-            vm.startPlacement === 'left' ? rect.width - event.clientX + rect.left : event.clientX - rect.left,
+            vm.startPlacement === 'left' ? rect.width - event.clientX + rect.left : event.clientX - rect.left
           ),
-          vm.maxWidth,
+          vm.maxWidth
         );
         vm.$emit('move', left, swipeRight, handleMouseUp);
         if (left >= vm.maxWidth) {
@@ -170,9 +171,9 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
   render() {
     return (
       <div
-        onMousedown={this.handleMouseDown}
-        class={['monitor-drag', this.theme, this.startPlacement]}
         style={{ left: this.theme !== 'normal' ? '' : `${this.left}px`, display: this.show ? 'flex' : 'none' }}
+        class={['monitor-drag', this.theme, this.startPlacement]}
+        onMousedown={this.handleMouseDown}
       >
         <div>
           {['line', 'line-round'].includes(this.theme) && (

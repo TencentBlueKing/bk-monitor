@@ -132,7 +132,7 @@ export default class TableStore {
         action =>
           `${action.signal
             .map(signal => (signalNames[signal] ? `${signalNames[signal]},` : ''))
-            .join('')}${window.i18n.t('执行套餐')}${action.config?.name || '--'}`,
+            .join('')}${window.i18n.t('执行套餐')}${action.config?.name || '--'}`
       );
       this.data.push({
         id: item.id,
@@ -197,22 +197,6 @@ export default class TableStore {
     // this.data = originData
   }
 
-  getTableData() {
-    // let ret = this.data
-    // if (this.keyword.length) {
-    //     const keyword = this.keyword.toLocaleLowerCase()
-    //     ret = ret.filter(item => item.strategyName.toLocaleLowerCase().includes(keyword))
-    // }
-    // this.total = ret.length
-    return this.data.slice(0, this.pageSize);
-  }
-
-  setDefaultStore() {
-    this.keyword = '';
-    this.page = 1;
-    this.pageSize = +localStorage.getItem('__common_page_size__') || 10;
-    this.pageList = [10, 20, 50, 100];
-  }
   getItemDescription(itemlist) {
     if (!itemlist) {
       return {
@@ -279,5 +263,21 @@ export default class TableStore {
       });
     });
     return res;
+  }
+
+  getTableData() {
+    // let ret = this.data
+    // if (this.keyword.length) {
+    //     const keyword = this.keyword.toLocaleLowerCase()
+    //     ret = ret.filter(item => item.strategyName.toLocaleLowerCase().includes(keyword))
+    // }
+    // this.total = ret.length
+    return this.data.slice(0, this.pageSize);
+  }
+  setDefaultStore() {
+    this.keyword = '';
+    this.page = 1;
+    this.pageSize = +localStorage.getItem('__common_page_size__') || 10;
+    this.pageList = [10, 20, 50, 100];
   }
 }

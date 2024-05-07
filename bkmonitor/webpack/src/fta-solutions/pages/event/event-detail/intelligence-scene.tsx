@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { connect, disconnect } from 'echarts/core';
 import { multiAnomalyDetectGraph } from 'monitor-api/modules/alert';
 import { random } from 'monitor-common/utils';
@@ -138,12 +139,12 @@ export default class IntelligenceScene extends tsc<IProps> {
       >
         {this.panels.map((panel, index) => (
           <div
-            class='intelligenc-scene-item'
             key={index}
+            class='intelligenc-scene-item'
           >
             <ChartWrapper
-              panel={panel}
               needCheck={false}
+              panel={panel}
               onDblClick={this.handledblClick}
             ></ChartWrapper>
           </div>

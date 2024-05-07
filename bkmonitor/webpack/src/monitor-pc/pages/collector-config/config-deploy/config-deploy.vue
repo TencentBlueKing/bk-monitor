@@ -27,8 +27,8 @@
 <template>
   <div class="config-deploy">
     <div
-      class="config-deploy-description"
       v-if="$route.name === 'collect-config-operate-detail'"
+      class="config-deploy-description"
     >
       <i class="icon-monitor icon-tips item-icon" />
       <i18n path="该内容是对{0}进行'{1}'操作的执行详情">
@@ -37,12 +37,12 @@
       </i18n>
     </div>
     <div
-      class="config-deploy-header"
       v-if="isRunning"
+      class="config-deploy-header"
     >
       <div class="header-filter">
         <div
-          v-for="(item) in statusList"
+          v-for="item in statusList"
           :key="item.id"
           :class="['header-filter-item', { active: item.id === header.status }]"
           @click="header.status = item.id"
@@ -63,8 +63,8 @@
               class="mr-3"
             />
           </span>
-          <span class="mr-3">{{item.name}}</span>
-          <span class="mt-2">{{item.count}}</span>
+          <span class="mr-3">{{ item.name }}</span>
+          <span class="mt-2">{{ item.count }}</span>
         </div>
       </div>
       <!-- <div class="bk-button-group">
@@ -112,34 +112,34 @@
         class="header-retry"
         hover-theme="primary"
         @click="handleBatchStop"
-      >{{ $t('批量终止') }}
+        >{{ $t('批量终止') }}
       </bk-button>
       <bk-button
         class="header-retry"
         hover-theme="primary"
         @click="handleCopyTargets"
-      >{{ $t('复制目标') }}
+        >{{ $t('复制目标') }}
       </bk-button>
     </div>
     <div
-      class="config-deploy-content"
       v-if="content.length"
+      class="config-deploy-content"
     >
       <right-panel
-        class="content-panel"
         v-for="(item, index) in content"
         :key="index"
+        class="content-panel"
         need-border
         :collapse="item.expand"
-        @change="handleCollapseChange(item, $event)"
         title-bg-color="#F0F1F5"
         :collapse-color="item.child.length ? '#313238' : '#C4C6CC'"
         :class="{ 'no-data': !item.child.length }"
         :style="{
           borderBottomWidth: item.expand ? '0' : '1px',
-          marginBottom: index === content.length - 1 ? '20px' : '10px'
+          marginBottom: index === content.length - 1 ? '20px' : '10px',
         }"
         :content-render="false"
+        @change="handleCollapseChange(item, $event)"
       >
         <bk-table
           class="content-panel-table"
@@ -159,17 +159,17 @@
             <template slot-scope="props">
               <div class="col-status">
                 <img
-                  class="col-status-img"
                   v-if="isRunning && (props.row.status === 'RUNNING' || props.row.status === 'PENDING')"
+                  class="col-status-img"
                   src="../../../static/images/svg/spinner.svg"
                   alt=""
-                >
+                />
                 <div
-                  class="col-status-radius"
                   v-if="['SUCCESS', 'FAILED'].includes(props.row.status)"
+                  class="col-status-radius"
                   :style="{
                     background: statusMap[props.row.status].color,
-                    'border-color': borderMap[props.row.status]
+                    'border-color': borderMap[props.row.status],
                   }"
                 />
                 <span v-if="isRunning">{{ statusMap[props.row.status].name }}</span>
@@ -190,8 +190,8 @@
               <div class="col-detail">
                 <span class="col-detail-data">{{ props.row.log || '--' }}</span>
                 <span
-                  class="col-detail-more"
                   v-if="isRunning && props.row.status === 'FAILED'"
+                  class="col-detail-more"
                   @click="handleGetMoreDetail(props.row)"
                 >
                   {{ $t('详情') }}
@@ -205,15 +205,15 @@
           >
             <template slot-scope="props">
               <div
-                class="col-retry"
                 v-if="isRunning && props.row.status === 'FAILED'"
+                class="col-retry"
                 @click="props.row.status === 'FAILED' && handleRetry(props.row, item)"
               >
                 {{ $t('重试') }}
               </div>
               <div
-                class="col-retry"
                 v-if="isRunning && ['DEPLOYING', 'RUNNING', 'PENDING'].includes(props.row.status)"
+                class="col-retry"
                 @click="['DEPLOYING', 'RUNNING', 'PENDING'].includes(props.row.status) && handleRevoke(props.row, item)"
               >
                 {{ $t('终止') }}
@@ -223,16 +223,15 @@
         </bk-table>
         <template slot="pre-panel">
           <div
-            class="pre-panel"
             v-if="item.is_label"
+            class="pre-panel"
           >
             <!-- <div class="pre-panel"> -->
             <span
               class="pre-panel-name"
               :style="{ backgroundColor: labelMap[item.label_name].color }"
-            >{{
-              labelMap[item.label_name].name
-            }}</span>
+              >{{ labelMap[item.label_name].name }}</span
+            >
             <span
               class="pre-panel-mark"
               :style="{ borderColor: labelMap[item.label_name].color }"
@@ -247,8 +246,8 @@
           <div class="total">
             <template v-if="isRunning">
               <span
-                class="num"
                 v-if="item.successNum"
+                class="num"
               >
                 <i18n path="{0}个成功">
                   <span style="color: #2dcb56">{{ item.successNum }}</span>
@@ -256,8 +255,8 @@
                 <span v-if="item.failedNum || item.pendingNum">,</span>
               </span>
               <span
-                class="num"
                 v-if="item.failedNum"
+                class="num"
               >
                 <i18n path="{0}个失败">
                   <span style="color: #ea3636">{{ item.failedNum }}</span>
@@ -265,16 +264,16 @@
                 <span v-if="item.pendingNum">,</span>
               </span>
               <span
-                class="num"
                 v-if="item.pendingNum"
+                class="num"
               >
                 <i18n path="{0}个执行中">
                   <span style="color: #3a84ff">{{ item.pendingNum }}</span>
                 </i18n>
               </span>
               <span
-                class="num"
                 v-else-if="!item.child.length"
+                class="num"
               >
                 <i18n :path="`共{0}${config.target_object_type === 'HOST' ? '台主机' : '个实例'}`">
                   <span style="color: #63656e">0</span>
@@ -282,8 +281,8 @@
               </span>
             </template>
             <span
-              class="num"
               v-else
+              class="num"
             >
               <i18n :path="`共{0}${config.target_object_type === 'HOST' ? '台主机' : '个实例'}`">
                 {{ item.successNum + item.failedNum + item.pendingNum }}
@@ -300,9 +299,9 @@
       :title="side.title"
     >
       <div
-        class="side-detail"
         slot="content"
         v-bkloading="{ isLoading: side.loading }"
+        class="side-detail"
       >
         <!-- eslint-disable-next-line vue/no-v-html -->
         <pre
@@ -318,8 +317,10 @@ import {
   batchRetryConfig,
   batchRevokeTargetNodes,
   getCollectLogDetail,
-  isTaskReady,  retryTargetNodes,
-  revokeTargetNodes } from 'monitor-api/modules/collecting';
+  isTaskReady,
+  retryTargetNodes,
+  revokeTargetNodes,
+} from 'monitor-api/modules/collecting';
 import { copyText } from 'monitor-common/utils/utils.js';
 
 import RightPanel from '../../../components/ip-select/right-panel';
@@ -328,17 +329,17 @@ import { transformJobUrl } from '../../../utils/index';
 export default {
   name: 'ConfigDeploy',
   components: {
-    RightPanel
+    RightPanel,
   },
   props: {
     allData: {
       type: Object,
-      required: true
+      required: true,
     },
     isRunning: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   data() {
     return {
@@ -351,8 +352,8 @@ export default {
           successNum: 0,
           failedNum: 0,
           pendingNum: 0,
-          total: 0
-        }
+          total: 0,
+        },
       },
       content: null,
       config: null,
@@ -361,55 +362,55 @@ export default {
       labelMap: {
         ADD: {
           color: '#3A84FF',
-          name: this.$t('新增')
+          name: this.$t('新增'),
         },
         REMOVE: {
           color: '#6C3AFF',
-          name: this.$t('删除')
+          name: this.$t('删除'),
         },
         UPDATE: {
           color: '#FF9C01',
-          name: this.$t('变更')
+          name: this.$t('变更'),
         },
         RETRY: {
           color: '#414871',
-          name: this.$t('重试')
-        }
+          name: this.$t('重试'),
+        },
       },
       statusMap: {
         SUCCESS: {
           color: '#94F5A4',
-          name: this.$t('成功')
+          name: this.$t('成功'),
         },
         FAILED: {
           color: '#FD9C9C',
-          name: this.$t('失败')
+          name: this.$t('失败'),
         },
         PENDING: {
           color: '#3A84FF',
-          name: this.$t('等待中')
+          name: this.$t('等待中'),
         },
         RUNNING: {
           color: '#3A84FF',
-          name: this.$t('执行中')
-        }
+          name: this.$t('执行中'),
+        },
       },
       borderMap: {
         SUCCESS: '#2DCB56',
-        FAILED: '#EA3636'
+        FAILED: '#EA3636',
       },
       side: {
         show: false,
         title: '',
         detail: '',
-        loading: false
-      }
+        loading: false,
+      },
     };
   },
   computed: {
     haveDeploying() {
       const resArr = [];
-      this.content.forEach((item) => {
+      this.content.forEach(item => {
         const res = item.child.some(one => ['DEPLOYING', 'RUNNING', 'PENDING'].includes(one.status));
         resArr.push(res);
       });
@@ -418,11 +419,21 @@ export default {
     statusList() {
       return [
         { id: 'ALL', name: window.i18n.t('全部'), count: this.header.data.total },
-        { id: 'SUCCESS', color: ['#3fc06d29', '#3FC06D'], name: window.i18n.t('正常'), count: this.header.data.successNum },
-        { id: 'FAILED', color: ['#ea363629', '#EA3636'], name: window.i18n.t('异常'), count: this.header.data.failedNum },
-        { id: 'RUNNING', name: window.i18n.t('执行中'), count: this.header.data.pendingNum }
+        {
+          id: 'SUCCESS',
+          color: ['#3fc06d29', '#3FC06D'],
+          name: window.i18n.t('正常'),
+          count: this.header.data.successNum,
+        },
+        {
+          id: 'FAILED',
+          color: ['#ea363629', '#EA3636'],
+          name: window.i18n.t('异常'),
+          count: this.header.data.failedNum,
+        },
+        { id: 'RUNNING', name: window.i18n.t('执行中'), count: this.header.data.pendingNum },
       ];
-    }
+    },
   },
   watch: {
     allData: {
@@ -431,11 +442,11 @@ export default {
           this.handleData(v);
         }
       },
-      immediate: true
+      immediate: true,
     },
     'header.status': {
-      handler: 'handleStatusChange'
-    }
+      handler: 'handleStatusChange',
+    },
   },
   methods: {
     handleData(data) {
@@ -443,8 +454,8 @@ export default {
       const { status } = this.header;
       this.header.data = data.headerData;
       this.content = data.contents;
-      this.content.forEach((item) => {
-        item.child.forEach((set) => {
+      this.content.forEach(item => {
+        item.child.forEach(set => {
           if (set.status === 'RUNNING' || set.status === 'PENDING' || set.status === status || status === 'ALL') {
             item.table.push(set);
           }
@@ -457,7 +468,7 @@ export default {
         EDIT: this.$t('编辑'),
         START: this.$t('启用'),
         STOP: this.$t('停用'),
-        ROLLBACK: this.$t('回滚')
+        ROLLBACK: this.$t('回滚'),
       };
       this.operationStepName = operationStepMap[this.config.last_operation];
     },
@@ -466,7 +477,7 @@ export default {
       if (this.side.title === data.instance_name) {
         this.side.title = '';
       }
-      this.content.forEach((item) => {
+      this.content.forEach(item => {
         if (item.child?.length) {
           const setData = item.child.find(set => set.instance_id === data.instance_id && set.status === 'FAILED');
           if (setData) {
@@ -481,7 +492,7 @@ export default {
       this.handlePolling(false);
       retryTargetNodes({
         id: this.config.id,
-        instance_id: data.instance_id
+        instance_id: data.instance_id,
       })
         .then(async () => {
           const isReady = await this.taskReadyStatus(this.config.id);
@@ -504,7 +515,7 @@ export default {
     handleRevoke(data, table) {
       revokeTargetNodes({
         id: this.config.id,
-        instance_ids: [data.instance_id]
+        instance_ids: [data.instance_id],
       }).finally(() => {
         data.status = 'FAILED';
         table.pendingNum -= 1;
@@ -520,8 +531,8 @@ export default {
       this.refresh = false;
       this.header.batchRetry = true;
       this.side.title = '';
-      this.content.forEach((item) => {
-        item.child.forEach((set) => {
+      this.content.forEach(item => {
+        item.child.forEach(set => {
           if (set.status === 'FAILED') {
             set.status = 'PENDING';
             failed.push(set);
@@ -534,7 +545,7 @@ export default {
       this.header.data.failedNum = 0;
       this.handlePolling(false);
       batchRetryConfig({
-        id: this.config.id
+        id: this.config.id,
       })
         .then(async () => {
           const isReady = await this.taskReadyStatus(this.config.id);
@@ -545,7 +556,7 @@ export default {
           }
         })
         .catch(() => {
-          failed.forEach((item) => {
+          failed.forEach(item => {
             item.status = 'FAILED';
           });
           this.header.data.pendingNum = 0;
@@ -559,7 +570,7 @@ export default {
       this.refresh = false;
       this.disBatch = true;
       batchRevokeTargetNodes({
-        id: this.config.id
+        id: this.config.id,
       }).finally(() => {
         this.disBatch = false;
         this.header.batchRetry = false;
@@ -571,20 +582,20 @@ export default {
       this.$bkMessage({
         theme,
         message,
-        ellipsisLine: 0
+        ellipsisLine: 0,
       });
     },
     handlePolling(v = true) {
       this.$emit('can-polling', v);
     },
     handleStatusChange(status) {
-      this.content.forEach((item) => {
+      this.content.forEach(item => {
         item.table = [];
-        item.child.forEach((set) => {
+        item.child.forEach(set => {
           if (
-            (status === 'RUNNING' && (set.status === 'RUNNING' || set.status === 'PENDING'))
-            || set.status === status
-            || status === 'ALL'
+            (status === 'RUNNING' && (set.status === 'RUNNING' || set.status === 'PENDING')) ||
+            set.status === status ||
+            status === 'ALL'
           ) {
             item.table.push(set);
           }
@@ -605,15 +616,15 @@ export default {
           {
             id: this.config.id,
             instance_id: data.instance_id,
-            task_id: data.task_id
+            task_id: data.task_id,
           },
           { needMessage: false }
         )
-          .then((data) => {
+          .then(data => {
             this.side.detail = data.log_detail;
             this.side.loading = false;
           })
-          .catch((err) => {
+          .catch(err => {
             this.bkMsg('error', err.message || this.$t('获取更多数据失败'));
             this.side.show = false;
             this.side.loading = false;
@@ -624,13 +635,13 @@ export default {
       let timer = null;
       clearTimeout(timer);
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      return new Promise(async (resolve) => {
+      return new Promise(async resolve => {
         const show = await isTaskReady({ collect_config_id: id });
         if (show) {
           resolve(true);
         } else {
           timer = setTimeout(() => {
-            this.taskReadyStatus(id).then((res) => {
+            this.taskReadyStatus(id).then(res => {
               resolve(res);
             });
           }, 2000);
@@ -639,24 +650,24 @@ export default {
     },
     handleCopyTargets() {
       let copyStr = '';
-      this.content.forEach((item) => {
-        item.table.forEach((tableItem) => {
+      this.content.forEach(item => {
+        item.table.forEach(tableItem => {
           copyStr += `${tableItem.instance_name}\n`;
         });
       });
-      copyText(copyStr, (msg) => {
+      copyText(copyStr, msg => {
         this.$bkMessage({
           message: msg,
-          theme: 'error'
+          theme: 'error',
         });
         return;
       });
       this.$bkMessage({
         message: this.$t('复制成功'),
-        theme: 'success'
+        theme: 'success',
       });
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -864,7 +875,6 @@ export default {
         color: #3a84ff;
         cursor: pointer;
       }
-
     }
   }
 

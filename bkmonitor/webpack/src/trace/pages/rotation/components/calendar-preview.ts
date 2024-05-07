@@ -387,7 +387,7 @@ export function timeRangeMerger(timePeriods: { start_time: string; end_time: str
 export function setPreviewDataOfServer(
   params: IDutyPlans[],
   autoOrders?: { [key: number]: number },
-  colorList?: string[],
+  colorList?: string[]
 ) {
   const hasColorList = !!colorList;
   const data = [];

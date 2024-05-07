@@ -28,7 +28,6 @@
 import deepMerge from 'deepmerge';
 
 import { getValueFormat, ValueFormatter } from '../valueFormats';
-
 import MonitorBaseSeries from './base-chart-option';
 import { lineOrBarOptions } from './echart-options-config';
 import { IChartInstance, ILegendItem } from './type-interface';
@@ -49,10 +48,10 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
             },
           },
         },
-        { arrayMerge: this.overwriteMerge },
+        { arrayMerge: this.overwriteMerge }
       ),
       this.chartOption,
-      { arrayMerge: this.overwriteMerge },
+      { arrayMerge: this.overwriteMerge }
     );
   }
   /**
@@ -73,7 +72,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       boundary.forEach((item: any) => {
         const base = -item.lowBoundary.reduce(
           (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Infinity,
+          Infinity
         );
         minBase = Math.max(base, minBase);
       });
@@ -131,7 +130,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     });
     /* 是否包含trace信息 */
     const hasScatterTraceInfo = series.some(
-      item => item.type === 'scatter' && item?.columns.includes('bk_trace_value'),
+      item => item.type === 'scatter' && item?.columns.includes('bk_trace_value')
     );
     if (hasScatterTraceInfo) {
       yAxis.push({
@@ -204,7 +203,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
         unitFormatter,
-        item.unit,
+        item.unit
       );
       /** 需要加强点的数据 */
       const markPointData = [];
@@ -220,7 +219,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           legendItem.total = legendItem.total + curValue;
           dataLength += 1;
           const markPonit = item?.markPoints?.find(
-            (set: any) => set[1] === seriesItem[0] || set === seriesItem[0] || set?.value === seriesItem[0],
+            (set: any) => set[1] === seriesItem[0] || set === seriesItem[0] || set?.value === seriesItem[0]
           );
           if (markPonit) {
             const itemStyle = markPonit?.itemStyle || {
@@ -348,182 +347,6 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       return seriesItem;
     });
     return { legendData, series };
-  }
-  /**
-   * @description: 设置阈值线
-   * @param {any} thresholdLine
-   * @return {*}
-   */
-  handleSetThresholdLine(thresholdLine: any[]) {
-    return {
-      symbol: [],
-      label: {
-        show: true,
-        position: 'insideStartTop',
-      },
-      lineStyle: {
-        color: '#FD9C9C',
-        type: 'dashed',
-        distance: 3,
-        width: 1,
-      },
-      emphasis: {
-        label: {
-          show: true,
-          formatter(v: any) {
-            return `${v.name || ''}: ${v.value}`;
-          },
-        },
-      },
-      data: thresholdLine.map((item: any) => ({
-        ...item,
-        label: {
-          show: true,
-          formatter() {
-            return '';
-          },
-        },
-      })),
-    };
-  }
-  // 设置阈值面板
-  handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
-    return {
-      silent: true,
-      show: true,
-      itemStyle: {
-        color: '#FFF5EC',
-        borderWidth: 1,
-        borderColor: '#FFE9D5',
-        shadowColor: '#FFF5EC',
-        shadowBlur: 0,
-      },
-      data: plotBands.map(item => [
-        {
-          xAxis: item.from,
-          y: 'max',
-        },
-        {
-          xAxis: item.to || 'max',
-          y: '0%',
-        },
-      ]),
-      opacity: 0.1,
-    };
-  }
-
-  handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
-    if (!data || data.length === 0) {
-      return 0;
-    }
-    data.sort();
-    const len = data.length;
-    if (data[0] === data[len - 1]) {
-      if (unit === 'none') return 0;
-      const setList = String(data[0]).split('.');
-      return !setList || setList.length < 2 ? 2 : setList[1].length;
-    }
-    let precision = 0;
-    let sampling = [];
-    const middle = Math.ceil(len / 2);
-    sampling.push(data[0]);
-    sampling.push(data[Math.ceil(middle / 2)]);
-    sampling.push(data[middle]);
-    sampling.push(data[middle + Math.floor((len - middle) / 2)]);
-    sampling.push(data[len - 1]);
-    sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
-    while (precision < 5) {
-      const samp = sampling.reduce((pre, cur) => {
-        pre[formattter(cur, precision).text] = 1;
-        return pre;
-      }, {});
-      if (Object.keys(samp).length >= sampling.length) {
-        return precision;
-      }
-      precision += 1;
-    }
-    return precision;
-  }
-
-  handleSetThreholds(series: any) {
-    let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
-    thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
-      pre.push(...cur.map((set: any) => set.yAxis));
-      if (index === thresholdList.length - 1) {
-        return Array.from(new Set(pre));
-      }
-      return pre;
-    }, []);
-    return {
-      canScale: thresholdList.every((set: number) => set > 0),
-      minThreshold: Math.min(...thresholdList),
-      maxThreshold: Math.max(...thresholdList),
-    };
-  }
-
-  handleSetThresholdArea(thresholdLine: any[]) {
-    const data = this.handleSetThresholdAreaData(thresholdLine);
-    return {
-      label: {
-        show: false,
-      },
-      data,
-    };
-  }
-  /**
-   * @description:
-   * @param {any} thresholdLine
-   * @return {*}
-   */
-  handleSetThresholdAreaData(thresholdLine: any[]) {
-    const threshold = thresholdLine.filter(item => item.method && !['eq', 'neq'].includes(item.method));
-
-    const openInterval = ['gte', 'gt']; // 开区间
-    const closedInterval = ['lte', 'lt']; // 闭区间
-
-    const data = [];
-
-    for (let index = 0; index < threshold.length; index++) {
-      const current = threshold[index];
-      const nextThreshold = threshold[index + 1];
-      // 判断是否为一个闭合区间
-      let yAxis = undefined;
-      if (
-        openInterval.includes(current.method) &&
-        nextThreshold &&
-        nextThreshold.condition === 'and' &&
-        closedInterval.includes(nextThreshold.method) &&
-        nextThreshold.yAxis >= current.yAxis
-      ) {
-        yAxis = nextThreshold.yAxis;
-        index += 1;
-      } else if (
-        closedInterval.includes(current.method) &&
-        nextThreshold &&
-        nextThreshold.condition === 'and' &&
-        openInterval.includes(nextThreshold.method) &&
-        nextThreshold.yAxis <= current.yAxis
-      ) {
-        yAxis = nextThreshold.yAxis;
-        index += 1;
-      } else if (openInterval.includes(current.method)) {
-        yAxis = 'max';
-      } else if (closedInterval.includes(current.method)) {
-        yAxis = current.yAxis < 0 ? current.yAxis : 0;
-      }
-
-      yAxis !== undefined &&
-        data.push([
-          {
-            ...current,
-          },
-          {
-            yAxis,
-            y: yAxis === 'max' ? '0%' : '',
-          },
-        ]);
-    }
-    return data;
   }
   handleBoundarySeries(item: any, base: number) {
     return [
@@ -689,6 +512,182 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       },
       data: resultData,
       name: `${item.name}-no-tips`,
+    };
+  }
+
+  handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+    if (!data || data.length === 0) {
+      return 0;
+    }
+    data.sort();
+    const len = data.length;
+    if (data[0] === data[len - 1]) {
+      if (unit === 'none') return 0;
+      const setList = String(data[0]).split('.');
+      return !setList || setList.length < 2 ? 2 : setList[1].length;
+    }
+    let precision = 0;
+    let sampling = [];
+    const middle = Math.ceil(len / 2);
+    sampling.push(data[0]);
+    sampling.push(data[Math.ceil(middle / 2)]);
+    sampling.push(data[middle]);
+    sampling.push(data[middle + Math.floor((len - middle) / 2)]);
+    sampling.push(data[len - 1]);
+    sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
+    while (precision < 5) {
+      const samp = sampling.reduce((pre, cur) => {
+        pre[formattter(cur, precision).text] = 1;
+        return pre;
+      }, {});
+      if (Object.keys(samp).length >= sampling.length) {
+        return precision;
+      }
+      precision += 1;
+    }
+    return precision;
+  }
+
+  handleSetThreholds(series: any) {
+    let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
+    thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
+      pre.push(...cur.map((set: any) => set.yAxis));
+      if (index === thresholdList.length - 1) {
+        return Array.from(new Set(pre));
+      }
+      return pre;
+    }, []);
+    return {
+      canScale: thresholdList.every((set: number) => set > 0),
+      minThreshold: Math.min(...thresholdList),
+      maxThreshold: Math.max(...thresholdList),
+    };
+  }
+
+  handleSetThresholdArea(thresholdLine: any[]) {
+    const data = this.handleSetThresholdAreaData(thresholdLine);
+    return {
+      label: {
+        show: false,
+      },
+      data,
+    };
+  }
+  /**
+   * @description:
+   * @param {any} thresholdLine
+   * @return {*}
+   */
+  handleSetThresholdAreaData(thresholdLine: any[]) {
+    const threshold = thresholdLine.filter(item => item.method && !['eq', 'neq'].includes(item.method));
+
+    const openInterval = ['gte', 'gt']; // 开区间
+    const closedInterval = ['lte', 'lt']; // 闭区间
+
+    const data = [];
+
+    for (let index = 0; index < threshold.length; index++) {
+      const current = threshold[index];
+      const nextThreshold = threshold[index + 1];
+      // 判断是否为一个闭合区间
+      let yAxis = undefined;
+      if (
+        openInterval.includes(current.method) &&
+        nextThreshold &&
+        nextThreshold.condition === 'and' &&
+        closedInterval.includes(nextThreshold.method) &&
+        nextThreshold.yAxis >= current.yAxis
+      ) {
+        yAxis = nextThreshold.yAxis;
+        index += 1;
+      } else if (
+        closedInterval.includes(current.method) &&
+        nextThreshold &&
+        nextThreshold.condition === 'and' &&
+        openInterval.includes(nextThreshold.method) &&
+        nextThreshold.yAxis <= current.yAxis
+      ) {
+        yAxis = nextThreshold.yAxis;
+        index += 1;
+      } else if (openInterval.includes(current.method)) {
+        yAxis = 'max';
+      } else if (closedInterval.includes(current.method)) {
+        yAxis = current.yAxis < 0 ? current.yAxis : 0;
+      }
+
+      yAxis !== undefined &&
+        data.push([
+          {
+            ...current,
+          },
+          {
+            yAxis,
+            y: yAxis === 'max' ? '0%' : '',
+          },
+        ]);
+    }
+    return data;
+  }
+  // 设置阈值面板
+  handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
+    return {
+      silent: true,
+      show: true,
+      itemStyle: {
+        color: '#FFF5EC',
+        borderWidth: 1,
+        borderColor: '#FFE9D5',
+        shadowColor: '#FFF5EC',
+        shadowBlur: 0,
+      },
+      data: plotBands.map(item => [
+        {
+          xAxis: item.from,
+          y: 'max',
+        },
+        {
+          xAxis: item.to || 'max',
+          y: '0%',
+        },
+      ]),
+      opacity: 0.1,
+    };
+  }
+  /**
+   * @description: 设置阈值线
+   * @param {any} thresholdLine
+   * @return {*}
+   */
+  handleSetThresholdLine(thresholdLine: any[]) {
+    return {
+      symbol: [],
+      label: {
+        show: true,
+        position: 'insideStartTop',
+      },
+      lineStyle: {
+        color: '#FD9C9C',
+        type: 'dashed',
+        distance: 3,
+        width: 1,
+      },
+      emphasis: {
+        label: {
+          show: true,
+          formatter(v: any) {
+            return `${v.name || ''}: ${v.value}`;
+          },
+        },
+      },
+      data: thresholdLine.map((item: any) => ({
+        ...item,
+        label: {
+          show: true,
+          formatter() {
+            return '';
+          },
+        },
+      })),
     };
   }
   segmentsIntr({ a, b, c, d }: any) {

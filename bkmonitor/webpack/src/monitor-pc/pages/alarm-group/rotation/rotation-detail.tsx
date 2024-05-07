@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 
@@ -37,7 +38,6 @@ import {
 import { RotationTabTypeEnum } from '../../../../trace/pages/rotation/typings/common';
 import { randomColor, RuleDetailModel, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
-
 import RotationCalendarPreview from './rotation-calendar-preview';
 
 import './rotation-detail.scss';
@@ -106,7 +106,7 @@ export default class RotationDetail extends tsc<IProps> {
     const autoOrders = getAutoOrderList(this.detailData);
     this.previewData = setPreviewDataOfServer(
       this.detailData.category === 'regular' ? noOrderDutyData(data) : data,
-      autoOrders,
+      autoOrders
     );
   }
 
@@ -119,8 +119,8 @@ export default class RotationDetail extends tsc<IProps> {
     if (user.logo)
       return (
         <img
-          src={user.logo}
           alt=''
+          src={user.logo}
         ></img>
       );
     if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img'></span>;
@@ -141,8 +141,8 @@ export default class RotationDetail extends tsc<IProps> {
         ext-cls='alarm-group-rotation-detail-side'
         {...{ on: { 'update:isShow': this.emitIsShow } }}
         width={960}
-        quick-close={true}
         is-show={this.show}
+        quick-close={true}
       >
         <div
           class='rotation-detail-side-header'
@@ -165,8 +165,8 @@ export default class RotationDetail extends tsc<IProps> {
           </span>
         </div>
         <div
-          slot='content'
           class='rotation-detail-side-content'
+          slot='content'
         >
           {formItem(this.$t('规则名称'), <span class='detail-text text-wrap'>{this.detailData?.name || '--'}</span>)}
           {formItem(this.$t('标签'), <span class='detail-text'>{this.detailData?.labels?.join(', ') || '--'}</span>)}
@@ -174,7 +174,7 @@ export default class RotationDetail extends tsc<IProps> {
             this.$t('轮值类型'),
             <span class='detail-text'>
               {this.type === RotationTabTypeEnum.REGULAR ? this.$t('日常轮班') : this.$t('交替轮值')}
-            </span>,
+            </span>
           )}
           {formItem(
             this.type === RotationTabTypeEnum.REGULAR ? this.$t('值班规则') : this.$t('轮值规则'),
@@ -205,16 +205,16 @@ export default class RotationDetail extends tsc<IProps> {
                     <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
                       {!rule.isAuto && (
                         <div
-                          class='has-color'
                           style={{ background: randomColor(item.orderIndex) }}
+                          class='has-color'
                         ></div>
                       )}
                       {item.users.map((user, ind) => (
                         <div class='personnel-choice'>
                           {rule.isAuto && (
                             <span
-                              class='user-color'
                               style={{ 'background-color': randomColor(item.orderIndex + ind) }}
+                              class='user-color'
                             ></span>
                           )}
                           {this.renderUserLogo(user)}
@@ -225,13 +225,13 @@ export default class RotationDetail extends tsc<IProps> {
                   ))}
                 </div>
               </div>
-            )),
+            ))
           )}
           {formItem(
             this.$t('生效时间'),
             <span class='detail-text'>{`${this.detailData?.effective_time} - ${
               this.detailData?.end_time || this.$t('永久')
-            }`}</span>,
+            }`}</span>
           )}
           {formItem(this.$t('轮值预览'), <RotationCalendarPreview value={this.previewData}></RotationCalendarPreview>)}
         </div>

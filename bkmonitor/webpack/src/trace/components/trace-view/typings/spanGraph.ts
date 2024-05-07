@@ -29,7 +29,7 @@ import { Ref } from 'vue';
 import { TNil } from './trace';
 
 interface ITimeCursorUpdate {
-  cursor: number | TNil;
+  cursor: TNil | number;
 }
 
 interface ITimeReframeUpdate {
@@ -53,7 +53,7 @@ export type ViewRangeTimeUpdate = ITimeCursorUpdate | ITimeReframeUpdate | ITime
 
 export interface IViewRangeTime {
   current: [number, number];
-  cursor?: number | TNil;
+  cursor?: TNil | number;
   reframe?: {
     anchor: number;
     shift: number;
@@ -88,8 +88,8 @@ export interface IChildrenHiddenStore {
 }
 
 export enum ETraceViewType {
-  TraceTimelineViewer = 'TraceTimelineViewer',
   TraceGraph = 'TraceGraph',
-  TraceStatistics = 'TraceStatistics',
   TraceSpansView = 'TraceSpansView',
+  TraceStatistics = 'TraceStatistics',
+  TraceTimelineViewer = 'TraceTimelineViewer',
 }

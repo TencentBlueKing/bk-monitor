@@ -69,8 +69,8 @@ export default class CalendarInfo extends tsc<IProps, IEvents> {
           props: this.$props,
         }}
         width='450px'
-        value={this.value}
         show-footer={false}
+        value={this.value}
         onCancel={this.handleValueChange}
       >
         <div class='calendar-info-wrap'>

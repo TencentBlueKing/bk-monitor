@@ -38,20 +38,20 @@ const GraphTicks = (props: GraphTicksProps) => {
     const x = `${(i / numTicks) * 100}%`;
     ticks.push(
       <line
+        key={i / numTicks}
         class='graph-tick'
         x1={x}
-        y1='0%'
         x2={x}
+        y1='0%'
         y2='100%'
-        key={i / numTicks}
-      />,
+      />
     );
   }
 
   return (
     <g
-      data-test='ticks'
       aria-hidden='true'
+      data-test='ticks'
     >
       {ticks}
     </g>

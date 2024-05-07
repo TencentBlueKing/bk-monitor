@@ -27,7 +27,6 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ThresholdSelect from '../threshold/threshold-select';
-
 import AiLevelSelect from './ai-level-select';
 import AlarmThresholdSelect, { BoundType } from './alarm-threshold-select';
 import { EFormItemValueType, FormItem, IUnitOptionItem } from './utils';
@@ -41,7 +40,7 @@ interface IProps {
   rules?: {
     [key: string]: {
       required?: boolean;
-      message?: string | ((val: any) => string);
+      message?: ((val: any) => string) | string;
       trigger?: string;
       min?: number;
       max?: number;
@@ -192,15 +191,15 @@ export default class Form extends tsc<IProps, IEvents> {
         case 'select' /** 下拉选择 */:
           return (
             <bk-select
-              class='w280 simplicity-select'
               style={{ width: `${formItem.width}px` }}
-              value={this.handleSelectMultipleValue(formItem)}
+              class='w280 simplicity-select'
               behavior={formItem.behavior}
-              placeholder={formItem.placeholder}
               clearable={false}
               disabled={this.readonly}
-              onSelected={selectChange}
+              placeholder={formItem.placeholder}
+              value={this.handleSelectMultipleValue(formItem)}
               onChange={val => this.handleSelectValueChange(formItem, val)}
+              onSelected={selectChange}
             >
               {formItem.options.map(opt => (
                 <bk-option
@@ -213,14 +212,14 @@ export default class Form extends tsc<IProps, IEvents> {
         case 'model-select' /** 模型下拉选择 */:
           return (
             <bk-select
-              class='w280 model-select simplicity-select'
               style={{ width: `${formItem.width}px` }}
+              class='w280 model-select simplicity-select'
               v-model={formItem.value}
               behavior={formItem.behavior}
-              placeholder={formItem.placeholder}
               clearable={false}
               disabled={this.readonly}
               ext-popover-cls='type-select-tooltips'
+              placeholder={formItem.placeholder}
               onSelected={selectChange}
             >
               {formItem.options.map(opt => {
@@ -232,10 +231,6 @@ export default class Form extends tsc<IProps, IEvents> {
                   >
                     {
                       <bk-popover
-                        placement='right'
-                        theme='light'
-                        transfer
-                        z-index={2500}
                         tippy-options={{
                           offset: '0,6',
                           flip: false, // 空间不足不翻转位置
@@ -244,6 +239,10 @@ export default class Form extends tsc<IProps, IEvents> {
                             formItem.hoverOptionId = opt.id;
                           },
                         }}
+                        placement='right'
+                        theme='light'
+                        z-index={2500}
+                        transfer
                       >
                         <div class='type-select-item'>
                           <span class='type-select-item-name'>{opt.name}</span>
@@ -280,15 +279,15 @@ export default class Form extends tsc<IProps, IEvents> {
         case 'number' /** 数字串输入框 */:
           return (
             <bk-input
-              class='w280 simplicity-input'
               style={{ width: `${formItem.width}px` }}
+              class='w280 simplicity-input'
               v-model={formItem.value}
-              type='number'
-              min={formItem.min}
-              max={formItem.max}
-              placeholder={formItem.placeholder}
               behavior={formItem.behavior}
               disabled={this.readonly}
+              max={formItem.max}
+              min={formItem.min}
+              placeholder={formItem.placeholder}
+              type='number'
               onInput={this.formValueChange}
             ></bk-input>
           );
@@ -296,15 +295,15 @@ export default class Form extends tsc<IProps, IEvents> {
           return (
             <div class='input-unit-item'>
               <bk-input
-                class='w280 simplicity-input'
                 style={{ width: `${formItem.width}px` }}
-                value={formItem.value / formItem.unitId}
-                type='number'
-                min={formItem.min}
-                max={formItem.max}
-                placeholder={formItem.placeholder}
+                class='w280 simplicity-input'
                 behavior={formItem.behavior}
                 disabled={this.readonly}
+                max={formItem.max}
+                min={formItem.min}
+                placeholder={formItem.placeholder}
+                type='number'
+                value={formItem.value / formItem.unitId}
                 onInput={inputUnitChange}
               ></bk-input>
               <span class='unit-wrap'>{this.getOptionName(formItem.unitId, formItem.unitOption)}</span>
@@ -313,66 +312,66 @@ export default class Form extends tsc<IProps, IEvents> {
         case 'string' /** 字符串输入框 */:
           return (
             <bk-input
-              class='w280 simplicity-input'
               style={{ width: `${formItem.width}px` }}
+              class='w280 simplicity-input'
               v-model={formItem.value}
               behavior={formItem.behavior}
-              placeholder={formItem.placeholder}
               disabled={this.readonly}
+              placeholder={formItem.placeholder}
               onInput={this.formValueChange}
             ></bk-input>
           );
         case 'thresholds' /** 阈值选择器 */:
           return (
             <ThresholdSelect
-              value={formItem.value}
-              unit={formItem.unit}
+              autoAdd={false}
               label={this.$tc('(预测值)')}
               methodList={formItem.methodList}
-              autoAdd={false}
               readonly={this.readonly}
+              unit={formItem.unit}
+              value={formItem.value}
               onChange={val => thresholdSelectChange(val)}
             />
           );
         case 'alarm-thresholds' /** 告警阈值选择器 */:
           return (
             <AlarmThresholdSelect
-              value={formItem.value}
-              unit={formItem.unit}
-              methodList={formItem.methodList}
-              boundType={formItem.boundType}
               autoAdd={false}
+              boundType={formItem.boundType}
+              methodList={formItem.methodList}
               readonly={this.readonly}
-              onChange={val => thresholdSelectChange(val)}
+              unit={formItem.unit}
+              value={formItem.value}
               onBoundTypeChange={val => boundTypeSelectChange(val)}
+              onChange={val => thresholdSelectChange(val)}
             />
           );
         case 'switch' /** 开关 */:
           return (
             <bk-switcher
               disabled={this.readonly}
-              value={!!+formItem.value}
-              onChange={sitchChange}
               size='small'
               theme='primary'
+              value={!!+formItem.value}
+              onChange={sitchChange}
             />
           );
         case 'tag-input' /** tag-input */:
           return (
             <bk-tag-input
               class={['tag-input', formItem.behavior]}
-              placeholder={formItem.placeholder || this.$t('选择')}
-              disabled={this.readonly}
-              behavior={formItem.behavior}
-              has-delete-icon
-              clearable={false}
               value={
                 formItem.valueType === EFormItemValueType.array
                   ? formItem.value
                   : formItem.value?.split(ARRAY_SPLIT_CHART)
               }
+              behavior={formItem.behavior}
+              clearable={false}
+              disabled={this.readonly}
               list={formItem.options}
+              placeholder={formItem.placeholder || this.$t('选择')}
               trigger='focus'
+              has-delete-icon
               onChange={v => taginputChange(formItem, v)}
             />
           );
@@ -381,12 +380,12 @@ export default class Form extends tsc<IProps, IEvents> {
             <div class='outlier-detection-range'>
               <bk-slider
                 class='w280'
-                value={+formItem.value}
-                step={1}
-                show-tip={true}
-                min-value={0}
-                max-value={10}
                 disable={formItem.disabled || this.readonly}
+                max-value={10}
+                min-value={0}
+                show-tip={true}
+                step={1}
+                value={+formItem.value}
                 onInput={rangeChange}
               />
               <span class='left-text'>{this.$t('较少告警')}</span>
@@ -397,8 +396,8 @@ export default class Form extends tsc<IProps, IEvents> {
           return (
             <AiLevelSelect
               v-model={formItem.value}
-              onChange={this.formValueChange}
               disabled={this.readonly}
+              onChange={this.formValueChange}
             />
           );
         default:
@@ -415,10 +414,10 @@ export default class Form extends tsc<IProps, IEvents> {
       >
         {this.formItemList.map(formItem => (
           <bk-form-item
+            error-display-type={formItem.errorDisplayType}
             label={`${formItem.label} : `}
             property={formItem.field}
             required={formItem.required}
-            error-display-type={formItem.errorDisplayType}
           >
             <div class='form-item-content'>
               {formItemTpl(formItem)}

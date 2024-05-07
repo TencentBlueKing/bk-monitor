@@ -25,10 +25,10 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
 import { FieldFilteringType, FieldListType, FieldValue, IFilterCondition, IOption } from '../typings';
-
 import FieldList from './field-list';
 
 import './field-filtering.scss';
@@ -208,15 +208,15 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
         <div class='field-list-wrap'>
           {this.isCheckedList.length ? (
             <FieldList
-              value={this.isCheckedList}
               total={this.total}
+              value={this.isCheckedList}
               onAddCondition={this.handleAddCondition}
               onCheckedChange={this.handleValueChnage}
             ></FieldList>
           ) : (
             <bk-exception
-              type='empty'
               scene='part'
+              type='empty'
             ></bk-exception>
           )}
         </div>

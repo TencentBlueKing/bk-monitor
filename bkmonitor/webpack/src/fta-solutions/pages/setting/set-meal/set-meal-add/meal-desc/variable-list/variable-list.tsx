@@ -46,7 +46,7 @@ export default class VariableList extends tsc<IVariableListProps> {
   get variablePanels() {
     return SetMealAddModule.getVariablePanels.filter(item =>
       // 只有通知套餐有内容变量
-      this.pluginType === 'notice' ? true : item.name !== 'CONTENT_VAR',
+      this.pluginType === 'notice' ? true : item.name !== 'CONTENT_VAR'
     );
   }
   get variableTable() {
@@ -139,9 +139,9 @@ export default class VariableList extends tsc<IVariableListProps> {
                 data: this.variableTable[this.variableActive],
               },
             }}
+            on-row-click={this.handleRowClick}
             on-row-mouse-enter={this.handleRowEnter}
             on-row-mouse-leave={this.handleRowLeave}
-            on-row-click={this.handleRowClick}
           >
             <bk-table-column
               label={this.$t('变量名')}

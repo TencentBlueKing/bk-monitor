@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils';
 
 import { IInfluxdbChildData } from './type';
@@ -90,7 +91,7 @@ export default class InfluxdbChild extends tsc<IProps> {
   }
 
   /* 状态 */
-  statusContent(status: 'normal' | 'failure') {
+  statusContent(status: 'failure' | 'normal') {
     return (
       <div class='status-info'>
         <div class={['status-point']}>
@@ -117,8 +118,8 @@ export default class InfluxdbChild extends tsc<IProps> {
       <div class='resource-register-page-influxdb-child'>
         {this.localValue.map((item, index) => (
           <div
-            class='expand-item'
             key={item.id}
+            class='expand-item'
           >
             <div
               class='item-header'
@@ -143,8 +144,8 @@ export default class InfluxdbChild extends tsc<IProps> {
             </div>
             <div class={['item-content', { active: item.isExpand }]}>
               <bk-table
-                outer-border={false}
                 header-border={false}
+                outer-border={false}
                 {...{
                   props: {
                     data: item.data.data,
@@ -156,10 +157,10 @@ export default class InfluxdbChild extends tsc<IProps> {
                   return (
                     <bk-table-column
                       key={key}
-                      prop={column.id}
-                      label={column.name}
                       column-key={column.id}
                       formatter={(row, _column, _cellValue, index) => this.handleSetFormatter(column.id, row, index)}
+                      label={column.name}
+                      prop={column.id}
                     ></bk-table-column>
                   );
                 })}

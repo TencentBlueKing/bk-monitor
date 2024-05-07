@@ -28,8 +28,8 @@ import { RouteConfig, RouteConfigMultipleViews, RouteConfigSingleView } from 'vu
 import { beforeEnter } from '../router/utils';
 
 export const applyGuidePage = (
-  routes: RouteConfigSingleView[] | RouteConfigMultipleViews[],
-  excludes: string[] = [],
+  routes: RouteConfigMultipleViews[] | RouteConfigSingleView[],
+  excludes: string[] = []
 ): RouteConfig[] =>
   routes.map(route => {
     if (excludes.includes(route.name)) return route;
@@ -45,7 +45,7 @@ export const applyGuidePage = (
     };
   });
 
-export const applyNoAuthPage = (routes: RouteConfigSingleView[] | RouteConfigMultipleViews[], noAuthPage: any) =>
+export const applyNoAuthPage = (routes: RouteConfigMultipleViews[] | RouteConfigSingleView[], noAuthPage: any) =>
   routes.map((route: RouteConfig) => {
     if (route.path.length < 2) return route;
     return {

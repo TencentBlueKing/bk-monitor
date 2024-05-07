@@ -124,8 +124,8 @@ export default class SortTool extends tsc<IProps, IEvents> {
         <bk-dropdown-menu
           class='sort-dropdown-menu'
           trigger='click'
-          onShow={() => this.handleDropdownShow(true)}
           onHide={() => this.handleDropdownShow(false)}
+          onShow={() => this.handleDropdownShow(true)}
         >
           <div
             class='sort-trigger'

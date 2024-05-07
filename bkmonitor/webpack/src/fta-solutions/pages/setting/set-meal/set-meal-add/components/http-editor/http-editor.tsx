@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
 import ResizeContainer from '../../../../../../components/resize-container/resize-container';
 import VerifyItem from '../../../../../../components/verify-item/verify-item';
-
 import { IHeaderInfo, IHttpData, IParamsValueItem, ISelectListItem, ISetingValue, THeaderType, TMethod } from './types';
 import { localDataConvertToRequest } from './utils';
 
@@ -37,7 +37,7 @@ import './http-editor.scss';
 
 const { i18n } = window;
 
-export type MethodType = 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH';
+export type MethodType = 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
 export type MethodListType = Array<MethodType>;
 interface IHttpEditor {
   isEdit: boolean;
@@ -472,10 +472,10 @@ export default class HttpEditor extends tsc<IHttpEditor> {
             {this.isEdit && prop ? (
               <bk-input
                 class='table-input'
-                behavior='simplicity'
-                placeholder={this.$t('输入')}
-                disabled={item.isBuiltin === undefined ? false : item.isBuiltin}
                 v-model={item[prop]}
+                behavior='simplicity'
+                disabled={item.isBuiltin === undefined ? false : item.isBuiltin}
+                placeholder={this.$t('输入')}
                 onChange={changeFn}
               />
             ) : (
@@ -504,8 +504,8 @@ export default class HttpEditor extends tsc<IHttpEditor> {
           {this.authRadioList.map(item => (
             <bk-radio
               key={item.id}
-              value={item.id}
               disabled={!this.isEdit}
+              value={item.id}
             >
               {item.name}
             </bk-radio>
@@ -523,8 +523,8 @@ export default class HttpEditor extends tsc<IHttpEditor> {
           <div class='auth-params-wrap'>
             <div class='auth-params-label'>Token</div>
             <bk-input
-              class='input'
               style='width: 520px'
+              class='input'
               v-model={data.token}
               behavior='simplicity'
               disabled={!this.isEdit}
@@ -548,10 +548,10 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               <div class='auth-params-label'>{this.$t('密码')}</div>
               <bk-input
                 class='input'
-                type='password'
                 v-model={data.password}
                 behavior='simplicity'
                 disabled={!this.isEdit}
+                type='password'
                 onInput={this.authParamInput}
               ></bk-input>
             </div>
@@ -576,9 +576,9 @@ export default class HttpEditor extends tsc<IHttpEditor> {
           {this.paramTableColumns.map((item, i) => (
             <bk-table-column
               key={i}
+              width={item.width}
               label={item.label}
               prop={item.prop}
-              width={item.width}
               {...{ scopedSlots }}
             ></bk-table-column>
           ))}
@@ -607,11 +607,11 @@ export default class HttpEditor extends tsc<IHttpEditor> {
         {hideCount ? (
           <div class='handle-hide-defult'>
             <i
+              class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
               v-bk-tooltips={{
                 content: this.headerHideTips[`${isHide}`],
                 allowHTML: false,
               }}
-              class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
               onClick={() => (this.curHeaderData.hide = !isHide)}
             ></i>
             {isHide ? (
@@ -627,9 +627,9 @@ export default class HttpEditor extends tsc<IHttpEditor> {
           {this.headersTableColumns.map((item, i) => (
             <bk-table-column
               key={i}
+              width={item.width}
               label={item.label}
               prop={item.prop}
-              width={item.width}
               {...{ scopedSlots }}
             ></bk-table-column>
           ))}
@@ -670,8 +670,8 @@ export default class HttpEditor extends tsc<IHttpEditor> {
             {this.bodyRadioList.map(item => (
               <bk-radio
                 key={item.id}
-                value={item.id}
                 disabled={!this.isEdit}
+                value={item.id}
               >
                 <span>{item.name}</span>
               </bk-radio>
@@ -681,16 +681,16 @@ export default class HttpEditor extends tsc<IHttpEditor> {
             <bk-select
               class='select select-wrap'
               v-model={data.type}
+              behavior='simplicity'
               clearable={false}
               disabled={!this.isEdit}
               popover-min-width={100}
-              behavior='simplicity'
               onSelected={() => this.handleRawBlur(data.type, data.content)}
             >
               {rowTypeList.map(option => (
                 <bk-option
-                  key={option.id}
                   id={option.id}
+                  key={option.id}
                   name={option.name}
                 ></bk-option>
               ))}
@@ -707,12 +707,12 @@ export default class HttpEditor extends tsc<IHttpEditor> {
             >
               <bk-input
                 class='textarea'
-                type={'textarea'}
-                disabled={!this.isEdit}
-                onInput={this.bodyParamInput}
                 v-model={data.content}
+                disabled={!this.isEdit}
+                type={'textarea'}
                 onBlur={() => this.handleRawBlur(data.type, data.content)}
                 onFocus={() => (this.rawErrorMsg = '')}
+                onInput={this.bodyParamInput}
               ></bk-input>
               {this.rawErrorMsg && <p style='margin: 0; color: #ff5656;'>{this.rawErrorMsg}</p>}
             </ResizeContainer>
@@ -726,9 +726,9 @@ export default class HttpEditor extends tsc<IHttpEditor> {
             {this.paramTableColumns.map((item, i) => (
               <bk-table-column
                 key={i}
+                width={item.width}
                 label={item.label}
                 prop={item.prop}
-                width={item.width}
                 {...{ scopedSlots }}
               ></bk-table-column>
             ))}
@@ -760,12 +760,12 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               item,
               <bk-switcher
                 class='switch'
-                theme='primary'
-                size='small'
-                disabled={!this.isEdit}
                 vModel={valueKeyMap[item.id]}
+                disabled={!this.isEdit}
+                size='small'
+                theme='primary'
                 on-change={this.setingChange}
-              />,
+              />
             );
           }
           if (item.id === 'notifyInterval') {
@@ -773,27 +773,27 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               item,
               <bk-input
                 class='input'
-                behavior='simplicity'
-                onInput={this.setingChange}
-                type='number'
-                showControls={false}
                 vModel={valueKeyMap[item.id]}
-                disabled={!(valueKeyMap as ISetingValue).needPoll || !this.isEdit}
                 v-bk-tooltips={{ content: this.$t('开启周期回调'), disabled: (valueKeyMap as ISetingValue).needPoll }}
-              />,
+                behavior='simplicity'
+                disabled={!(valueKeyMap as ISetingValue).needPoll || !this.isEdit}
+                showControls={false}
+                type='number'
+                onInput={this.setingChange}
+              />
             );
           }
           return content(
             item,
             <bk-input
               class='input'
-              behavior='simplicity'
-              onInput={this.setingChange}
-              type='number'
-              showControls={false}
-              disabled={!this.isEdit}
               vModel={valueKeyMap[item.id]}
-            />,
+              behavior='simplicity'
+              disabled={!this.isEdit}
+              showControls={false}
+              type='number'
+              onInput={this.setingChange}
+            />
           );
         })}
       </div>
@@ -845,15 +845,15 @@ export default class HttpEditor extends tsc<IHttpEditor> {
               <bk-select
                 class='select'
                 v-model={this.httpData.method}
-                clearable={false}
                 behavior={this.behavior}
+                clearable={false}
                 popover-width={100}
                 onChange={this.methodChange}
               >
                 {this.localMethodList.map(option => (
                   <bk-option
-                    key={option}
                     id={option}
+                    key={option}
                     name={option}
                   ></bk-option>
                 ))}
@@ -865,10 +865,10 @@ export default class HttpEditor extends tsc<IHttpEditor> {
                 <bk-input
                   class='url-input'
                   v-model={this.httpData.url}
+                  behavior={this.behavior}
+                  placeholder={this.$i18n.tc('输入请求 URL')}
                   onChange={this.urlChange}
                   onFocus={this.urlFocus}
-                  placeholder={this.$i18n.tc('输入请求 URL')}
-                  behavior={this.behavior}
                 ></bk-input>
               </VerifyItem>
             </div>

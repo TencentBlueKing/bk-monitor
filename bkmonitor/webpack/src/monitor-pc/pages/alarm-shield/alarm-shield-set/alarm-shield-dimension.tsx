@@ -25,6 +25,7 @@
  */
 import { Component, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
 import { addShield, editShield } from 'monitor-api/modules/shield';
 import { getMetricListV2, getStrategyListV2 } from 'monitor-api/modules/strategies';
@@ -354,14 +355,14 @@ export default class AlarmShieldDimension extends tsc<IProps> {
           <div class='item-container'>
             <bk-select
               class='container-select'
-              readonly
               v-model={this.biz.value}
               clearable={false}
+              readonly
             >
               {this.biz.list.map(item => (
                 <bk-option
-                  key={item.id}
                   id={item.id}
+                  key={item.id}
                   name={item.text}
                 ></bk-option>
               ))}
@@ -381,17 +382,17 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                   size={'large'}
                 >
                   <bk-table-column
-                    label={window.i18n.t('维度条件')}
                     scopedSlots={{
                       default: () => (
                         <WhereDisplay
-                          value={this.conditionList as any}
-                          readonly={true}
-                          allNames={this.allNames}
                           key={this.conditionKey}
+                          allNames={this.allNames}
+                          readonly={true}
+                          value={this.conditionList as any}
                         ></WhereDisplay>
                       ),
                     }}
+                    label={window.i18n.t('维度条件')}
                   ></bk-table-column>
                 </bk-table>
               </div>
@@ -399,25 +400,25 @@ export default class AlarmShieldDimension extends tsc<IProps> {
               [
                 <bk-select
                   class='container-select small'
-                  scroll-height={216}
-                  ext-popover-cls='shield-dimension-select-list-wrap'
                   v-model={this.strategyId}
                   clearable={false}
-                  searchable
-                  remote-method={this.searchStrategy}
+                  ext-popover-cls='shield-dimension-select-list-wrap'
                   placeholder={window.i18n.t('选择策略')}
+                  remote-method={this.searchStrategy}
+                  scroll-height={216}
+                  searchable
                   onSelected={this.handleStrategy}
                   onToggle={this.handleToggle}
                 >
                   <div v-bkloading={{ isLoading: this.strategyLoading }}>
                     <div
-                      class='select-list-wrap'
                       ref='selectList'
+                      class='select-list-wrap'
                     >
                       {this.strategyList.map(item => (
                         <bk-option
-                          key={item.id}
                           id={item.id}
+                          key={item.id}
                           name={item.name}
                         ></bk-option>
                       ))}
@@ -453,10 +454,10 @@ export default class AlarmShieldDimension extends tsc<IProps> {
           <div class='item-container'>
             <bk-input
               class='content-desc'
-              type='textarea'
               v-model={this.desc}
-              row={3}
               maxlength={100}
+              row={3}
+              type='textarea'
             ></bk-input>
           </div>
         </div>
@@ -472,8 +473,8 @@ export default class AlarmShieldDimension extends tsc<IProps> {
               {window.i18n.t('提交')}{' '}
             </bk-button>
             <bk-button
-              onClick={this.handleCancel}
               class='ml10'
+              onClick={this.handleCancel}
             >
               {' '}
               {window.i18n.t('取消')}{' '}

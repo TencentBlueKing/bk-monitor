@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 
 import Square from './square';
@@ -137,8 +138,8 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
           ))}
         </div>
         <div
-          class='svg-container'
           style={{ display: !this.isAllNormal ? 'block' : 'none' }}
+          class='svg-container'
         >
           <svg style='display: none'>
             <symbol
@@ -147,10 +148,10 @@ export default class BusinessAlarmSquare extends tsc<IBusinessAlarmSquareProps, 
             >
               <path
                 d={this.svgMap[this.curSquare.name].d}
+                fill='none'
                 stroke={this.colorMap[this.curSquare.status]}
                 stroke-dasharray='3'
                 stroke-width='1.5px'
-                fill='none'
               />
             </symbol>
           </svg>

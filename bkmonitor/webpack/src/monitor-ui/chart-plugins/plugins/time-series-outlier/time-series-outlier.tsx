@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
@@ -228,7 +229,7 @@ export default class TimeSeriesOutlier extends LineChart {
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval,
+        this.panel.collect_interval
       );
 
       const variablesService = new VariablesService({
@@ -250,12 +251,12 @@ export default class TimeSeriesOutlier extends LineChart {
             down_sample_range: this.downSampleRangeComputed(
               this.downSampleRange as string,
               [params.start_time, params.end_time],
-              item.apiFunc,
+              item.apiFunc
             ),
           };
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
-              cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
+              cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
             .then(res => {
@@ -265,7 +266,7 @@ export default class TimeSeriesOutlier extends LineChart {
                   ...set,
                   name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}
                      ${this.handleSeriesName(item, set) || set.target}`,
-                })),
+                }))
               );
               this.clearErrorMsg();
               return true;
@@ -307,7 +308,7 @@ export default class TimeSeriesOutlier extends LineChart {
             markArea: this.createMarkArea(item),
             z: 1,
           })) as any,
-          COLOR_LIST_OUTLIER,
+          COLOR_LIST_OUTLIER
         );
         // mock 数据
         const boundarySeries = this.handleOutlierBoundaryList(series);
@@ -377,7 +378,7 @@ export default class TimeSeriesOutlier extends LineChart {
         const echartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
-          { arrayMerge: (_, newArr) => newArr },
+          { arrayMerge: (_, newArr) => newArr }
         );
         this.options = Object.freeze(
           deepmerge(
@@ -418,8 +419,8 @@ export default class TimeSeriesOutlier extends LineChart {
             },
             {
               arrayMerge: (_, sourceArray) => sourceArray,
-            },
-          ),
+            }
+          )
         );
         this.metrics = metrics || [];
         this.handleDrillDownOption(this.metrics);
@@ -453,7 +454,7 @@ export default class TimeSeriesOutlier extends LineChart {
           [`${UPPER_STR}${index}`]: [],
           [`${LOWER_STR}${index}`]: [],
         }),
-        {},
+        {}
       );
       const bound = tartletBoundary.datapoints.reduce((result, item) => {
         const timeBound = JSON.parse(item[0]);
@@ -484,7 +485,7 @@ export default class TimeSeriesOutlier extends LineChart {
         boundaryList.forEach((item: any) => {
           const base = -item.lowBoundary.reduce(
             (min: number, val: any) => (val[0] !== null ? Math.floor(Math.min(min, val[0])) : min),
-            Infinity,
+            Infinity
           );
           this.minBase = Math.max(base, this.minBase);
         });
@@ -589,7 +590,7 @@ export default class TimeSeriesOutlier extends LineChart {
             .map((v, index) => {
               const valueObj = unitFormater(
                 index === 0 ? v - this.minBase : v + (item.tooltipValues[0] - this.minBase),
-                precision,
+                precision
               );
               return `${valueObj?.text} ${valueObj?.suffix || ''}`;
             })
@@ -624,7 +625,7 @@ export default class TimeSeriesOutlier extends LineChart {
     if (index > -1) {
       this.selectSensitivity.splice(index, 1);
       copyOptions.series = this.handleSetOnlyOneMarkArea(
-        copyOptions.series.filter(item => !item.name.includes(sensitivity.name)) as any,
+        copyOptions.series.filter(item => !item.name.includes(sensitivity.name)) as any
       );
     } else {
       this.selectSensitivity.push(sensitivity.id);
@@ -653,7 +654,7 @@ export default class TimeSeriesOutlier extends LineChart {
               return !ser.name.includes(item.name);
             }
             return true;
-          }) as any,
+          }) as any
         );
       } else {
         const series = this.seriesList.filter(ser => ser.name === item.name);
@@ -661,7 +662,7 @@ export default class TimeSeriesOutlier extends LineChart {
           copyOptions.series = this.handleSetOnlyOneMarkArea([...copyOptions.series, ...series]);
         } else {
           const value: any = Object.values(this.boundarySeries).find((set: any[]) =>
-            set.some(v => v.name.includes(targetLegend.name)),
+            set.some(v => v.name.includes(targetLegend.name))
           );
           copyOptions.series = this.handleSetOnlyOneMarkArea([...copyOptions.series, ...value]);
         }
@@ -680,33 +681,33 @@ export default class TimeSeriesOutlier extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            title={this.panel.title}
-            showMore={false}
-            menuList={this.menuList}
-            showAddMetric={this.showAddMetric}
             draging={this.panel.draging}
-            metrics={this.metrics}
-            subtitle={this.panel.subTitle || ''}
             isInstant={this.panel.instant}
+            menuList={this.menuList}
+            metrics={this.metrics}
+            showAddMetric={this.showAddMetric}
+            showMore={false}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onAllMetricClick={this.handleAllMetricClick}
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
-            onAllMetricClick={this.handleAllMetricClick}
+            onUpdateDragging={() => this.panel.updateDraging(false)}
           />
         )}
         {!this.empty ? (
           <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               {this.inited && (
                 <BaseEchart
-                  height={this.height}
                   width={this.width}
-                  options={this.options}
+                  height={this.height}
                   groupId={this.panel.dashboardId}
+                  options={this.options}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                 />
@@ -715,8 +716,8 @@ export default class TimeSeriesOutlier extends LineChart {
             {legend?.displayMode !== 'hidden' && (
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
                 <ListLegend
-                  onSelectLegend={this.handleSelectLegend}
                   legendData={this.localLegendData}
+                  onSelectLegend={this.handleSelectLegend}
                 >
                   {this.boundarySeries && (
                     <bk-dropdown-menu
@@ -724,25 +725,25 @@ export default class TimeSeriesOutlier extends LineChart {
                       positionFixed={true}
                     >
                       <div
-                        slot='dropdown-trigger'
                         class='dropdown-trigger-btn'
+                        slot='dropdown-trigger'
                       >
                         <i
-                          class='bk-icon icon-cog-shape'
                           style='margin-right:4px'
+                          class='bk-icon icon-cog-shape'
                         />
                         <span>{this.$t('更多敏感度区间设置')}</span>
                       </div>
                       <ul
-                        slot='dropdown-content'
                         style='height: 250px'
+                        slot='dropdown-content'
                       >
                         {sensitivityRangeList.map(item => (
                           <li
+                            class={{ active: this.selectSensitivity.includes(item.id) }}
                             onClick={() => {
                               this.handleSensitivityRangeChange(item);
                             }}
-                            class={{ active: this.selectSensitivity.includes(item.id) }}
                           >
                             <span>{item.name}</span>
                             {this.selectSensitivity.includes(item.id) && (

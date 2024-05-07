@@ -27,7 +27,7 @@
 import { TranslateResult } from 'vue-i18n';
 
 export interface ICommonTreeItem {
-  id: string | SearchType;
+  id: SearchType | string;
   name: string;
   count?: number;
   children?: ICommonTreeItem[];
@@ -35,7 +35,7 @@ export interface ICommonTreeItem {
 
 export interface ICommonItem {
   id: string;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
 }
 
 export interface IDimensionItem {
@@ -112,31 +112,31 @@ export interface IChatGroupDialogOptions {
   alertIds?: string[];
 }
 
-export type SearchType = 'event' | 'alert' | 'action';
-export type FilterInputStatus = 'success' | 'error';
-export type anlyzeChartType = 'process' | 'pie';
-export type eventPanelType = 'list' | 'analyze';
+export type SearchType = 'action' | 'alert' | 'event';
+export type FilterInputStatus = 'error' | 'success';
+export type anlyzeChartType = 'pie' | 'process';
+export type eventPanelType = 'analyze' | 'list';
 
 export type AnlyzeField =
   | 'alert_name'
-  | 'metric'
+  | 'assignee'
+  | 'bk_cloud_id'
+  | 'bk_service_instance_id'
   | 'duration'
   | 'ip'
-  | 'bk_cloud_id'
-  | 'strategy_id'
-  | 'assignee'
-  | 'bk_service_instance_id'
   | 'ipv6'
-  | 'plugin_id';
+  | 'metric'
+  | 'plugin_id'
+  | 'strategy_id';
 export type ActionAnlyzeField =
   | 'action_name'
-  | 'strategy_name'
-  | 'operator'
   | 'action_plugin_type'
+  | 'duration'
   | 'operate_target_string'
-  | 'duration';
+  | 'operator'
+  | 'strategy_name';
 export enum EBatchAction {
-  quickShield = 'shield',
   alarmConfirm = 'ack',
   alarmDispatch = 'dispatch',
+  quickShield = 'shield',
 }

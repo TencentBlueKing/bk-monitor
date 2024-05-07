@@ -81,9 +81,9 @@ export default defineComponent({
         <ul class='color-list'>
           {ColorList.map(item => (
             <li
-              class='color-item'
-              style={{ background: item.color }}
               key={item.value}
+              style={{ background: item.color }}
+              class='color-item'
             >
               {item.value > 0 ? '+' : ''}
               {item.value}%

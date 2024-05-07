@@ -25,8 +25,9 @@
  */
 
 import { DirectiveOptions } from 'vue';
-import { DirectiveBinding } from 'vue/types/options';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { DirectiveBinding } from 'vue/types/options';
 
 interface ICustomElements extends HTMLElement {
   __mutation__?: MutationObserver;

@@ -27,7 +27,7 @@ import { TranslateResult } from 'vue-i18n';
 
 export interface IRadioMap {
   id: number;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
 }
 
 export interface IGraphValueItem {
@@ -36,13 +36,13 @@ export interface IGraphValueItem {
 }
 
 export const enum EWeek {
-  Sun = 7,
+  Fri = 5,
   Mon = 1,
+  Sat = 6,
+  Sun = 7,
+  Thu = 4,
   Tue = 2,
   Wed = 3,
-  Thu = 4,
-  Fri = 5,
-  Sat = 6,
 }
 
 export const enum EType {
@@ -107,7 +107,7 @@ export interface IChartDataItem {
 }
 
 export interface ITableColumnItem {
-  label: string | TranslateResult;
+  label: TranslateResult | string;
   key: string;
   formatter?: Function;
   width?: number;

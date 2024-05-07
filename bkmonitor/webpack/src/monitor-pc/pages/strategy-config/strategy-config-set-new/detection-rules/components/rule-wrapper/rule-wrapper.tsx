@@ -155,12 +155,12 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
             ref='ruleRef'
             data={this.data}
             interval={this.interval}
-            resultTableId={this.resultTableId}
-            readonly={this.readonly}
             isEdit={this.isEdit}
+            readonly={this.readonly}
+            resultTableId={this.resultTableId}
+            onChartTypeChange={this.handleChartTypeChange}
             onDataChange={this.handleDataChange}
             onModelChange={this.handleModelChange}
-            onChartTypeChange={this.handleChartTypeChange}
           />
         );
       case DetectionRuleTypeEnum.AbnormalCluster:
@@ -168,23 +168,23 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
           <AbnormalCluster
             ref='ruleRef'
             data={this.data}
-            metricData={this.metricData}
+            interval={this.interval}
             isEdit={this.isEdit}
+            metricData={this.metricData}
             readonly={this.readonly}
             onDataChange={this.handleDataChange}
             onModelChange={this.handleModelChange}
-            interval={this.interval}
           />
         );
       case DetectionRuleTypeEnum.TimeSeriesForecasting:
         return (
           <TimeSeriesForecast
             ref='ruleRef'
-            unit={this.unit}
             data={this.data}
+            interval={this.interval}
             isEdit={this.isEdit}
             readonly={this.readonly}
-            interval={this.interval}
+            unit={this.unit}
             onDataChange={this.handleDataChange}
             onModelChange={this.handleModelChange}
           />
@@ -194,9 +194,9 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
           <Threshold
             ref='ruleRef'
             data={this.data}
+            otherSelectRuleData={this.otherSelectRuleData}
             readonly={this.readonly}
             unit={this.unit}
-            otherSelectRuleData={this.otherSelectRuleData}
             onDataChange={this.handleDataChange}
           />
         );
@@ -205,9 +205,9 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
           <RingRatio
             ref='ruleRef'
             data={this.data}
-            readonly={this.readonly}
-            otherSelectRuleData={this.otherSelectRuleData}
             is-realtime={this.isRealtime}
+            otherSelectRuleData={this.otherSelectRuleData}
+            readonly={this.readonly}
             onDataChange={this.handleDataChange}
           />
         );
@@ -216,9 +216,9 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
           <YearRound
             ref='ruleRef'
             data={this.data}
-            readonly={this.readonly}
-            otherSelectRuleData={this.otherSelectRuleData}
             is-realtime={this.isRealtime}
+            otherSelectRuleData={this.otherSelectRuleData}
+            readonly={this.readonly}
             onDataChange={this.handleDataChange}
           />
         );
@@ -227,9 +227,9 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
           <PartialNodes
             ref='ruleRef'
             data={this.data}
-            readonly={this.readonly}
-            otherSelectRuleData={this.otherSelectRuleData}
             is-realtime={this.isRealtime}
+            otherSelectRuleData={this.otherSelectRuleData}
+            readonly={this.readonly}
             onDataChange={this.handleDataChange}
           />
         );
@@ -242,9 +242,9 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
         <div class='header'>
           <div class='title-wrap'>
             <img
-              src={this.rule.icon}
-              alt=''
               class='type-icon'
+              alt=''
+              src={this.rule.icon}
             />
             <span class='title'>{this.rule.name}</span>
             {/* <p class='explain'>({this.rule.tip})</p> */}

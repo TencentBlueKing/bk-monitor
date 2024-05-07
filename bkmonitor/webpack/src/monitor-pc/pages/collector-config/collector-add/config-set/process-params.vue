@@ -26,9 +26,10 @@
 <template>
   <div class="process-params">
     <div
-      class="form-item"
       v-show="false"
-    > <!-- 插件选择部分优先级提高，故隐藏此处 -->
+      class="form-item"
+    >
+      <!-- 插件选择部分优先级提高，故隐藏此处 -->
       <label class="item-label required">{{ $t('插件') }}</label>
       <div class="item-content">
         <bk-input
@@ -62,27 +63,31 @@
             :validator="{ content: $t('必填项') }"
           >
             <bk-input
-              class="mt10 small-input"
               v-model="params.match_pattern"
+              class="mt10 small-input"
             >
               <template slot="prepend">
                 <div
                   class="group-text"
                   :placeholder="$t('进程关键字')"
-                >{{ $t('包含') }}</div>
+                >
+                  {{ $t('包含') }}
+                </div>
               </template>
             </bk-input>
           </verify-input>
 
           <bk-input
-            class="mt10 small-input"
             v-model="params.exclude_pattern"
+            class="mt10 small-input"
           >
             <template slot="prepend">
               <div
                 class="group-text"
                 :placeholder="$t('进程排除正则')"
-              >{{ $t('排除') }}</div>
+              >
+                {{ $t('排除') }}
+              </div>
             </template>
           </bk-input>
         </div>
@@ -94,9 +99,9 @@
             :validator="{ content: $t('必填项') }"
           >
             <bk-input
+              v-model="params.pid_path"
               class="mt10 small-input"
               :placeholder="$t('PID的绝对路径')"
-              v-model="params.pid_path"
             />
           </verify-input>
         </template>
@@ -106,8 +111,8 @@
       <label class="item-label">{{ $t('进程名') }}</label>
       <div class="item-content">
         <bk-input
-          :placeholder="$t('留空默认以二进制名称，可以手动指定或者取值')"
           v-model="params.process_name"
+          :placeholder="$t('留空默认以二进制名称，可以手动指定或者取值')"
         />
       </div>
     </div>
@@ -132,13 +137,13 @@ import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 export default {
   name: 'ProcessParams',
   components: {
-    VerifyInput
+    VerifyInput,
   },
   props: {
     processParams: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -150,15 +155,15 @@ export default {
           match_pattern: '',
           exclude_pattern: '',
           port_detect: true,
-          labels: {}
+          labels: {},
         },
         this.processParams
       ),
       rules: {
         pid_path: false,
-        match_pattern: false
+        match_pattern: false,
       },
-      pluginDisplayName: this.$t('进程采集插件')
+      pluginDisplayName: this.$t('进程采集插件'),
     };
   },
   watch: {
@@ -166,8 +171,8 @@ export default {
       deep: true,
       handler(newValue, oldValue) {
         this.$emit('change', newValue, oldValue);
-      }
-    }
+      },
+    },
   },
   methods: {
     // 校验
@@ -178,8 +183,8 @@ export default {
       }
       this.rules.match_pattern = !this.params.match_pattern;
       return !!this.params.match_pattern;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

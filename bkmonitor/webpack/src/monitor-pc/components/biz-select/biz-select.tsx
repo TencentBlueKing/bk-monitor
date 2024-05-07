@@ -25,13 +25,13 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../common/constant';
 import authorityStore from '../../store/modules/authority';
 import { ISpaceItem } from '../../types';
 import { Storage } from '../../utils';
-
 import List, { ETagsType, IListItem } from './list';
 
 import './biz-select.scss';
@@ -292,7 +292,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         this.pagination.current += 1;
         const temp = showData.slice(
           (this.pagination.current - 1) * this.pagination.limit,
-          this.pagination.current * this.pagination.limit,
+          this.pagination.current * this.pagination.limit
         );
         this.pagination.data.push(...temp);
       }
@@ -427,7 +427,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
    * @description 左右切换type栏
    * @param type
    */
-  handleTypeWrapScrollChange(type: 'pre' | 'next') {
+  handleTypeWrapScrollChange(type: 'next' | 'pre') {
     const smoothScrollTo = (element: HTMLDivElement, targetPosition: number, duration: number, callback) => {
       const startPosition = element.scrollLeft;
       const distance = targetPosition - startPosition;
@@ -478,8 +478,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   render() {
     const firstCode = (
       <span
-        class='biz-name-first-code'
         style={{ backgroundColor: this.firstCodeBgColor }}
+        class='biz-name-first-code'
       >
         {this.bizSortNameKey}
       </span>
@@ -488,15 +488,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       <div class={['biz-select-wrap', this.theme]}>
         <bk-popover
           ref='popoverRef'
-          trigger='click'
-          placement='bottom-start'
-          theme={`${this.theme} common-popover list-${this.theme}`}
-          animation='slide-toggle'
-          ext-cls={`biz-select-list-${this.theme}`}
-          arrow={false}
-          offset={-1}
-          distance={16}
           width={this.listWidth}
+          ext-cls={`biz-select-list-${this.theme}`}
           tippy-options={{
             appendTo: 'parent',
             onShow: this.handleSetListWidth,
@@ -506,6 +499,13 @@ export default class BizSelect extends tsc<IProps, IEvents> {
               return true;
             },
           }}
+          animation='slide-toggle'
+          arrow={false}
+          distance={16}
+          offset={-1}
+          placement='bottom-start'
+          theme={`${this.theme} common-popover list-${this.theme}`}
+          trigger='click'
         >
           <div class={['biz-select-target', { 'is-shrink': this.isShrink }]}>
             {this.isShrink ? (
@@ -521,47 +521,47 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   <span class='biz-name-text-id'>({this.curentBizId})</span>
                 </span>
                 <i
-                  class='icon-monitor icon-mc-triangle-down'
                   style={{ transform: `rotate(${!this.showBizList ? '0deg' : '-180deg'})` }}
+                  class='icon-monitor icon-mc-triangle-down'
                 ></i>
               </div>
             )}
           </div>
           <div
-            slot='content'
-            class={['biz-list-wrap', this.theme]}
-            onMousedown={this.handleContentMouseDown}
             style={{ width: `${this.listWidth}px`, minWidth: `${this.minWidth}px` }}
+            class={['biz-list-wrap', this.theme]}
+            slot='content'
+            onMousedown={this.handleContentMouseDown}
           >
             <div class='biz-list-mian'>
               <div class='biz-search-wrap'>
                 <bk-input
                   ref='menuSearchInput'
                   class='biz-search'
+                  behavior='simplicity'
                   clearable={false}
                   left-icon='bk-icon icon-search'
                   placeholder={this.$t('输入关键字')}
-                  behavior='simplicity'
                   value={this.keyword}
-                  on-clear={() => this.handleBizSearch('')}
-                  on-change={this.handleBizSearch}
                   on-blur={this.handleSearchBlur}
+                  on-change={this.handleBizSearch}
+                  on-clear={() => this.handleBizSearch('')}
                 />
               </div>
               {this.spaceTypeIdList.length > 1 && (
                 <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }, this.theme]}>
                   <ul
-                    class={'space-type-list'}
                     ref='typeList'
+                    class={'space-type-list'}
                   >
                     {this.spaceTypeIdList.map(item => (
                       <li
-                        class='space-type-item'
+                        key={item.id}
                         style={{
                           ...item.styles,
                           borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent',
                         }}
-                        key={item.id}
+                        class='space-type-item'
                         onClick={() => this.handleSearchType(item.id)}
                       >
                         {item.name}
@@ -587,8 +587,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 onScroll={this.handleScroll}
               >
                 <List
-                  list={this.bizListFilter}
                   checked={this.localValue}
+                  list={this.bizListFilter}
                   theme={this.theme}
                   onSelected={this.handleBizChange}
                 ></List>

@@ -26,12 +26,12 @@
 
 export enum EStatus {
   ALL = 'ALL',
-  SUCCESS = 'SUCCESS',
   FAILED = 'FAILED',
-  RUNNING = 'RUNNING',
-  WARNING = 'WARNING',
-  STOPPED = 'STOPPED',
   PENDING = 'PENDING',
+  RUNNING = 'RUNNING',
+  STOPPED = 'STOPPED',
+  SUCCESS = 'SUCCESS',
+  WARNING = 'WARNING',
 }
 
 export const FILTER_TYPE_LIST = [

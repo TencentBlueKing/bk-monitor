@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Select } from 'bkui-vue';
 import { debounce } from 'lodash';
 import { queryLabelValues } from 'monitor-api/modules/apm_profile';
@@ -73,14 +74,14 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     watch(
       () => props.labelList,
       () => {
         valueList.value = [];
-      },
+      }
     );
 
     const getLabelValuesDebounce = debounce(getLabelValues, 100);
@@ -147,21 +148,21 @@ export default defineComponent({
               {this.localValue.key || this.t('选择')}
             </span>
             <div
-              onMouseover={() => (this.labelStatus.hover = true)}
               onMouseout={() => (this.labelStatus.hover = false)}
+              onMouseover={() => (this.labelStatus.hover = true)}
             >
               <Select
-                v-model={this.localValue.key}
                 class='label-select'
-                onToggle={toggle => (this.labelStatus.toggle = toggle)}
-                popover-min-width={120}
+                v-model={this.localValue.key}
                 clearable={false}
+                popover-min-width={120}
                 onChange={this.handleKeyChange}
+                onToggle={toggle => (this.labelStatus.toggle = toggle)}
               >
                 {this.labelList.map(option => (
                   <Select.Option
-                    key={option}
                     id={option}
+                    key={option}
                     name={option}
                   ></Select.Option>
                 ))}
@@ -177,15 +178,15 @@ export default defineComponent({
         <div class='content'>
           <Select
             v-model={this.localValue.value}
-            filterable
             scroll-loading={this.scrollLoading}
-            onScroll-end={this.getLabelValuesDebounce}
+            filterable
             onChange={this.handleEmitData}
+            onScroll-end={this.getLabelValuesDebounce}
           >
             {this.valueList.map(option => (
               <Select.Option
-                key={option}
                 id={option}
+                key={option}
                 name={option}
               ></Select.Option>
             ))}

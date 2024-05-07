@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { deleteItem, itemList } from 'monitor-api/modules/calendar';
 import { Debounce } from 'monitor-common/utils/utils';
@@ -36,10 +36,11 @@ import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empt
 import { Storage } from '../../utils';
 import CommonStatus from '../monitor-k8s/components/common-status/common-status';
 import { ITableFilterItem } from '../monitor-k8s/typings';
-
-import CalendarInfo, { IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
 import CalendarAddForm from './calendar-add-form';
+import CalendarInfo, { IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
 import { EDelAndEditType, ERepeatTypeId, ICalendarTableItem, IOptionsItem, WORKING_DATE_LIST, Z_INDEX } from './types';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './calendar-list.scss';
 /** 表格选中的列数据 */
@@ -125,7 +126,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
   tableData: ICalendarTableItem[] = [];
   virtualRender = false;
   selectedFields = [];
-  repeatNameMap: Record<ERepeatTypeId, (a: any) => string | TranslateResult> = {
+  repeatNameMap: Record<ERepeatTypeId, (a: any) => TranslateResult | string> = {
     [ERepeatTypeId.days]: () => window.i18n.tc('每天'),
     [ERepeatTypeId.weeks]: row => {
       if (WORKING_DATE_LIST.every(item => row.repeat.every.includes(item))) return this.$t('每个工作日');
@@ -173,8 +174,8 @@ export default class CalendarList extends tsc<IProps, IEvents> {
           }
           return (
             <CommonStatus
-              type={status.type}
               text={status.text}
+              type={status.type}
             ></CommonStatus>
           );
         },
@@ -219,8 +220,8 @@ export default class CalendarList extends tsc<IProps, IEvents> {
               {this.$t('button-编辑')}
             </bk-button>,
             <bk-button
-              text
               class='del-btn'
+              text
               onClick={() => this.handleDelItem(row)}
             >
               {this.$t('删除')}
@@ -288,7 +289,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
     this.tableSize = size;
     this.storage.set(
       CALENDAR_TABLE_COLUMNS_CHECKED,
-      this.selectedFields.map(item => item.id),
+      this.selectedFields.map(item => item.id)
     );
     this.storage.set(CALENDAR_TABLE_SIZE, this.tableSize);
   }
@@ -403,15 +404,15 @@ export default class CalendarList extends tsc<IProps, IEvents> {
           ></StatusTab>
           <bk-input
             class='search-input'
-            right-icon='bk-icon icon-search'
             v-model={this.searchKeyword}
+            right-icon='bk-icon icon-search'
             clearable
             onChange={this.handleSearch}
           />
           <bk-button
             class='add-btn'
-            theme='primary'
             icon='plus'
+            theme='primary'
             onClick={this.handleShowAddForm}
           >
             {this.$t('新增事项')}
@@ -421,10 +422,10 @@ export default class CalendarList extends tsc<IProps, IEvents> {
           <bk-select
             class='time-zone-select simplicity-select'
             v-model={this.timeZone}
-            clearable={false}
-            searchable
-            z-index={Z_INDEX + 10}
             behavior='simplicity'
+            clearable={false}
+            z-index={Z_INDEX + 10}
+            searchable
             onSelected={() => this.getTableList(true)}
           >
             {this.timeZoneList.map(opt => (
@@ -437,34 +438,34 @@ export default class CalendarList extends tsc<IProps, IEvents> {
         </div>
         <bk-table
           key={this.tableData.length}
-          class='calendar-table'
           ref='bkTalbeRef'
           style='margin-top: 15px'
+          height={this.tableData.length >= TABLE_ROW_COUNT ? 600 : undefined}
+          class='calendar-table'
           data={this.tableData}
-          outer-border={true}
           header-border={false}
+          outer-border={true}
           size={this.tableSize}
           virtual-render={this.virtualRender}
-          height={this.tableData.length >= TABLE_ROW_COUNT ? 600 : undefined}
         >
           <EmptyStatus
-            type={this.emptyStatusType}
             slot='empty'
+            type={this.emptyStatusType}
             onOperation={this.handleOperation}
           />
           {this.selectedFields.map((item, index) => (
             <bk-table-column
               key={index}
+              width={item.width}
+              formatter={item.formatter}
               label={item.label}
               prop={item.id}
-              width={item.width}
               show-overflow-tooltip={true}
-              formatter={item.formatter}
             ></bk-table-column>
           ))}
           <bk-table-column
-            type='setting'
             tippy-options={{ zIndex: Z_INDEX }}
+            type='setting'
           >
             <bk-table-setting-content
               fields={this.tableColumns}
@@ -477,21 +478,21 @@ export default class CalendarList extends tsc<IProps, IEvents> {
         {/* 新增弹层 */}
         <CalendarAddForm
           v-model={this.showAddForm}
-          editData={this.currentEditData}
           calendarList={this.calendarList}
-          onUpdateList={() => this.getTableList(true)}
+          editData={this.currentEditData}
           onShowChange={this.handleAddFormChange}
           onUpdateCalendarList={this.handleUpdateCalendarList}
+          onUpdateList={() => this.getTableList(true)}
         />
         <CalendarInfo
           v-model={this.infoConfig.value}
+          cancelText={this.infoConfig.cancelText}
           infoDesc={this.infoConfig.infoDesc}
           infoTitle={this.infoConfig.infoTitle}
           okText={this.infoConfig.okText}
-          cancelText={this.infoConfig.cancelText}
           zIndex={this.infoConfig.zIndex}
-          onConfirm={this.handleInfoConfirm}
           onCancel={this.handleInfoCancel}
+          onConfirm={this.handleInfoConfirm}
         ></CalendarInfo>
       </div>
     );

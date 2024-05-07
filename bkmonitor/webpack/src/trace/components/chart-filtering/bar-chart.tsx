@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, onBeforeUnmount, onMounted, PropType, ref, shallowRef, watch, WatchStopHandle } from 'vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { echarts, type MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -86,7 +87,7 @@ export default defineComponent({
             });
           }
         },
-        { deep: true },
+        { deep: true }
       );
     }
     /** 监听resize */
@@ -101,9 +102,9 @@ export default defineComponent({
   render() {
     return (
       <div
-        class='bar-chart'
         ref='chartRef'
         style='height:56px'
+        class='bar-chart'
       />
     );
   },

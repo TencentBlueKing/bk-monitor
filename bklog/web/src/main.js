@@ -35,7 +35,6 @@ import './directives/index';
 import LogButton from '@/components/log-button';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
 import { renderHeader } from './common/util';
-import './common/global';
 import './static/icons/log-icons.css';
 // 接入OTLP
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 
 import TopoSelector from '../../../components/ip-selector/business/topo-selector-new.vue';
@@ -69,7 +70,7 @@ export default class Notification extends tsc<NotificationProps> {
   handleValueChange(data: [HostValueItem[]]) {
     if (data?.[0]?.length) {
       this.checkedData.type = Object.keys(targetFieldMap).find(
-        key => targetFieldMap[key] === data?.[0]?.[0]?.field,
+        key => targetFieldMap[key] === data?.[0]?.[0]?.field
       ) as NotificationType;
       this.checkedData.data = data?.[0]?.[0]?.value || [];
       // this.hostInfo = handleSetTargetDesc(this.checkedData.data, this.checkedData.type);
@@ -178,13 +179,13 @@ export default class Notification extends tsc<NotificationProps> {
         <bk-dialog
           width={1000}
           class='ai-settings-notification-component-dialog'
-          value={this.showTopoSelector}
-          render-directive='if'
-          header-position='left'
-          onChange={v => (this.showTopoSelector = v)}
           confirm-fn={this.handleConfirm}
+          header-position='left'
+          render-directive='if'
           show-footer={this.isEdit}
+          value={this.showTopoSelector}
           onCancel={this.handleTargetCancel}
+          onChange={v => (this.showTopoSelector = v)}
         >
           <div slot='header'>
             {this.$t('添加对象')}
@@ -192,16 +193,16 @@ export default class Notification extends tsc<NotificationProps> {
             <span class='sub-title-text'>{this.$t('被选对象将会关闭页面通知')}</span>
           </div>
           <div
-            style='height: 653px'
             ref='targetContainer'
+            style='height: 653px'
           >
             <TopoSelector
-              height='653px'
-              tree-height={this.targetContainerHeight}
               key={this.ipSelectKey}
+              height='653px'
               class='mt15'
-              targetNodeType={this.checkedData.type}
               checked-data={this.checkedData.data || []}
+              targetNodeType={this.checkedData.type}
+              tree-height={this.targetContainerHeight}
               on-check-change={this.handleTopoCheckedChange}
             />
           </div>

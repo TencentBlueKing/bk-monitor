@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { releaseCollectorPlugin, retrieveCollectorPlugin } from 'monitor-api/modules/model';
 import { saveMetric } from 'monitor-api/modules/plugin';
@@ -134,7 +135,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   /* 是否有数据，并且至少有一个启用 */
   get haveData() {
     const nameRes = this.tableData.every(
-      group => group.table_name === GROUP_DEFAULT_NAME || group.fields.some(item => item.monitor_type === 'metric'),
+      group => group.table_name === GROUP_DEFAULT_NAME || group.fields.some(item => item.monitor_type === 'metric')
     );
     const activeRes = this.tableData.some(group => group.fields.some(item => item.is_active));
     return activeRes && nameRes;
@@ -154,7 +155,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           }
           metricExisted.push(item);
           return false;
-        }),
+        })
     );
     // 维度组里唯一
     let isDimensionRepeat = false;
@@ -183,7 +184,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           }
           descExisted.push(item);
           return false;
-        }),
+        })
     );
     return !isMetricRepeat && !isDimensionRepeat && !isDescRepeat;
   }
@@ -333,7 +334,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   handleMaxMetircDimMsg() {
     const message = this.$t(
       this.isSnmp ? 'SNMP设置指标数量超过{n}，请删减非必要指标' : '设置指标数量超过{n}，请删减非必要指标',
-      { n: this.isSnmp ? MAX_NUM_METRIC_DIM_SNMP : MAX_NUM_METRIC_DIM },
+      { n: this.isSnmp ? MAX_NUM_METRIC_DIM_SNMP : MAX_NUM_METRIC_DIM }
     );
     this.$bkMessage({
       message,
@@ -844,10 +845,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     unit,
                     is_active,
                   };
-                },
+                }
               ),
           })),
-        `${this.localPluginData.plugin_id}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`,
+        `${this.localPluginData.plugin_id}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`
       );
   }
   handleImportMetric(data) {
@@ -877,7 +878,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 this.$t('分组：{tableName} 第{index}个字段未填写名称', {
                   tableName: item.table_name,
                   index: childIndex + 1,
-                }),
+                })
               );
             }
             if (fieldList.some(set => set.description !== '' && set.description === field.description)) {
@@ -885,7 +886,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 this.$t('分组：{tableName} 别名：{fieldName}重复', {
                   tableName: item.table_name,
                   fieldName: field.description,
-                }),
+                })
               );
             }
             if (field.monitor_type === 'metric') {
@@ -894,12 +895,12 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   this.$t('分组：{tableName} 指标名：{fieldName}重复', {
                     tableName: item.table_name,
                     fieldName: field.name,
-                  }),
+                  })
                 );
               }
               const metricItem = this.getDefaultMetric(field);
               const oldMetricItem = oldTableItem?.fields.find(
-                set => set.name === metricItem.name && set.monitor_type === metricItem.monitor_type,
+                set => set.name === metricItem.name && set.monitor_type === metricItem.monitor_type
               );
               if (oldMetricItem?.value) {
                 metricItem.value = oldMetricItem.value;
@@ -912,12 +913,12 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   this.$t('分组：{tableName} 指标名：{fieldName}重复', {
                     tableName: item.table_name,
                     fieldName: field.name,
-                  }),
+                  })
                 );
               }
               const dimensionItem = this.getDefaultDimension(field);
               const oldDimensionItem = oldTableItem?.fields.find(
-                set => set.name === dimensionItem.name && set.monitor_type === dimensionItem.monitor_type,
+                set => set.name === dimensionItem.name && set.monitor_type === dimensionItem.monitor_type
               );
               if (oldDimensionItem?.value) {
                 dimensionItem.value = oldDimensionItem.value;
@@ -929,7 +930,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 this.$t('分组：{tableName} 字段：{fieldName}填写字段分类错误', {
                   tableName: item.table_name,
                   fieldName: field.name,
-                }),
+                })
               );
             }
           });
@@ -952,7 +953,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         message: this.$createElement(
           'ul',
           {},
-          errorList.map(message => this.$createElement('li', {}, message)),
+          errorList.map(message => this.$createElement('li', {}, message))
         ),
         delay: 10000,
         ellipsisLine: 0,
@@ -1062,7 +1063,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         extCls: 'auto-collect-info',
         title: this.$t('此操作存在危险'),
         subTitle: this.$t(
-          '因为当前是旧的存储模式，开启采集新增指标后会切换成新的存储模式，旧的历史数据会丢失，请确认是否继续。',
+          '因为当前是旧的存储模式，开启采集新增指标后会切换成新的存储模式，旧的历史数据会丢失，请确认是否继续。'
         ),
         confirmFn: () => {
           this.isHiddenTip = true;
@@ -1081,26 +1082,26 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           <div class='operate-left'>
             <bk-button
               class='mr-8'
-              icon='plus'
               v-authority={{
                 active: !this.authority.MANAGE_AUTH,
               }}
+              icon='plus'
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleAddGroup() : this.handleShowAuthorityDetail())}
             >
               {this.$t('新建组')}
             </bk-button>
             <bk-dropdown-menu disabled={!this.canMoveBtn}>
               <bk-button
-                type='primary'
-                slot='dropdown-trigger'
                 class='move'
+                slot='dropdown-trigger'
+                type='primary'
               >
                 <span>{this.$t('移动到...')}</span>
                 <i class='bk-icon icon-angle-down'></i>
               </bk-button>
               <ul
-                class='bk-dropdown-list'
                 style='overflow: auto'
+                class='bk-dropdown-list'
                 slot='dropdown-content'
                 v-authority={{ active: !this.authority.MANAGE_AUTH }}
                 onClick={() => !this.authority.MANAGE_AUTH && this.handleShowAuthorityDetail()}
@@ -1117,9 +1118,9 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               </ul>
             </bk-dropdown-menu>
             <bk-popover
+              delay={200}
               placement='top-start'
               tippy-options={this.tippyOptions}
-              delay={200}
             >
               {!this.isRoutePage ? (
                 <bk-button
@@ -1152,9 +1153,9 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 return [
                   <MonitorImport
                     class='mr-24'
-                    return-text={true}
-                    accept='application/json'
                     v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                    accept='application/json'
+                    return-text={true}
                     onChange={data =>
                       this.authority.MANAGE_AUTH ? this.handleImportMetric(data) : this.handleShowAuthorityDetail()
                     }
@@ -1193,8 +1194,8 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               return [
                 <MonitorImport
                   class='mr-24'
-                  return-text={true}
                   v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                  return-text={true}
                   onChange={data =>
                     this.authority.MANAGE_AUTH ? this.handleImportMetric(data) : this.handleShowAuthorityDetail()
                   }
@@ -1232,45 +1233,45 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           {this.tableData.map((group, index) => (
             <MetricGroup
               key={index}
-              is-default-group={group.table_name === GROUP_DEFAULT_NAME}
-              metric-data={group.fields}
               group-name={
                 group.table_name !== GROUP_DEFAULT_NAME
                   ? `${group.table_name}(${group.table_desc})`
                   : this.$t('默认分组')
               }
+              desc-name-list={this.descNameList(group.fields)}
               group-index={index}
               group-rules={group.rule_list}
-              unit-list={this.unitList}
               hide-stop={this.hideStop}
-              is-show-data={this.dataPreview}
-              os-type-list={this.osTypeList}
-              name-list={this.nameList}
-              desc-name-list={this.descNameList(group.fields)}
+              is-default-group={group.table_name === GROUP_DEFAULT_NAME}
               is-from-home={this.isRoutePage}
-              type-list={this.typeList}
+              is-show-data={this.dataPreview}
+              metric-data={group.fields}
+              name-list={this.nameList}
+              os-type-list={this.osTypeList}
               transFromAll={this.transFromAll}
-              on-edit-group={this.handleEditGroup}
-              on-del-group={this.handleDelGroup}
-              on-add-row={this.handleAddRow}
-              on-del-row={this.handleDelRow}
-              on-edit-row={this.handleEditRow}
+              type-list={this.typeList}
+              unit-list={this.unitList}
               on-add-first={this.handleAddFirstRow}
+              on-add-row={this.handleAddRow}
               on-add-rule={(val, index) => this.handleAddRule(val, index, group)}
+              on-del-group={this.handleDelGroup}
+              on-del-row={this.handleDelRow}
               on-del-rule={index => this.handleDelRule(index, group)}
+              on-edit-group={this.handleEditGroup}
+              on-edit-row={this.handleEditRow}
             />
           ))}
         </div>
         <bk-dialog
-          v-model={this.groupDialog.isShow}
-          mask-close={false}
-          header-position={'left'}
-          show-footer={false}
           width={480}
+          class='metric-dimension-add-group-dialog'
+          v-model={this.groupDialog.isShow}
+          header-position={'left'}
+          mask-close={false}
+          show-footer={false}
           title={this.groupDialog.isEdit ? this.$t('编辑指标分类') : this.$t('增加指标分类')}
           on-after-leave={this.afterLeave}
           on-confirm={this.handleSetGroup}
-          class='metric-dimension-add-group-dialog'
         >
           <div class='metric-name'>
             <div class='hint'>
@@ -1280,12 +1281,12 @@ export default class MetricDimensionDialog extends tsc<IProps> {
             <p class='item required'>{this.$t('名称')}</p>
             <VerifyInput
               class='verify-input'
-              validator={{ content: this.$tc('输入指标名,以字母开头,允许包含下划线和数字且不能为group_default') }}
               show-validate={this.rule.isNameEmpty}
+              validator={{ content: this.$tc('输入指标名,以字母开头,允许包含下划线和数字且不能为group_default') }}
             >
               <bk-input
-                placeholder={this.$t('英文名')}
                 v-model={this.groupDialog.name}
+                placeholder={this.$t('英文名')}
                 on-blur={() =>
                   (this.rule.isNameEmpty =
                     !groupNameRegx.test(this.groupDialog.name) || this.groupDialog.name === GROUP_DEFAULT_NAME)
@@ -1303,11 +1304,11 @@ export default class MetricDimensionDialog extends tsc<IProps> {
             <VerifyInput>
               <bk-tag-input
                 v-model={this.groupDialog.rule_list}
-                show-clear-only-hover
                 allow-create={true}
-                free-paste
-                allow-auto-match
                 placeholder={this.$t('匹配规则')}
+                allow-auto-match
+                free-paste
+                show-clear-only-hover
               />
             </VerifyInput>
             <p class='rule-desc'>{this.$tc('支持JS正则匹配方式， 如子串前缀匹配go_，模糊匹配(.*?)_total')}</p>
@@ -1327,10 +1328,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           <div class='bottom-operate'>
             <bk-button
               class='mr-8'
-              theme='primary'
               v-authority={{
                 active: !this.authority.MANAGE_AUTH,
               }}
+              theme='primary'
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleSave() : this.handleShowAuthorityDetail())}
             >
               {this.$t('保存')}
@@ -1349,11 +1350,11 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       </div>
     ) : (
       <bk-dialog
-        ext-cls='metric-dimension-dialog-component'
-        value={this.show}
-        mask-close={true}
-        header-position='left'
         width={1280}
+        ext-cls='metric-dimension-dialog-component'
+        header-position='left'
+        mask-close={true}
+        value={this.show}
         on-value-change={this.handleShowChange}
       >
         {this.contentRender()}
@@ -1366,8 +1367,8 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           </div>
         </div>
         <div
-          slot='footer'
           class='footer-operate'
+          slot='footer'
         >
           <span class='footer-tip'>
             {this.hasWrongFormat.length
@@ -1389,8 +1390,8 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           <span class='footer-opreate'>
             <bk-button
               class='mr-8'
-              theme='primary'
               disabled={this.loading}
+              theme='primary'
               onClick={this.handleSave}
             >
               {this.$t('保存')}

@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 import { type ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
@@ -98,12 +99,12 @@ export default defineComponent({
       <div class='status-tab-wrap'>
         {this.localStatusList.map((item, index) => (
           <Popover
-            theme='light'
-            placement='bottom'
-            disabled={!item.tips}
-            content={item.tips}
-            boundary='parent'
             key={index}
+            boundary='parent'
+            content={item.tips}
+            disabled={!item.tips}
+            placement='bottom'
+            theme='light'
           >
             {getContent(item, index === this.localStatusList.length - 1)}
           </Popover>

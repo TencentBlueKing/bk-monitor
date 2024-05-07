@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// eslint-disable-next-line simple-import-sort/imports
+
 import './public-path.ts';
 import 'monitor-common/polyfill';
-import Vue from 'vue';
+
 import i18n from './i18n/i18n';
+import Vue from 'vue';
+
 import './common/import-magicbox-ui';
 import 'monitor-ui/directive/index';
 
@@ -40,9 +42,10 @@ import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
+import 'monitor-pc/common/global-login';
 
-import 'monitor-static/icons/monitor-icons.css';
 import './static/scss/global.scss';
+import 'monitor-static/icons/monitor-icons.css';
 
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'fta';

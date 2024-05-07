@@ -28,13 +28,17 @@
     <div class="introduction-header">
       <div class="header-title">
         <div
-          class="title-method"
           v-if="introduction.type === 'method'"
-        >{{ $t('采集方式介绍') }}</div>
+          class="title-method"
+        >
+          {{ $t('采集方式介绍') }}
+        </div>
         <div
-          class="title-plugin"
           v-else
-        >{{ $t('关于{0}的描述', [introduction.pluginId]) }}</div>
+          class="title-plugin"
+        >
+          {{ $t('关于{0}的描述', [introduction.pluginId]) }}
+        </div>
       </div>
     </div>
     <div
@@ -42,12 +46,12 @@
       :style="{ 'padding-left': introduction.type === 'bkmonitor.models.fta.plugin' ? '24px' : '' }"
     >
       <div
-        class="content-desc"
         v-if="introduction.type === 'bkmonitor.models.fta.plugin'"
+        class="content-desc"
       >
         <div
-          class="desc-tag tag-success"
           v-if="introduction.isOfficial"
+          class="desc-tag tag-success"
         >
           <i class="icon-monitor icon-mc-check-fill tag-icon" />
           <span class="tag-text"> {{ $t('官方') }} </span>
@@ -60,30 +64,34 @@
           <span
             v-if="introduction.isSafety"
             class="tag-text"
-          > {{ $t('已认证') }} </span>
+          >
+            {{ $t('已认证') }}
+          </span>
           <span
             v-else
             class="tag-text"
-          > {{ $t('非认证') }} </span>
+          >
+            {{ $t('非认证') }}
+          </span>
         </div>
         <div
-          class="desc-tag"
           v-for="item in introduction.osTypeList"
           :key="item"
+          class="desc-tag"
         >
           <i :class="['icon-monitor tag-icon', `icon-${item}`]" />
           <span class="tag-text">{{ item }}</span>
         </div>
         <div
-          class="desc-tag"
           v-if="introduction.createUser"
+          class="desc-tag"
         >
           <i class="icon-monitor icon-user tag-icon" />
           <span class="tag-text"> {{ $t('创建人:') }} {{ introduction.createUser }}</span>
         </div>
         <div
-          class="desc-tag"
           v-if="introduction.updateUser"
+          class="desc-tag"
         >
           <i class="icon-monitor icon-bianji tag-icon" />
           <span class="tag-text"> {{ $t('最近更新人') }} {{ introduction.updateUser }}</span>
@@ -103,17 +111,17 @@ import Viewer from 'monitor-ui/markdown-editor/viewer.tsx';
 export default {
   name: 'CollectorIntroduction',
   components: {
-    Viewer
+    Viewer,
   },
   props: {
     introduction: {
       type: Object,
       default: () => ({
         type: 'method',
-        content: ''
-      })
-    }
-  }
+        content: '',
+      }),
+    },
+  },
 };
 </script>
 

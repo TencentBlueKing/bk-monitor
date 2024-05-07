@@ -24,18 +24,18 @@
  * IN THE SOFTWARE.
  */
 export default class TableStore {
-  public sortProp: any;
-  public sortOrder: any;
+  public data: any[];
   public keyword: string;
   public page: number;
-  public pageSize: number;
   public pageList: number[];
-  public typeList: any;
-  public total: number;
-  public tabData: any;
-  public data: any[];
+  public pageSize: number;
+  public sortOrder: any;
+  public sortProp: any;
   public startStatusList: string[];
   public stopStatusList: string[];
+  public tabData: any;
+  public total: number;
+  public typeList: any;
 
   public constructor(originData, bizList) {
     this.setDefaultStore();
@@ -152,17 +152,11 @@ export default class TableStore {
     return tabData;
   }
 
-  public get typeMap() {
-    const data = {
-      All: { name: window.i18n.t('全部'), order: 1 },
+  public get objectTypeMap() {
+    return {
+      HOST: window.i18n.t('主机'),
+      SERVICE: window.i18n.t('服务'),
     };
-    this.typeList.forEach((item, index) => {
-      data[item.id] = {
-        name: item.name,
-        order: index + 2,
-      };
-    });
-    return data;
   }
 
   public get statusMap() {
@@ -180,13 +174,6 @@ export default class TableStore {
     };
   }
 
-  public get objectTypeMap() {
-    return {
-      HOST: window.i18n.t('主机'),
-      SERVICE: window.i18n.t('服务'),
-    };
-  }
-
   public get tabItemMap() {
     return {
       startedNum: window.i18n.t('已启用配置'),
@@ -194,6 +181,32 @@ export default class TableStore {
       errTargetNum: window.i18n.t('异常采集目标'),
       needUpdateNum: window.i18n.t('待升级目标'),
     };
+  }
+
+  public get typeMap() {
+    const data = {
+      All: { name: window.i18n.t('全部'), order: 1 },
+    };
+    this.typeList.forEach((item, index) => {
+      data[item.id] = {
+        name: item.name,
+        order: index + 2,
+      };
+    });
+    return data;
+  }
+
+  public deleteDataById(id) {
+    const index = this.data.findIndex(item => item.id === id);
+    if (index > -1) {
+      const itemList = this.data.splice(index, 1);
+      const [item] = itemList;
+      this.tabData.forEach(set => {
+        if (set.key === 'All' || set.key === item.collectType) {
+          set.data.stoppedNum -= 1;
+        }
+      });
+    }
   }
 
   /**
@@ -224,7 +237,7 @@ export default class TableStore {
               ((typeLabel === 'startedNum' && this.startStatusList.includes(item.status)) ||
                 (typeLabel === 'stoppedNum' && this.stopStatusList.includes(item.status)) ||
                 (typeLabel === 'errTargetNum' && item.errorNum > 0) ||
-                (typeLabel === 'needUpdateNum' && item.needUpdate)))),
+                (typeLabel === 'needUpdateNum' && item.needUpdate))))
       );
     }
 
@@ -250,19 +263,6 @@ export default class TableStore {
       }
     }
     return ret.slice(this.pageSize * (this.page - 1), this.pageSize * this.page);
-  }
-
-  public deleteDataById(id) {
-    const index = this.data.findIndex(item => item.id === id);
-    if (index > -1) {
-      const itemList = this.data.splice(index, 1);
-      const [item] = itemList;
-      this.tabData.forEach(set => {
-        if (set.key === 'All' || set.key === item.collectType) {
-          set.data.stoppedNum -= 1;
-        }
-      });
-    }
   }
 
   public setDefaultStore() {

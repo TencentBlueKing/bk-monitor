@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 import { resize } from 'monitor-pc/components/ip-selector/common/observer-directive';
 
@@ -129,11 +130,11 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
             ]}
           >
             <i
-              onClick={this.handleToggleCollapse.bind(this, false)}
               class={[
                 'bk-icon bk-card-head-icon collapse-icon',
                 this.isCollapse ? 'icon-right-shape' : 'icon-down-shape',
               ]}
+              onClick={this.handleToggleCollapse.bind(this, false)}
             ></i>
             <span
               class='correlation-metrics-title'
@@ -174,14 +175,14 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
                     {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}
                   </span>
                   <ul
-                    slot='content'
                     class='layout-list'
+                    slot='content'
                   >
                     {this.panelLayoutList.map(item => (
                       <li
+                        key={item.id}
                         class={`layout-list-item ${item.id === this.layoutActive + 1 ? 'item-active' : ''}`}
                         onClick={() => this.handleChangeLayout(item.id)}
-                        key={item.id}
                       >
                         {item.name}
                       </li>
@@ -193,8 +194,8 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
           </div>
           <bk-transition name='collapse'>
             <div
-              v-show={!(this.isCollapse && this.showCollapse)}
               class={['correlation-metrics-collapse-content']}
+              v-show={!(this.isCollapse && this.showCollapse)}
             >
               {(this.$scopedSlots as any)?.default?.({ column: this.layoutActive + 1 })}
             </div>

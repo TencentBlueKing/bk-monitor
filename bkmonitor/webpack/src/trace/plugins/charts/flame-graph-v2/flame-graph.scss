@@ -161,7 +161,7 @@
   left: 0;
   z-index: 99999;
   display: block;
-  width: 240px;
+  width: 360px;
   height: 100px;
   font-size: 12px;
   color: #fff;
@@ -196,8 +196,8 @@
 
     th,
     td {
-      padding-left: 4px;
       font-weight: 400;
+      text-align: center;
       background-color: #000;
       border: 1px solid #63656e;
     }

@@ -25,10 +25,10 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
 import { deepClone, random } from 'monitor-common/utils/utils';
 
-import type { TimeRangeType } from '../../../components/time-range/time-range';
 import CompareSelect from '../../monitor-k8s/components/panel-tools/compare-select';
 import PanelsTools from '../../monitor-k8s/components/panel-tools/panel-tools';
 // import PanelHeader from '../../monitor-k8s/components/panel-header/panel-header';
@@ -38,8 +38,9 @@ import EventRetrievalView from '../event-retrieval/event-retrieval-view';
 import IndexList, { IIndexListItem } from '../index-list/index-list';
 // import ComparePanel from '../../performance/performance-detail/compare-panel.vue';
 import { EventRetrievalViewType, FieldValue, IDataRetrieval, IDataRetrievalView, IFilterCondition } from '../typings';
-
 import RetrievalEmptyShow from './retrieval-empty-show';
+
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 import './data-retrieval-view.scss';
 
@@ -555,40 +556,40 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
           ) : undefined}
           <div class={['charts-view-main', { 'has-tips': this.hasTips }]}>
             <div
-              class='charts-view-left'
               style={{ flex: 1, width: `calc(100% - ${this.indexPanelWidth}px)` }}
+              class='charts-view-left'
             >
               {!this.onlyShowView && this.retrievalType === 'monitor' ? (
                 <PanelsTools
                   class='panels-tools'
-                  needSplit={this.compareValue.compare.type === 'none'}
                   split={
                     this.compareValue.compare.type === 'none' ? (this.compareValue.compare.value as boolean) : undefined
                   }
-                  layoutActive={this.chartType}
                   disabledLayout={this.disabledLayout}
-                  onSplitChange={this.handleSplitChange}
+                  layoutActive={this.chartType}
+                  needSplit={this.compareValue.compare.type === 'none'}
                   onLayoutChange={this.handleChartChange}
+                  onSplitChange={this.handleSplitChange}
                 >
                   <span
-                    slot='prepend'
                     class='panels-tools-prepend'
+                    slot='prepend'
                   >
                     <CompareSelect
-                      type={this.compareValue.compare.type}
                       timeValue={
                         this.compareValue.compare.type === 'time'
                           ? (this.compareValue.compare.value as string[])
                           : undefined
                       }
                       needCompare={this.needCompare}
+                      type={this.compareValue.compare.type}
                       onTimeChange={this.handleCompareTimeChange}
                       onTypeChange={this.handleCompareTypeChange}
                     />
                   </span>
                   <span
-                    slot='append'
                     class={['icon-monitor icon-mc-list', { active: this.isShowIndex, disabled: this.disabledLayout }]}
+                    slot='append'
                     onClick={() => this.handleShowIndexPanel()}
                   ></span>
                 </PanelsTools>
@@ -596,24 +597,24 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
               {this.retrievalType === 'monitor' ? (
                 this.queryResult?.length ? (
                   <DashboardPanels
-                    class='dashboard-panels-list'
                     key={this.dashboardPanelsKey}
+                    class='dashboard-panels-list'
+                    chartOption={this.chartOption}
+                    chartType={this.chartType}
+                    compareValue={this.localCompareValue}
+                    groupId={this.groupId}
                     groupsData={this.queryResult}
                     searchTipsObj={{ show: false }}
-                    compareValue={this.localCompareValue}
-                    chartType={this.chartType}
-                    chartOption={this.chartOption}
-                    groupId={this.groupId}
-                    on-split-change={this.handleSplitChange}
                     on-add-strategy={this.handleAddStrategy}
                     on-chart-count-change={count => (this.chartCount = count)}
+                    on-split-change={this.handleSplitChange}
                   />
                 ) : (
                   <RetrievalEmptyShow
                     style='margin-top: 150px;'
-                    showType='monitor'
-                    queryLoading={this.queryLoading}
                     emptyStatus={this.emptyStatus}
+                    queryLoading={this.queryLoading}
+                    showType='monitor'
                   />
                 )
               ) : undefined}
@@ -623,16 +624,16 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
               {this.retrievalType === 'event' ? (
                 <EventRetrievalView
                   ref='eventRetrievalViewRef'
-                  eventMetricParams={this.eventMetricParams}
-                  compareValue={this.compareValue}
                   chartInterval={this.eventChartInterval}
-                  toolChecked={['screenshot']}
                   chartTitle={this.eventChartTitle}
+                  compareValue={this.compareValue}
                   emptyStatus={this.emptyStatus}
-                  onTimeRangeChange={this.handleTimeRangeChange}
+                  eventMetricParams={this.eventMetricParams}
+                  toolChecked={['screenshot']}
                   onAddStrategy={this.handleAddEventStrategy}
-                  onIntervalChange={this.handleEventChartIntervalChange}
                   onDrillSearch={this.handleDrillSearch}
+                  onIntervalChange={this.handleEventChartIntervalChange}
+                  onTimeRangeChange={this.handleTimeRangeChange}
                 ></EventRetrievalView>
               ) : undefined}
             </div>
@@ -662,15 +663,15 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                   <div class='charts-view-right-list'>
                     {this.indexList.length ? (
                       <IndexList
-                        type={this.indexList.some(item => !!item.children) ? 'tree' : 'list'}
                         list={this.indexList}
                         tipsPlacement='left'
+                        type={this.indexList.some(item => !!item.children) ? 'tree' : 'list'}
                         onSelect={this.handleSelectIndex}
                       />
                     ) : (
                       <bk-exception
-                        type='empty'
                         scene='part'
+                        type='empty'
                       >
                         <span>{this.$t('查无数据')}</span>
                       </bk-exception>

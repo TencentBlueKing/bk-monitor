@@ -44,20 +44,20 @@ import Upload from '../components/upload';
 export default {
   name: 'ImportConfigurationUpload',
   components: {
-    Upload
+    Upload,
   },
   data() {
     return {
       headers: [
         {
           name: 'X-Requested-With',
-          value: 'XMLHttpRequest'
+          value: 'XMLHttpRequest',
         },
         {
           name: 'X-CSRFToken',
-          value: window.csrf_token || getCookie(this.$store.getters.csrfCookieName)
-        }
-      ]
+          value: window.csrf_token || getCookie(this.$store.getters.csrfCookieName),
+        },
+      ],
     };
   },
   created() {
@@ -71,14 +71,14 @@ export default {
       this.$router.push({
         name: 'import-configuration',
         params: {
-          importData: res.data
-        }
+          importData: res.data,
+        },
       });
     },
     handleError(err) {
       console.log(err);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

@@ -39,7 +39,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
   @Prop({ type: Boolean, default: false }) isHoverTitle: boolean; // 鼠标是否经过表头
   @Prop({ type: Array, default: () => [] }) groupList: IFavList.groupList[]; // 组列表
   @Prop({ type: String, default: '' }) groupName: string; // 组列表
-  @Prop({ type: Object, required: true }) data: IFavList.favList | IFavList.favGroupList; // 所有数据
+  @Prop({ type: Object, required: true }) data: IFavList.favGroupList | IFavList.favList; // 所有数据
   groupTippyOption = {
     // 移动到其他组配置项
     trigger: 'click',
@@ -131,7 +131,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
   checkName() {
     if (this.verifyData.groupEditName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupEditName.trim(),
+      this.verifyData.groupEditName.trim()
     );
   }
 
@@ -279,14 +279,14 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
     const groupDropList = () => (
       <div style={{ display: 'none' }}>
         <ul
-          class='dropdown-list add-new-page-container'
           ref='titleDrop'
+          class='dropdown-list add-new-page-container'
         >
           {this.isShowResetGroupName ? (
             <li class='add-new-page-input'>
               <bk-form
-                labelWidth={0}
                 ref='checkInputForm'
+                labelWidth={0}
                 {...{
                   props: {
                     model: this.verifyData,
@@ -296,9 +296,9 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
               >
                 <bk-form-item property='groupEditName'>
                   <bk-input
-                    clearable
-                    placeholder={this.$t('输入组名,30个字符')}
                     vModel={this.verifyData.groupEditName}
+                    placeholder={this.$t('输入组名,30个字符')}
+                    clearable
                     onEnter={v => this.handleGroupKeyDown(v, 'reset')}
                   ></bk-input>
                 </bk-form-item>
@@ -332,8 +332,8 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
     const collectDropList = () => (
       <div style={{ display: 'none' }}>
         <ul
-          class='dropdown-list'
           ref='operate'
+          class='dropdown-list'
         >
           <li onClick={() => this.handleClickLi('share')}>{this.$t('复制链接')}</li>
           <li onClick={() => this.handleClickLi('business-copy')}>{this.$t('共享')}</li>
@@ -361,8 +361,8 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
     const groupList = () => (
       <div style={{ display: 'none' }}>
         <ul
-          class='group-dropdown-list add-new-page-container'
           ref='groupMoveList'
+          class='group-dropdown-list add-new-page-container'
         >
           {this.showGroupList.map(item => (
             <li
@@ -377,9 +377,9 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
             {this.isShowNewGroupInput ? (
               <li class='new-page-input'>
                 <bk-form
-                  labelWidth={0}
-                  style={{ width: '100%' }}
                   ref='checkInputAddForm'
+                  style={{ width: '100%' }}
+                  labelWidth={0}
                   {...{
                     props: {
                       model: this.verifyData,
@@ -389,9 +389,9 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
                 >
                   <bk-form-item property='groupEditName'>
                     <bk-input
-                      clearable
-                      placeholder={this.$t('输入组名,30个字符')}
                       vModel={this.verifyData.groupEditName}
+                      placeholder={this.$t('输入组名,30个字符')}
+                      clearable
                       onEnter={v => this.handleGroupKeyDown(v, 'add')}
                     ></bk-input>
                   </bk-form-item>
@@ -429,14 +429,14 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
               onMouseenter={this.handleHoverIcon}
             >
               <span
-                v-show={!this.isHoverTitle && this.titlePopoverInstance === null}
                 class='title-number'
+                v-show={!this.isHoverTitle && this.titlePopoverInstance === null}
               >
                 {this.data.favorites.length}
               </span>
               <div
-                v-show={this.isHoverTitle || this.titlePopoverInstance !== null}
                 class={['more-box', this.titlePopoverInstance !== null && 'is-click']}
+                v-show={this.isHoverTitle || this.titlePopoverInstance !== null}
               >
                 <span class='bk-icon icon-more'></span>
               </div>

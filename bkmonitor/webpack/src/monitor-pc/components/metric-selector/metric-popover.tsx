@@ -114,8 +114,8 @@ export default class MetricPopover extends tsc<MetricPopoverProps, MetricPopover
       <div style={{ display: 'none' }}>
         <div
           ref='metricSelectorPopover'
-          class='metric-selector-popover'
           style={{ width: `${this.width}px` }}
+          class='metric-selector-popover'
         >
           {this.$slots.default}
         </div>

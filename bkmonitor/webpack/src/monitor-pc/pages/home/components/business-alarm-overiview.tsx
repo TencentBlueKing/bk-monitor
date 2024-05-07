@@ -25,16 +25,16 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { alarmDetailChartData } from 'monitor-api/modules/event_center';
 
 import Os from '../business-alarm-overview/os.vue';
 import Process from '../business-alarm-overview/process.vue';
 import Service from '../business-alarm-overview/service.vue';
 import Uptimecheck from '../business-alarm-overview/uptimecheck.vue';
-
 import BusinessAlarmPanel from './business-alarm-panel/business-alarm-panel.vue';
-import PanelCard from './panel-card/panel-card.vue';
 import BusinessAlarmAquare from './business-alarm-square';
+import PanelCard from './panel-card/panel-card.vue';
 
 import './business-alarm-overview.scss';
 
@@ -149,24 +149,24 @@ export default class BusinessAlarmOverview extends tsc<IBusinessAlarmProps> {
           title={this.$t('监控对象总览')}
         >
           <div
-            slot='custom'
             class={['wall-border', `wall-border-${this.selectAlarm.status}`]}
+            slot='custom'
           ></div>
           <BusinessAlarmAquare
-            squares={this.businessAlarm}
-            selected-index={this.selectedIndex}
-            is-all-normal={this.isAllNormal}
             class='content'
+            is-all-normal={this.isAllNormal}
+            selected-index={this.selectedIndex}
+            squares={this.businessAlarm}
             status={this.selectAlarm.status}
-            onSelectedIndex={v => (this.selectedIndex = v)}
             onIsAllNormal={v => (this.isAllNormal = v)}
+            onSelectedIndex={v => (this.selectedIndex = v)}
           ></BusinessAlarmAquare>
         </PanelCard>
         <div class='right'>
           <BusinessAlarmPanel
-            title={this.selectTitle}
-            icon={this.selectAlarm.status}
             style={{ display: !this.isAllNormal ? 'block' : 'none' }}
+            icon={this.selectAlarm.status}
+            title={this.selectTitle}
           >
             <keep-alive>
               {this.selectAlarm.name === this.alarmMap.uptimecheck ? (

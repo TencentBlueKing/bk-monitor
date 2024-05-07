@@ -13,7 +13,7 @@ from celery.task import task
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.access import ACCESS_TYPE_TO_CLASS
-from alarm_backends.service.access.data import AccessDataProcess
+from alarm_backends.service.access.data import AccessBatchDataProcess, AccessDataProcess
 from alarm_backends.service.access.data.token import TokenBucket
 from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
 from core.prometheus import metrics
@@ -32,6 +32,12 @@ def run_access_data(strategy_group_key, interval=60):
                 task_tb.release(0)
                 return
             task_tb.release(max([int(processor.pull_duration), 1]))
+
+
+@task(queue="celery_service_batch", ignore_result=True)
+def run_access_batch_data(strategy_group_key: str, sub_task_id: str):
+    processor = AccessBatchDataProcess(strategy_group_key=strategy_group_key, sub_task_id=sub_task_id)
+    return processor.process()
 
 
 @task(ignore_result=True, queue="celery_service")

@@ -167,11 +167,11 @@ export default class AutoInput extends tsc<IAuto> {
       <div class='auto-input-wrap'>
         <div ref='input'>
           <bk-input
-            value={this.value}
             behavior={'simplicity'}
-            onInput={this.handleInput}
-            readonly={this.readonly}
             placeholder={this.placeholder || this.$t('输入')}
+            readonly={this.readonly}
+            value={this.value}
+            onInput={this.handleInput}
           ></bk-input>
         </div>
         <div style='display: none'>
@@ -181,8 +181,8 @@ export default class AutoInput extends tsc<IAuto> {
           >
             {this.tipsListFiter.map((item, index) => (
               <li
-                class='list-item'
                 key={index}
+                class='list-item'
                 onMousedown={() => this.handleMousedown(item)}
               >
                 <span>{item.id}</span>

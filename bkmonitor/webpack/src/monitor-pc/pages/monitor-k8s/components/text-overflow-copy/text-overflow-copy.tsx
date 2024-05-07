@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { copyText } from 'monitor-common/utils/utils';
 
 import { ITableItem } from '../../typings';
@@ -74,14 +75,14 @@ export default class TextOverflowCopy extends tsc<IProps, {}> {
   render() {
     return (
       <div
-        class={{ 'text-overflow-copy-comp': true, 'has-copy': this.hasCopy }}
         ref='wrapRef'
+        class={{ 'text-overflow-copy-comp': true, 'has-copy': this.hasCopy }}
       >
         {this.val.icon &&
           (this.val.icon.length > 30 ? (
             <img
-              src={this.val.icon}
               alt=''
+              src={this.val.icon}
             />
           ) : (
             <i class={['icon-monitor', 'string-icon', this.val.icon]} />

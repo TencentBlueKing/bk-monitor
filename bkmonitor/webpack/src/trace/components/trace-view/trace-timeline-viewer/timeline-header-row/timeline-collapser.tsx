@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, PropType } from 'vue';
+
 import { Popover } from 'bkui-vue';
 
 import AngleDoubleDownIcon from '../../icons/angle-double-down.svg';
@@ -50,66 +51,66 @@ export default defineComponent({
     return (
       <div class='timeline-collapser'>
         <Popover
-          theme='dark'
           content={this.$t('展开 1 层')}
-          popoverDelay={[500, 0]}
           placement='top'
+          popoverDelay={[500, 0]}
+          theme='dark'
         >
           <div
             class='collapser-btn'
             onClick={onExpandOne}
           >
             <img
-              src={AngleDownIcon}
               alt='down'
+              src={AngleDownIcon}
             />
           </div>
         </Popover>
         <Popover
-          theme='dark'
           content={this.$t('收起 1 层')}
-          popoverDelay={[500, 0]}
           placement='top'
+          popoverDelay={[500, 0]}
+          theme='dark'
         >
           <div
             class='collapser-btn'
             onClick={onCollapseOne}
           >
             <img
-              src={AngleRightIcon}
               alt='right'
+              src={AngleRightIcon}
             />
           </div>
         </Popover>
         <Popover
-          theme='dark'
           content={this.$t('全部展开')}
-          popoverDelay={[500, 0]}
           placement='top'
+          popoverDelay={[500, 0]}
+          theme='dark'
         >
           <div
             class='collapser-btn'
             onClick={onExpandAll}
           >
             <img
-              src={AngleDoubleDownIcon}
               alt='double-down'
+              src={AngleDoubleDownIcon}
             />
           </div>
         </Popover>
         <Popover
-          theme='dark'
           content={this.$t('全部收起')}
-          popoverDelay={[500, 0]}
           placement='top'
+          popoverDelay={[500, 0]}
+          theme='dark'
         >
           <div
             class='collapser-btn'
             onClick={onCollapseAll}
           >
             <img
-              src={AngleDoubleRightIcon}
               alt='double-right'
+              src={AngleDoubleRightIcon}
             />
           </div>
         </Popover>

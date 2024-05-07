@@ -161,5 +161,5 @@ export default applyGuidePage(
       },
     },
   ],
-  ['plugin-add'],
+  ['plugin-add']
 ) as RouteConfig[];

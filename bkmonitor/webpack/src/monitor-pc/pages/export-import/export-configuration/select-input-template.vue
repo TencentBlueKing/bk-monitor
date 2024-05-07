@@ -38,7 +38,8 @@
       <span
         v-if="!value"
         class="default-text"
-      >{{ placeholder }}</span>
+        >{{ placeholder }}</span
+      >
       <span v-else>{{ value }}</span>
       <div
         class="focus"
@@ -47,14 +48,14 @@
         <i class="bk-select-angle bk-icon icon-angle-down" />
       </div>
       <i
-        class="bk-icon icon-close-circle-shape clear"
         v-if="iconShow"
+        class="bk-icon icon-close-circle-shape clear"
         @click.stop="handleClearValue"
       />
     </div>
     <div
-      class="select-node-content"
       v-show="listShow"
+      class="select-node-content"
     >
       <slot />
     </div>
@@ -69,17 +70,17 @@ export default {
       type: String,
       default() {
         return this.$t('选择');
-      }
+      },
     },
     value: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   data() {
     return {
       listShow: false,
-      iconShow: false
+      iconShow: false,
     };
   },
   methods: {
@@ -101,8 +102,8 @@ export default {
     handleClearValue() {
       this.$emit('clear', this.value);
       this.iconShow = false;
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -132,7 +133,7 @@ export default {
   background: #fff;
   border: 1px solid #dcdee5;
   border-radius: 2px;
-  box-shadow: 0 3px 6px 0 rgba(49, 50, 56, .15);
+  box-shadow: 0 3px 6px 0 rgba(49, 50, 56, 0.15);
   width: 380px;
   max-height: 760px;
   z-index: 2;
@@ -142,7 +143,7 @@ export default {
   display: flex;
   align-items: center;
   position: relative;
-  transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .clear {
@@ -163,6 +164,6 @@ export default {
 
 .hight-lignt {
   border: 1px solid #3a84ff;
-  box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+  box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
 }
 </style>

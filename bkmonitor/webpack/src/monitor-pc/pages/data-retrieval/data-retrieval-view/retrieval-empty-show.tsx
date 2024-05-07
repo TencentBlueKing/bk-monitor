@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { collectConfigList } from 'monitor-api/modules/collecting';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 
@@ -143,7 +144,7 @@ export default class FavoritesList extends tsc<IDataRetrievalView.IEmptyView> {
             }
             const url = location.href.replace(
               location.hash,
-              `#/custom-escalation-detail/event/${findItem.bkEventGroupId}`,
+              `#/custom-escalation-detail/event/${findItem.bkEventGroupId}`
             );
             window.open(url, '_blank');
           }
@@ -272,13 +273,13 @@ export default class FavoritesList extends tsc<IDataRetrievalView.IEmptyView> {
     };
     return (
       <div
-        v-show={!this.queryLoading}
         class='empty-container'
+        v-show={!this.queryLoading}
       >
         <EmptyStatus
+          textMap={this.emptyTextMap}
           type={this.emptyStatus}
           onOperation={this.handleOperation}
-          textMap={this.emptyTextMap}
         >
           {this.showType === 'monitor' && monitorSlot()}
           {this.showType === 'event' && eventSlot()}

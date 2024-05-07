@@ -972,7 +972,7 @@ PROCESS_EVENT_STRATEGY = {
     ],
 }
 
-#####
+
 HOST_OBJECT = Host(
     bk_host_innerip="127.0.0.1",
     bk_cloud_id=0,
@@ -990,10 +990,10 @@ HOST_OBJECT = Host(
     operator="test",
     topo_link={
         "module|9": [
-            {"bk_obj_id": "module", "bk_inst_id": 9},
-            {"bk_obj_id": "set", "bk_inst_id": 5},
-            {"bk_obj_id": "test", "bk_inst_id": 2},
-            {"bk_obj_id": "biz", "bk_inst_id": 2},
+            {"bk_obj_id": "module", "bk_inst_id": 9, "bk_obj_name": "Module", "bk_inst_name": "测试模块"},
+            {"bk_obj_id": "set", "bk_inst_id": 5, "bk_obj_name": "Set", "bk_inst_name": "测试集群"},
+            {"bk_obj_id": "test", "bk_inst_id": 2, "bk_obj_name": "Test", "bk_inst_name": "测试"},
+            {"bk_obj_id": "biz", "bk_inst_id": 2, "bk_obj_name": "Biz", "bk_inst_name": "测试业务"},
         ]
     },
 )

@@ -37,8 +37,8 @@
   >
     <div class="view-detail">
       <div
-        :class="['view-box', { 'reduce-box': navToggle }]"
         v-bkloading="{ isLoading: loading }"
+        :class="['view-box']"
       >
         <!-- 头部选项栏 -->
         <header class="view-box-header">
@@ -85,8 +85,8 @@
             >
               <monitor-echarts
                 v-if="queryConfigKey"
-                :chart-type="['graph', 'aiops-dimension-lint', 'performance-chart'].includes(type) ? 'line' : type"
                 :key="renderKey + '_' + queryConfigKey"
+                :chart-type="['graph', 'aiops-dimension-lint', 'performance-chart'].includes(type) ? 'line' : type"
                 :height="drag.height - 20"
                 :reflesh-interval="compareValue.tools.refleshInterval"
                 :title="title"
@@ -112,7 +112,8 @@
                   class="export-csv-btn"
                   size="small"
                   @click="handleExportCsv"
-                >{{ $t('导出CSV') }}</bk-button>
+                  >{{ $t('导出CSV') }}</bk-button
+                >
               </div>
               <div class="section-box-content">
                 <table
@@ -124,9 +125,9 @@
                   <thead>
                     <tr class="table-head">
                       <th
-                        class="table-content"
                         v-for="(item, index) in tableThArr"
                         :key="index"
+                        class="table-content"
                       >
                         <div
                           class="table-item sort-handle"
@@ -136,8 +137,8 @@
                           <span class="table-header">
                             {{ item.name }}
                             <sort-button
-                              class="sort-btn"
                               v-model="item.sort"
+                              class="sort-btn"
                               @change="() => handleTableSort(item.sort, index)"
                             />
                           </span>
@@ -151,9 +152,9 @@
                       :key="index"
                     >
                       <td
-                        class="table-content"
                         v-for="(item, tdIndex) in row"
                         :key="tdIndex"
+                        class="table-content"
                       >
                         <div
                           class="table-item"
@@ -161,11 +162,11 @@
                         >
                           {{ item?.value === null ? '--' : item.value }}
                           <img
-                            alt=""
                             v-if="tdIndex > 0 && (item?.max || item?.min)"
+                            alt=""
                             class="item-max-min"
                             :src="require(`../../static/images/svg/${item?.min ? 'min.svg' : 'max.svg'}`)"
-                          >
+                          />
                         </div>
                       </td>
                     </tr>
@@ -175,8 +176,8 @@
             </div>
           </div>
           <div
-            class="box-right"
             v-show="isRightBoxShow"
+            class="box-right"
           >
             <!-- 右边部分 设置部分 -->
             <query-criteria-item
@@ -199,6 +200,7 @@
 <script lang="ts">
 /* eslint-disable @typescript-eslint/member-ordering */
 import { Component, InjectReactive, Mixins, Prop, Provide, ProvideReactive, Vue } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import { graphUnifyQuery } from 'monitor-api/modules/grafana';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
@@ -208,15 +210,15 @@ import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import { DEFAULT_REFLESH_LIST, DEFAULT_TIME_RANGE_LIST, DEFAULT_TIMESHIFT_LIST } from '../../common/constant';
 import SortButton from '../../components/sort-button/sort-button';
-import type { TimeRangeType } from '../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 // import { handleTimeRange } from '../../utils/index';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import ComparePanel from '../../pages/performance/performance-detail/compare-panel.vue';
 import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
-
 import QueryCriteriaItem from './query-criteria-item.vue';
 import { downCsvFile, transformSrcData } from './utils';
+
+import type { TimeRangeType } from '../../components/time-range/time-range';
 
 const authorityMap = { GRAFANA_MANAGE_AUTH };
 @Component({
@@ -226,8 +228,8 @@ const authorityMap = { GRAFANA_MANAGE_AUTH };
     MonitorEcharts,
     ComparePanel,
     QueryCriteriaItem,
-    SortButton
-  }
+    SortButton,
+  },
 })
 export default class MigrateDashboard extends Mixins(authorityMixinCreate(authorityMap)) {
   @Prop({ required: true, type: Boolean, default: false }) showModal: boolean;
@@ -259,7 +261,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
   chartOptions = {
     legend: { asTable: true, maxHeight: 156 },
     tool: { list: ['screenshot', 'set', 'strategy', 'area'] },
-    annotation: { show: true }
+    annotation: { show: true },
   }; //  图表类型
   refleshKey = 'refleshKey'; // 图表刷新控制
   isRightBoxShow = true; // 是否收起右侧指标栏
@@ -274,27 +276,27 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     // 图表顶部工具栏
     compare: {
       type: 'none', // 对比类型 目前只支持 时间对比
-      value: '' // 对应对比类型的值
+      value: '', // 对应对比类型的值
     },
     tools: {
       refleshInterval: -1, // 刷新间隔 -1是不刷新
-      timeRange: ['now-1m', 'now'] // 图表横轴时间范围
-    }
+      timeRange: ['now-1m', 'now'], // 图表横轴时间范围
+    },
   };
   compareList: any = [
     // 对比类型列表
     {
       id: 'none',
-      name: window.i18n.t('不对比')
+      name: window.i18n.t('不对比'),
     },
     {
       id: 'time',
-      name: window.i18n.t('时间对比')
+      name: window.i18n.t('时间对比'),
     },
     {
       id: 'metric',
-      name: window.i18n.t('指标对比')
-    }
+      name: window.i18n.t('指标对比'),
+    },
   ];
   refleshList: { name: any; id: number }[] = DEFAULT_REFLESH_LIST;
 
@@ -312,9 +314,9 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
   get renderKey() {
     return (
       // JSON.stringify(this.queryconfig)
-      JSON.stringify(this.compareValue.tools.timeRange)
-      + JSON.stringify(this.compareValue.compare.value)
-      + this.refleshKey
+      JSON.stringify(this.compareValue.tools.timeRange) +
+      JSON.stringify(this.compareValue.compare.value) +
+      this.refleshKey
     );
   }
 
@@ -324,22 +326,26 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
   }
 
   created() {
-    this.timerangeList =  DEFAULT_TIME_RANGE_LIST;
+    this.timerangeList = DEFAULT_TIME_RANGE_LIST;
     this.timeshiftList = DEFAULT_TIMESHIFT_LIST;
     this.compareList = [
-    // 对比类型列表
+      // 对比类型列表
       {
         id: 'none',
-        name: window.i18n.t('不对比')
+        name: window.i18n.t('不对比'),
       },
-      !window.__BK_WEWEB_DATA__?.lockTimeRange ? {
-        id: 'time',
-        name: window.i18n.t('时间对比')
-      } : undefined,
-      !this.readonly ? {
-        id: 'metric',
-        name: window.i18n.t('指标对比')
-      } : undefined
+      !window.__BK_WEWEB_DATA__?.lockTimeRange
+        ? {
+            id: 'time',
+            name: window.i18n.t('时间对比'),
+          }
+        : undefined,
+      !this.readonly
+        ? {
+            id: 'metric',
+            name: window.i18n.t('指标对比'),
+          }
+        : undefined,
     ].filter(Boolean);
     this.handleQueryConfig(this.viewConfig);
   }
@@ -355,11 +361,11 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
   }
 
   beforeRouteEnter(to, from, next) {
-    next((vm) => {
+    next(vm => {
       if (from.name === 'performance-detail') {
         vm.chartOptions.annotation = {
           show: true,
-          list: ['strategy']
+          list: ['strategy'],
         };
       }
     });
@@ -379,33 +385,33 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     this.rightData = this.queryconfig.map((item, index) => ({
       ...item,
       show: index === 0,
-      name: str[index]
+      name: str[index],
     }));
     const { compare, tools } = data.compareValue;
     if (compare.type === 'time') {
       if (typeof compare.value === 'string' && !this.timeshiftList.find(item => item.id === compare.value)) {
         this.timeshiftList.push({
           id: compare.value,
-          name: compare.value
+          name: compare.value,
         });
       } else if (Array.isArray(compare.value)) {
         const itemList = compare.value.filter(id => !this.timeshiftList.some(item => item.id === id));
         if (itemList.length) {
-          itemList.forEach((id) => {
+          itemList.forEach(id => {
             this.timeshiftList.push({
               name: id,
-              id
+              id,
             });
           });
         }
-        this.queryconfig.forEach((item) => {
+        this.queryconfig.forEach(item => {
           item.data.function = { time_compare: compare.value };
         });
       }
     }
     this.compareValue.compare = {
       type: ['time', 'metric'].includes(compare.type) ? compare.type : 'none',
-      value: compare.type === 'time' ? compare.value : 'false'
+      value: compare.type === 'time' ? compare.value : 'false',
     };
     // if (Array.isArray(tools.timeRange)) {
     //   const valStr = `${tools.timeRange[0]} -- ${tools.timeRange[1]}`;
@@ -428,7 +434,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     const [startTime, endTime] = handleTransformToTimestamp(tools.timeRange as TimeRangeType);
     return {
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     };
   }
   // 获取告警状态信息
@@ -440,46 +446,50 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
   getSeriesData(targets) {
     return async (startTime?, endTime?) => {
       // this.loading = true;
-      const dataList = await Promise.all((targets || []).map(async (item) => {
-        const { query_configs: queryConfig, ...otherParams } = item.data;
-        const params = {
-          query_configs: queryConfig,
-          ...otherParams
-        };
-        let timerange = this.getTimerange();
-        if (startTime && endTime) {
-          timerange = {
-            start_time: dayjs.tz(startTime).unix(),
-            end_time: dayjs.tz(endTime).unix()
+      const dataList = await Promise.all(
+        (targets || []).map(async item => {
+          const { query_configs: queryConfig, ...otherParams } = item.data;
+          const params = {
+            query_configs: queryConfig,
+            ...otherParams,
           };
-        }
-        return await graphUnifyQuery({
-          ...params,
-          ...timerange
-        })
-          .then(data => (data.series || []).map((set) => {
-            const { datapoints, dimensions, target, ...setData } = set;
-            const metric = data.metrics[0];
-            // const { filter_dict: filterDict } = params
-            // const aliasArr = [metric.metric_field]
-            // Object.keys(dimensions || {}).forEach(key => aliasArr.push(dimensions[key]))
-            // Object.keys(filterDict || {}).forEach(key => aliasArr.push(filterDict[key]))
-            // const alias = aliasArr.join('-')
-            return {
-              metric,
-              dimensions,
-              datapoints,
-              ...setData,
-              target
-              // taregt: this.handleBuildLegend()
+          let timerange = this.getTimerange();
+          if (startTime && endTime) {
+            timerange = {
+              start_time: dayjs.tz(startTime).unix(),
+              end_time: dayjs.tz(endTime).unix(),
             };
-          }))
-          .catch((err) => {
-            console.log(err);
-            return [];
+          }
+          return await graphUnifyQuery({
+            ...params,
+            ...timerange,
           })
-          .finally(() => (this.loading = false));
-      }));
+            .then(data =>
+              (data.series || []).map(set => {
+                const { datapoints, dimensions, target, ...setData } = set;
+                const metric = data.metrics[0];
+                // const { filter_dict: filterDict } = params
+                // const aliasArr = [metric.metric_field]
+                // Object.keys(dimensions || {}).forEach(key => aliasArr.push(dimensions[key]))
+                // Object.keys(filterDict || {}).forEach(key => aliasArr.push(filterDict[key]))
+                // const alias = aliasArr.join('-')
+                return {
+                  metric,
+                  dimensions,
+                  datapoints,
+                  ...setData,
+                  target,
+                  // taregt: this.handleBuildLegend()
+                };
+              })
+            )
+            .catch(err => {
+              console.log(err);
+              return [];
+            })
+            .finally(() => (this.loading = false));
+        })
+      );
       const res = dataList.reduce<any[]>((data, item) => data.concat(item), []);
       this.handleRawData(res);
       return res;
@@ -494,7 +504,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     const { tableThArr, tableTdArr } = transformSrcData(data);
     this.tableThArr = tableThArr.map(item => ({
       name: item,
-      sort: ''
+      sort: '',
     }));
     this.tableTdArr = tableTdArr;
     this.tableData = [...tableTdArr];
@@ -503,7 +513,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
 
   //  图表顶部工具栏数据变更触发
   handleComparePanelChange(params) {
-    (this.queryconfig || []).forEach((item) => {
+    (this.queryconfig || []).forEach(item => {
       if (params.compare.type === 'time') {
         if (!item.alias?.includes('$time_offset')) {
           item.alias = item.alias ? `$time_offset-${item.alias}` : '$time_offset';
@@ -521,7 +531,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
       if (!item) {
         this.timerangeList.push({
           name: valStr,
-          value: valStr
+          value: valStr,
         });
       }
     }
@@ -529,7 +539,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     //  时间对比处理 不对比 value 是 false || ''
     const { value } = params.compare;
     if (!value) {
-      this.queryconfig.forEach((item) => {
+      this.queryconfig.forEach(item => {
         Vue.delete(item.data, 'function');
       });
       return;
@@ -539,17 +549,17 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     // if (['d', 'day', 'days', '天'].includes(unit)) {
     //   value = `${number}d`
     // }
-    this.queryconfig.forEach((item) => {
+    this.queryconfig.forEach(item => {
       item.data.function = { time_compare: value };
     });
   }
 
   handleAddTimeshifOption(v: string) {
-    v.trim().length
-      && !this.timeshiftList.some(item => item.id === v)
-      && this.timeshiftList.push({
+    v.trim().length &&
+      !this.timeshiftList.some(item => item.id === v) &&
+      this.timeshiftList.push({
         id: v,
-        name: v
+        name: v,
       });
   }
 
@@ -579,15 +589,16 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
   handleCheckedChange(groupIndex: number, obj, metricDataList: any[]) {
     const key = Object.keys(obj)[0];
     const val = obj[key];
-    this.queryconfig[groupIndex].data.query_configs.forEach((item) => {
+    this.queryconfig[groupIndex].data.query_configs.forEach(item => {
       !item.filter_dict && this.$set(item, 'filter_dict', {});
       if (val !== 'all') {
-        const metricData = metricDataList.find(metric => (
-          metric.data_source_label === item.data_source_label
-          && metric.data_type_label === item.data_type_label
-          && metric.result_table_id === item.table
-          && metric.metric_field === item.metrics[0].field
-        ));
+        const metricData = metricDataList.find(
+          metric =>
+            metric.data_source_label === item.data_source_label &&
+            metric.data_type_label === item.data_type_label &&
+            metric.result_table_id === item.table &&
+            metric.metric_field === item.metrics[0].field
+        );
         const groupByList = metricData?.dimensions?.map(item => item.id);
         if (groupByList?.includes(key)) {
           this.$set(item.filter_dict, key, val);
@@ -636,7 +647,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     document.ondragstart = function () {
       return false;
     };
-    const handleMouseMove = (event) => {
+    const handleMouseMove = event => {
       this.drag.height = Math.max(this.drag.minHeight, event.clientY - rect.top);
     };
     const handleMouseUp = () => {
@@ -688,7 +699,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
    */
   handleExportCsv() {
     const csvList = this.tableTdArr.map(item => item.map(i => i.value).join(','));
-    csvList.unshift(this.tableThArr.map(item => item.name.replace(/,/gmi, '_')).join(','));
+    csvList.unshift(this.tableThArr.map(item => item.name.replace(/,/gim, '_')).join(','));
     downCsvFile(csvList.join('\n'), this.viewConfig?.config?.title);
   }
   /**
@@ -764,7 +775,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
         background: #fff;
         border-bottom: 1px solid #f0f1f5;
         border-left: 1px solid #f0f1f5;
-        transition: width .3s;
+        transition: width 0.3s;
 
         .icon-double-up {
           padding: 4px;
@@ -794,7 +805,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
         max-height: calc(100vh - 90px);
         padding: 16px 16px 16px 0;
         overflow-y: scroll;
-        transition: width .3s;
+        transition: width 0.3s;
 
         .section-chart {
           position: relative;
@@ -848,7 +859,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
           padding: 0 20px 20px 20px;
           background: #fff;
           border-radius: 2px;
-          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
 
           &-title {
             display: flex;
@@ -931,7 +942,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
         height: calc(100vh - 89px);
         overflow-y: scroll;
         background: #fff;
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
       }
     }
   }

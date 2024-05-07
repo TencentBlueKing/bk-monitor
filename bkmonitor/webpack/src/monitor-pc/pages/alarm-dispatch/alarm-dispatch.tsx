@@ -26,6 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import SetMealDetail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import {
   createAssignGroup,
@@ -39,7 +40,6 @@ import { Debounce, random } from 'monitor-common/utils';
 
 import emptyImageSrc from '../../static/images/png/empty.png';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
-
 import AlarmBatchEdit from './components/alarm-batch-edit';
 import AlarmDispatchAction from './components/alarm-dispatch-action';
 import AlarmUpdateContent from './components/alarm-update-content';
@@ -78,7 +78,7 @@ export default class AlarmDispatch extends tsc<object> {
   isViewDebugEffect = false;
   emptyText = window.i18n.tc('查无数据');
   /** 优先级检验提示*/
-  priorityErrorMsg: string | TranslateResult = '';
+  priorityErrorMsg: TranslateResult | string = '';
   /* 流程套餐*/
   processPackage = [];
 
@@ -229,7 +229,7 @@ export default class AlarmDispatch extends tsc<object> {
             isExpan: true,
             ruleData: [],
             editAllowed: !!item?.edit_allowed,
-          }),
+          })
       ) || [];
     this.loading = false;
     this.getAlarmAssignGroupsRules(list?.map(item => item.id));
@@ -350,7 +350,7 @@ export default class AlarmDispatch extends tsc<object> {
   /** *
    * 告警组信息编辑
    */
-  handleAlarmGroupInfoEdit(e: Event, field: 'priority' | 'name', id: number, data) {
+  handleAlarmGroupInfoEdit(e: Event, field: 'name' | 'priority', id: number, data) {
     e.stopPropagation();
     this.removePopoverInstance();
     this.currentFiledElement = e.target;
@@ -384,7 +384,7 @@ export default class AlarmDispatch extends tsc<object> {
     }
   }
 
-  renderEditAttribute(title: string, count: number, field: 'priority' | 'name', id: number) {
+  renderEditAttribute(title: string, count: number, field: 'name' | 'priority', id: number) {
     return (
       <div class={field === 'priority' ? 'priority-wrap' : 'title-wrap'}>
         <span
@@ -421,7 +421,7 @@ export default class AlarmDispatch extends tsc<object> {
    * @param value
    * @returns
    */
-  handlePriorityChange(value: string | number) {
+  handlePriorityChange(value: number | string) {
     if (typeof value === 'string') {
       if (!value) return;
       if (isNaN(Number(value))) {
@@ -470,7 +470,7 @@ export default class AlarmDispatch extends tsc<object> {
   }
 
   /** 修改组名、优先级 */
-  async handleBatchEditSubmit(value: string | number) {
+  async handleBatchEditSubmit(value: number | string) {
     await partialUpdateAssignGroup(this.currentId, { [this.filed]: value });
     this.$bkMessage({
       theme: 'success',
@@ -492,7 +492,7 @@ export default class AlarmDispatch extends tsc<object> {
             item.tag.map(key => key.split(':')[0]).includes(value) ||
             item.tag.map(value => value.split(':')[1]).includes(value) ||
             reg.test(item.user_groups.map(g => g.name)) ||
-            String(item.id) === value,
+            String(item.id) === value
           // item.user_groups.map(g => String(g.id)).includes(value)
         )
         .map(item => item.id);
@@ -539,7 +539,7 @@ export default class AlarmDispatch extends tsc<object> {
       },
       () => {
         this.conditiongsKey = random(8);
-      },
+      }
     );
   }
 
@@ -566,9 +566,9 @@ export default class AlarmDispatch extends tsc<object> {
         <div class='alarm-dispath-page-wrap'>
           <div class='wrap-header'>
             <bk-button
+              class='mr10'
               icon='plus'
               theme='primary'
-              class='mr10'
               onClick={this.handleAddAlarmDispatch}
             >
               {this.$t('新建')}
@@ -589,9 +589,9 @@ export default class AlarmDispatch extends tsc<object> {
             </bk-button>
             <bk-input
               class='search-input'
+              v-model={this.search}
               placeholder={`ID/${this.$t('告警组名称')}`}
               right-icon='bk-icon icon-search'
-              v-model={this.search}
               onInput={this.handleSearch}
             ></bk-input>
           </div>
@@ -599,8 +599,8 @@ export default class AlarmDispatch extends tsc<object> {
             {this.ruleGroups.length > 0 ? (
               this.ruleGroups.map((item, index) => (
                 <div
-                  class='expan-item'
                   key={index}
+                  class='expan-item'
                 >
                   <div
                     class='expan-item-header'
@@ -644,9 +644,6 @@ export default class AlarmDispatch extends tsc<object> {
                       stripe
                     >
                       <bk-table-column
-                        label={this.$t('告警组')}
-                        prop='user_groups'
-                        min-width={100}
                         scopedSlots={{
                           default: ({ row }) => (
                             <div class='alarm-group-list'>
@@ -664,51 +661,51 @@ export default class AlarmDispatch extends tsc<object> {
                             </div>
                           ),
                         }}
+                        label={this.$t('告警组')}
+                        min-width={100}
+                        prop='user_groups'
                       ></bk-table-column>
                       <bk-table-column
-                        label={this.$t('匹配规则')}
-                        prop='rule'
-                        min-width={400}
                         scopedSlots={{
                           default: ({ row }) =>
                             !!row.conditions?.length ? (
                               <CommonCondition
-                                class='rule-wrap'
                                 key={this.conditiongsKey}
-                                value={row.conditions}
-                                keyList={this.conditionProps.keys}
+                                class='rule-wrap'
                                 groupKey={GROUP_KEYS}
                                 groupKeys={this.conditionProps.groupKeys}
-                                valueMap={this.conditionProps.valueMap}
+                                keyList={this.conditionProps.keys}
                                 readonly={true}
+                                value={row.conditions}
+                                valueMap={this.conditionProps.valueMap}
                               ></CommonCondition>
                             ) : (
                               '--'
                             ),
                         }}
+                        label={this.$t('匹配规则')}
+                        min-width={400}
+                        prop='rule'
                       ></bk-table-column>
                       <bk-table-column
-                        label={this.$t('分派动作')}
-                        prop='action'
-                        min-width={400}
                         scopedSlots={{
                           default: ({ row }) => (
                             <AlarmDispatchAction
+                              actions={row.actions}
                               alarmGroupList={this.alarmGroupList}
-                              showAlarmGroup={this.handleSelcetAlarmGroup}
-                              showDetail={this.handleShowDetail}
                               detailData={this.detailData}
                               processPackage={this.processPackage}
-                              actions={row.actions}
+                              showAlarmGroup={this.handleSelcetAlarmGroup}
+                              showDetail={this.handleShowDetail}
                               userType={row.user_type}
                             />
                           ),
                         }}
+                        label={this.$t('分派动作')}
+                        min-width={400}
+                        prop='action'
                       ></bk-table-column>
                       <bk-table-column
-                        label={this.$t('修改告警内容')}
-                        min-width={300}
-                        prop='content'
                         scopedSlots={{
                           default: ({ row }) => (
                             <AlarmUpdateContent
@@ -717,10 +714,11 @@ export default class AlarmDispatch extends tsc<object> {
                             />
                           ),
                         }}
+                        label={this.$t('修改告警内容')}
+                        min-width={300}
+                        prop='content'
                       ></bk-table-column>
                       <bk-table-column
-                        label={this.$t('状态')}
-                        prop='is_enabled'
                         width={160}
                         scopedSlots={{
                           default: ({ row }) => (
@@ -729,15 +727,17 @@ export default class AlarmDispatch extends tsc<object> {
                             </bk-tag>
                           ),
                         }}
+                        label={this.$t('状态')}
+                        prop='is_enabled'
                       ></bk-table-column>
                       <div
-                        slot='empty'
                         class='alarm-group-empty'
+                        slot='empty'
                       >
                         <div>
                           <img
-                            src={emptyImageSrc}
                             alt=''
+                            src={emptyImageSrc}
                           />
                         </div>
                         <div class='mb15 empty-text'>{this.$t('当前组暂无规则，需去配置新规则')}</div>
@@ -755,8 +755,8 @@ export default class AlarmDispatch extends tsc<object> {
             ) : (
               <div class='empty-dispatch-content'>
                 <img
-                  src={emptyImageSrc}
                   alt=''
+                  src={emptyImageSrc}
                 />
                 <span class='empty-dispatch-text'>{this.emptyText}</span>
               </div>
@@ -766,24 +766,24 @@ export default class AlarmDispatch extends tsc<object> {
         <div style='display: none'>
           <AlarmBatchEdit
             ref='alarmBatchEdit'
-            filed={this.filed}
+            close={this.removePopoverInstance}
             dataSource={this.dataSource}
+            filed={this.filed}
             isListPage={true}
             priorityList={this.priorityList}
             onSubmit={this.handleBatchEditSubmit}
-            close={this.removePopoverInstance}
           />
         </div>
         <bk-dialog
-          value={this.visible}
-          header-position='left'
           confirmFn={this.handleAddAlarmDispatchGroup}
-          onCancel={this.handleCancelAlarmGroup}
+          header-position='left'
           title={this.$t('新建规则组')}
+          value={this.visible}
+          onCancel={this.handleCancelAlarmGroup}
         >
           <bk-form
-            form-type='vertical'
             ref='addForm'
+            form-type='vertical'
             {...{
               props: {
                 model: this.formData,
@@ -792,26 +792,26 @@ export default class AlarmDispatch extends tsc<object> {
             }}
           >
             <bk-form-item
-              label={this.$t('规则组名')}
-              required
-              property='name'
               error-display-type='normal'
+              label={this.$t('规则组名')}
+              property='name'
+              required
             >
               <bk-input v-model={this.formData.name} />
             </bk-form-item>
             <bk-form-item
+              error-display-type='normal'
               label={this.$t('优先级')}
               property='priority'
               required
-              error-display-type='normal'
             >
               <bk-input
                 ref='priorityInput'
-                type='number'
                 max={10000}
                 min={1}
-                onInput={this.handlePriorityChange}
+                type='number'
                 value={this.formData.priority}
+                onInput={this.handlePriorityChange}
               />
               <span style={{ color: this.priorityErrorMsg ? '#ea3636' : '#979BA5' }}>
                 {this.priorityErrorMsg ? this.priorityErrorMsg : this.$t('数值越高优先级越高,最大值为10000')}
@@ -822,26 +822,26 @@ export default class AlarmDispatch extends tsc<object> {
         <AlarmGroupDetail
           id={this.alarmGroupDetail.id as any}
           v-model={this.alarmGroupDetail.show}
-          onEditGroup={this.handleEditGroup}
           customEdit
+          onEditGroup={this.handleEditGroup}
         />
         <SetMealDetail
-          isShow={this.detailData.isShow}
           id={this.detailData.id}
           width={540}
+          isShow={this.detailData.isShow}
           onShowChange={v => (this.detailData.isShow = v)}
         ></SetMealDetail>
         {/* 调试结果 */}
         {this.showDebug && (
           <DebuggingResult
+            alarmGroupList={this.alarmGroupList}
+            conditionProps={this.conditionProps}
+            excludeGroups={this.delGroups}
             isShow={this.showDebug}
             isViewDebugEffect={this.isViewDebugEffect}
-            conditionProps={this.conditionProps}
-            alarmGroupList={this.alarmGroupList}
             ruleGroupsData={[]}
-            excludeGroups={this.delGroups}
-            onShowChange={this.handleShowChange}
             onDelSuccess={this.handleDelSucess}
+            onShowChange={this.handleShowChange}
           />
         )}
       </div>

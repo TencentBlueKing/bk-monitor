@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
 
 import PageToolHeader from '../../../components/page-tool-header/page-tool-header';
@@ -66,6 +67,9 @@ export default defineComponent({
           Object.assign(toolsFormData, val);
         }
       },
+      {
+        deep: true
+      }
     );
 
     function handleTimeRangeChange(timeRange: TimeRangeType) {
@@ -113,15 +117,15 @@ export default defineComponent({
     return (
       <PageToolHeader
         class='page-header-component'
-        timeRange={this.toolsFormData.timeRange}
-        timezone={this.toolsFormData.timezone}
         menuList={this.menuList}
         refreshInterval={this.toolsFormData.refreshInterval}
-        onTimeRangeChange={this.handleTimeRangeChange}
-        onTimezoneChange={this.handleTimezoneChange}
-        onRefreshIntervalChange={this.handleRefreshIntervalChange}
+        timeRange={this.toolsFormData.timeRange}
+        timezone={this.toolsFormData.timezone}
         onImmediateRefresh={this.handleImmediateRefresh}
         onMenuSelectChange={this.handleMenuSelect}
+        onRefreshIntervalChange={this.handleRefreshIntervalChange}
+        onTimeRangeChange={this.handleTimeRangeChange}
+        onTimezoneChange={this.handleTimezoneChange}
       >
         {{
           prepend: () => (
@@ -144,12 +148,12 @@ export default defineComponent({
                   <span class='icon-monitor icon-mc-uncollect'></span>
                 </div> */}
                 <div
+                  class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
                   v-bk-tooltips={{
                     content: this.isShowSearch ? this.t('点击收起检索') : this.t('点击展开检索'),
                     placements: ['bottom'],
                     delay: 200,
                   }}
-                  class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
                   onClick={() => this.handleShowTypeChange(PanelType.Search, !this.isShowSearch)}
                 >
                   <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>

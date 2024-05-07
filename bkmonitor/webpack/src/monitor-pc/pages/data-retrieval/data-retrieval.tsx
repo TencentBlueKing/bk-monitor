@@ -27,8 +27,8 @@
 
 // import { Component as tsc } from 'vue-tsx-support'
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
-import type { RawLocation, Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { CancelToken } from 'monitor-api/index';
 import { getMainlineObjectTopo } from 'monitor-api/modules/commons';
 import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
@@ -59,7 +59,6 @@ import { transformValueToMonitor } from '../../components/monitor-ip-selector/ut
 import NotifyBox from '../../components/notify-box/notify-box';
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import PromqlEditor from '../../components/promql-editor/promql-editor';
-import type { TimeRangeType } from '../../components/time-range/time-range';
 import {
   DEFAULT_TIME_RANGE,
   handleTransformToTimestamp,
@@ -71,7 +70,6 @@ import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
 import { PanelToolsType } from '../monitor-k8s/typings';
 import StrategyIpv6 from '../strategy-config/strategy-ipv6/strategy-ipv6';
-
 import DataRetrievalItem from './data-retrieval-item/data-retrieval-item';
 import DataRetrievalView from './data-retrieval-view/data-retrieval-view';
 import EventRetrieval from './event-retrieval/event-retrieval';
@@ -91,6 +89,9 @@ import {
   IFilterCondition,
   TEditMode,
 } from './typings';
+
+import type { TimeRangeType } from '../../components/time-range/time-range';
+import type { RawLocation, Route } from 'vue-router';
 
 import './data-retrieval.scss';
 
@@ -482,7 +483,7 @@ export default class DataRetrieval extends tsc<object> {
     return true;
   }
 
-  beforeRouteEnter(to: Route, from: Route, next: (to?: RawLocation | false | ((vm: any) => any) | void) => void) {
+  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | RawLocation | false | void) => void) {
     next((vm: DataRetrieval) => {
       const { targets, type } = vm.$route.query.targets ? vm.$route.query : vm.$route.params;
       let targetsList = [];
@@ -498,7 +499,7 @@ export default class DataRetrieval extends tsc<object> {
         } else if (targets && from.name !== 'view-detail') {
           // 跳转数据检索
           const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
-            item?.data?.query_configs?.find?.(set => !!set.metrics),
+            item?.data?.query_configs?.find?.(set => !!set.metrics)
           )
             ? 'performance-detail'
             : 'grafana';
@@ -562,7 +563,7 @@ export default class DataRetrieval extends tsc<object> {
       } else if (targets && from.name !== 'view-detail') {
         // 跳转数据检索
         const fromRouteName: IDataRetrieval.fromRouteNameType = targetsList?.find?.(item =>
-          item?.data?.query_configs?.find?.(set => !!set.metrics),
+          item?.data?.query_configs?.find?.(set => !!set.metrics)
         )
           ? 'performance-detail'
           : 'grafana';
@@ -1453,7 +1454,7 @@ export default class DataRetrieval extends tsc<object> {
         : {
             value: item?.value,
             functions: item?.functions,
-          },
+          }
     );
   }
 
@@ -1700,7 +1701,7 @@ export default class DataRetrieval extends tsc<object> {
       const tempList = item
         ? [item]
         : (this.localValue.filter(
-            (item: DataRetrievalQueryItem) => item.isMetric && !item.isNullMetric && !item.sourceCodeError,
+            (item: DataRetrievalQueryItem) => item.isMetric && !item.isNullMetric && !item.sourceCodeError
           ) as DataRetrievalQueryItem[]);
       const queryList = tempList.map(item => {
         if (item.enable || expressionList.some(set => set.indexOf(item.alias) > -1)) {
@@ -1915,7 +1916,7 @@ export default class DataRetrieval extends tsc<object> {
     targets: any,
     fromRouteName: IDataRetrieval.fromRouteNameType = 'grafana',
     from?: string,
-    to?: string,
+    to?: string
   ) {
     const promqlData = this.getRoutePromqlData(targets);
     if (promqlData.length) {
@@ -1979,7 +1980,7 @@ export default class DataRetrieval extends tsc<object> {
                   console.log(err);
                   resolve(null);
                 });
-            }),
+            })
         );
         return Promise.all(promiseList);
       });
@@ -2009,7 +2010,7 @@ export default class DataRetrieval extends tsc<object> {
                       method: 'eq',
                       value: Array.isArray(value) ? value : [value],
                     };
-                  }),
+                  })
                 );
               } else if (key === 'targets' && !!filterVal) {
                 /** 目标主机、主机对比数据将添加到where */
@@ -2065,7 +2066,7 @@ export default class DataRetrieval extends tsc<object> {
               functions: curQuery.functions,
               enable: curQuery.display,
               filter_dict: curQuery.filter_dict,
-            }),
+            })
           );
           // 更新表达值的别名信息
           !!curQuery.refId && (expression = expression.replace(curQuery.refId, this.createItemName(aliasIndex)));
@@ -2173,7 +2174,7 @@ export default class DataRetrieval extends tsc<object> {
    * @param unit 单位
    * @returns number 单位：秒 | auto
    */
-  handleInterval(interval: string | number, unit: 's' | 'm' | 'h' = 's'): number | 'auto' {
+  handleInterval(interval: number | string, unit: 'h' | 'm' | 's' = 's'): 'auto' | number {
     if (interval === 'auto') return interval;
     const intervalUnitMap: IDataRetrieval.IntervalUnitMap = {
       s: 1,
@@ -2238,7 +2239,7 @@ export default class DataRetrieval extends tsc<object> {
   /**
    * @description: 更新收藏高亮提示数据
    */
-  updateFavCheckValue(data?: any, type: 'time_series' | 'event' = 'time_series') {
+  updateFavCheckValue(data?: any, type: 'event' | 'time_series' = 'time_series') {
     let config: any = {
       localValue: this.localValue,
       target: this.target,
@@ -2338,8 +2339,8 @@ export default class DataRetrieval extends tsc<object> {
     }
     window.open(
       `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(
-        JSON.stringify(queryData),
-      )}`,
+        JSON.stringify(queryData)
+      )}`
     );
   }
 
@@ -2448,7 +2449,7 @@ export default class DataRetrieval extends tsc<object> {
   handlePromqlQueryProxy(
     item: DataRetrievalQueryItem,
     index: number,
-    type: IDataRetrieval.promEventType,
+    type: IDataRetrieval.promEventType
   ): Promise<boolean | undefined> {
     if (
       (item.sourceCodeCache === item.sourceCode && type === 'blur') ||
@@ -2474,7 +2475,7 @@ export default class DataRetrieval extends tsc<object> {
     hasError: boolean,
     type: IDataRetrieval.promEventType,
     item: DataRetrievalQueryItem,
-    index: number,
+    index: number
   ) {
     item.sourceCodeError = hasError;
     if (!this.autoQuery && type === 'blur') return;
@@ -2609,8 +2610,8 @@ export default class DataRetrieval extends tsc<object> {
     };
     window.open(
       `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(
-        JSON.stringify(queryData),
-      )}`,
+        JSON.stringify(queryData)
+      )}`
     );
   }
   // 切换业务
@@ -2691,7 +2692,7 @@ export default class DataRetrieval extends tsc<object> {
           new DataRetrievalPromqlItem({
             alias: this.createItemName(index),
             code: sql,
-          } as any),
+          } as any)
         );
       });
       if (promqlData.length) {
@@ -2741,7 +2742,7 @@ export default class DataRetrieval extends tsc<object> {
     this.handleQueryProxy();
   }
 
-  handleSourceStepChange(value: string | number, index: number) {
+  handleSourceStepChange(value: number | string, index: number) {
     this.promqlData[index].step = value as any;
   }
 
@@ -2843,8 +2844,8 @@ export default class DataRetrieval extends tsc<object> {
             return (
               <i
                 key={opt}
-                v-bk-tooltips_top={this.handleTitleTips(opt, item)}
                 class={['icon-monitor', iconName, sourceAcitve, display]}
+                v-bk-tooltips_top={this.handleTitleTips(opt, item)}
                 onClick={evt => evt.stopPropagation()}
                 onMousedown={evt => this.handleOptionProxy(evt, opt, item, index)}
               />
@@ -2867,26 +2868,26 @@ export default class DataRetrieval extends tsc<object> {
                 {metricItem.loading ? undefined : (
                   <PromqlEditor
                     ref={`promql-editor-${index}`}
-                    value={metricItem.sourceCode}
-                    isError={metricItem.sourceCodeError}
                     executeQuery={(hasError: boolean) => this.handlePromqlError(hasError, 'enter', metricItem, index)}
+                    isError={metricItem.sourceCodeError}
+                    value={metricItem.sourceCode}
                     onBlur={(val, hasError: boolean) => this.handlePromqlError(hasError, 'blur', metricItem, index)}
-                    onFocus={() => this.handlePromqlFocus(metricItem)}
                     onChange={val => this.handlePromsqlChange(metricItem, val)}
+                    onFocus={() => this.handlePromqlFocus(metricItem)}
                   />
                 )}
               </div>
             ) : (
               <DataRetrievalItem
                 key={metricItem.key}
-                value={metricItem}
-                index={index}
                 compareValue={this.compareValue}
+                index={index}
                 scenarioList={this.scenarioList}
-                onLoadingChange={loading => (metricItem.loading = loading)}
-                onClearMetric={() => this.handleClearMetric(index)}
-                onShowMetricSelector={() => this.handleShowMetricSelector(true, index)}
+                value={metricItem}
                 onChange={data => this.handleQueryItemValueChange(data, index)}
+                onClearMetric={() => this.handleClearMetric(index)}
+                onLoadingChange={loading => (metricItem.loading = loading)}
+                onShowMetricSelector={() => this.handleShowMetricSelector(true, index)}
               />
             )
           ) : (
@@ -2937,9 +2938,9 @@ export default class DataRetrieval extends tsc<object> {
             )}
             {this.tabActive === 'monitor' && (
               <i
+                style={{ transform: this.isExpandAll ? 'rotate(0deg)' : 'rotate(-180deg)' }}
                 class='icon-monitor icon-mc-expand expand-icon'
                 onClick={this.handleExpandAll}
-                style={{ transform: this.isExpandAll ? 'rotate(0deg)' : 'rotate(-180deg)' }}
               ></i>
             )}
             {/* <bk-popover
@@ -2985,23 +2986,23 @@ export default class DataRetrieval extends tsc<object> {
         >
           {this.localValue.map((item, index) => (
             <li
-              class='drag-item'
               key={item.key}
+              class='drag-item'
               draggable={true}
-              onDragstart={evt => this.handleDragStart(evt, index)}
               onDragend={this.handleDragend}
-              onDrop={this.handleDrop}
               onDragenter={() => this.handleDragEnter(index)}
               onDragover={evt => this.handleDragOver(evt)}
+              onDragstart={evt => this.handleDragStart(evt, index)}
+              onDrop={this.handleDrop}
             >
               <bk-collapse-item
-                v-bkloading={{ isLoading: (item as DataRetrievalQueryItem).loading }}
                 class='collapse-item'
-                name={item.key}
+                v-bkloading={{ isLoading: (item as DataRetrievalQueryItem).loading }}
                 scopedSlots={{
                   default: () => titleSlot(item, index),
                   content: () => contentSlot(item, index),
                 }}
+                name={item.key}
               ></bk-collapse-item>
             </li>
           ))}
@@ -3025,34 +3026,34 @@ export default class DataRetrieval extends tsc<object> {
       </div>,
       <HandleBtn
         class='search-group'
-        canQuery={this.canQuery && !this.loading}
         autoQuery={this.autoQuery}
-        queryLoading={this.loading}
-        isFavoriteUpdate={this.isFavoriteUpdate}
+        canQuery={this.canQuery && !this.loading}
         favCheckedValue={this.favCheckedValue}
-        onQueryTypeChange={this.handleAutoQueryChange}
-        onQuery={this.handleQuery}
-        onClear={this.handleClearAll}
+        isFavoriteUpdate={this.isFavoriteUpdate}
+        queryLoading={this.loading}
         onAddFav={this.handleClickAddOrUpdateFav}
+        onClear={this.handleClearAll}
+        onQuery={this.handleQuery}
+        onQueryTypeChange={this.handleAutoQueryChange}
       />,
     ];
     const promQLContent = () => (
       <div class='promql-data-content'>
         <div
-          class='metric-copy-btn'
           id='data-retrieval-metric-copy-btn-select-id'
+          class='metric-copy-btn'
           onClick={() => this.handleMetricSelectShow(true)}
         >
           <span>{this.$t('指标选择')}</span>
           <span class='icon-monitor icon-arrow-down'></span>
         </div>
         <MetricSelector
-          show={this.metricSelectorShow}
-          type={MetricType.TimeSeries}
-          targetId={'#data-retrieval-metric-copy-btn-select-id'}
           isPromql={true}
-          onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
+          show={this.metricSelectorShow}
+          targetId={'#data-retrieval-metric-copy-btn-select-id'}
+          type={MetricType.TimeSeries}
           onSelected={this.handleSelectMetric}
+          onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
         ></MetricSelector>
         <bk-collapse
           class='collapse-wrap collapse-wrap-data'
@@ -3060,12 +3061,11 @@ export default class DataRetrieval extends tsc<object> {
         >
           {this.promqlData.map((item, index) => (
             <li
-              class='drag-item'
               key={item.key}
+              class='drag-item'
             >
               <bk-collapse-item
                 class='collapse-item'
-                name={item.key}
                 scopedSlots={{
                   default: () => (
                     <div class='collapse-item-title'>
@@ -3103,25 +3103,25 @@ export default class DataRetrieval extends tsc<object> {
                       <div class='source-mode-wrap'>
                         <PromqlEditor
                           ref={'promql-mode-editor'}
-                          value={item.code}
-                          minHeight={80}
-                          onChange={val => this.handlePromqlDataCodeChange(val, index)}
                           executeQuery={this.handlePromqlDataEnter}
-                          onFocus={() => this.handlePromqlDataFocus(index)}
+                          minHeight={80}
+                          value={item.code}
                           onBlur={(val, hasError: boolean) => this.handlePromqlDataBlur(hasError, index)}
+                          onChange={val => this.handlePromqlDataCodeChange(val, index)}
+                          onFocus={() => this.handlePromqlDataFocus(index)}
                         />
                       </div>
                       <span class='step-content'>
                         <bk-input
                           class='step-input'
                           value={item.step}
+                          onBlur={this.handleSourceStepBlur}
                           onChange={value => this.handleSourceStepChange(value, index)}
                           onFocus={() => this.handlePromqlDataFocus(index)}
-                          onBlur={this.handleSourceStepBlur}
                         >
                           <div
-                            slot='prepend'
                             class='step-input-prepend'
+                            slot='prepend'
                           >
                             <span>{'Step'}</span>
                             <span
@@ -3138,6 +3138,7 @@ export default class DataRetrieval extends tsc<object> {
                     </div>
                   ),
                 }}
+                name={item.key}
               ></bk-collapse-item>
             </li>
           ))}
@@ -3153,15 +3154,15 @@ export default class DataRetrieval extends tsc<object> {
         </div>
         <HandleBtn
           class='search-group'
-          canQuery={this.canQuery && !this.loading}
           autoQuery={this.autoQuery}
-          queryLoading={this.loading}
-          isFavoriteUpdate={this.isFavoriteUpdate}
+          canQuery={this.canQuery && !this.loading}
           favCheckedValue={this.favCheckedValue}
-          onQueryTypeChange={this.handleAutoQueryChange}
-          onQuery={this.handleQuery}
-          onClear={this.handleClearAll}
+          isFavoriteUpdate={this.isFavoriteUpdate}
+          queryLoading={this.loading}
           onAddFav={this.handleClickAddOrUpdateFav}
+          onClear={this.handleClearAll}
+          onQuery={this.handleQuery}
+          onQueryTypeChange={this.handleAutoQueryChange}
         />
       </div>
     );
@@ -3175,29 +3176,23 @@ export default class DataRetrieval extends tsc<object> {
             <div class='data-retrieval-container'>
               {!this.onlyShowView && (
                 <PanelHeader
-                  timeRange={this.compareValue.tools?.timeRange}
-                  timezone={this.compareValue.tools?.timezone}
+                  eventSelectTimeRange={this.eventSelectTimeRange}
                   refleshInterval={this.compareValue.tools.refleshInterval}
                   showDownSample={false}
-                  eventSelectTimeRange={this.eventSelectTimeRange}
-                  onTimeRangeChange={this.handleToolsTimeRangeChange}
+                  timeRange={this.compareValue.tools?.timeRange}
+                  timezone={this.compareValue.tools?.timezone}
                   onImmediateReflesh={() => (this.refleshNumber += 1)}
+                  onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
                   {
                     // url 带有 onlyShowView=false 的时候，不显示该按钮
                     <div
-                      slot='pre'
                       class='left-show-icon-container'
+                      slot='pre'
                     >
                       <div class='icon-container'>
                         <div
-                          v-bk-tooltips={{
-                            content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
-                            placements: ['bottom'],
-                            delay: 200,
-                            disabled: this.needUseCollectGuide,
-                          }}
                           class={[
                             'result-icon-box',
                             {
@@ -3205,17 +3200,23 @@ export default class DataRetrieval extends tsc<object> {
                               'disable-icon': this.needUseCollectGuide,
                             },
                           ]}
+                          v-bk-tooltips={{
+                            content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
+                            placements: ['bottom'],
+                            delay: 200,
+                            disabled: this.needUseCollectGuide,
+                          }}
                           onClick={() => this.handleClickResultIcon('favorite')}
                         >
                           <span class='bk-icon icon-star'></span>
                         </div>
                         <div
+                          class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
                           v-bk-tooltips={{
                             content: this.isShowLeft ? this.$t('点击收起检索') : this.$t('点击展开检索'),
                             placements: ['bottom'],
                             delay: 200,
                           }}
-                          class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
                           onClick={() => this.handleClickResultIcon('search')}
                         >
                           <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
@@ -3242,13 +3243,13 @@ export default class DataRetrieval extends tsc<object> {
                 >
                   <FavoriteIndex
                     ref='favoriteIndex'
+                    favCheckedValue={this.favCheckedValue}
+                    favoriteLoading={this.favoriteLoading}
                     favoriteSearchType={this.favoriteSearchType}
                     favoritesList={this.curFavList}
-                    favoriteLoading={this.favoriteLoading}
-                    favCheckedValue={this.favCheckedValue}
                     isShowFavorite={this.isShowFavorite}
-                    onOperateChange={({ operate, value }) => this.handleFavoriteOperate(operate, value)}
                     onGetFavoritesList={this.getListByGroupFavorite}
+                    onOperateChange={({ operate, value }) => this.handleFavoriteOperate(operate, value)}
                   ></FavoriteIndex>
                 </div>
                 {/* 监控数据检索 */}
@@ -3290,22 +3291,22 @@ export default class DataRetrieval extends tsc<object> {
                       this.tabActive === 'event' ? (
                         <EventRetrieval
                           ref='eventRetrievalRef'
-                          where={this.eventWhere}
                           autoQuery={this.autoQuery}
+                          chartTimeRange={this.eventChartTimeRange}
                           compareValue={this.compareValue}
+                          drillKeywords={this.drillKeywords}
+                          eventInterval={this.eventInterval}
                           favCheckedValue={this.favCheckedValue}
                           isFavoriteUpdate={this.isFavoriteUpdate}
                           queryConfig={this.eventQueryConfig}
-                          eventInterval={this.eventInterval}
-                          chartTimeRange={this.eventChartTimeRange}
-                          drillKeywords={this.drillKeywords}
+                          where={this.eventWhere}
+                          onAddFav={this.handleClickAddOrUpdateFav}
                           onAutoQueryChange={this.handleAutoQueryOfEventChange}
                           onChartTitleChange={this.eventChartTitleChange}
                           onCountChange={count => (this.eventCount = count)}
-                          onQuery={this.handleEventQuery}
-                          onAddFav={this.handleClickAddOrUpdateFav}
-                          onWhereChange={this.eventWhereChange}
                           onEmptyStatusChange={this.handleEmptyStatusChange}
+                          onQuery={this.handleEventQuery}
+                          onWhereChange={this.eventWhereChange}
                         />
                       ) : undefined
                     }
@@ -3314,47 +3315,47 @@ export default class DataRetrieval extends tsc<object> {
                 </div>
                 {/* 右侧视图部分 */}
                 <div
-                  class='data-retrieval-right'
                   style={{ flex: 1, width: `calc(100% - ${this.allLeftWidth}px)` }}
+                  class='data-retrieval-right'
                 >
                   <DataRetrievalView
                     v-bkloading={{ isLoading: this.delayLoading, zIndex: 500 }}
-                    leftShow={this.isShowLeft}
-                    refleshNumber={this.refleshNumber}
-                    compareValue={this.compareValue}
-                    queryResult={this.filterQueryResult}
-                    queryTimeRange={this.queryTimeRange}
                     canAddStrategy={this.canAddStrategy}
-                    retrievalType={this.tabActive}
-                    eventMetricParams={this.eventMetricParams}
-                    eventCount={this.eventCount}
+                    compareValue={this.compareValue}
+                    emptyStatus={this.emptyStatus}
+                    eventChartInterval={this.eventInterval}
                     eventChartTitle={this.eventChartTitle}
+                    eventCount={this.eventCount}
+                    eventMetricParams={this.eventMetricParams}
                     indexList={this.indexLists}
+                    leftShow={this.isShowLeft}
                     needCompare={this.editMode !== 'PromQL'}
                     queryLoading={this.loading}
-                    onTimeRangeChangeEvent={this.handleTimeRangeChange}
-                    onShowLeft={this.handleLeftHiddenAndShow}
-                    onCompareChange={this.handleCompareChange}
-                    onTimeRangeChange={this.handleToolsTimeRangeChange}
-                    onCompareValueChange={this.handleCompareValueChange}
-                    onSplitChange={this.handleSplitChange}
-                    eventChartInterval={this.eventInterval}
-                    onEventIntervalChange={this.handleEventIntervalChange}
+                    queryResult={this.filterQueryResult}
+                    queryTimeRange={this.queryTimeRange}
+                    refleshNumber={this.refleshNumber}
+                    retrievalType={this.tabActive}
                     onAddEventStrategy={this.handleAddEventStrategy}
                     onAddStrategy={this.handleAddStrategy}
+                    onCompareChange={this.handleCompareChange}
+                    onCompareValueChange={this.handleCompareValueChange}
                     onDrillKeywordsSearch={val => (this.drillKeywords = val)}
-                    emptyStatus={this.emptyStatus}
+                    onEventIntervalChange={this.handleEventIntervalChange}
+                    onShowLeft={this.handleLeftHiddenAndShow}
+                    onSplitChange={this.handleSplitChange}
+                    onTimeRangeChange={this.handleToolsTimeRangeChange}
+                    onTimeRangeChangeEvent={this.handleTimeRangeChange}
                   />
                 </div>
                 {/* 指标选择器 */}
                 <MetricSelector
+                  metricId={this.metricSelectorMetricId}
+                  scenarioList={this.scenarioAllList}
                   show={this.isShowMetricSelector}
                   targetId={this.metricSelectorTargetId}
-                  metricId={this.metricSelectorMetricId}
                   type={MetricType.TimeSeries}
-                  scenarioList={this.scenarioAllList}
-                  onShowChange={val => (this.isShowMetricSelector = val)}
                   onSelected={this.handleAddMetricData}
+                  onShowChange={val => (this.isShowMetricSelector = val)}
                 />
                 {/* <MetricSelector
                 show={this.metricSelector.show}
@@ -3374,34 +3375,34 @@ export default class DataRetrieval extends tsc<object> {
               /> */}
                 {/* 监控目标选择器 */}
                 <StrategyIpv6
-                  showDialog={this.target.show}
-                  objectType={this.target.objectType}
-                  nodeType={this.target.targetType}
                   checkedNodes={this.target.value}
+                  nodeType={this.target.targetType}
+                  objectType={this.target.objectType}
+                  showDialog={this.target.show}
                   onChange={this.handleTargetChange}
                   onCloseDialog={() => (this.target.show = false)}
                 />
               </div>
               <AddCollectDialog
                 v-model={this.isShowAddFavoriteDialog}
-                keyword={this.favoriteKeywordsData}
-                favoriteSearchType={this.favoriteSearchType}
-                favStrList={this.favStrList}
                 editFavoriteData={this.editFavoriteData}
-                onSubmit={value => this.handleSubmitFavorite(value)}
+                favStrList={this.favStrList}
+                favoriteSearchType={this.favoriteSearchType}
+                keyword={this.favoriteKeywordsData}
                 onCancel={() => (this.editFavoriteData = null)}
+                onSubmit={value => this.handleSubmitFavorite(value)}
               />
             </div>
           )
         }
         {this.needUseCollectGuide && (
           <NotifyBox
-            placement={'bottom'}
-            hasBorder
             tipStyles={{
               top: '50px',
               left: '14px',
             }}
+            placement={'bottom'}
+            hasBorder
           >
             <div slot='title'>{this.$t('检索收藏功能支持分组和管理')}</div>
             <div slot='action'>

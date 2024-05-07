@@ -26,13 +26,13 @@
  */
 import { defineComponent, reactive, ref, shallowReactive, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Table } from 'bkui-vue';
 import { listAlertTags } from 'monitor-api/modules/alert';
 import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 import { deepClone, random } from 'monitor-common/utils';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
-
 import DimensionConditionInput from './components/dimension-input';
 import FormItem from './components/form-item';
 import WhereDisplay from './components/where-display';
@@ -114,7 +114,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     watch(
@@ -132,7 +132,7 @@ export default defineComponent({
           dimensionCondition.allNames[item.key] = item.name || item.key;
         });
         dimensionCondition.conditionKey = random(8);
-      },
+      }
     );
 
     function handleChange() {
@@ -294,16 +294,13 @@ export default defineComponent({
         <div class={['alarm-shield-config-dimension-component', { show: props.show }]}>
           <FormItem
             class='mt24'
+            errMsg={errMsg.dimensionCondition}
             label={t('维度选择')}
             require={true}
-            errMsg={errMsg.dimensionCondition}
           >
             {props.isEdit ? (
               <div class='max-w836'>
                 <Table
-                  data={[{}]}
-                  maxHeight={450}
-                  border={['outer']}
                   columns={[
                     {
                       id: 'name',
@@ -313,10 +310,10 @@ export default defineComponent({
                           if (dimensionCondition.conditionList.length) {
                             return (
                               <WhereDisplay
-                                value={dimensionCondition.conditionList}
-                                readonly={true}
-                                allNames={dimensionCondition.allNames}
                                 key={dimensionCondition.conditionKey}
+                                allNames={dimensionCondition.allNames}
+                                readonly={true}
+                                value={dimensionCondition.conditionList}
                               ></WhereDisplay>
                             );
                           }
@@ -324,17 +321,20 @@ export default defineComponent({
                         })(),
                     },
                   ]}
+                  border={['outer']}
+                  data={[{}]}
+                  maxHeight={450}
                 ></Table>
               </div>
             ) : (
               <div class='dimension-select-content'>
                 <DimensionConditionInput
-                  class='mr-16'
                   key={dimensionCondition.conditionKey}
+                  class='mr-16'
                   conditionList={dimensionCondition.conditionList}
                   dimensionsList={dimensionCondition.dimensionList}
-                  metricMeta={dimensionCondition.metricMeta}
                   isDimensionGroup={true}
+                  metricMeta={dimensionCondition.metricMeta}
                   onChange={v => handleDimensionConditionChange(v)}
                 ></DimensionConditionInput>
                 {/* <Select

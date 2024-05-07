@@ -31,6 +31,7 @@
 
 import { Component, Emit, Prop, PropSync, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Schema from 'async-validator';
 import { strategyLabelList } from 'monitor-api/modules/strategies';
 import { transformDataKey } from 'monitor-common/utils/utils';
@@ -47,24 +48,24 @@ import './base-config.scss';
 interface IBaseConfigProps {
   data: IBaseConfig;
   bizList: ISpaceItem[];
-  bizId: string | number;
+  bizId: number | string;
   scenarioList: IScenarioItem[];
   scenarioReadonly: boolean;
   readonly?: boolean;
 }
 export interface IBaseConfig {
-  bk_biz_id: string | number;
+  bk_biz_id: number | string;
   scenario: string;
   name: string;
   labels: string[];
   isEnabled: boolean;
-  priority: number | null | string;
+  priority: null | number | string;
 }
 @Component
 export default class BaseInfo extends tsc<IBaseConfigProps> {
   @PropSync('data', { type: Object, required: true }) baseConfig: IBaseConfig;
   @Prop({ type: Array, required: true }) bizList: any;
-  @Prop({ type: [String, Number], required: true }) bizId: string | number;
+  @Prop({ type: [String, Number], required: true }) bizId: number | string;
   @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
   @Prop({ type: Boolean, default: false }) scenarioReadonly: boolean;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
@@ -208,50 +209,50 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
     return (
       <div class='base-config'>
         <CommonItem
+          isRequired={true}
           isWrap={true}
           title={this.$t('所属')}
-          isRequired={true}
         >
           <bk-select
-            value={this.bizId}
-            searchable
-            clearable={false}
-            readonly={Number(this.bizId) > 0}
             class='base-config-select simplicity-select'
             behavior='simplicity'
+            clearable={false}
+            readonly={Number(this.bizId) > 0}
+            value={this.bizId}
+            searchable
             on-change={this.handleBaseConfigChange}
           >
             {this.bizList.map(item => (
               <bk-option
-                key={item.id}
                 id={item.id}
+                key={item.id}
                 name={item.text}
               ></bk-option>
             ))}
           </bk-select>
         </CommonItem>
         <CommonItem
+          isRequired={false}
           isWrap={true}
           title={this.$t('监控对象')}
-          isRequired={false}
         >
           <bk-select
-            behavior='simplicity'
             class='base-config-select simplicity-select'
             v-model={this.baseConfig.scenario}
+            behavior='simplicity'
             clearable={false}
             readonly={this.scenarioReadonly}
             on-change={this.handleBaseConfigChange}
           >
             {this.scenarioList.map((group, index) => (
               <bk-option-group
-                name={group.name}
                 key={index}
+                name={group.name}
               >
                 {group.children.map(option => (
                   <bk-option
-                    key={option.id}
                     id={option.id}
+                    key={option.id}
                     name={option.name}
                   ></bk-option>
                 ))}
@@ -261,71 +262,71 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
         </CommonItem>
 
         <CommonItem
-          isWrap
-          title={this.$t('策略名称')}
           isRequired={true}
+          title={this.$t('策略名称')}
+          isWrap
         >
           <ErrorMsg
-            message={this.errorsMsg.name}
             style='width: 100%;'
+            message={this.errorsMsg.name}
           >
             <bk-input
-              behavior='simplicity'
-              class='base-config-input simplicity-input'
               ref='strategyName'
+              class='base-config-input simplicity-input'
               v-model={this.baseConfig.name}
+              behavior='simplicity'
               maxlength={128}
               minlength={1}
               readonly={this.readonly}
-              on-input={() => (this.errorsMsg.name = '')}
               on-change={this.handleBaseConfigChange}
+              on-input={() => (this.errorsMsg.name = '')}
             />
           </ErrorMsg>
         </CommonItem>
         <CommonItem
-          isWrap
-          title={this.$t('优先级')}
           tips={this.$t('数值越大，优先级越高，完全相同的一条数据检测到异常时以优先级高的策略为主。')}
+          title={this.$t('优先级')}
+          isWrap
         >
           <ErrorMsg
-            message={this.errorsMsg.priority}
             style='width: 100%;'
+            message={this.errorsMsg.priority}
           >
             <bk-input
-              behavior='simplicity'
-              class='base-config-input simplicity-input'
               ref='strategyPriority'
+              class='base-config-input simplicity-input'
               v-model={this.baseConfig.priority}
-              type='number'
+              behavior='simplicity'
               max={10000}
-              min={0}
               maxlength={5}
+              min={0}
               minlength={1}
               readonly={this.readonly}
-              on-input={v => this.handleBaseConfigPriorityInput(v)}
+              type='number'
               on-change={this.handleBaseConfigChange}
+              on-input={v => this.handleBaseConfigPriorityInput(v)}
             />
           </ErrorMsg>
         </CommonItem>
 
         <CommonItem
-          title={this.$t('标签')}
           desc={this.$tc('(输入并回车即可创建新标签。可使用“/”创建多级分类，如：主机/系统告警)')}
+          title={this.$t('标签')}
         >
           {this.readonly && !this?.baseConfig?.labels?.length ? (
             <div style='padding-left: 3px;'>--</div>
           ) : (
             <ErrorMsg
-              message={this.errorsMsg.labels}
               style='width: 100%;'
+              message={this.errorsMsg.labels}
             >
               <MultiLabelSelect
-                style='width: 100%;'
-                mode='select'
                 ref='strategyLabels'
+                style='width: 100%;'
                 behavior='simplicity'
-                readonly={this.readonly}
                 checked-node={this.baseConfig.labels}
+                mode='select'
+                readonly={this.readonly}
                 tree-data={this.labelTreeData}
                 on-checkedChange={this.handleLabelsChange}
               ></MultiLabelSelect>
@@ -337,12 +338,12 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
           title={this.$t('是否启用')}
         >
           <bk-switcher
-            disabled={this.readonly}
-            behavior='simplicity'
-            theme='primary'
-            size='small'
             v-model={this.baseConfig.isEnabled}
+            behavior='simplicity'
             change={this.handleBaseConfigChange}
+            disabled={this.readonly}
+            size='small'
+            theme='primary'
           />
         </CommonItem>
       </div>

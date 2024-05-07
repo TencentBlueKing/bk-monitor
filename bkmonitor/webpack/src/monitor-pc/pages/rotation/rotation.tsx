@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { unmount } from '@blueking/bk-weweb';
 
 import './rotation.scss';
@@ -55,12 +56,12 @@ export default class Rotation extends tsc<object> {
     return (
       <div class='rotation-wrap'>
         <bk-weweb
-          setShodowDom={true}
-          class='rotation-iframe'
-          url={this.rotationUrl}
-          showSourceCode={true}
           id={wewebId}
+          class='rotation-iframe'
           data={this.rotationData}
+          setShodowDom={true}
+          showSourceCode={true}
+          url={this.rotationUrl}
         />
       </div>
     );

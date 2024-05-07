@@ -23,11 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-declare module '*.svg';
-declare module '*.png';
-declare module '*.store';
-declare module '*.vue' {
-  import type Vue from 'vue';
-
-  export default Vue;
-}
+import 'monitor-pc/shims.d.ts';
+import 'monitor-pc/file.d.ts';
+import 'monitor-pc/vue.d.ts';

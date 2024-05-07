@@ -75,7 +75,7 @@ export interface ISearchTypeItem {
 }
 
 export interface IFavoriteItem {
-  id: string | number;
+  id: number | string;
   name: string;
   config: any;
 }

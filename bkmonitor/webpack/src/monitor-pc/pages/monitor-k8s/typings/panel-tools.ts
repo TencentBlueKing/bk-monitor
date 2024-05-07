@@ -25,9 +25,8 @@
  */
 import { TranslateResult } from 'vue-i18n';
 
-import { IFavList } from '../components/panel-header/favorites-list/favorites-list';
-
 import { IOption } from '.';
+import { IFavList } from '../components/panel-header/favorites-list/favorites-list';
 
 /** 面板工具的类型 */
 export declare namespace PanelToolsType {
@@ -45,7 +44,7 @@ export declare namespace PanelToolsType {
     onSplitChange?: boolean;
   }
   /** 不对比 | 时间对比 | 目标对比 | 指标对比 */
-  type CompareId = 'none' | 'time' | 'target' | 'metric';
+  type CompareId = 'metric' | 'none' | 'target' | 'time';
   /** 图表布局 */
   type LayoutId = 0 | 1 | 2;
   /** 对比方法可选项 */

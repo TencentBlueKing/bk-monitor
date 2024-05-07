@@ -32,7 +32,7 @@ interface InfoItem {
   key: string;
   name: string;
   value: string;
-  type?: 'number' | 'input';
+  type?: 'input' | 'number';
   hasEdit?: boolean;
   /** 是否需要下划线 */
   hasUnderline?: boolean;
@@ -42,7 +42,7 @@ interface LocalInfoField extends InfoItem {
   /** 是否处于编辑态 */
   isEdit?: boolean;
   /** 编辑值 */
-  editValue?: string | number;
+  editValue?: number | string;
 }
 
 interface StatusContentItem {
@@ -51,7 +51,7 @@ interface StatusContentItem {
 }
 
 interface StatusValueItem {
-  [key: string]: string | number;
+  [key: string]: number | string;
 }
 
 interface StatusItem {
@@ -121,9 +121,9 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
         case 'number':
           return (
             <bk-input
-              type='number'
-              min={1}
               v-model={field.editValue}
+              min={1}
+              type='number'
             />
           );
         case 'input':
@@ -190,9 +190,9 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
               <bk-table
                 class='data-table'
                 data={table.content.values}
-                outer-border={false}
                 header-border={false}
                 max-height={350}
+                outer-border={false}
               >
                 {table.content.keys.map(column => {
                   return (

@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { TagInput } from 'bkui-vue';
 import { listUsersUser } from 'monitor-api/modules/model';
 import { debounce, random } from 'monitor-common/utils';
@@ -76,7 +77,7 @@ export default defineComponent({
       userGroups => {
         setUserGroups(userGroups);
       },
-      { deep: true },
+      { deep: true }
     );
     watch(
       () => props.value,
@@ -86,7 +87,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
     function init() {
       setUserGroups(props.userGroups);
@@ -204,8 +205,8 @@ export default defineComponent({
               return (
                 <img
                   class='user-logo'
-                  src={node.logo}
                   alt=''
+                  src={node.logo}
                 ></img>
               );
             }
@@ -228,8 +229,8 @@ export default defineComponent({
               return (
                 <img
                   class='user-logo'
-                  src={obj.logo}
                   alt=''
+                  src={obj.logo}
                 ></img>
               );
             }
@@ -258,26 +259,26 @@ export default defineComponent({
     return (
       <TagInput
         key={this.key}
-        placeholder={this.t('选择通知对象')}
-        modelValue={this.localValue}
-        useGroup={this.useGroup}
-        list={this.lcoalList}
-        trigger={this.trigger}
-        tpl={this.tpl}
-        tagTpl={this.tagTpl}
         class='member-selector-component'
-        contentWidth={320}
-        allowNextFocus={true}
-        allowCreate={true}
-        isAsyncList={true}
         popoverProps={{
           extCls: 'member-selector-component-tag-input-pop',
         }}
+        allowCreate={true}
+        allowNextFocus={true}
+        contentWidth={320}
         filterCallback={(_filterVal, _filterKey, data) => data}
-        onUpdate:modelValue={v => this.handleChange(v)}
-        onInput={this.debounceHandleInput}
-        onFocus={this.handleFocus}
+        isAsyncList={true}
+        list={this.lcoalList}
+        modelValue={this.localValue}
+        placeholder={this.t('选择通知对象')}
+        tagTpl={this.tagTpl}
+        tpl={this.tpl}
+        trigger={this.trigger}
+        useGroup={this.useGroup}
         onBlur={this.handleBlur}
+        onFocus={this.handleFocus}
+        onInput={this.debounceHandleInput}
+        onUpdate:modelValue={v => this.handleChange(v)}
       ></TagInput>
     );
   },

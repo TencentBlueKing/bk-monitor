@@ -30,7 +30,6 @@ import { secToString } from '../../../../components/cycle-input/utils';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixinTsx';
 import { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
 import { MetricDetail } from '../../strategy-config-set-new/typings';
-
 import WhereDisplay from './where-display';
 
 import './metric-list-item.scss';
@@ -42,9 +41,9 @@ interface IProps {
 }
 
 interface IConfigsItem {
-  key: 'metricName' | 'method' | 'groupBy' | 'function' | 'where' | 'interval' | 'localQueryString' | 'logMetricName';
+  key: 'function' | 'groupBy' | 'interval' | 'localQueryString' | 'logMetricName' | 'method' | 'metricName' | 'where';
   label: string;
-  value: string | VueTsxSupport.JSX.Element | VueTsxSupport.JSX.Element[];
+  value: VueTsxSupport.JSX.Element | VueTsxSupport.JSX.Element[] | string;
   format?: (val: any) => any;
   enabled: boolean;
 }
@@ -271,9 +270,9 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
   handleWhereTps() {
     return this.metric.agg_condition?.length ? (
       <WhereDisplay
-        value={this.metric.agg_condition}
         groupByList={this.metric.dimensions}
         metric={this.metric}
+        value={this.metric.agg_condition}
       />
     ) : undefined;
   }
@@ -312,7 +311,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
         </div>
 
         <div style='display:none'>
-          <div ref='metricTipsContent'>{this.handleGetMetricTipsContent(this.metric)}</div>
+          {this.metric && <div ref='metricTipsContent'>{this.handleGetMetricTipsContent(this.metric)}</div>}
         </div>
       </div>
     );

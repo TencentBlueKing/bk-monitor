@@ -33,16 +33,16 @@ interface IOption {
   name: string;
 }
 interface IProps {
-  value?: (string | number)[];
+  value?: (number | string)[];
   options?: IOption[];
   loading?: boolean;
-  onTagclick?: (v: string | number) => void;
+  onTagclick?: (v: number | string) => void;
   onRefresh?: () => void;
-  onChange?: (v: (string | number)[]) => void;
+  onChange?: (v: (number | string)[]) => void;
 }
 @Component
 export default class AlarmGroupSelect extends tsc<IProps> {
-  @Prop({ type: Array, default: () => [] }) value: (string | number)[];
+  @Prop({ type: Array, default: () => [] }) value: (number | string)[];
   @Prop({ type: Array, default: () => [] }) options: IOption[];
   @Prop({ type: Boolean, default: false }) loading: boolean;
 
@@ -63,7 +63,7 @@ export default class AlarmGroupSelect extends tsc<IProps> {
     }
   }
 
-  handleSelected(value: (string | number)[]) {
+  handleSelected(value: (number | string)[]) {
     let tags = [];
     if (value.length) {
       this.options.forEach(item => {
@@ -81,7 +81,7 @@ export default class AlarmGroupSelect extends tsc<IProps> {
     this.$emit('change', value);
   }
 
-  handleTagClick(event: Event, id: string | number) {
+  handleTagClick(event: Event, id: number | string) {
     event?.stopPropagation?.();
     this.$emit('tagclick', id);
   }
@@ -110,20 +110,20 @@ export default class AlarmGroupSelect extends tsc<IProps> {
       <div class='alarm-dispatch-alarm-group-select-component'>
         <bk-select
           v-model={this.localValue}
-          multiple
           ext-popover-cls={'alarm-dispatch-alarm-group-select-component-pop'}
+          multiple
           searchable
           onSelected={this.handleSelected}
         >
           <div
-            slot='trigger'
             class='tag-list'
+            slot='trigger'
           >
             {this.tags.length > 0 ? (
               this.tags.map((item, index) => (
                 <div
-                  class='tag-list-item'
                   key={item.id}
+                  class='tag-list-item'
                   title={item.name}
                   onClick={e => this.handleTagClick(e, item.id)}
                 >
@@ -139,8 +139,8 @@ export default class AlarmGroupSelect extends tsc<IProps> {
             )}
           </div>
           <div
-            slot='extension'
             class='extension-wrap'
+            slot='extension'
           >
             <div
               class='add-wrap'
@@ -155,9 +155,9 @@ export default class AlarmGroupSelect extends tsc<IProps> {
             >
               {this.loading ? (
                 <img
+                  class='status-loading'
                   alt=''
                   src={require('../../../static/images/svg/spinner.svg')}
-                  class='status-loading'
                 ></img>
               ) : (
                 <span class='icon-monitor icon-mc-retry'></span>
@@ -166,8 +166,8 @@ export default class AlarmGroupSelect extends tsc<IProps> {
           </div>
           {this.options.map(item => (
             <bk-option
-              key={item.id}
               id={item.id}
+              key={item.id}
               name={item.name}
             ></bk-option>
           ))}

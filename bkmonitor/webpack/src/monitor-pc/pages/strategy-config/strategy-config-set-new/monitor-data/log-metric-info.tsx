@@ -67,16 +67,16 @@ export default class MyComponent extends tsc<object> {
         ></span>
         <div style='display: none;'>
           <div
-            class='help-content'
             ref='helpContent'
+            class='help-content'
           >
             <div>
               {this.$t('可输入SQL语句进行快速查询')}
               {this.docCenterUrl && (
                 <a
+                  class='tips-link'
                   href={this.docCenterUrl}
                   target='_blank'
-                  class='tips-link'
                 >
                   {this.$t('查看语法')}
                   <span class='icon-monitor icon-fenxiang'></span>

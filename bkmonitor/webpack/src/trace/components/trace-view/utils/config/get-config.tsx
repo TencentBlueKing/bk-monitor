@@ -28,7 +28,6 @@ import _get from 'lodash/get';
 import memoizeOne from 'memoize-one';
 
 import defaultConfig, { deprecations } from '../../constants/default-config';
-
 import processDeprecation from './process-deprecation';
 
 let haveWarnedFactoryFn = false;

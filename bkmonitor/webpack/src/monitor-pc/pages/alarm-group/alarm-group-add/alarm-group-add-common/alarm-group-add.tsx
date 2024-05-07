@@ -26,6 +26,7 @@
 import { VNode } from 'vue';
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Schema, { ErrorList, Rules, ValidateSource } from 'async-validator';
 import CustomTab, { IPanels } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import NoticeModeNew, {
@@ -55,8 +56,8 @@ import './alarm-group-add.scss';
 
 const { i18n } = window;
 
-type TGroupType = 'monitor' | 'fta';
-type NoticeType = 'alert_notice' | 'action_notice'; // 告警通知及执行通知
+type TGroupType = 'fta' | 'monitor';
+type NoticeType = 'action_notice' | 'alert_notice'; // 告警通知及执行通知
 const ALERT_NOTICE = 'alert_notice';
 const ACTION_NOTICE = 'action_notice';
 
@@ -72,7 +73,7 @@ interface IAlarmGroupAdd {
   type?: TGroupType;
 }
 
-type TRouterName = 'alarm-group' | 'strategy-config-edit' | 'strategy-config-add' | 'strategy-config-clone';
+type TRouterName = 'alarm-group' | 'strategy-config-add' | 'strategy-config-clone' | 'strategy-config-edit';
 type TRouterNameMap = { [key in TRouterName]: () => void };
 
 interface IFormData {
@@ -239,7 +240,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         .sort(
           (a, b) =>
             (timeTransform(a.timeValue[0], false, true) as number) -
-            (timeTransform(b.timeValue[0], false, true) as number),
+            (timeTransform(b.timeValue[0], false, true) as number)
         ) || []
     );
   }
@@ -255,7 +256,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         .sort(
           (a, b) =>
             (timeTransform(a.timeValue[0], false, true) as number) -
-            (timeTransform(b.timeValue[0], false, true) as number),
+            (timeTransform(b.timeValue[0], false, true) as number)
         ) || []
     );
   }
@@ -527,7 +528,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   }
 
   // 校验
-  validate(): Promise<boolean | ErrorList> {
+  validate(): Promise<ErrorList | boolean> {
     return new Promise((resolve, reject) => {
       const valueMap: ValidateSource = {};
       const newRules = {
@@ -715,7 +716,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     let copyData: IAlert = {};
     const defaultTimeRanges = defaultAddTimeRange(
       this.formData[type].map(item => item.time_range),
-      true,
+      true
     );
     if (!defaultTimeRanges.length) {
       this.$bkMessage({
@@ -771,7 +772,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     if (
       !timeRangeValidate(
         this.formData[type].filter(item => item.key !== v.key).map(item => item.time_range),
-        v.value,
+        v.value
       )
     ) {
       this.$bkMessage({
@@ -870,22 +871,22 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     return (
       <div
         class='alarm-group-add-wrap'
-        title={!!this.groupId ? this.pageTitle : ''}
         v-bkloading={{ isLoading: this.loading }}
+        title={!!this.groupId ? this.pageTitle : ''}
       >
         <bk-form label-width={this.$store.getters.lang === 'en' ? 150 : 100}>
           <bk-form-item label={this.$t('所属')}>
             <bk-select
               class='width-508'
-              clearable={false}
-              readonly
               v-model={this.formData.bizId}
+              clearable={false}
               placeholder={this.$t('输入所属空间')}
+              readonly
             >
               {this.bizIdLIst.map(opt => (
                 <bk-option
-                  key={opt.id}
                   id={opt.id}
+                  key={opt.id}
                   name={opt.text}
                 ></bk-option>
               ))}
@@ -893,8 +894,8 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           </bk-form-item>
           <bk-form-item
             label={this.$t('告警组名称')}
-            required
             property='name'
+            required
           >
             <div class='input-item width-508'>
               <bk-input
@@ -930,8 +931,8 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           {/* </bk-form-item>*/}
           <bk-form-item
             label={this.$t('通知类型')}
-            required
             property='alert_type'
+            required
           >
             <div class='alert-type'>
               {this.alertTypeList.map(
@@ -948,23 +949,23 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                       <i class={['icon-monitor', item.icon, item.selected && 'selected-icon', 'type-icon']} />
                       <div class='card-name'>{item.name}</div>
                     </div>
-                  ),
+                  )
               )}
             </div>
           </bk-form-item>
           {this.channels.includes('user') && (
             <bk-form-item
               label={this.$t('通知对象')}
-              required
               property='users'
+              required
             >
               <div class='item-container'>
                 {this.isShowOverInput && (
                   <div class='over-input'>
                     <img
+                      class='status-loading'
                       alt=''
                       src={this.loadingSvg}
-                      class='status-loading'
                     />
                   </div>
                 )}
@@ -975,22 +976,22 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                     on-change={this.handleAlertMethodChange}
                   >
                     <bk-radio-button
-                      value={false}
                       class='radio-button'
+                      value={false}
                     >
                       {this.$t('直接通知')}
                     </bk-radio-button>
                     <bk-radio-button
-                      value={true}
                       class='radio-button'
+                      value={true}
                     >
                       {this.$t('轮值')}
                     </bk-radio-button>
                   </bk-radio-group>
                   {!this.formData.needDuty && (
                     <member-selector
-                      class='user-selector'
                       key={this.memberSelectorKey}
+                      class='user-selector'
                       v-model={this.formData.users}
                       group-list={this.defaultGroupList}
                       on-select-user={this.handleSelectUser}
@@ -1023,7 +1024,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                         )
                       ) : undefined}
                     </div>
-                  ) : undefined,
+                  ) : undefined
                 )}
                 {/* <div class="text-tip">*/}
                 {/*  <span class="icon-monitor icon-hint"></span>*/}
@@ -1054,12 +1055,12 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               </div> */}
               <RotationConfig
                 ref={'rotationConfig'}
+                alarmGroupId={this.groupId}
                 defaultGroupList={this.defaultGroupList}
                 dutyArranges={this.rotationData.dutyArranges}
                 dutyNotice={this.rotationData.dutyNotice}
-                rendreKey={this.rotationData.rendreKey}
-                alarmGroupId={this.groupId}
                 dutyPlans={this.dutyPlans}
+                rendreKey={this.rotationData.rendreKey}
                 onDutyChange={v => (this.rotationData.dutyArranges = v)}
                 onNoticeChange={v => (this.rotationData.dutyNotice = v)}
               ></RotationConfig>
@@ -1068,8 +1069,8 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           {this.channels.includes('wxwork-bot') && (
             <bk-form-item label={this.$t('群提醒人')}>
               <member-selector
-                class='mention-user-selector'
                 key={this.mentionMemberSelectorKey}
+                class='mention-user-selector'
                 v-model={this.selectedMentionList}
                 group-list={this.mentionGroupList}
                 on-select-user={this.handleSelectMentionUser}
@@ -1084,12 +1085,12 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               <div class='title'>{this.$t('告警阶段')}</div>
               <div class='content-wrap-key1'>
                 <CustomTab
-                  panels={this.alertTimePanels}
                   active={this.alertActive}
-                  type={'period'}
-                  newKey={this.alertNewkey}
-                  timeStyleType={1}
                   minIsMinute={true}
+                  newKey={this.alertNewkey}
+                  panels={this.alertTimePanels}
+                  timeStyleType={1}
+                  type={'period'}
                   onAdd={() => this.handleAddTimeRang(ALERT_NOTICE)}
                   onChange={v => this.handleChangeTimeRang(v, ALERT_NOTICE)}
                   onDel={v => this.handleDelTimeRang(v, ALERT_NOTICE)}
@@ -1098,23 +1099,23 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 <div class='wrap-bottom'>
                   <span class='bottom-title'>{this.$t('每个告警级别至少选择一种通知方式')}</span>
                   <NoticeModeNew
-                    class='notice-mode'
                     ref='alertNotice'
+                    class='notice-mode'
+                    bkchatList={this.bkchatList}
+                    channels={this.channels}
                     noticeWay={this.noticeWayList}
                     notifyConfig={this.alertData.notify_config}
-                    channels={this.channels}
-                    bkchatList={this.bkchatList}
+                    refreshKey={this.refreshKey.alertKey}
                     showHeader={false}
                     showlevelMark={true}
-                    refreshKey={this.refreshKey.alertKey}
                     onChange={v => this.noticeConfigChange(v, ALERT_NOTICE)}
                     onRefreshKeyChange={() => (this.refreshKey.alertKey = false)}
                   ></NoticeModeNew>
                 </div>
               </div>
               <div
-                class='title'
                 style={{ marginTop: '16px' }}
+                class='title'
               >
                 {this.$t('执行通知')}
                 <span class='title-tip'>
@@ -1123,12 +1124,12 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               </div>
               <div class='content-wrap-key1'>
                 <CustomTab
-                  panels={this.actionTimePanels}
                   active={this.actionActive}
-                  type={'period'}
-                  newKey={this.actionNewKey}
-                  timeStyleType={1}
                   minIsMinute={true}
+                  newKey={this.actionNewKey}
+                  panels={this.actionTimePanels}
+                  timeStyleType={1}
+                  type={'period'}
                   onAdd={() => this.handleAddTimeRang(ACTION_NOTICE)}
                   onChange={v => this.handleChangeTimeRang(v, ACTION_NOTICE)}
                   onDel={v => this.handleDelTimeRang(v, ACTION_NOTICE)}
@@ -1137,14 +1138,14 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 <div class='wrap-bottom'>
                   <span class='bottom-title'>{this.$t('每个执行阶段至少选择一种通知方式')}</span>
                   <NoticeModeNew
-                    class='notice-mode'
                     ref='actionNotice'
+                    class='notice-mode'
+                    bkchatList={this.bkchatList}
+                    channels={this.channels}
                     noticeWay={this.noticeWayList}
                     notifyConfig={executionNotifyConfigChange(this.actionData?.notify_config)}
-                    channels={this.channels}
-                    bkchatList={this.bkchatList}
-                    type={1}
                     refreshKey={this.refreshKey.actionKey}
+                    type={1}
                     onChange={v => this.noticeConfigChange(v, ACTION_NOTICE)}
                     onRefreshKeyChange={() => (this.refreshKey.actionKey = false)}
                   ></NoticeModeNew>
@@ -1155,10 +1156,10 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           <bk-form-item label={this.$t('说明')}>
             <bk-input
               class='input-desc'
-              type='textarea'
-              maxlength={100}
               v-model={this.formData.desc}
+              maxlength={100}
               placeholder={this.$t('输入')}
+              type='textarea'
             ></bk-input>
           </bk-form-item>
         </bk-form>

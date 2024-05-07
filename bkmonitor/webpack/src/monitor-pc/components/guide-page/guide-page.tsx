@@ -26,6 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getDocLink } from 'monitor-api/modules/commons';
 
 import { IBtnAndLinkItem, ISPaceIntroduceData, SpaceIntroduceKeys } from '../../types/common/common';
@@ -45,7 +46,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
   @Prop({ required: false, type: String }) guideId: string;
   @Prop({ required: false, type: Object }) guideData: ISPaceIntroduceData;
 
-  navId: SpaceIntroduceKeys | '' = '';
+  navId: '' | SpaceIntroduceKeys = '';
   /** 业务id */
   get bizId() {
     return this.$store.getters.bizId;
@@ -129,7 +130,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
                   >
                     {this.$t(item.name)}
                   </bk-button>
-                ) : undefined,
+                ) : undefined
               )}
             </div>
             {links?.length > 0 && (
@@ -144,7 +145,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
                       >
                         {this.$t(item.name)}
                       </span>
-                    ) : undefined,
+                    ) : undefined
                   )}
                 </div>
               </div>

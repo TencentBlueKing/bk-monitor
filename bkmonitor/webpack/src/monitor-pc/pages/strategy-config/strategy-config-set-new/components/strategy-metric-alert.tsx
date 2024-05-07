@@ -26,6 +26,7 @@
 
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -511,32 +512,32 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       return (
         <bk-checkbox
           checked={isAllChecked}
-          on-change={this.handleAllCheck}
           disabled={this.curTableData.list.length === 0}
+          on-change={this.handleAllCheck}
         ></bk-checkbox>
       );
     };
     const renderSeeCheckedHeader = () => (
       <bk-checkbox
         checked={true}
-        on-change={() => (this.checkData = [])}
         disabled
+        on-change={() => (this.checkData = [])}
       ></bk-checkbox>
     );
     const checkBox = (
       <bk-table-column
         width={48}
-        scopedSlots={checkboxSlot}
         render-header={renderHeader}
+        scopedSlots={checkboxSlot}
       ></bk-table-column>
     );
     const columnMap = {
       bk_monitor_alert: () => [
         checkBox,
         <bk-table-column
+          width='80'
           label={this.$t('策略ID')}
           prop='metric_field'
-          width='80'
           show-overflow-tooltip
         ></bk-table-column>,
         <bk-table-column
@@ -555,10 +556,10 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
       ],
       seeChecked: () => [
         <bk-table-column
-          width={48}
           key={String(this.isSeeSelected)}
-          scopedSlots={seeCheckedSlot}
+          width={48}
           render-header={renderSeeCheckedHeader}
+          scopedSlots={seeCheckedSlot}
         ></bk-table-column>,
         <bk-table-column
           label={`${this.$t('策略名称')}/${this.$t('告警名称')}`}
@@ -589,25 +590,25 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
   render() {
     return (
       <MonitorDialog
-        class='strategy-metric-alert'
-        value={this.isShow}
-        title={this.$t('选择关联告警')}
         width={850}
+        class='strategy-metric-alert'
+        title={this.$t('选择关联告警')}
+        value={this.isShow}
         on-change={this.handleShowChange}
       >
         <div v-bkloading={{ isLoading: this.isLoading }}>
           <div class='metric-wrap-common'>
             <div class='metric-handle-row'>
               <bk-search-select
-                class='search-select'
                 ref='searchSelect'
+                class='search-select'
                 v-model={this.searchObj.keyWord}
-                showPopoverTagChange={false}
-                popoverZindex={2600}
                 data={this.searchObj.data}
                 placeholder={this.$t('关键字搜索')}
-                on-change={this.handleSearch}
+                popoverZindex={2600}
                 show-condition={false}
+                showPopoverTagChange={false}
+                on-change={this.handleSearch}
               ></bk-search-select>
               <bk-button
                 class='btn-refresh'
@@ -616,10 +617,10 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
               ></bk-button>
               <div class='see-selected'>
                 <bk-checkbox
-                  checked={false}
-                  true-value={true}
-                  false-value={false}
                   v-model={this.isSeeSelected}
+                  checked={false}
+                  false-value={false}
+                  true-value={true}
                   on-change={this.handleseeSelectedChange}
                 >
                   <div class='selected-text'>
@@ -635,8 +636,8 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
               <ul class='left-list'>
                 {this.scenarioListAll.map(item => (
                   <li
-                    class={['left-list-item', { 'left-list-item-active': this.scenarioType === item.name }]}
                     key={item.name}
+                    class={['left-list-item', { 'left-list-item-active': this.scenarioType === item.name }]}
                     on-click={() => this.handleLeftChange(item.name)}
                   >
                     <span>{item.label}</span>
@@ -675,9 +676,9 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
             }}
           >
             <bk-button
+              disabled={!this.isCanAdd}
               theme='primary'
               onClick={this.handleAdd}
-              disabled={!this.isCanAdd}
             >
               {this.$t('添加')}
             </bk-button>

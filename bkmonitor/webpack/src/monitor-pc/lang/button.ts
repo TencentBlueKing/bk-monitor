@@ -298,6 +298,11 @@ export default {
   添加授权: 'Add',
   编辑授权: 'Edit',
   变更授权人: 'Change Auth Person',
+  表格: 'Table',
+  表格和火焰图: 'Tables and Flamegraph',
+  功能调用图: 'GraphViz',
+  当前查询项: 'Current Query Item',
+  参照查询项: 'Comparison Item',
 
   // 查看
   查看变更记录: 'Changelog',

@@ -26,13 +26,13 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { toPng } from 'html-to-image';
 import { graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import BackTop from '../../../components/back-top/back-top';
-import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { CHART_INTERVAL } from '../../../constant/constant';
 import authorityStore from '../../../store/modules/authority';
@@ -40,9 +40,10 @@ import { downFile, formatTime } from '../../../utils';
 import CollectChart from '../components/collect-chart.vue';
 import RetrievalEmptyShow from '../data-retrieval-view/retrieval-empty-show';
 import { EventRetrievalViewType, IDataRetrievalView, IFilterCondition, IOption } from '../typings';
-
-import ExpandViewWrapper from './components/expand-view-wrapper';
 import ChartToolsMenu from './chart-more-tool';
+import ExpandViewWrapper from './components/expand-view-wrapper';
+
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 import './event-retrieval-view.scss';
 
@@ -462,22 +463,22 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
         ) : undefined}
         <div class='event-retrieval-view-main'>
           <div
-            class='event-chart-collapse'
             ref='chartRef'
+            class='event-chart-collapse'
           >
             <div class='collapse-header'>
               <span class='header-left'>
                 <span class='collapse-title'>{this.$t('总趋势')}</span>
                 <span
-                  onClick={evt => evt.stopPropagation()}
                   class='interval-wrap'
+                  onClick={evt => evt.stopPropagation()}
                 >
                   <span class='interval-label'>{this.$t('汇聚周期')}</span>
                   <bk-select
                     class='interval-select'
-                    size='small'
                     behavior='simplicity'
                     clearable={false}
+                    size='small'
                     value={this.chartInterval}
                     onChange={this.handleIntervalChange}
                   >
@@ -495,8 +496,8 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
               </span>
               <span class='header-right'>
                 <ChartToolsMenu
-                  toolChecked={['screenshot']}
                   moreChecked={this.moreChecked}
+                  toolChecked={['screenshot']}
                   onSelect={this.handleSelectTool}
                 />
               </span>
@@ -507,36 +508,36 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
                   <MonitorEcharts
                     key={this.chartKey}
                     height={164}
-                    hasResize={true}
                     class='monitor-echarts-metric'
-                    get-series-data={this.getSeriesData}
                     chart-type='bar'
+                    get-series-data={this.getSeriesData}
+                    hasResize={true}
                     reflesh-interval={this.compareValue.tools.refleshInterval}
-                    onDblclick={this.handleChartDbclick}
                     on-add-strategy={this.handleAddStrategy}
                     on-export-data-retrieval={this.handleToRetrieval}
+                    onDblclick={this.handleChartDbclick}
                   ></MonitorEcharts>
                 ) : undefined}
               </div>
             </div>
           </div>
           <bk-table
-            data={this.tableColumnList.length ? this.tableData : []}
             v-bkloading={{ isLoading: this.tableLoading }}
+            data={this.tableColumnList.length ? this.tableData : []}
           >
             <bk-table-column
-              type='expand'
               scopedSlots={{
                 default: expandScopedSlots,
               }}
+              type='expand'
             />
             <div slot='empty'>
               <RetrievalEmptyShow
-                showType={'event'}
-                queryLoading={this.isFirstSearch || this.tableLoading || this.loading}
-                eventMetricParams={this.eventMetricParams}
-                onClickEventBtn={this.handleClickEmptyBtn}
                 emptyStatus={this.emptyStatus}
+                eventMetricParams={this.eventMetricParams}
+                queryLoading={this.isFirstSearch || this.tableLoading || this.loading}
+                showType={'event'}
+                onClickEventBtn={this.handleClickEmptyBtn}
               />
             </div>
             {this.tableColumnList.map(column => (
@@ -557,16 +558,16 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
           </div>
         </div>
         <CollectChart
-          is-single
-          show={this.collectShow}
           collect-list={this.collectList}
+          show={this.collectShow}
           total-count={1}
+          is-single
           onClose={this.handleCloseCollect}
         ></CollectChart>
         <BackTop
-          scrollTop={100}
-          class='back-to-top'
           ref='backTopRef'
+          class='back-to-top'
+          scrollTop={100}
         >
           <i class='icon-monitor icon-arrow-up'></i>
         </BackTop>

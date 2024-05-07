@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils';
 import { throttle } from 'throttle-debounce';
 
@@ -275,7 +276,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
         this.pagination.current += 1;
         const temp = showData.slice(
           (this.pagination.current - 1) * this.pagination.limit,
-          this.pagination.current * this.pagination.limit,
+          this.pagination.current * this.pagination.limit
         );
         this.pagination.data.push(...temp);
       }
@@ -476,30 +477,30 @@ export default class TargetCompareSelect extends tsc<IProps> {
   render() {
     return (
       <div
-        class={['target-compare-select-component', { 'is-expand': this.isExpand }]}
         key={this.refleshKey}
+        class={['target-compare-select-component', { 'is-expand': this.isExpand }]}
         onClick={this.handleClickWrap}
       >
         <ul
-          class='more-list'
           ref='list'
+          class='more-list'
           onClick={this.handleClickWrap}
         >
           {this.localValue.map((item, index) =>
             item?.type === 'input' ? (
               <div
-                class='input-wrap'
                 key={index}
+                class='input-wrap'
               >
                 <span class='input-value'>{this.inputValue}</span>
                 <input
-                  class='input'
                   ref='input'
+                  class='input'
                   v-model={this.inputValue}
                   onBlur={this.handBlur}
                   onInput={this.handleInput}
-                  onPaste={this.handlePaste}
                   onKeydown={e => this.handleInputKeydown(e)}
+                  onPaste={this.handlePaste}
                 ></input>
               </div>
             ) : (
@@ -514,7 +515,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
                   onClick={(event: Event) => this.handleDelete(event, index)}
                 ></span>
               </li>
-            ),
+            )
           )}
         </ul>
         {!!this.localValue.filter(item => item?.type !== 'input').length && (
@@ -530,19 +531,19 @@ export default class TargetCompareSelect extends tsc<IProps> {
         {!this.localValue.length && <span class='placeholder-wrap'>{this.$t('选择目标')}</span>}
         <div style='display: none'>
           <div
+            ref='options'
             class={[
               'target-compare-select-component-list-wrap',
               { 'no-data': !this.pagination.data.filter(item => !!item.show).length },
             ]}
-            ref='options'
             onScroll={this.handleScroll}
           >
             {this.pagination.data
               .filter(item => !!item.show)
               .map((item, index) => (
                 <div
-                  class={[`list-item ${this.classId}`, { active: this.activeIndex === index }]}
                   key={item.id}
+                  class={[`list-item ${this.classId}`, { active: this.activeIndex === index }]}
                   onClick={() => this.handleSelectItem(item)}
                 >
                   <span>{item.lightContent || item.name}</span>

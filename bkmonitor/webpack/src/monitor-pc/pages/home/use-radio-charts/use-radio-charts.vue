@@ -29,12 +29,14 @@
     :title="$t('主机性能状态分布')"
   >
     <div
-      class="sub-title"
       slot="title"
-    >{{ $t('（数据缓存2mins）') }}</div>
+      class="sub-title"
+    >
+      {{ $t('（数据缓存2mins）') }}
+    </div>
     <div
-      class="radio-content"
       v-if="options.length"
+      class="radio-content"
     >
       <template v-for="(optionList, index) in options">
         <div
@@ -42,17 +44,17 @@
           class="radio-content-wrap"
         >
           <div
-            class="chart-item"
-            :class="{ 'item-border': index === 0, 'border-left': !(key % 2) }"
             v-for="(option, key) in optionList"
             :key="key"
+            class="chart-item"
+            :class="{ 'item-border': index === 0, 'border-left': !(key % 2) }"
           >
             <monitor-pie-echart
               class="chart-set"
               chart-type="pie"
               :height="200"
-              @chart-click="(e) => handleChartClick(e, option)"
               :options="option"
+              @chart-click="e => handleChartClick(e, option)"
             >
               <div
                 slot="chartCenter"
@@ -83,18 +85,18 @@ export default {
   name: 'UseRadioCharts',
   components: {
     PanelCard,
-    MonitorPieEchart
+    MonitorPieEchart,
   },
   mixins: [gotoPageMixin],
   props: {
     series: {
       type: Array,
-      required: true
+      required: true,
     },
     showExample: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   data() {
     return {
@@ -103,120 +105,120 @@ export default {
         '20 ~ 40%': '#699df4',
         '40 ~ 60%': '#3a84ff',
         '60 ~ 80%': '#ffb848',
-        '80 ~ 100%': '#ff9c01'
+        '80 ~ 100%': '#ff9c01',
       },
       defaultSerise: [
         {
           data: [
             {
               name: '0 ~ 20%',
-              y: 3
+              y: 3,
             },
             {
               name: '20 ~ 40%',
-              y: 4
+              y: 4,
             },
             {
               name: '40 ~ 60%',
-              y: 5
+              y: 5,
             },
             {
               name: '60 ~ 80%',
-              y: 6
+              y: 6,
             },
             {
               name: '80 ~ 100%',
-              y: 7
-            }
+              y: 7,
+            },
           ],
           metric_id: 'system.cpu_summary.usage',
-          name: 'CPU'
+          name: 'CPU',
         },
         {
           data: [
             {
               name: '0 ~ 20%',
-              y: 3
+              y: 3,
             },
             {
               name: '20 ~ 40%',
-              y: 4
+              y: 4,
             },
             {
               name: '40 ~ 60%',
-              y: 5
+              y: 5,
             },
             {
               name: '60 ~ 80%',
-              y: 6
+              y: 6,
             },
             {
               name: '80 ~ 100%',
-              y: 7
-            }
+              y: 7,
+            },
           ],
           metric_id: 'system.cpu_summary.usage',
-          name: this.$t('应用内存使用率')
+          name: this.$t('应用内存使用率'),
         },
         {
           data: [
             {
               name: '0 ~ 20%',
-              y: 3
+              y: 3,
             },
             {
               name: '20 ~ 40%',
-              y: 4
+              y: 4,
             },
             {
               name: '40 ~ 60%',
-              y: 5
+              y: 5,
             },
             {
               name: '60 ~ 80%',
-              y: 6
+              y: 6,
             },
             {
               name: '80 ~ 100%',
-              y: 7
-            }
+              y: 7,
+            },
           ],
           metric_id: 'system.cpu_summary.usage',
-          name: this.$t('磁盘空间使用率')
+          name: this.$t('磁盘空间使用率'),
         },
         {
           data: [
             {
               name: '0 ~ 20%',
-              y: 3
+              y: 3,
             },
             {
               name: '20 ~ 40%',
-              y: 4
+              y: 4,
             },
             {
               name: '40 ~ 60%',
-              y: 5
+              y: 5,
             },
             {
               name: '60 ~ 80%',
-              y: 6
+              y: 6,
             },
             {
               name: '80 ~ 100%',
-              y: 7
-            }
+              y: 7,
+            },
           ],
           metric_id: 'system.cpu_summary.usage',
-          name: this.$t('磁盘I/O利用率')
-        }
+          name: this.$t('磁盘I/O利用率'),
+        },
       ],
       chartIdMap: {
         [this.$t('CPU使用率')]: 'cpu_usage',
         [this.$t('应用内存使用率')]: 'mem_usage',
         [this.$t('磁盘I/O利用率')]: 'io_util',
-        [this.$t('磁盘空间使用率')]: 'disk_in_use'
-      }
+        [this.$t('磁盘空间使用率')]: 'disk_in_use',
+      },
     };
   },
   computed: {
@@ -225,12 +227,12 @@ export default {
       if (!this.showExample) {
         data = this.series;
       }
-      const options = data.map((item) => {
+      const options = data.map(item => {
         const itemData = item.data.slice();
         return {
           name: item.name,
           tooltip: {
-            trigger: 'item'
+            trigger: 'item',
           },
           legend: {
             show: true,
@@ -245,10 +247,10 @@ export default {
                 a: {
                   width: 100,
                   color: !itemData.some(set => set.y > 0) ? '#cccccc' : '#63656E',
-                  lineHeight: 25
-                }
-              }
-            }
+                  lineHeight: 25,
+                },
+              },
+            },
           },
           series: [
             {
@@ -258,33 +260,33 @@ export default {
               avoidLabelOverlap: false,
               label: {
                 show: false,
-                position: 'center'
+                position: 'center',
               },
               labelLine: {
-                show: false
+                show: false,
               },
               data: itemData
                 .sort((a, b) => +a.name.slice(0, 1) - +b.name.slice(0, 1))
-                .map((set) => {
+                .map(set => {
                   const itemColor = Math.abs(set.y) > 0 ? this.colorMaps[set.name] : '#cccccc';
                   return {
                     name: set.name,
                     value: set.y,
                     ...set,
                     itemStyle: {
-                      color: itemColor
+                      color: itemColor,
                     },
                     tooltip: {
                       formatter: () => `<span style="color:${itemColor}">\u25CF</span> <b> ${set.name}</b>
                   <br/>${item.name}: <b><span style="color:#FFFFFF">${set.y}</span>${this.$t('台')}</b><br/>`,
                       textStyle: {
-                        fontSize: 12
-                      }
-                    }
+                        fontSize: 12,
+                      },
+                    },
                   };
-                })
-            }
-          ]
+                }),
+            },
+          ],
         };
       });
       return options.reduce(
@@ -294,7 +296,7 @@ export default {
         },
         [[], []]
       );
-    }
+    },
   },
   methods: {
     gotoPerformace(target) {
@@ -306,33 +308,32 @@ export default {
             target,
             {
               id: 'status',
-              value: [0]
-            }
-          ]
-        }
+              value: [0],
+            },
+          ],
+        },
       });
     },
     handleChartClick(params, option) {
       if (params.data.ip_list?.length) {
-        const scopes = params.name.replace(/\s+/g, '').replace('%', '')
-          .split('~');
+        const scopes = params.name.replace(/\s+/g, '').replace('%', '').split('~');
         this.gotoPerformace({
           id: this.chartIdMap[option.name],
           value: [
             {
               condition: '>=',
-              value: scopes[0]
+              value: scopes[0],
             },
             {
               condition: '<=',
-              value: scopes[1]
-            }
-          ]
+              value: scopes[1],
+            },
+          ],
         });
       }
       return false;
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -405,7 +406,7 @@ export default {
     &-border {
       width: 0px;
       height: 160px;
-      border: .5px solid #ddd;
+      border: 0.5px solid #ddd;
     }
 
     .border-b {

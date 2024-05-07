@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { IBookMark, SettingsTabType } from '../../typings';
 import { SETTINGS_POP_ZINDEX } from '../../utils';
-
 import TabForm from './tab-form';
 
 import './settings-tab.scss';
@@ -290,22 +290,22 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
         </div>
         <div class='setting-tab-list'>
           <transition-group
-            name={this.dragData.from !== null ? 'flip-list' : 'filp-list-none'}
             class='tab-list'
+            name={this.dragData.from !== null ? 'flip-list' : 'filp-list-none'}
             tag='ul'
           >
             {this.localTabData.map((tab, index) => (
               <li
-                class={['drag-item', { 'active-item': this.tabActive === tab?.id || index === this.drag.active }]}
                 key={tab.id}
+                class={['drag-item', { 'active-item': this.tabActive === tab?.id || index === this.drag.active }]}
                 draggable={true}
                 onClick={() => this.handleSelectItem(tab)}
-                onDragstart={evt => this.handleDragStart(evt, index)}
                 onDragend={this.handleDragend}
-                onDrop={this.handleDrop}
                 onDragenter={() => this.handleDragEnter(index)}
-                onDragover={evt => this.handleDragOver(evt, index)}
                 onDragleave={this.handleDragLeave}
+                onDragover={evt => this.handleDragOver(evt, index)}
+                onDragstart={evt => this.handleDragStart(evt, index)}
+                onDrop={this.handleDrop}
               >
                 <div class='tab-main'>
                   <i class='icon-monitor icon-mc-tuozhuai'></i>
@@ -317,15 +317,15 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
           </transition-group>
         </div>
         <TabForm
-          v-bkloading={{ isLoading: this.loading, zIndex: 2000 }}
           key={this.tabActive}
-          formData={this.curTabForm}
+          v-bkloading={{ isLoading: this.loading, zIndex: 2000 }}
           bookMarkData={this.bookMarkData}
           canAddTab={this.canAddTab}
+          formData={this.curTabForm}
           onChange={this.handleFiledChange}
-          onSave={this.handleSave}
           // onReset={this.handleReset}
           onDelete={this.handleDelete}
+          onSave={this.handleSave}
         />
       </div>
     );
