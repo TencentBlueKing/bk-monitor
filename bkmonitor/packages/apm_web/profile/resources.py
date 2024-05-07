@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import concurrent
 import datetime
 import logging
 from collections import defaultdict
@@ -130,29 +129,17 @@ class ListApplicationServicesResource(Resource):
         bk_biz_id = serializers.IntegerField()
 
     @classmethod
-    def batch_query_profile_services_detail(cls, applications):
+    def batch_query_profile_services_detail(cls, validated_data):
         """
         batch query profile services detail
-        :param applications: 应用集合（queryset）
         """
-        def inner(res_map, app):
-            services = api.apm_api.query_profile_services_detail(
-                **{"bk_biz_id": app.bk_biz_id, "app_name": app.app_name}
-            )
-            res_map[app.application_id] = services
-
         service_map = defaultdict(dict)
+        bk_biz_id = validated_data["bk_biz_id"]
+        services = api.apm_api.query_profile_services_detail(**{"bk_biz_id": bk_biz_id})
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(inner, service_map, app) for app in applications]
-            # 打印异常，用于排障
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    logger.exception(
-                        f"[apm] ListApplicationServicesResource batch_query_profile_services_detail error: {e}"
-                    )
+        for obj in services:
+            service_map.setdefault((obj["bk_biz_id"], obj["app_name"]), list()).append(obj)
+
         return service_map
 
     def perform_request(self, data):
@@ -161,9 +148,9 @@ class ListApplicationServicesResource(Resource):
         apps = []
         nodata_apps = []
 
-        service_map = self.batch_query_profile_services_detail(applications)
+        service_map = self.batch_query_profile_services_detail(data)
         for application in applications:
-            services = service_map.get(application.application_id, [])
+            services = service_map.get((application.bk_biz_id, application.app_name), [])
             # 如果曾经发现过 service，都认为是有数据应用
             if len(services) > 0:
                 apps.append(
