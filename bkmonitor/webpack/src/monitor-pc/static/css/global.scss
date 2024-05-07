@@ -340,6 +340,12 @@
   }
 }
 
+.bk-checkbox {
+  &:before, &:after {
+    box-sizing: content-box;
+  }
+}
+
 .simplicity-input {
   .bk-form-input {
     height: 24px;
