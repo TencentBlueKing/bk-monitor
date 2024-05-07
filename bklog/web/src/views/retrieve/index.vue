@@ -1376,7 +1376,7 @@ export default {
           window.bus.$emit('openChartLoading');
           this.isThollteField = false;
           this.getFieldsCancelFn();
-          await this.requestFields();
+          this.requestFields();
         }
         // 指纹请求监听放在这里是要等字段更新完后才会去请求数据指纹
         this.fingerSearchState = !this.fingerSearchState;
