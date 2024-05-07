@@ -1109,9 +1109,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         class='tag-column'
                         onMouseenter={e => this.handleMetricMouseenter(e, row.metric_display)}
                       >
-                        {row.metric_display.map(item => (
+                        {row.metric_display.map((item, index) => (
                           <div
-                            key={item.id}
+                            key={item.id + '__' + index}
                             class='tag-item set-item'
                           >
                             {item.name || item.id}

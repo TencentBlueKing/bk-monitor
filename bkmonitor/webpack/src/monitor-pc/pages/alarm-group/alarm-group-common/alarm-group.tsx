@@ -27,6 +27,7 @@ import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { destroyUserGroup, listDutyRule, listUserGroup } from 'monitor-api/modules/model';
 import { debounce } from 'throttle-debounce';
@@ -39,6 +40,7 @@ import * as authorityMap from '../authority-map';
 import TableStore from '../store';
 
 import './alarm-group.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
 
@@ -564,7 +566,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.$t('新建')}
               </bk-button>
-              <bk-search-select
+              <SearchSelect
                 class='tool-search'
                 data={[
                   {
@@ -580,12 +582,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     id: 'rule',
                   },
                 ]}
+                modelValue={this.searchCondition}
                 placeholder={this.$t('ID / 告警组名称')}
-                show-condition={false}
-                strink={false}
-                values={this.searchCondition}
+                uniqueSelect={true}
                 onChange={this.handleSearchCondition}
-              ></bk-search-select>
+              ></SearchSelect>
               {/* <bk-input
             class='tool-search'
             placeholder={this.$t('ID / 告警组名称')}
