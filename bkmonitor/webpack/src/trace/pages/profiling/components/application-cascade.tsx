@@ -102,6 +102,9 @@ export default defineComponent({
       val => {
         selectValue.appName = val[0] || '';
         selectValue.serviceName = val[1] || '';
+        if (!!selectValue.appName && !!selectValue.serviceName) {
+          inputText.value = `${selectValue.appName} / ${selectValue.serviceName}`;
+        }
       },
       {
         immediate: true,
