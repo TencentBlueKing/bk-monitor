@@ -311,8 +311,6 @@ class AccessDataProcess(BaseAccessDataProcess):
 
             # 数据查询
             points = self.query_data(now_timestamp)
-            if not points:
-                return
 
             # 当点数大于阈值时，将数据拆分为多个批量任务
             if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:

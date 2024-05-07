@@ -26,12 +26,14 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce } from 'monitor-common/utils/utils';
 import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import StatusTab from '../../plugins/table-chart/status-tab';
 
 import './relation-chart-title.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface IRelationChartTitleProps {
   filterList?: ITableFilterItem[];
@@ -81,7 +83,8 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
   /** search select组件搜索 */
   @Debounce(300)
   @Emit('conditionChange')
-  handleConditionChange() {
+  handleConditionChange(v) {
+    this.conditionList = v;
     return this.conditionList;
   }
   @Debounce(300)
@@ -133,14 +136,14 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
               </div>
             )}
             {this.searchType === 'search_select' ? (
-              <bk-search-select
-                class='search-wrapper-input'
-                behavior='simplicity'
-                data={this.conditionOptions}
-                show-condition={false}
-                value={this.conditionList}
-                onChange={this.handleConditionChange}
-              />
+              <div class='search-wrapper-input'>
+                <SearchSelect
+                  clearable={false}
+                  data={this.conditionOptions}
+                  modelValue={this.conditionList}
+                  onChange={this.handleConditionChange}
+                />
+              </div>
             ) : (
               <bk-input
                 class='search-wrapper-input'

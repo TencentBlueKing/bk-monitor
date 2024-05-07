@@ -26,6 +26,7 @@
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -34,6 +35,7 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { IQueryData, IQueryDataSearch, ITableFilterItem } from '../../typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName,
@@ -41,6 +43,7 @@ import {
 import CommonStatus from '../common-status/common-status';
 
 import './common-list-k8s.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface ICommonListProps {
   // panel实例
@@ -196,7 +199,7 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           return list?.map?.(set => {
             const id = item.handleCreateItemId(set) || set.id;
@@ -222,7 +225,8 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
     this.loading = false;
   }
 
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.getPanelData();
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
@@ -299,14 +303,13 @@ export default class CommonListK8s extends tsc<ICommonListProps, ICommonListEven
         <div class='list-k8s-container'>
           <div class='list-header'>
             {this.conditionList.length ? (
-              <bk-search-select
-                vModel={this.searchCondition}
+              <SearchSelect
+                clearable={false}
                 data={this.currentConditionList}
+                modelValue={this.searchCondition}
                 placeholder={this.$t('搜索')}
-                show-condition={false}
-                show-popover-tag-change={false}
-                onChange={this.handleSearch}
-              />
+                on-change={this.handleSearch}
+              ></SearchSelect>
             ) : (
               <bk-input
                 v-model={this.keyword}

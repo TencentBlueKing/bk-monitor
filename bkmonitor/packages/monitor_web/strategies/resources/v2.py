@@ -44,6 +44,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.strategy.new_strategy import (
     ActionRelation,
+    Algorithm,
     NoticeRelation,
     QueryConfig,
     Strategy,
@@ -1838,6 +1839,7 @@ class UpdatePartialStrategyV2Resource(Resource):
                 required=False, child=serializers.ListField(child=serializers.DictField(), allow_empty=True)
             )
             actions = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
+            algorithms = Algorithm.Serializer(many=True, required=False)
 
             def validate_target(self, target):
                 if target and target[0]:
@@ -1934,6 +1936,12 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         for item in strategy.items:
             item.target = target
+
+    @staticmethod
+    def update_algorithms(strategy: Strategy, algorithms: List[dict]):
+        """更新检测算法。"""
+        for item in strategy.items:
+            item.algorithms = [Algorithm(strategy.id, item.id, **data) for data in algorithms]
 
     @staticmethod
     def update_message_template(strategy: Strategy, message_template: str):
