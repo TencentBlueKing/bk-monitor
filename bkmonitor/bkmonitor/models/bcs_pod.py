@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import itertools
 import logging
+import typing
 from typing import Dict
 
 from django.db import models
@@ -236,21 +237,14 @@ class BCSPod(BCSBase, BCSBaseResources):
         return columns
 
     @staticmethod
-    def load_list_from_api(params, with_container=False):
+    def load_list_from_api(params):
         bulk_request_params = [{"bcs_cluster_id": bcs_cluster_id} for bcs_cluster_id in params.keys()]
-        values = api.kubernetes.fetch_k8s_pod_and_container_list_by_cluster.bulk_request(
-            bulk_request_params, ignore_exceptions=True
-        )
-        api_pods = itertools.chain.from_iterable(
-            value[0] for value in values if value and value[0] and isinstance(value[0], list)
-        )
-        api_containers = itertools.chain.from_iterable(
-            value[1] for value in values if value and value[1] and isinstance(value[1], list)
-        )
+        result = api.kubernetes.fetch_k8s_pod_list_by_cluster.bulk_request(bulk_request_params, ignore_exceptions=True)
+
+        pods = itertools.chain.from_iterable(value for value in result if isinstance(value, typing.Generator))
 
         pod_models = []
-        container_models = []
-        for p in api_pods:
+        for p in pods:
             bcs_cluster_id = p.get("bcs_cluster_id")
             bk_biz_id = params[bcs_cluster_id]
             bcs_pod = BCSPod()
@@ -285,42 +279,7 @@ class BCSPod(BCSBase, BCSBaseResources):
 
             pod_models.append(bcs_pod)
 
-        if not with_container:
-            return pod_models
-
-        for c in api_containers:
-            from bkmonitor.models import BCSContainer
-
-            bcs_cluster_id = c.get("bcs_cluster_id")
-            bk_biz_id = params[bcs_cluster_id]
-            bcs_container = BCSContainer()
-            bcs_container.bk_biz_id = bk_biz_id
-            bcs_container.bcs_cluster_id = bcs_cluster_id
-            bcs_container.namespace = c.get("namespace")
-            bcs_container.name = c.get("name")
-            bcs_container.pod_name = c.get("pod_name")
-            bcs_container.workload_type = c.get("workload_type")
-            bcs_container.workload_name = c.get("workload_name")
-            bcs_container.node_ip = c.get("node_ip")
-            bcs_container.node_name = c.get("node_name")
-            bcs_container.resource_requests_cpu = c.get("requests_cpu")
-            bcs_container.resource_requests_memory = c.get("requests_memory")
-            bcs_container.resource_limits_cpu = c.get("limits_cpu")
-            bcs_container.resource_limits_memory = c.get("limits_memory")
-            bcs_container.image = c.get("image")
-            bcs_container.created_at = c.get("created_at")
-            bcs_container.status = c.get("status")
-            bcs_container.last_synced_at = timezone.now()
-            bcs_container.deleted_at = None
-
-            # 唯一键
-            bcs_container.unique_hash = bcs_container.get_unique_hash()
-
-            bcs_container.api_labels = c.get("labels", {})
-
-            container_models.append(bcs_container)
-
-        return pod_models, container_models
+        return pod_models
 
     def render_workload(self, bk_biz_id, render_type="list"):
         return f"{self.workload_type}:{self.workload_name}"

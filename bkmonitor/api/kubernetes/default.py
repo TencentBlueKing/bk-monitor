@@ -525,7 +525,7 @@ class FetchK8sPodListByClusterResource(CacheResource):
                 workload_parent_map[workload_type][workload_metadata["name"]] = workload_owner_references
 
         # 内存释放
-        del replica_set_list, job_list
+        del replica_set_list, job_list, node_list
 
         namespace_set = set(namespace_list)
         for pod in pod_data:
@@ -1151,19 +1151,6 @@ class FetchK8sContainerListByClusterResource(CacheResource):
         pods = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
         data = self.format_container_list(pods)
         return data
-
-
-class FetchK8sPodAndContainerListByClusterResource(FetchK8sContainerListByClusterResource):
-    # cache_type = CacheType.BCS
-
-    class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
-
-    def perform_request(self, params):
-        bcs_cluster_id = params["bcs_cluster_id"]
-        pods = list(api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id}))
-        containers = self.format_container_list(pods)
-        return pods, containers
 
 
 class FetchK8sNodeListByClusterResource(CacheResource):

@@ -401,13 +401,11 @@ def sync_bcs_pod(bcs_cluster_id):
         clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
     if not clusters:
         return None
-    pod_models = None
-    container_models = None
 
     for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
         params = {cluster["bcs_cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
         try:
-            pod_models, container_models = BCSPod.load_list_from_api(params, with_container=True)
+            pod_models = BCSPod.load_list_from_api(params)
         except Exception as exc_info:
             logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
             continue
@@ -422,6 +420,15 @@ def sync_bcs_pod(bcs_cluster_id):
             patch_exists_resource_id(pod_models)
             BCSPod.bulk_save_labels(pod_models)
 
+        # 清理内存
+        del pod_models
+
+        try:
+            container_models = BCSContainer.load_list_from_api(params)
+        except Exception as exc_info:
+            logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
+            continue
+
         # 同步container
         bcs_cluster_id_list = list({model.bcs_cluster_id for model in container_models})
         if bcs_cluster_id_list:
@@ -433,8 +440,6 @@ def sync_bcs_pod(bcs_cluster_id):
             )
             patch_exists_resource_id(container_models)
             BCSContainer.bulk_save_labels(container_models)
-
-    return pod_models, container_models
 
 
 @share_lock(identify="sync_bcs_node_to_db")
