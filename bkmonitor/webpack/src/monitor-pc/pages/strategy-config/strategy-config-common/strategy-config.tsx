@@ -58,7 +58,7 @@ import FilterPanel from '../strategy-config-list/filter-panel';
 import { IGroupData } from '../strategy-config-list/group';
 import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
-import { handleMouseDown, handleMouseMove } from '../util';
+import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
 import { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
 
