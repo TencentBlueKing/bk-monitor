@@ -415,9 +415,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                     "order": {"expr": "(ROUND(dtEventTimeStamp / 60000) * 60)", "sort": "asc"},
                 },
             )
-            compare_tendency_result = get_diagrammer("tendency").diff(tendency_data, compare_tendency_data)
+            compare_tendency_result = get_diagrammer("tendency").diff(
+                tendency_data,
+                compare_tendency_data,
+                sample_type=service_period,
+            )
 
-        tendency_data = get_diagrammer("tendency").draw(tendency_data)
+        tendency_data = get_diagrammer("tendency").draw(tendency_data, sample_type=service_period)
         return tendency_data, compare_tendency_result
 
     @staticmethod
