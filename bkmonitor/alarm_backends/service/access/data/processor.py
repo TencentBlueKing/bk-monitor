@@ -285,7 +285,8 @@ class AccessDataProcess(BaseAccessDataProcess):
         # localTime不是UTC时间，而是计算平台的机器时间
         for k, v in local_time_map.items():
             local_time_map[k] += timedelta(hours=settings.BKDATA_LOCAL_TIMEZONE_OFFSET)
-        return local_time_map
+
+        return sorted(local_time_map.items(), key=lambda x: x[0])
 
     def pull(self):
         """
@@ -356,12 +357,12 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            local_time_map = self.get_max_local_time(points)
+            local_time_list = self.get_max_local_time(points)
             first_item.data_sources[0].metrics = [
                 m for m in first_item.data_sources[0].metrics if m["field"] != "localTime"
             ]
-            filter_time_list = []
-            for point_time, max_local_time in local_time_map.items():
+            filter_point_time = None
+            for point_time, max_local_time in local_time_list:
                 if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
                     agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
                     key.ACCESS_END_TIME_KEY.client.set(
@@ -374,9 +375,11 @@ class AccessDataProcess(BaseAccessDataProcess):
                         f"skip access {self.strategy_group_key} data because data local time is too close."
                         f"now: {now_timestamp}, local time: {max_local_time.timestamp()}, point_time: {point_time}"
                     )
-                    filter_time_list.append(point_time)
-
-        return list(filter(lambda x: x["_time_"] not in filter_time_list, points))
+                    filter_point_time = point_time
+                    break
+            if filter_point_time:
+                points = list(filter(lambda point: point < filter_point_time, points))
+        return points
 
     def get_query_time_range(self, now_timestamp: int):
         """
