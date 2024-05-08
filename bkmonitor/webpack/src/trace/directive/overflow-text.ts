@@ -23,27 +23,40 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+// import type { DirectiveBinding } from 'vue';
+import { $bkPopover } from 'bkui-vue';
 
-import { bkTooltips } from 'bkui-vue';
-
-import authority from './authority';
-import overflowText from './overflow-text';
-import watermark from './watermark';
-
-import type { App } from 'vue';
-
-const directives: Record<string, any> = {
-  // 指令对象
-  authority,
-  bkTooltips,
-  watermark,
-  overflowText,
-};
-
+import type { DirectiveBinding } from 'vue';
+interface IElement extends HTMLElement {
+  [prop: string]: any;
+}
 export default {
-  install(app: App) {
-    Object.keys(directives).forEach(key => {
-      app.directive(key, directives[key]);
-    });
+  mounted(el: IElement, binding: DirectiveBinding) {
+    let instance = null;
+    function mouseenter(event: MouseEvent) {
+      event.stopPropagation();
+      if (!instance) {
+        instance = $bkPopover({
+          target: event.target,
+          content: binding.value.text || el.innerText,
+          trigger: 'hover',
+          placement: binding.value.placement || 'top',
+          popoverDelay: [300, 0],
+          onHide: () => {
+            instance = null;
+          },
+        });
+        setTimeout(() => {
+          instance?.show(event.target);
+        }, 50);
+      } else {
+        instance?.show(event.target);
+      }
+    }
+    setTimeout(() => {
+      if (el.scrollWidth > el.clientWidth + 1) {
+        el.addEventListener('mouseenter', mouseenter);
+      }
+    }, 300);
   },
 };

@@ -223,7 +223,10 @@ export default defineComponent({
                           onClick={() => this.handleAppClick(item)}
                         >
                           <i class='icon-monitor icon-mc-menu-apm'></i>
-                          <span class='name'>
+                          <span
+                            class='name'
+                            v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
+                          >
                             {item.app_name}
                             <span class='desc'>({item.app_alias})</span>
                           </span>
@@ -239,7 +242,10 @@ export default defineComponent({
                         onClick={() => this.handleAppClick(item)}
                       >
                         <i class='icon-monitor icon-mc-menu-apm'></i>
-                        <span class='name'>
+                        <span
+                          class='name'
+                          v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
+                        >
                           {item.app_name}
                           <span class='desc'>({item.app_alias})</span>
                         </span>
