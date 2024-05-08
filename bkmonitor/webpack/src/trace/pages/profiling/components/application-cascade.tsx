@@ -236,8 +236,9 @@ export default defineComponent({
                       ))}
                     </div>
                     <div class='group-title'>{this.t('无数据应用')}</div>
-                    {this.appList.no_data.map(item => (
+                    {this.appList.no_data.map((item, index) => (
                       <div
+                        key={`${item.app_name}_${index}`}
                         class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                         onClick={() => this.handleAppClick(item)}
                       >

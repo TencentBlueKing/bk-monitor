@@ -43,6 +43,7 @@ export default {
           placement: binding.value.placement || 'top',
           popoverDelay: [300, 0],
           onHide: () => {
+            instance?.hide?.();
             instance = null;
           },
         });
