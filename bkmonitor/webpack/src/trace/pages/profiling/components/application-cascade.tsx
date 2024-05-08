@@ -273,13 +273,15 @@ export default defineComponent({
                               <Form.FormItem label={this.t('描述')}>{this.appData.description}</Form.FormItem>
                               <Form.FormItem label='Token'>
                                 <span class='password'>{this.token || '●●●●●●●●●●'}</span>
-                                <Button
-                                  theme='primary'
-                                  text
-                                  onClick={this.handleViewToken}
-                                >
-                                  {this.t('点击查看')}
-                                </Button>
+                                {!this.token && (
+                                  <Button
+                                    theme='primary'
+                                    text
+                                    onClick={this.handleViewToken}
+                                  >
+                                    {this.t('点击查看')}
+                                  </Button>
+                                )}
                               </Form.FormItem>
                             </Form>
                             <div class='btn'>
