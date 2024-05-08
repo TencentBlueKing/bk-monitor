@@ -334,6 +334,21 @@ class Permission(object):
         """
         根据动作过滤用户有权限的业务列表
         """
+        if space_list is None:
+            # 获取业务列表
+            from apps.log_search.models import Space
+
+            space_list = Space.objects.values(
+                "id",
+                "space_type_id",
+                "space_type_name",
+                "space_id",
+                "space_name",
+                "space_uid",
+                "space_code",
+                "bk_biz_id",
+                "properties",
+            )
         # 跳过权限检验
         if settings.IGNORE_IAM_PERMISSION:
             return space_list
