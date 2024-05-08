@@ -225,7 +225,10 @@ export default defineComponent({
                           onClick={() => this.handleAppClick(item)}
                         >
                           <i class='icon-monitor icon-mc-menu-apm'></i>
-                          <span class='name'>
+                          <span
+                            class='name'
+                            v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
+                          >
                             {item.app_name}
                             <span class='desc'>({item.app_alias})</span>
                           </span>
@@ -235,13 +238,17 @@ export default defineComponent({
                       ))}
                     </div>
                     <div class='group-title'>{this.t('无数据应用')}</div>
-                    {this.appList.no_data.map(item => (
+                    {this.appList.no_data.map((item, index) => (
                       <div
+                        key={`${item.app_name}_${index}`}
                         class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                         onClick={() => this.handleAppClick(item)}
                       >
                         <i class='icon-monitor icon-mc-menu-apm'></i>
-                        <span class='name'>
+                        <span
+                          class='name'
+                          v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
+                        >
                           {item.app_name}
                           <span class='desc'>({item.app_alias})</span>
                         </span>
