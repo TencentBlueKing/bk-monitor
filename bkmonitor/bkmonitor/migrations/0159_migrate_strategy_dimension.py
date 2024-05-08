@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from collections import OrderedDict
 from functools import reduce
 from operator import or_
@@ -20,6 +22,9 @@ def update_agg_dimension(apps, schema_editor):
         agg_dimension = query_config.config['agg_dimension']
         new_agg_dimensions = [REPLACE_RULES.get(d, d) for d in agg_dimension]
         new_agg_dimensions = list(OrderedDict.fromkeys(new_agg_dimensions))  # 去重并保证顺序
+        for condition in query_config.config.get("agg_condition", []):
+            if condition.get("key") in REPLACE_RULES:
+                condition["key"] = REPLACE_RULES[condition["key"]]
 
         query_config.config['agg_dimension'] = new_agg_dimensions
         query_config.save(update_fields=['config'])
