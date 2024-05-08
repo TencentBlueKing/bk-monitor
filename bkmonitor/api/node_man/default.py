@@ -137,11 +137,11 @@ class UploadResource(NodeManAPIGWResource):
     support_data_collect = False
 
     def full_request_data(self, kwargs):
+        kwargs.update(make_userinfo())
         kwargs.update(
             {
                 "bk_app_code": settings.APP_CODE,
                 "bk_app_secret": settings.SECRET_KEY,
-                "bk_username": make_userinfo(),
             }
         )
         return kwargs
