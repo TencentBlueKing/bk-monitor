@@ -378,7 +378,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                     filter_point_time = point_time
                     break
             if filter_point_time:
-                points = list(filter(lambda point: point < filter_point_time, points))
+                points = list(filter(lambda point: point["_time_"] < filter_point_time, points))
         return points
 
     def get_query_time_range(self, now_timestamp: int):
