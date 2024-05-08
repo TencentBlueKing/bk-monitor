@@ -823,10 +823,11 @@ export default class MonitorEcharts extends Vue {
           if (this.chart) {
             let options = deepMerge(optionData.options, this.defaultOptions);
             const width = (this.$refs?.chartRef as any)?.clientWidth;
+            const splitNumber = Math.ceil(width / 100);
             if (['line', 'bar'].includes(this.chartType) && width) {
               options = deepMerge(options, {
                 xAxis: {
-                  splitNumber: Math.ceil(width / 100),
+                  splitNumber: splitNumber > 12 ? 12 : splitNumber,
                   min: 'dataMin',
                 },
               });
