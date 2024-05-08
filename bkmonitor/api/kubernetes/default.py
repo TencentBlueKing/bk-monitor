@@ -440,8 +440,6 @@ class FetchK8sNodePerformanceResource(FetchKubernetesGrafanaMetricRecords):
 
 
 class FetchK8sPodListByClusterResource(CacheResource):
-    cache_type = CacheType.BCS
-
     class RequestSerializer(serializers.Serializer):
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
         namespace_list = serializers.ListField(
@@ -1086,14 +1084,13 @@ class FetchK8sEndpointListByClusterResource(CacheResource):
 
 
 class FetchK8sContainerListByClusterResource(CacheResource):
-    cache_type = CacheType.BCS
-
     class RequestSerializer(serializers.Serializer):
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
-    @staticmethod
-    def format_container_list(pods):
-        data = []
+    def perform_request(self, params):
+        bcs_cluster_id = params["bcs_cluster_id"]
+        pods = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
+
         for pod in pods:
             pod_parser = KubernetesPodJsonParser(pod.get("pod", {}))
             containers = pod_parser.containers
@@ -1117,40 +1114,30 @@ class FetchK8sContainerListByClusterResource(CacheResource):
                 requests_memory = resources["requests_memory"]
                 limits_memory = resources["limits_memory"]
 
-                data.append(
-                    {
-                        "bcs_cluster_id": bcs_cluster_id,
-                        "container": container,
-                        "container_status": container_status,
-                        "requests_cpu": requests_cpu,
-                        "limits_cpu": limits_cpu,
-                        "requests_memory": requests_memory,
-                        "limits_memory": limits_memory,
-                        "name": container_name,
-                        "labels": labels,
-                        "container_name": container_name,
-                        "pod_name": pod_parser.name,
-                        "node_name": pod["node_name"],
-                        "node_ip": pod["node_ip"],
-                        "workloads": pod["workloads"],
-                        "workload_type": pod["workload_type"],
-                        "workload_name": pod["workload_name"],
-                        "namespace": pod_parser.namespace,
-                        "image": image,
-                        "container_status_ready": container_status_ready,
-                        "status": status,
-                        "created_at": created_at,
-                        "age": age,
-                    }
-                )
-
-        return data
-
-    def perform_request(self, params):
-        bcs_cluster_id = params["bcs_cluster_id"]
-        pods = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
-        data = self.format_container_list(pods)
-        return data
+                yield {
+                    "bcs_cluster_id": bcs_cluster_id,
+                    "container": container,
+                    "container_status": container_status,
+                    "requests_cpu": requests_cpu,
+                    "limits_cpu": limits_cpu,
+                    "requests_memory": requests_memory,
+                    "limits_memory": limits_memory,
+                    "name": container_name,
+                    "labels": labels,
+                    "container_name": container_name,
+                    "pod_name": pod_parser.name,
+                    "node_name": pod["node_name"],
+                    "node_ip": pod["node_ip"],
+                    "workloads": pod["workloads"],
+                    "workload_type": pod["workload_type"],
+                    "workload_name": pod["workload_name"],
+                    "namespace": pod_parser.namespace,
+                    "image": image,
+                    "container_status_ready": container_status_ready,
+                    "status": status,
+                    "created_at": created_at,
+                    "age": age,
+                }
 
 
 class FetchK8sNodeListByClusterResource(CacheResource):

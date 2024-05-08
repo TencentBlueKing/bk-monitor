@@ -15,7 +15,6 @@ logger = logging.getLogger("bcs_storage")
 
 
 class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    cache_type = CacheType.BCS
     module_name = "bcs-storage"
 
     # BCS目前是非蓝鲸标准的返回格式，所以需要兼容

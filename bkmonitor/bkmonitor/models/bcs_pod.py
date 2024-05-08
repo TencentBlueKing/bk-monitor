@@ -8,9 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import itertools
 import logging
-import typing
 from typing import Dict
 
 from django.db import models
@@ -238,15 +236,11 @@ class BCSPod(BCSBase, BCSBaseResources):
 
     @staticmethod
     def load_list_from_api(params):
-        bulk_request_params = [{"bcs_cluster_id": bcs_cluster_id} for bcs_cluster_id in params.keys()]
-        result = api.kubernetes.fetch_k8s_pod_list_by_cluster.bulk_request(bulk_request_params, ignore_exceptions=True)
+        bcs_cluster_id = params["bcs_cluster_id"]
+        bk_biz_id = params["bk_biz_id"]
 
-        pods = itertools.chain.from_iterable(value for value in result if isinstance(value, typing.Generator))
-
-        pod_models = []
-        for p in pods:
+        for p in api.kubernetes.fetch_k8s_pod_list_by_cluster(bcs_cluster_id=bcs_cluster_id):
             bcs_cluster_id = p.get("bcs_cluster_id")
-            bk_biz_id = params[bcs_cluster_id]
             bcs_pod = BCSPod()
             bcs_pod.bk_biz_id = bk_biz_id
             bcs_pod.bcs_cluster_id = bcs_cluster_id
@@ -274,12 +268,8 @@ class BCSPod(BCSBase, BCSBaseResources):
 
             # 唯一键
             bcs_pod.unique_hash = bcs_pod.get_unique_hash()
-
             bcs_pod.api_labels = p.get("labels", {})
-
-            pod_models.append(bcs_pod)
-
-        return pod_models
+            yield bcs_pod
 
     def render_workload(self, bk_biz_id, render_type="list"):
         return f"{self.workload_type}:{self.workload_name}"
