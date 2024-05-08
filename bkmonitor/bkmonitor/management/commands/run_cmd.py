@@ -25,7 +25,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         super(Command, self).add_arguments(parser)
 
-    def handle(self, module_name, func_name, *args, **options):
+    def handle(self, *args, **options):
         print(parse_strategy.__doc__)
         parse_strategy()
         print(parse_uptime_check.__doc__)
