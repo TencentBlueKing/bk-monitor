@@ -818,16 +818,18 @@ class BCSBase(models.Model):
     def convert_up_code_to_monitor_status(cls, code_list: List) -> str:
         Code = BkmMetricbeatEndpointUpStatus
         code_set = set(code_list)
-        if code_set ^ {
-            Code.BeatErrCodeOK,
-            Code.BeatScriptPromFormatOuterError,
-            Code.BeatMetricBeatPromFormatOuterError,
-        }:
-            # 有失败的状态码
-            monitor_status = cls.METRICS_STATE_FAILURE
-        else:
+        if code_set.issubset(
+            {
+                Code.BeatErrCodeOK,
+                Code.BeatScriptPromFormatOuterError,
+                Code.BeatMetricBeatPromFormatOuterError,
+            }
+        ):
             # 全部成功
             monitor_status = cls.METRICS_STATE_STATE_SUCCESS
+        else:
+            # 有失败的状态码
+            monitor_status = cls.METRICS_STATE_FAILURE
         return monitor_status
 
     @classmethod
