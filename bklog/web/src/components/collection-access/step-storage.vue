@@ -158,12 +158,16 @@
         </span>
       </bk-form-item>
       <!-- 副本数 -->
-      <bk-form-item :label="$t('副本数')">
+      <bk-form-item
+        :label="$t('副本数')"
+        :rules="rules.storage_replies"
+        :property="'storage_replies'"
+        ext-cls="number-input"
+      >
         <bk-input
           v-model="formData.storage_replies"
           class="copy-number-input"
           type="number"
-          :max="replicasMax"
           :min="0"
           :precision="0"
           :clearable="false"
@@ -172,12 +176,16 @@
         ></bk-input>
       </bk-form-item>
       <!-- 分片数 -->
-      <bk-form-item :label="$t('分片数')">
+      <bk-form-item
+        :label="$t('分片数')"
+        :rules="rules.es_shards"
+        :property="'es_shards'"
+        ext-cls="number-input"
+      >
         <bk-input
           v-model="formData.es_shards"
           class="copy-number-input"
           type="number"
-          :max="shardsMax"
           :min="1"
           :precision="0"
           :clearable="false"
@@ -448,6 +456,30 @@ export default {
             },
             trigger: 'change'
           }
+        ],
+        storage_replies: [
+          {
+            validator: this.checkStorageReplies,
+            message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
+            trigger: 'blur'
+          },
+          {
+            validator: this.checkStorageReplies,
+            message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
+            trigger: 'change'
+          }
+        ],
+        es_shards: [
+          {
+            validator: this.checkEsShards,
+            message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
+            trigger: 'blur'
+          },
+          {
+            validator: this.checkEsShards,
+            message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
+            trigger: 'change'
+          }
         ]
       },
       storage_capacity: '',
@@ -600,19 +632,20 @@ export default {
     // 存储校验
     checkStore() {
       return new Promise((resolve, reject) => {
-        if (!this.isUnmodifiable) {
-          this.$refs.validateForm
-            .validate()
-            .then(validator => {
-              resolve(validator);
-            })
-            .catch(err => {
-              console.warn('存储校验错误');
-              reject(err);
-            });
-        } else {
-          resolve();
-        }
+        // if (!this.isUnmodifiable) {
+
+        // } else {
+        //   resolve();
+        // }
+        this.$refs.validateForm
+          .validate()
+          .then(validator => {
+            resolve(validator);
+          })
+          .catch(err => {
+            console.warn('存储校验错误');
+            reject(err);
+          });
       });
     },
     prevHandler() {
@@ -846,6 +879,12 @@ export default {
         data.etl_params = payload;
       }
       return data;
+    },
+    checkStorageReplies() {
+      return this.formData.storage_replies <= this.replicasMax;
+    },
+    checkEsShards() {
+      return this.formData.es_shards <= this.shardsMax;
     }
   }
 };

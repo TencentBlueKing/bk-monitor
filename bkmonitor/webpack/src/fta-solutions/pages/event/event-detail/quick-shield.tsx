@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -40,6 +40,8 @@ interface IQuickShieldProps {
   details: IDetail[];
   ids?: Array<string>;
   bizIds?: number[];
+  authority?: Record<string, boolean>;
+  handleShowAuthorityDetail?: (action: any) => void;
 }
 export interface IDetail {
   severity: number;
@@ -55,16 +57,8 @@ export interface IDetail {
   name: 'QuickShield',
 })
 export default class MyComponent extends tsc<IQuickShieldProps> {
-  /**
-   * 由于 event-center 和 event-center-detail 这两个页面都需要 Provide 以下的 authority 和 authorityFromEventDetail
-   * 但是都继承了 authorityMixin 的方法，其中 beforeRouteEnter 这个只有页面组件才能执行该回调，
-   * 会导致，事件详情侧边栏也会 Provide 一个初始化值到快捷屏蔽告警 dialog 上形成bug，这里将注入两种类型的变量去解决上述问题。
-   * 副作用是会产生 Injection "xxx" not found 的警告
-   */
-  @Inject('authority') authority;
-  @Inject('authorityFromEventDetail') authorityFromEventDetail;
-  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Inject('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetailFromEventDetail = null;
+  @Prop({ type: Object, default: () => ({}) }) authority: IQuickShieldProps['authority'];
+  @Prop({ type: Function, default: null }) handleShowAuthorityDetail: IQuickShieldProps['handleShowAuthorityDetail'];
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Array, default: () => [] }) details: IDetail[];
   @Prop({ type: Array, default: () => [] }) ids: Array<string>;
@@ -230,19 +224,6 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
     window.open(url);
   }
 
-  getAuthority(): any {
-    const routeName = this.$route.name;
-    if (routeName === 'event-center') return this.authority;
-    if (routeName === 'event-center-detail') return this.authorityFromEventDetail;
-    return {};
-  }
-
-  getHandleShowAuthorityDetail(action: any) {
-    const routeName = this.$route.name;
-    if (routeName === 'event-center') this.handleShowAuthorityDetail(action);
-    if (routeName === 'event-center-detail') this.handleShowAuthorityDetailFromEventDetail?.(action);
-  }
-
   getInfoCompnent() {
     return this.details.map(detail => (
       <div class='item-content'>
@@ -359,13 +340,13 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         <template slot='footer'>
           <bk-button
             style='margin-right: 10px'
-            v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
+            v-authority={{ active: !this.authority?.ALARM_SHIELD_MANAGE_AUTH }}
             disabled={this.loading}
             theme='primary'
             on-click={() =>
-              this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH
+              this.authority?.ALARM_SHIELD_MANAGE_AUTH
                 ? this.handleSubmit()
-                : this.getHandleShowAuthorityDetail(this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH)
+                : this.handleShowAuthorityDetail?.(this.authority?.ALARM_SHIELD_MANAGE_AUTH)
             }
           >
             {this.$t('确定')}

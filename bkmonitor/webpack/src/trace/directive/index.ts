@@ -27,6 +27,7 @@
 import { bkTooltips } from 'bkui-vue';
 
 import authority from './authority';
+import overflowText from './overflow-text';
 import watermark from './watermark';
 
 import type { App } from 'vue';
@@ -36,6 +37,7 @@ const directives: Record<string, any> = {
   authority,
   bkTooltips,
   watermark,
+  overflowText,
 };
 
 export default {

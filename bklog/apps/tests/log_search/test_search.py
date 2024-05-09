@@ -19,12 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import arrow
+from django.test import TestCase
+
 from apps.log_search.constants import LOG_ASYNC_FIELDS
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from django.test import TestCase
 
 INDEX_SET_ID = 0
 SEARCH_DICT = {"size": 100000}
@@ -99,7 +100,8 @@ class TestSearchHandler(TestCase):
         search_after_result = self.search_handler.search_after_result(
             search_result=SEARCH_RESULT, sorted_fields=LOG_ASYNC_FIELDS
         )
-
+        self.search_handler.index_set_obj = Mock()
+        self.search_handler.index_set_obj.result_window = 10000
         logs_result = []
         for result in search_after_result:
             logs_result.extend(result["list"])
@@ -112,7 +114,8 @@ class TestSearchHandler(TestCase):
     )
     def test_scroll_result(self):
         scroll_result = self.search_handler.scroll_result(scroll_result=SEARCH_RESULT)
-
+        self.search_handler.index_set_obj = Mock()
+        self.search_handler.index_set_obj.result_window = 10000
         logs_result = []
         for result in scroll_result:
             logs_result.extend(result["list"])

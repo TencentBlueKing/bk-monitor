@@ -957,10 +957,10 @@ class SearchViewSet(APIViewSet):
         )
         return Response(result)
 
-    @list_route(methods=["GET"], url_path="retrieve_config")
+    @detail_route(methods=["GET"], url_path="retrieve_config")
     def retrieve_config(self, request, *args, **kwargs):
         """
-        @api {get} /search/index_set/config/?config_id=1 03_搜索-获取指定索引集配置
+        @api {get} /search/index_set/$index_set_id/retrieve_config?config_id=1 03_搜索-获取指定索引集配置
         @apiDescription 获取某个索引集的字段配置
         @apiName retrieve_index_set_config
         @apiGroup 11_Search

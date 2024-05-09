@@ -32,10 +32,92 @@ class BcsClusterType:
 class BkmMetricbeatEndpointUpStatus:
     """采集器up指标值 ."""
 
-    statusOK = 0  # HTTP请求正常
-    statusUnknownErr = 1  # 未知错误
-    statusCancel = 2  # HTTP请求失败
-    statusTimeout = 3  # 内部处理异常
+    # 成功
+    BeatErrCodeOK = 0
+    # 未知
+    BeatErrCodeUnknown = 1
+    # 取消
+    BeatErrCodeCancel = 2
+    # 超时
+    BeatErrCodeTimeout = 3
+    # 系统内部异常
+    BeatErrInternalErr = 4
+    # 连接失败
+    BeatErrCodeConnError = 1000
+    # 连接超时
+    BeatErrCodeConnTimeoutError = 1001
+    # 连接代理失败
+    BeatErrCodeConnProxyError = 1002
+    # 连接DNS解析失败
+    BeatErrCodeConnDNSResolveError = 1003
+    # DNS解析失败
+    BeatErrCodeDNSResolveError = 1004
+    # 非法IP地址
+    BeatInvalidIPError = 1005
+    # 请求失败
+    BeatErrCodeRequestError = 1100
+    # 请求超时
+    BeatErrCodeRequestTimeoutError = 1101
+    # 超时设置错误
+    BeatErrCodeRequestDeadLineError = 1102
+    # 请求初始化失败
+    BeatErrCodeRequestInitError = 1103
+    # 响应失败
+    BeatErrCodeResponseError = 1200
+    # 响应超时
+    BeatErrCodeResponseTimeoutError = 1201
+    # 匹配失败
+    BeatErrCodeResponseMatchError = 1202
+    # 响应码不匹配
+    BeatErrCodeResponseCodeError = 1203
+    # 临时响应失败
+    BeatErrCodeResponseTemporaryError = 1204
+    # 服务无响应
+    BeatErrCodeResponseNoRspError = 1205
+    # 响应处理失败
+    BeatErrCodeResponseHandleError = 1206
+    # 链接拒绝
+    BeatErrCodeResponseConnRefused = 1207
+    # 响应读取失败
+    BeatErrCodeResponseReadError = 1208
+    # 响应头部为空
+    BeatErrCodeResponseEmptyError = 1209
+    # 响应头部不符合
+    BeatErrCodeResponseHeaderError = 1210
+    # 未找到ipv4地址
+    BeatErrCodeResponseNotFindIpv4 = 1211
+    # 未找到ipv6地址
+    BeatErrCodeResponseNotFindIpv6 = 1212
+    # url解析错误
+    BeatErrCodeResponseParseUrlErr = 1213
+    # 脚本配置中的时间单位设置异常
+    BeatErrScriptTsUnitConfigError = 1301
+    # 主机进程状态信息读取失败
+    BeaterProcSnapshotReadError = 1402
+    # 标准化模式主机套接字信息读取失败
+    BeaterProcStdConnDetectError = 1403
+    # Netlink模式主机套接字信息读取失败
+    BeaterProcNetConnDetectError = 1404
+    # 将相应同步至临时文件失败
+    BeaterMetricBeatWriteTmpFileError = 1501
+    # DNS解析失败
+    BeatPingDNSResolveOuterError = 2101
+    # IP 格式异常
+    BeatPingInvalidIPOuterError = 2102
+    # 脚本运行报错
+    BeatScriptRunOuterError = 2301
+    # 脚本打印的 Prom 数据格式异常 (按正常处理)
+    BeatScriptPromFormatOuterError = 2302
+    # PID文件不存在
+    BeaterProcPIDFileNotFountOuterError = 2401
+    # 单个进程状态信息读取失败
+    BeaterProcStateReadOuterError = 2402
+    # 进程关键字未匹配到任何进程
+    BeaterProcNotMatchedOuterError = 2403
+    # 连接用户端地址失败
+    BeatMetricBeatConnOuterError = 2501
+    # 服务返回的 Prom 数据格式异常 (按正常处理)
+    BeatMetricBeatPromFormatOuterError = 2502
 
 
 def is_k8s_target(scenario: str) -> bool:

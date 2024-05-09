@@ -27,6 +27,7 @@
 import { Component, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { deleteApplication, listApplication, listApplicationAsync } from 'monitor-api/modules/apm_meta';
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
 import { Debounce } from 'monitor-common/utils/utils';
@@ -50,6 +51,7 @@ import { SEARCH_KEYS, STATUS_MAP } from './utils';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './app-list-new.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const charColor = (str: string) => {
   const h = str.charCodeAt(0) % 360;
@@ -754,18 +756,14 @@ export default class AppList extends tsc<object> {
                   )}
                   <span>{this.isExpan ? this.$t('全部收起') : this.$t('全部展开')}</span>
                 </bk-button>
-                <bk-search-select
-                  class='app-list-search'
-                  data={this.conditionListFilter()}
-                  filter={true}
-                  placeholder={this.$t('请输入搜索或筛选')}
-                  show-condition={false}
-                  show-popover-tag-change={false}
-                  strink={false}
-                  values={this.searchCondition}
-                  wrap-zindex={0}
-                  onChange={this.handleSearchCondition}
-                ></bk-search-select>
+                <div class='app-list-search'>
+                  <SearchSelect
+                    data={this.conditionListFilter()}
+                    modelValue={this.searchCondition}
+                    placeholder={this.$t('请输入搜索或筛选')}
+                    onChange={this.handleSearchCondition}
+                  ></SearchSelect>
+                </div>
                 {/* <Input
                   class='app-list-search'
                   placeholder={this.$t('输入搜索或筛选')}

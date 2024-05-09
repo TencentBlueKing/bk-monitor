@@ -50,8 +50,10 @@ import AlarmGroup from '../strategy-config-set-new/components/alarm-group';
 import CommonItem from '../strategy-config-set-new/components/common-form-item';
 import { IGroupItem } from '../strategy-config-set-new/components/group-select';
 import VerifyItem from '../strategy-config-set-new/components/verify-item';
+import DetectionRules from '../strategy-config-set-new/detection-rules/detection-rules';
 import { DEFAULT_TIME_RANGES } from '../strategy-config-set-new/judging-condition/judging-condition';
 import { actionOption, intervalModeList, noticeOptions } from '../strategy-config-set-new/notice-config/notice-config';
+import { MetricDetail } from '../strategy-config-set-new/typings';
 
 import './strategy-config-dialog.scss';
 
@@ -113,6 +115,14 @@ const TYPE_MAP = {
     title: window.i18n.tc('修改告警风暴开关'),
     width: 480,
   },
+  20: {
+    title: window.i18n.tc('修改通知升级'),
+    width: 480,
+  },
+  21: {
+    title: window.i18n.tc('修改算法'),
+    width: 640,
+  },
 };
 
 // 通知间隔类型
@@ -146,6 +156,7 @@ interface IProps {
   groupList?: IGroup[];
   dialogShow?: boolean;
   setType?: number;
+  selectMetricData?: MetricDetail[];
 }
 interface IEvents {
   onGetGroupList?: void;
@@ -160,8 +171,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) groupList: IGroup[];
   @Prop({ type: Boolean, default: false }) dialogShow: boolean;
   @Prop({ type: Number, default: 0 }) setType: number;
+  @Prop({ type: Array, default: () => [] }) selectMetricData: MetricDetail[];
 
   @Ref('alarmHandlingList') alarmHandlingListRef: AlarmHandlingList;
+  @Ref('detection-rules') readonly detectionRulesEl: DetectionRules;
 
   isLoading = false;
   data = {
@@ -191,6 +204,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     noDataCycleError: false,
     enAbled: false,
     labelsError: false,
+    upgradeError: '',
     timeRange: DEFAULT_TIME_RANGES, // 时间段
     alarmItems: [] as IAlarmItem[], // 告警处理
     userGroups: [] as number[], // 告警组
@@ -212,6 +226,23 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     templateData: { signal: 'abnormal', message_tmpl: '', title_tmpl: '' }, // 当前模板数据
     templateError: '',
     needBizConverge: true,
+    /** 通知升级 */
+    upgrade_config: {
+      /** 通知升级开关 */
+      is_enabled: true,
+      /** 通知升级间隔 */
+      upgrade_interval: 1,
+      /** 通知升级告警组 */
+      user_groups: [],
+    },
+    // 检测规则数据
+    detectionConfig: {
+      unit: '',
+      unitType: '', // 单位类型
+      unitList: [],
+      connector: 'and',
+      data: [],
+    },
   };
   triggerTypeList = [{ id: 1, name: window.i18n.tc('累计') }];
   numbersScope = {
@@ -248,7 +279,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           await this.getDefenseList();
         }
       }
-      if (this.setType === 14 && !this.alarmGroupList.length) {
+      if ((this.setType === 14 || this.setType === 20) && !this.alarmGroupList.length) {
         await this.getAlarmGroupList();
       }
       if (this.setType === 17) {
@@ -440,6 +471,18 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       },
       /* 修改告警风暴开关 */
       18: () => ({ notice: { options: { converge_config: { need_biz_converge: this.data.needBizConverge } } } }),
+      20: () =>
+        this.validUpgradeConfig() ? false : { notice: { options: { upgrade_config: this.data.upgrade_config } } },
+      21: async () => {
+        try {
+          await this.detectionRulesEl.validate();
+          return {
+            algorithms: this.data.detectionConfig.data,
+          };
+        } catch (error) {
+          return false;
+        }
+      },
     };
     return setTypeMap[this.setType]?.() || {};
   }
@@ -486,6 +529,17 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   validateLabelsList() {
     this.data.labelsError = !this.data.labels.length;
     return this.data.labelsError;
+  }
+
+  /** 校验通知升级 */
+  validUpgradeConfig() {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { is_enabled, upgrade_interval, user_groups } = this.data.upgrade_config;
+    this.data.upgradeError = '';
+    if (is_enabled && (upgrade_interval < 1 || user_groups.length === 0)) {
+      this.data.upgradeError = this.$tc('通知升级必须填写时间间隔以及用户组');
+    }
+    return !!this.data.upgradeError;
   }
 
   // 取消
@@ -543,6 +597,17 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       }
       return item;
     });
+  }
+
+  /** 通知升级时间间隔 */
+  handleUpgradeIntervalChange(val: string) {
+    const num = parseInt(val, 10);
+    this.data.upgrade_config.upgrade_interval = isNaN(num) ? 1 : num;
+  }
+
+  // 检测算法值更新
+  handleDetectionRulesChange(v) {
+    this.data.detectionConfig.data = v;
   }
 
   // 所有选项组件
@@ -868,6 +933,86 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}
               </span>
             </span>
+          </div>
+        );
+      case 20 /** 修改通知升级 */:
+        return (
+          <div class='upgrade-config'>
+            <div class='title'>{this.$t('通知升级')}</div>
+            <div class='content'>
+              <bk-switcher
+                v-model={this.data.upgrade_config.is_enabled}
+                size='small'
+                theme='primary'
+              ></bk-switcher>
+
+              {this.data.upgrade_config.is_enabled && (
+                <i18n
+                  class='text'
+                  path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
+                  tag='div'
+                >
+                  <bk-select
+                    style='width: 70px'
+                    class='notice-select'
+                    v-model={this.data.upgrade_config.upgrade_interval}
+                    behavior='simplicity'
+                    placeholder={this.$t('输入')}
+                    zIndex={99999}
+                    allow-create
+                    allow-enter
+                    onChange={this.handleUpgradeIntervalChange}
+                  >
+                    <bk-option
+                      id={1}
+                      name={1}
+                    />
+                    <bk-option
+                      id={5}
+                      name={5}
+                    />
+                    <bk-option
+                      id={10}
+                      name={10}
+                    />
+                    <bk-option
+                      id={30}
+                      name={30}
+                    />
+                  </bk-select>
+                </i18n>
+              )}
+
+              {this.data.upgrade_config.is_enabled && (
+                <AlarmGroup
+                  class='alarm-group'
+                  v-model={this.data.upgrade_config.user_groups}
+                  list={this.alarmGroupList}
+                  showAddTip={false}
+                  onAddGroup={() => this.handleHideDialog(false)}
+                ></AlarmGroup>
+              )}
+              {this.data.upgradeError ? (
+                <span class='notice-error-msg error-msg-font'> {this.data.upgradeError} </span>
+              ) : undefined}
+            </div>
+          </div>
+        );
+      case 21 /** 修改算法 */:
+        return (
+          <div class='detection-rules'>
+            <DetectionRules
+              key={+this.dialogShow}
+              ref='detection-rules'
+              connector={this.data.detectionConfig.connector}
+              dataMode={'converge'}
+              isEdit={false}
+              metricData={this.selectMetricData}
+              needShowUnit={true}
+              unit={this.data.detectionConfig.unit}
+              unitType={this.data.detectionConfig.unitType}
+              onChange={this.handleDetectionRulesChange}
+            ></DetectionRules>
           </div>
         );
       default:

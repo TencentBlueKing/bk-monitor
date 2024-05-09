@@ -373,6 +373,8 @@ class LogIndexSet(SoftDeleteModel):
     target_fields = models.JSONField(_("定位字段"), null=True, default=list)
     sort_fields = models.JSONField(_("排序字段"), null=True, default=list)
 
+    result_window = models.IntegerField(default=10000, verbose_name=_("单次导出的日志条数"))
+
     def get_name(self):
         return self.index_set_name
 
