@@ -1028,7 +1028,7 @@ class LuceneQuotesChecker(LuceneCheckerBase):
         :param s: 字符串
         :return: 是否匹配
         """
-        # 避免value是 YY-MM-DD HH:mm:SS 这种情况;避免'"org.SAXException: Connection reset"'这种字符串被分隔
+        # 避免value是 YY-MM-DD HH:mm:SS 这种情况
         if ":" in s and s.count(":") == 1 and not SINGLE_QUOTES_RE.match(s) and not DOUBLE_QUOTES_RE.match(s):
             __, s = s.split(":")
 
