@@ -256,6 +256,9 @@ class ListStickySpacesResource(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
+        if not validated_request_data["username"]:
+            return []
+
         record, _ = space.SpaceStickyInfo.objects.get_or_create(username=validated_request_data["username"])
         return record.space_uid_list
 

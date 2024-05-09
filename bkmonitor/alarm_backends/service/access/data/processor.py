@@ -268,19 +268,25 @@ class AccessDataProcess(BaseAccessDataProcess):
         """
         获取最大数据落地时间并剔除该字段
         """
-        max_local_time = arrow.get(0).datetime
+        local_time_map = {}
         for record in records:
             local_time = record.pop("_localTime", None)
+            point_time = record["_time_"]
             if not local_time:
                 continue
 
             local_time = datetime.strptime(local_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.utc)
-            if local_time > max_local_time:
-                max_local_time = local_time
+            if point_time not in local_time_map:
+                local_time_map[point_time] = local_time
+
+            if local_time > local_time_map[point_time]:
+                local_time_map[point_time] = local_time
 
         # localTime不是UTC时间，而是计算平台的机器时间
-        max_local_time += timedelta(hours=settings.BKDATA_LOCAL_TIMEZONE_OFFSET)
-        return max_local_time
+        for k, v in local_time_map.items():
+            local_time_map[k] += timedelta(hours=settings.BKDATA_LOCAL_TIMEZONE_OFFSET)
+
+        return sorted(local_time_map.items(), key=lambda x: x[0])
 
     def pull(self):
         """
@@ -345,27 +351,32 @@ class AccessDataProcess(BaseAccessDataProcess):
                 )
             )
             points = []
+        #  todo 分片处理
 
         # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            max_local_time = self.get_max_local_time(points)
+            local_time_list = self.get_max_local_time(points)
             first_item.data_sources[0].metrics = [
                 m for m in first_item.data_sources[0].metrics if m["field"] != "localTime"
             ]
-            if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
-                agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
-                key.ACCESS_END_TIME_KEY.client.set(
-                    key.ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key),
-                    str(self.until_timestamp),
-                    # key超时时间低于监控周期，会导致数据缓存丢失
-                    ex=max([key.ACCESS_END_TIME_KEY.ttl, agg_interval * 5]),
-                )
-                logging.info(
-                    f"skip access {self.strategy_group_key} data because data local time is too close."
-                    f"now: {now_timestamp}, local time: {max_local_time.timestamp()}"
-                )
-                return []
-
+            filter_point_time = None
+            for point_time, max_local_time in local_time_list:
+                if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
+                    agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
+                    key.ACCESS_END_TIME_KEY.client.set(
+                        key.ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key),
+                        str(self.until_timestamp),
+                        # key超时时间低于监控周期，会导致数据缓存丢失
+                        ex=max([key.ACCESS_END_TIME_KEY.ttl, agg_interval * 5]),
+                    )
+                    logging.info(
+                        f"skip access {self.strategy_group_key} data because data local time is too close."
+                        f"now: {now_timestamp}, local time: {max_local_time.timestamp()}, point_time: {point_time}"
+                    )
+                    filter_point_time = point_time
+                    break
+            if filter_point_time:
+                points = list(filter(lambda point: point["_time_"] < filter_point_time, points))
         return points
 
     def get_query_time_range(self, now_timestamp: int):
