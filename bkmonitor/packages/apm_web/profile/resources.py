@@ -9,6 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+import logging
+from collections import defaultdict
 
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -19,6 +21,8 @@ from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.utils import get_interval, split_by_interval
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource, api
+
+logger = logging.getLogger("apm")
 
 
 class QueryServicesDetailResource(Resource):
@@ -124,16 +128,29 @@ class ListApplicationServicesResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
 
+    @classmethod
+    def batch_query_profile_services_detail(cls, validated_data):
+        """
+        batch query profile services detail
+        """
+        service_map = defaultdict(dict)
+        bk_biz_id = validated_data["bk_biz_id"]
+        services = api.apm_api.query_profile_services_detail(**{"bk_biz_id": bk_biz_id})
+
+        for obj in services:
+            service_map.setdefault((obj["bk_biz_id"], obj["app_name"]), list()).append(obj)
+
+        return service_map
+
     def perform_request(self, data):
         applications = Application.objects.filter(bk_biz_id=data["bk_biz_id"])
 
         apps = []
         nodata_apps = []
 
+        service_map = self.batch_query_profile_services_detail(data)
         for application in applications:
-            services = api.apm_api.query_profile_services_detail(
-                **{"bk_biz_id": application.bk_biz_id, "app_name": application.app_name}
-            )
+            services = service_map.get((application.bk_biz_id, application.app_name), [])
             # 如果曾经发现过 service，都认为是有数据应用
             if len(services) > 0:
                 apps.append(
