@@ -218,8 +218,7 @@ export default {
     }
   },
   created() {
-    const catchActiveTab = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB');
-    if (catchActiveTab) this.contentType = catchActiveTab;
+    this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
   },
   methods: {
     // 字段设置
