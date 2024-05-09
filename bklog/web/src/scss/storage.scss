@@ -12,6 +12,14 @@
   }
 }
 
+.number-input {
+  .tooltips-icon {
+    /* stylelint-disable-next-line declaration-no-important */
+    right: auto !important;
+    left: 106px;
+  }
+}
+
 .copy-number-input {
   width: 100px;
 
