@@ -17,7 +17,7 @@ from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
-from bkmonitor.utils.user import get_backend_username, get_global_user
+from bkmonitor.utils.user import get_backend_username, get_global_user, make_userinfo
 from constants.cmdb import TargetNodeType
 from core.drf_resource import APIResource
 from core.drf_resource.base import Resource
@@ -135,6 +135,16 @@ class UploadResource(NodeManAPIGWResource):
     action = "/backend/package/upload/"
     method = "POST"
     support_data_collect = False
+
+    def full_request_data(self, kwargs):
+        kwargs.update(make_userinfo())
+        kwargs.update(
+            {
+                "bk_app_code": settings.APP_CODE,
+                "bk_app_secret": settings.SECRET_KEY,
+            }
+        )
+        return kwargs
 
 
 class UploadCosResource(NodeManAPIGWResource):

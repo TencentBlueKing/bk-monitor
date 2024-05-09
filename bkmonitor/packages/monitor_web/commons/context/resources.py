@@ -122,7 +122,7 @@ class EnhancedGetContextResource(Resource):
                     f"[get_basic_context] space_uid not found: " f"uid -> {space_uid} not in space_list -> {space_list}"
                 )
                 if settings.DEMO_BIZ_ID:
-                    bk_biz_id = int(settings.DEMO_BIZ_ID)
+                    bk_biz_id = int(settings.DEMO_BIZ_ID or 0)
         elif not bk_biz_id:
             bk_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
 

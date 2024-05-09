@@ -54,9 +54,11 @@
         path="数据上报好了，去 {0}"
       >
         <span
-          style="color: #3a84ff; cursor: pointer;"
+          style="color: #3a84ff; cursor: pointer"
           @click="handleJump"
-        >{{ $t('查看数据') }}</span>
+        >
+          {{ $t('查看数据') }}
+        </span>
       </i18n>
     </bk-alert>
     <div class="custom-detail-page">
@@ -128,14 +130,16 @@
             <span
               class="row-content"
               v-if="detailData.protocol"
-            >{{ detailData.protocol === 'json' ? 'JSON' : 'Prometheus'}}</span>
+            >
+              {{ detailData.protocol === 'json' ? 'JSON' : 'Prometheus' }}
+            </span>
             <span v-else> -- </span>
           </div>
           <div
             class="detail-information-row"
             :class="type === 'customEvent' ? 'last-row' : ''"
           >
-            <span class="row-label">{{type === 'customEvent' ? $t('是否为平台事件') : $t('作用范围') }}  : </span>
+            <span class="row-label">{{ type === 'customEvent' ? $t('是否为平台事件') : $t('作用范围') }} : </span>
             <bk-checkbox
               v-if="type === 'customEvent'"
               v-model="copyIsPlatform"
@@ -145,7 +149,9 @@
             <span
               class="row-content"
               v-else
-            >{{ copyIsPlatform === false ? $t('本业务') : $t('全平台') }}</span>
+            >
+              {{ copyIsPlatform === false ? $t('本业务') : $t('全平台') }}
+            </span>
           </div>
           <div
             class="detail-information-row last-row"
@@ -239,7 +245,9 @@
                   <span
                     :class="['num-set', { 'col-btn': row.related_strategies.length > 0 }]"
                     @click="handleGotoStrategy(row)"
-                  >{{ row.related_strategies.length }}</span>
+                  >
+                    {{ row.related_strategies.length }}
+                  </span>
                   <!-- <div class="num-set"> {{ row.related_strategies.length }}</div> -->
                 </template>
               </bk-table-column>
@@ -306,7 +314,7 @@
               <div class="list-header-title">
                 <span>{{ $t('时序列表') }}</span>
                 <span class="title-desc">
-                  {{ `（${$t('包括{0}个指标,{1}个维度', [metricNum,dimensionNum])}）` }}
+                  {{ `（${$t('包括{0}个指标,{1}个维度', [metricNum, dimensionNum])}）` }}
                 </span>
               </div>
             </div>
@@ -315,13 +323,17 @@
                 <bk-button
                   class="mr10"
                   @click="() => handleShowGroupManage(true)"
-                >{{ $t('分组管理') }}</bk-button>
-                <bk-search-select
-                  v-model="metricSearchValue"
-                  :data="metricSearchData"
-                  :show-condition="false"
-                  @change="handleMetricSearchValue"
-                />
+                >
+                  {{ $t('分组管理') }}
+                </bk-button>
+                <div class="search-select-wrap">
+                  <search-select
+                    :value="metricSearchValue"
+                    :clearable="false"
+                    :data="metricSearchData"
+                    @change="handleMetricSearchValue"
+                  />
+                </div>
                 <!-- <group-select
                   :list="groupSelectList"
                   :disabled="!selectionLeng"
@@ -347,14 +359,14 @@
                 </monitor-export> -->
               </div>
               <monitor-import
-                style="margin-right: 24px;"
+                style="margin-right: 24px"
                 accept=".csv"
                 :return-text="true"
                 :base64="false"
                 @change="handleImportMetric"
               >
                 <span class="icon-monitor icon-xiazai2 link" />
-                <span class="link">{{$t('导入')}}</span>
+                <span class="link">{{ $t('导入') }}</span>
               </monitor-import>
               <!-- <monitor-export @click="handleExportMetric"
                               style="margin-right: 24px;">
@@ -395,9 +407,10 @@
                   >
                     <span class="add-msg">
                       <i18n path="当前已选择{0}条数据">
-                        <span>{{selectionLeng}}</span>
+                        <span>{{ selectionLeng }}</span>
                       </i18n>
-                    </span>，
+                    </span>
+                    ,
                     <group-select-multiple
                       :list="groupSelectList"
                       :value="batchGroupValue"
@@ -414,7 +427,7 @@
                           @click="() => handleShowGroupManage(true)"
                         >
                           <span class="icon-monitor icon-shezhi" />
-                          <span>{{$t('分组管理')}}</span>
+                          <span>{{ $t('分组管理') }}</span>
                         </div>
                       </template>
                     </group-select-multiple>
@@ -468,16 +481,16 @@
                             :value="scope.row.labels.map(item => item.name)"
                             :groups-map="groupsMap"
                             :metric-name="scope.row.name"
-                            @change="(v) => handleSelectGroup(v, scope.$index)"
+                            @change="v => handleSelectGroup(v, scope.$index)"
                             @toggle="handleGroupSelectToggle"
                           >
                             <template v-if="scope.row.labels && scope.row.labels.length">
                               <div class="table-group-tags">
                                 <span
                                   class="table-group-tag"
-                                  v-for="(item) in scope.row.labels.map(item => item.name)"
+                                  v-for="item in scope.row.labels.map(item => item.name)"
                                   :key="item"
-                                  @mouseenter="(e) => handleGroupTagTip(e, item)"
+                                  @mouseenter="e => handleGroupTagTip(e, item)"
                                   @mouseleave="handleRemoveGroupTip"
                                 >
                                   {{ item }}
@@ -495,7 +508,7 @@
                                 @click="() => handleShowGroupManage(true)"
                               >
                                 <span class="icon-monitor icon-shezhi" />
-                                <span>{{$t('分组管理')}}</span>
+                                <span>{{ $t('分组管理') }}</span>
                               </div>
                             </template>
                           </group-select-multiple>
@@ -526,7 +539,9 @@
                       <div
                         class="overflow-tips"
                         v-bk-overflow-tips
-                      >{{ scope.row.name }}</div>
+                      >
+                        {{ scope.row.name }}
+                      </div>
                     </template>
                   </bk-table-column>
                   <!-- 别名 -->
@@ -682,7 +697,9 @@
           <bk-button
             v-if="type === 'customTimeSeries'"
             @click="
-              authority.MANAGE_CUSTOM_METRIC ? handleSubmit() : handleShowAuthorityDetail(customAuthMap.MANAGE_CUSTOM_METRIC)
+              authority.MANAGE_CUSTOM_METRIC
+                ? handleSubmit()
+                : handleShowAuthorityDetail(customAuthMap.MANAGE_CUSTOM_METRIC)
             "
             v-authority="{ active: !authority.MANAGE_CUSTOM_METRIC }"
             :disabled="isReadonly"
@@ -732,9 +749,13 @@
           <div
             class="content-title"
             :class="detailData.protocol !== 'prometheus' ? 'content-interval' : ''"
-          >{{ $t('使用方法') }}</div>
+          >
+            {{ $t('使用方法') }}
+          </div>
           <div class="content-row">
-            <span>{{ detailData.protocol === 'prometheus' ? $t('不同云区域上报端点信息') : $t('不同云区域Proxy信息') }}</span>
+            <span>{{
+              detailData.protocol === 'prometheus' ? $t('不同云区域上报端点信息') : $t('不同云区域Proxy信息')
+            }}</span>
             <div class="content-example">
               <div
                 v-for="(item, index) in proxyInfo"
@@ -759,41 +780,57 @@
             </div>
             <div class="content-row">
               <pre class="content-example">
-http://${PROXY_IP}:4318
-</pre>
+                http://${PROXY_IP}:4318
+              </pre>
             </div>
             <div class="content-row mt10">
               <div class="content-title content-interval">
                 {{ $t('sdk接入流程') }}
               </div>
-              <div>{{ $t('用户使用 prometheus 原始 SDK 上报即可，不过需要指定蓝鲸的上报端点（$host:$port）以及 HTTP Headers。') }}</div>
+              <div>
+                {{
+                  $t(
+                    '用户使用 prometheus 原始 SDK 上报即可，不过需要指定蓝鲸的上报端点（$host:$port）以及 HTTP Headers。'
+                  )
+                }}
+              </div>
               <pre class="content-example">
-X-BK-TOKEN=$TOKEN
-</pre>
+              X-BK-TOKEN=$TOKEN
+              </pre>
               <div class="mt10">
-                {{$t('prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/')}}
+                {{ $t('prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/') }}
               </div>
             </div>
 
             <div class="content-row mt10">
-              <div>{{ $t('各语言接入示例') }} : </div>
+              <div>{{ $t('各语言接入示例') }} :</div>
               <div class="mt5">
                 Golang
               </div>
               <div class="mt5">
-                {{ $t('1. 补充 headers，用于携带 token 信息。定义 Client 行为，由于 prometheus sdk 没有提供新增或者修改 Headers 的方法，所以需要实现 Do() interface，代码示例如下：')}}
+                {{
+                  $t(
+                    '1. 补充 headers，用于携带 token 信息。定义 Client 行为，由于 prometheus sdk 没有提供新增或者修改 Headers 的方法，所以需要实现 Do() interface，代码示例如下：'
+                  )
+                }}
               </div>
               <div class="mt5">
-                {{$t('2. 填写上报端点，在 `push.New("$endpoint", name)` 里指定。然后需要将自定义的 client 传入到 `pusher.Client($bkClient{})` 里面。')}}
+                {{
+                  $t(
+                    '2. 填写上报端点，在 `push.New("$endpoint", name)` 里指定。然后需要将自定义的 client 传入到 `pusher.Client($bkClient{})` 里面。'
+                  )
+                }}
               </div>
               <div class="content-prometheus">
                 <pre class="content-example">
-{{sdkData.preGoOne}}
-</pre>
+                  {{ sdkData.preGoOne }}
+                </pre>
                 <div
                   class="content-copy-prometheus"
                   @click="handleCopyPrometheus('golangCopy')"
-                >{{ $t('复制') }}</div>
+                >
+                  {{ $t('复制') }}
+                </div>
                 <textarea
                   ref="golangCopy"
                   class="copy-textarea"
@@ -803,17 +840,25 @@ X-BK-TOKEN=$TOKEN
             <div class="content-row">
               <div>Python</div>
               <div class="mt5">
-                {{ $t('1. 补充 headers，用于携带 token 信息。实现一个自定义的 handler。')}}
+                {{ $t('1. 补充 headers，用于携带 token 信息。实现一个自定义的 handler。') }}
               </div>
-              <div>{{ $t('2. 填写上报端点，在 `push_to_gateway("$endpoint", ...)` 里指定。然后将自定义的 handler 传入到函数里。')}}</div>
+              <div>
+                {{
+                  $t(
+                    '2. 填写上报端点，在 `push_to_gateway("$endpoint", ...)` 里指定。然后将自定义的 handler 传入到函数里。'
+                  )
+                }}
+              </div>
               <div class="content-prometheus">
                 <pre class="content-example">
-{{sdkData.prePythonOne}}
-</pre>
+                  {{ sdkData.prePythonOne }}
+                </pre>
                 <div
                   class="content-copy-prometheus"
                   @click="handleCopyPrometheus('pythonCopy')"
-                >{{ $t('复制') }}</div>
+                >
+                  {{ $t('复制') }}
+                </div>
                 <textarea
                   ref="pythonCopy"
                   class="copy-textarea"
@@ -827,12 +872,14 @@ X-BK-TOKEN=$TOKEN
           >
             <span>{{ $t('数据上报格式样例') }}</span>
             <pre class="content-example">
-{{ preData }}
-</pre>
+              {{ preData }}
+            </pre>
             <div
               class="content-copy"
               @click="handleCopyData"
-            >{{ $t('复制') }}</div>
+            >
+              {{ $t('复制') }}
+            </div>
             <textarea
               ref="textCopy"
               class="copy-textarea"
@@ -856,11 +903,15 @@ X-BK-TOKEN=$TOKEN
 <script lang="ts">
 import { CreateElement } from 'vue';
 import { Component, Mixins, Ref } from 'vue-property-decorator';
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
-import {   createOrUpdateGroupingRule,  customTsGroupingRuleList,
+import {
+  createOrUpdateGroupingRule,
+  customTsGroupingRuleList,
   modifyCustomTsGroupingRuleList,
   validateCustomEventGroupLabel,
-  validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
+  validateCustomTsGroupLabel
+} from 'monitor-api/modules/custom_report';
 
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
 import MonitorExport from '../../components/monitor-export/monitor-export.vue';
@@ -874,7 +925,8 @@ import {
   IParams,
   IRefreshList,
   IShortcuts,
-  ISideslider } from '../../types/custom-escalation/custom-escalation-detail';
+  ISideslider
+} from '../../types/custom-escalation/custom-escalation-detail';
 import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
 import ColumnCheck from '../performance/column-check/column-check.vue';
 import { downCsvFile } from '../view-detail/utils';
@@ -883,6 +935,8 @@ import * as customAuth from './authority-map';
 import GroupManageDialog, { matchRuleFn } from './group-manage-dialog';
 import GroupSelectMultiple from './group-select-multiple';
 import { csvToArr } from './utils';
+
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const NULL_LABEL = '__null_label__';
 
@@ -900,7 +954,8 @@ interface IGroupListItem {
     MonitorImport,
     CommonNavBar,
     GroupManageDialog,
-    GroupSelectMultiple
+    GroupSelectMultiple,
+    SearchSelect
   }
 })
 export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(customAuth)) {
@@ -997,21 +1052,23 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     type: [],
     name: []
   };
-  metricSearchData = [{
-    name: window.i18n.t('匹配方式'),
-    id: 'type',
-    multiable: false,
-    children: [
-      { id: 'auto', name: window.i18n.t('自动') },
-      { id: 'manual', name: window.i18n.t('手动') }
-    ]
-  },
-  {
-    name: window.i18n.t('组名'),
-    id: 'name',
-    multiable: false,
-    children: []
-  }];
+  metricSearchData = [
+    {
+      name: window.i18n.t('匹配方式'),
+      id: 'type',
+      multiple: false,
+      children: [
+        { id: 'auto', name: window.i18n.t('自动') },
+        { id: 'manual', name: window.i18n.t('手动') }
+      ]
+    },
+    {
+      name: window.i18n.t('组名'),
+      id: 'name',
+      multiple: false,
+      children: []
+    }
+  ];
 
   /* 分组管理列表 */
   groupList: IGroupListItem[] = [];
@@ -1060,10 +1117,18 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     const typeLeng = this.metricSearchObj.type.length;
     const nameLeng = this.metricSearchObj.name.length;
     const fiterList = this.metricData
-      .filter(item => (leng1 ? this.groupFilterList.some(g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)) && item.monitor_type === 'metric' : true))
+      .filter(item => (leng1
+        ? this.groupFilterList.some(g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)) && item.monitor_type === 'metric'
+        : true))
       .filter(item => (leng2 ? this.metricFilterList.includes(item.monitor_type) : true))
-      .filter(item => (typeLeng ? (item.monitor_type === 'metric' && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))) : true))
-      .filter(item => (nameLeng ? (item.monitor_type === 'metric' && this.metricSearchObj.name.some(n => item.labels.map(l => l.name).includes(n))) : true));
+      .filter(item => (typeLeng
+        ? item.monitor_type === 'metric'
+            && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
+        : true))
+      .filter(item => (nameLeng
+        ? item.monitor_type === 'metric'
+            && this.metricSearchObj.name.some(n => item.labels.map(l => l.name).includes(n))
+        : true));
     this.changePageCount(fiterList.length);
     // this.handleGroupList(fiterList);
     return fiterList.slice(
@@ -1312,7 +1377,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
         title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${
           this.detailData.time_series_group_id
         } ${this.detailData.name}`;
-        this.metricList = this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
+        this.metricList =          this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
         await this.getGroupList();
         await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       } else {
@@ -1332,7 +1397,8 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   /* 获取分组管理数据 */
   async getGroupList() {
     const data = await customTsGroupingRuleList({
-      time_series_group_id: this.detailData.time_series_group_id }).catch(() => []);
+      time_series_group_id: this.detailData.time_series_group_id
+    }).catch(() => []);
     this.groupList = data.map(item => ({
       name: item.name,
       matchRules: item.auto_rules,
@@ -1354,7 +1420,10 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     const allMatchRules = Array.from(allMatchRulesSet);
     /* 整理每个匹配规则配的指标数据 */
     allMatchRules.forEach((rule) => {
-      this.matchRulesMap.set(rule, metricNames.filter(name => matchRuleFn(name, rule)));
+      this.matchRulesMap.set(
+        rule,
+        metricNames.filter(name => matchRuleFn(name, rule))
+      );
     });
     /* 整理每个组包含的指标 */
     this.groupList.forEach((item) => {
@@ -1447,7 +1516,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     this.copyName = this.detailData.name;
     this.copyDataLabel = this.detailData.data_label || '';
     this.copyIsPlatform = this.detailData.is_platform ?? false;
-    const str = this.type === 'customEvent'
+    const str =      this.type === 'customEvent'
       ? `# ${this.$t('事件标识名，最大长度128')}
                 "event_name": "input_your_event_name",
                 "event": {
@@ -1539,14 +1608,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   }
 
   /* 获取所有数据预览数据 */
-  async getAllDataPreview(fields: { monitor_type: 'metric' | 'dimension', name: string }[], tableId) {
+  async getAllDataPreview(fields: { monitor_type: 'metric' | 'dimension'; name: string }[], tableId) {
     const fieldList = fields.filter(item => item.monitor_type === 'metric').map(item => item.name);
     const data = await this.$store.dispatch('custom-escalation/getCustomTimeSeriesLatestDataByFields', {
       result_table_id: tableId,
       fields_list: fieldList
     });
     this.allDataPreview = data?.fields_value || {};
-    this.detailData.last_time = typeof data?.last_time === 'number'
+    this.detailData.last_time =      typeof data?.last_time === 'number'
       ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
       : data?.last_time;
   }
@@ -1586,7 +1655,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.$bkMessage({ theme: 'error', message: this.$tc('输入非中文符号') });
       return;
     }
-    const ExistPass = this.type === 'customEvent'
+    const ExistPass =      this.type === 'customEvent'
       ? await validateCustomEventGroupLabel({
         data_label: this.copyDataLabel,
         bk_event_group_id: this.detailData.bk_event_group_id
@@ -1620,12 +1689,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       ? await this.$store
         .dispatch('custom-escalation/validateCustomEventName', {
           params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id }
-        }).then(res => res.result ?? true)
+        })
+        .then(res => res.result ?? true)
         .catch(() => false)
       : await this.$store
         .dispatch('custom-escalation/validateCustomTimetName', {
           params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id }
-        }).then(res => res.result ?? true)
+        })
+        .then(res => res.result ?? true)
         .catch(() => false);
     if (!res) {
       isOkName = false;
@@ -1650,7 +1721,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.detailData.name = this.copyName;
     this.isShowEditName = false;
     this.loading = false;
-  };
+  }
 
   /** 保存自定义事件编辑 */
   handleSave(data: Record<string, any> = {}) {
@@ -1807,8 +1878,11 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       is_platform: this.copyIsPlatform,
       metric_json: [
         {
-          fields: this.metricData
-            .map(item => ({ ...item, label: (item?.labels?.map(l => l.name) || []), labels: undefined })),
+          fields: this.metricData.map(item => ({
+            ...item,
+            label: item?.labels?.map(l => l.name) || [],
+            labels: undefined
+          })),
           table_name: 'base',
           table_desc: '默认分类'
         }
@@ -1888,7 +1962,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
     });
     // const allUnitStr = allUnit.join('、');
-    const descStr = [this.$t('"单位可选类型: {unitStr}\n分组分隔方式(仅;分隔). \n导入时-表示不更新. 空单元格表示置空"', { unitStr }), '', '', '', '', ''].join(',');
+    const descStr = [
+      this.$t('"单位可选类型: {unitStr}\n分组分隔方式(仅;分隔). \n导入时-表示不更新. 空单元格表示置空"', { unitStr }),
+      '',
+      '',
+      '',
+      '',
+      ''
+    ].join(',');
     const transformTableDataToCsvStr = (tableThArr: string[], tableTdArr: Array<string[]>): string => {
       const csvList = [];
       csvList.push(descStr);
@@ -1901,7 +1982,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       const csvString = csvList.join('\n');
       return csvString;
     };
-    const thArr = [this.$t('指标/维度'), this.$t('分组'), this.$t('英文名'), this.$t('别名'), this.$t('类型'), this.$t('单位')];
+    const thArr = [
+      this.$t('指标/维度'),
+      this.$t('分组'),
+      this.$t('英文名'),
+      this.$t('别名'),
+      this.$t('类型'),
+      this.$t('单位')
+    ];
     const tdArr = [];
     this.metricData.forEach((item) => {
       const row = [
@@ -1944,7 +2032,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     labels.push(...oldLabels);
     const tempLabels = labels.map(item => item.name);
     target.forEach((item) => {
-      if (!(/^[\u4E00-\u9FA5A-Za-z0-9_-]+$/g.test(item))) return;
+      if (!/^[\u4E00-\u9FA5A-Za-z0-9_-]+$/g.test(item)) return;
       if (tempLabels.includes(item)) {
         const setLabel = labels.find(l => l.name === item);
         setLabel.match_type = [...new Set(setLabel.match_type.concat(['manual']))];
@@ -2010,7 +2098,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const metricName = this.metricTable[index].name;
     const labels = [];
     this.groupList.forEach((item) => {
-      const groupItem =  this.groupsMap.get(item.name);
+      const groupItem = this.groupsMap.get(item.name);
       const { matchRulesOfMetrics, manualList } = groupItem;
       const tempObj = {
         name: item.name,
@@ -2093,10 +2181,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       placement: 'top',
       boundary: 'window',
       arrow: true,
-      content: `<div>${this.$t('手动分配指标数')}：${manualCount}</div><div>${
-        this.$t('匹配规则')}：${matchRules.length
-        ? matchRules.join(',')
-        : '--'
+      content: `<div>${this.$t('手动分配指标数')}：${manualCount}</div><div>${this.$t('匹配规则')}：${
+        matchRules.length ? matchRules.join(',') : '--'
       }</div>`
     });
     this.groupTagInstance.show();
@@ -2121,7 +2207,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
   }
   /* 搜索 */
-  handleMetricSearchValue() {
+  handleMetricSearchValue(v) {
+    this.metricSearchValue = v;
     const search = {
       type: [],
       name: []
@@ -2241,9 +2328,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       padding: 20px 20px 4px 37px;
       border-radius: 2px;
       background: $whiteColor;
-      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
       margin-bottom: 16px;
-      @include  border-1px($color: $defaultBorderColor);
+      @include border-1px($color: $defaultBorderColor);
       &-title {
         font-weight: bold;
         color: $defaultFontColor;
@@ -2319,7 +2406,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           flex: 1;
           display: flex;
           .search-select-wrap {
-            min-width: 240px;
+            width: 240px;
           }
         }
         .export-btn {
@@ -2382,7 +2469,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         .left-table {
           margin-right: 4px;
           width: 100%;
-          transition: width .5s;
+          transition: width 0.5s;
           .overflow-tips {
             text-overflow: ellipsis;
             overflow: hidden;
@@ -2430,7 +2517,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             align-items: center;
             .table-group-tag {
               height: 22px;
-              background: #F0F1F5;
+              background: #f0f1f5;
               border-radius: 2px;
               padding: 0 10px;
               display: flex;
@@ -2439,7 +2526,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               white-space: nowrap;
               margin-right: 8px;
               &:hover {
-                background: #DCDEE5;
+                background: #dcdee5;
               }
             }
           }
@@ -2470,12 +2557,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             align-items: center;
             justify-content: center;
             height: 32px;
-            background: #F5F7FA;
+            background: #f5f7fa;
             .group-select-wrap {
               min-height: auto;
             }
             .prepend-add-btn {
-              color: #3A84FF;
+              color: #3a84ff;
               cursor: pointer;
               display: flex;
               align-items: center;
@@ -2505,7 +2592,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               background: #313238;
               position: relative;
               &:after {
-                content: "";
+                content: '';
                 width: 71px;
                 height: 2px;
                 position: absolute;
@@ -2521,7 +2608,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           }
           .space-item {
             height: 34px;
-            background: #63656E;
+            background: #63656e;
           }
           .data-preview {
             height: 43px;
@@ -2595,13 +2682,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         height: 24px;
         border-radius: 50%;
         &:hover {
-          background: #EAEBF0;
+          background: #eaebf0;
           cursor: pointer;
         }
         .line {
           width: 9px;
           height: 2px;
-          background: #63656E;
+          background: #63656e;
         }
       }
     }
@@ -2634,9 +2721,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           right: 10px;
           @include hover($cursor: pointer);
         }
-        .content-prometheus{
+        .content-prometheus {
           position: relative;
-          .content-copy-prometheus{
+          .content-copy-prometheus {
             position: absolute;
             top: 10px;
             right: 10px;
@@ -2664,14 +2751,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #EAEBF0;
-      border: 1px solid #DCDEE5;
+      background: #eaebf0;
+      border: 1px solid #dcdee5;
       border-radius: 4px 0 0 4px;
 
       @include hover($cursor: pointer);
       .icon {
         font-size: 24px;
-        color: #979BA5;
+        color: #979ba5;
       }
       div {
         margin: -4px 0 0 6px;

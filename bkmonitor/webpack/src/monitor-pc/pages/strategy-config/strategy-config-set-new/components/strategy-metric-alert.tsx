@@ -27,6 +27,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -35,6 +36,7 @@ import { debounce, throttle } from 'throttle-debounce';
 import { MetricDetail } from '../typings/index';
 
 import './strategy-metric-alert.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface IStrategyMetricAlertProps {
   isShow: boolean;
@@ -312,7 +314,8 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
    * @param {*}
    * @return {*}
    */
-  handleSearchChange() {
+  handleSearchChange(v) {
+    this.searchObj.keyWord = v;
     this.dataInit(false, false);
     const cacheKey = `${this.sourceType}_${this.scenarioType}`;
     this.cache[cacheKey].page = 1;
@@ -599,17 +602,16 @@ export default class StrategyMetricAlert extends tsc<IStrategyMetricAlertProps, 
         <div v-bkloading={{ isLoading: this.isLoading }}>
           <div class='metric-wrap-common'>
             <div class='metric-handle-row'>
-              <bk-search-select
-                ref='searchSelect'
-                class='search-select'
-                v-model={this.searchObj.keyWord}
-                data={this.searchObj.data}
-                placeholder={this.$t('关键字搜索')}
-                popoverZindex={2600}
-                show-condition={false}
-                showPopoverTagChange={false}
-                on-change={this.handleSearch}
-              ></bk-search-select>
+              <div class='search-select'>
+                <SearchSelect
+                  clearable={false}
+                  data={this.searchObj.data}
+                  modelValue={this.searchObj.keyWord}
+                  placeholder={this.$t('关键字搜索')}
+                  on-change={this.handleSearch}
+                ></SearchSelect>
+              </div>
+
               <bk-button
                 class='btn-refresh'
                 icon='icon-refresh'

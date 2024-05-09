@@ -1376,8 +1376,7 @@ export default {
           window.bus.$emit('openChartLoading');
           this.isThollteField = false;
           this.getFieldsCancelFn();
-          await this.requestFields();
-          this.shouldUpdateFields = false;
+          this.requestFields();
         }
         // 指纹请求监听放在这里是要等字段更新完后才会去请求数据指纹
         this.fingerSearchState = !this.fingerSearchState;
@@ -1442,6 +1441,7 @@ export default {
         this.isFavoriteSearch = false;
         this.isAfterRequestFavoriteList = false;
         this.basicLoading = false;
+        this.shouldUpdateFields = false;
       }
     },
     // 更新路由参数
@@ -1589,7 +1589,7 @@ export default {
       this.showShowUnionSource(true);
       this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
       // 初始化的时候不进行设置自适应宽度 当前dom还没挂在在页面 导致在第一次检索时isSetDefaultTableColumn参数为true 无法更新自适应宽度
-      if (this.isSetDefaultTableColumn) {
+      if (this.isSetDefaultTableColumn && !this.shouldUpdateFields) {
         this.setDefaultTableColumn();
       }
     },
@@ -1699,7 +1699,7 @@ export default {
         this.retrievedKeyword = this.retrieveParams.keyword;
         this.tookTime = this.tookTime + Number(res.data?.took) || 0;
         this.tableData = { ...(res.data || {}), finishPolling: this.finishPolling };
-        if (!this.isSetDefaultTableColumn) {
+        if (!this.isSetDefaultTableColumn || this.shouldUpdateFields) {
           this.setDefaultTableColumn();
         }
         this.logList = this.logList.concat(parseBigNumberList(res.data?.list ?? []));
@@ -1718,12 +1718,10 @@ export default {
     // 首次加载设置表格默认宽度自适应
     setDefaultTableColumn() {
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-      const {
-        params: { indexId },
-        query: { bizId }
-      } = this.$route;
-      const catchFieldsWidthObj = columnObj?.[bizId]?.fields[indexId];
+      const storageKey = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
+      const columnWidth = JSON.parse(localStorage.getItem(storageKey));
+      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : this.indexId;
+      const catchFieldsWidthObj = columnWidth?.[this.bkBizId]?.fields[indexKey];
       const tableList = this.tableData?.list ?? [];
       this.isSetDefaultTableColumn = setDefaultTableWidth(this.visibleFields, tableList, catchFieldsWidthObj);
     },
@@ -1819,7 +1817,6 @@ export default {
     async retrieveWhenChartChange() {
       this.$refs.resultHeader && this.$refs.resultHeader.pauseRefresh();
       this.$refs.resultMainRef.reset();
-      this.isSetDefaultTableColumn = false;
     },
 
     // 重置搜索结果

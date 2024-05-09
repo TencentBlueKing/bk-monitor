@@ -27,6 +27,7 @@
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -37,6 +38,7 @@ import { handleTransformToTimestamp } from '../../../../components/time-range/ut
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName,
@@ -48,6 +50,7 @@ import SortTool from '../sort-tool/sort-tool';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
 import './common-select-table.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 // 表格是否显示表头宽度临界值 侧栏宽度：280，内边距：32 （280 - 32 = 248）;
 const SHOW_HEADER_LIMIT_WIDTH = 248;
@@ -306,7 +309,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
           this.columns = data.columns || [];
           this.overviewData = this.hasOverviewPanels ? data.overview_data : null;
           this.pagination.count = data.total || 0;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           this.statusList = data.filter || [];
           this.sortFields = data.sort || [];
@@ -392,7 +395,8 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
     this.resizeObserver?.observe(this.selectTablePanel);
   }
   /** conditionList 搜索 */
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.handleResetTable();
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
@@ -544,12 +548,11 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
         <div class={['list-header', { 'flex-header': this.width > 1000 }]}>
           <div class='search-bar'>
             {this.conditionList.length ? (
-              <bk-search-select
-                vModel={this.searchCondition}
+              <SearchSelect
+                clearable={false}
                 data={this.currentConditionList}
+                modelValue={this.searchCondition}
                 placeholder={this.$t('搜索')}
-                show-condition={false}
-                show-popover-tag-change={false}
                 onChange={this.handleSearch}
               />
             ) : (
