@@ -745,5 +745,7 @@ export default {
   我申请的: 'My Application',
   生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time',
   生效起始时间必填: 'Effective start time is required',
-  如: 'Example'
+  如: 'Example',
+  '最大自定义副本数为: {n}': 'The maximum number of replicas is: {n}',
+  '最大自定义分片数为: {n}': 'The maximum number of custom shards is: {n}'
 };
