@@ -1624,7 +1624,7 @@ class QueryProfileServiceDetailResource(Resource):
     """查询Profile服务详情信息"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=False)
+        bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField(required=False)
         service_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
         data_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -1641,10 +1641,8 @@ class QueryProfileServiceDetailResource(Resource):
     many_response_data = True
 
     def perform_request(self, validated_data):
-        params = {}
+        params = {"bk_biz_id": validated_data["bk_biz_id"]}
 
-        if validated_data.get("bk_biz_id"):
-            params["bk_biz_id"] = validated_data["bk_biz_id"]
         if validated_data.get("app_name"):
             params["app_name"] = validated_data["app_name"]
         if validated_data.get("service_name"):
