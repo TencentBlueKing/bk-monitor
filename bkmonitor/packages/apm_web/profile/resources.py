@@ -14,7 +14,6 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
 from apm_web.models import Application
-from apm_web.profile.constants import DataType
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.utils import get_interval, split_by_interval
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -23,6 +22,8 @@ from core.drf_resource import Resource, api
 
 class QueryServicesDetailResource(Resource):
     """查询Profile服务详情信息"""
+
+    COUNT_ALLOW_SAMPLE_TYPES = ["goroutine/count", "syscall/count", "allocations/count"]
 
     class RequestSerializer(serializers.Serializer):
         view_mode_choices = (
@@ -76,13 +77,36 @@ class QueryServicesDetailResource(Resource):
                 sorted([self.str_to_time(i["last_check_time"]) for i in services], reverse=True)[0]
             ),
             "last_report_time": self.timestamp_to_time(last_report_time[0]) if last_report_time else None,
-            "data_types": [{"key": i["data_type"], "name": DataType.get_name(i["data_type"])} for i in services],
+            "data_types": self.to_data_types(services),
         }
 
         if validated_data["view_mode"] == "default":
             return res
 
         return self.convert_to_sidebar(res)
+
+    @classmethod
+    def to_data_types(cls, services):
+        """
+        将 service 转换为数据类型
+        对于 count 类型 只允许以下:
+        goroutine/syscall/allocations
+        """
+        res = []
+        for svr in services:
+            if not svr["sample_type"]:
+                continue
+
+            sample_type_parts = svr["sample_type"].split("/")
+            key = svr["sample_type"]
+            name = sample_type_parts[0].upper()
+
+            if sample_type_parts[-1] == "count" and key not in cls.COUNT_ALLOW_SAMPLE_TYPES:
+                continue
+
+            res.append({"key": key, "name": name})
+
+        return res
 
     @classmethod
     def str_to_time(cls, time_str):

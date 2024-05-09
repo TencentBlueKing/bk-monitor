@@ -157,7 +157,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     @staticmethod
     def _query(
         bk_biz_id: int,
-        data_type: str,
         app_name: str,
         service_name: str,
         start: int,
@@ -169,6 +168,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         filter_labels: Optional[dict] = None,
         converted: bool = True,
         dimension_fields: str = None,
+        data_type: str = None,
+        sample_type: str = None,
     ) -> Union[DorisConverter, dict]:
         """
         获取 profile 数据
@@ -200,6 +201,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         if api_type.value == APIType.LABEL_VALUES:
             extra_params["label_key"] = label_key  # noqa
+
+        if sample_type:
+            filters = extra_params.setdefault("general_filters", {})
+            filters["sample_type"] = f"op_eq|{sample_type}"
 
         q = Query(
             api_type=api_type,
@@ -271,7 +276,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         if "tendency" in data["diagram_types"]:
             data["diagram_types"].remove("tendency")
             tendency_result, compare_tendency_result = self._get_tendency_data(
-                data_type=data["data_type"],
                 essentials=essentials,
                 start=start,
                 end=end,
@@ -280,6 +284,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 is_compared=data.get("is_compared"),
                 diff_profile_id=data.get("diff_profile_id"),
                 diff_filter_labels=data.get("diff_filter_labels"),
+                sample_type=data["data_type"],
             )
 
             if len(data["diagram_types"]) == 0:
@@ -291,12 +296,12 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             bk_biz_id=essentials["bk_biz_id"],
             app_name=essentials["app_name"],
             service_name=essentials["service_name"],
-            data_type=data["data_type"],
             start=start,
             end=end,
             profile_id=data.get("profile_id"),
             filter_labels=data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
+            sample_type=data["data_type"],
         )
 
         if data["global_query"] and not doris_converter:
@@ -321,12 +326,12 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 bk_biz_id=essentials['bk_biz_id'],
                 app_name=essentials["app_name"],
                 service_name=essentials["service_name"],
-                data_type=data["data_type"],
                 start=start,
                 end=end,
                 profile_id=data.get("diff_profile_id"),
                 filter_labels=data.get("diff_filter_labels"),
                 result_table_id=essentials["result_table_id"],
+                sample_type=data["data_type"],
             )
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(doris_converter, diff_doris_converter, **options)
@@ -345,7 +350,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
     def _get_tendency_data(
         self,
-        data_type,
+        sample_type,
         essentials,
         start,
         end,
@@ -363,7 +368,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 "bk_biz_id": essentials["bk_biz_id"],
                 "app_name": essentials["app_name"],
                 "service_name": essentials["service_name"],
-                "data_type": data_type,
+                "sample_type": sample_type,
             }
         )
 
@@ -379,7 +384,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             bk_biz_id=essentials["bk_biz_id"],
             app_name=essentials["app_name"],
             service_name=essentials["service_name"],
-            data_type=data_type,
+            sample_type=sample_type,
             start=start,
             end=end,
             profile_id=profile_id,
@@ -401,7 +406,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 bk_biz_id=essentials["bk_biz_id"],
                 app_name=essentials["app_name"],
                 service_name=essentials["service_name"],
-                data_type=data_type,
+                sample_type=sample_type,
                 start=start,
                 end=end,
                 profile_id=diff_profile_id,
@@ -478,12 +483,12 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             app_name=app_name,
             bk_biz_id=bk_biz_id,
             service_name=service_name,
-            data_type=validated_data["data_type"],
             converted=False,
             result_table_id=result_table_id,
             start=start,
             end=end,
             extra_params={"limit": {"rows": limit}},
+            sample_type=validated_data["data_type"],
         )
 
         label_keys = set(
@@ -512,7 +517,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             app_name=app_name,
             bk_biz_id=bk_biz_id,
             service_name=service_name,
-            data_type=validated_data["data_type"],
             extra_params={
                 "label_key": validated_data["label_key"],
                 "limit": {"offset": offset, "rows": rows},
@@ -521,6 +525,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             start=start,
             end=end,
             converted=False,
+            sample_type=validated_data["data_type"],
         )
 
         return Response(data={"label_values": [i["label_value"] for i in results["list"] if i.get("label_value")]})
@@ -544,12 +549,12 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             bk_biz_id=bk_biz_id,
             app_name=app_name,
             service_name=service_name,
-            data_type=validated_data["data_type"],
             start=start,
             end=end,
             profile_id=validated_data.get("profile_id"),
             filter_labels=validated_data.get("filter_labels"),
             result_table_id=result_table_id,
+            sample_type=validated_data["data_type"],
         )
 
         # transfer data
