@@ -36,6 +36,9 @@ from apps.log_search.constants import DEFAULT_BK_CLOUD_ID, OperatorEnum
 from apps.utils import ChoicesEnum
 from apps.utils.log import logger
 
+SINGLE_QUOTES_RE = re.compile(r"^\'.*:.*\'$")
+DOUBLE_QUOTES_RE = re.compile(r"^\".*:.*\"$")
+
 
 def get_node_lucene_syntax(node):
     """获取该节点lucene语法类型"""
@@ -1025,8 +1028,8 @@ class LuceneQuotesChecker(LuceneCheckerBase):
         :param s: 字符串
         :return: 是否匹配
         """
-        # 避免value是 YY-MM-DD HH:mm:SS 这种情况
-        if ":" in s and s.count(":") == 1:
+        # 避免value是 YY-MM-DD HH:mm:SS 这种情况;避免'"org.SAXException: Connection reset"'这种字符串被分隔
+        if ":" in s and s.count(":") == 1 and not SINGLE_QUOTES_RE.match(s) and not DOUBLE_QUOTES_RE.match(s):
             __, s = s.split(":")
 
         left_single_quote = s.startswith("'")
