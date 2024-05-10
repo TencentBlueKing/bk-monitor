@@ -527,7 +527,7 @@ export default class MonitorEcharts extends Vue {
     }, 500);
   }
 
-  @Debounce(300)
+  @Debounce(30)
   // 获取seriesData
   async handleSeriesData(startTime?: string, endTime?: string) {
     if (this.isFinish) this.loading = true;

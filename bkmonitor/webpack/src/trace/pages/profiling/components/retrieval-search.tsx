@@ -234,9 +234,12 @@ export default defineComponent({
       localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item => !item.key);
       labelList.value = [];
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
-      const labels = await queryLabels({
-        ...labelCommonParams.value,
-      }).catch(() => ({ label_keys: [] }));
+      const labels = await queryLabels(
+        {
+          ...labelCommonParams.value,
+        },
+        { needMessage: false }
+      ).catch(() => ({ label_keys: [] }));
       labelList.value = labels.label_keys;
     }
 

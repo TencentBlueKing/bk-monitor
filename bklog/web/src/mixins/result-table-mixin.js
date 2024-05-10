@@ -169,7 +169,7 @@ export default {
     },
     /** 是否展示数据来源 */
     isShowSourceField() {
-      return this.operatorConfig.isShowSourceField;
+      return this.operatorConfig?.isShowSourceField ?? false;
     }
   },
   watch: {

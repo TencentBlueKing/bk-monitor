@@ -25,6 +25,7 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Button } from 'bk-magic-vue';
 import MaskingField from '../../components/log-masking/masking-field';
 import './step-masking.scss';
+import { deepEqual } from '../../common/util';
 import $http from '../../api';
 
 interface IProps {
@@ -34,10 +35,14 @@ interface IProps {
 @Component
 export default class StepMasking extends tsc<IProps> {
   @Prop({ type: String, required: true }) operateType: string;
+  @Prop({ type: Boolean, default: false }) isFinishCreateStep: boolean;
+
   @Ref('maskingField') private readonly maskingFieldRef: HTMLElement; // 移动到分组实例
   submitLoading = false;
   /** 应用模式下 是否请求了接口 */
   isApplicationSubmit = false;
+
+  editComparedData = {};
 
   get curCollect() {
     return this.$store.getters['collect/curCollect'];
@@ -58,14 +63,29 @@ export default class StepMasking extends tsc<IProps> {
     return val;
   }
 
+  initEditCompared() {
+    if (this.isFinishCreateStep) {
+      this.editComparedData = (this.maskingFieldRef as any).getQueryConfigParams();
+    }
+  }
+
+  getIsUpdateSubmitValue() {
+    const params = (this.maskingFieldRef as any).getQueryConfigParams();
+    return !deepEqual(this.editComparedData, params);
+  }
+
   /** 提交脱敏 */
   async submitSelectRule(stepChange = false) {
     const data = (this.maskingFieldRef as any).getQueryConfigParams();
     const isUpdate = (this.maskingFieldRef as any).isUpdate;
     if (!data.field_configs.length && !isUpdate) {
       this.isApplicationSubmit = true;
-      this.emitSubmitChange(true);
-      this.emitStepChange();
+      if (this.isFinishCreateStep) {
+        this.cancelSelectRule();
+      } else {
+        this.emitSubmitChange(true);
+        this.emitStepChange();
+      }
       return;
     } // 非更新状态且没有任何字段选择规则 直接下一步
     let requestStr = isUpdate ? 'updateDesensitizeConfig' : 'createDesensitizeConfig';
@@ -81,6 +101,8 @@ export default class StepMasking extends tsc<IProps> {
       if (res.result && stepChange) {
         this.isApplicationSubmit = true;
         this.emitStepChange();
+      } else {
+        this.cancelSelectRule();
       }
     } catch (err) {
       this.emitSubmitChange(false);
@@ -97,6 +119,9 @@ export default class StepMasking extends tsc<IProps> {
 
   /** 取消 回到列表里 */
   cancelSelectRule() {
+    if (this.isFinishCreateStep) {
+      this.emitSubmitChange(true);
+    }
     this.$router.push({
       name: 'collection-item',
       query: {
@@ -113,25 +138,38 @@ export default class StepMasking extends tsc<IProps> {
             ref='maskingField'
             collect-data={this.curCollect}
             operate-type={this.operateType}
+            onInitEditComparedData={() => this.initEditCompared()}
             onChangeData={() => this.submitSelectRule()}
           />
         </div>
         <div class='submit-content'>
-          <Button
-            theme='primary'
-            loading={this.submitLoading}
-            onClick={() => this.submitSelectRule(true)}
-          >
-            {this.isShowJump ? this.$t('下一步') : this.$t('应用')}
-          </Button>
-          {this.isShowJump && (
+          {this.isFinishCreateStep ? (
             <Button
-              theme='default'
+              theme='primary'
               loading={this.submitLoading}
-              onClick={() => this.handleNextPage()}
+              onClick={() => this.submitSelectRule()}
             >
-              {this.$t('跳过')}
+              {this.$t('应用')}
             </Button>
+          ) : (
+            <div>
+              <Button
+                theme='primary'
+                loading={this.submitLoading}
+                onClick={() => this.submitSelectRule(true)}
+              >
+                {this.isShowJump ? this.$t('下一步') : this.$t('应用')}
+              </Button>
+              {this.isShowJump && (
+                <Button
+                  theme='default'
+                  loading={this.submitLoading}
+                  onClick={() => this.handleNextPage()}
+                >
+                  {this.$t('跳过')}
+                </Button>
+              )}
+            </div>
           )}
           <Button
             theme='default'

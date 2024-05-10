@@ -50,10 +50,6 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
   @Prop({ default: false, type: Boolean }) canAddTab: boolean;
   @Ref('tabForm') refForm;
 
-  get checkNewTab() {
-    return this.bookMarkData.some(item => item.id.toString() === this.localForm.id.toString());
-  }
-
   /** 表单数据 */
   localForm: SettingsTabType.ITabForm = {
     id: '',
@@ -178,7 +174,7 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
                 {this.$t('保存')}
               </bk-button>
               {/* <bk-button class="handle-btn" onClick={this.handleReset}>{ this.$t('重置') }</bk-button> */}
-              {this.canAddTab && this.checkNewTab && (
+              {this.canAddTab && (
                 <bk-button
                   class='handle-btn'
                   onClick={this.handleDelete}

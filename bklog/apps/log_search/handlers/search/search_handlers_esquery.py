@@ -909,8 +909,9 @@ class SearchHandler(object):
         """
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
+        max_result_window = self.index_set_obj.result_window
         sorted_list = self._get_user_sorted_list(sorted_fields)
-        while search_after_size == MAX_RESULT_WINDOW and result_size < self.size:
+        while search_after_size == max_result_window and result_size < self.size:
             search_after = []
             for sorted_field in sorted_list:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))
@@ -925,7 +926,7 @@ class SearchHandler(object):
                     "filter": self.filter,
                     "sort_list": sorted_list,
                     "start": self.start,
-                    "size": MAX_RESULT_WINDOW,
+                    "size": max_result_window,
                     "aggs": self.aggs,
                     "highlight": self.highlight,
                     "time_zone": self.time_zone,
@@ -955,7 +956,8 @@ class SearchHandler(object):
         """
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
-        while scroll_size == MAX_RESULT_WINDOW and result_size < self.size:
+        max_result_window = self.index_set_obj.result_window
+        while scroll_size == max_result_window and result_size < self.size:
             _scroll_id = scroll_result["_scroll_id"]
             scroll_result = BkLogApi.scroll(
                 {
