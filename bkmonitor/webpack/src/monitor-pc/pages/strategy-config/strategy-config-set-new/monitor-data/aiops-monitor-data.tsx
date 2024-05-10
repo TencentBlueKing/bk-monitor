@@ -101,6 +101,13 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
         trigger: 'blur',
       },
     ],
+    metrics: [
+      {
+        validator: this.validateMetrics,
+        message: this.$t('至少选择2个指标'),
+        trigger: 'change',
+      },
+    ],
     level: [
       {
         validator(val) {
@@ -366,6 +373,10 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     this.handleChange();
   }
 
+  validateMetrics() {
+    return this.metrics?.length >= 2;
+  }
+
   render() {
     return (
       <div
@@ -419,7 +430,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
             class='metric-select'
             error-display-type='normal'
             label={`${this.$t('指标')}：`}
-            property={'scene'}
+            property={'metrics'}
           >
             {this.readonly ? (
               <div class='aiops-tag-wrap'>
@@ -468,7 +479,10 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                 )}
               </div>
             ) : (
-              <div class='aiops-metric-select'>
+              <div
+                class='aiops-metric-select'
+                tabindex={0}
+              >
                 <AiopsMonitorMetricSelect
                   defaultScenario={this.defaultScenario}
                   metrics={this.allMetrics}
@@ -571,7 +585,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
           </bk-form-item>
           <bk-form-item label={`${this.$t('敏感度')}：`}>
             <bk-slider
-              class='process-item'
+              class={`process-item ${this.readonly ? 'process-item-readonly' : ''}`}
               custom-content={{ 0: { label: this.$t('较少告警') }, 10: { label: this.$t('较多告警') } }}
               disable={this.readonly}
               max-value={10}
@@ -580,6 +594,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               value={this.formModel.sensitivity}
               onInput={this.handleSensitivity}
             />
+            {this.readonly && <span class='item-readonly-value'>{this.formModel.sensitivity}</span>}
           </bk-form-item>
         </bk-form>
         {this.metricData.some(item => item.canSetTarget) && this.ipSelect()}
