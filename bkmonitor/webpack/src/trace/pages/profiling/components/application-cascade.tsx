@@ -45,6 +45,10 @@ export default defineComponent({
       type: Object as PropType<string[]>,
       required: true,
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['change'],
   setup(props, { emit }) {
