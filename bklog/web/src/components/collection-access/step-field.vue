@@ -525,10 +525,10 @@
       </section>
 
       <div class="form-button">
-        <template v-if="!isFinishCreateStep">
+        <template v-if="!isFinishCreateStep && !isCleanField">
           <!-- 上一步 -->
           <bk-button
-            v-if="!isCleanField && !isTempField && !isSetEdit"
+            v-if="!isTempField && !isSetEdit"
             theme="default"
             data-test-id="fieldExtractionBox_button_previousPage"
             :title="$t('上一步')"
@@ -574,7 +574,7 @@
           </bk-button>
           <!-- 日志清洗 保存模板 取消 -->
           <bk-button
-            v-if="isCleanField || isTempField"
+            v-if="isTempField"
             theme="default"
             class="ml10"
             data-test-id="fieldExtractionBox_button_cancelSaveTemplate"
@@ -1212,12 +1212,11 @@ export default {
               this.$emit('updateLogFields');
             } else if (isCollect) {
               // 下发页的字段清洗
-              if (this.isFinishCreateStep) {
+              if (this.isFinishCreateStep || this.isCleanField) {
                 // 编辑的情况下要请求入库接口
                 this.fieldCollectionRequest(res.data, callback);
               } else {
-                const step = this.isCleanField ? 2 : null;
-                this.$emit('stepChange', step);
+                this.$emit('stepChange');
               }
             } else {
               // 新建/编辑清洗模板
@@ -1233,7 +1232,7 @@ export default {
           }
         })
         .finally(() => {
-          if (!this.isFinishCreateStep) {
+          if (!this.isFinishCreateStep && !this.isCleanField) {
             this.isLoading = false;
             this.basicLoading = false;
           }
@@ -1389,11 +1388,12 @@ export default {
       }
       let routeName;
       // 保存, 回退到列表
-      if (this.isFinishCreateStep) {
+      if (this.isFinishCreateStep || this.isCleanField) {
         this.$emit('changeSubmit', true);
       }
-      if (!!this.$route.query?.backRoute) {
-        routeName = this.$route.query?.backRoute;
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
       } else if (['edit', 'storage', 'masking'].includes(this.operateType)) {
         routeName = 'collection-item';
       } else {
@@ -1402,6 +1402,7 @@ export default {
       this.$router.push({
         name: routeName,
         query: {
+          ...reset,
           spaceUid: this.$store.state.spaceUid
         }
       });

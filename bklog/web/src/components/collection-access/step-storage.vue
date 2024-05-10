@@ -359,7 +359,6 @@ export default {
       default: 1
     },
     collectorId: String,
-    isCleanField: Boolean,
     /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
     isFinishCreateStep: {
       type: Boolean,
@@ -600,7 +599,7 @@ export default {
             } else {
               this.$emit('setAssessmentItem', {});
             }
-            if (this.isFinishCreateStep || this.isCleanField) {
+            if (this.isFinishCreateStep) {
               this.messageSuccess(this.$t('保存成功'));
               if (callback) {
                 this.$emit('resetCurCollectVal');
@@ -661,7 +660,7 @@ export default {
       });
     },
     prevHandler() {
-      const step = this.isCleanField ? 1 : this.curStep - 1;
+      const step = this.curStep - 1;
       this.$emit('stepChange', step);
     },
     // 获取详情
@@ -762,9 +761,17 @@ export default {
       if (this.isFinishCreateStep) {
         this.$emit('changeSubmit', true);
       }
+      let routeName;
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
+      } else {
+        routeName = 'collection-item';
+      }
       this.$router.push({
-        name: 'collection-item',
+        name: routeName,
         query: {
+          ...reset,
           spaceUid: this.$store.state.spaceUid
         }
       });

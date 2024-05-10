@@ -1781,9 +1781,17 @@ export default {
       if (this.isFinishCreateStep) {
         this.$emit('changeSubmit', true);
       }
+      let routeName;
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
+      } else {
+        routeName = 'collection-item';
+      }
       this.$router.push({
-        name: 'collection-item',
+        name: routeName,
         query: {
+          ...reset,
           spaceUid: this.$store.state.spaceUid
         }
       });
