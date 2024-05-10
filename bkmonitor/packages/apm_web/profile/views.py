@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import functools
 import gzip
 import hashlib
 import itertools
@@ -174,37 +175,45 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         """
         获取 profile 数据
         """
+        retry_handler = None
+
+        def update_profile_id(api_params, key, replace_key, query_profile_id):
+            api_params.label_filter.pop(key)
+            api_params.label_filter[replace_key] = query_profile_id
+
         extra_params = extra_params or {}
         if api_type in [APIType.QUERY_SAMPLE_BY_JSON, APIType.SELECT_COUNT]:
             # query_sample / select_count 接口需要传递 dimension_fields 参数
-            if dimension_fields:
-                extra_params["dimension_fields"] = dimension_fields
-            else:
+            if not dimension_fields:
                 dimension_fields = ",".join(["type", "service_name", "period_type", "period", "sample_type"])
-                extra_params["dimension_fields"] = dimension_fields
+            extra_params["dimension_fields"] = dimension_fields
 
-        if api_type.value == APIType.LABEL_VALUES and "label_key" not in extra_params:
-            raise ValueError(_("查询 label values 时 label_key 不能为空"))
-
-        filter_labels = filter_labels or {}
-        for k, v in filter_labels.items():
-            if "label_filter" not in extra_params:
-                extra_params["label_filter"] = {k: v}
-            else:
-                extra_params["label_filter"][k] = v
-
-        if profile_id:
-            if "label_filter" not in extra_params:
-                extra_params["label_filter"] = {"profile_id": profile_id}
-            else:
-                extra_params["label_filter"]["profile_id"] = profile_id
-
-        if api_type.value == APIType.LABEL_VALUES:
-            extra_params["label_key"] = label_key  # noqa
+        if filter_labels:
+            extra_params.setdefault("label_filter", {})
+            extra_params["label_filter"].update(filter_labels)
 
         if sample_type:
             filters = extra_params.setdefault("general_filters", {})
             filters["sample_type"] = f"op_eq|{sample_type}"
+
+        if profile_id:
+            extra_params.setdefault("label_filter", {})
+            extra_params["label_filter"].update({"profile_id": profile_id})
+
+        if "profile_id" in extra_params.get("label_filter", {}):
+            retry_handler = functools.partial(
+                update_profile_id,
+                key="profile_id",
+                replace_key="span_id",
+                query_profile_id=extra_params["label_filter"]["profile_id"],
+            )
+        if "span_id" in extra_params.get("label_filter", {}):
+            retry_handler = functools.partial(
+                update_profile_id,
+                key="span_id",
+                replace_key="profile_id",
+                query_profile_id=extra_params["label_filter"]["span_id"],
+            )
 
         q = Query(
             api_type=api_type,
@@ -220,7 +229,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
         )
 
-        r = q.execute()
+        r = q.execute(retry_if_empty_handler=retry_handler)
         if r is None:
             raise ValueError(_("未查询到有效数据"))
 
@@ -488,7 +497,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             start=start,
             end=end,
             extra_params={"limit": {"rows": limit}},
-            sample_type=validated_data["data_type"],
         )
 
         label_keys = set(
@@ -525,7 +533,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             start=start,
             end=end,
             converted=False,
-            sample_type=validated_data["data_type"],
         )
 
         return Response(data={"label_values": [i["label_value"] for i in results["list"] if i.get("label_value")]})
