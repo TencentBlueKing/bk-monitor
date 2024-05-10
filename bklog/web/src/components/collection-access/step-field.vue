@@ -1231,6 +1231,7 @@ export default {
             }
           }
         })
+        .catch(() => callback?.(false))
         .finally(() => {
           if (!this.isFinishCreateStep && !this.isCleanField) {
             this.isLoading = false;
@@ -1297,6 +1298,7 @@ export default {
             }
           }
         })
+        .catch(() => callback?.(false))
         .finally(() => {
           this.isLoading = false;
           this.basicLoading = false;

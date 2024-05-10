@@ -135,6 +135,8 @@ export default {
       isFinishCreateStep: false,
       /** 强制渲染的组件 */
       forceShowComponent: '',
+      /** 编辑时切换步骤 */
+      isChangeStepLoading: false,
       /** 步骤所对应的组件 */
       // componentStepObj: {
       //   1: 'stepAdd',
@@ -405,9 +407,13 @@ export default {
           confirmFn: async () => {
             await new Promise(infoResolve => {
               if (this.$refs.currentRef?.stepSubmitFun) {
+                if (this.isChangeStepLoading) return;
+                // 正在请求中
+                this.isChangeStepLoading = true;
                 this.$refs.currentRef.stepSubmitFun(isCanChangeStep => {
                   resolve(isCanChangeStep);
                   infoResolve(isCanChangeStep);
+                  this.isChangeStepLoading = false;
                   if (isCanChangeStep) this.forceShowComponent = '';
                 });
                 return;
