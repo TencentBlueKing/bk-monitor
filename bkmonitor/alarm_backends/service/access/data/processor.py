@@ -606,7 +606,8 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "process_counts": self.process_counts,
             }
         ]
-        while len(batch_results) < self.batch_count and time.time() - start_time < 5 * constants.CONST_MINUTES:
+        wait_start_time = time.time()
+        while len(batch_results) < self.batch_count and time.time() - wait_start_time < 5 * constants.CONST_MINUTES:
             batch_result = client.brpop(result_key, timeout=1)
             if batch_result:
                 batch_results.append(json.loads(batch_result[1]))
