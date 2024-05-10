@@ -8,6 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import time
+from functools import wraps
+from threading import Lock
+
 from elasticsearch.helpers.errors import ScanError
 from elasticsearch_dsl import Search
 from elasticsearch_dsl.connections import get_connection
@@ -82,3 +86,39 @@ class EsSearch(Search):
 
         for hit in _scan(es, query=self.to_dict(), index=self._index, **self._params):
             yield self._get_result(hit)
+
+
+class RateLimiter:
+    def __init__(self, calls, period):
+        self.calls = calls
+        self.period = period
+        self.counter = 0
+        self.start_time = time.time()
+        self.lock = Lock()
+
+    def __call__(self, func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            with self.lock:
+                current_time = time.time()
+                elapsed = current_time - self.start_time
+
+                if elapsed > self.period:
+                    self.counter = 0
+                    self.start_time = current_time
+
+                if self.counter < self.calls:
+                    self.counter += 1
+                else:
+                    sleep_time = self.start_time + self.period - current_time
+                    if sleep_time > 0:
+                        time.sleep(sleep_time)
+                    self.start_time = current_time + sleep_time
+                    self.counter = 1
+                return func(*args, **kwargs)
+
+        return wrapper
+
+
+def limits(calls, period):
+    return RateLimiter(calls, period)
