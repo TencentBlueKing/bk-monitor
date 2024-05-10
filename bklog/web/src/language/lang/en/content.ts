@@ -748,5 +748,6 @@ export default {
   如: 'Example',
   '您可以随时切换所选集群。切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。': 'You can switch selected clusters at any time. There will be no data loss after switching clusters. The original data will be automatically cleared after the new cluster storage period.',
   '最大自定义分片数为: {n}': 'The maximum number of custom shards is: {n}',
-  '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}'
+  '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
+  '是否保存本次操作？': 'Do you want to save this operation?'
 };

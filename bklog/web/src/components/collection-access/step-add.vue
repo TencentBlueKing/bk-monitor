@@ -1389,15 +1389,26 @@ export default {
       if (splitList.length === 1 && splitList[0] === '') return [];
       return splitList;
     },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.startCollect(callback);
+    },
     // 开始采集
-    async startCollect() {
+    async startCollect(callback) {
       const isCanSubmit = await this.submitDataValidate();
-      if (!isCanSubmit) return;
+      if (!isCanSubmit) {
+        callback?.(false);
+        return;
+      }
       const params = this.handleParams();
       if (deepEqual(this.localParams, params)) {
         this.isHandle = false;
         if (this.isFinishCreateStep) {
           // 保存的情况下, 没有任何改变, 回退到列表
+          if (callback) {
+            callback(true);
+            return;
+          }
           this.cancel();
         } else {
           // 未修改表单 直接跳转下一步
@@ -1408,7 +1419,9 @@ export default {
       this.$refs.validateForm.validate().then(
         () => {
           this.isCloseDataLink && delete params.data_link_id;
-          this.isPhysicsEnvironment ? this.setCollection(params) : this.setContainerCollection(params);
+          this.isPhysicsEnvironment
+            ? this.setCollection(params, callback)
+            : this.setContainerCollection(params, callback);
         },
         () => {}
       );
@@ -1486,7 +1499,7 @@ export default {
       return true;
     },
     // 新增/修改采集
-    setCollection(params) {
+    setCollection(params, callback) {
       this.isHandle = true;
       const urlParams = {};
       let requestUrl;
@@ -1511,7 +1524,12 @@ export default {
               // 修改过非基本信息的值 重新下发 不改变步骤 直接展示下发组件 否则直接回列表
               if (this.isUpdateIssuedShowValue() && !this.isContainerStep) {
                 this.$emit('update:force-show-component', 'stepIssued');
+                callback?.(false);
               } else {
+                if (callback) {
+                  callback(true);
+                  return;
+                }
                 this.cancel();
               }
             } else {
@@ -1525,7 +1543,7 @@ export default {
         });
     },
     // 容器日志新增/修改采集
-    setContainerCollection(params) {
+    setContainerCollection(params, callback) {
       this.isHandle = true;
       this.$emit('update:container-loading', true);
       const urlParams = {};
@@ -1549,6 +1567,10 @@ export default {
             this.setDetail(res.data.collector_config_id);
             // 容器环境没有下发步骤 直接回到列表或者下一步
             if (this.isFinishCreateStep) {
+              if (callback) {
+                callback(true);
+                return;
+              }
               this.cancel();
             } else {
               this.$emit('stepChange');
@@ -1557,6 +1579,7 @@ export default {
         })
         .catch(error => {
           console.warn(error);
+          callback?.(false);
           // this.isShowSubmitErrorDialog = true;
           // this.submitErrorMessage = error.message;
         })

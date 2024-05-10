@@ -1155,7 +1155,7 @@ export default {
       this.requestEtlPreview();
     },
     // 字段提取
-    fieldCollection(isCollect = false) {
+    fieldCollection(isCollect = false, callback) {
       this.isLoading = true;
       this.basicLoading = true;
       const { etl_config: etlConfig, etl_params: etlParams } = this.formData;
@@ -1214,7 +1214,7 @@ export default {
               // 下发页的字段清洗
               if (this.isFinishCreateStep) {
                 // 编辑的情况下要请求入库接口
-                this.fieldCollectionRequest(res.data);
+                this.fieldCollectionRequest(res.data, callback);
               } else {
                 const step = this.isCleanField ? 2 : null;
                 this.$emit('stepChange', step);
@@ -1256,7 +1256,7 @@ export default {
       }
     },
     /** 入库请求 */
-    async fieldCollectionRequest(atLastFormData) {
+    async fieldCollectionRequest(atLastFormData, callback) {
       const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields } = atLastFormData;
       // 检索设置 直接入库
       const { table_id, storage_cluster_id, retention, storage_replies, allocation_min_days, view_roles } =
@@ -1288,7 +1288,11 @@ export default {
             if (this.isSetEdit) {
               this.messageSuccess(this.$t('保存成功'));
               this.$emit('updateLogFields');
-            } else if (this.isFinishCreateStep) {
+            } else if (this.isFinishCreateStep || this.isCleanField) {
+              if (callback) {
+                callback(true);
+                return;
+              }
               // 编辑保存的情况下, 回退到列表
               this.handleCancel();
             }
@@ -1300,7 +1304,7 @@ export default {
         });
     },
     // 检查提取方法或条件是否已变更
-    checkEtlConfChnage(isCollect = false) {
+    checkEtlConfChnage(isCollect = false, callback) {
       let isConfigChange = false; // 提取方法或条件是否已变更
       const etlConfigParam = this.params.etl_config;
       // 如果未选模式 则默认传bk_log_text
@@ -1334,23 +1338,29 @@ export default {
             this.$t('字段提取方法或条件已发生变更，需【调试&设置】按钮点击操作成功才会生效')
           ),
           confirmFn: () => {
-            isCollect ? this.fieldCollection(true) : this.handleSaveTemp();
+            isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
           }
         });
         return;
       }
-      isCollect ? this.fieldCollection(true) : this.handleSaveTemp();
+      isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
+    },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.finish(true, callback);
     },
     // 完成按钮
-    finish(isCollect = false) {
+    finish(isCollect = false, callback) {
       const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
       if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
         this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
+        callback?.(false);
         return;
       }
       // 清洗模板选择多业务时不能为空
       if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
         this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
+        callback?.(false);
         return;
       }
       // const promises = [this.checkStore()];
@@ -1360,9 +1370,10 @@ export default {
       }
       Promise.all(promises).then(
         () => {
-          this.checkEtlConfChnage(isCollect);
+          this.checkEtlConfChnage(isCollect, callback);
         },
         validator => {
+          callback?.(false);
           console.warn('保存失败', validator);
         }
       );

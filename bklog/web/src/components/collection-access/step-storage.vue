@@ -314,7 +314,7 @@
             data-test-id="storageBox_button_nextPage"
             :loading="isLoading"
             :disabled="!collectProject"
-            @click.stop.prevent="finish"
+            @click.stop.prevent="finish()"
           >
             {{ $t('下一步') }}
           </bk-button>
@@ -325,7 +325,7 @@
             class="mr10"
             :loading="isLoading"
             :disabled="!collectProject"
-            @click.stop.prevent="finish"
+            @click.stop.prevent="finish()"
           >
             {{ $t('保存') }}
           </bk-button>
@@ -573,7 +573,7 @@ export default {
         });
     },
     // 存储入库
-    fieldCollection() {
+    fieldCollection(callback) {
       const data = this.getSubmitData();
       /* eslint-enable */
       this.isLoading = true;
@@ -602,6 +602,11 @@ export default {
             }
             if (this.isFinishCreateStep || this.isCleanField) {
               this.messageSuccess(this.$t('保存成功'));
+              if (callback) {
+                this.$emit('resetCurCollectVal');
+                callback(true);
+                return;
+              }
               this.$emit('changeSubmit', true);
               this.$emit('stepChange', 'back');
               return;
@@ -615,14 +620,21 @@ export default {
           this.isLoading = false;
         });
     },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.finish(callback);
+    },
     // 完成按钮
-    finish() {
+    finish(callback) {
       const isCanSubmit = this.getSubmitAuthority();
-      if (!isCanSubmit) return;
+      if (!isCanSubmit) {
+        callback(false);
+        return;
+      }
       const promises = [this.checkStore()];
       Promise.all(promises).then(
         () => {
-          this.fieldCollection();
+          this.fieldCollection(callback);
         },
         validator => {
           console.warn('保存失败', validator);
