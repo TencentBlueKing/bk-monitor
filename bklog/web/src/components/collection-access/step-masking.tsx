@@ -74,8 +74,13 @@ export default class StepMasking extends tsc<IProps> {
     return !deepEqual(this.editComparedData, params);
   }
 
+  /** 导航切换提交函数 */
+  stepSubmitFun(callback) {
+    console.log(callback);
+    this.submitSelectRule(false, callback);
+  }
   /** 提交脱敏 */
-  async submitSelectRule(stepChange = false) {
+  async submitSelectRule(stepChange = false, callback) {
     const data = (this.maskingFieldRef as any).getQueryConfigParams();
     const isUpdate = (this.maskingFieldRef as any).isUpdate;
     if (!data.field_configs.length && !isUpdate) {
@@ -97,6 +102,10 @@ export default class StepMasking extends tsc<IProps> {
         data
       });
       this.$emit('changeIndexSetId', this.curCollect?.index_set_id || '');
+      if (callback) {
+        callback(true);
+        return;
+      }
       this.emitSubmitChange(true);
       if (res.result && stepChange) {
         this.isApplicationSubmit = true;
@@ -105,6 +114,7 @@ export default class StepMasking extends tsc<IProps> {
         this.cancelSelectRule();
       }
     } catch (err) {
+      callback?.(false);
       this.emitSubmitChange(false);
     } finally {
       this.submitLoading = false;

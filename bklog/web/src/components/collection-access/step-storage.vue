@@ -314,7 +314,7 @@
             data-test-id="storageBox_button_nextPage"
             :loading="isLoading"
             :disabled="!collectProject"
-            @click.stop.prevent="finish"
+            @click.stop.prevent="finish()"
           >
             {{ $t('下一步') }}
           </bk-button>
@@ -325,7 +325,7 @@
             class="mr10"
             :loading="isLoading"
             :disabled="!collectProject"
-            @click.stop.prevent="finish"
+            @click.stop.prevent="finish()"
           >
             {{ $t('保存') }}
           </bk-button>
@@ -359,7 +359,6 @@ export default {
       default: 1
     },
     collectorId: String,
-    isCleanField: Boolean,
     /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
     isFinishCreateStep: {
       type: Boolean,
@@ -573,7 +572,7 @@ export default {
         });
     },
     // 存储入库
-    fieldCollection() {
+    fieldCollection(callback) {
       const data = this.getSubmitData();
       /* eslint-enable */
       this.isLoading = true;
@@ -600,8 +599,13 @@ export default {
             } else {
               this.$emit('setAssessmentItem', {});
             }
-            if (this.isFinishCreateStep || this.isCleanField) {
+            if (this.isFinishCreateStep) {
               this.messageSuccess(this.$t('保存成功'));
+              if (callback) {
+                this.$emit('resetCurCollectVal');
+                callback(true);
+                return;
+              }
               this.$emit('changeSubmit', true);
               this.$emit('stepChange', 'back');
               return;
@@ -615,14 +619,21 @@ export default {
           this.isLoading = false;
         });
     },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.finish(callback);
+    },
     // 完成按钮
-    finish() {
+    finish(callback) {
       const isCanSubmit = this.getSubmitAuthority();
-      if (!isCanSubmit) return;
+      if (!isCanSubmit) {
+        callback(false);
+        return;
+      }
       const promises = [this.checkStore()];
       Promise.all(promises).then(
         () => {
-          this.fieldCollection();
+          this.fieldCollection(callback);
         },
         validator => {
           console.warn('保存失败', validator);
@@ -649,7 +660,7 @@ export default {
       });
     },
     prevHandler() {
-      const step = this.isCleanField ? 1 : this.curStep - 1;
+      const step = this.curStep - 1;
       this.$emit('stepChange', step);
     },
     // 获取详情
@@ -750,9 +761,17 @@ export default {
       if (this.isFinishCreateStep) {
         this.$emit('changeSubmit', true);
       }
+      let routeName;
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
+      } else {
+        routeName = 'collection-item';
+      }
       this.$router.push({
-        name: 'collection-item',
+        name: routeName,
         query: {
+          ...reset,
           spaceUid: this.$store.state.spaceUid
         }
       });

@@ -71,6 +71,7 @@
           :is-finish-create-step="isFinishCreateStep"
           :container-loading.sync="containerLoading"
           :force-show-component.sync="forceShowComponent"
+          @resetCurCollectVal="() => getDetail()"
           @setAssessmentItem="v => (applyData = v)"
           @changeIndexSetId="v => (indexSetId = v)"
           @changeSubmit="v => (isSubmit = v)"
@@ -399,8 +400,23 @@ export default {
       }
       return new Promise(resolve => {
         this.$bkInfo({
-          title: this.$t('是否放弃本次操作？'),
-          confirmFn: () => {
+          title: this.$t('是否保存本次操作？'),
+          confirmLoading: true,
+          confirmFn: async () => {
+            await new Promise(infoResolve => {
+              if (this.$refs.currentRef?.stepSubmitFun) {
+                this.$refs.currentRef.stepSubmitFun(isCanChangeStep => {
+                  resolve(isCanChangeStep);
+                  infoResolve(isCanChangeStep);
+                  if (isCanChangeStep) this.forceShowComponent = '';
+                });
+                return;
+              }
+              infoResolve(false);
+              resolve(false);
+            });
+          },
+          cancelFn: () => {
             this.forceShowComponent = '';
             resolve(true);
           }
