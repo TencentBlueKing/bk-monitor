@@ -143,7 +143,6 @@ export default {
   无法定位上下文: 'Unable to locate context',
   trace检索: 'Trace query',
   仅显示同步请求: 'Show only synchronous requests',
-  该数据名已重复: 'This english name is already duplicated',
   保留匹配字符串: 'Retain matching string',
   过滤匹配字符串: 'Filter matching string',
   '第 {n} 列': 'Column {n}',
