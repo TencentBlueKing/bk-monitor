@@ -601,14 +601,18 @@ export default {
     },
     /** 索引集更变时的数据初始化 */
     initIndexSetChangeFn(val, isUnionSearch = false) {
-      this.isSearchAllowed = isUnionSearch
-        ? val?.every(
-            item =>
-              this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
-                authorityMap.SEARCH_LOG_AUTH
-              ]
-          )
-        : !!this.indexSetList.find(item => item.index_set_id === val)?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      if (!isUnionSearch) {
+        const aloneSetItem = this.indexSetList.find(item => item.index_set_id === val);
+        this.indexSetItem = aloneSetItem ?? { index_set_name: '', indexName: '', scenario_name: '', scenario_id: '' };
+        this.isSearchAllowed = !!aloneSetItem?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      } else {
+        this.isSearchAllowed = val?.every(
+          item =>
+            this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
+              authorityMap.SEARCH_LOG_AUTH
+            ]
+        );
+      }
       if (this.isSearchAllowed) this.authPageInfo = null;
       this.resetRetrieveCondition();
       this.resetFavoriteValue();
