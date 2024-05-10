@@ -974,7 +974,7 @@ export default {
           {
             // 检查数据名是否可用
             validator: this.checkEnNameRepeat,
-            message: this.$t('该数据名已重复'),
+            message: () => this.enNameErrorMessage,
             trigger: 'blur'
           }
         ],
@@ -1051,6 +1051,8 @@ export default {
       // isConfigConflict: false, // 配置项是否有冲突
       conflictList: [], // 冲突列表
       conflictMessage: '', // 冲突信息
+      /** 英文名错误信息 */
+      enNameErrorMessage: '',
       clusterList: [], // 集群列表
       nameSpacesSelectList: [], // namespace 列表
       operatorSelectList: [
@@ -1835,7 +1837,10 @@ export default {
         const res = await this.$http.request('collect/getPreCheck', {
           params: { collector_config_name_en: val, bk_biz_id: this.$store.state.bkBizId }
         });
-        if (res.data) return res.data.allowed;
+        if (res.data) {
+          this.enNameErrorMessage = res.data.message;
+          return res.data.allowed;
+        }
       } catch (error) {
         return false;
       }
