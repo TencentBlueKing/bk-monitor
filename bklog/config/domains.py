@@ -68,6 +68,8 @@ API_ROOTS = [
     "AIOPS_MODEL_APIGATEWAY_ROOT",
     # Wework api
     "WEWORK_APIGATEWAY_ROOT",
+    # UNIFY QUERY
+    "UNIFYQUERY_APIGATEWAY_ROOT"
 ]
 
 env_domains = load_domains(settings)

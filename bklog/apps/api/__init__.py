@@ -43,6 +43,7 @@ BKPAASApi = SimpleLazyObject(lambda: new_api_module("bk_paas", "_BKPAASApi"))
 CCApi = SimpleLazyObject(lambda: new_api_module("cc", "_CCApi"))
 GseApi = SimpleLazyObject(lambda: new_api_module("gse", "_GseApi"))
 JobApi = SimpleLazyObject(lambda: new_api_module("job", "_JobApi"))
+UnifyQueryApi = SimpleLazyObject(lambda: new_api_module("unify_query", "_UnifyQueryApi"))
 
 # 数据平台模块域名
 BkDataMetaApi = SimpleLazyObject(lambda: new_api_module("bkdata_meta", "_BkDataMetaApi"))
@@ -123,6 +124,7 @@ __all__ = [
     "BkDataAIOPSApi",
     "BkDataDataFlowApi",
     "WeWorkApi",
+    "UnifyQueryApi"
 ]
 
 
