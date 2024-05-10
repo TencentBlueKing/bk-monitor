@@ -120,6 +120,12 @@ $text: #313238;
             }
           }
 
+          &.pre-content {
+            .item-content {
+              white-space: pre;
+            }
+          }
+
           &.no-flex {
             align-items: flex-start;
 
