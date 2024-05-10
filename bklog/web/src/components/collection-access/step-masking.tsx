@@ -76,7 +76,6 @@ export default class StepMasking extends tsc<IProps> {
 
   /** 导航切换提交函数 */
   stepSubmitFun(callback) {
-    console.log(callback);
     this.submitSelectRule(false, callback);
   }
   /** 提交脱敏 */

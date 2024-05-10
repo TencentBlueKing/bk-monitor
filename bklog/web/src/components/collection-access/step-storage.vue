@@ -615,6 +615,7 @@ export default {
             this.$emit('stepChange');
           }
         })
+        .catch(() => callback?.(false))
         .finally(() => {
           this.isLoading = false;
         });

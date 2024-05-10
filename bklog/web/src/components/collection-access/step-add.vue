@@ -757,7 +757,7 @@
           :title="isFinishCreateStep ? $t('保存') : $t('开始采集')"
           :loading="isHandle"
           :disabled="!collectProject"
-          @click.stop.prevent="startCollect"
+          @click.stop.prevent="startCollect()"
         >
           {{ isFinishCreateStep ? $t('保存') : $t('下一步') }}
         </bk-button>
