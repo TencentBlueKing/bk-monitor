@@ -29,7 +29,7 @@ from constants.common import DutyGroupType, RotationType, WorkTimeType
 logger = logging.getLogger("fta_action.run")
 
 MAX_RETRIES = 3  # 最大重试次数
-BATCH_SIZE = 100  # 每批次更新的记录数量
+BATCH_SIZE = 1000  # 每批次更新的记录数量
 
 
 class DutyCalendar:
