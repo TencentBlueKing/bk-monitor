@@ -1423,7 +1423,9 @@ export default {
             ? this.setCollection(params, callback)
             : this.setContainerCollection(params, callback);
         },
-        () => {}
+        () => {
+          callback?.(false);
+        }
       );
     },
     /**
@@ -1538,6 +1540,7 @@ export default {
             }
           }
         })
+        .catch(() => callback?.(false))
         .finally(() => {
           this.isHandle = false;
         });
