@@ -762,7 +762,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     //  切换tab时初始化 showMode
     if (!this.sceneData.selectorPanel && this.showMode === 'list') {
       this.showMode = 'dashboard';
+    } else if (this.sceneData.options.panel_tool?.full_table) {
+      this.showMode = 'list';
     }
+
     // 判断左侧栏是否需要缓存
     this.selectorPanelKey = oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
     const variables = {};
