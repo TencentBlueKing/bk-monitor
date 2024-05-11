@@ -14,7 +14,6 @@ specific language governing permissions and limitations under the License.
 import base64
 import logging
 import sys
-import time
 from copy import deepcopy
 
 from cachetools import TTLCache, cached
@@ -83,11 +82,11 @@ class IAM(object):
         # logger.debug("the return expr render: %s", expr.render(obj_set))
 
         # 5. eval and return
-        eval_begin = time.time()
+        # eval_begin = time.time()
         allowed = expr.eval(obj_set)
-        logger.debug("the return expr eval: %s", allowed)
-        eval_time = int((time.time() - eval_begin) * 1000)
-        logger.debug("the return expr eval took %s ms", eval_time)
+        # logger.debug("the return expr eval: %s", allowed)
+        # eval_time = int((time.time() - eval_begin) * 1000)
+        # logger.debug("the return expr eval took %s ms", eval_time)
         return allowed
 
     def _eval_policy(self, policy, obj_set):
