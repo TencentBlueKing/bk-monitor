@@ -168,6 +168,8 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                         # 逗号分隔是存在问题的
                         new_value = value.split(",")
                     else:
+                        if isinstance(value, list) and value:
+                            value = ",".join([str(v) for v in value])
                         new_value = value
 
                     new_filter.append(
