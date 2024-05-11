@@ -301,6 +301,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
                 strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
             )
+            cache_key.strategy_id = self.items[0].strategy.id
 
             raw_points: List[str] = client.lrange(cache_key, 0, -1)
             client.delete(cache_key)
@@ -452,12 +453,11 @@ class AccessDataProcess(BaseAccessDataProcess):
             else:
                 # 将分批数据写入redis
                 sub_task_id = f"{self.batch_timestamp}.{batch_count}"
-                client.lpush(
-                    key.ACCESS_BATCH_DATA_KEY.get_key(
-                        strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
-                    ),
-                    *[json.dumps(point) for point in batch_points],
+                data_key = key.ACCESS_BATCH_DATA_KEY.get_key(
+                    strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
                 )
+                data_key.strategy_id = self.items[0].strategy.id
+                client.lpush(data_key, *[json.dumps(point) for point in batch_points])
                 key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
 
                 # 发起异步任务
@@ -761,6 +761,7 @@ class AccessBatchDataProcess(AccessDataProcess):
         cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
             strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
         )
+        cache_key.strategy_id = self.items[0].strategy.id
 
         points: List[str] = client.lrange(cache_key, 0, -1)
         client.delete(cache_key)
