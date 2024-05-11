@@ -644,6 +644,9 @@ class Application(AbstractRecordModel):
 
         res["custom_service_config"] = CustomServiceSerializer(instance=query, many=True).data
 
+        # 补充 QPS 配置
+        res["qps"] = settings.APM_APP_QPS
+
         return res
 
     @staticmethod
