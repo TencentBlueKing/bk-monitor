@@ -11,23 +11,29 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import time
-import logging
 import base64
+import logging
 import sys
+import time
 from copy import deepcopy
+
+from cachetools import TTLCache, cached
 from six import string_types
 
-from cachetools import cached, TTLCache
-
 from .api.client import Client
+from .apply.models import Application
+from .auth.models import (
+    ApiAuthRequest,
+    ApiBatchAuthRequest,
+    MultiActionRequest,
+    Request,
+    Resource,
+)
+from .cache import hash_key
+from .contrib.converter.queryset import DjangoQuerySetConverter
 from .eval.expression import make_expression
 from .eval.object import ObjectSet
-from .contrib.converter.queryset import DjangoQuerySetConverter
-from .auth.models import Request, MultiActionRequest, Resource, ApiAuthRequest, ApiBatchAuthRequest
-from .exceptions import AuthAPIError, AuthInvalidRequest, AuthInvalidParam
-from .apply.models import Application
-from .cache import hash_key
+from .exceptions import AuthAPIError, AuthInvalidParam, AuthInvalidRequest
 
 logger = logging.getLogger("iam")
 
@@ -73,8 +79,8 @@ class IAM(object):
         return action_policies
 
     def _eval_expr(self, expr, obj_set):
-        logger.debug("the return expr: %s", expr.expr())
-        logger.debug("the return expr render: %s", expr.render(obj_set))
+        # logger.debug("the return expr: %s", expr.expr())
+        # logger.debug("the return expr render: %s", expr.render(obj_set))
 
         # 5. eval and return
         eval_begin = time.time()
@@ -552,7 +558,6 @@ class IAM(object):
         return policies
 
     def query_polices_with_action_id(self, system, data):
-
         logger.debug("calling IAM.query_polices_with_action_id.....")
 
         if not isinstance(system, string_types):
