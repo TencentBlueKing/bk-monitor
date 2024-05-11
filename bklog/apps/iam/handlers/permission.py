@@ -121,7 +121,6 @@ class Permission(object):
     def _make_application(
         self, action_ids: List[str], resources: List[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
     ) -> Application:
-
         resources = resources or []
         actions = []
 
@@ -339,7 +338,17 @@ class Permission(object):
             # 获取业务列表
             from apps.log_search.models import Space
 
-            space_list = Space.objects.all()
+            space_list = Space.objects.values(
+                "id",
+                "space_type_id",
+                "space_type_name",
+                "space_id",
+                "space_name",
+                "space_uid",
+                "space_code",
+                "bk_biz_id",
+                "properties",
+            )
         # 跳过权限检验
         if settings.IGNORE_IAM_PERMISSION:
             return space_list
@@ -356,7 +365,7 @@ class Permission(object):
         if not policies:
             # 如果策略是空，则说明没有任何权限，若存在Demo业务，返回Demo业务，否则返回空
             for space in space_list:
-                if settings.DEMO_BIZ_ID == space.bk_biz_id:
+                if settings.DEMO_BIZ_ID == space["bk_biz_id"]:
                     return [space]
             return []
 
@@ -366,13 +375,13 @@ class Permission(object):
         results = []
         for space in space_list:
             obj_set = ObjectSet()
-            obj_set.add_object(_type=ResourceEnum.BUSINESS.id, obj={"id": str(space.bk_biz_id)})
+            obj_set.add_object(_type=ResourceEnum.BUSINESS.id, obj={"id": str(space["bk_biz_id"])})
 
             # 计算表达式
             is_allowed = self.iam_client._eval_expr(expr, obj_set)
 
             # 针对demo业务权限豁免
-            if is_allowed or str(settings.DEMO_BIZ_ID) == str(space.bk_biz_id):
+            if is_allowed or str(settings.DEMO_BIZ_ID) == str(space["bk_biz_id"]):
                 results.append(space)
 
         return results

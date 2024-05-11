@@ -63,6 +63,8 @@
           class="tab-content"
           :collector-data="reportDetail"
           :index-set-id="reportDetail.index_set_id || ''"
+          :edit-auth="editAuth"
+          :edit-auth-data="editAuthData"
           @update-active-panel="activePanel = $event"
         ></component>
       </keep-alive>
@@ -122,6 +124,8 @@ export default {
       reportDetail: {},
       activePanel: this.$route.query.type || 'basicInfo',
       isOpenWindow: true,
+      editAuth: false,
+      editAuthData: null,
       panels: [
         { name: 'basicInfo', label: this.$t('配置信息') },
         { name: 'dataStorage', label: this.$t('数据存储') },
@@ -145,6 +149,7 @@ export default {
   },
   created() {
     this.initPage();
+    this.getEditAuth();
   },
   mounted() {
     this.$nextTick(() => {
@@ -201,6 +206,24 @@ export default {
           spaceUid: this.$store.state.spaceUid
         }
       });
+    },
+    async getEditAuth() {
+      try {
+        const paramData = {
+          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: this.$route.params.collectorId
+            }
+          ]
+        };
+        const res = await this.$store.dispatch('checkAndGetData', paramData);
+        if (!res.isAllowed) this.editAuthData = res.data;
+        this.editAuth = res.isAllowed;
+      } catch (error) {
+        this.editAuth = false;
+      }
     }
   }
 };

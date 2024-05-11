@@ -1375,10 +1375,10 @@ export default {
     border-radius: 0 2px 2px 0;
 
     .preview-item {
-      height: 42px;
+      height: 43px;
       padding: 0 10px;
       overflow: hidden;
-      line-height: 42px;
+      line-height: 43px;
       text-overflow: ellipsis;
       white-space: nowrap;
       border-top: 1px solid #72757d;

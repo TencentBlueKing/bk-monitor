@@ -91,6 +91,8 @@ export default {
   批量修改生效时间段成功: 'Bulk modify effective time period successful',
   批量修改告警恢复通知成功: 'Bulk modify alarm recovery notification successful',
   批量修改告警风暴开关成功: 'Bulk modify alarm storm switch successful',
+  批量修改通知升级成功: 'Batch modification notification upgrade successful',
+  批量修改算法成功: 'Batch modification algorithm successful',
   更新成功: 'Update successful',
   成功: 'Success',
   成功时: 'Success',

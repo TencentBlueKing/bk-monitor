@@ -28,14 +28,14 @@
           <bk-button
             :class="!showOriginalLog ? 'is-selected' : ''"
             size="small"
-            @click="contentType = 'table'"
+            @click="handleClickTableBtn('table')"
           >
             {{ $t('表格') }}
           </bk-button>
           <bk-button
             :class="showOriginalLog ? 'is-selected' : ''"
             size="small"
-            @click="contentType = 'original'"
+            @click="handleClickTableBtn('original')"
           >
             {{ $t('原始') }}
           </bk-button>
@@ -217,6 +217,9 @@ export default {
       }
     }
   },
+  created() {
+    this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+  },
   methods: {
     // 字段设置
     handleDropdownShow() {
@@ -288,6 +291,10 @@ export default {
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();
       this.$refs.fieldsSettingPopper?.instance.show();
+    },
+    handleClickTableBtn(active = 'table') {
+      this.contentType = active;
+      localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
     }
   }
 };

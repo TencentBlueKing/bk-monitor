@@ -27,6 +27,8 @@ DEFAULT_BCS_CLUSTER_ID_ONE = "BCS-K8S-10001"
 DEFAULT_BCS_CLUSTER_ID_TWO = "BCS-K8S-10002"
 DEFAULT_K8S_METRIC_DATA_ID_ONE = 101010
 DEFAULT_K8S_METRIC_DATA_ID_TWO = 101011
+DEFAULT_LOG_ES_TABLE_ID = "space_1_bklog.stag_20"
+DEFAULT_EVENT_ES_TABLE_ID = "bkmonitor_event_1"
 
 pytestmark = pytest.mark.django_db
 
@@ -131,6 +133,8 @@ def create_and_delete_record(mocker):
         api_key_content="test",
         K8sMetricDataID=DEFAULT_K8S_METRIC_DATA_ID_TWO,
     )
+    models.ESStorage.objects.create(table_id=DEFAULT_LOG_ES_TABLE_ID, storage_cluster_id=1)
+    models.ESStorage.objects.create(table_id=DEFAULT_EVENT_ES_TABLE_ID, storage_cluster_id=1)
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.DataSource.objects.filter(data_name__startswith=DEFAULT_NAME).delete()
@@ -143,6 +147,7 @@ def create_and_delete_record(mocker):
         cluster_id__in=[DEFAULT_BCS_CLUSTER_ID_ONE, DEFAULT_BCS_CLUSTER_ID_TWO]
     ).delete()
     models.SpaceResource.objects.filter(space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID).delete()
+    models.ESStorage.objects.filter(table_id__in=[DEFAULT_LOG_ES_TABLE_ID, DEFAULT_EVENT_ES_TABLE_ID]).delete()
 
 
 def consul_client(*args, **kwargs):

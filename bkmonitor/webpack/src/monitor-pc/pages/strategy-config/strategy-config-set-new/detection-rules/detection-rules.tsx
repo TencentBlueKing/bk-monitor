@@ -57,9 +57,9 @@ import './detection-rules.scss';
 interface IDetectionRules {
   unit: string;
   connector: string;
-  value: any;
-  backfillData: any;
-  readonly: boolean;
+  value?: any;
+  backfillData?: any;
+  readonly?: boolean;
   metricData: MetricDetail[];
   unitType: string;
   isEdit?: boolean;

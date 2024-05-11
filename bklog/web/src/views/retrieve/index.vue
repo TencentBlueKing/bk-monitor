@@ -561,7 +561,6 @@ export default {
     }
   },
   created() {
-    this.checkInitSearch();
     this.getGlobalsData();
   },
   mounted() {
@@ -573,26 +572,47 @@ export default {
     window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
   },
   methods: {
-    /** 检查初始化检索类型 根据路由 unionList 参数 */
-    checkInitSearch() {
+    /** 检查初始化检索类型 根据路由 unionList、tags 参数 */
+    checkIsUnionSearch() {
       // 首次通过url访问页面
       const { params, query } = this.$route;
-      // 路由参数不存在索引集ID 但包含联合查询unionList索引集ID参数 说明此链接为带有联合查询类型
-      if (!params?.indexId && !!query.unionList) {
-        const list = JSON.parse(decodeURIComponent(query.unionList));
-        this.$store.commit('updateUnionIndexList', list);
+
+      // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
+      if (!params?.indexId) {
+        const unionArr = query?.unionList ? JSON.parse(decodeURIComponent(query.unionList)) : [];
+        if (unionArr.length) {
+          this.$store.commit('updateUnionIndexList', unionArr);
+          return true;
+        }
+
+        const tagArr = query?.tags?.split(',') ?? [];
+        const indexSetMatch = this.indexSetList
+          .filter(item => item.tags.some(tag => tagArr.includes(tag.name)))
+          .map(val => val.index_set_id);
+        if (indexSetMatch.length) {
+          this.$store.commit('updateUnionIndexList', indexSetMatch);
+          return true;
+        }
+
+        return false;
       }
+
+      return false;
     },
     /** 索引集更变时的数据初始化 */
     initIndexSetChangeFn(val, isUnionSearch = false) {
-      this.isSearchAllowed = isUnionSearch
-        ? val?.every(
-            item =>
-              this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
-                authorityMap.SEARCH_LOG_AUTH
-              ]
-          )
-        : !!this.indexSetList.find(item => item.index_set_id === val)?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      if (!isUnionSearch) {
+        const aloneSetItem = this.indexSetList.find(item => item.index_set_id === val);
+        this.indexSetItem = aloneSetItem ?? { index_set_name: '', indexName: '', scenario_name: '', scenario_id: '' };
+        this.isSearchAllowed = !!aloneSetItem?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      } else {
+        this.isSearchAllowed = val?.every(
+          item =>
+            this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
+              authorityMap.SEARCH_LOG_AUTH
+            ]
+        );
+      }
       if (this.isSearchAllowed) this.authPageInfo = null;
       this.resetRetrieveCondition();
       this.resetFavoriteValue();
@@ -743,7 +763,7 @@ export default {
               const indexItem = indexSetList.find(item => item.index_set_id === indexId);
               this.indexId = indexItem ? indexItem.index_set_id : indexSetList[0].index_set_id;
               this.retrieveLog();
-            } else if (this.isUnionSearch && this.indexSetList?.length) {
+            } else if (this.isInitPage && this.checkIsUnionSearch()) {
               // 初始化联合查询
               this.retrieveLog();
             } else {
@@ -1360,8 +1380,7 @@ export default {
           window.bus.$emit('openChartLoading');
           this.isThollteField = false;
           this.getFieldsCancelFn();
-          await this.requestFields();
-          this.shouldUpdateFields = false;
+          this.requestFields();
         }
         // 指纹请求监听放在这里是要等字段更新完后才会去请求数据指纹
         this.fingerSearchState = !this.fingerSearchState;
@@ -1426,6 +1445,7 @@ export default {
         this.isFavoriteSearch = false;
         this.isAfterRequestFavoriteList = false;
         this.basicLoading = false;
+        this.shouldUpdateFields = false;
       }
     },
     // 更新路由参数
@@ -1572,7 +1592,10 @@ export default {
         .filter(Boolean);
       this.showShowUnionSource(true);
       this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
-      this.setDefaultTableColumn();
+      // 初始化的时候不进行设置自适应宽度 当前dom还没挂在在页面 导致在第一次检索时isSetDefaultTableColumn参数为true 无法更新自适应宽度
+      if (this.isSetDefaultTableColumn && !this.shouldUpdateFields) {
+        this.setDefaultTableColumn();
+      }
     },
     sessionShowFieldObj() {
       // 显示字段缓存
@@ -1680,7 +1703,7 @@ export default {
         this.retrievedKeyword = this.retrieveParams.keyword;
         this.tookTime = this.tookTime + Number(res.data?.took) || 0;
         this.tableData = { ...(res.data || {}), finishPolling: this.finishPolling };
-        if (!this.isSetDefaultTableColumn) {
+        if (!this.isSetDefaultTableColumn || this.shouldUpdateFields) {
           this.setDefaultTableColumn();
         }
         this.logList = this.logList.concat(parseBigNumberList(res.data?.list ?? []));
@@ -1699,12 +1722,10 @@ export default {
     // 首次加载设置表格默认宽度自适应
     setDefaultTableColumn() {
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-      const {
-        params: { indexId },
-        query: { bizId }
-      } = this.$route;
-      const catchFieldsWidthObj = columnObj?.[bizId]?.fields[indexId];
+      const storageKey = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
+      const columnWidth = JSON.parse(localStorage.getItem(storageKey));
+      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : this.indexId;
+      const catchFieldsWidthObj = columnWidth?.[this.bkBizId]?.fields[indexKey];
       const tableList = this.tableData?.list ?? [];
       this.isSetDefaultTableColumn = setDefaultTableWidth(this.visibleFields, tableList, catchFieldsWidthObj);
     },
@@ -1800,7 +1821,6 @@ export default {
     async retrieveWhenChartChange() {
       this.$refs.resultHeader && this.$refs.resultHeader.pauseRefresh();
       this.$refs.resultMainRef.reset();
-      this.isSetDefaultTableColumn = false;
     },
 
     // 重置搜索结果

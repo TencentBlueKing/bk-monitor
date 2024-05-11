@@ -73,3 +73,13 @@
   background: #edf4ff;
   border-radius: 2px;
 }
+
+.field-info-table {
+  .edit-btn-container {
+    width: 100%;
+    justify-content: end;
+    margin-bottom: 10px;
+
+    @include flex-align(center);
+  }
+}

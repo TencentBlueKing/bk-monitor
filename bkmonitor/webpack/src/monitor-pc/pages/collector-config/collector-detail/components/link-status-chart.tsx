@@ -109,6 +109,8 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     series: [],
     tooltip: {
       trigger: 'axis',
+      backgroundColor: 'rgba(54,58,67,.88)',
+      borderWidth: 0,
     },
     textStyle: {
       color: '#63656E',
@@ -121,8 +123,9 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
       containLabel: true,
     },
   });
-
   loading = false;
+  width = 0;
+  resizeObserver: ResizeObserver;
 
   get options(): MonitorEchartOptions {
     const minute: MonitorEchartSeries = {
@@ -161,6 +164,16 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
 
   mounted() {
     this.handleRefresh();
+    this.resizeObserver = new ResizeObserver(entries => {
+      const rect = entries[0].contentRect;
+      this.width = rect.width;
+      this.chartResize();
+    });
+    this.resizeObserver.observe(this.$el);
+  }
+
+  beforeDestroy() {
+    this.resizeObserver?.unobserve(this.$el);
   }
 
   chartResize() {
@@ -212,6 +225,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
           <div class='chart-wrap'>
             <BaseEchart
               ref='baseChartRef'
+              width={this.width}
               height={200}
               options={this.options}
             />

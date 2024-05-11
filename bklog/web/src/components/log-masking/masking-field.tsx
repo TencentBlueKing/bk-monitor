@@ -297,6 +297,11 @@ export default class MaskingField extends tsc<IProps> {
     return true;
   }
 
+  @Emit('initEditComparedData')
+  emitEditCompared() {
+    return true;
+  }
+
   async created() {
     this.tableLoading = true;
     this.isShowFieldClass = !!this.collectData?.fields; // 判断是否展示字段分类
@@ -323,6 +328,9 @@ export default class MaskingField extends tsc<IProps> {
     } catch (err) {
     } finally {
       this.tableLoading = false;
+      this.$nextTick(() => {
+        this.emitEditCompared();
+      });
     }
   }
 
