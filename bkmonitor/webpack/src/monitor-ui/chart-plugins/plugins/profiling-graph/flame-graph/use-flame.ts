@@ -373,7 +373,9 @@ export class FlameChart<D extends BaseDataType> {
           const colorIndex = getHashVal(d.data.name) % palette.length;
           const defColor = customColor || palette[colorIndex];
           if (this.zoomData?.keywords?.length) {
-            if (this.zoomData.keywords.some(k => d.data.name.toLocaleLowerCase().includes(k))) return defColor;
+            if (this.zoomData.keywords.some(k => d.data.name.toLocaleLowerCase().includes(k.toLocaleLowerCase()))) {
+              return defColor;
+            }
             return '#aaa';
           }
           if (highlightName) return d.data.name === highlightName ? defColor : '#aaa';

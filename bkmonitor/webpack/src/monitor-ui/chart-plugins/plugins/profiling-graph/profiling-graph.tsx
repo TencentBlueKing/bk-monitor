@@ -29,6 +29,7 @@ import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { CancelToken } from 'monitor-api/index';
 import { query, queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { Debounce, typeTools } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -79,6 +80,9 @@ class ProfilingChart extends CommonSimpleChart {
   dataTypeList: DataTypeItem[] = [];
   dataType = '';
   queryParams: IQueryParams = {};
+
+  cancelTableFlameFn = () => {};
+  cancelTopoFn = () => {};
 
   get flameFilterKeywords() {
     return this.filterKeyword?.trim?.().length ? [this.filterKeyword] : [];
@@ -151,41 +155,51 @@ class ProfilingChart extends CommonSimpleChart {
   }
   /** 获取表格和火焰图 */
   async getTableFlameData(start_time = '', end_time = '') {
-    try {
-      this.isLoading = true;
-      this.highlightId = -1;
-      const params = this.getParams({ diagram_types: ['table', 'flamegraph'] }, start_time, end_time);
-      const data = await query(params).catch(() => false);
-      if (data) {
-        this.unit = data.unit || '';
-        this.tableData = data.table_data?.items ?? [];
-        this.flameData = data.flame_data;
-        this.empty = false;
-      } else {
-        this.empty = true;
-      }
-      this.isLoading = false;
-    } catch (e) {
-      console.error(e);
-      this.isLoading = false;
-    }
+    this.isLoading = true;
+    this.highlightId = -1;
+    this.cancelTableFlameFn();
+    const params = this.getParams({ diagram_types: ['table', 'flamegraph'] }, start_time, end_time);
+    await query(params, {
+      cancelToken: new CancelToken(c => (this.cancelTableFlameFn = c)),
+    })
+      .then(data => {
+        if (data) {
+          this.unit = data.unit || '';
+          this.tableData = data.table_data?.items ?? [];
+          this.flameData = data.flame_data;
+          this.empty = false;
+        } else {
+          this.empty = true;
+        }
+        this.isLoading = false;
+      })
+      .catch(e => {
+        if (e.message) {
+          this.isLoading = false;
+        }
+      });
   }
   /** 获取拓扑图 */
   async getTopoSrc(start_time = '', end_time = '') {
-    try {
-      if (ViewModeType.Topo === this.activeMode) {
-        this.isLoading = true;
-      }
-      const params = this.getParams({ diagram_types: ['callgraph'] }, start_time, end_time);
-      const data = await query(params).catch(() => false);
-      if (data) {
-        this.topoSrc = data.call_graph_data || '';
-      }
-      this.isLoading = false;
-    } catch (e) {
-      console.error(e);
-      this.isLoading = false;
+    this.cancelTopoFn();
+    if (ViewModeType.Topo === this.activeMode) {
+      this.isLoading = true;
     }
+    const params = this.getParams({ diagram_types: ['callgraph'] }, start_time, end_time);
+    await query(params, {
+      cancelToken: new CancelToken(c => (this.cancelTopoFn = c)),
+    })
+      .then(data => {
+        if (data) {
+          this.topoSrc = data.call_graph_data || '';
+        }
+        this.isLoading = false;
+      })
+      .catch(e => {
+        if (e.message) {
+          this.isLoading = false;
+        }
+      });
   }
   handleTextDirectionChange(val: TextDirectionType) {
     this.textDirection = val;
