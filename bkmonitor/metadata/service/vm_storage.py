@@ -171,9 +171,9 @@ def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
     }
     # 通过结果表获取 vm rt
     tid_vm_rt = {
-        obj["result_table_id"]: obj["vm_result_table_id"]
+        obj["result_table_id"]: {"vm_rt": obj["vm_result_table_id"], "bk_base_data_id": obj["bk_base_data_id"]}
         for obj in models.AccessVMRecord.objects.filter(result_table_id__in=data_id_table_id.values()).values(
-            "result_table_id", "vm_result_table_id"
+            "result_table_id", "vm_result_table_id", "bk_base_data_id"
         )
     }
     # 组装数据，返回集群对应的数据
@@ -182,14 +182,23 @@ def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
         tid = data_id_table_id.get(data_id)
         if not tid:
             continue
-        vm_rt = tid_vm_rt.get(tid)
-        if not vm_rt:
+        vm_rt_data_id = tid_vm_rt.get(tid)
+        if not vm_rt_data_id:
             continue
-        # 固定类型，标识自定义还是内置
+        # 固定类型，标识自定义还是内置，并返回对应的数据源 ID
+        vm_rt, bk_base_data_id = vm_rt_data_id["vm_rt"], vm_rt_data_id["bk_base_data_id"]
         if metric_type == "k8s_metric_data_id":
-            data["k8s_metric_rt"] = vm_rt
+            data["k8s_metric_rt"] = vm_rt_data_id["vm_rt"]
+            data["k8s_metric_data_id"] = {
+                "bk_monitor_data_id": data_id,
+                "bk_base_data_id": bk_base_data_id,
+            }
         else:
             data["custom_metric_rt"] = vm_rt
+            data["custom_metric_data_id"] = {
+                "bk_monitor_data_id": data_id,
+                "bk_base_data_id": bk_base_data_id,
+            }
     return data
 
 
