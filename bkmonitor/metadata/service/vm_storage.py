@@ -187,18 +187,16 @@ def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
             continue
         # 固定类型，标识自定义还是内置，并返回对应的数据源 ID
         vm_rt, bk_base_data_id = vm_rt_data_id["vm_rt"], vm_rt_data_id["bk_base_data_id"]
+        rt_data_ids = {
+            "bk_monitor_data_id": data_id,
+            "bk_base_data_id": bk_base_data_id,
+        }
         if metric_type == "k8s_metric_data_id":
             data["k8s_metric_rt"] = vm_rt_data_id["vm_rt"]
-            data["k8s_metric_data_id"] = {
-                "bk_monitor_data_id": data_id,
-                "bk_base_data_id": bk_base_data_id,
-            }
+            data["k8s_metric_data_id"] = rt_data_ids
         else:
             data["custom_metric_rt"] = vm_rt
-            data["custom_metric_data_id"] = {
-                "bk_monitor_data_id": data_id,
-                "bk_base_data_id": bk_base_data_id,
-            }
+            data["custom_metric_data_id"] = rt_data_ids
     return data
 
 
