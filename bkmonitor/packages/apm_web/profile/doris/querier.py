@@ -13,15 +13,20 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
 
+import curlify
 import requests
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
+from opentelemetry import trace
+from requests import RequestException
 
 from api.bkdata.default import QueryDataResource
 from apm_web.models import Application
 from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
+
+tracer = trace.get_tracer(__name__)
 
 
 class APIType(Enum):
@@ -101,34 +106,48 @@ class Query:
         }
         return r
 
-    def execute(self) -> Optional[dict]:
-        # bkData need a raw string with double quotes
-        sql = json.dumps(self.to_dict())
-        logger.debug("[ProfileDatasource] query_data params: %s", sql)
+    def execute(self, retry_if_empty_handler=None) -> Optional[dict]:
+        res = self._execute()
 
-        # TODO: api.bkdata.query_data is not working on making sql valid, fix it.
-        try:
-            res = requests.post(
-                url=f"{QueryDataResource.base_url}{QueryDataResource.action}",
-                json={
+        if (not res or not res.get("list")) and retry_if_empty_handler:
+            retry_if_empty_handler(self.api_params)
+            res = self._execute()
+
+        return res
+
+    def _execute(self):
+        # bkData need a raw string with double quotes
+        with tracer.start_as_current_span("query_profile") as span:
+            sql = json.dumps(self.to_dict())
+            logger.info("[ProfileDatasource] query_data params: %s", sql)
+
+            try:
+                url = f"{QueryDataResource.base_url}{QueryDataResource.action}"
+                params = {
                     "sql": sql,
                     "bk_app_code": settings.APP_CODE,
                     "bk_app_secret": settings.SECRET_KEY,
                     "prefer_storage": "doris",
                     "bk_username": settings.COMMON_USERNAME,
                     "bkdata_authentication_method": "user",
-                },
-                headers={"Content-Type": "application/json"},
-            ).json()
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("query bkdata doris failed")
-            return None
+                }
+                span.set_attribute("profile.query.url", url)
+                span.set_attribute("profile.query.params", json.dumps(params))
+                response = requests.post(url=url, json=params, headers={"Content-Type": "application/json"})
+                span.set_attribute("profile.query.curl", curlify.to_curl(response.request))
+                res = response.json()
+            except RequestException as e:
+                logger.exception(f"query bkdata doris failed, error: {e}")
+                span.record_exception(e)
+                return None
 
-        if not res["result"]:
-            logger.error("query bkdata doris failed: %s", res["message"])
-            return None
+            if not res["result"]:
+                err_msg = "query bkdata doris failed: %s", res["message"]
+                logger.error(err_msg)
+                span.record_exception(ValueError(err_msg))
+                return None
 
-        return res["data"]
+            return res["data"]
 
 
 class QueryTemplate:
@@ -225,12 +244,13 @@ class QueryTemplate:
         if not services:
             return {}
         res = {}
+        count_mapping = self.get_service_request_count_mapping(start, end)
         for svr in services:
-            res.update(self.get_service_request_info(start, end, svr))
+            res.update({svr: {"profiling_data_count": count_mapping[svr]}} if svr in count_mapping else {})
 
         return res
 
-    def get_service_request_info(self, start: int, end: int, service_name: str):
+    def get_service_request_count_mapping(self, start: int, end: int):
         """
         获取 service 的请求信息
         信息包含:
@@ -243,8 +263,7 @@ class QueryTemplate:
                 app=self.app_name,
                 start=start,
                 end=end,
-                service_name=service_name,
-                dimension_fields="service",
+                dimension_fields="service_name",
                 metric_fields="count(*)",
             ),
             result_table_id=self.result_table_id,
@@ -254,8 +273,7 @@ class QueryTemplate:
             return {}
 
         # 计算平台 select_count 时, 固定的列名称为 count(1) . 所以这里这样写
-        count = next((i["count(*)"] for i in res["list"] if i.get("service_name") == service_name), None)
-        return {service_name: {"profiling_data_count": count}} if count else {}
+        return {i["service_name"]: i["count(*)"] for i in res["list"]}
 
     def get_count(
         self, start_time: int, end_time: int, data_type: str, service_name: str = None, label_filter: dict = None

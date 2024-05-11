@@ -1628,6 +1628,7 @@ class QueryProfileServiceDetailResource(Resource):
         app_name = serializers.CharField()
         service_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
         data_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        sample_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class ResponseSerializer(serializers.ModelSerializer):
         last_check_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
@@ -1649,5 +1650,7 @@ class QueryProfileServiceDetailResource(Resource):
             params["name"] = validated_data["service_name"]
         if validated_data.get("data_type"):
             params["data_type"] = validated_data["data_type"]
+        if validated_data.get("sample_type"):
+            params["sample_type"] = validated_data["sample_type"]
 
         return ProfileService.objects.filter(**params).order_by("created_at")

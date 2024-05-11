@@ -94,7 +94,7 @@ class FunctionTree:
 
         for sample in profile.sample:
             sample_value = sample.value[0]
-            parent_node = None
+            parent_node = root
 
             # "The leaf is at location_id[0]." from profile.proto
             # so build the tree reversely
@@ -112,12 +112,7 @@ class FunctionTree:
 
                     parent_node = node
 
-        for _, node in tree.nodes_map.items():
-            if not node.parent:
-                node.parent = root
-                root.value += node.value
-                root.children.append(node)
-
+        root.value = sum([i.value for i in root.children])
         return tree
 
     def find_similar_child(self, other_child: "FunctionNode") -> Optional["FunctionNode"]:
