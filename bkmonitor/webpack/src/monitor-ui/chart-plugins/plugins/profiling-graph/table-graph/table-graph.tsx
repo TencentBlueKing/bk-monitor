@@ -27,8 +27,8 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils';
+import { ProfileDataUnit, parseProfileDataTypeValue } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 
-import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
 import { ColorTypes, ITableTipsDetail, ProfilingTableItem, TableColumn, TextDirectionType } from '../../../typings';
 import { getHashVal } from '../flame-graph/utils';
 import { sortTableGraph } from './utils';
@@ -38,7 +38,7 @@ import './table-graph.scss';
 const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
 
 interface ITableChartProps {
-  unit: string;
+  unit: ProfileDataUnit;
   textDirection: TextDirectionType;
   data: ProfilingTableItem[];
   highlightId: number;
@@ -54,7 +54,7 @@ interface ITableChartEvents {
 
 @Component
 export default class ProfilingTableChart extends tsc<ITableChartProps, ITableChartEvents> {
-  @Prop({ required: true, type: String }) unit: string;
+  @Prop({ required: true, type: String }) unit: ProfileDataUnit;
   @Prop({ required: true, type: String }) textDirection: TextDirectionType;
   @Prop({ required: true, type: Array }) data: ProfilingTableItem[];
   @Prop({ default: -1, type: Number }) highlightId: number;
@@ -125,15 +125,8 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   }
   // Self 和 Total 值的展示
   formatColValue(val: number) {
-    switch (this.unit) {
-      case 'nanoseconds': {
-        const nsFormat = getValueFormat('ns');
-        const { text, suffix } = nsFormat(val);
-        return text + suffix;
-      }
-      default:
-        return '';
-    }
+    const { value } = parseProfileDataTypeValue(val, this.unit);
+    return value;
   }
   // 获取对应值与列最大值所占百分比背景色
   getColStyle(row: ProfilingTableItem, field: string) {

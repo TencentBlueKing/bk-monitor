@@ -30,16 +30,13 @@ import { Exception } from 'bkui-vue';
 import { deepClone } from 'monitor-common/utils';
 import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
 import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils';
+import { parseProfileDataTypeValue, ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
 import { ITableTipsDetail, ProfilingTableItem, TableColumn } from 'monitor-ui/chart-plugins/typings/profiling-graph';
-import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import { DirectionType } from '../../../../typings';
 
-// import { ColorTypes } from './../../flame-graph-v2/types';
 import './table-graph.scss';
-
-// const valueColumnWidth = 150;
 
 const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
 
@@ -51,7 +48,7 @@ export default defineComponent({
       default: 'ltr',
     },
     unit: {
-      type: String,
+      type: String as () => ProfileDataUnit,
       default: '',
     },
     data: {
@@ -141,15 +138,8 @@ export default defineComponent({
     }
     // Self 和 Total 值的展示
     function formatColValue(val: number) {
-      switch (props.unit) {
-        case 'nanoseconds': {
-          const nsFormat = getValueFormat('ns');
-          const { text, suffix } = nsFormat(val);
-          return text + suffix;
-        }
-        default:
-          return '';
-      }
+      const { value } = parseProfileDataTypeValue(val, props.unit);
+      return value;
     }
     function getColStyle(row: ProfilingTableItem, field: string) {
       const { color } = row;
