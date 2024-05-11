@@ -312,6 +312,7 @@ class SearchUserGroupResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_ids = serializers.ListField(child=serializers.IntegerField(required=True, label="业务ID"), required=False)
         ids = serializers.ListField(child=serializers.IntegerField(required=True, label="告警组ID"), required=False)
+        name = serializers.CharField(required=False, label="告警组名称")
 
     def perform_request(self, params):
         #  T告警组列表的获取
@@ -323,6 +324,9 @@ class SearchUserGroupResource(Resource):
 
         if params.get("ids"):
             user_groups = user_groups.filter(id__in=params.get("ids"))
+
+        if params.get("name"):
+            user_groups = user_groups.filter(name__icontains=params["name"])
 
         return UserGroupSlz(user_groups, many=True).data
 

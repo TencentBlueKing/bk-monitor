@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Form, Input, Loading, Popover } from 'bkui-vue';
 import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 
@@ -38,12 +39,12 @@ export default defineComponent({
   props: {
     list: {
       type: Object as PropType<ApplicationList>,
-      default: () => ({ normal: [], no_data: [] })
+      default: () => ({ normal: [], no_data: [] }),
     },
     value: {
       type: Object as PropType<string[]>,
-      required: true
-    }
+      required: true,
+    },
   },
   emits: ['change'],
   setup(props, { emit }) {
@@ -91,21 +92,22 @@ export default defineComponent({
       /** 应用名称 */
       appName: null,
       /** 服务名称 */
-      serviceName: null
+      serviceName: null,
     });
-    const inputText = computed(() => {
-      if (!selectValue.appName || !selectValue.serviceName) return '';
-      return `${selectValue.appName} / ${selectValue.serviceName}`;
-    });
+
+    const inputText = ref('');
 
     watch(
       () => props.value,
       val => {
         selectValue.appName = val[0] || '';
         selectValue.serviceName = val[1] || '';
+        if (!!selectValue.appName && !!selectValue.serviceName) {
+          inputText.value = `${selectValue.appName} / ${selectValue.serviceName}`;
+        }
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -132,6 +134,7 @@ export default defineComponent({
       if (val.name === selectValue.serviceName) return;
       selectValue.serviceName = val.name;
       showPopover.value = false;
+      inputText.value = `${selectValue.appName} / ${selectValue.serviceName}`;
       emit('change', [selectValue.appName, selectValue.serviceName]);
     }
 
@@ -174,20 +177,20 @@ export default defineComponent({
       handlePopoverShowChange,
       handleViewApp,
       jumpToApp,
-      handleGotoLink
+      handleGotoLink,
     };
   },
   render() {
     return (
       <div class='application-cascade-component'>
         <Popover
-          placement='bottom-start'
           arrow={false}
+          is-show={this.showPopover}
+          placement='bottom-start'
           theme='light application-cascade-popover'
           trigger='click'
-          is-show={this.showPopover}
-          onAfterShow={val => this.handlePopoverShowChange(val)}
           onAfterHidden={val => this.handlePopoverShowChange(val)}
+          onAfterShow={val => this.handlePopoverShowChange(val)}
         >
           {{
             default: () => (
@@ -206,8 +209,8 @@ export default defineComponent({
                 <div class='search-wrap'>
                   <i class='icon-monitor icon-mc-search search-icon'></i>
                   <Input
-                    v-model={this.searchKey}
                     class='search-input'
+                    v-model={this.searchKey}
                     placeholder={this.t('输入关键字')}
                   ></Input>
                 </div>
@@ -217,12 +220,15 @@ export default defineComponent({
                     <div class='group-wrap'>
                       {this.appList.normal.map(item => (
                         <div
+                          key={item.application_id}
                           class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                           onClick={() => this.handleAppClick(item)}
-                          key={item.application_id}
                         >
                           <i class='icon-monitor icon-mc-menu-apm'></i>
-                          <span class='name'>
+                          <span
+                            class='name'
+                            v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
+                          >
                             {item.app_name}
                             <span class='desc'>({item.app_alias})</span>
                           </span>
@@ -232,13 +238,17 @@ export default defineComponent({
                       ))}
                     </div>
                     <div class='group-title'>{this.t('无数据应用')}</div>
-                    {this.appList.no_data.map(item => (
+                    {this.appList.no_data.map((item, index) => (
                       <div
+                        key={`${item.app_name}_${index}`}
                         class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                         onClick={() => this.handleAppClick(item)}
                       >
                         <i class='icon-monitor icon-mc-menu-apm'></i>
-                        <span class='name'>
+                        <span
+                          class='name'
+                          v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
+                        >
                           {item.app_name}
                           <span class='desc'>({item.app_alias})</span>
                         </span>
@@ -263,8 +273,8 @@ export default defineComponent({
                         <div class='no-data-wrap'>
                           <Loading
                             loading={this.tokenLoading}
-                            theme='primary'
                             mode='spin'
+                            theme='primary'
                           >
                             <Form labelWidth={100}>
                               <Form.FormItem label={this.t('应用名')}>{this.appData.app_name}</Form.FormItem>
@@ -272,13 +282,15 @@ export default defineComponent({
                               <Form.FormItem label={this.t('描述')}>{this.appData.description}</Form.FormItem>
                               <Form.FormItem label='Token'>
                                 <span class='password'>{this.token || '●●●●●●●●●●'}</span>
-                                <Button
-                                  text
-                                  theme='primary'
-                                  onClick={this.handleViewToken}
-                                >
-                                  {this.t('点击查看')}
-                                </Button>
+                                {!this.token && (
+                                  <Button
+                                    theme='primary'
+                                    text
+                                    onClick={this.handleViewToken}
+                                  >
+                                    {this.t('点击查看')}
+                                  </Button>
+                                )}
                               </Form.FormItem>
                             </Form>
                             <div class='btn'>
@@ -314,10 +326,10 @@ export default defineComponent({
                   </div>
                 </div>
               </div>
-            )
+            ),
           }}
         </Popover>
       </div>
     );
-  }
+  },
 });

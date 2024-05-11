@@ -1,28 +1,16 @@
 {
-  "include": [
-    "./**/*.ts",
-    "./**/*.tsx",
-    "./*.ts",
-  ],
-  "exclude": [
-    "node_modules"
-  ],
+  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.js"],
+  "exclude": ["node_modules"],
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "importHelpers": true,
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "module": "esnext",
-    "target": "esnext",
-    "outDir": "dist",
-    "moduleResolution": "node",
-    "sourceMap": true,
-    "pretty": true,
-    "jsx": "preserve",
-    "lib": [
-      "es2018",
-      "dom"
-    ]
+    "jsxFactory": "VueTsxSupport",
+    "outDir": "./dist",
+    "paths": {
+      "@/*": ["./*"],
+      "@router/*": ["./router/*"],
+      "@store/*": ["./store/*"],
+      "@page/*": ["./page/*"],
+      "@static/*": ["./static/*"]
+    }
   }
 }

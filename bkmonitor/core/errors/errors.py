@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 from django.utils.translation import ugettext as _
 
-
 """
 @desc: 这里定义异常
 """

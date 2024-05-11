@@ -27,15 +27,17 @@
   <article>
     <!--空数据-->
     <section class="content-empty">
-      <span class="empty-icon"><i
-        class="icon-monitor"
-        :class="icon"
+      <span class="empty-icon"
+        ><i
+          class="icon-monitor"
+          :class="icon"
       /></span>
       <span class="empty-drop">{{ title }}</span>
       <span
-        class="empty-tip"
         v-if="subTitle"
-      >{{ subTitle }}</span>
+        class="empty-tip"
+        >{{ subTitle }}</span
+      >
     </section>
   </article>
 </template>
@@ -46,25 +48,25 @@ export default {
     // icon
     icon: {
       type: String,
-      default: 'icon-hint'
+      default: 'icon-hint',
     },
     // title
     title: {
       type: String,
       default() {
         return this.$t('无数据');
-      }
+      },
     },
     // subtitle
     subTitle: {
       type: String,
-      default: ''
-    }
-  }
+      default: '',
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
-@import "../../../theme/index";
+@import '../../../theme/index';
 
 $emptyTipColor: #979ba5;
 

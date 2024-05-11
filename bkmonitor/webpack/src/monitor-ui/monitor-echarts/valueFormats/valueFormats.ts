@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { DecimalCount } from '../types/displayValue';
-
 import getCategories from './categories';
 import { toDateTimeValueFormatter } from './dateTimeFormatters';
 import { currency, decimalSIPrefix, getOffsetFromSIPrefix } from './symbolFormatters';
@@ -75,7 +73,6 @@ export function toFixed(value: number, decimals?: DecimalCount): string {
     return value.toLocaleString();
   }
 
-  // eslint-disable-next-line no-restricted-properties
   const factor = decimals ? Math.pow(10, Math.max(0, decimals)) : 1;
   const formatted = String(Math.round(value * factor) / factor);
 
@@ -109,7 +106,7 @@ export function toFixedScaled(
   }
   return {
     text: toFixed(value, scaledDecimals + additionalDecimals),
-    suffix: ext
+    suffix: ext,
   };
 }
 
@@ -166,7 +163,7 @@ export function locale(value: number, decimals: DecimalCount): FormattedValue {
     return { text: '' };
   }
   return {
-    text: value.toLocaleString(undefined, { maximumFractionDigits: decimals as number })
+    text: value.toLocaleString(undefined, { maximumFractionDigits: decimals as number }),
   };
 }
 
@@ -186,9 +183,7 @@ export function simpleCountUnit(symbol: string): ValueFormatter {
 function buildFormats() {
   categories = getCategories();
 
-  // eslint-disable-next-line no-restricted-syntax
   for (const cat of categories) {
-    // eslint-disable-next-line no-restricted-syntax
     for (const format of cat.formats) {
       index[format.id] = format.fn;
     }
@@ -205,7 +200,7 @@ function buildFormats() {
   hasBuiltIndex = true;
 }
 
-export function getValueFormat(id?: string | null): ValueFormatter {
+export function getValueFormat(id?: null | string): ValueFormatter {
   if (!hasBuiltIndex) {
     buildFormats();
   }
@@ -267,8 +262,8 @@ export function getValueFormats() {
     text: cat.name,
     submenu: cat.formats.map(format => ({
       text: format.name,
-      value: format.id
-    }))
+      value: format.id,
+    })),
   }));
 }
 

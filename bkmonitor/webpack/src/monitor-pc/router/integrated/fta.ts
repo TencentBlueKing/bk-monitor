@@ -33,10 +33,10 @@ export default [
     path: '/fta/*',
     name: 'fta-integrated',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: Fta
+      noCache: Fta,
     },
     meta: {
       title: '告警源',
@@ -44,12 +44,12 @@ export default [
       customTitle: false,
       noNavBar: true,
       route: {
-        parent: 'integrated'
+        parent: 'integrated',
       },
       authority: {
         map: ruleAuth,
-        page: ruleAuth.VIEW_AUTH
-      }
-    }
-  }
+        page: ruleAuth.VIEW_AUTH,
+      },
+    },
+  },
 ] as RouteConfig[];

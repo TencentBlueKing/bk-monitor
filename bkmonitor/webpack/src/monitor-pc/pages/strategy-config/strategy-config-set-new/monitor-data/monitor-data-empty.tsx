@@ -28,7 +28,7 @@
  * @LastEditTime: 2021-07-08 10:35:08
  * @Description:
  */
-import { Component, Emit, Inject } from 'vue-property-decorator';
+import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import alertImg from '../../../../static/images/png/alert.png';
@@ -44,35 +44,37 @@ const addLabelItems = {
   [MetricType.TimeSeries]: {
     name: window.i18n.tc('指标数据'),
     icon: metricImg,
-    displayName: window.i18n.tc('时序数据')
+    displayName: window.i18n.tc('时序数据'),
   },
   [MetricType.EVENT]: {
     name: window.i18n.tc('事件数据'),
     icon: eventImg,
-    displayName: `${window.i18n.tc('系统')}、${window.i18n.tc('自定义事件')}`
+    displayName: `${window.i18n.tc('系统')}、${window.i18n.tc('自定义事件')}`,
   },
   [MetricType.LOG]: {
     name: window.i18n.tc('日志数据'),
     icon: logImg,
-    displayName: window.i18n.tc('多端日志匹配')
+    displayName: window.i18n.tc('多端日志匹配'),
   },
   [MetricType.ALERT]: {
     name: window.i18n.tc('关联告警'),
     icon: alertImg,
-    displayName: window.i18n.tc('关联多个策略判断')
+    displayName: window.i18n.tc('关联多个策略判断'),
   },
   [MetricType.MultivariateAnomalyDetection]: {
     name: window.i18n.tc('场景智能检测'),
     icon: intelligentImg,
-    displayName: `${window.i18n.tc('主机')}、${window.i18n.tc('拨测')}、K8s、APM`
-  }
+    displayName: `${window.i18n.tc('主机')}、${window.i18n.tc('拨测')}、K8s、APM`,
+  },
 };
-interface IMonitorDataEmptyEvent {
-  addMetric: { id: string; name: string };
-  onHoverType: string;
+interface IProps {
+  showMultivariateAnomalyDetection?: boolean;
+  onAddMetric: (v: { id: string; name: string }) => void;
+  onHoverType: (v: string) => void;
 }
 @Component({ name: 'MonitorDataEmpty' })
-export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
+export default class MonitorDataEmpty extends tsc<IProps> {
+  @Prop({ type: Boolean, default: false }) showMultivariateAnomalyDetection: boolean;
   @Inject('strategyType') strategyType: strategyType;
 
   tipsInstance: any = null;
@@ -84,28 +86,28 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       {
         name: this.$t('添加监控指标'),
         id: MetricType.TimeSeries,
-        show: !isFta
+        show: !isFta,
       },
       {
         name: this.$t('添加事件'),
         id: MetricType.EVENT,
-        show: true
+        show: true,
       },
       {
         name: this.$t('添加日志关键字'),
         id: MetricType.LOG,
-        show: !isFta
+        show: !isFta,
       },
       {
         name: this.$t('关联告警'),
         id: MetricType.ALERT,
-        show: true
+        show: true,
       },
       {
         name: this.$t('场景智能检测'),
         id: MetricType.MultivariateAnomalyDetection,
-        show: true
-      }
+        show: this.showMultivariateAnomalyDetection,
+      },
     ].filter(item => item.show);
   }
   mounted() {
@@ -124,7 +126,7 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       this.tipsInstance = null;
     }
   }
-  @Emit('add-metric')
+  @Emit('addMetric')
   handleAddMetric(item) {
     return item;
   }
@@ -137,7 +139,7 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       offset: '5, 0',
       arrow: true,
       zIndex: 999,
-      onHide: () => !this.tipsRemindShow
+      onHide: () => !this.tipsRemindShow,
     });
     this.tipsInstance?.show?.(100);
   }
@@ -159,9 +161,9 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
         <ul class='set-panel'>
           {this.metricSetList.map(item => (
             <li
-              class='set-panel-item'
               id={`set-panel-item-${item.id}`}
               key={item.id}
+              class='set-panel-item'
               on-click={() => this.handleAddMetric({ type: item.id })}
               onMouseenter={() => this.handleMouseenter(item.id)}
               onMouseleave={() => this.handleMouseleave()}
@@ -169,8 +171,8 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
               <i class='icon-monitor icon-plus-line'></i>
               <img
                 class='type-icon'
-                src={addLabelItems[item.id].icon}
                 alt=''
+                src={addLabelItems[item.id].icon}
               />
               <div class='label'>
                 <div class='label-top'>{addLabelItems[item.id].name}</div>
@@ -181,8 +183,8 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
         </ul>
         <div style='display: none'>
           <div
-            class='remind-tips'
             ref='remindTips'
+            class='remind-tips'
           >
             <div class='remind-tips-title'>{this.$t('添加监控项')}</div>
             <div class='remind-tips-desc'>

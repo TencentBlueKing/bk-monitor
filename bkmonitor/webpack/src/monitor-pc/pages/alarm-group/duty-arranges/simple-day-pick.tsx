@@ -42,20 +42,20 @@ interface IDay {
 }
 
 interface IProps {
-  value?: number[] | number;
+  value?: number | number[];
   list?: IDay[];
   multiple?: boolean;
 }
 
 interface IEvents {
-  onChange?: number[] | number;
+  onChange?: number | number[];
 }
 
 @Component
 export default class SimpleDayPick extends tsc<IProps, IEvents> {
   /* 可选列表 */
   @Prop({ default: () => defaultDays(), type: Array }) list: IDay[];
-  @Prop({ default: () => [], type: [Array, Number] }) value: number[] | number;
+  @Prop({ default: () => [], type: [Array, Number] }) value: number | number[];
   @Prop({ default: true, type: Boolean }) multiple: boolean;
   @Ref('dayPicker') dayPickerRef: HTMLDivElement;
 
@@ -122,7 +122,7 @@ export default class SimpleDayPick extends tsc<IProps, IEvents> {
           this.popoverInstances.destroy();
           this.popoverInstances = null;
           this.removeShiftEventEvent();
-        }
+        },
       });
       this.popoverInstances.show();
       this.addShiftEventEvent();
@@ -232,7 +232,7 @@ export default class SimpleDayPick extends tsc<IProps, IEvents> {
         style = {};
       } else {
         style = {
-          background: '#f0f1f5'
+          background: '#f0f1f5',
         };
       }
     };
@@ -253,7 +253,7 @@ export default class SimpleDayPick extends tsc<IProps, IEvents> {
   firstAndLast() {
     const obj = {
       firstItem: 0,
-      lastItem: 0
+      lastItem: 0,
     };
     this.localList.forEach(v => {
       if (obj.firstItem === 0 && v.active) {
@@ -291,12 +291,12 @@ export default class SimpleDayPick extends tsc<IProps, IEvents> {
           >
             {this.localList.map((item, index) => (
               <li
-                class={['item', { active: item.active }]}
+                key={index}
                 style={this.getItemStyle(item)}
+                class={['item', { active: item.active }]}
                 onClick={(event: Event) => this.handleSelectDate(event, item)}
                 onMouseenter={() => this.handleMouseenter(item)}
                 onMouseleave={() => this.handleMouseleave()}
-                key={index}
               >
                 <span>{item.value}</span>
               </li>

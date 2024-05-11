@@ -525,73 +525,103 @@
       </section>
 
       <div class="form-button">
-        <!-- 上一步 -->
-        <bk-button
-          v-if="!isCleanField && !isTempField && !isSetEdit"
-          theme="default"
-          data-test-id="fieldExtractionBox_button_previousPage"
-          :title="$t('上一步')"
-          class="mr10"
-          :disabled="isLoading"
-          @click="prevHandler"
-        >
-          {{ $t('上一步') }}
-        </bk-button>
-        <!-- 前往高级清洗 -->
-        <log-button
-          v-if="activePanel === 'advance'"
-          theme="primary"
-          data-test-id="fieldExtractionBox_button_goToAdvancedCleaning"
-          :tips-conf="advanceDisableTips"
-          :button-text="$t('前往高级清洗')"
-          :disabled="advanceDisable"
-          @on-click="advanceHandler"
-        >
-        </log-button>
-        <!-- 下一步/完成 -->
-        <bk-button
-          v-if="activePanel === 'base' && !isTempField"
-          theme="primary"
-          data-test-id="fieldExtractionBox_button_nextPage"
-          :loading="isLoading"
-          :disabled="!collectProject || isSetDisabled"
-          @click.stop.prevent="finish(true)"
-        >
-          <!-- || !showDebugBtn || !hasFields -->
-          {{ isSetEdit ? $t('保存') : $t('下一步') }}
-        </bk-button>
-        <!-- 保存模板 -->
-        <bk-button
-          v-if="activePanel === 'base'"
-          theme="default"
-          class="ml10"
-          data-test-id="fieldExtractionBox_button_saveTemplate"
-          :disabled="!hasFields || isSetDisabled"
-          @click="openTemplateDialog(true)"
-        >
-          {{ $t('保存模板') }}
-        </bk-button>
-        <!-- 日志清洗 保存模板 取消 -->
-        <bk-button
-          v-if="isCleanField || isTempField"
-          theme="default"
-          class="ml10"
-          data-test-id="fieldExtractionBox_button_cancelSaveTemplate"
-          @click="handleCancel(false)"
-        >
-          {{ isSetEdit ? $t('重置') : $t('取消') }}
-        </bk-button>
-        <!-- 检索字段提取设置 重置 -->
-        <bk-button
-          v-if="isSetEdit"
-          theme="default"
-          class="ml10"
-          data-test-id="fieldExtractionBox_button_cancelSaveTemplate"
-          :disabled="!collectProject || !showDebugBtn || !hasFields || isSetDisabled"
-          @click="setDetail(setId)"
-        >
-          {{ $t('重置') }}
-        </bk-button>
+        <template v-if="!isFinishCreateStep && !isCleanField">
+          <!-- 上一步 -->
+          <bk-button
+            v-if="!isTempField && !isSetEdit"
+            theme="default"
+            data-test-id="fieldExtractionBox_button_previousPage"
+            :title="$t('上一步')"
+            class="mr10"
+            :disabled="isLoading"
+            @click="prevHandler"
+          >
+            {{ $t('上一步') }}
+          </bk-button>
+          <!-- 前往高级清洗 -->
+          <log-button
+            v-if="activePanel === 'advance'"
+            theme="primary"
+            data-test-id="fieldExtractionBox_button_goToAdvancedCleaning"
+            :tips-conf="advanceDisableTips"
+            :button-text="$t('前往高级清洗')"
+            :disabled="advanceDisable"
+            @on-click="advanceHandler"
+          >
+          </log-button>
+          <!-- 下一步/完成 -->
+          <bk-button
+            v-if="activePanel === 'base' && !isTempField"
+            theme="primary"
+            data-test-id="fieldExtractionBox_button_nextPage"
+            :loading="isLoading"
+            :disabled="!collectProject || isSetDisabled"
+            @click.stop.prevent="finish(true)"
+          >
+            <!-- || !showDebugBtn || !hasFields -->
+            {{ isSetEdit ? $t('保存') : $t('下一步') }}
+          </bk-button>
+          <!-- 保存模板 -->
+          <bk-button
+            v-if="activePanel === 'base'"
+            theme="default"
+            class="ml10"
+            data-test-id="fieldExtractionBox_button_saveTemplate"
+            :disabled="!hasFields || isSetDisabled"
+            @click="openTemplateDialog(true)"
+          >
+            {{ $t('保存模板') }}
+          </bk-button>
+          <!-- 日志清洗 保存模板 取消 -->
+          <bk-button
+            v-if="isTempField"
+            theme="default"
+            class="ml10"
+            data-test-id="fieldExtractionBox_button_cancelSaveTemplate"
+            @click="handleCancel()"
+          >
+            {{ isSetEdit ? $t('重置') : $t('取消') }}
+          </bk-button>
+          <!-- 检索字段提取设置 重置 -->
+          <bk-button
+            v-if="isSetEdit"
+            theme="default"
+            class="ml10"
+            data-test-id="fieldExtractionBox_button_cancelSaveTemplate"
+            :disabled="!collectProject || !showDebugBtn || !hasFields || isSetDisabled"
+            @click="setDetail(setId)"
+          >
+            {{ $t('重置') }}
+          </bk-button>
+        </template>
+        <template v-else>
+          <bk-button
+            theme="primary"
+            :loading="isLoading"
+            :disabled="!collectProject"
+            @click.stop.prevent="finish(true)"
+          >
+            {{ $t('保存') }}
+          </bk-button>
+          <bk-button
+            theme="default"
+            class="ml10"
+            @click="handleCancel()"
+          >
+            {{ $t('取消') }}
+          </bk-button>
+          <!-- 保存模板 -->
+          <bk-button
+            v-if="activePanel === 'base'"
+            theme="default"
+            class="ml10"
+            data-test-id="fieldExtractionBox_button_saveTemplate"
+            :disabled="!hasFields || isSetDisabled"
+            @click="openTemplateDialog(true)"
+          >
+            {{ $t('保存模板') }}
+          </bk-button>
+        </template>
       </div>
 
       <bk-dialog
@@ -658,7 +688,7 @@ import fieldTable from './field-table';
 import AuthContainerPage from '@/components/common/auth-container-page';
 import { projectManages } from '@/common/util';
 import * as authorityMap from '../../common/authority-map';
-import { deepClone } from '../../common/util';
+import { deepClone, deepEqual } from '../../common/util';
 
 export default {
   components: {
@@ -678,7 +708,8 @@ export default {
     isSetEdit: Boolean,
     setId: Number,
     /** 字段提取是否禁用 */
-    setDisabled: Boolean
+    setDisabled: Boolean,
+    isFinishCreateStep: Boolean
   },
   data() {
     return {
@@ -826,7 +857,12 @@ export default {
       defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\',
       catchEtlConfig: '',
       catchFields: [],
-      isFinishCatchFrom: false
+      isFinishCatchFrom: false,
+      /** 编辑时最后的参数判断 */
+      editComparedData: {
+        isLogOriginLast: false,
+        comparedVal: {}
+      }
     };
   },
   computed: {
@@ -844,10 +880,6 @@ export default {
     },
     isJsonOrOperator() {
       return this.params.etl_config === 'bk_log_json' || this.params.etl_config === 'bk_log_delimiter';
-    },
-    hasFormat() {
-      // 最后一次正确的fileds结果
-      return this.formData.fields.length;
     },
     showDebugBtn() {
       const methods = this.params.etl_config;
@@ -975,12 +1007,12 @@ export default {
     }
 
     // 采集项编辑进入
-    await this.getDetail();
+    this.getDetail();
     const isClone = this.$route.query?.type === 'clone';
     const collectorID = isClone
       ? this.$route.query?.collectorId || this.curCollect.collector_config_id
       : this.curCollect.collector_config_id;
-    this.getCleanStash(collectorID);
+    await this.getCleanStash(collectorID);
     this.getDataLog('init');
   },
   methods: {
@@ -1123,47 +1155,23 @@ export default {
       this.requestEtlPreview();
     },
     // 字段提取
-    fieldCollection(isCollect = false) {
-      const { etl_config: etlConfig, etl_params: etlParams, visible_type } = this.formData;
-      const fields = this.formData.fields.map(item => {
-        const { participleState, ...otherValue } = item;
-        return otherValue;
-      });
+    fieldCollection(isCollect = false, callback) {
       this.isLoading = true;
       this.basicLoading = true;
-      const payload = {
-        retain_original_text: etlParams.retain_original_text,
-        original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-        original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
-        retain_extra_json: etlParams.retain_extra_json ?? false
-      };
-      let data = {
-        clean_type: etlConfig,
-        etl_params: {
-          separator_regexp: etlParams.separator_regexp,
-          separator: etlParams.separator,
-          ...payload
-        },
-        etl_fields: fields,
-        visible_type
-      };
+      const { etl_config: etlConfig, etl_params: etlParams } = this.formData;
+      // 获取当前表格字段
+      const fieldTableData = this.getNotParticipleFieldTableData();
+      const data = this.getSubmitParams();
       /* eslint-disable */
       if (etlConfig !== 'bk_log_text') {
         if (etlConfig === 'bk_log_delimiter') {
-          payload.separator = etlParams.separator;
+          data.etl_params.separator = etlParams.separator;
         }
         if (etlConfig === 'bk_log_regexp') {
-          payload.separator_regexp = etlParams.separator_regexp;
+          data.etl_params.separator_regexp = etlParams.separator_regexp;
         }
-        // 获取当前表格字段
-        const fieldTableData =
-          this.$refs.fieldTable.getData().map(item => {
-            const { participleState, ...otherValue } = item;
-            return otherValue;
-          }) || [];
         // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
         data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
-        data.etl_params = payload;
         data.etl_fields = fieldTableData;
       } else {
         delete data.etl_params['separator_regexp'];
@@ -1174,21 +1182,8 @@ export default {
       const urlParams = {};
       if (this.isSetEdit) {
         // 检索设置 直接入库
-        const { table_id, storage_cluster_id, retention, storage_replies, allocation_min_days, view_roles } =
-          this.curCollect;
-        urlParams.collector_config_id = this.curCollect.collector_config_id;
-        data = {
-          table_id,
-          storage_cluster_id,
-          retention,
-          storage_replies,
-          allocation_min_days,
-          view_roles,
-          etl_config: etlConfig,
-          fields: data.etl_fields,
-          etl_params: etlParams
-        };
-        requestUrl = 'collect/fieldCollection';
+        this.fieldCollectionRequest(data);
+        return;
       } else if (isCollect) {
         // 缓存采集项清洗配置
         urlParams.collector_config_id = this.curCollect.collector_config_id;
@@ -1211,34 +1206,110 @@ export default {
         .request(requestUrl, updateData)
         .then(res => {
           if (res.code === 0) {
+            // 检索页弹窗的字段清洗
             if (this.isSetEdit) {
               this.messageSuccess(this.$t('保存成功'));
               this.$emit('updateLogFields');
             } else if (isCollect) {
-              const step = this.isCleanField ? 2 : null;
-              this.$emit('stepChange', step);
+              // 下发页的字段清洗
+              if (this.isFinishCreateStep || this.isCleanField) {
+                // 编辑的情况下要请求入库接口
+                this.fieldCollectionRequest(res.data, callback);
+              } else {
+                this.$emit('stepChange');
+              }
             } else {
+              // 新建/编辑清洗模板
               this.messageSuccess(this.$t('保存成功'));
+              this.isLoading = false;
+              this.basicLoading = false;
               // 清洗模板编辑则返回模板列表
               if (this.isTempField) {
                 this.$emit('changeSubmit', true);
-                this.handleCancel(false);
+                this.handleCancel();
               }
             }
           }
         })
+        .catch(() => callback?.(false))
+        .finally(() => {
+          if (!this.isFinishCreateStep && !this.isCleanField) {
+            this.isLoading = false;
+            this.basicLoading = false;
+          }
+        });
+    },
+    /** 获取集群列表 */
+    async getStorage() {
+      try {
+        const queryData = { bk_biz_id: this.bkBizId };
+        if (this.curCollect?.data_link_id) {
+          queryData.data_link_id = this.curCollect.data_link_id;
+        }
+        const res = await this.$http.request('collect/getStorage', {
+          query: queryData
+        });
+        return res.data;
+      } catch (e) {
+        console.warn(e);
+        return [];
+      }
+    },
+    /** 入库请求 */
+    async fieldCollectionRequest(atLastFormData, callback) {
+      const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields } = atLastFormData;
+      // 检索设置 直接入库
+      const { table_id, storage_cluster_id, retention, storage_replies, allocation_min_days, view_roles } =
+        this.curCollect;
+      const storageList = await this.getStorage();
+      const isOpenHotWarm = storageList.find(item => item.storage_cluster_id === storage_cluster_id)?.enable_hot_warm;
+      const data = {
+        table_id,
+        storage_cluster_id,
+        retention,
+        storage_replies,
+        allocation_min_days: isOpenHotWarm ? Number(allocation_min_days) : 0,
+        view_roles,
+        etl_config: etlConfig,
+        fields: etlFields,
+        etl_params: etlParams
+      };
+      const updateData = {
+        params: {
+          collector_config_id: this.curCollect.collector_config_id
+        },
+        data
+      };
+      this.$http
+        .request('collect/fieldCollection', updateData)
+        .then(res => {
+          if (res.code === 0) {
+            // 检索页弹窗的字段清洗
+            if (this.isSetEdit) {
+              this.messageSuccess(this.$t('保存成功'));
+              this.$emit('updateLogFields');
+            } else if (this.isFinishCreateStep || this.isCleanField) {
+              if (callback) {
+                callback(true);
+                return;
+              }
+              // 编辑保存的情况下, 回退到列表
+              this.handleCancel();
+            }
+          }
+        })
+        .catch(() => callback?.(false))
         .finally(() => {
           this.isLoading = false;
           this.basicLoading = false;
         });
     },
     // 检查提取方法或条件是否已变更
-    checkEtlConfChnage(isCollect = false) {
-      // 非bk_log_text类型需要有正确的结果
-      // if (this.formData.etl_config && this.formData.etl_config !== 'bk_log_text' && !this.hasFormat) return;
+    checkEtlConfChnage(isCollect = false, callback) {
       let isConfigChange = false; // 提取方法或条件是否已变更
       const etlConfigParam = this.params.etl_config;
-      if (etlConfigParam !== 'bk_log_text') {
+      // 如果未选模式 则默认传bk_log_text
+      if (etlConfigParam !== 'bk_log_text' && !!etlConfigParam) {
         const etlConfigForm = this.formData.etl_config;
         if (etlConfigParam !== etlConfigForm) {
           isConfigChange = true;
@@ -1268,29 +1339,29 @@ export default {
             this.$t('字段提取方法或条件已发生变更，需【调试&设置】按钮点击操作成功才会生效')
           ),
           confirmFn: () => {
-            isCollect ? this.fieldCollection(true) : this.handleSaveTemp();
+            isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
           }
         });
         return;
       }
-      isCollect ? this.fieldCollection(true) : this.handleSaveTemp();
+      isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
+    },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.finish(true, callback);
     },
     // 完成按钮
-    finish(isCollect = false) {
-      if (!this.params.etl_config) {
-        this.$bkMessage({
-          theme: 'error',
-          message: this.$t('请选择字段提取方法')
-        });
-      }
+    finish(isCollect = false, callback) {
       const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
       if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
         this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
+        callback?.(false);
         return;
       }
       // 清洗模板选择多业务时不能为空
       if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
         this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
+        callback?.(false);
         return;
       }
       // const promises = [this.checkStore()];
@@ -1300,9 +1371,10 @@ export default {
       }
       Promise.all(promises).then(
         () => {
-          this.checkEtlConfChnage(isCollect);
+          this.checkEtlConfChnage(isCollect, callback);
         },
         validator => {
+          callback?.(false);
           console.warn('保存失败', validator);
         }
       );
@@ -1311,24 +1383,28 @@ export default {
     checkFieldsTable() {
       return this.formData.etl_config !== 'bk_log_text' ? this.$refs.fieldTable.validateFieldTable() : [];
     },
-    handleCancel(isCollect = false) {
-      if (isCollect) return;
+    handleCancel() {
       if (this.isSetEdit) {
         this.$emit('reset-page');
         return;
       }
-      const {
-        query: { backRoute }
-      } = this.$route;
       let routeName;
-      if (!this.isSetEdit && !!backRoute) {
+      // 保存, 回退到列表
+      if (this.isFinishCreateStep || this.isCleanField) {
+        this.$emit('changeSubmit', true);
+      }
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
         routeName = backRoute;
+      } else if (['edit', 'storage', 'masking'].includes(this.operateType)) {
+        routeName = 'collection-item';
       } else {
         routeName = this.isCleanField ? 'log-clean-list' : 'log-clean-templates';
       }
       this.$router.push({
         name: routeName,
         query: {
+          ...reset,
           spaceUid: this.$store.state.spaceUid
         }
       });
@@ -1616,6 +1692,12 @@ export default {
         .finally(() => {
           this.isExtracting = false;
           this.catchEtlConfig = this.params.etl_config;
+          this.$nextTick(() => {
+            if (!this.editComparedData.isLogOriginLast && this.isFinishCreateStep) {
+              this.editComparedData.isLogOriginLast = true;
+              this.editComparedData.comparedVal = this.getSubmitParams();
+            }
+          });
         });
     },
     savaFormData() {
@@ -1772,6 +1854,9 @@ export default {
               this.originParticipleState = 'custom';
               this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
             }
+            if (this.isFinishCreateStep) {
+              this.editComparedData.comparedVal = this.getSubmitParams();
+            }
           }
         })
         .finally(() => {
@@ -1789,7 +1874,7 @@ export default {
         .then(async res => {
           if (res.data) {
             this.$store.commit('collect/setCurCollect', res.data);
-            await this.getDetail();
+            this.getDetail();
             await this.getCleanStash(id);
             this.getDataLog('init');
           }
@@ -1883,6 +1968,76 @@ export default {
     },
     handleChangeParticipleState(val) {
       this.formData.etl_params.original_text_tokenize_on_chars = val === 'custom' ? this.defaultParticipleStr : '';
+    },
+    /** 传参需要的data */
+    getSubmitParams(fieldsData = null) {
+      const { etl_config: etlConfig, etl_params: etlParams, visible_type } = this.formData;
+      if (!fieldsData) {
+        fieldsData = this.formData.fields.map(item => {
+          const { participleState, ...otherValue } = item;
+          return otherValue;
+        });
+      }
+      const payload = {
+        retain_original_text: etlParams.retain_original_text,
+        original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+        original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+        retain_extra_json: etlParams.retain_extra_json ?? false
+      };
+      const data = {
+        clean_type: etlConfig,
+        etl_params: {
+          separator_regexp: etlParams.separator_regexp,
+          separator: etlParams.separator,
+          ...payload
+        },
+        etl_fields: fieldsData,
+        visible_type
+      };
+      return data;
+    },
+    /** 判断是否有更改过值 */
+    getIsUpdateSubmitValue() {
+      const fieldTableData = this.getNotParticipleFieldTableData();
+      const editParams = this.editComparedData.comparedVal;
+      const params = this.getSubmitParams(fieldTableData);
+      editParams.etl_fields = this.getFieldComparedKeys(editParams.etl_fields);
+      params.etl_fields = this.getFieldComparedKeys(params.etl_fields);
+      return !deepEqual(editParams, params);
+    },
+    getNotParticipleFieldTableData() {
+      return (
+        this.$refs.fieldTable.getData().map(item => {
+          const { participleState, ...otherValue } = item;
+          return otherValue;
+        }) || []
+      );
+    },
+    /** 最后字段对比的对象 */
+    getFieldComparedKeys(fields) {
+      const fieldComparedKeys = [
+        'field_name',
+        'field_type',
+        'is_analyzed',
+        'tokenize_on_chars',
+        'is_case_sensitive',
+        'is_delete',
+        'option'
+      ];
+      return fields.map(item =>
+        Object.entries(item).reduce((acc, [fKey, fVal]) => {
+          if (fieldComparedKeys.includes(fKey)) {
+            acc[fKey] = fVal;
+            if (fKey === 'option') {
+              acc[fKey] = {
+                time_format: fKey.time_format,
+                time_zone: fKey.time_zone
+              };
+            }
+          }
+          return acc;
+        }, {})
+      );
     }
   }
 };

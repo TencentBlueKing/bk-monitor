@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './log-metric-info.scss';
 
 @Component
-export default class MyComponent extends tsc<{}> {
+export default class MyComponent extends tsc<object> {
   @Prop() a: number;
   @Ref('helpContent') helpContentRef: HTMLDivElement;
   helpPopoverInstance: any = null;
@@ -46,7 +46,7 @@ export default class MyComponent extends tsc<{}> {
         theme: 'light',
         arrow: true,
         interactive: true,
-        hideOnClick: true
+        hideOnClick: true,
       });
     }
     if (!this.helpPopoverInstance?.state?.isShown) {
@@ -67,16 +67,16 @@ export default class MyComponent extends tsc<{}> {
         ></span>
         <div style='display: none;'>
           <div
-            class='help-content'
             ref='helpContent'
+            class='help-content'
           >
             <div>
               {this.$t('可输入SQL语句进行快速查询')}
               {this.docCenterUrl && (
                 <a
+                  class='tips-link'
                   href={this.docCenterUrl}
                   target='_blank'
-                  class='tips-link'
                 >
                   {this.$t('查看语法')}
                   <span class='icon-monitor icon-fenxiang'></span>

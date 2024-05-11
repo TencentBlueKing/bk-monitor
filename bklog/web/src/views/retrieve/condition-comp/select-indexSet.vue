@@ -41,22 +41,22 @@
       <span style="color: #979ba5">{{ selectedItem.lightenName }}</span>
     </div>
     <!-- <bk-option v-for="item in indexSetList"
-            class="custom-no-padding-option"
-            :key="item.index_set_id"
-            :id="item.index_set_id"
-            :name="item.indexName + item.lightenName">
-            <div
-            v-if="!(item.permission && item.permission.search_log)"
-             class="option-slot-container no-authority" @click.stop>
-                <span class="text">{{ item.indexName + item.lightenName }}</span>
-                <span class="apply-text" @click="applySearchAccess(item)">{{$t('申请权限')}}</span>
-            </div>
-            <div v-else v-bk-overflow-tips class="option-slot-container">
-                <span class="bk-icon icon-star"></span>
-                <span>{{ item.indexName }}</span>
-                <span style="color: #979BA5;">{{ item.lightenName }}</span>
-            </div>
-        </bk-option> -->
+              class="custom-no-padding-option"
+              :key="item.index_set_id"
+              :id="item.index_set_id"
+              :name="item.indexName + item.lightenName">
+              <div
+              v-if="!(item.permission && item.permission.search_log)"
+               class="option-slot-container no-authority" @click.stop>
+                  <span class="text">{{ item.indexName + item.lightenName }}</span>
+                  <span class="apply-text" @click="applySearchAccess(item)">{{$t('申请权限')}}</span>
+              </div>
+              <div v-else v-bk-overflow-tips class="option-slot-container">
+                  <span class="bk-icon icon-star"></span>
+                  <span>{{ item.indexName }}</span>
+                  <span style="color: #979BA5;">{{ item.lightenName }}</span>
+              </div>
+          </bk-option> -->
 
     <bk-option-group
       v-for="(group, index) in renderOptionList"
@@ -266,9 +266,9 @@ export default {
     }
 
     &-green {
-      color: #14a568;
-      background-color: #14a5681a;
-      border-color: #14a568;
+      color: #63656e;
+      background-color: #f0f1f5;
+      border: none;
     }
 
     &-red {
@@ -306,7 +306,6 @@ export default {
 </style>
 
 <style lang="scss">
-/* stylelint-disable no-descending-specificity */
 .retrieve-index-select-popover {
   .bk-options {
     .bk-option-group {
@@ -323,6 +322,7 @@ export default {
         }
       }
 
+      /* stylelint-disable-next-line no-descending-specificity */
       .bk-option-group-name {
         margin: 0 10px;
         border: none;

@@ -33,7 +33,7 @@ window.requestIdleCallback =
         didTimeout: false,
         timeRemaining() {
           return Math.max(0, 50 - (Date.now() - start));
-        }
+        },
       });
     }, 1) as any;
   };

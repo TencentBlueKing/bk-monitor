@@ -14,7 +14,6 @@ import os
 import subprocess
 import traceback
 from functools import reduce
-from base64 import b64encode
 
 from django.conf import settings
 from django.db import models, transaction
@@ -283,7 +282,7 @@ class UptimeCheckTask(OperateRecordModel):
     permission_exempt = True
 
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
-    name = models.CharField("任务名称", max_length=50, db_index=True)
+    name = models.CharField("任务名称", max_length=128, db_index=True)
     protocol = models.CharField("协议", choices=PROTOCOL_CHOICES, max_length=10)
     check_interval = models.PositiveIntegerField("拨测周期(分钟)", default=5)
     # 地点变为可选项
@@ -501,7 +500,7 @@ class UptimeCheckTask(OperateRecordModel):
                 "params": {
                     "context": {
                         "data_id": dataid_map[protocol.upper()],
-                        "max_timeout": str(settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT) + "ms",
+                        "max_timeout": "{}ms".format(timeout),
                         "tasks": resource.uptime_check.generate_sub_config({"task_id": pk}),
                         "config_hosts": self.config.get("hosts", []),
                         # 针对动态节点的情况, 注意，业务ID必须拿当前task的业务ID：

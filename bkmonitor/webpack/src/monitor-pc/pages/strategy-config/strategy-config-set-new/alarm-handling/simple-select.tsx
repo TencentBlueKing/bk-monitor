@@ -34,7 +34,7 @@ interface IItem {
 }
 
 interface IProps {
-  value: string[] | string;
+  value: string | string[];
   list?: IItem[];
   multiple?: boolean;
   popoverMinWidth?: number;
@@ -46,11 +46,11 @@ interface IEvents {
   onToggle?: boolean;
 }
 
-type IValue = string[] | string;
+type IValue = string | string[];
 
 @Component
 export default class SimpleSelect extends tsc<IProps, IEvents> {
-  @Prop({ default: '', type: [Array, String] }) value: string[] | string;
+  @Prop({ default: '', type: [Array, String] }) value: string | string[];
   @Prop({ default: () => [], type: Array }) list: IItem[];
   @Prop({ default: false, type: Boolean }) multiple: boolean; // 是否多选
   @Prop({ default: 100, type: [Number, String] }) popoverMinWidth: number;
@@ -91,18 +91,18 @@ export default class SimpleSelect extends tsc<IProps, IEvents> {
       >
         <span class='btn-content'>{this.$slots?.default}</span>
         <bk-select
-          class='select-dropdown'
           ref='selectDropdown'
-          value={this.localValue}
-          popoverMinWidth={this.popoverMinWidth || 100}
+          class='select-dropdown'
           multiple={this.multiple}
-          on-toggle={v => this.handleToggle(v)}
+          popoverMinWidth={this.popoverMinWidth || 100}
+          value={this.localValue}
           on-change={this.handleSelectChange}
+          on-toggle={v => this.handleToggle(v)}
         >
           {this.list.map(item => (
             <bk-option
-              key={item.id}
               id={item.id}
+              key={item.id}
               name={item.name}
             ></bk-option>
           ))}

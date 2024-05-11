@@ -49,7 +49,9 @@
           <span
             class="tag"
             :title="curHost.ip"
-          >{{ curHost.ip }}</span>
+          >
+            {{ curHost.ip }}
+          </span>
         </div>
         <slot
           name="content"
@@ -85,7 +87,9 @@
                 <span
                   class="clear-btn"
                   @click="deleteSelected"
-                >{{ $t('清空') }}</span>
+                >
+                  {{ $t('清空') }}
+                </span>
               </div>
             </bk-select>
           </div>
@@ -115,7 +119,9 @@
                 <span
                   v-if="!custom.show"
                   class="custom-text"
-                >{{ $t('自定义') }}</span>
+                >
+                  {{ $t('自定义') }}
+                </span>
                 <bk-input
                   v-else
                   v-model.trim="custom.value"
@@ -150,29 +156,23 @@
           />
           <span class="margin-left-auto" />
           <div
-            :class="['search-selector-wrapper', { 'search-select-active': searchSelectActive }]"
+            class="search-selector-wrapper search-select-active"
             v-if="needSearchSelect"
           >
             <slot name="search">
-              <bk-search-select
-                ext-cls="search-select"
-                v-model="tools.searchValue"
-                :placeholder="$t('搜索')"
-                :data="searchSelectList"
-                :show-condition="false"
-                :filter="true"
-                :filter-menu-method="() => {}"
-                :show-popover-tag-change="false"
-                :clearable="true"
-                @clear="handleSearchSelectChange(tools.searchValue)"
-                @input-focus="searchSelectActive = true"
-                @change="handleSearchSelectChange"
-              >
-                <i
-                  slot="prefix"
-                  class="bk-icon icon-search"
-                />
-              </bk-search-select>
+              <div class="search-select">
+                <search-select
+                  :value="tools.searchValue"
+                  :placeholder="$t('搜索')"
+                  :data="searchSelectList"
+                  @change="handleSearchSelectChange"
+                >
+                  <i
+                    slot="prepend"
+                    class="bk-icon icon-search"
+                  />
+                </search-select>
+              </div>
             </slot>
           </div>
           <div class="time-shift">
@@ -229,6 +229,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import SearchSelect from '@blueking/search-select-v3/vue2';
 
 import { DEFAULT_REFLESH_LIST } from '../../../common/constant';
 import MonitorDateRange from '../../../components/monitor-date-range/monitor-date-range.vue';
@@ -244,7 +245,10 @@ import {
   ICompareOption,
   IOption,
   ISearchSelectList,
-  IToolsOption } from '../performance-type';
+  IToolsOption
+} from '../performance-type';
+
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const DEAULT_TIME_RANGE = [
   {
@@ -270,7 +274,8 @@ const DEAULT_TIME_RANGE = [
     DropDownMenu,
     MonitorDateRange,
     FavoritesList,
-    TimeRange
+    TimeRange,
+    SearchSelect
   }
 })
 export default class ComparePanel extends Vue {
@@ -344,23 +349,20 @@ export default class ComparePanel extends Vue {
   })
   readonly refleshList: IOption[];
   // 是否需要拆分视图
-  @Prop({ default: true })
-    needSplit: boolean;
+  @Prop({ default: true }) needSplit: boolean;
 
   @Prop({ required: true }) value: { compare: ICompareOption; tools: IToolsOption };
 
   // 是否需要目标选择输入
   @Prop({ default: true }) needTarget;
   @Prop({ default: false, type: Boolean }) needSearchSelect: boolean;
-  @Prop({ default: () => [], type: Array })
-    searchSelectList: ISearchSelectList;
+  @Prop({ default: () => [], type: Array }) searchSelectList: ISearchSelectList;
   @Prop({ type: Object }) readonly curHost;
   @Prop({ type: Array, default: () => [] }) favoritesList: IFavList.favList[];
   @Prop({ type: Object, default: () => ({}) }) favCheckedValue: IFavList.favList;
   // 隐藏选项
   @Prop({ type: Boolean, default: false }) compareHide: boolean;
 
-  searchSelectActive = false;
   // 对比数据
   compare: ICompareOption = { type: 'none', value: '' };
   // 工具数据
@@ -521,6 +523,73 @@ export default class ComparePanel extends Vue {
 <style lang="scss" scoped>
 /* stylelint-disable declaration-no-important */
 
+.target-select {
+  &-clear {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 16px;
+
+    &:before {
+      width: 100%;
+      height: 1px;
+      padding: 0 8px;
+      margin-top: 4px;
+      content: '';
+      background: #f0f1f5;
+    }
+
+    .clear-btn {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}
+
+.time-select {
+  &-custom {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 16px;
+    margin-bottom: 6px;
+
+    :deep(.bk-input-small) {
+      display: flex;
+      align-items: center;
+    }
+
+    :deep(.bk-tooltip-ref) {
+      margin-left: -20px;
+    }
+
+    &:hover {
+      cursor: pointer;
+    }
+
+    & .custom-text:hover,
+    :deep(.bk-tooltip-ref:hover) {
+      color: #3a84ff;
+    }
+
+    .help-icon {
+      position: absolute;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      font-size: 12px;
+    }
+
+    :deep(.tippy-active) {
+      color: #3a84ff;
+    }
+  }
+}
 
 .compare-panel {
   display: flex;
@@ -528,10 +597,6 @@ export default class ComparePanel extends Vue {
   // box-shadow: 0px 1px 2px 0px rgba(0,0,0,.1);
   background: #fff;
   border-bottom: 1px solid #f0f1f5;
-
-  :deep(.bk-dropdown-menu) {
-    width: 100%;
-  }
 
   .panel-wrap {
     display: flex;
@@ -658,32 +723,11 @@ export default class ComparePanel extends Vue {
 
         :deep(.search-select) {
           flex: 1;
-
-          .bk-search-select {
-            border: 0px;
-
-            .icon-search {
-              padding-left: 18px;
-              margin-bottom: 2px;
-              font-size: 16px;
-              color: #c4c6cc;
-            }
-
-            .search-input-input {
-              min-width: 0;
-              padding: 0 3px;
-              padding-left: 1px;
-            }
-
-            .search-nextfix-icon {
-              display: none;
-            }
-          }
         }
       }
 
       .search-select-active {
-        min-width: 240px;
+        width: 240px;
       }
 
       .time-shift {
@@ -712,7 +756,7 @@ export default class ComparePanel extends Vue {
       .time-interval {
         display: flex;
         align-items: center;
-        height: 41px!important;
+        height: 41px !important;
         padding-right: 8px;
         border-left: 1px solid #f0f1f5;
       }
@@ -782,78 +826,15 @@ export default class ComparePanel extends Vue {
     }
 
     .panel-wrap-right {
+      /* stylelint-disable-next-line no-descending-specificity */
       .tool-icon {
         height: 48px;
       }
     }
   }
-}
 
-.target-select {
-  &-clear {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 0 16px;
-
-    &:before {
-      width: 100%;
-      height: 1px;
-      padding: 0 8px;
-      margin-top: 4px;
-      content: '';
-      background: #f0f1f5;
-    }
-
-    .clear-btn {
-      color: #3a84ff;
-      cursor: pointer;
-    }
-  }
-}
-
-.time-select {
-  &-custom {
-    position: relative;
-    display: flex;
-    align-items: center;
-    height: 32px;
-    padding: 0 16px;
-    margin-bottom: 6px;
-
-    :deep(.bk-input-small) {
-      display: flex;
-      align-items: center;
-    }
-
-    :deep(.bk-tooltip-ref) {
-      margin-left: -20px;
-    }
-
-    &:hover {
-      cursor: pointer;
-    }
-
-    & .custom-text:hover,
-    :deep(.bk-tooltip-ref:hover) {
-      color: #3a84ff;
-    }
-
-    .help-icon {
-      position: absolute;
-      right: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 14px;
-      height: 14px;
-      font-size: 12px;
-    }
-
-    :deep(.tippy-active) {
-      color: #3a84ff;
-    }
+  :deep(.bk-dropdown-menu) {
+    width: 100%;
   }
 }
 </style>

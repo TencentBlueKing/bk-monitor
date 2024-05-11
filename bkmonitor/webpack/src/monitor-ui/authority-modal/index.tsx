@@ -27,4 +27,4 @@ import { ofType } from 'vue-tsx-support';
 
 import AuthorityModal from './AuthorityModal.vue';
 
-export default ofType<{}>().convert(AuthorityModal);
+export default ofType<object>().convert(AuthorityModal);

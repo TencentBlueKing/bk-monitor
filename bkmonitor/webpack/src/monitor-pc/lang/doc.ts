@@ -334,5 +334,5 @@ export default {
   '来源标识如IP，必需项': 'Source identification such as IP, required',
   '单个 trace 中 30 分钟没有 span 上报，会自动结束；单个 trace 最大时长 1 天':
     'If no span is reported for 30 minutes in a single trace, it will end automatically; the maximum duration of a single trace is 1 day',
-  对非必采的部分按TraceID进行采样: 'Sampling non-essential parts according to TraceID'
+  对非必采的部分按TraceID进行采样: 'Sampling non-essential parts according to TraceID',
 };

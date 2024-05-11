@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import './calendar-select.scss';
@@ -38,13 +39,13 @@ export default defineComponent({
     labelWidth: { type: Number, default: 52 },
     modelValue: {
       type: Array as PropType<number[]>,
-      default: () => []
+      default: () => [],
     },
     /** 需要起始日功能 */
     hasStart: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['update:modelValue', 'change', 'selectEnd'],
   setup(props, { emit }) {
@@ -74,7 +75,7 @@ export default defineComponent({
         startDate.value = val[0];
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -134,7 +135,7 @@ export default defineComponent({
     /** 暂时选中的日期， 用于判断用户需要新增哪些日期 */
     const temporarySelect = reactive({
       start: undefined,
-      end: undefined
+      end: undefined,
     });
     /**
      * 点击日期事件
@@ -224,7 +225,7 @@ export default defineComponent({
       validSelected,
       handleDateClick,
       handleShowSelect,
-      handleAfterHidden
+      handleAfterHidden,
     };
   },
   render() {
@@ -232,8 +233,8 @@ export default defineComponent({
       <div class='calendar-select-component'>
         {this.label && (
           <div
-            class='label'
             style={{ width: `${this.labelWidth}px` }}
+            class='label'
           >
             {this.label}
           </div>
@@ -244,13 +245,13 @@ export default defineComponent({
         >
           <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']}></i>
           <Popover
-            trigger='click'
-            is-show={this.show}
-            theme='light'
             width='250'
             extCls='calendar-select-popover component'
             arrow={false}
+            is-show={this.show}
             placement='bottom-start'
+            theme='light'
+            trigger='click'
             onAfterHidden={this.handleAfterHidden}
           >
             {{
@@ -265,7 +266,7 @@ export default defineComponent({
                         'item',
                         this.currentDate === item && 'current',
                         this.validSelected(item),
-                        this.startDate === item && 'start'
+                        this.startDate === item && 'start',
                       ]}
                       onClick={() => this.handleDateClick(item)}
                       onMouseenter={() => (this.hoverVal = item)}
@@ -293,11 +294,11 @@ export default defineComponent({
                   contenteditable
                   onBlur={this.handleBlur}
                 ></div>
-              )
+              ),
             }}
           </Popover>
         </div>
       </div>
     );
-  }
+  },
 });

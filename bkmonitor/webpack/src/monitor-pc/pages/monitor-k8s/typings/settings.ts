@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { VNode } from 'vue';
+
 import { IBookMark, ICurVarItem } from 'monitor-ui/chart-plugins/typings';
 /** 编辑页签  编辑变量 编辑视图 */
-export type SettingType = 'edit-tab' | 'edit-variate' | 'edit-dashboard';
+export type SettingType = 'edit-dashboard' | 'edit-tab' | 'edit-variate';
 export type ISettingTpl = Record<SettingType, VNode>;
 
 /** 设置组件 */
@@ -107,7 +108,7 @@ export declare namespace SettingsVarType {
   }
 }
 
-type TMatchType = 'manual' | 'auto';
+type TMatchType = 'auto' | 'manual';
 /** 视图设置组件 */
 export declare namespace SettingsDashboardType {
   interface IProps {

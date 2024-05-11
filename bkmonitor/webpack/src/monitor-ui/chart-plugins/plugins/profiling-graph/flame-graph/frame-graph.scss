@@ -3,7 +3,6 @@
 $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a4a6 #e88c8d #e77474;
 
 .profiling-flame-graph {
-  
   &.has-diff-legend {
     top: 32px;
     height: calc(100% - 20px);
@@ -175,7 +174,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   left: 0;
   z-index: 99999;
   display: block;
-  width: 240px;
+  width: 360px;
   height: 100px;
   font-size: 12px;
   color: #fff;
@@ -210,8 +209,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
     th,
     td {
-      padding-left: 4px;
       font-weight: 400;
+      text-align: center;
       background-color: #000;
       border: 1px solid #63656e;
     }
@@ -307,8 +306,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
 .profiling-compare-legend {
   position: absolute;
-  display: flex;
   z-index: 99;
+  display: flex;
   padding: 8px 16px 0;
   visibility: hidden;
 

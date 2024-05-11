@@ -63,10 +63,9 @@ import {
   isErrorSpan,
   isKindClient,
   spanContainsErredSpan,
-  ViewedBoundsFunctionType
+  ViewedBoundsFunctionType,
 } from '../utils';
 import { DEFAULT_HEIGHTS, generateRowStates } from '../virtualized-trace-view';
-
 import Positions from './positions';
 
 type TWrapperProps = {
@@ -94,14 +93,14 @@ const TListViewProps = {
    */
   dataLength: {
     type: Number,
-    default: 0
+    default: 0,
   },
   /**
    * `className` for the HTMLElement that holds the items.
    */
   itemsWrapperClassName: {
     type: String,
-    required: false
+    required: false,
   },
   /**
    * When adding new items to the DOM, this is the number of items to add above
@@ -112,7 +111,7 @@ const TListViewProps = {
    */
   viewBuffer: {
     type: Number,
-    default: 0
+    default: 0,
   },
   /**
    * The minimum number of items offscreen in either direction; e.g. at least
@@ -121,7 +120,7 @@ const TListViewProps = {
    */
   viewBufferMin: {
     type: Number,
-    default: 0
+    default: 0,
   },
   /**
    * When `true`, expect `_wrapperElm` to have `overflow: visible` and to,
@@ -134,18 +133,18 @@ const TListViewProps = {
    */
   windowScroller: {
     type: Boolean,
-    required: false
+    required: false,
   },
   detailStates: {
-    type: Object
+    type: Object,
   },
   spanNameColumnWidth: {
-    type: Number
+    type: Number,
   },
   haveReadSpanIds: {
     type: Array,
-    default: []
-  }
+    default: [],
+  },
 };
 
 export default defineComponent({
@@ -249,7 +248,6 @@ export default defineComponent({
       return -1;
     };
 
-    // eslint-disable-next-line max-len
     const getRowPosition = (index: number): { height: number; y: number } =>
       yPositions.getRowPosition(index, getHeight);
 
@@ -320,8 +318,7 @@ export default defineComponent({
       const key = getKeyFromIndex?.(i);
       const known = knownHeights.value.get(key);
       // known !== known iff known is NaN
-      // eslint-disable-next-line no-self-compare
-      // eslint-disable-next-line eqeqeq
+
       if (known != null && known === known) {
         return known;
       }
@@ -368,7 +365,6 @@ export default defineComponent({
         // const itemKey = node?.getAttribute('data-item-key');
         const itemKey = node.nextElementSibling?.getAttribute('data-item-key');
         if (!itemKey) {
-          // eslint-disable-next-line no-console
           // console.warn('itemKey not found');
           continue;
         }
@@ -382,14 +378,14 @@ export default defineComponent({
           knownHeights.value.set(itemKey, observed);
           if (!isDirty) {
             isDirty = true;
-            // eslint-disable-next-line no-multi-assign
+
             lowDirtyKey = highDirtyKey = itemKey;
           } else {
             highDirtyKey = itemKey;
           }
         }
       }
-      // eslint-disable-next-line eqeqeq
+
       if (lowDirtyKey != null && highDirtyKey != null) {
         // update yPositions, then redraw
         const imin = getIndexFromKey?.(lowDirtyKey);
@@ -404,7 +400,7 @@ export default defineComponent({
 
       return {
         'clipping-left': zoomStart > 0,
-        'clipping-right': zoomEnd < 1
+        'clipping-right': zoomEnd < 1,
       };
     };
 
@@ -415,11 +411,11 @@ export default defineComponent({
         min: trace?.startTime || 0,
         max: trace?.endTime || 0,
         viewStart: zoomStart,
-        viewEnd: zoomEnd
+        viewEnd: zoomEnd,
       });
     };
 
-    const renderRow = (key: string, style: CSSProperties, index: number, attrs: {}) => {
+    const renderRow = (key: string, style: CSSProperties, index: number, attrs: object) => {
       const { span, spanIndex, bgColorIndex } = getRowStates.value[index];
       return renderSpanBarRow(span, spanIndex, key, style, attrs, bgColorIndex as number);
     };
@@ -429,7 +425,7 @@ export default defineComponent({
       spanIndex: number,
       key: string,
       style: CSSProperties,
-      attrs: {},
+      attrs: object,
       bgColorIndex: number
     ) => {
       const { spanID } = span;
@@ -459,7 +455,7 @@ export default defineComponent({
             operationName: rpcSpan.operationName,
             serviceName: rpcSpan.process.serviceName,
             viewEnd: rpcViewBounds.end,
-            viewStart: rpcViewBounds.start
+            viewStart: rpcViewBounds.start,
           };
         }
       }
@@ -471,32 +467,32 @@ export default defineComponent({
       if (!span.hasChildren && peerServiceKV && isKindClient(span)) {
         noInstrumentedServer = {
           serviceName: peerServiceKV.value,
-          color: span.color
+          color: span.color,
         };
       }
 
       return (
         <div
-          class='virtualized-trace-view-row'
           key={key}
           style={style}
+          class='virtualized-trace-view-row'
           onClick={() => handleClick(span)}
           {...attributes}
         >
           <SpanBarRow
             class={getClippingCssClasses()}
+            bgColorIndex={bgColorIndex}
             color={span.color}
             columnDivision={spanNameColumnWidth}
+            isActiveMatching={isActiveMatching}
             isChildrenExpanded={!isCollapsed}
             isDetailExpanded={isDetailExpanded}
-            isMatchingFilter={isMatchingFilter}
-            isActiveMatching={isActiveMatching}
             isFocusMatching={isFocusMatching}
             isHaveRead={isHaveRead}
-            numTicks={NUM_TICKS}
-            bgColorIndex={bgColorIndex}
-            rpc={rpc}
+            isMatchingFilter={isMatchingFilter}
             noInstrumentedServer={noInstrumentedServer}
+            numTicks={NUM_TICKS}
+            rpc={rpc}
             showErrorIcon={showErrorIcon}
             span={span}
             onLoadCrossAppInfo={getCrossAppInfo}
@@ -529,7 +525,7 @@ export default defineComponent({
       endIndexDrawn,
       startIndex,
       endIndex,
-      getKeyFromIndex
+      getKeyFromIndex,
     };
   },
 
@@ -573,7 +569,7 @@ export default defineComponent({
       const style = {
         height: `${height}px`,
         top: `${top}px`,
-        position: 'absolute'
+        position: 'absolute',
       };
       const itemKey = this.getKeyFromIndex?.(i);
       const attrs = { 'data-item-key': itemKey };
@@ -581,7 +577,7 @@ export default defineComponent({
     }
 
     const wrapperProps: TWrapperProps = {
-      style: { position: 'relative' }
+      style: { position: 'relative' },
     };
     if (!this.$props.windowScroller) {
       wrapperProps.onScroll = this.onScroll;
@@ -589,8 +585,8 @@ export default defineComponent({
       wrapperProps.style.overflowY = 'auto';
     }
     const scrollerStyle = {
-      position: 'relative' as 'relative',
-      height: `${this.yPositions.getEstimatedHeight()}px`
+      position: 'relative' as const,
+      height: `${this.yPositions.getEstimatedHeight()}px`,
     };
 
     return (
@@ -600,19 +596,19 @@ export default defineComponent({
       >
         <div style={scrollerStyle}>
           <div
+            ref='itemHolderElm'
             style={{
               position: 'absolute',
               top: 0,
               margin: 0,
-              padding: 0
+              padding: 0,
             }}
             class={this.$props.itemsWrapperClassName}
-            ref='itemHolderElm'
           >
             {items}
           </div>
         </div>
       </div>
     );
-  }
+  },
 });

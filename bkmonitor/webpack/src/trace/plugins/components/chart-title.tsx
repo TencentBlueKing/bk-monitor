@@ -25,6 +25,7 @@
  */
 import { computed, ComputedRef, defineComponent, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
@@ -35,9 +36,8 @@ import {
   IExtendMetricData,
   IMenuChildItem,
   IMenuItem,
-  ITitleAlarm
+  ITitleAlarm,
 } from '../typings';
-
 import TitleMenu from './title-menu';
 
 import './chart-title.scss';
@@ -49,27 +49,27 @@ export default defineComponent({
     subtitle: String,
     metrics: {
       type: Array as PropType<IExtendMetricData[]>,
-      default: () => []
+      default: () => [],
     },
     collectInterval: {
       type: String,
-      default: '0'
+      default: '0',
     },
     showMore: Boolean,
     draging: Boolean,
     isInstant: Boolean,
     showAddMetric: {
       type: Boolean,
-      default: true
+      default: true,
     },
     menuList: {
       type: Array as PropType<ChartTitleMenuType[]>,
-      default: () => []
+      default: () => [],
     },
     drillDownOption: {
       type: Array as PropType<IMenuChildItem[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: ['updateDragging', 'menuClick', 'selectChild', 'metricClick', 'allMetricClick', 'alarmClick'],
   setup(props, { emit }) {
@@ -99,7 +99,7 @@ export default defineComponent({
         content,
         showOnInit: false,
         trigger: 'mouseenter',
-        placements: ['top']
+        placements: ['top'],
       };
     });
     const showMetricAlarm = computed(() => props.metrics?.length === 1);
@@ -207,7 +207,7 @@ export default defineComponent({
       handleHideTips,
       handleTitleBlur,
       handleShowChildren,
-      handleChildMenuToggle
+      handleChildMenuToggle,
     };
   },
   render() {
@@ -243,8 +243,8 @@ export default defineComponent({
                 v-slots={{
                   default: () => (
                     <i
-                      class='icon-monitor icon-hint tips-icon'
                       style={{ display: this.showMore ? 'flex' : 'none' }}
+                      class='icon-monitor icon-hint tips-icon'
                     />
                   ),
                   content: () => (
@@ -252,7 +252,7 @@ export default defineComponent({
                       class='common-chart-tooltips-wrap'
                       v-html={createMetricTitleTooltips(this.metricTitleData)}
                     ></div>
-                  )
+                  ),
                 }}
               ></Popover>
             ) : undefined}
@@ -260,10 +260,10 @@ export default defineComponent({
             {this.showMetricAlarm && this.metricTitleData ? (
               <Popover content={this.$t('添加策略')}>
                 <i
-                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   style={{
-                    display: this.showMore && this.showAddMetric ? 'flex' : 'none'
+                    display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
+                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   onClick={this.handleAllMetricSelect}
                 ></i>
               </Popover>
@@ -273,10 +273,10 @@ export default defineComponent({
                 <span
                   style={{
                     marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
-                    display: this.showMore ? 'flex' : 'none'
+                    display: this.showMore ? 'flex' : 'none',
                   }}
-                  tabindex='undefined'
                   class='icon-monitor icon-mc-more more-icon icon-btn'
+                  tabindex='undefined'
                 />
               </Popover>
             }
@@ -284,21 +284,21 @@ export default defineComponent({
           {this.subtitle && <div class='sub-title'>{this.subtitle}</div>}
         </div>
         <TitleMenu
-          list={this.menuList}
-          drillDownOption={this.drillDownOption}
-          onSelect={this.handleMenuClick}
-          onMetricSelect={this.handleMetricSelect}
-          onChildMenuToggle={this.handleChildMenuToggle}
-          metrics={this.metrics}
-          showAddMetric={this.showAddMetric}
           style={{
             left: `${this.menuLeft}px`,
             top: '36px',
-            display: this.showMenu ? 'flex' : 'none'
+            display: this.showMenu ? 'flex' : 'none',
           }}
+          drillDownOption={this.drillDownOption}
+          list={this.menuList}
+          metrics={this.metrics}
+          showAddMetric={this.showAddMetric}
+          onChildMenuToggle={this.handleChildMenuToggle}
+          onMetricSelect={this.handleMetricSelect}
+          onSelect={this.handleMenuClick}
           onSelectChild={this.handleMenuChildClick}
         ></TitleMenu>
       </div>
     );
-  }
+  },
 });

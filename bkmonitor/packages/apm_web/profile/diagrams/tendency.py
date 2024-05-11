@@ -7,59 +7,79 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections import defaultdict
 
-from apm_web.profile.constants import DESCRIBING_SAMPLE_UNIT
-from apm_web.profile.converter import Converter
-
-
-def get_statistics(c: Converter) -> dict:
-    statistics = defaultdict(int)
-    for s in c.raw_data:
-        if s["sample_type"].split("/")[1] != DESCRIBING_SAMPLE_UNIT:
-            continue
-        statistics[s["dtEventTimeStamp"]] += int(s["value"])
-
-    return statistics
+from django.utils.translation import ugettext_lazy as _
 
 
 class TendencyDiagrammer:
-    def draw(self, c: Converter, **options) -> dict:
+    field_key = "(round((cast(dtEventTimeStamp as DOUBLE) / cast(60000 as DOUBLE))) * cast(60 as DOUBLE))"
+    field_key1 = "((round((CAST(`dtEventTimeStamp` AS DOUBLE) / 60000)) * 60))"
+    value_key = "sum(value)"
+    value_key1 = "sum(`value`)"
+
+    def draw(self, c: dict, **options) -> dict:
         """statistics profile data by time"""
-        statistics = get_statistics(c)
 
         # follow the structure of bk-ui plugin
+        if not c.get("list"):
+            return {"series": []}
+
         return {
             "series": [
                 {
                     "alias": "_result_",
-                    "datapoints": [[v, k] for k, v in sorted(statistics.items())],
+                    "metric_field": "_result_",
+                    "datapoints": [
+                        [
+                            i.get(self.value_key, i.get(self.value_key1)),
+                            int(i.get(self.field_key, i.get(self.field_key1))) * 1000,
+                        ]
+                        for i in c.get("list", [])
+                        if self.field_key in i or self.field_key1 in i
+                    ],
+                    "target": _("CPU 时间"),
                     "type": "line",
-                    "unit": "",
+                    "unit": "ns",
                 }
             ]
         }
 
-    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
+    def diff(self, base_doris_converter: dict, diff_doris_converter: dict, **options) -> dict:
         """diff two profile data by time"""
-        base_statistics = get_statistics(base_doris_converter)
-        diff_statistics = get_statistics(diff_doris_converter)
 
         # follow the structure of bk-ui plugin
         return {
             "series": [
                 {
                     "alias": "_result_",
-                    "datapoints": [[v, k] for k, v in sorted(base_statistics.items())],
+                    "metric_field": "_result_",
+                    "datapoints": [
+                        [
+                            i.get(self.value_key, i.get(self.value_key1)),
+                            int(i.get(self.field_key, i.get(self.field_key1))) * 1000,
+                        ]
+                        for i in base_doris_converter.get("list", [])
+                        if self.field_key in i or self.field_key1 in i
+                    ],
+                    "target": _("CPU 时间"),
                     "type": "line",
-                    "unit": "",
+                    "unit": "ns",
                     "dimensions": {"device_name": '查询项'},
                 },
                 {
                     "alias": "_result_",
-                    "datapoints": [[v, k] for k, v in sorted(diff_statistics.items())],
+                    "metric_field": "_result_",
+                    "datapoints": [
+                        [
+                            i.get(self.value_key, i.get(self.value_key1)),
+                            int(i.get(self.field_key, i.get(self.field_key1))) * 1000,
+                        ]
+                        for i in diff_doris_converter.get("list", [])
+                        if self.field_key in i or self.field_key1 in i
+                    ],
+                    "target": _("CPU 时间"),
                     "type": "line",
-                    "unit": "",
+                    "unit": "ns",
                     "dimensions": {"device_name": '对比项'},
                 },
             ]

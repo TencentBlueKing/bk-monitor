@@ -60,7 +60,7 @@ class Space:
             filtered_data["bk_biz_id"] = int(filtered_data["space_id"])
         else:
             filtered_data["bk_biz_id"] = -int(filtered_data["id"])
-        if filtered_data["bk_biz_id"] == int(settings.DEMO_BIZ_ID):
+        if filtered_data["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0):
             filtered_data["is_demo"] = True
         else:
             filtered_data["is_demo"] = False

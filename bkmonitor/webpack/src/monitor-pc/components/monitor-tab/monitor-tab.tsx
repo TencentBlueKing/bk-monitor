@@ -29,14 +29,14 @@ import { Component as tsc } from 'vue-tsx-support';
 import './monitor-tab.scss';
 
 @Component
-export default class MonitorTab extends tsc<{}> {
+export default class MonitorTab extends tsc<object> {
   render() {
     return (
       <bk-tab
         class='monitor-tab'
-        type='unborder-card'
-        tab-position='top'
         props={this.$attrs}
+        tab-position='top'
+        type='unborder-card'
         on={this.$listeners}
       >
         {this.$slots.default}

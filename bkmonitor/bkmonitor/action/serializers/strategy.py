@@ -12,7 +12,9 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Dict
 
+import arrow
 import pytz
+from django.db.models import Q
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -38,6 +40,7 @@ from bkmonitor.models import (
     StrategyActionConfigRelation,
     UserGroup,
 )
+from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import count_md5
 from common.log import logger
 from constants.action import NoticeChannel
@@ -50,6 +53,7 @@ from constants.common import (
 )
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
+from core.errors.user_group import DutyRuleNameExist, UserGroupNameExist
 
 
 class DateTimeField(serializers.CharField):
@@ -440,7 +444,7 @@ class DutyRuleSlz(serializers.ModelSerializer):
         if self.instance:
             query_result = query_result.exclude(id=self.instance.id)
         if query_result.exists():
-            raise ValidationError(detail=_("当前轮值规则组名称已经存在，请重新确认"))
+            raise DutyRuleNameExist()
         return value
 
 
@@ -663,8 +667,18 @@ class UserGroupSlz(serializers.ModelSerializer):
         """
         获取轮值用户组的用户列表
         """
+        # 参考 DutyPlan.is_active_plan, 提前过滤部分未激活的计划
+        # 由于目前计划创建时，timezone 固定为默认值 "Asia/Shanghai"，所以为了使用索引，不使用 timezone 对当前时间进行转换
+        # 以后考虑将 start_time 和 finished_time 存为 UTC 时间，避免转换
         user_group_ids = [group.id for group in groups]
-        duty_plans = DutyPlan.objects.filter(user_group_id__in=user_group_ids, is_effective=1).order_by("order")
+        now = arrow.now("Asia/Shanghai").format("YYYY-MM-DD HH:mm:ss")
+        duty_plans = DutyPlan.objects.filter(
+            Q(finished_time__gte=now) | Q(finished_time__isnull=True),
+            start_time__lte=now,
+            user_group_id__in=user_group_ids,
+            is_effective=1,
+        )
+
         group_rule_users = defaultdict(list)
         for plan in DutyPlanSlz(instance=duty_plans, many=True).data:
             group_rule_users[f"{plan['user_group_id']}-{plan['duty_rule_id']}"].append(plan)
@@ -790,7 +804,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         if self.instance:
             query_result = query_result.exclude(id=self.instance.id)
         if query_result.exists():
-            raise ValidationError(detail=_("当前告警组名称已经存在，请重新确认"))
+            raise UserGroupNameExist()
         return value
 
     def validate_need_duty(self, value):
@@ -947,8 +961,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         ).data
 
         group_duty_manager = GroupDutyRuleManager(self.instance, duty_rules)
-        group_duty_manager.manage_duty_rule_snap(datetime.today().strftime("%Y-%m-%d 00:00:00"))
-
+        group_duty_manager.manage_duty_rule_snap(time_tools.datetime_today().strftime("%Y-%m-%d 00:00:00"))
         # 删除掉已经解除绑定的相关的snap和排班信息
         DutyRuleSnap.objects.filter(user_group_id=self.instance.id).exclude(
             duty_rule_id__in=self.instance.duty_rules

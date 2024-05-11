@@ -25,21 +25,20 @@
  */
 
 import { IItem } from '../threshold/threshold-select';
-
 import { BoundType } from './alarm-threshold-select';
 
 type FormItemType =
-  | 'select'
-  | 'number'
-  | 'string'
-  | 'thresholds'
-  | 'model-select'
-  | 'switch'
-  | 'input-unit'
-  | 'tag-input'
-  | 'range'
+  | 'ai-level'
   | 'alarm-thresholds'
-  | 'ai-level';
+  | 'input-unit'
+  | 'model-select'
+  | 'number'
+  | 'range'
+  | 'select'
+  | 'string'
+  | 'switch'
+  | 'tag-input'
+  | 'thresholds';
 
 export interface ISelectOptionItem {
   id: string;
@@ -55,14 +54,14 @@ export interface IUnitOptionItem {
 type IBehavior = 'normal' | 'simplicity';
 
 export enum EFormItemValueType {
-  string = 'string',
+  array = 'array',
   number = 'number',
-  array = 'array'
+  string = 'string',
 }
 
-type TValueType = EFormItemValueType.number | EFormItemValueType.string | EFormItemValueType.array;
+type TValueType = EFormItemValueType.array | EFormItemValueType.number | EFormItemValueType.string;
 
-type errorDisplayType = 'tooltips' | 'normal';
+type errorDisplayType = 'normal' | 'tooltips';
 
 export interface IFormDataItem {
   label: string;
@@ -95,34 +94,109 @@ export interface IFormDataItem {
 }
 /** 时序预测表单组件数据结构 */
 export class FormItem {
-  label = ''; // 表单label
-  field = ''; // 提交字段
-  value: any = ''; // 值
-  default?: any = ''; // 默认值
-  type: FormItemType = 'string'; // 表单组件类型
-  options: ISelectOptionItem[] = []; // 下拉可选项数据
-  min?: number; // 最小值
-  max?: number; // 最大值
-  unit?: string; // 阈值单位
-  methodList?: IItem[]; // 阈值方法列表
-  behavior?: IBehavior; // 组件的样式模式
-  required?: boolean; // 是否必选
-  onChange?: (item: FormItem) => void; /** 组件值更新回调 */
-  placeholder?: string; // 提示
-  disabled?: boolean; // 禁用
-  multiple?: boolean; // 是否可以多选
-  valueType?: TValueType; // 接口所需类型
-  clearable?: boolean; // 是否可清除
-  hoverOptionId?: string = null; // hover选项的id
-  width?: number; // 组件宽度
-  unitOption?: IUnitOptionItem[]; // 单位可选值
-  unitId?: number; // 单位换倍数
-  description?: string; // 表单描述
-  boundType?: BoundType; // 告警阈值类型
-  errorDisplayType?: errorDisplayType; // 表单项错误提示的方式
-  isAdvanced?: boolean; // 是否隐藏参数组件，但是要提交默认值给后台
-  separator?: string; // 多选的分隔符
+  static createFormItemData(data, valueDisplay?: Record<string, any>) {
+    const { args } = data;
+    const formItemList: FormItem[] = args.map(item => {
+      const {
+        variable_alias,
+        variable_name,
+        default_value,
+        value_type,
+        description,
+        properties: {
+          input_type,
+          allowed_values_map,
+          max,
+          min,
+          placeholder,
+          allow_modified,
+          multiple,
+          separator,
+          is_advanced,
+          is_required,
+        },
+      } = item;
+      const res: IFormDataItem = {
+        label: variable_alias,
+        field: variable_name,
+        value: valueDisplay?.[variable_name] ?? default_value,
+        default: default_value,
+        type: ['double', 'int'].includes(input_type) ? 'number' : input_type,
+        options:
+          allowed_values_map?.map?.(item => ({
+            id: item.allowed_value,
+            name: item.allowed_alias,
+          })) || [],
+        min,
+        max,
+        placeholder,
+        disabled: !(allow_modified ?? true),
+        multiple: multiple ?? false,
+        valueType: ['double', 'int'].includes(value_type) ? EFormItemValueType.number : EFormItemValueType.string,
+        description,
+        separator: separator ?? '',
+        isAdvanced: is_advanced ?? false,
+        required: is_required ?? false,
+      };
+      return new FormItem(res);
+    });
+    return formItemList;
+  } // 表单label
 
+  static handleValueType(item: FormItem) {
+    const { valueType, value } = item;
+    const localValue = value;
+    switch (valueType) {
+      case EFormItemValueType.number:
+        return Number(localValue);
+      case EFormItemValueType.string:
+        return String(localValue);
+      case EFormItemValueType.array:
+        return Array.isArray(localValue) ? localValue : [];
+      default:
+        return localValue;
+    }
+  } // 提交字段
+  behavior?: IBehavior; // 值
+  boundType?: BoundType; // 默认值
+  clearable?: boolean; // 表单组件类型
+  default?: any = ''; // 下拉可选项数据
+  description?: string; // 最小值
+  disabled?: boolean; // 最大值
+  errorDisplayType?: errorDisplayType; // 阈值单位
+  field = ''; // 阈值方法列表
+  hoverOptionId?: string = null; // 组件的样式模式
+  isAdvanced?: boolean; // 是否必选
+  label = ''; /** 组件值更新回调 */
+  max?: number; // 提示
+  methodList?: IItem[]; // 禁用
+  min?: number; // 是否可以多选
+  multiple?: boolean; // 接口所需类型
+  onChange?: (item: FormItem) => void; // 是否可清除
+  options: ISelectOptionItem[] = []; // hover选项的id
+  placeholder?: string; // 组件宽度
+  required?: boolean; // 单位可选值
+  separator?: string; // 单位换倍数
+  type: FormItemType = 'string'; // 表单描述
+  unit?: string; // 告警阈值类型
+  unitId?: number; // 表单项错误提示的方式
+  unitOption?: IUnitOptionItem[]; // 是否隐藏参数组件，但是要提交默认值给后台
+  value: any = ''; // 多选的分隔符
+
+  valueType?: TValueType;
+  /**
+   * 根据模型接口数据生成表单所需数据
+   * @param data 接口数据
+   * @param valueDisplay 回填的value值
+   * @returns Array<bk-form-item>
+   */
+  width?: number;
+  /**
+   * 根据模型参数接口的所需类型进行转换
+   * @param valueType 数据所需类型
+   * @param value 值
+   * @returns 转换后的值
+   */
   constructor(data: IFormDataItem) {
     if (!!data) {
       this.label = data.label ?? '';
@@ -153,82 +227,6 @@ export class FormItem {
       this.separator = data.separator ?? '';
     }
   }
-  /**
-   * 根据模型接口数据生成表单所需数据
-   * @param data 接口数据
-   * @param valueDisplay 回填的value值
-   * @returns Array<bk-form-item>
-   */
-  // eslint-disable-next-line @typescript-eslint/member-ordering
-  static createFormItemData(data, valueDisplay?: Record<string, any>) {
-    const { args } = data;
-    const formItemList: FormItem[] = args.map(item => {
-      const {
-        variable_alias,
-        variable_name,
-        default_value,
-        value_type,
-        description,
-        properties: {
-          input_type,
-          allowed_values_map,
-          max,
-          min,
-          placeholder,
-          allow_modified,
-          multiple,
-          separator,
-          is_advanced,
-          is_required
-        }
-      } = item;
-      const res: IFormDataItem = {
-        label: variable_alias,
-        field: variable_name,
-        value: valueDisplay?.[variable_name] ?? default_value,
-        default: default_value,
-        type: ['double', 'int'].includes(input_type) ? 'number' : input_type,
-        options:
-          allowed_values_map?.map?.(item => ({
-            id: item.allowed_value,
-            name: item.allowed_alias
-          })) || [],
-        min,
-        max,
-        placeholder,
-        disabled: !(allow_modified ?? true),
-        multiple: multiple ?? false,
-        valueType: ['double', 'int'].includes(value_type) ? EFormItemValueType.number : EFormItemValueType.string,
-        description,
-        separator: separator ?? '',
-        isAdvanced: is_advanced ?? false,
-        required: is_required ?? false
-      };
-      return new FormItem(res);
-    });
-    return formItemList;
-  }
-  /**
-   * 根据模型参数接口的所需类型进行转换
-   * @param valueType 数据所需类型
-   * @param value 值
-   * @returns 转换后的值
-   */
-  // eslint-disable-next-line @typescript-eslint/member-ordering
-  static handleValueType(item: FormItem) {
-    const { valueType, value } = item;
-    const localValue = value;
-    switch (valueType) {
-      case EFormItemValueType.number:
-        return Number(localValue);
-      case EFormItemValueType.string:
-        return String(localValue);
-      case EFormItemValueType.array:
-        return Array.isArray(localValue) ? localValue : [];
-      default:
-        return localValue;
-    }
-  }
 }
 
 /** 获取模型描述信息 */
@@ -238,16 +236,16 @@ export const handleCreateModelOptionsDetail = (item: any, interval: number) => (
   description: {
     dataLength: {
       value: item.ts_depend,
-      isMatch: true
+      isMatch: true,
     },
     frequency: {
       value: item.ts_freq,
-      isMatch: item.ts_freq === 0 ? true : interval === item.ts_freq.value
+      isMatch: item.ts_freq === 0 ? true : interval === item.ts_freq.value,
     },
     message: {
       value: item.description,
-      isMatch: true
-    }
+      isMatch: true,
+    },
   },
-  instruction: item.instruction || ''
+  instruction: item.instruction || '',
 });

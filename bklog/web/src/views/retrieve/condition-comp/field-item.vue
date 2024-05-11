@@ -55,6 +55,24 @@
           class="field-count"
           >({{ gatherFieldsCount }})</span
         >
+        <template v-if="isUnionConflictFields(fieldItem.field_type)">
+          <bk-popover
+            theme="light"
+            ext-cls="conflict-popover"
+          >
+            <i class="conflict-icon bk-icon icon-exclamation-triangle-shape"></i>
+            <div slot="content">
+              <p>{{ $t('该字段在以下索引集存在冲突') }}</p>
+              <template>
+                <bk-tag
+                  v-for="(item, index) in unionConflictFieldsName"
+                  :key="index"
+                  >{{ item }}</bk-tag
+                >
+              </template>
+            </div>
+          </bk-popover>
+        </template>
       </span>
       <!-- 聚合字段数量 -->
       <!-- 设置字段显示或隐藏 -->
@@ -79,7 +97,7 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import AggChart from './agg-chart';
 
 export default {
@@ -118,9 +136,9 @@ export default {
       type: Object,
       required: true
     },
-    visibleLength: {
-      type: Number,
-      default: 0
+    visibleFields: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
@@ -130,6 +148,11 @@ export default {
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+      unionIndexItemList: 'unionIndexItemList'
+    }),
     gatherFieldsCount() {
       // 聚合字段有多少个
       return Object.keys(this.statisticalFieldData).length;
@@ -140,10 +163,13 @@ export default {
     },
     isShowFieldsCount() {
       return !['object', 'nested', 'text'].includes(this.fieldItem.field_type);
+    },
+    /** 冲突字段索引集名称*/
+    unionConflictFieldsName() {
+      return this.unionIndexItemList
+        .filter(item => this.unionIndexList.includes(item.index_set_id))
+        .map(item => item.indexName);
     }
-    // isDisabledHiddenField() {
-    //   return this.visibleLength === 1 && this.type === 'visible';
-    // },
   },
   methods: {
     getFieldIcon(fieldType) {
@@ -159,6 +185,10 @@ export default {
     handleShowOrHiddenItem() {
       // if (this.isDisabledHiddenField) return;
       this.$emit('toggleItem', this.type, this.fieldItem);
+    },
+    /** 联合查询并且有冲突字段 */
+    isUnionConflictFields(fieldType) {
+      return this.isUnionSearch && fieldType === 'conflict';
     }
   }
 };
@@ -231,6 +261,11 @@ export default {
       }
     }
 
+    .conflict-icon {
+      font-size: 14px;
+      color: #ff9c01;
+    }
+
     .icon-ext {
       width: 18px;
       transform: scale(0.8);
@@ -283,6 +318,14 @@ export default {
         transition: transform 0.3s;
       }
     }
+  }
+}
+
+.conflict-popover {
+  p {
+    margin: 0 0 4px 6px;
+    font-size: 12px;
+    color: #63656e;
   }
 }
 </style>

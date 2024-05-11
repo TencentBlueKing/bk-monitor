@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-export type IntervalType = number | 'auto';
+export type IntervalType = 'auto' | number;
 export interface IProps {
   value?: IntervalType;
   appendTo?: string;
@@ -45,7 +45,7 @@ export interface IIntervalOption {
   id: IntervalType;
   name: number | string;
 }
-export type unitType = 's' | 'm';
+export type unitType = 'm' | 's';
 
 export interface ITimeVal {
   value: number;

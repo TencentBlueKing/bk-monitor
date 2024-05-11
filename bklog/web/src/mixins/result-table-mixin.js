@@ -20,7 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { mapState } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import { formatDate, random, copyMessage, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import TextHighlight from 'vue-text-highlight';
@@ -104,12 +104,33 @@ export default {
       /** 原始日志复制弹窗实例 */
       originStrInstance: null,
       /** 当前需要复制的原始日志 */
-      hoverOriginStr: ''
+      hoverOriginStr: '',
+      logSourceField: {
+        description: null,
+        es_doc_values: false,
+        field_alias: '',
+        field_name: this.$t('日志来源'),
+        field_operator: [],
+        field_type: 'keyword',
+        filterExpand: false,
+        filterVisible: false,
+        is_analyzed: false,
+        is_display: false,
+        is_editable: false,
+        minWidth: 0,
+        tag: 'union-source',
+        width: 230
+      }
     };
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
     ...mapState(['isNotVisibleFieldsShow', 'clearTableWidth']),
+    ...mapGetters({
+      isUnionSearch: 'isUnionSearch',
+      unionIndexList: 'unionIndexList',
+      unionIndexItemList: 'unionIndexItemList'
+    }),
     showHandleOption() {
       return Boolean(this.tableList.length);
     },
@@ -140,8 +161,15 @@ export default {
         return sortA.localeCompare(sortB);
       });
       const sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      if (this.isUnionSearch && this.isShowSourceField) {
+        sortFieldsList.unshift(this.logSourceField);
+      }
       setDefaultTableWidth(sortFieldsList, this.tableList);
       return sortFieldsList;
+    },
+    /** 是否展示数据来源 */
+    isShowSourceField() {
+      return this.operatorConfig?.isShowSourceField ?? false;
     }
   },
   watch: {
@@ -158,33 +186,34 @@ export default {
       this.cacheOverFlowCol = [];
     },
     clearTableWidth() {
-      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+      const storageStr = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
+      const columnObj = JSON.parse(localStorage.getItem(storageStr));
       const {
-        params: { indexId },
+        params: { indexId: routerIndexID },
         query: { bizId }
       } = this.$route;
       if (columnObj === null || JSON.stringify(columnObj) === '{}') {
         return;
       }
       const isHaveBizId = Object.keys(columnObj).some(el => el === bizId);
-
-      if (!isHaveBizId || columnObj[bizId].fields[indexId] === undefined) {
+      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : routerIndexID;
+      if (!isHaveBizId || columnObj[bizId].fields[indexKey] === undefined) {
         return;
       }
 
       for (const bizKey in columnObj) {
         if (bizKey === bizId) {
           for (const fieldKey in columnObj[bizKey].fields) {
-            if (fieldKey === indexId) {
-              delete columnObj[bizId].fields[indexId];
-              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexId, 1));
+            if (fieldKey === indexKey) {
+              delete columnObj[bizId].fields[indexKey];
+              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexKey, 1));
               columnObj[bizId].indexsetIds.length === 0 && delete columnObj[bizId];
             }
           }
         }
       }
 
-      localStorage.setItem('table_column_width_obj', JSON.stringify(columnObj));
+      localStorage.setItem(storageStr, JSON.stringify(columnObj));
     }
   },
   methods: {
@@ -228,54 +257,70 @@ export default {
       ele.toggleRowExpansion(row);
     },
     handleHeaderDragend(newWidth, oldWidth, { index }) {
+      const storageStr = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
       const {
-        params: { indexId },
+        params: { indexId: routerIndexID },
         query: { bizId }
       } = this.$route;
-      if (index === undefined || bizId === undefined || indexId === undefined) {
+      if (index === undefined || bizId === undefined || (routerIndexID === undefined && !this.isUnionSearch)) {
         return;
       }
+      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : routerIndexID;
       // 缓存其余的宽度
       const widthObj = {};
       widthObj[index] = Math.ceil(newWidth);
 
-      let columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+      let columnObj = JSON.parse(localStorage.getItem(storageStr));
       if (columnObj === null) {
         columnObj = {};
-        columnObj[bizId] = this.initSubsetObj(bizId, indexId);
+        columnObj[bizId] = this.initSubsetObj(bizId, indexKey);
       }
       const isIncludebizId = Object.keys(columnObj).some(el => el === bizId);
-      isIncludebizId === false && (columnObj[bizId] = this.initSubsetObj(bizId, indexId));
+      isIncludebizId === false && (columnObj[bizId] = this.initSubsetObj(bizId, indexKey));
 
       for (const key in columnObj) {
         if (key === bizId) {
-          if (columnObj[bizId].fields[indexId] === undefined) {
-            columnObj[bizId].fields[indexId] = {};
-            columnObj[bizId].indexsetIds.push(indexId);
+          if (columnObj[bizId].fields[indexKey] === undefined) {
+            columnObj[bizId].fields[indexKey] = {};
+            columnObj[bizId].indexsetIds.push(indexKey);
           }
-          columnObj[bizId].fields[indexId] = Object.assign(columnObj[bizId].fields[indexId], widthObj);
+          columnObj[bizId].fields[indexKey] = Object.assign(columnObj[bizId].fields[indexKey], widthObj);
         }
       }
 
-      localStorage.setItem('table_column_width_obj', JSON.stringify(columnObj));
+      localStorage.setItem(storageStr, JSON.stringify(columnObj));
     },
-    initSubsetObj(bizId, indexId) {
+    initSubsetObj(bizId, indexKey) {
       const subsetObj = {};
       subsetObj.bizId = bizId;
-      subsetObj.indexsetIds = [indexId];
+      subsetObj.indexsetIds = [indexKey];
       subsetObj.fields = {};
-      subsetObj.fields[indexId] = {};
+      subsetObj.fields[indexKey] = {};
       return subsetObj;
     },
     // eslint-disable-next-line no-unused-vars
     renderHeaderAliasName(h, { column, $index }) {
       const field = this.getShowTableVisibleFields[$index - 1];
-      const isShowSwitcher = field?.field_type === 'date';
+      const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
+        const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
+        let unionContent = '';
+        // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
+        if (this.isUnionSearch) {
+          const indexSetIDs = field.index_set_ids?.map(item => String(item)) || [];
+          const isDifferentFields = indexSetIDs.length !== this.unionIndexItemList.length;
+          if (isDifferentFields && !isUnionSource) {
+            const lackIndexNameList = this.unionIndexItemList
+              .filter(item => indexSetIDs.includes(item.index_set_id))
+              .map(item => item.index_set_name);
+            unionContent = `${this.$t('字段来源')}: <br>${lackIndexNameList.join(' <br>')}`;
+          }
+        }
+        const isLackIndexFields = !!unionContent && this.isUnionSearch;
 
         return h(
           'div',
@@ -295,7 +340,19 @@ export default {
                 }
               ]
             }),
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [fieldName]),
+            h(
+              'span',
+              {
+                directives: [
+                  {
+                    name: 'bk-tooltips',
+                    value: { allowHTML: false, content: isLackIndexFields ? unionContent : fieldName }
+                  }
+                ],
+                class: { 'lack-index-filed': isLackIndexFields }
+              },
+              [fieldName]
+            ),
             h(TimeFormatterSwitcher, {
               class: 'timer-formatter',
               style: {
@@ -375,6 +432,15 @@ export default {
       };
       const sortList = !!column ? [[column.columnKey, sortMap[order]]] : [];
       this.$emit('shouldRetrieve', { sort_list: sortList }, false);
+    },
+    getTableColumnContent(row, field) {
+      // 日志来源 展示来源的索引集名称
+      if (field?.tag === 'union-source') {
+        return (
+          this.unionIndexItemList.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ?? ''
+        );
+      }
+      return this.tableRowDeepView(row, field.field_name, field.field_type);
     }
   }
 };

@@ -26,8 +26,8 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
@@ -38,6 +38,8 @@ import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
 import { IAppSelectOptItem } from '../home/app-select';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './service.scss';
 
@@ -56,7 +58,7 @@ interface IServiceParams {
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class Service extends tsc<{}> {
+export default class Service extends tsc<object> {
   @Prop({ type: String, default: '' }) id: string;
 
   @Ref() commonPageRef: CommonPage;
@@ -76,14 +78,14 @@ export default class Service extends tsc<{}> {
   pluginId = '';
   dashboardId = '';
   tabId = '';
-  tabName: string | TranslateResult = '';
+  tabName: TranslateResult | string = '';
   subName = '';
   // menu list
   menuList: IMenuItem[] = [
     {
       id: 'basic',
-      name: window.i18n.tc('基本设置')
-    }
+      name: window.i18n.tc('基本设置'),
+    },
   ];
 
   /** 列表 */
@@ -97,7 +99,7 @@ export default class Service extends tsc<{}> {
 
   get positonText() {
     const label = this.tabName;
-    // eslint-disable-next-line no-nested-ternary
+
     const value =
       this.sceneType === 'overview'
         ? this.tabId === 'topo'
@@ -116,19 +118,19 @@ export default class Service extends tsc<{}> {
       vm.routeList = [
         {
           id: 'home',
-          name: 'APM'
+          name: 'APM',
         },
         {
           id: 'application',
           name: `${window.i18n.tc('应用')}：${appName}`,
           query: {
-            'filter-app_name': appName
-          }
+            'filter-app_name': appName,
+          },
         },
         {
           id: 'service',
-          name: `${window.i18n.tc('服务')}：${serviceName}`
-        }
+          name: `${window.i18n.tc('服务')}：${serviceName}`,
+        },
       ];
       vm.viewOptions = {};
       vm.appName = query['filter-app_name'] as string;
@@ -161,7 +163,7 @@ export default class Service extends tsc<{}> {
     const params = {
       app_name: this.appName,
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     };
     const data = await applicationStore.getAppInfo(params);
 
@@ -170,8 +172,8 @@ export default class Service extends tsc<{}> {
       this.$router.push({
         name: 'application',
         query: {
-          'filter-app_name': this.appName
-        }
+          'filter-app_name': this.appName,
+        },
       });
     }
   }
@@ -202,8 +204,8 @@ export default class Service extends tsc<{}> {
       name: 'service-config',
       query: {
         app_name: (query['filter-app_name'] as string) || '',
-        service_name: (query['filter-service_name'] as string) || ''
-      }
+        service_name: (query['filter-service_name'] as string) || '',
+      },
     });
   }
   /** 详情返回列表操作刷新列表的数据 */
@@ -226,25 +228,24 @@ export default class Service extends tsc<{}> {
         {
           <CommonPage
             ref='commonPageRef'
-            sceneId={'apm_service'}
-            sceneType={'overview'}
-            isShowSplitPanel={false}
             backToOverviewKey={this.backToOverviewKey}
             defaultViewOptions={this.viewOptions}
+            isShowSplitPanel={false}
+            sceneId={'apm_service'}
+            sceneType={'overview'}
             tab2SceneType
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises
+            onSceneTypeChange={this.handleSecendTypeChange}
             onTabChange={this.handleUpdateAppName}
             onTimeRangeChange={this.handelTimeRangeChange}
             onTitleChange={this.handleTitleChange}
-            onSceneTypeChange={this.handleSecendTypeChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={false}
+              needShadow={true}
               positionText={this.positonText}
+              routeList={this.routeList}
+              needCopyLink
             />
             {!this.readonly && !!this.appName && (
               <div

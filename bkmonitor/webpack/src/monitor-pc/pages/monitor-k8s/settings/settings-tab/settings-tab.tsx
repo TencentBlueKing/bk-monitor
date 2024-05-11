@@ -25,11 +25,11 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { IBookMark, SettingsTabType } from '../../typings';
 import { SETTINGS_POP_ZINDEX } from '../../utils';
-
 import TabForm from './tab-form';
 
 import './settings-tab.scss';
@@ -51,14 +51,13 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
   /** 拖拽数据 */
   dragData: { from: number; to: number } = {
     from: null,
-    to: null
+    to: null,
   };
   localTabData: IBookMark[] = [];
-  loading = true;
   curTabForm: SettingsTabType.ITabForm = {};
   curTabFormCache: SettingsTabType.ITabForm = {};
   drag = {
-    active: -1
+    active: -1,
   };
 
   get pageNameList() {
@@ -75,10 +74,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
     const { curTabForm, curTabFormCache } = this;
     // 当前选中页签编辑表单内容改变
     const isFormChange = JSON.stringify(curTabForm) !== JSON.stringify(curTabFormCache);
-    // 页签排序改变
-    const tabSortChange = this.tabSortIsDiff;
-
-    return isFormChange || tabSortChange;
+    return isFormChange || this.tabSortIsDiff;
   }
 
   created() {
@@ -99,24 +95,21 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
    * @description: 更新curEditForm
    * @param {string} tab
    */
-  async updateCurTabFormLocal(tab) {
+  updateCurTabFormLocal(tab) {
     const curPageData = this.bookMarkData.find(item => item.id === tab);
     if (curPageData) {
-      this.loading = true;
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { id, name, show_panel_count } = curPageData;
       this.curTabForm = { id, name, show_panel_count };
       this.curTabFormCache = { id, name, show_panel_count };
     }
-    setTimeout(() => {
-      this.loading = false;
-    }, 100);
   }
 
   /**
-   * @description: 新增页签
+   * @description: 新增页签， 自动创建页签时不进行校验
+   * @param {boolean} isValid 是否需要检验
    */
-  addTab() {
+  addTab(isValid = false) {
     const cb = () => {
       this.localTabData.unshift({
         id: `custom_${new Date().getTime()}`,
@@ -125,31 +118,40 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
         show_panel_count: true,
         variables: [],
         panels: [],
-        panel_count: 0
+        panel_count: 0,
       });
       this.tabActive = this.localTabData[0].id;
       this.curTabForm = {
         id: `custom_${new Date().getTime()}`,
         name: '新页签',
-        show_panel_count: true
+        show_panel_count: true,
       };
     };
-
-    this.handleShowTip(cb);
+    if (isValid) {
+      this.handleShowTip(cb);
+    } else {
+      cb();
+    }
   }
 
   /**
    * @description: 选中页签
    * @param {number} index
+   * @param {boolean} isValid 是否需要检验
    */
-  async handleSelectItem(tab: IBookMark) {
+  async handleSelectItem(tab: IBookMark, isValid = false) {
     if (this.tabActive === tab.id) return;
 
     const cb = () => {
       this.tabActive = tab.id;
       this.updateCurTabFormLocal(this.tabActive);
     };
-    this.handleShowTip(cb);
+
+    if (isValid) {
+      this.handleShowTip(cb);
+    } else {
+      cb();
+    }
   }
 
   /**
@@ -161,12 +163,9 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
         zIndex: SETTINGS_POP_ZINDEX,
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => {
-          const tabSortChange = JSON.stringify(this.localTabData) !== JSON.stringify(this.bookMarkData);
-          if (tabSortChange) {
-            this.localTabData = deepClone(this.bookMarkData);
-          }
+          this.localTabData = deepClone(this.bookMarkData);
           cb();
-        }
+        },
       });
     } else {
       cb();
@@ -180,7 +179,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
    */
   handleDragStart(evt: DragEvent, index: number) {
     this.dragData.from = index;
-    // eslint-disable-next-line no-param-reassign
+
     evt.dataTransfer.effectAllowed = 'move';
   }
 
@@ -241,7 +240,6 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
    */
   @Emit('save')
   handleSave(): SettingsTabType.IEvents['onSave'] {
-    this.loading = true;
     const data = { ...this.curTabForm, view_order: [] };
     if (this.tabSortIsDiff) {
       const tabOrder = this.localTabData.map(tab => tab.id);
@@ -263,13 +261,18 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
    */
   handleDelete(id: string) {
     if (this.localTabData.length < 2) return;
-
     this.$bkInfo({
       zIndex: SETTINGS_POP_ZINDEX,
       title: this.$t('确认删除此页签吗？'),
       confirmFn: () => {
-        this.handleDeleteChange(id);
-      }
+        if (this.bookMarkData.some(tab => tab.id === this.curTabForm.id)) {
+          this.handleDeleteChange(id);
+        } else {
+          this.localTabData = this.localTabData.filter(tab => tab.id !== id);
+          this.tabActive = this.localTabData[0].id;
+          this.updateCurTabFormLocal(this.tabActive);
+        }
+      },
     });
   }
 
@@ -281,7 +284,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
           {this.canAddTab && (
             <div
               class='create-btn'
-              onClick={this.addTab}
+              onClick={() => this.addTab(true)}
             >
               <i class='bk-icon icon-plus-circle-shape'></i>
               <span>{this.$t('新增页签')}</span>
@@ -290,22 +293,22 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
         </div>
         <div class='setting-tab-list'>
           <transition-group
-            name={this.dragData.from !== null ? 'flip-list' : 'filp-list-none'}
             class='tab-list'
+            name={this.dragData.from !== null ? 'flip-list' : 'filp-list-none'}
             tag='ul'
           >
             {this.localTabData.map((tab, index) => (
               <li
-                class={['drag-item', { 'active-item': this.tabActive === tab?.id || index === this.drag.active }]}
                 key={tab.id}
+                class={['drag-item', { 'active-item': this.tabActive === tab?.id || index === this.drag.active }]}
                 draggable={true}
-                onClick={() => this.handleSelectItem(tab)}
-                onDragstart={evt => this.handleDragStart(evt, index)}
+                onClick={() => this.handleSelectItem(tab, true)}
                 onDragend={this.handleDragend}
-                onDrop={this.handleDrop}
                 onDragenter={() => this.handleDragEnter(index)}
-                onDragover={evt => this.handleDragOver(evt, index)}
                 onDragleave={this.handleDragLeave}
+                onDragover={evt => this.handleDragOver(evt, index)}
+                onDragstart={evt => this.handleDragStart(evt, index)}
+                onDrop={this.handleDrop}
               >
                 <div class='tab-main'>
                   <i class='icon-monitor icon-mc-tuozhuai'></i>
@@ -317,15 +320,14 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
           </transition-group>
         </div>
         <TabForm
-          v-bkloading={{ isLoading: this.loading, zIndex: 2000 }}
           key={this.tabActive}
-          formData={this.curTabForm}
           bookMarkData={this.bookMarkData}
           canAddTab={this.canAddTab}
+          formData={this.curTabForm}
           onChange={this.handleFiledChange}
-          onSave={this.handleSave}
           // onReset={this.handleReset}
           onDelete={this.handleDelete}
+          onSave={this.handleSave}
         />
       </div>
     );

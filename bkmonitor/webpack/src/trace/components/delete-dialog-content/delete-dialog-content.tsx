@@ -32,16 +32,16 @@ export default defineComponent({
   props: {
     title: {
       type: String,
-      default: ''
+      default: '',
     },
     subtitle: {
       type: String,
-      defalut: ''
+      defalut: '',
     },
     name: {
       type: String,
-      defalut: ''
-    }
+      defalut: '',
+    },
   },
   setup(props, { slots }) {
     return () => (
@@ -57,5 +57,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

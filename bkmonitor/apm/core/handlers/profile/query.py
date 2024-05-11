@@ -14,6 +14,7 @@ import logging
 import typing
 from dataclasses import asdict, dataclass, field
 
+from apm.constants import ProfileApiType
 from core.drf_resource import api
 
 logger = logging.getLogger("apm")
@@ -43,7 +44,7 @@ class ApiParam:
     limit: ApiParamLimit = None
     order: ApiParamOrder = None
 
-    def to_json(self):
+    def to_json(self, api_type=None):
         r = {
             "biz_id": self.biz_id,
             "app": self.app,
@@ -62,6 +63,9 @@ class ApiParam:
             r["start"] = self.start
         if self.end:
             r["end"] = self.end
+        if api_type in [ProfileApiType.SAMPLE, ProfileApiType.COUNT]:
+            r["dimension_fields"] = ",".join(["type", "service_name", "period_type", "period", "sample_type"])
+
         return r
 
 
@@ -127,13 +131,13 @@ class ProfileQueryBuilder:
             "sql": json.dumps(
                 {
                     "api_type": self.api_type,
-                    "api_params": self.api_params.to_json(),
+                    "api_params": self.api_params.to_json(self.api_type),
                     "result_table_id": self.table_name,
                 }
             ),
             "prefer_storage": "doris",
             "_user_request": True,
         }
-        logger.info(f"[ProfileQuery] origin_params: \n{json.dumps(params)}\n")
+        logger.info(f"[ProfileQuery] origin_params: \n-----\n{json.dumps(params)}\n-----\n")
         response = api.bkdata.query_data(**params)
         return response.get("list", [])

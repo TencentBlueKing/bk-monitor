@@ -168,15 +168,24 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         profile_id: Optional[str] = None,
         filter_labels: Optional[dict] = None,
         converted: bool = True,
+        dimension_fields: str = None,
     ) -> Union[DorisConverter, dict]:
         """
         获取 profile 数据
         """
+        extra_params = extra_params or {}
+        if api_type in [APIType.QUERY_SAMPLE_BY_JSON, APIType.SELECT_COUNT]:
+            # query_sample / select_count 接口需要传递 dimension_fields 参数
+            if dimension_fields:
+                extra_params["dimension_fields"] = dimension_fields
+            else:
+                dimension_fields = ",".join(["type", "service_name", "period_type", "period", "sample_type"])
+                extra_params["dimension_fields"] = dimension_fields
+
         if api_type.value == APIType.LABEL_VALUES and "label_key" not in extra_params:
             raise ValueError(_("查询 label values 时 label_key 不能为空"))
 
         filter_labels = filter_labels or {}
-        extra_params = extra_params or {}
         for k, v in filter_labels.items():
             if "label_filter" not in extra_params:
                 extra_params["label_filter"] = {k: v}
@@ -251,56 +260,73 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         """查询 profiling samples 数据"""
         serializer = ProfileQuerySerializer(data=request.data or request.query_params)
         serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
+        data = serializer.validated_data
 
-        start, end = self._enlarge_duration(
-            validated_data["start"], validated_data["end"], offset=validated_data["offset"]
-        )
-        essentials = self._get_essentials(validated_data)
+        start, end = self._enlarge_duration(data["start"], data["end"], offset=data["offset"])
+        essentials = self._get_essentials(data)
+        logger.info(f"[Samples] query essentials: {essentials}")
+
+        tendency_result = {}
+        compare_tendency_result = {}
+        if "tendency" in data["diagram_types"]:
+            data["diagram_types"].remove("tendency")
+            tendency_result, compare_tendency_result = self._get_tendency_data(
+                data_type=data["data_type"],
+                essentials=essentials,
+                start=start,
+                end=end,
+                profile_id=data.get("profile_id"),
+                filter_labels=data.get("filter_labels"),
+                is_compared=data.get("is_compared"),
+                diff_profile_id=data.get("diff_profile_id"),
+                diff_filter_labels=data.get("diff_filter_labels"),
+            )
+
+            if len(data["diagram_types"]) == 0:
+                if data.get("is_compared"):
+                    return Response(data=compare_tendency_result)
+                return Response(data=tendency_result)
 
         doris_converter = self._query(
             bk_biz_id=essentials["bk_biz_id"],
             app_name=essentials["app_name"],
             service_name=essentials["service_name"],
-            data_type=validated_data["data_type"],
+            data_type=data["data_type"],
             start=start,
             end=end,
-            profile_id=validated_data.get("profile_id"),
-            filter_labels=validated_data.get("filter_labels"),
+            profile_id=data.get("profile_id"),
+            filter_labels=data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
-            extra_params={"order": {"expr": "dtEventTimeStamp", "sort": "desc"}},
         )
 
-        if (
-            validated_data.get("global_query", False)
-            and isinstance(DorisConverter, dict)
-            and not doris_converter.get("list")
-            and validated_data.get("profile_id")
-        ):
-            # 全局查询并且无数据时 查询文件上传记录的异常信息并展示
-            record = ProfileUploadRecord.objects.filter(profile_id=validated_data["profile_id"]).first()
-            if record:
-                raise ValueError(
-                    f"文件解析失败，状态：{dict(UploadedFileStatus.choices).get(record.status)}，异常信息：{record.content}",
-                )
+        if data["global_query"] and not doris_converter:
+            # 如果是全局搜索并且无返回结果 说明文件上传可能发生了异常
+            # 文件查询时，如果搜索不到数，将会用文件上传记录的异常信息进行提示
+            if data.get("profile_id"):
+                record = ProfileUploadRecord.objects.filter(profile_id=data["profile_id"]).first()
+                if record and record.status != UploadedFileStatus.STORE_SUCCEED.value:
+                    raise ValueError(
+                        f"上传文件解析为 Profile 数据失败，"
+                        f"解析状态：{dict(UploadedFileStatus.choices).get(record.status)}，"
+                        f"异常信息：{record.content}"
+                    )
 
-        if isinstance(doris_converter, dict) and not doris_converter.get("list"):
+        if (isinstance(doris_converter, dict) and not doris_converter.get("list")) or not doris_converter:
             raise ValueError(_("未查询到有效数据"))
 
-        diagram_types = validated_data["diagram_types"]
-        options = {"sort": validated_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
-        if validated_data.get("is_compared"):
+        diagram_types = data["diagram_types"]
+        options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
+        if data.get("is_compared"):
             diff_doris_converter = self._query(
                 bk_biz_id=essentials['bk_biz_id'],
                 app_name=essentials["app_name"],
                 service_name=essentials["service_name"],
-                data_type=validated_data["data_type"],
+                data_type=data["data_type"],
                 start=start,
                 end=end,
-                profile_id=validated_data.get("diff_profile_id"),
-                filter_labels=validated_data.get("diff_filter_labels"),
+                profile_id=data.get("diff_profile_id"),
+                filter_labels=data.get("diff_filter_labels"),
                 result_table_id=essentials["result_table_id"],
-                extra_params={"order": {"expr": "dtEventTimeStamp", "sort": "desc"}},
             )
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(doris_converter, diff_doris_converter, **options)
@@ -308,12 +334,91 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             )
             data = {k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()}
             data.update(doris_converter.get_sample_type())
+            data.update(compare_tendency_result)
             return Response(data=data)
 
         diagram_dicts = (get_diagrammer(d_type).draw(doris_converter, **options) for d_type in diagram_types)
         data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
         data.update(doris_converter.get_sample_type())
+        data.update(tendency_result)
         return Response(data=data)
+
+    def _get_tendency_data(
+        self,
+        data_type,
+        essentials,
+        start,
+        end,
+        profile_id=None,
+        filter_labels=None,
+        is_compared=False,
+        diff_profile_id=None,
+        diff_filter_labels=None,
+    ):
+        """获取时序表数据"""
+
+        # 需要先获取数据类型的单位
+        service_detail = api.apm_api.query_profile_services_detail(
+            **{
+                "bk_biz_id": essentials["bk_biz_id"],
+                "app_name": essentials["app_name"],
+                "service_name": essentials["service_name"],
+                "data_type": data_type,
+            }
+        )
+
+        if service_detail:
+            service_period = service_detail[0].get("period_type", "samples/count")
+        else:
+            service_period = "samples/count"
+
+        generate_filters = {"sample_type": f"op_eq|{service_period}"}
+
+        tendency_data = self._query(
+            api_type=APIType.SELECT_COUNT,
+            bk_biz_id=essentials["bk_biz_id"],
+            app_name=essentials["app_name"],
+            service_name=essentials["service_name"],
+            data_type=data_type,
+            start=start,
+            end=end,
+            profile_id=profile_id,
+            filter_labels=filter_labels,
+            result_table_id=essentials["result_table_id"],
+            converted=False,
+            dimension_fields="sample_type,(ROUND(dtEventTimeStamp / 60000) * 60)",
+            extra_params={
+                "metric_fields": "sum(value)",
+                "general_filters": generate_filters,
+                "order": {"expr": "(ROUND(dtEventTimeStamp / 60000) * 60)", "sort": "asc"},
+            },
+        )
+
+        compare_tendency_result = {}
+        if is_compared:
+            compare_tendency_data = self._query(
+                api_type=APIType.SELECT_COUNT,
+                bk_biz_id=essentials["bk_biz_id"],
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
+                data_type=data_type,
+                start=start,
+                end=end,
+                profile_id=diff_profile_id,
+                filter_labels=diff_filter_labels,
+                result_table_id=essentials["result_table_id"],
+                converted=False,
+                dimension_fields="sample_type,(ROUND(dtEventTimeStamp / 60000) * 60)",
+                extra_params={
+                    "metric_fields": "sum(value)",
+                    "general_filters": generate_filters,
+                    "order": {"expr": "(ROUND(dtEventTimeStamp / 60000) * 60)", "sort": "asc"},
+                },
+            )
+            compare_tendency_result = get_diagrammer("tendency").diff(tendency_data, compare_tendency_data)
+
+        tendency_data = get_diagrammer("tendency").draw(tendency_data)
+        return tendency_data, compare_tendency_result
 
     @staticmethod
     def _enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:

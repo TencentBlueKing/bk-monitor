@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import abc
 import json
 import logging
@@ -29,9 +28,9 @@ from bkmonitor.utils.user import make_userinfo
 from core.drf_resource.contrib.cache import CacheResource
 from core.errors.api import BKAPIError
 from core.errors.iam import APIPermissionDeniedError
+from core.prometheus import metrics
 
 logger = logging.getLogger(__name__)
-
 
 __doc__ = """
     基于蓝鲸ESB/APIGateWay封装
@@ -138,10 +137,10 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         else:
             request = get_request(peaceful=True)
             user_info = make_userinfo()
+            self.bk_username = user_info.get('bk_username')
             if request and not getattr(request, "external_user", None):
                 user_info.update(get_bk_login_ticket(request))
             validated_request_data.update(user_info)
-
         return validated_request_data
 
     def before_request(self, kwargs):
@@ -163,8 +162,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             request = get_request(peaceful=True)
             if request and not getattr(request, "external_user", None):
                 auth_params.update(get_bk_login_ticket(request))
-            else:
-                auth_params.update(make_userinfo())
+            auth_params.update(make_userinfo())
         headers["x-bkapi-authorization"] = json.dumps(auth_params)
 
         return headers
@@ -215,13 +213,16 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
 
                 kwargs = self.before_request(kwargs)
                 result = self.session.request(**kwargs)
-        except ReadTimeout:
+        except ReadTimeout as error:
+            # 上报API调用失败统计指标
+            self.report_api_failure_metric(error_code=getattr(error, 'code', 0), exception_type=type(error).__name__)
             raise BKAPIError(system_name=self.module_name, url=self.action, result=_("接口返回结果超时"))
 
         try:
             result.raise_for_status()
         except HTTPError as err:
             logger.exception("【模块：{}】请求APIGW错误：{}，请求url: {} ".format(self.module_name, err, request_url))
+            self.report_api_failure_metric(error_code=getattr(err, 'code', 0), exception_type=type(err).__name__)
             raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
 
         result_json = result.json()
@@ -229,6 +230,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         ret_code = result_json.get("code")
         # 权限中心无权限结构特殊处理
         if ret_code in APIPermissionDeniedCodeList:
+            self.report_api_failure_metric(error_code=ret_code, exception_type=APIPermissionDeniedError.__name__)
             raise APIPermissionDeniedError(
                 context={"system_name": self.module_name, "url": self.action},
                 data={"apply_url": settings.BK_IAM_SAAS_HOST},
@@ -247,6 +249,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 msg,
                 extra=dict(module_name=self.module_name, url=request_url),
             )
+            self.report_api_failure_metric(error_code=ret_code, exception_type=BKAPIError.__name__)
             # 调试使用
             # msg = u"【模块：%s】接口【%s】返回结果错误：%s###%s" % (
             #     self.module_name, request_url, validated_request_data, result_json)
@@ -259,6 +262,23 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             response_data = self.render_response_data(validated_request_data, result_json)
 
         return response_data
+
+    def report_api_failure_metric(self, error_code, exception_type):
+        """
+        当调用三方API异常时，上报自定义指标
+        """
+        try:
+            metrics.API_FAILED_REQUESTS_TOTAL.labels(
+                action=self.action,
+                module=self.module_name,
+                code=error_code,
+                role=settings.ROLE,
+                exception=exception_type,
+                user_name=getattr(self, 'bk_username', ''),
+            ).inc()
+            metrics.report_all()
+        except Exception as err:  # pylint: disable=broad-except
+            logger.exception(f"Failed to report api_failed_requests metrics,error:{err}")
 
     @property
     def label(self):

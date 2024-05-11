@@ -25,6 +25,7 @@
  */
 import { Component, Mixins } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import axios from 'axios';
 import { getLabel } from 'monitor-api/modules/commons';
 import { getObservationSceneList, getObservationSceneStatusList } from 'monitor-api/modules/scene_view';
@@ -39,26 +40,25 @@ import CommonStatus, { CommonStatusType } from '../monitor-k8s/components/common
 import CommonTable from '../monitor-k8s/components/common-table';
 import PageTitle from '../monitor-k8s/components/page-title';
 import { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings';
-
 import * as authMap from './authority-map';
 
 import './custom-scenes.scss';
 
 enum ESceneType {
-  plugin = 'plugin',
+  customEvent = 'custom_event',
   customMetric = 'custom_metric',
-  customEvent = 'custom_event'
+  plugin = 'plugin',
 }
 
 const STATUS_TYPE = {
   NODATA: window.i18n.t('无数据'),
-  SUCCESS: window.i18n.t('正常')
+  SUCCESS: window.i18n.t('正常'),
 };
 
-const addTypes: { id: ESceneType; name: string | any }[] = [
+const addTypes: { id: ESceneType; name: any | string }[] = [
   { id: ESceneType.plugin, name: window.i18n.t('插件采集') },
   { id: ESceneType.customMetric, name: window.i18n.t('自定义指标') },
-  { id: ESceneType.customEvent, name: window.i18n.t('自定义事件') }
+  { id: ESceneType.customEvent, name: window.i18n.t('自定义事件') },
 ];
 
 interface ITableItem {
@@ -91,16 +91,16 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
         name: window.i18n.t('策略项') as string,
         width: 90,
         type: 'scoped_slots',
-        props: { maxWidth: 68 }
+        props: { maxWidth: 68 },
       },
       {
         id: 'collectorColumn',
         name: window.i18n.t('已启用采集项') as string,
         width: 155,
         type: 'scoped_slots',
-        props: { maxWidth: 68 }
+        props: { maxWidth: 68 },
       },
-      { id: 'operate', name: window.i18n.t('操作') as string, type: 'scoped_slots', props: { maxWidth: 100 } }
+      { id: 'operate', name: window.i18n.t('操作') as string, type: 'scoped_slots', props: { maxWidth: 100 } },
     ],
     data: [],
     /* 此数据会根据搜索变化 */
@@ -108,8 +108,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     pagination: {
       count: 0,
       current: 1,
-      limit: 10
-    }
+      limit: 10,
+    },
   };
   /* 所有数据，此数据不会变化 */
   allData: ITableItem[] = [];
@@ -194,7 +194,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
       operate: { slotId: 'operate' },
       status: item.status || null,
       sceneType: addTypes.find(t => t.id === item.scene_type)?.name || '--',
-      scenarioName: this.scenarioLabels?.[item.scenario] || '--'
+      scenarioName: this.scenarioLabels?.[item.scenario] || '--',
     }));
     const sceneViewIds = this.tableData.data.map(item => item.scene_view_id);
     this.cancelTokenSource?.cancel?.();
@@ -208,7 +208,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     getObservationSceneStatusList(
       { scene_view_ids: sceneViewIds },
       {
-        cancelToken: this.cancelTokenSource.token
+        cancelToken: this.cancelTokenSource.token,
       }
     )
       .then(res => {
@@ -260,8 +260,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
         params: {
           objectId: row.scenario,
           pluginType: row.plugin_type,
-          pluginId: isNotPluginId ? undefined : row.id
-        }
+          pluginId: isNotPluginId ? undefined : row.id,
+        },
       });
     } else if (type === ESceneType.customMetric) {
       this.$router.push({ name: 'custom-set-timeseries' });
@@ -280,16 +280,16 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     this.$router.push({
       name: 'custom-scenes-view',
       params: {
-        id: row.scene_view_id
+        id: row.scene_view_id,
       },
       query: {
         name: row.name,
         customQuery: JSON.stringify({
           sceneType: row.scene_type,
           sceneId: row.id,
-          pluginType: row.plugin_type || ''
-        })
-      }
+          pluginType: row.plugin_type || '',
+        }),
+      },
     });
   }
   /* 跳转到策略列表 */
@@ -304,13 +304,13 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     const params = {
       [ESceneType.plugin]: pluginParams,
       [ESceneType.customMetric]: { timeSeriesGroupId: row.id },
-      [ESceneType.customEvent]: { bkEventGroupId: row.id }
+      [ESceneType.customEvent]: { bkEventGroupId: row.id },
     };
     this.$router.push({
       name: 'strategy-config',
       params: {
-        ...params[row.scene_type]
-      }
+        ...params[row.scene_type],
+      },
     });
   }
   /* 采集项跳转 */
@@ -322,34 +322,34 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
         this.$router.push({
           name: 'collect-config',
           query: {
-            id: row.id
-          }
+            id: row.id,
+          },
         });
       } else {
         this.$router.push({
           name: 'collect-config',
           params: {
-            pluginId: row.id
-          }
+            pluginId: row.id,
+          },
         });
       }
     } else {
       const types = {
         [ESceneType.customMetric]: {
           name: 'custom-detail-timeseries',
-          type: 'customTimeSeries'
+          type: 'customTimeSeries',
         },
         [ESceneType.customEvent]: {
           name: 'custom-detail-event',
-          type: 'customEvent'
-        }
+          type: 'customEvent',
+        },
       };
       this.$router.push({
         name: types[type].name,
         params: {
           id: row.id,
-          type: types[type].type
-        }
+          type: types[type].type,
+        },
       });
     }
   }
@@ -360,16 +360,16 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     const authMap = {
       [ESceneType.plugin]: {
         authority: this.authority.VIEW_COLLECTION,
-        authorityDetail: this.authorityMap.VIEW_COLLECTION
+        authorityDetail: this.authorityMap.VIEW_COLLECTION,
       },
       [ESceneType.customMetric]: {
         authority: this.authority.VIEW_CUSTOM_EVENT,
-        authorityDetail: this.authorityMap.VIEW_CUSTOM_EVENT
+        authorityDetail: this.authorityMap.VIEW_CUSTOM_EVENT,
       },
       [ESceneType.customEvent]: {
         authority: this.authority.VIEW_CUSTOM_METRIC,
-        authorityDetail: this.authorityMap.VIEW_CUSTOM_METRIC
-      }
+        authorityDetail: this.authorityMap.VIEW_CUSTOM_METRIC,
+      },
     };
     return authMap[type];
   }
@@ -394,12 +394,12 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
         v-bkloading={{ isLoading: this.loading }}
       >
         <PageTitle
-          tabList={[]}
           activeTab={''}
-          showSearch={false}
           showFilter={false}
           showInfo={false}
+          showSearch={false}
           showSelectPanel={false}
+          tabList={[]}
         >
           <span slot='title'>{this.$t('自定义场景')}</span>
         </PageTitle>
@@ -420,8 +420,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                 >
                   {addTypes.map(item => (
                     <li
-                      onClick={() => this.handleAdd(item.id)}
                       class='list-item'
+                      onClick={() => this.handleAdd(item.id)}
                     >
                       {item.name}
                     </li>
@@ -430,19 +430,15 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
               </bk-dropdown-menu>
               <bk-input
                 class='search-wrapper-input'
-                placeholder={window.i18n.t('搜索')}
                 v-model={this.keyword}
+                placeholder={window.i18n.t('搜索')}
                 right-icon='bk-icon icon-search'
-                onChange={this.handleSearchChange}
                 on-enter={this.handleSearchChange}
                 on-right-icon-click={this.handleSearchChange}
+                onChange={this.handleSearchChange}
               />
             </div>
             <CommonTable
-              columns={this.tableData.columns}
-              data={this.tableData.data}
-              pagination={this.tableData.pagination}
-              checkable={false}
               scopedSlots={{
                 name: (row: ITableItem) => (
                   <div class='column-name'>
@@ -463,8 +459,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                     <div class='column-status'>
                       {row.status ? (
                         <CommonStatus
-                          type={row.status}
                           text={STATUS_TYPE[row.status]}
+                          type={row.status}
                         ></CommonStatus>
                       ) : (
                         '--'
@@ -510,11 +506,15 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                     </bk-button>
                   ) : (
                     ''
-                  )
-                ]
+                  ),
+                ],
               }}
-              onPageChange={this.handlePageChange}
+              checkable={false}
+              columns={this.tableData.columns}
+              data={this.tableData.data}
+              pagination={this.tableData.pagination}
               onLimitChange={this.handleLimitChange}
+              onPageChange={this.handlePageChange}
             >
               <EmptyStatus
                 slot='empty'
@@ -528,4 +528,4 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
     );
   }
 }
-export default tsx.ofType<{}>().convert(CustomScenes);
+export default tsx.ofType<object>().convert(CustomScenes);

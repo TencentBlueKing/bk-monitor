@@ -25,49 +25,49 @@
 -->
 <template>
   <div
-    class="metric-dimension"
     v-bkloading="{ isLoading: loading, extCls: 'bk-loading-fixed' }"
+    class="metric-dimension"
   >
     <div class="dialog-hearder">
       <div
-        class="title"
         v-if="!isFromHome"
+        class="title"
       >
         {{ $t('设置指标&维度') }}
       </div>
       <!-- 顶部按钮 -->
       <div class="set-button">
         <bk-button
-          class="mc-btn-add add-btn btn"
           v-authority="{
-            active: !authority.MANAGE_AUTH
+            active: !authority.MANAGE_AUTH,
           }"
+          class="mc-btn-add add-btn btn"
           @click="authority.MANAGE_AUTH ? handleAddGroup() : handleShowAuthorityDetail()"
         >
           {{ $t('新建分组') }}
         </bk-button>
         <bk-dropdown-menu :disabled="!canMoveBtn">
           <bk-button
-            type="primary"
             slot="dropdown-trigger"
+            type="primary"
             class="move"
           >
             <span>{{ $t('移动到...') }}</span>
             <i class="bk-icon icon-angle-down" />
           </bk-button>
           <ul
-            class="bk-dropdown-list"
-            style="overflow: auto"
             slot="dropdown-content"
             v-authority="{
-              active: !authority.MANAGE_AUTH
+              active: !authority.MANAGE_AUTH,
             }"
+            class="bk-dropdown-list"
+            style="overflow: auto"
             @click="!authority.MANAGE_AUTH && handleShowAuthorityDetail()"
           >
             <li
-              class="move-btn"
               v-for="(name, index) in groupNameList"
               :key="index"
+              class="move-btn"
               @click="authority.MANAGE_AUTH && handleMoveGroup(name)"
             >
               {{ name }}
@@ -84,7 +84,8 @@
             class="mc-btn-add btn"
             style="margin-left: 8px"
             @click="handleRefreshData"
-          >{{ $t('button-刷新') }}</bk-button>
+            >{{ $t('button-刷新') }}</bk-button
+          >
           <div slot="content">
             <div>{{ $t('此刷新仅追加新获取的指标和维度') }}</div>
           </div>
@@ -96,10 +97,10 @@
                     <a class="blue mr-14" href="javascript:void(0);" @click="handleDownloadMetricJson"> {{ $t('下载样例') }} </a> -->
           <template v-if="!isFromHome">
             <monitor-import
+              v-authority="{ active: !authority.MANAGE_AUTH }"
               style="margin-right: 10px; color: #3a84ff"
               :return-text="true"
               accept="application/json"
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               @change="data => (authority.MANAGE_AUTH ? handleImportMetric(data) : handleShowAuthorityDetail())"
             />
             <span style="color: #dcdee5">|</span>
@@ -111,7 +112,8 @@
             <span
               class="blue dataPreview"
               @click="handleShowData"
-            >{{ $t('预览') }}</span>
+              >{{ $t('预览') }}</span
+            >
             <bk-switcher
               v-model="dataPreview"
               size="small"
@@ -132,9 +134,9 @@
             </bk-popover>
             <span style="color: #dcdee5">|</span>
             <monitor-import
+              v-authority="{ active: !authority.MANAGE_AUTH }"
               style="margin: 0 10px; color: #3a84ff"
               :return-text="true"
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               @change="data => (authority.MANAGE_AUTH ? handleImportMetric(data) : handleShowAuthorityDetail())"
             />
             <span style="color: #dcdee5">|</span>
@@ -146,7 +148,8 @@
             <span
               class="blue dataPreview"
               @click="handleHideStop"
-            >{{ $t('隐藏已停用') }}</span>
+              >{{ $t('隐藏已停用') }}</span
+            >
             <bk-switcher
               v-model="hideStop"
               size="small"
@@ -182,11 +185,11 @@
     />
     <div class="footer-btn mb10">
       <bk-button
+        v-authority="{
+          active: !authority.MANAGE_AUTH,
+        }"
         class="mc-btn-add add-btn btn mr-r"
         theme="primary"
-        v-authority="{
-          active: !authority.MANAGE_AUTH
-        }"
         :disabled="loading"
         @click="authority.MANAGE_AUTH ? handleSave() : handleShowAuthorityDetail()"
       >
@@ -231,16 +234,16 @@
           :show-validate.sync="rule.isNameEmpty"
         >
           <bk-input
-            :placeholder="$t('英文名')"
             v-model.trim="groupDialog.name"
+            :placeholder="$t('英文名')"
             @blur="rule.isNameEmpty = !regx.test(groupDialog.name)"
           />
         </verify-input>
         <span class="item"> {{ $t('别名') }} </span>
         <verify-input>
           <bk-input
-            :placeholder="$t('别名')"
             v-model="groupDialog.desc"
+            :placeholder="$t('别名')"
           />
         </verify-input>
       </div>
@@ -270,7 +273,6 @@ import { random } from 'monitor-common/utils/utils';
 import MonitorExport from '../../../../../components/monitor-export/monitor-export';
 import MonitorImport from '../../../../../components/monitor-import/monitor-import';
 import VerifyInput from '../../../../../components/verify-input/verify-input.vue';
-
 import MetricGroup from './metric-group.vue';
 
 const MAX_NUM_METRIC_DIM = 5000; /** 插件允许指标维度最大条数 */
@@ -281,38 +283,38 @@ export default {
     MetricGroup,
     VerifyInput,
     MonitorExport,
-    MonitorImport
+    MonitorImport,
   },
   inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
     dataTime: {
-      type: String
+      type: String,
     },
     osTypeList: {
       //  操作系统类型
       type: Array,
-      default: () => []
+      default: () => [],
     },
     metricJson: {
       //  指标/维度数据
       type: Array,
-      default: () => []
+      default: () => [],
     },
     pluginData: {
       //  保存指标/维度必要的插件数据
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     isFromHome: {
       //  是否首页入口或者详情入口
       type: Boolean,
-      default: false
+      default: false,
     },
     isToken: Boolean, //  是否发布
     pluginType: {
       // 插件类型
-      type: String
-    }
+      type: String,
+    },
   },
   data() {
     return {
@@ -326,19 +328,19 @@ export default {
         isShow: false,
         name: '',
         desc: '',
-        index: -1
+        index: -1,
       },
       regx: /^[_|a-zA-Z][a-zA-Z0-9_]*$/, // 分组名字校验规则
       rule: {
-        isNameEmpty: false
+        isNameEmpty: false,
       },
       tableData: [],
       stopedData: {},
       unitList: [],
       tippyOptions: {
-        distance: 0
+        distance: 0,
       },
-      isShowCancel: false
+      isShowCancel: false,
     };
   },
   computed: {
@@ -353,7 +355,7 @@ export default {
     //  英文名列表
     nameList() {
       let list = [];
-      this.tableData.forEach((group) => {
+      this.tableData.forEach(group => {
         const res = group.fields.map(item => item.name);
         list = list.concat(res);
       });
@@ -370,23 +372,25 @@ export default {
       // 指标全局唯一
       let isMetricRepeat = false;
       const metricExisted = [];
-      this.tableData.some(row => row.fields
-        .filter(item => item.monitor_type === 'metric')
-        .some((item) => {
-          if (metricExisted.includes(item)) {
-            isMetricRepeat = true;
-            return true;
-          }
-          metricExisted.push(item);
-          return false;
-        }));
+      this.tableData.some(row =>
+        row.fields
+          .filter(item => item.monitor_type === 'metric')
+          .some(item => {
+            if (metricExisted.includes(item)) {
+              isMetricRepeat = true;
+              return true;
+            }
+            metricExisted.push(item);
+            return false;
+          })
+      );
       // 维度组里唯一
       let isDimensionRepeat = false;
-      this.tableData.some((row) => {
+      this.tableData.some(row => {
         const existed = [];
         return row.fields
           .filter(item => item.monitor_type === 'dimension')
-          .some((item) => {
+          .some(item => {
             if (existed.includes(item)) {
               isDimensionRepeat = true;
               return true;
@@ -397,16 +401,18 @@ export default {
       // 别名全局唯一
       let isDescRepeat = false;
       const descExisted = [];
-      this.tableData.some(row => row.fields
-        .filter(item => item.description !== '')
-        .some((item) => {
-          if (descExisted.includes(item)) {
-            isDescRepeat = true;
-            return true;
-          }
-          descExisted.push(item);
-          return false;
-        }));
+      this.tableData.some(row =>
+        row.fields
+          .filter(item => item.description !== '')
+          .some(item => {
+            if (descExisted.includes(item)) {
+              isDescRepeat = true;
+              return true;
+            }
+            descExisted.push(item);
+            return false;
+          })
+      );
       return !isMetricRepeat && !isDimensionRepeat && !isDescRepeat;
     },
     canMoveBtn() {
@@ -422,13 +428,13 @@ export default {
       const list = [
         //  类别表
         { id: 'double', name: 'double' },
-        { id: 'int', name: 'int' }
+        { id: 'int', name: 'int' },
       ];
       if (this.pluginData && ['Script', 'JMX', 'Exporter', 'Pushgateway'].includes(this.pluginData.plugin_type)) {
         list.push({ id: 'diff', name: 'diff' });
       }
       return list;
-    }
+    },
   },
   watch: {
     metricJson: {
@@ -436,8 +442,8 @@ export default {
         this.tableData = JSON.parse(JSON.stringify(newV));
         this.handleTabelDataChange();
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   created() {
     this.loading = true;
@@ -463,7 +469,7 @@ export default {
       );
       this.$bkMessage({
         message,
-        theme: 'error'
+        theme: 'error',
       });
     },
     //  别名列表
@@ -472,7 +478,7 @@ export default {
     },
     handleTabelDataChange() {
       this.tableData.forEach((group, groupIndex) => {
-        group.fields.forEach((item) => {
+        group.fields.forEach(item => {
           item.id = random(10);
           if (item.monitor_type === 'metric' && item.type === 'double' && item.is_diff_metric) {
             item.type = 'diff';
@@ -488,11 +494,11 @@ export default {
     //  获取动态单位数据
     async getUnitListData() {
       await getUnitList()
-        .then((data) => {
+        .then(data => {
           this.unitList = data.map(item => ({
             ...item,
             children: item.formats,
-            id: item.name
+            id: item.name,
           }));
         })
         .catch(() => {});
@@ -507,7 +513,7 @@ export default {
         value: {
           linux: null,
           windows: null,
-          aix: null
+          aix: null,
         },
         isFirst: false,
         is_active: true,
@@ -518,7 +524,7 @@ export default {
         reValue: false,
         descReValue: false,
         showInput: false,
-        id: random(10)
+        id: random(10),
       };
       if (type === 'metric') {
         item.order = 1;
@@ -534,7 +540,7 @@ export default {
     },
     //  排序
     handleSortTableData() {
-      this.tableData.forEach((item) => {
+      this.tableData.forEach(item => {
         item.fields.sort((a, b) => a.order - b.order);
       });
     },
@@ -548,7 +554,7 @@ export default {
     },
     //  隐藏已停用
     handleHideStop() {
-      this.tableData.forEach((item) => {
+      this.tableData.forEach(item => {
         item.fields = item.fields.filter(row => row.is_active);
       });
       this.hideStop = true;
@@ -560,7 +566,7 @@ export default {
       } else {
         this.tableData.forEach((item, index) => {
           const arr = this.stopedData[index] || [];
-          arr.forEach((row) => {
+          arr.forEach(row => {
             item.fields.splice(row.index, 0, row.data);
           });
         });
@@ -593,16 +599,17 @@ export default {
       }
       // 编辑情况下未变名字
       if (
-        group.isEdit
-        && this.tableData[group.index].table_name === group.name
-        && this.tableData[group.index].table_desc === group.desc
+        group.isEdit &&
+        this.tableData[group.index].table_name === group.name &&
+        this.tableData[group.index].table_desc === group.desc
       ) {
         group.isShow = false;
         return;
       }
       // 校验分组名字是否与关键字冲突
-      const res = this.tableData.some(item => item.table_name === group.name
-      && item.table_name !== this.tableData[group.index].table_name);
+      const res = this.tableData.some(
+        item => item.table_name === group.name && item.table_name !== this.tableData[group.index].table_name
+      );
       if (res) {
         this.$bkMessage({ theme: 'error', message: `${this.$t('注意: 名字冲突')}` });
         return;
@@ -616,7 +623,7 @@ export default {
         this.tableData.push({
           table_name: group.name,
           table_desc: group.desc || group.name,
-          fields: []
+          fields: [],
         });
       }
       group.isShow = false;
@@ -673,7 +680,7 @@ export default {
         if (group.table_name !== name) {
           const metrics = [];
           const dimensions = [];
-          group.fields.forEach((item) => {
+          group.fields.forEach(item => {
             item.monitor_type === 'metric' ? metrics.push(item) : dimensions.push(item);
           });
           const stopedData = this.stopedData[index];
@@ -691,7 +698,7 @@ export default {
               }
             }
           }
-          [...metrics, ...dimensions].forEach((item) => {
+          [...metrics, ...dimensions].forEach(item => {
             if (item.isCheck) {
               if (item.monitor_type === 'metric') {
                 const findIndex = group.fields.findIndex(row => row.name === item.name);
@@ -702,7 +709,9 @@ export default {
                 if (!this.checkDimensionRelevance(item, curMetrics)) {
                   let findIndex = group.fields.findIndex(row => row.name === item.name);
                   if (findIndex === -1 && Array.isArray(stopedData)) {
-                    findIndex = stopedData.findIndex(row => row.monitor_type === 'dimension' && row.data.name === item.name);
+                    findIndex = stopedData.findIndex(
+                      row => row.monitor_type === 'dimension' && row.data.name === item.name
+                    );
                     stopedData.splice(findIndex, 1);
                   } else {
                     // 若但前分组维度还有关联的指标则不需要删除维度
@@ -718,13 +727,13 @@ export default {
           });
         } else {
           targetGroup = group.fields;
-          targetGroup.forEach((item) => {
+          targetGroup.forEach(item => {
             item.isCheck = false;
           });
         }
       });
       // 移动目标到分组
-      result.forEach((item) => {
+      result.forEach(item => {
         const index = targetGroup.findIndex(row => row.name === item.name && row.monitor_type === item.monitor_type);
         const obj = item.monitor_type === 'metric' ? item : { ...item };
         if (index > -1) {
@@ -753,7 +762,7 @@ export default {
     async handleSave() {
       const cacheData = JSON.parse(JSON.stringify(this.tableData));
       //  过滤新增但没填名字的指标/维度
-      cacheData.forEach((group) => {
+      cacheData.forEach(group => {
         group.fields = group.fields.filter(item => item.name);
       });
       //  过度空的分组
@@ -765,7 +774,7 @@ export default {
       if (!this.canSave) {
         this.$bkMessage({
           theme: 'error',
-          message: this.$t('所有的指标/维度的英文名和别名不能重名或为空')
+          message: this.$t('所有的指标/维度的英文名和别名不能重名或为空'),
         });
         return;
       }
@@ -778,25 +787,25 @@ export default {
         info_version: this.pluginData.info_version,
         metric_json: (tableData || []).map(item => ({
           ...item,
-          fields: item.fields.map((set) => {
+          fields: item.fields.map(set => {
             const tmpSet = { ...set };
             if (set.monitor_type === 'metric' && set.type === 'diff') {
               tmpSet.type = 'double';
               tmpSet.is_diff_metric = true;
             }
-            frontEndParams.forEach((filed) => {
+            frontEndParams.forEach(filed => {
               delete tmpSet[filed];
             });
             return tmpSet;
-          })
-        }))
+          }),
+        })),
       };
       if (this.isFromHome || !this.isToken) {
         params.need_upgrade = true;
       }
       if (this.loading) return;
       this.loading = true;
-      const data = await saveMetric(params, { needMessage: false }).catch((err) => {
+      const data = await saveMetric(params, { needMessage: false }).catch(err => {
         this.$bkMessage({ theme: 'error', message: err.message, ellipsisLine: 0 });
         return false;
       });
@@ -842,19 +851,19 @@ export default {
       this.isImport = true;
       const result = [];
       let len = 0;
-      await new Promise((resolve) => {
-        files.forEach((file) => {
+      await new Promise(resolve => {
+        files.forEach(file => {
           const reader = new FileReader();
-          reader.onload = (e) => {
+          reader.onload = e => {
             const contents = JSON.parse(e.target.result);
             if (!Array.isArray(contents)) {
               this.$bkMessage('error', this.$t('文件内容不符合规范'));
             } else {
-              contents.forEach((item) => {
+              contents.forEach(item => {
                 result.push({
                   fields: Array.isArray(item.fields) ? item.fields : [],
                   table_name: item.table_name || '',
-                  table_desc: item.table_desc || ''
+                  table_desc: item.table_desc || '',
                 });
               });
             }
@@ -887,8 +896,8 @@ export default {
       this.$emit('back-plugin');
     },
     handleExportMetric(cb) {
-      typeof cb === 'function'
-        && cb(
+      typeof cb === 'function' &&
+        cb(
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           this.tableData
             .filter(item => item.table_name)
@@ -897,7 +906,6 @@ export default {
               fields: item?.fields
                 ?.filter(item => item.name)
                 .map(({ description, monitor_type, is_diff_metric, name, type, unit, is_active, dimensions = [] }) => {
-                  // eslint-disable-next-line camelcase
                   if (monitor_type === 'metric') {
                     return {
                       description,
@@ -907,7 +915,7 @@ export default {
                       name,
                       type,
                       unit,
-                      dimensions
+                      dimensions,
                     };
                   }
                   return {
@@ -916,9 +924,9 @@ export default {
                     name,
                     type,
                     unit,
-                    is_active
+                    is_active,
                   };
-                })
+                }),
             })),
           `${this.pluginData.plugin_id}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`
         );
@@ -939,16 +947,18 @@ export default {
             const tableItem = {
               table_name: item.table_name,
               table_desc: item.table_desc || item.table_name,
-              fields: []
+              fields: [],
             };
             const fieldList = [];
             const oldTableItem = this.tableData.find(set => set.table_name === item.table_name);
             item.fields.forEach((field, childIndex) => {
               if (!field.name) {
-                errorList.push(this.$t('分组：{tableName} 第{index}个字段未填写名称', {
-                  tableName: item.table_name,
-                  index: childIndex + 1
-                }));
+                errorList.push(
+                  this.$t('分组：{tableName} 第{index}个字段未填写名称', {
+                    tableName: item.table_name,
+                    index: childIndex + 1,
+                  })
+                );
               }
               // else if (fieldList.some(set => set.name === field.name)) {
               //   errorList.push(this.$t(
@@ -957,21 +967,26 @@ export default {
               //   ))
               // }
               if (fieldList.some(set => set.description !== '' && set.description === field.description)) {
-                errorList.push(this.$t('分组：{tableName} 别名：{fieldName}重复', {
-                  tableName: item.table_name,
-                  fieldName: field.description
-                }));
+                errorList.push(
+                  this.$t('分组：{tableName} 别名：{fieldName}重复', {
+                    tableName: item.table_name,
+                    fieldName: field.description,
+                  })
+                );
               }
               if (field.monitor_type === 'metric') {
                 if (allMetricFieldList.some(set => set.name === field.name)) {
-                  errorList.push(this.$t('分组：{tableName} 指标名：{fieldName}重复', {
-                    tableName: item.table_name,
-                    fieldName: field.name
-                  }));
+                  errorList.push(
+                    this.$t('分组：{tableName} 指标名：{fieldName}重复', {
+                      tableName: item.table_name,
+                      fieldName: field.name,
+                    })
+                  );
                 }
                 const metricItem = this.getDefaultMetric(field);
-                const oldMetricItem = oldTableItem?.fields.find(set => set.name === metricItem.name
-                && set.monitor_type === metricItem.monitor_type);
+                const oldMetricItem = oldTableItem?.fields.find(
+                  set => set.name === metricItem.name && set.monitor_type === metricItem.monitor_type
+                );
                 if (oldMetricItem?.value) {
                   metricItem.value = oldMetricItem.value;
                 }
@@ -979,24 +994,29 @@ export default {
                 allMetricFieldList.push(metricItem);
               } else if (field.monitor_type === 'dimension') {
                 if (fieldList.some(set => set.name === field.name)) {
-                  errorList.push(this.$t('分组：{tableName} 指标名：{fieldName}重复', {
-                    tableName: item.table_name,
-                    fieldName: field.name
-                  }));
+                  errorList.push(
+                    this.$t('分组：{tableName} 指标名：{fieldName}重复', {
+                      tableName: item.table_name,
+                      fieldName: field.name,
+                    })
+                  );
                 }
                 const dimensionItem = this.getDefaultDimension(field);
-                const oldDimensionItem = oldTableItem?.fields.find(set => set.name === dimensionItem.name
-                && set.monitor_type === dimensionItem.monitor_type);
+                const oldDimensionItem = oldTableItem?.fields.find(
+                  set => set.name === dimensionItem.name && set.monitor_type === dimensionItem.monitor_type
+                );
                 if (oldDimensionItem?.value) {
                   dimensionItem.value = oldDimensionItem.value;
                 }
                 fieldList.push(dimensionItem);
                 allMetricFieldList.push(dimensionItem);
               } else {
-                errorList.push(this.$t('分组：{tableName} 字段：{fieldName}填写字段分类错误', {
-                  tableName: item.table_name,
-                  fieldName: field.name
-                }));
+                errorList.push(
+                  this.$t('分组：{tableName} 字段：{fieldName}填写字段分类错误', {
+                    tableName: item.table_name,
+                    fieldName: field.name,
+                  })
+                );
               }
             });
             tableItem.fields = fieldList;
@@ -1008,7 +1028,7 @@ export default {
       } else {
         this.$bkMessage({
           theme: 'error',
-          message: this.$t('未检测到需要导入的指标和维度')
+          message: this.$t('未检测到需要导入的指标和维度'),
         });
         return;
       }
@@ -1021,7 +1041,7 @@ export default {
             errorList.map(message => this.$createElement('li', {}, message))
           ),
           delay: 10000,
-          ellipsisLine: 0
+          ellipsisLine: 0,
         });
         return;
       }
@@ -1034,14 +1054,14 @@ export default {
     },
     getDefaultMetric({
       description = '',
-      // eslint-disable-next-line camelcase
+
       is_active = true,
-      // eslint-disable-next-line camelcase
+
       is_diff_metric = false,
       name,
       type = 'double',
       unit = 'none',
-      dimensions = []
+      dimensions = [],
     }) {
       return {
         dimensions,
@@ -1059,17 +1079,17 @@ export default {
         value: {
           linux: null,
           windows: null,
-          aix: null
+          aix: null,
         },
         order: 1,
-        id: random(10)
+        id: random(10),
       };
     },
     getDefaultDimension({
       description = '',
-      // eslint-disable-next-line camelcase
+
       is_active = true,
-      name
+      name,
     }) {
       return {
         description,
@@ -1086,13 +1106,13 @@ export default {
         value: {
           linux: null,
           windows: null,
-          aix: null
+          aix: null,
         },
         order: 3,
-        id: random(10)
+        id: random(10),
       };
-    }
-  }
+    },
+  },
 };
 </script>
 

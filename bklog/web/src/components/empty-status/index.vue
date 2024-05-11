@@ -12,7 +12,9 @@
           {{ typeText }}
         </p>
         <template v-if="$slots.default">
-          <slot />
+          <p class="empty-text">
+            <slot />
+          </p>
         </template>
         <template v-else>
           <i18n

@@ -27,10 +27,10 @@
   <bk-dialog
     :title="title"
     :value="visible"
-    @value-change="valueChange"
     header-position="left"
     width="480"
     :show-footer="false"
+    @value-change="valueChange"
   >
     <slot />
     <div
@@ -38,26 +38,27 @@
       class="param-body"
     >
       <div
-        class="item"
         v-for="(item, index) in list"
         :key="index"
+        class="item"
       >
-        <div class="label">
-          {{ item.label }} ：
-        </div>
+        <div class="label">{{ item.label }} ：</div>
         <div
-          class="value"
           v-if="Array.isArray(item.value)"
+          class="value"
         >
           <bk-tag
             v-for="tag of item.value"
             :key="tag"
-          >{{ tag }}</bk-tag>
+            >{{ tag }}</bk-tag
+          >
         </div>
         <div
-          class="value"
           v-else
-        >{{ item.value || '--' }}</div>
+          class="value"
+        >
+          {{ item.value || '--' }}
+        </div>
       </div>
     </div>
   </bk-dialog>
@@ -69,22 +70,22 @@ export default {
   props: {
     title: {
       type: String,
-      default: '标题'
+      default: '标题',
     },
     visible: {
       type: Boolean,
-      required: true
+      required: true,
     },
     list: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   methods: {
     valueChange(val) {
       this.$emit('update:visible', val);
-    }
-  }
+    },
+  },
 };
 </script>
 

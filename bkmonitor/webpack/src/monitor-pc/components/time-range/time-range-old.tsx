@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 
 import {
@@ -32,18 +33,18 @@ import {
   handleTransformTime,
   handleTransformToTimestamp,
   intTimestampStr,
-  shortcuts
+  shortcuts,
 } from './utils';
 
 import './time-range-old.scss';
 
 export type TimeRangeType = [string, string];
 
-type TimeRangeDisplayType = 'normal' | 'simple' | 'border' | 'input';
+type TimeRangeDisplayType = 'border' | 'input' | 'normal' | 'simple';
 interface IProps {
   value: TimeRangeType;
   type?: TimeRangeDisplayType;
-  placement?: String;
+  placement?: string;
   defaultShortcuts?: typeof shortcuts;
 }
 interface IEvents {
@@ -54,7 +55,7 @@ interface IEvents {
 export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
   @Prop({ default: 'normal', type: String }) type: TimeRangeDisplayType; // 组件的样式类型
-  @Prop({ default: 'bottom-end', type: String }) placement: String; // 参照组件库的date-picker
+  @Prop({ default: 'bottom-end', type: String }) placement: string; // 参照组件库的date-picker
   @Prop({ default: () => shortcuts, type: Array }) defaultShortcuts: IProps['defaultShortcuts']; // 默认时间快捷选项
 
   /** 本地值存储 */
@@ -205,25 +206,25 @@ export default class TimeRange extends tsc<IProps, IEvents> {
         <bk-date-picker
           class='date-picker'
           ext-popover-cls='time-range-popover'
-          value={this.timestamp}
           open={this.isShow}
-          type='daterange'
-          transfer
           placement={this.placement}
+          type='daterange'
+          value={this.timestamp}
+          transfer
           on-change={this.dateTimeChange}
           on-open-change={this.handlePanelShowChange}
         >
           <bk-popover
             slot='trigger'
-            zIndex={4004}
-            placement='bottom'
             tippy-options={{
               onShow: () => {
                 /** 防止代码自动格式化 */
                 this.handleTransformTime();
-              }
+              },
             }}
+            placement='bottom'
             theme='light time-range-tips'
+            zIndex={4004}
           >
             {!window.__BK_WEWEB_DATA__?.lockTimeRange &&
               (() => {
@@ -242,7 +243,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
                   <div
                     class={[
                       'time-range-trigger',
-                      { active: this.isShow, simple: this.type === 'simple', border: this.type === 'border' }
+                      { active: this.isShow, simple: this.type === 'simple', border: this.type === 'border' },
                     ]}
                     onClick={() => (this.isShow = true)}
                   >
@@ -253,8 +254,8 @@ export default class TimeRange extends tsc<IProps, IEvents> {
                 );
               })()}
             <div
-              slot='content'
               class='time-range-tips-content'
+              slot='content'
             >
               <div>{this.timestamp[0]}</div>
               <div>to</div>
@@ -263,8 +264,8 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           </bk-popover>
           {this.$slots.header || (
             <div
-              slot='header'
               class='time-range-custom'
+              slot='header'
               onMousedown={modifiers.stop(() => {})}
             >
               {customDescTpl('time-range-desc-left')}
@@ -275,35 +276,35 @@ export default class TimeRange extends tsc<IProps, IEvents> {
               >
                 <bk-input
                   class='custom-input'
-                  v-model={this.localValue[0]}
                   v-bk-tooltips={{
                     allowHTML: true,
                     theme: 'light',
                     content: '#time-range-desc-left',
-                    placement: 'bottom'
+                    placement: 'bottom',
                   }}
-                  onInput={() => this.handleCustomInput(0)}
+                  v-model={this.localValue[0]}
                   clearable
+                  onInput={() => this.handleCustomInput(0)}
                 />
                 <bk-input
                   class='custom-input'
-                  v-model={this.localValue[1]}
                   v-bk-tooltips={{
                     allowHTML: true,
                     theme: 'light',
                     content: '#time-range-desc-right',
-                    placement: 'bottom'
+                    placement: 'bottom',
                   }}
-                  onInput={() => this.handleCustomInput(1)}
+                  v-model={this.localValue[1]}
                   clearable
+                  onInput={() => this.handleCustomInput(1)}
                 />
               </i18n>
             </div>
           )}
 
           <div
-            slot='footer'
             class='time-range-footer'
+            slot='footer'
           >
             <bk-button
               theme='primary'
@@ -313,8 +314,8 @@ export default class TimeRange extends tsc<IProps, IEvents> {
             </bk-button>
           </div>
           <ul
-            slot='shortcuts'
             class='shortcuts-list'
+            slot='shortcuts'
           >
             {this.shortcuts.map(item => (
               <li

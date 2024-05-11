@@ -34,7 +34,7 @@ export interface IData {
   icon: string;
   num: number;
   unit: string;
-  type: 'num' | '%' | 'time';
+  type: '%' | 'num' | 'time';
   borderRight?: boolean;
   tip?: string;
   allowHtml?: boolean;
@@ -45,7 +45,7 @@ interface IOverviewContentProps {
 }
 
 @Component({
-  name: 'OverviewContent'
+  name: 'OverviewContent',
 })
 export default class OverviewContent extends tsc<IOverviewContentProps> {
   @Prop({ type: Array, default: () => [] }) data: IData[];
@@ -69,7 +69,7 @@ export default class OverviewContent extends tsc<IOverviewContentProps> {
               theme: 'light',
               placements: ['top'],
               boundary: 'window',
-              maxWidth: 250
+              maxWidth: 250,
             }}
           >
             <span class='item-top'>
@@ -78,8 +78,8 @@ export default class OverviewContent extends tsc<IOverviewContentProps> {
             </span>
             <span class='item-bottom'>
               <img
-                src={this.getSvgIcon(item.icon)}
                 alt=''
+                src={this.getSvgIcon(item.icon)}
               />
               <span class='title'>{item.name}</span>
             </span>

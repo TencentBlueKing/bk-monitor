@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,6 +25,8 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers as m } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
@@ -37,13 +38,15 @@ import { EmptyStatusOperationType, EmptyStatusType } from '../../../../component
 import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../../monitor-k8s/utils';
 import { DEFAULT_TAB_LIST } from '../host-list/host-list';
 
 import './host-tree.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 /** 搜索栏的高度 */
 const DEFAULT_SEARCH_INPUT_HEIGHT = 32;
@@ -51,7 +54,7 @@ const DEFAULT_SEARCH_INPUT_HEIGHT = 32;
 const DEFAULT_TREE_HEIGHT = 500;
 
 /** 成功 | 无数据 | 失败 | 警告 | 不展示状态 */
-export type StatusClassNameType = 'success' | 'nodata' | 'failed' | 'warning' | 'none';
+export type StatusClassNameType = 'failed' | 'nodata' | 'none' | 'success' | 'warning';
 export interface TreeNodeItem {
   id: number | string;
   name: string;
@@ -71,13 +74,13 @@ export interface TreeNodeItem {
   os_type?: string;
 }
 export interface ICurNode {
-  id: string | number; // ip + cloudId 或者 bkInstId + bkObjId
+  id: number | string; // ip + cloudId 或者 bkInstId + bkObjId
   ip?: string;
-  cloudId?: string | number;
+  cloudId?: number | string;
   bkInstId?: number | string;
   bkObjId?: string;
   type: NodeType;
-  processId?: string | number;
+  processId?: number | string;
   osType?: number;
 }
 
@@ -158,7 +161,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
   hostStatusMap = {
     SUCCESS: 'success',
     FAILED: 'failed',
-    NODATA: 'nodata'
+    NODATA: 'nodata',
   };
   /** 主机状态 */
   statusMap = {
@@ -190,7 +193,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
   /** 当前选中的节点 */
   curNode: ICurNode = {
     id: null,
-    type: 'overview'
+    type: 'overview',
   };
 
   /** 主机属性数据 */
@@ -219,7 +222,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
       id: item.type,
       name: item.name || (this.statusData[item.type]?.count ?? 0),
       tips: item.tips,
-      status: item.status
+      status: item.status,
     }));
   }
 
@@ -253,7 +256,6 @@ export default class HostTree extends tsc<IProps, IEvents> {
 
   /** 目标对比选中的主机id */
   get compareTargets() {
-    // eslint-disable-next-line max-len
     return (
       this.viewOptions?.compares?.targets?.map(item => this.panel.targets?.[0]?.handleCreateItemId(item, true)) || []
     );
@@ -327,10 +329,10 @@ export default class HostTree extends tsc<IProps, IEvents> {
       this.handleTitleChange(null, this.$tc('概览'));
       return;
     }
-    // eslint-disable-next-line no-nested-ternary
+
     this.curNode.type =
       'bk_target_service_instance_id' in val ? 'service' : 'ip' in val || 'bk_target_ip' in val ? 'host' : 'node';
-    // eslint-disable-next-line no-nested-ternary
+
     this.curNode.id =
       this.curNode?.type === 'service'
         ? val.bk_target_service_instance_id
@@ -363,12 +365,12 @@ export default class HostTree extends tsc<IProps, IEvents> {
     this.$api[this.apiData.apiModule]
       [this.apiData.apiFunc]({
         ...variablesService.transformVariables(this.apiData.data),
-        condition_list: transformConditionValueParams(this.searchCondition)
+        condition_list: transformConditionValueParams(this.searchCondition),
       })
       .then(data => {
         this.emptyStatusType = 'empty';
         const treeData = (typeTools.isObject(data) ? data.data : data) as TreeNodeItem[];
-        this.conditionList = data.condition_list || [];
+        this.conditionList = transformConditionSearchList(data.condition_list || []);
         this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
         this.hostTreeData = treeData;
         this.traverseTree(treeData);
@@ -394,7 +396,6 @@ export default class HostTree extends tsc<IProps, IEvents> {
   getNodeName() {
     const { bk_inst_id, bk_obj_id, bk_target_service_instance_id } = this.viewOptions.filters;
     const targetNode = this.handleFindNode(this.hostTreeData, node => {
-      // eslint-disable-next-line max-len
       const isMatch =
         (node.bk_inst_id === bk_inst_id && node.bk_obj_id === bk_obj_id) ||
         (bk_target_service_instance_id !== undefined && bk_target_service_instance_id === node.service_instance_id);
@@ -428,10 +429,9 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const idMap: Record<string, any> = {
       service: (node: TreeNodeItem) => node.service_instance_id,
       host: (node: TreeNodeItem) => `${this.panel.targets?.[0]?.handleCreateItemId(node)}`,
-      node: (node: TreeNodeItem) => `${node.bk_inst_id}-${node.bk_obj_id}`
+      node: (node: TreeNodeItem) => `${node.bk_inst_id}-${node.bk_obj_id}`,
     };
     const fn = (data: TreeNodeItem[]) => {
-      // eslint-disable-next-line no-restricted-syntax
       for (const node of data) {
         const id = idMap[this.curNode.type]?.(node);
         if (id === this.curNode.id) return id;
@@ -449,7 +449,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
 
@@ -460,15 +460,14 @@ export default class HostTree extends tsc<IProps, IEvents> {
     this.isNoData =
       this.bigTreeRef?.filter({
         status: this.statusType,
-        keyword: this.searchKeyword
+        keyword: this.searchKeyword,
       })?.length < 1;
   }
 
   /** 初始化展开的节点 */
   get defaultExpandedId() {
-    const fn = (list: string | any[], targetName: string | number): any => {
+    const fn = (list: any[] | string, targetName: number | string): any => {
       if (list?.length) {
-        // eslint-disable-next-line no-restricted-syntax
         for (const item of list) {
           const sourceId =
             this.curNode?.type === 'host'
@@ -526,10 +525,10 @@ export default class HostTree extends tsc<IProps, IEvents> {
     this.localCompareTargets = [];
     if (!isOverview) {
       // 选中主机或节点时
-      // eslint-disable-next-line no-nested-ternary
+
       this.curNode.type =
         'service_instance_id' in data ? 'service' : 'ip' in data || 'bk_target_ip' in data ? 'host' : 'node';
-      // eslint-disable-next-line no-nested-ternary
+
       this.curNode.id =
         this.curNode?.type === 'service'
           ? data.service_instance_id
@@ -569,8 +568,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const viewOptions: IViewOptions = {
       ...this.localViewOptions,
       compares: {
-        targets: this.localCompareTargets
-      }
+        targets: this.localCompareTargets,
+      },
     };
     this.handleViewOptionsChnage(viewOptions);
   }
@@ -592,7 +591,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
           !hostMap.has(id) &&
             hostMap.set(id, {
               ...item,
-              id
+              id,
             });
         }
       });
@@ -616,7 +615,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
       'bk_inst_id',
       'bk_obj_id',
       'bk_target_service_instance_id',
-      'bk_host_id'
+      'bk_host_id',
     ];
     const filterList = Object.entries(this.localViewOptions.filters || {});
     const filter = filterList.reduce((newObj, cur: [string, any]) => {
@@ -627,8 +626,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const viewOptions: IViewOptions = {
       ...this.localViewOptions,
       filters: {
-        ...filter
-      }
+        ...filter,
+      },
     };
     if (isOverview) {
       // 数据总览情况下
@@ -636,7 +635,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
     } else if (node) {
       if ('service_instance_id' in node) {
         viewOptions.filters = {
-          bk_target_service_instance_id: node.service_instance_id
+          bk_target_service_instance_id: node.service_instance_id,
         };
       } else if ('ip' in node || 'bk_target_ip' in node) {
         const matchFields: any = {};
@@ -646,13 +645,13 @@ export default class HostTree extends tsc<IProps, IEvents> {
         viewOptions.filters = {
           bk_target_ip: node.ip,
           bk_target_cloud_id: node.bk_cloud_id,
-          bk_host_id: node.bk_host_id
+          bk_host_id: node.bk_host_id,
         };
         viewOptions.matchFields = { ...matchFields };
       } else {
         viewOptions.filters = {
           bk_inst_id: node.bk_inst_id,
-          bk_obj_id: node.bk_obj_id
+          bk_obj_id: node.bk_obj_id,
         };
       }
     }
@@ -677,7 +676,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
         const localStatus = this.hostStatusMap[status];
         if (!statusData[localStatus]?.count) {
           statusData[localStatus] = {
-            count: 0
+            count: 0,
           };
         }
         statusData[localStatus].count += 1;
@@ -694,12 +693,12 @@ export default class HostTree extends tsc<IProps, IEvents> {
     this.isNoData =
       this.bigTreeRef?.filter({
         status: this.statusType,
-        keyword: this.searchKeyword
+        keyword: this.searchKeyword,
       })?.length < 1;
   }
 
   /** 生成主机主机的状态类名 */
-  getItemStatusClassName(status: string | number): StatusClassNameType {
+  getItemStatusClassName(status: number | string): StatusClassNameType {
     const target = this.statusMapping.find(item => item.id === status);
     return (target.color as StatusClassNameType) || 'none';
   }
@@ -745,21 +744,21 @@ export default class HostTree extends tsc<IProps, IEvents> {
                 `${this.panel.targets?.[0]?.handleCreateItemId(data)}` === this.curNode?.id ||
                 (this.enableCmdbLevel && `${data.bk_inst_id}-${data.bk_obj_id}` === this.curNode?.id) ||
                 data.service_instance_id === this.curNode.id,
-              'checked-target': this.isTargetCompare && this.compareTargets.includes(data.id)
-            }
+              'checked-target': this.isTargetCompare && this.compareTargets.includes(data.id),
+            },
           ]}
           onClick={m.stop(() => this.handleClickItemProxy(data))}
         >
           <span
-            class='node-content'
             style='padding-right: 5px;'
+            class='node-content'
           >
             <div
               class='node-content-wrap'
               v-bk-overflow-tips={{
                 content: `${
                   'service_instance_id' in data ? data.name : data.name || data.display_name || data.bk_inst_name
-                }`
+                }`,
               }}
             >
               {!!data.status ? (
@@ -788,7 +787,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
             ) : undefined}
           </span>
         </div>
-      )
+      ),
     };
     return (
       <div
@@ -799,33 +798,21 @@ export default class HostTree extends tsc<IProps, IEvents> {
           <div class='host-tree-tool'>
             <div class='host-tree-search-row'>
               {this.conditionList.length ? (
-                <bk-search-select
-                  placeholder={this.$t('搜索')}
-                  vModel={this.searchCondition}
-                  show-condition={false}
-                  show-popover-tag-change={false}
+                <SearchSelect
+                  clearable={false}
                   data={this.currentConditionList}
+                  modelValue={this.searchCondition}
+                  placeholder={this.$t('搜索')}
                   onChange={this.handleSearch}
                 />
               ) : (
                 <bk-input
                   v-model={this.searchKeyword}
-                  right-icon='bk-icon icon-search'
                   placeholder={this.$t('搜索IP / 主机名')}
+                  right-icon='bk-icon icon-search'
                   onInput={this.handleLocalSearch}
                 ></bk-input>
               )}
-              {/* <bk-input
-              v-model={this.searchKeyword}
-              right-icon="bk-icon icon-search"
-              placeholder={this.$t('搜索IP / 主机名')}
-              onInput={this.handleSearch}></bk-input> */}
-              {/* <bk-search-select
-              placeholder={this.$t('搜索')}
-              vModel={this.searchCondition}
-              show-condition={false}
-              data={this.conditionList}
-              onChange={this.handleSearch} /> */}
               <bk-button
                 class='refresh-btn'
                 onClick={this.handleRefresh}
@@ -835,10 +822,10 @@ export default class HostTree extends tsc<IProps, IEvents> {
             </div>
             {this.isStatusFilter && (
               <StatusTab
-                needAll={false}
-                disabledClickZero
                 v-model={this.statusType}
+                needAll={false}
                 statusList={this.statusList}
+                disabledClickZero
                 onChange={this.handleStatusChange}
               ></StatusTab>
             )}
@@ -854,22 +841,22 @@ export default class HostTree extends tsc<IProps, IEvents> {
             {this.isTargetCompare ? (
               <bk-alert
                 class='target-compare-tips'
-                type='info'
                 title={this.$t('选择目标进行对比')}
+                type='info'
               ></bk-alert>
             ) : undefined}
           </div>
           {this.hostTreeData.length ? (
             <div style={{ height: `${this.hostTreeHeight}px` }}>
               <bk-big-tree
-                class={['big-tree', { 'clear-selected': !this.curNode?.id }]}
                 ref='bigTreeRef'
-                expand-on-click={false}
-                selectable={true}
-                filter-method={this.filterMethod}
-                default-expanded-nodes={this.defaultExpandedId}
+                class={['big-tree', { 'clear-selected': !this.curNode?.id }]}
                 data={this.hostTreeData}
+                default-expanded-nodes={this.defaultExpandedId}
+                expand-on-click={false}
+                filter-method={this.filterMethod}
                 scopedSlots={scopedSlots}
+                selectable={true}
               >
                 <template slot='empty'>
                   {this.isNoData && (

@@ -25,6 +25,7 @@
  */
 import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import deepmerge from 'deepmerge';
 
 import ListLegend from '../../components/chart-legend/common-legend';
@@ -48,8 +49,8 @@ const option: MonitorEchartOptions = {
       showMinLabel: false,
       showMaxLabel: false,
       align: 'center',
-      interval: 0
-    }
+      interval: 0,
+    },
   },
   yAxis: {
     type: 'value',
@@ -57,23 +58,22 @@ const option: MonitorEchartOptions = {
       show: true,
       lineStyle: {
         color: '#F0F1F5',
-        type: 'solid'
-      }
-    }
+        type: 'solid',
+      },
+    },
   },
-  series: []
+  series: [],
 };
 
 const legendData = [
   { name: 'cpu0', max: '2.7%', min: '1.1%', avg: '1.8%', total: '107.7%', color: '#7EB26D', show: true },
-  { name: 'cpu1', max: '2.8%', min: '1.1%', avg: '1.8%', total: '105.6%', color: '#EAB839', show: true }
+  { name: 'cpu1', max: '2.8%', min: '1.1%', avg: '1.8%', total: '105.6%', color: '#EAB839', show: true },
 ];
 
 interface ILineEchartProps {
   panel: PanelModel;
 }
 @Component
-// eslint-disable-next-line max-len
 class LineBarEChart
   extends Mixins<ResizeMixin & IntersectionMixin & ToolsMxin & LegendMixin & ChartLoadingMixin>(
     ResizeMixin,
@@ -103,11 +103,11 @@ class LineBarEChart
     return new Promise(resolve => {
       const data = [
         {
-          datapoints: []
+          datapoints: [],
         },
         {
-          datapoints: []
-        }
+          datapoints: [],
+        },
       ];
       const linePoit = data[0].datapoints;
       const barPoit = data[1].datapoints;
@@ -134,10 +134,10 @@ class LineBarEChart
           data: srcData[0].datapoints,
           type: 'line',
           itemStyle: {
-            opacity: 0
+            opacity: 0,
           },
           name: 'cpu1',
-          zlevel: 100
+          zlevel: 100,
         },
         {
           data: srcData[1].datapoints,
@@ -145,9 +145,9 @@ class LineBarEChart
           colorBy: 'data',
           barCategoryGap: '50%',
           name: 'cpu0',
-          zlevel: 100
-        }
-      ]
+          zlevel: 100,
+        },
+      ],
     };
     const updateOption = deepmerge(option, data);
     this.customOptions = deepmerge(this.customOptions, updateOption);
@@ -190,21 +190,21 @@ class LineBarEChart
       >
         <ChartHeader
           class='draggable-handle'
-          title={'这是一个标题'}
-          subtitle={'这是一个副标题'}
           isInstant={this.panel.instant}
           showMore={this.showHeaderMoreTool}
+          subtitle={'这是一个副标题'}
+          title={'这是一个标题'}
           onMenuClick={this.handleMenuToolsSelect}
         />
         <div class={`monitor-echart-common-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
           <div
-            class='chart-instance'
             ref='chart'
+            class='chart-instance'
           >
             <BaseEchart
               ref='baseChart'
-              height={this.height}
               width={this.width}
+              height={this.height}
               options={this.customOptions}
             />
           </div>

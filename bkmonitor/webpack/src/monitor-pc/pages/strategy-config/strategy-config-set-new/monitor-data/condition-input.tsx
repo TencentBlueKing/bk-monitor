@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getVariableValue } from 'monitor-api/modules/grafana';
 
 import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../constant/constant';
@@ -37,14 +38,14 @@ import './condition-input.scss';
 const nullOptions = {
   // 下拉选项第一为空值
   id: '',
-  name: `- ${window.i18n.tc('空')} -`
+  name: `- ${window.i18n.tc('空')} -`,
 };
 interface IMetricMeta {
   dataSourceLabel: string;
   dataTypeLabel: string;
   metricField: string;
-  resultTableId: string | number;
-  indexSetId?: string | number;
+  resultTableId: number | string;
+  indexSetId?: number | string;
 }
 export interface IConditionItem {
   key: string;
@@ -68,7 +69,7 @@ export interface IVarOption {
 }
 export type GetVarApiType = (field: string) => Promise<IVarOption[]>;
 @Component({
-  name: 'ConditionInput'
+  name: 'ConditionInput',
 })
 export default class ConditionInput extends tsc<IConditionInputProps> {
   @Prop({ required: true, type: Array }) readonly dimensionsList: any[];
@@ -181,7 +182,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
    * @description: 维度数据类型不同所需的method
    * @param {*} type 维度的数据类型
    */
-  handleGetMethodList(type: 'string' | 'number') {
+  handleGetMethodList(type: 'number' | 'string') {
     if (type === 'number') {
       return NUMBER_CONDITION_METHOD_LIST;
     }
@@ -198,7 +199,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
       {
         key: '',
         value: [],
-        method: 'eq'
+        method: 'eq',
       },
       needCondition ? { condition: 'and' } : {}
     );
@@ -224,8 +225,8 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
   handleRenderDimensionList(dimension) {
     return (
       <bk-option
-        key={dimension.id}
         id={dimension.id}
+        key={dimension.id}
         name={dimension.name}
       >
         <span
@@ -235,7 +236,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
             zIndex: 9999,
             boundary: document.body,
             appendTo: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {dimension.name}
@@ -282,21 +283,21 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
           field: keyId,
           metric_field: this.metricMeta.metricField,
           result_table_id: this.metricMeta.resultTableId,
-          where: []
+          where: [],
         },
         this.metricMeta.dataSourceLabel === 'bk_log_search'
           ? {
-              index_set_id: this.metricMeta.indexSetId
+              index_set_id: this.metricMeta.indexSetId,
             }
           : {}
-      )
+      ),
     };
     await getVariableValue(params, { needRes: true })
       .then(({ data, tips }) => {
         if (tips?.length) {
           this.$bkMessage({
             theme: 'warning',
-            message: tips
+            message: tips,
           });
         }
         const result = Array.isArray(data) ? data.map(item => ({ name: item.label.toString(), id: item.value })) : [];
@@ -317,7 +318,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
         ret.push({
           id: val,
           name: val,
-          show: true
+          show: true,
         });
       }
     });
@@ -339,39 +340,39 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
         {this.conditions.map((item, index) => [
           item.condition && item.key && index > 0 ? (
             <input
-              style={{ display: item.condition ? 'block' : 'none' }}
               key={`condition-${index}-${item.key}`}
+              style={{ display: item.condition ? 'block' : 'none' }}
               class='condition-item condition-item-condition'
-              readonly
               value={item.condition.toLocaleUpperCase()}
+              readonly
               on-click={e => this.handleToggleCondition(e, { index, prop: 'condition' })}
             />
           ) : undefined,
           <bk-select
+            key={`key-${index}-${item.key}`}
             ref={`key-${index}`}
             class='condition-item condition-item-key'
-            key={`key-${index}-${item.key}`}
-            clearable={false}
-            searchable
-            popover-min-width={200}
-            popover-width={getPopoverWidth(this.dimensionsList)}
             v-bk-tooltips={{
               content: item.key,
               trigger: 'mouseenter',
               zIndex: 9999,
               disabled: !item.key,
               boundary: document.body,
-              allowHTML: false
+              allowHTML: false,
             }}
-            on-toggle={e => this.handleToggleKey(e, index)}
+            clearable={false}
+            popover-min-width={200}
+            popover-width={getPopoverWidth(this.dimensionsList)}
             value={item.key}
+            searchable
             on-change={v => this.handleKeyChange(item, v)}
+            on-toggle={e => this.handleToggleKey(e, index)}
           >
             {this.dimensionsList.map(dimension => this.handleRenderDimensionList(dimension))}
             <div
               style={{ display: item.key ? 'flex' : 'none' }}
-              slot='extension'
               class='extension'
+              slot='extension'
               on-click={() => this.handleDeleteKey(index)}
             >
               <i class='icon-monitor icon-chahao'></i>
@@ -380,8 +381,8 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
           </bk-select>,
           item.key && [
             <span
-              class='condition-item condition-item-method'
               key={`method-${index}-${item.key}`}
+              class='condition-item condition-item-method'
               on-click={e => this.handleToggleMethod(e, { index, prop: 'method' })}
             >
               {this.handleGetMethodNameById(item.method)}
@@ -389,33 +390,33 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
             <bk-tag-input
               key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
               class='condition-item condition-item-value'
-              list={this.getValueOptions(item)}
               content-width={getPopoverWidth(this.getValueOptions(item), 20, 190)}
-              trigger='focus'
-              has-delete-icon
-              allow-create
-              allow-auto-match
-              value={item.value}
+              list={this.getValueOptions(item)}
               paste-fn={v => this.handlePaste(v, item)}
+              trigger='focus'
+              value={item.value}
+              allow-auto-match
+              allow-create
+              has-delete-icon
               on-change={(v: string[]) => this.handleValueChange(item, v)}
-            ></bk-tag-input>
-          ]
+            ></bk-tag-input>,
+          ],
         ])}
         <span
-          class='condition-item condition-add'
           style={{ display: this.showAdd ? 'flex' : 'none' }}
+          class='condition-item condition-add'
           on-click={() => this.handleAddCondition()}
         >
           <i class='bk-icon icon-plus'></i>
         </span>
         <SelectMenu
-          show={this.showSelectMenu}
-          target={this.curSelectTarget}
           list={this.menuList}
           min-width={60}
+          show={this.showSelectMenu}
+          target={this.curSelectTarget}
           on-on-delete={() => this.handleMenuDelete()}
-          on-on-select={item => this.handelMenuSelect(item)}
           on-on-hidden={() => this.handleMenuHidden()}
+          on-on-select={item => this.handelMenuSelect(item)}
         ></SelectMenu>
         <slot></slot>
       </span>

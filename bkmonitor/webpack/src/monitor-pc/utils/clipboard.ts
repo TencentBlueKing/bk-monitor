@@ -40,7 +40,7 @@ interface ExtentElement {
 // Set default configuration
 const defaultConfig: VueClipboardConfig = {
   autoSetContainer: false,
-  appendToBody: true // This fixes IE, see #50
+  appendToBody: true, // This fixes IE, see #50
 };
 
 // Define VueClipboard object
@@ -55,7 +55,7 @@ const VueClipboard = {
         const clipboard = new Clipboard(fakeElement, {
           text: () => text,
           action: () => 'copy',
-          container: container instanceof HTMLElement ? container : document.body
+          container: container instanceof HTMLElement ? container : document.body,
         });
 
         clipboard.on('success', (e: Event) => {
@@ -85,7 +85,7 @@ const VueClipboard = {
           const clipboard = new Clipboard(el, {
             text: () => binding.value,
             action: () => (binding.arg === 'cut' ? 'cut' : 'copy'),
-            container: defaultConfig.autoSetContainer ? el : undefined
+            container: defaultConfig.autoSetContainer ? el : undefined,
           });
 
           clipboard.on('success', (e: Event) => {
@@ -122,10 +122,10 @@ const VueClipboard = {
           el._vClipboard.destroy();
           delete el._vClipboard;
         }
-      }
+      },
     });
   },
-  config: defaultConfig
+  config: defaultConfig,
 };
 
 // Export default VueClipboard

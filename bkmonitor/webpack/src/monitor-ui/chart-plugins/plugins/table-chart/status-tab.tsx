@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './status-tab.scss';
@@ -50,8 +51,8 @@ export default class StatusTab extends tsc<IProps, IEvents> {
   defaultList: ITableFilterItem[] = [
     {
       id: 'all',
-      name: window.i18n.tc('全部')
-    }
+      name: window.i18n.tc('全部'),
+    },
   ];
 
   @Emit('change')
@@ -83,7 +84,7 @@ export default class StatusTab extends tsc<IProps, IEvents> {
               boundary: 'window',
               disabled: !item.tips,
               delay: 200,
-              allowHTML: false
+              allowHTML: false,
             }}
             onClick={() => this.handleClickItem(item)}
           >

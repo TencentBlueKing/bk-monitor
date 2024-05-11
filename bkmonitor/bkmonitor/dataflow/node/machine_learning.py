@@ -20,7 +20,10 @@ from django.utils.functional import cached_property
 
 from bkmonitor.dataflow.constant import get_aiops_env_bkdata_biz_id
 from bkmonitor.dataflow.node.base import Node
-from constants.aiops import MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD
+from constants.aiops import (
+    HOST_ANOMALY_SCENE_INPUT_FIELDS,
+    MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD,
+)
 from core.drf_resource import api
 from monitor_web.aiops.metric_recommend.constant import (
     METRIC_RECOMMAND_SCENE_SERVICE_TEMPLATE,
@@ -237,6 +240,45 @@ class MultivariateAnomalySceneServiceNode(SceneServiceNode):
         return config
 
 
+# 由于主机异常检测算法的输入字段不再是value，所以需要继承重写一个
+class HostAnomalySceneServiceNode(SceneServiceNode):
+    def __init__(self, *args, **kwargs):
+        super(HostAnomalySceneServiceNode, self).__init__(*args, **kwargs)
+        strategy_id = kwargs.get("strategy_id")
+        self.process_rt_id = f"host_anomaly_detect_{strategy_id}_plan"
+
+    @property
+    def config(self):
+        config = super(HostAnomalySceneServiceNode, self).config
+
+        mapping = {
+            field: {
+                "input_field_name": field,
+            }
+            for field in self.agg_dimensions
+        }
+        mapping.update(
+            {
+                field: {
+                    "input_field_name": field,
+                }
+                for field in HOST_ANOMALY_SCENE_INPUT_FIELDS
+            }
+        )
+        mapping.update(
+            {
+                "timestamp": {
+                    "input_field_name": self.time_field,
+                }
+            }
+        )
+
+        for input in config["dedicated_config"]["input_mapping"].values():
+            input["mapping"] = mapping
+
+        return config
+
+
 class SimilarMetricClusteringServiceNode(SceneServiceNode):
     def __init__(self, access_bk_biz_id, *args, **kwargs):
         self.access_bk_biz_id = access_bk_biz_id
@@ -400,9 +442,10 @@ class ModelApiServingNode(MachineLearnNode):
         model_config_template = model_config["model_config_template"]
 
         input_config_params = model_config_template["input"]["input_node"][0]["input_config"]
-        input_config_params["add_on_input"][0]["result_table_name"] = self.input_node.output_table_name
-        input_config_params["add_on_input"][0]["result_table_name_alias"] = self.input_node.output_table_name
-        input_config_params["add_on_input"][0]["value"] = self.input_node.output_table_name
+        if len(input_config_params["add_on_input"]) > 0:
+            input_config_params["add_on_input"][0]["result_table_name"] = self.input_node.output_table_name
+            input_config_params["add_on_input"][0]["result_table_name_alias"] = self.input_node.output_table_name
+            input_config_params["add_on_input"][0]["value"] = self.input_node.output_table_name
 
         input_config = {"input_node": input_config_params}
 

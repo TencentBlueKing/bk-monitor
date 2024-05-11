@@ -44,11 +44,11 @@ export default defineComponent({
       { id: 'neibutiaoyong', label: '内部调用' },
       { id: 'undefined', label: '未知' },
       { id: 'Network1', label: '网络请求' },
-      { id: 'System1', label: '系统调用' }
+      { id: 'System1', label: '系统调用' },
     ]);
 
     return {
-      legendList
+      legendList,
     };
   },
   render() {
@@ -62,5 +62,5 @@ export default defineComponent({
         ))}
       </div>
     );
-  }
+  },
 });

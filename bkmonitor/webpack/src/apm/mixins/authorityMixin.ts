@@ -30,14 +30,14 @@ import { Component as tsx } from 'vue-tsx-support';
 import authorityStore from '../store/modules/authority';
 
 Component.registerHooks(['beforeRouteEnter']);
-// eslint-disable-next-line new-cap, @typescript-eslint/naming-convention
+
 export default (authMap: { [propsName: string]: string }) =>
   Component(
-    class authorityMixin extends tsx<{}> {
+    class authorityMixin extends tsx<object> {
       public authority: { [propsName: string]: boolean } = {};
       public constructor() {
         super();
-        // eslint-disable-next-line no-param-reassign
+
         this.authority = Object.keys(authMap).reduce((pre: any, cur: string) => ((pre[cur] = false), pre), {});
       }
       public beforeRouteEnter(to: any, from: any, next: any) {
@@ -45,7 +45,7 @@ export default (authMap: { [propsName: string]: string }) =>
           const authorityMap: any = authMap || (to.meta.authority?.map ? to.meta.authority.map : false);
           const isSpecialEvent = false;
           const resource = vm.authorityResource;
-          // eslint-disable-next-line max-len
+
           authorityMap &&
             vm.handleInitPageAuthority(
               Array.from(new Set(Object.values(authorityMap).flat(2))),
@@ -62,7 +62,7 @@ export default (authMap: { [propsName: string]: string }) =>
       ) {
         const data: { actionId: string; isAllowed: boolean }[] = await authorityStore.checkAllowedByApmApplication({
           action_ids: actionList,
-          ...resource
+          ...resource,
         });
         Object.entries(authMap).forEach(entry => {
           const [key, value] = entry;
@@ -73,7 +73,7 @@ export default (authMap: { [propsName: string]: string }) =>
             filterData.length && this.$set(this.authority, key, isViewAuth ? isSpecialEvent || hasAuth : hasAuth);
           } else {
             const curEntry = data.find(item => item.actionId === value);
-            // eslint-disable-next-line max-len
+
             curEntry &&
               this.$set(this.authority, key, isViewAuth ? isSpecialEvent || curEntry.isAllowed : curEntry.isAllowed);
           }

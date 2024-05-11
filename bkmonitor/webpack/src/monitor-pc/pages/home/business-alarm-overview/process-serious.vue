@@ -38,9 +38,9 @@
     </div>
     <ul class="mainframe-serious-list">
       <li
-        class="item"
         v-for="item in alarm.abnormal_events"
         :key="item.event_id"
+        class="item"
       >
         <svg-icon
           :icon-name="`${item.type === 'serious' ? 'warning' : 'hint'}`"
@@ -59,7 +59,7 @@ import SvgIcon from '../../../components/svg-icon/svg-icon';
 export default {
   name: 'ProcessSerious',
   components: {
-    SvgIcon
+    SvgIcon,
   },
   mixins: [gotoPageMixin],
   inject: ['homeItemBizId'],
@@ -68,14 +68,14 @@ export default {
       type: Object,
       default() {
         return {};
-      }
+      },
     },
     homeDays: {
       type: Number,
       default() {
         return 7;
-      }
-    }
+      },
+    },
   },
   methods: {
     gotoDetailHandle(id) {
@@ -87,8 +87,8 @@ export default {
       const query = `activeFilterId=NOT_SHIELDED_ABNORMAL&from=now-${this.homeDays || 7}d&to=now`;
       const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center?${query}`;
       location.href = url;
-    }
-  }
+    },
+  },
 };
 </script>
 

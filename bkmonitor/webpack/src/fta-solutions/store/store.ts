@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import Vuex from 'vuex';
 
+import getters from './getters';
 import App, { IAppState } from './modules/app';
 import Home from './modules/home';
-import getters from './getters';
 
 Vue.use(Vuex);
 
@@ -42,7 +43,7 @@ export default new Vuex.Store<IRootState>({
   getters,
   modules: {
     app: App,
-    home: Home
+    home: Home,
   },
-  strict: process.env.NODE_ENV !== 'production'
+  strict: process.env.NODE_ENV !== 'production',
 });

@@ -31,14 +31,14 @@ import './notice-item.scss';
 
 interface IProps {
   value: boolean;
-  title: string | TranslateResult;
-  subTitle: string | TranslateResult;
+  title: TranslateResult | string;
+  subTitle: TranslateResult | string;
   onChange?: (v: boolean) => void;
   clearError: () => void;
 }
 
 @Component({
-  name: 'NoticeItem'
+  name: 'NoticeItem',
 })
 export default class NoticeItem extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) value: boolean;
@@ -56,11 +56,11 @@ export default class NoticeItem extends tsc<IProps> {
         <div class='notice-item-warp'>
           <div class='notice-header-warp'>
             <bk-checkbox
+              value={this.value}
               onChange={value => {
                 this.valueChange(value);
                 this.clearError();
               }}
-              value={this.value}
             ></bk-checkbox>
             <div
               class='title'

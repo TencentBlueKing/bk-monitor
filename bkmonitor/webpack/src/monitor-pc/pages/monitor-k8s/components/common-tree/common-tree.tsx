@@ -25,16 +25,23 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers as m } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import { ITableFilterItem } from '../../typings';
-import { filterSelectorPanelSearchList, transformConditionValueParams } from '../../utils';
+import {
+  filterSelectorPanelSearchList,
+  transformConditionSearchList,
+  transformConditionValueParams,
+} from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
 import './common-tree.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 /** 搜索栏的高度 */
 const DEFAULT_SEARCH_INPUT_HEIGHT = 32;
@@ -97,20 +104,20 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       id: 'success',
       status: 'success',
       name: 0,
-      tips: window.i18n.tc('无异常')
+      tips: window.i18n.tc('无异常'),
     },
     {
       id: 'failed',
       status: 'failed',
       name: 0,
-      tips: window.i18n.tc('异常')
+      tips: window.i18n.tc('异常'),
     },
     {
       id: 'disabled',
       status: 'disabled',
       name: 0,
-      tips: window.i18n.tc('无数据')
-    }
+      tips: window.i18n.tc('无数据'),
+    },
   ];
 
   /** 过滤已选得搜索条件 */
@@ -125,7 +132,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   /** 树形组件的高度 */
@@ -136,7 +143,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
   }
   /** 初始化展开的节点 */
   get defaultExpandedId() {
-    const fn = (list: string | any[], targetName: string): any => {
+    const fn = (list: any[] | string, targetName: string): any => {
       if (list?.length) {
         for (const item of list) {
           const sourceId = item.id;
@@ -184,11 +191,11 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     this.$api[this.apiData.apiModule]
       [this.apiData.apiFunc]({
         ...variablesService.transformVariables(this.apiData.data),
-        condition_list: transformConditionValueParams(this.searchCondition)
+        condition_list: transformConditionValueParams(this.searchCondition),
       })
       .then(data => {
         const treeData = typeTools.isObject(data) ? data.data : data;
-        this.conditionList = data.condition_list || [];
+        this.conditionList = transformConditionSearchList(data.condition_list || []);
         this.treeData = treeData;
         this.traverseTree(treeData);
         this.$emit('listChange', this.treeData.slice());
@@ -196,14 +203,15 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       .finally(() => (this.loading = false));
   }
   @Emit('searchChange')
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.getPanelData();
     return deepClone(this.searchCondition);
   }
   @Debounce(300)
   handleLocalSearch() {
     this.bigTreeRef?.filter({
-      keyword: this.searchKeyword
+      keyword: this.searchKeyword,
     });
   }
   handleRefresh() {
@@ -237,7 +245,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     viewOptions.filters = {
       endpoint_name: node.endpoint,
       service_name: node.service_name,
-      app_name: node.app_name
+      app_name: node.app_name,
     };
 
     return viewOptions;
@@ -271,7 +279,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     this.currentStatus = v;
     this.bigTreeRef?.filter({
       status: this.currentStatus,
-      keyword: this.searchKeyword
+      keyword: this.searchKeyword,
     });
   }
 
@@ -283,8 +291,8 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
           onClick={m.stop(() => this.handleClickItemProxy(data))}
         >
           <span
-            class='node-content'
             style='padding-right: 5px;'
+            class='node-content'
           >
             {!!data.status?.type && (
               <CommonStatus
@@ -295,7 +303,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
             <span class='item-name'>{data.name}</span>
           </span>
         </div>
-      )
+      ),
     };
     return (
       <div
@@ -304,19 +312,18 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       >
         <div class='list-header'>
           {this.conditionList.length ? (
-            <bk-search-select
-              placeholder={this.$t('搜索')}
-              vModel={this.searchCondition}
-              show-condition={false}
+            <SearchSelect
+              clearable={false}
               data={this.currentConditionList}
-              show-popover-tag-change={false}
+              modelValue={this.searchCondition}
+              placeholder={this.$t('搜索')}
               onChange={this.handleSearch}
             />
           ) : (
             <bk-input
               v-model={this.searchKeyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
@@ -329,30 +336,30 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
         </div>
         <StatusTab
           class='status-tab'
-          disabledClickZero={false}
           v-model={this.currentStatus}
+          disabledClickZero={false}
           statusList={this.statusList}
           onChange={this.handleStatusChange}
         />
         <div class='list-wrapper'>
           <bk-big-tree
-            class={['big-tree', { 'clear-selected': !this.activeId }]}
             ref='bigTreeRef'
-            expand-on-click={false}
             height={this.treeHeight}
-            selectable={true}
-            filter-method={this.filterMethod}
-            default-expanded-nodes={this.defaultExpandedId}
+            class={['big-tree', { 'clear-selected': !this.activeId }]}
             data={this.treeData}
+            default-expanded-nodes={this.defaultExpandedId}
+            expand-on-click={false}
+            filter-method={this.filterMethod}
             scopedSlots={scopedSlots}
+            selectable={true}
           >
             <div
-              slot='empty'
               class='search-empty-wrap'
+              slot='empty'
             >
               <bk-exception
-                type='search-empty'
                 scene='part'
+                type='search-empty'
               />
             </div>
           </bk-big-tree>

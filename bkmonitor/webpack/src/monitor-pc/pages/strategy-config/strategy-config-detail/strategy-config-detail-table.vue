@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="strategy-detail-table detail-content"
     v-bkloading="{ isLoading: strategyTarget.loading }"
+    class="strategy-detail-table detail-content"
   >
     <div v-if="tableData.length">
       <!-- 表格 -->
@@ -50,9 +50,8 @@
             <span
               v-if="scope.row.agentStatus"
               :style="{ color: statusColorMap[scope.row.agentStatus] }"
-            >{{
-              statusMap[scope.row.agentStatus]
-            }}</span>
+              >{{ statusMap[scope.row.agentStatus] }}</span
+            >
             <span v-else>--</span>
           </template>
         </bk-table-column>
@@ -67,9 +66,9 @@
         </bk-table-column>
       </bk-table>
       <bk-table
+        v-else-if="['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(targetType) || objType === 'SERVICE'"
         :empty-text="$t('无数据')"
         :data="tableData"
-        v-else-if="['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(targetType) || objType === 'SERVICE'"
       >
         <bk-table-column
           :label="$t('节点名称')"
@@ -155,35 +154,35 @@ export default {
     // 表格数据
     tableData: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     targetType: String,
-    objType: String
+    objType: String,
   },
   data() {
     return {
       statusColorMap: {
         normal: '#2DCB56',
         abnormal: '#EA3636',
-        not_exist: '#C4C6CC'
+        not_exist: '#C4C6CC',
       },
       statusMap: {
         normal: `Agent ${this.$t('正常')}`,
         abnormal: `Agent ${this.$t('异常')}`,
-        not_exist: `Agent ${this.$t('未安装')}`
+        not_exist: `Agent ${this.$t('未安装')}`,
       },
       strategyTarget: {
         type: '',
         data: [],
         tableData: [],
-        loading: false
+        loading: false,
       },
       tableInstance: {
         page: 1,
         pageSize: 10,
         pageList: [10, 20, 50, 100],
-        total: 0
-      }
+        total: 0,
+      },
     };
   },
   watch: {
@@ -191,8 +190,8 @@ export default {
       handler() {
         this.tableData && this.handleTableData(false);
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     // table数据变更事件
@@ -221,8 +220,8 @@ export default {
       this.tableInstance.page = 1;
       this.tableInstance.pageSize = limit;
       this.handleTableData(false, 50);
-    }
-  }
+    },
+  },
 };
 </script>
 

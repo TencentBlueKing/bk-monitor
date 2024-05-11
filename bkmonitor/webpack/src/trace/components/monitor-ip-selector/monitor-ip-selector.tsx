@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, reactive } from 'vue';
+
 import {
   agentStatisticsIpChooserTemplate,
   agentStatisticsIpChooserTopo,
@@ -42,11 +43,10 @@ import {
   serviceInstanceCountIpChooserTemplate,
   templatesIpChooserTemplate,
   treesIpChooserTopo,
-  updateConfigIpChooserConfig
+  updateConfigIpChooserConfig,
 } from 'monitor-api/modules/model';
 
 import { useAppStore } from '../../store/modules/app';
-
 import {
   CommomParams,
   componentProps,
@@ -59,7 +59,7 @@ import {
   ITemplateHost,
   ITemplateItem,
   ITemplateNode,
-  ITreeItem
+  ITreeItem,
 } from './typing';
 import create from './vue3.x';
 
@@ -67,7 +67,7 @@ import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
 
 const BkIpSelector = create({
   version: '3',
-  serviceConfigError: false
+  serviceConfigError: false,
 });
 
 export default defineComponent({
@@ -78,8 +78,8 @@ export default defineComponent({
     const scopeList: IScopeItme[] = [
       {
         scope_type: 'biz',
-        scope_id: store.bizId as string
-      }
+        scope_id: store.bizId as string,
+      },
     ];
     const ipSelectorServices = reactive({
       fetchTopologyHostCount, // 拉取topology
@@ -107,7 +107,7 @@ export default defineComponent({
       fetchCustomSettings,
       updateCustomSettings,
       fetchConfig,
-      ...props.service
+      ...props.service,
     });
     const ipSelectorConfig = reactive({
       // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'）
@@ -117,7 +117,7 @@ export default defineComponent({
         // 'dynamicGroup',
         'serviceTemplate',
         'setTemplate',
-        'manualInput'
+        'manualInput',
       ],
       // 面板选项的值是否唯一
       unqiuePanelValue: props.unqiuePanelValue,
@@ -134,7 +134,7 @@ export default defineComponent({
       //  'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
       hostTableRenderColumnList: props.hostTableRenderColumnList ?? [],
       hostViewFieldRender,
-      serviceConfigError: true
+      serviceConfigError: true,
     });
     /**
      * @description 拉取topology
@@ -147,7 +147,7 @@ export default defineComponent({
       const { search_content, ...p } = params;
       const data = {
         scope_list: scopeList,
-        ...(search_content ? params : p)
+        ...(search_content ? params : p),
       };
       return await queryHostsIpChooserTopo(data).catch(() => []);
     }
@@ -159,7 +159,7 @@ export default defineComponent({
     async function fetchNodesQueryPath(node: IFetchNode): Promise<Array<INode>[]> {
       return await queryPathIpChooserTopo({
         scope_list: scopeList,
-        ...node
+        ...node,
       }).catch(() => []);
     }
     /**
@@ -172,7 +172,7 @@ export default defineComponent({
     ): Promise<{ agent_statistics: IStatistics; node: INode }[]> {
       return await agentStatisticsIpChooserTopo({
         scope_list: scopeList,
-        ...node
+        ...node,
       }).catch(() => []);
     }
     /**
@@ -184,7 +184,7 @@ export default defineComponent({
       const { search_content, ...p } = params;
       const data = {
         scope_list: scopeList,
-        ...(search_content ? params : p)
+        ...(search_content ? params : p),
       };
       return await queryHostIdInfosIpChooserTopo(data).catch(() => []);
     }
@@ -196,7 +196,7 @@ export default defineComponent({
     async function fetchHostsDetails(node) {
       return await detailsIpChooserHost({
         scope_list: scopeList,
-        ...node
+        ...node,
       }).catch(() => []);
     }
     /**
@@ -207,7 +207,7 @@ export default defineComponent({
     async function fetchHostCheck(node: IFetchNode) {
       return await checkIpChooserHost({
         scope_list: scopeList,
-        ...node
+        ...node,
       }).catch(() => []);
     }
     /**
@@ -217,7 +217,7 @@ export default defineComponent({
     async function fetchTopologyServiceInstance(): Promise<ITreeItem[]> {
       return await treesIpChooserTopo({
         scope_list: scopeList,
-        count_instance_type: 'service_instance'
+        count_instance_type: 'service_instance',
       }).catch(() => []);
     }
     /**
@@ -228,7 +228,7 @@ export default defineComponent({
     async function fetchSeriviceInstanceList(params: CommomParams): Promise<ITreeItem[]> {
       return await queryServiceInstancesIpChooserTopo({
         scope_list: scopeList,
-        ...params
+        ...params,
       }).catch(() => []);
     }
     /**
@@ -239,7 +239,7 @@ export default defineComponent({
     async function fetchSeriviceInstanceDetails(params: CommomParams): Promise<ITreeItem[]> {
       return await detailsIpChooserServiceInstance({
         scope_list: scopeList,
-        ...params
+        ...params,
       }).catch(() => []);
     }
     /**
@@ -252,7 +252,7 @@ export default defineComponent({
         transformParams({
           scope_list: scopeList,
           template_type: 'SERVICE_TEMPLATE',
-          ...params
+          ...params,
         })
       ).catch(() => []);
     }
@@ -265,7 +265,7 @@ export default defineComponent({
       return await nodesIpChooserTemplate({
         scope_list: scopeList,
         template_type: 'SERVICE_TEMPLATE',
-        ...query
+        ...query,
       }).catch(() => []);
     }
     /**
@@ -278,7 +278,7 @@ export default defineComponent({
         scope_list: scopeList,
         template_type: 'SERVICE_TEMPLATE',
         template_id: query.id,
-        ...query
+        ...query,
       }).catch(() => []);
     }
     // 获取服务模板Agent统计状态
@@ -286,7 +286,7 @@ export default defineComponent({
       const params = {
         scope_list: scopeList,
         template_type: 'SERVICE_TEMPLATE',
-        ...query
+        ...query,
       };
       if (props.countInstanceType === 'service_instance') {
         return await serviceInstanceCountIpChooserTemplate(params)
@@ -296,9 +296,9 @@ export default defineComponent({
               host_count: item.count,
               node_count: item.node_count || 0,
               agent_statistics: {
-                total_count: item.count
+                total_count: item.count,
               },
-              service_template: query.service_template_list[0]
+              service_template: query.service_template_list[0],
             }))
           )
           .catch(() => []);
@@ -315,7 +315,7 @@ export default defineComponent({
         transformParams({
           scope_list: scopeList,
           template_type: 'SET_TEMPLATE',
-          ...query
+          ...query,
         })
       ).catch(() => []);
     }
@@ -328,7 +328,7 @@ export default defineComponent({
       return await nodesIpChooserTemplate({
         scope_list: scopeList,
         template_type: 'SET_TEMPLATE',
-        ...query
+        ...query,
       }).catch(() => []);
     }
     /**
@@ -341,7 +341,7 @@ export default defineComponent({
         scope_list: scopeList,
         template_type: 'SET_TEMPLATE',
         template_id: query.id,
-        ...query
+        ...query,
       }).catch(() => []);
     }
     /**
@@ -353,7 +353,7 @@ export default defineComponent({
       const params = {
         scope_list: scopeList,
         template_type: 'SET_TEMPLATE',
-        ...query
+        ...query,
       };
       if (props.countInstanceType === 'service_instance') {
         return await serviceInstanceCountIpChooserTemplate(params)
@@ -363,9 +363,9 @@ export default defineComponent({
               host_count: item.count,
               node_count: item.node_count || 0,
               agent_statistics: {
-                total_count: item.count
+                total_count: item.count,
               },
-              set_template: query.set_template_list[0]
+              set_template: query.set_template_list[0],
             }))
           )
           .catch(() => []);
@@ -399,7 +399,7 @@ export default defineComponent({
         // CMDB 服务模板链接
         bk_cmdb_service_template_url: `${CC_ROOT_URL}/#/business/${bizId}/service/template`,
         // CMDB 集群模板链接
-        bk_cmdb_set_template_url: `${CC_ROOT_URL}/#/business/${bizId}/set/template`
+        bk_cmdb_set_template_url: `${CC_ROOT_URL}/#/business/${bizId}/set/template`,
       };
     }
     function hostViewFieldRender(host: IHost, primaryField: string) {
@@ -414,7 +414,7 @@ export default defineComponent({
       if (props.countInstanceType === 'service_instance') {
         return {
           ...params,
-          count_instance_type: props.countInstanceType
+          count_instance_type: props.countInstanceType,
         };
       }
       return params;
@@ -422,34 +422,34 @@ export default defineComponent({
     return {
       ipSelectorServices,
       ipSelectorConfig,
-      scopeList
+      scopeList,
     };
   },
   render() {
     return (
       <BkIpSelector
-        mode={this.mode}
-        value={this.value}
-        originalValue={this.originalValue}
-        showView={this.showView}
-        showDialog={this.showDialog}
-        showViewDiff={this.showViewDiff}
-        viewSearchKey={this.viewSearchKey}
-        readonly={this.readonly}
-        keepHostFieldOutput={this.keepHostFieldOutput}
+        config={this.ipSelectorConfig}
+        defaultOutputFieldList={this.defaultOutputFieldList}
         disableDialogSubmitMethod={this.disableDialogSubmitMethod}
         disableHostMethod={this.disableHostMethod}
-        service={this.ipSelectorServices}
-        config={this.ipSelectorConfig}
-        singleHostSelect={this.singleHostSelect}
+        keepHostFieldOutput={this.keepHostFieldOutput}
+        mode={this.mode}
+        originalValue={this.originalValue}
         outputFieldList={this.outputFieldList}
         outputFieldOptionalHostTableColumn={this.outputFieldOptionalHostTableColumn}
-        defaultOutputFieldList={this.defaultOutputFieldList}
+        readonly={this.readonly}
+        service={this.ipSelectorServices}
+        showDialog={this.showDialog}
+        showView={this.showView}
+        showViewDiff={this.showViewDiff}
+        singleHostSelect={this.singleHostSelect}
+        value={this.value}
+        viewSearchKey={this.viewSearchKey}
         onChange={this.onChange}
-        onPanelChange={this.onPanelChange}
         onCloseDialog={this.onCloseDialog}
         onOutputField-change={this.onOutPutFieldChange}
+        onPanelChange={this.onPanelChange}
       ></BkIpSelector>
     );
-  }
+  },
 });

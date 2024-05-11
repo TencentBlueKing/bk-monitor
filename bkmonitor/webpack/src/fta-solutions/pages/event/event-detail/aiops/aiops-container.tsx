@@ -25,13 +25,13 @@
  */
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { dimensionDrillDown, metricRecommendation } from 'monitor-api/modules/alert';
 import { frontendReportEvent } from 'monitor-api/modules/commons';
 import { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { IDetail } from '../type';
-
 import DimensionTable from './dimension.table';
 import MetricsCollapse from './metrics-collapse';
 import MetricsView from './metrics-view';
@@ -66,8 +66,8 @@ interface IProps {
     TabTitle,
     DimensionTable,
     MetricsCollapse,
-    MetricsView
-  }
+    MetricsView,
+  },
 })
 export default class AiopsContainer extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -86,14 +86,14 @@ export default class AiopsContainer extends tsc<IProps> {
   /** 纬度下钻及关联指标存储数据 */
   tabData: ITabData = {
     dimension: {},
-    index: {}
+    index: {},
   };
   /** 表格勾选的维度 */
   anomalyDimensionsSelected = [];
   /** 排序信息 */
   anomalyDimensionsSort = {
     order: 'descending',
-    prop: 'dim_surprise'
+    prop: 'dim_surprise',
   };
   /** tab切换 */
   tabActive = ETabNames.dimension;
@@ -142,7 +142,7 @@ export default class AiopsContainer extends tsc<IProps> {
   get info() {
     return {
       dimensionInfo: this.tabData.dimension?.info || {},
-      indexInfo: this.tabData.index?.info || {}
+      indexInfo: this.tabData.index?.info || {},
     };
   }
   /** 图表信息 */
@@ -156,7 +156,7 @@ export default class AiopsContainer extends tsc<IProps> {
         : graphPanels.filter(({ anomaly_dimension_class }) => selects.includes(anomaly_dimension_class));
     return {
       dimensionPanels,
-      recommendedMetricPanels: this.tabData.index?.recommended_metrics || []
+      recommendedMetricPanels: this.tabData.index?.recommended_metrics || [],
     };
   }
   /** 纬度下钻表格展示数据 */
@@ -238,8 +238,8 @@ export default class AiopsContainer extends tsc<IProps> {
         alert_name,
         strategy_id,
         strategy_name,
-        user_name: window.user_name
-      }
+        user_name: window.user_name,
+      },
     };
   }
   handleReportClick() {
@@ -259,7 +259,7 @@ export default class AiopsContainer extends tsc<IProps> {
           this.hasReportView = true;
           frontendReportEvent(this.getReportParams(EventReportType.View), {
             needMessage: false,
-            needTraceId: false
+            needTraceId: false,
           }).catch(() => false);
         }
       }
@@ -268,32 +268,32 @@ export default class AiopsContainer extends tsc<IProps> {
       this.hasReportClick = true;
       frontendReportEvent(this.getReportParams(EventReportType.Click), {
         needMessage: false,
-        needTraceId: false
+        needTraceId: false,
       }).catch(() => false);
     } else if (type === EventReportType.Tips) {
       if (this.hasReportTips) return;
       this.hasReportTips = true;
       frontendReportEvent(this.getReportParams(EventReportType.Tips), {
         needMessage: false,
-        needTraceId: false
+        needTraceId: false,
       }).catch(() => false);
     }
   }
   /** 请求数据 */
   async getTabData() {
     const { dimension_drill, metric_recommend } = await fetchAiSetting({
-      bk_biz_id: this.detail.bk_biz_id
+      bk_biz_id: this.detail.bk_biz_id,
     }).catch(() => ({
       dimension_drill: {
-        is_enabled: false
+        is_enabled: false,
       },
       metric_recommend: {
-        is_enabled: false
-      }
+        is_enabled: false,
+      },
     }));
     const params = {
       bk_biz_id: this.detail.bk_biz_id,
-      alert_id: this.detail.id
+      alert_id: this.detail.id,
     };
     this.isDataInit = true;
     const catchFn = () => (this.isDataInit = false);
@@ -386,44 +386,44 @@ export default class AiopsContainer extends tsc<IProps> {
     return (
       <div
         ref='aiopsContainer'
-        onClick={this.handleReportClick}
         class={['aiops-container', { 'aiops-container-show': this.displayConditions && this.show }]}
+        onClick={this.handleReportClick}
       >
         <TabTitle
-          dimensionDrillDownLoading={this.dimensionDrillDownLoading}
-          metricRecommendationLoading={this.metricRecommendationLoading}
-          metricRecommendationErr={this.metricRecommendationErr}
-          dimensionDrillDownErr={this.dimensionDrillDownErr}
           active={this.tabActive}
-          tabInfo={this.info}
+          dimensionDrillDownErr={this.dimensionDrillDownErr}
+          dimensionDrillDownLoading={this.dimensionDrillDownLoading}
+          metricRecommendationErr={this.metricRecommendationErr}
+          metricRecommendationLoading={this.metricRecommendationLoading}
           showDimensionDrill={this.showDimensionDrill}
           showMetricRecommendation={this.showMetricRecommendation}
+          tabInfo={this.info}
           {...{
             on: {
-              'active-change': this.setTabActive
-            }
+              'active-change': this.setTabActive,
+            },
           }}
         />
         <DimensionTable
+          ref='dimensionTable'
+          class={`aiops-container-${this.isCorrelationMetrics ? 'hide' : 'show'}`}
           v-bkloading={{ isLoading: this.dimensionDrillDownLoading }}
           dimensionDrillDownErr={this.dimensionDrillDownErr}
-          ref='dimensionTable'
           tableData={this.anomalyDimensions}
-          class={`aiops-container-${this.isCorrelationMetrics ? 'hide' : 'show'}`}
           {...{
             on: {
               selectionChange: this.handleSelectionChange,
               sortChange: this.handleSortChange,
-              tipsClick: this.handleTipsClick
-            }
+              tipsClick: this.handleTipsClick,
+            },
           }}
         ></DimensionTable>
         <MetricsView
+          ref='metricsView'
+          info={this.tabData.index?.info || {}}
           metricRecommendationErr={this.metricRecommendationErr}
           metricRecommendationLoading={this.metricRecommendationLoading}
-          ref='metricsView'
           panelMap={this.panelMap}
-          info={this.tabData.index?.info || {}}
         ></MetricsView>
       </div>
     );

@@ -26,8 +26,8 @@
 <template>
   <div
     ref="stepPlugin"
-    class="step-plugin"
     v-bkloading="{ isLoading: data.isEdit ? pluginLoading : false }"
+    class="step-plugin"
   >
     <div class="step-plugin-item">
       <div class="item-label item-required">
@@ -35,15 +35,15 @@
       </div>
       <div class="item-container">
         <bk-select
+          v-model="bizList.value"
           class="biz"
           :disabled="isPublicPlugin || data.isEdit || ccBizId !== 0"
           :clearable="false"
-          v-model="bizList.value"
         >
           <bk-option
             v-for="(biz, index) in bizList.list"
-            :key="index"
             :id="biz.id"
+            :key="index"
             :name="biz.text"
           />
         </bk-select>
@@ -62,21 +62,21 @@
           :validator="{ content: pluginBasicInfo.nameErrorMsg }"
         >
           <bk-input
+            v-model="pluginBasicInfo.name"
             :placeholder="$t('英文')"
             :disabled="disabledPluginId"
             class="item-input"
-            v-model="pluginBasicInfo.name"
             @blur="checkPluginId"
           />
         </verify-input>
         <bk-checkbox
+          v-model="isPublicPlugin"
           v-authority="{ active: !authority.MANAGE_PUBLIC_AUTH }"
           :disabled="!authority.MANAGE_PUBLIC_AUTH"
           :class="{
-            'auth-disabled': !authority.MANAGE_PUBLIC_AUTH
+            'auth-disabled': !authority.MANAGE_PUBLIC_AUTH,
           }"
           style="vertical-align: baseline"
-          v-model="isPublicPlugin"
           @click.native="
             !authority.MANAGE_PUBLIC_AUTH && handleShowAuthorityDetail(pluginManageAuth.MANAGE_PUBLIC_AUTH)
           "
@@ -92,9 +92,9 @@
       </div>
       <div class="item-container">
         <bk-input
+          v-model="pluginBasicInfo.alias"
           :placeholder="$t('别名')"
           class="item-input"
-          v-model="pluginBasicInfo.alias"
         />
       </div>
     </div>
@@ -103,15 +103,15 @@
         {{ $t('插件类型') }}
       </div>
       <div
-        class="item-container"
         ref="containerWidth"
+        class="item-container"
       >
         <div class="bk-button-group">
           <bk-button
-            v-show="!pluginBasicInfo.type.notShowType.includes(pluginType.id)"
-            :disabled="disabledPluginId && pluginType.name !== pluginBasicInfo.type.value"
             v-for="(pluginType, index) in pluginBasicInfo.type.list"
+            v-show="!pluginBasicInfo.type.notShowType.includes(pluginType.id)"
             :key="index"
+            :disabled="disabledPluginId && pluginType.name !== pluginBasicInfo.type.value"
             :class="{ 'is-selected': pluginType.id === pluginBasicInfo.type.value }"
             @click="handlePluginChange(pluginType.id)"
           >
@@ -119,20 +119,21 @@
           </bk-button>
         </div>
         <div
-          class="description"
           v-if="pluginTypeDes"
+          class="description"
         >
           {{ pluginTypeDes }}
           <span
             class="doc-link"
             @click="handleGotoLink(pluginBasicInfo.type.value)"
-          >{{ $t('前往文档中心') }} <span class="icon-monitor icon-mc-link" /></span>
+            >{{ $t('前往文档中心') }} <span class="icon-monitor icon-mc-link"
+          /></span>
         </div>
       </div>
     </div>
     <div
-      class="step-plugin-item label-bottom upload-package"
       v-show="['Exporter', 'DataDog'].includes(pluginBasicInfo.type.value)"
+      class="step-plugin-item label-bottom upload-package"
     >
       <div class="item-label item-required">
         {{ $t('上传内容') }}
@@ -143,10 +144,10 @@
           style="margin: -8px 0 0 -10px"
         >
           <div
-            class="upload-item"
             v-for="(system, index) in systemTabs.list"
-            :key="`${index}-Exporter`"
             v-show="pluginBasicInfo.type.value === 'Exporter'"
+            :key="`${index}-Exporter`"
+            class="upload-item"
           >
             <mo-upload
               :ref="`uploadFile-exporter-${index}`"
@@ -158,28 +159,28 @@
             />
           </div>
           <div
-            class="upload-item"
             v-for="(system, index) in systemTabs.list"
-            :key="`${index}-DataDog`"
             v-show="pluginBasicInfo.type.value === 'DataDog'"
+            :key="`${index}-DataDog`"
+            class="upload-item"
           >
             <mo-upload
               :ref="`uploadFile-datadog-${index}`"
-              @change="getCheckNameChange"
-              @yaml="getYaml"
               :collector="pluginBasicInfo.dataDogCollector[system.name]"
               :is-edit="data.isEdit"
               :plugin-id="pluginBasicInfo.name"
               :system="system.name"
               :plugin-type="pluginBasicInfo.type.value"
+              @change="getCheckNameChange"
+              @yaml="getYaml"
             />
           </div>
         </div>
       </div>
     </div>
     <div
-      class="step-plugin-item label-bottom"
       v-show="['Script', 'JMX', 'DataDog'].includes(pluginBasicInfo.type.value)"
+      class="step-plugin-item label-bottom"
     >
       <div class="item-label item-required">
         {{ $t('采集配置') }}
@@ -210,8 +211,8 @@
           class="run-port"
         >
           <param-card
-            title="${port}"
             v-model="pluginBasicInfo.port"
+            title="${port}"
             :placeholder="$t('输入端口')"
             @blur="pluginBasicInfo.isPortLegal = !portRgx.test(pluginBasicInfo.port.trim())"
           />
@@ -227,16 +228,16 @@
       </div>
       <div class="item-container">
         <param-card
+          v-model="pluginBasicInfo.bindUrl"
           title="${host}"
           :disabled="true"
-          v-model="pluginBasicInfo.bindUrl"
           :placeholder="$t('输入主机')"
         />
       </div>
     </div>
     <div
-      class="step-plugin-item"
       v-show="pluginBasicInfo.type.value === 'SNMP'"
+      class="step-plugin-item"
     >
       <div class="item-label item-required">
         {{ $t('SNMP版本') }}
@@ -248,16 +249,16 @@
         >
           <bk-option
             v-for="i in 3"
+            :id="i"
             :key="i"
             :name="`v${i}`"
-            :id="i"
           />
         </bk-select>
       </div>
     </div>
     <div
-      class="step-plugin-item"
       v-show="pluginBasicInfo.type.value === 'SNMP'"
+      class="step-plugin-item"
     >
       <div class="item-label item-required">
         {{ $t('采集配置') }}
@@ -280,7 +281,7 @@
         'step-plugin-item',
         'define-param',
         hasDefineParam ? 'has-param' : '',
-        pluginBasicInfo.type.value === 'Exporter' ? 'plugin-exporter' : ''
+        pluginBasicInfo.type.value === 'Exporter' ? 'plugin-exporter' : '',
       ]"
     >
       <div
@@ -290,9 +291,9 @@
       </div>
       <div class="item-container">
         <div
-          class="item-param"
           v-for="(param, index) in params"
           :key="index"
+          class="item-param"
           @click="handleEditParam(param)"
         >
           <div class="wrapper">
@@ -308,13 +309,13 @@
         </div>
         <template v-if="!['JMX', 'SNMP'].includes(pluginBasicInfo.type.value)">
           <span
-            class="bk-icon icon-plus"
             v-if="params.length"
+            class="bk-icon icon-plus"
             @click="handleAddParam"
           />
           <span
-            class="add-params-text"
             v-else
+            class="add-params-text"
             @click="handleAddParam"
           >
             {{ $t('点击添加参数') }}
@@ -343,20 +344,20 @@
           :validator="{ content: $t('选择分类') }"
         >
           <bk-select
-            :clearable="false"
             v-model="pluginBasicInfo.label.value"
+            :clearable="false"
             @change="validateLabel"
           >
             <bk-option-group
               v-for="(group, index) in pluginBasicInfo.label.list"
-              :name="group.name"
               :key="index"
+              :name="group.name"
             >
               <bk-option
                 v-for="(option, i) in group.children"
+                :id="option.id"
                 :key="i"
                 :disabled="option.disabled"
-                :id="option.id"
                 :name="option.name"
               >
                 <div
@@ -364,7 +365,7 @@
                     content: $t('有采集任务时不允许修改'),
                     disabled: !option.disabled,
                     placement: 'right',
-                    flip: false
+                    flip: false,
                   }"
                 >
                   {{ option.name }}
@@ -431,15 +432,15 @@
       :show.sync="registerDialog.show"
     />
     <bk-dialog
+      v-model="pluginChangeMsg.show"
       :close-icon="false"
       header-position="left"
-      v-model="pluginChangeMsg.show"
     >
       <div class="change-description">
         <span class="title"> {{ $t('插件变更说明') }} </span>
         <bk-input
-          type="textarea"
           v-model="pluginChangeMsg.msg"
+          type="textarea"
         />
       </div>
       <div slot="footer">
@@ -452,8 +453,8 @@
           {{ $t('确定') }}
         </bk-button>
         <bk-button
-          @click="handleCancelDesc"
           style="margin-left: 8px"
+          @click="handleCancelDesc"
         >
           {{ $t('取消') }}
         </bk-button>
@@ -462,17 +463,17 @@
   </div>
 </template>
 <script>
-import { mapActions, mapGetters } from 'vuex';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
 import {
   checkIdCollectorPlugin,
   createCollectorPlugin,
   editCollectorPlugin,
-  retrieveCollectorPlugin
+  retrieveCollectorPlugin,
 } from 'monitor-api/modules/model';
 import { pluginRegister } from 'monitor-api/modules/plugin';
 import Editor from 'monitor-ui/markdown-editor/editor.tsx';
+import { mapActions, mapGetters } from 'vuex';
 
 import PollingLoading from '../../../../components/polling-loading/polling-loading';
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
@@ -482,7 +483,6 @@ import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import * as pluginManageAuth from '../../authority-map';
 import Logo from '../logo/logo';
 import MoUpload from '../upload/upload';
-
 import ConfigParam from './components/config-param';
 import ImportFile from './components/import-file';
 import NewPluginMonaco from './components/new-plugin-monaco';
@@ -501,27 +501,28 @@ export default {
     PollingLoading,
     ConfigParam,
     NewPluginMonaco,
-    ImportFile
+    ImportFile,
   },
-  inject: ['authority', 'handleShowAuthorityDetail'],
   mixins: [documentLinkMixin, formLabelMixin],
+  inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
     data: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     show: {
-      type: Boolean
+      type: Boolean,
     },
     step: {
       type: Number,
-      default: 0
-    }
+      default: 0,
+    },
   },
   data() {
-    const url =      process.env.NODE_ENV === 'development'
-      ? process.env.proxyUrl + window.static_url
-      : location.origin + window.static_url;
+    const url =
+      process.env.NODE_ENV === 'development'
+        ? process.env.proxyUrl + window.static_url
+        : location.origin + window.static_url;
     return {
       pluginManageAuth,
       testSystemList: [],
@@ -535,7 +536,7 @@ export default {
         selectedSystemList: [],
         defaultValue: {},
         yaml: '',
-        width: 0
+        width: 0,
       },
       pluginBasicInfo: {
         name: '',
@@ -550,31 +551,31 @@ export default {
           list: [
             {
               id: 'Script',
-              name: 'Script'
+              name: 'Script',
             },
             {
               id: 'JMX',
-              name: 'JMX'
+              name: 'JMX',
             },
             {
               id: 'Exporter',
-              name: 'Exporter'
+              name: 'Exporter',
             },
             {
               id: 'DataDog',
-              name: 'DataDog'
+              name: 'DataDog',
             },
             {
               id: 'Pushgateway',
-              name: 'BK-Pull'
+              name: 'BK-Pull',
             },
             {
               id: 'SNMP',
-              name: 'SNMP'
-            }
+              name: 'SNMP',
+            },
           ],
           value: 'Script',
-          notShowType: []
+          notShowType: [],
         },
         port: '',
         params: [],
@@ -586,7 +587,7 @@ export default {
             type: 'text',
             default: '',
             description: '',
-            disabled: true
+            disabled: true,
           },
           {
             name: 'jmx_url',
@@ -595,7 +596,7 @@ export default {
             alias: this.$t('连接字符串'),
             default: '',
             description: '',
-            disabled: true
+            disabled: true,
           },
           {
             name: 'username',
@@ -604,7 +605,7 @@ export default {
             alias: this.$t('用户名'),
             default: '',
             description: '',
-            disabled: true
+            disabled: true,
           },
           {
             name: 'password',
@@ -613,8 +614,8 @@ export default {
             alias: this.$t('密码'),
             default: '',
             description: '',
-            disabled: true
-          }
+            disabled: true,
+          },
         ],
         dataDogParams: [
           {
@@ -623,8 +624,8 @@ export default {
             mode: 'collector',
             default: 'python',
             description: 'Python 程序路径',
-            disabled: true
-          }
+            disabled: true,
+          },
         ],
         pushGatewayParams: [
           {
@@ -634,7 +635,7 @@ export default {
             alias: this.$t('采集URL'),
             default: '',
             description: '',
-            disabled: true
+            disabled: true,
           },
           {
             name: 'username',
@@ -643,7 +644,7 @@ export default {
             alias: this.$t('用户名'),
             default: '',
             description: '',
-            disabled: true
+            disabled: true,
           },
           {
             name: 'password',
@@ -652,8 +653,8 @@ export default {
             alias: this.$t('密码'),
             default: '',
             description: '',
-            disabled: true
-          }
+            disabled: true,
+          },
         ],
         snmpParams: {
           commons: [
@@ -664,7 +665,7 @@ export default {
               default: '',
               key: 'port',
               description: this.$t('监听端口'),
-              disabled: true
+              disabled: true,
             },
             {
               name: this.$t('绑定地址'),
@@ -673,7 +674,7 @@ export default {
               default: '0.0.0.0',
               key: 'host',
               description: this.$t('绑定地址'),
-              disabled: true
+              disabled: true,
             },
             {
               name: this.$t('设备端口'),
@@ -682,8 +683,8 @@ export default {
               default: '161',
               key: 'snmp_port',
               description: this.$t('snmp设备端口'),
-              disabled: true
-            }
+              disabled: true,
+            },
           ],
           1: [
             {
@@ -693,8 +694,8 @@ export default {
               default: 'public',
               key: 'community',
               description: this.$t('团体名'),
-              disabled: true
-            }
+              disabled: true,
+            },
           ],
           2: [
             {
@@ -704,8 +705,8 @@ export default {
               default: 'public',
               key: 'community',
               description: this.$t('团体名'),
-              disabled: true
-            }
+              disabled: true,
+            },
           ],
           3: [
             {
@@ -723,7 +724,7 @@ export default {
                   type: 'text',
                   key: 'security_name',
                   name: this.$t('安全名'),
-                  description: this.$t('安全名')
+                  description: this.$t('安全名'),
                 },
                 {
                   default: '',
@@ -731,7 +732,7 @@ export default {
                   type: 'text',
                   key: 'context_name',
                   name: this.$t('上下文名称'),
-                  description: this.$t('上下文名称')
+                  description: this.$t('上下文名称'),
                 },
                 {
                   default: 'noAuthNoPriv',
@@ -740,7 +741,7 @@ export default {
                   type: 'list',
                   key: 'security_level',
                   name: this.$t('安全级别'),
-                  description: this.$t('安全级别')
+                  description: this.$t('安全级别'),
                 },
                 {
                   default: 'AES',
@@ -752,17 +753,17 @@ export default {
                   description: this.$t('验证协议'),
                   auth_priv: {
                     noAuthNoPriv: {
-                      need: false
+                      need: false,
                     },
                     authNoPriv: {
                       need: true,
-                      election: ['MD5', 'SHA']
+                      election: ['MD5', 'SHA'],
                     },
                     authPriv: {
                       need: true,
-                      election: ['MD5', 'SHA', 'DES', 'AES']
-                    }
-                  }
+                      election: ['MD5', 'SHA', 'DES', 'AES'],
+                    },
+                  },
                 },
                 {
                   default: '',
@@ -773,15 +774,15 @@ export default {
                   description: this.$t('验证口令'),
                   auth_priv: {
                     noAuthNoPriv: {
-                      need: false
+                      need: false,
                     },
                     authNoPriv: {
-                      need: true
+                      need: true,
                     },
                     authPriv: {
-                      need: true
-                    }
-                  }
+                      need: true,
+                    },
+                  },
                 },
                 {
                   default: 'AES',
@@ -793,16 +794,16 @@ export default {
                   description: this.$t('隐私协议'),
                   auth_priv: {
                     NoAuthNoPriv: {
-                      need: false
+                      need: false,
                     },
                     authNoPriv: {
-                      need: false
+                      need: false,
                     },
                     authPriv: {
                       need: true,
-                      election: ['DES', 'AES']
-                    }
-                  }
+                      election: ['DES', 'AES'],
+                    },
+                  },
                 },
                 {
                   default: '',
@@ -813,28 +814,28 @@ export default {
                   description: '私钥',
                   auth_priv: {
                     noAuthNoPriv: {
-                      need: false
+                      need: false,
                     },
                     authNoPriv: {
-                      need: false
+                      need: false,
                     },
                     authPriv: {
-                      need: true
-                    }
-                  }
-                }
-              ]
-            }
-          ]
+                      need: true,
+                    },
+                  },
+                },
+              ],
+            },
+          ],
         },
         snmpVersion: '1', // 1 | 2 | 3 snmp插件的版本参数
         snmpConfig: {
           name: '',
-          content: ''
+          content: '',
         },
         label: {
           list: [],
-          value: ''
+          value: '',
         },
         infoVersion: null,
         configVersion: null,
@@ -845,7 +846,7 @@ export default {
         jmxCollector: {},
         metricJson: [],
         isPortLegal: false,
-        desc: ''
+        desc: '',
       },
       portRgx: /^([1-9]\d{0,4}|[1-5]\d{5}|6[0-4]\d{4}|65[0-4]\d{3}|655[0-2]\d{2}|6553[0-5])$/,
       remoteCollector: false,
@@ -854,17 +855,17 @@ export default {
       isPublicPlugin: false,
       bizList: {
         list: [],
-        value: +this.$store.getters.bizId
+        value: +this.$store.getters.bizId,
       },
       ccBizId: +this.$store.getters.bizId,
       systemTabs: {
-        list: []
+        list: [],
       },
       hasHostPort: true,
       field: [],
       tag: {
         value: '',
-        error: false
+        error: false,
       },
       hasDefineParam: false,
       configParam: {
@@ -873,22 +874,22 @@ export default {
         title: this.$t('定义参数'),
         type: 'param',
         isEdit: false,
-        index: 0
+        index: 0,
       },
       registerDialog: {
         show: false,
         status: {
           msg: this.$t('保存中...'),
-          failMsg: ''
-        }
+          failMsg: '',
+        },
       },
       pluginChangeMsg: {
         show: false,
         isChange: true,
-        msg: ''
+        msg: '',
       },
       reservedWord: [],
-      isImport: false
+      isImport: false,
     };
   },
   computed: {
@@ -904,7 +905,7 @@ export default {
         Exporter: info.params,
         DataDog: [...info.dataDogParams, ...info.params],
         Pushgateway: [...info.pushGatewayParams, ...info.params],
-        SNMP: [...info.snmpParams.commons, ...info.snmpParams[info.snmpVersion]]
+        SNMP: [...info.snmpParams.commons, ...info.snmpParams[info.snmpVersion]],
       };
       return param[info.type.value];
     },
@@ -943,13 +944,13 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         JMX: this.$t('对于开启了JMX的服务，可以方便进行配置制作自己的插件。更多介绍'),
         Exporter: this.$t('Prometheus的Exporter采集组件，可以快速转化为蓝鲸的插件。 更多介绍'),
         DataDog: this.$t('Datadog的采集Agent，可以快速的转化为蓝鲸的插件。更多介绍'),
-        Pushgateway: this.$t('可以定义远程拉取的插件，如拉取pushgateway的数据。更多介绍')
+        Pushgateway: this.$t('可以定义远程拉取的插件，如拉取pushgateway的数据。更多介绍'),
       };
       return des[this.pluginBasicInfo.type.value];
     },
     needRegister() {
       return !this.isEdit || this.pluginBasicInfo.status === 'draft' || !this.pluginData.sameConfig;
-    }
+    },
   },
   async created() {
     this.updateNavData(this.data.pluginId ? `${this.$t('编辑')}` : this.$t('新建插件'));
@@ -1074,7 +1075,9 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         this.pluginBasicInfo.isNameLegal = !res.result;
         this.pluginBasicInfo.nameErrorMsg = this.$t(res.message);
       } else if (!this.pluginBasicInfo.name) {
-        this.pluginBasicInfo.nameErrorMsg = this.$t('输入插件名称，仅以字母开头，仅支持字母、下划线和数字, 长度不能超过30个字符');
+        this.pluginBasicInfo.nameErrorMsg = this.$t(
+          '输入插件名称，仅以字母开头，仅支持字母、下划线和数字, 长度不能超过30个字符'
+        );
         this.pluginBasicInfo.isNameLegal = true;
       }
       return !this.pluginBasicInfo.isNameLegal;
@@ -1104,7 +1107,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       if (this.pluginBasicInfo.type.value === 'DataDog') {
         this.pluginMonaco[system] = yaml;
         let text = '';
-        this.systemTabs.list.forEach((sys) => {
+        this.systemTabs.list.forEach(sys => {
           text += `\n${this.pluginMonaco[sys.name] || ''}`;
         });
         this.$set(this.pluginMonaco.defaultValue, 'DataDog', { text, lang: 'yaml' });
@@ -1119,7 +1122,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       const routeList = [];
       routeList.push({
         name,
-        id: ''
+        id: '',
       });
       this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
     },
@@ -1163,9 +1166,10 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       this.pluginBasicInfo.type.value = plugin.plugin_type;
       this.pluginBasicInfo.desc = plugin.description_md;
       this.pluginBasicInfo.label.value = plugin.label;
-      this.bizList.value =        plugin.bk_biz_id === undefined || !this.$store.getters.isSuperUser
-        ? this.$store.getters.bizId
-        : plugin.bk_biz_id;
+      this.bizList.value =
+        plugin.bk_biz_id === undefined || !this.$store.getters.isSuperUser
+          ? this.$store.getters.bizId
+          : plugin.bk_biz_id;
       this.pluginBasicInfo.configVersion = plugin.config_version;
       this.pluginBasicInfo.metricJson = plugin.metric_json;
       this.pluginBasicInfo.infoVersion = plugin.info_version;
@@ -1176,10 +1180,9 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       this.pluginChangeMsg.msg = plugin.version_log;
       this.isImport = this.data.type === 'import';
       this.pluginBasicInfo.relatedConfCount = plugin.related_conf_count; // 插件关联的配置数量
-      this.pluginBasicInfo.label.list.forEach((item) => {
-        // eslint-disable-next-line no-unused-vars
+      this.pluginBasicInfo.label.list.forEach(item => {
         const hasLabel = item.children.some(child => child.id === plugin.label);
-        item.children.forEach((child) => {
+        item.children.forEach(child => {
           if (plugin.related_conf_count && this.data.isEdit) {
             child.disabled = !hasLabel;
           } else {
@@ -1195,11 +1198,11 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       } else if (plugin.plugin_type === 'Script') {
         const keys = Object.keys(plugin.collector_json);
         this.pluginMonaco.selectedSystemList = keys.filter(item => this.systemTabs.list.some(sys => sys.name === item));
-        this.pluginMonaco.selectedSystemList.forEach((key) => {
+        this.pluginMonaco.selectedSystemList.forEach(key => {
           const jsonObj = plugin.collector_json[key];
           this.pluginMonaco.defaultValue[key] = {
             text: window.decodeURIComponent(window.escape(window.atob(jsonObj.script_content_base64 || ''))),
-            lang: jsonObj.type
+            lang: jsonObj.type,
           };
         });
       } else if (['JMX', 'DataDog'].includes(plugin.plugin_type)) {
@@ -1207,18 +1210,18 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         this.curCheckName = plugin.collector_json.datadog_check_name;
         this.pluginMonaco.defaultValue[plugin.plugin_type] = {
           text: plugin.collector_json.config_yaml,
-          lang: 'yaml'
+          lang: 'yaml',
         };
       } else if (plugin.plugin_type === 'SNMP') {
         this.pluginBasicInfo.snmpVersion = plugin.collector_json.snmp_version;
         this.pluginBasicInfo.snmpConfig.name = plugin.collector_json.filename;
         this.pluginBasicInfo.snmpConfig.content = plugin.collector_json.config_yaml;
       }
-      plugin.config_json.forEach((item) => {
+      plugin.config_json.forEach(item => {
         if (
-          typeof item.visible === 'undefined'
-          && (plugin.plugin_type !== 'DataDog' || item.name !== 'python_path')
-          && item.mode !== 'collector'
+          typeof item.visible === 'undefined' &&
+          (plugin.plugin_type !== 'DataDog' || item.name !== 'python_path') &&
+          item.mode !== 'collector'
         ) {
           this.pluginBasicInfo.params.push(item);
         } else if (item.name === 'port') {
@@ -1252,7 +1255,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         related_conf_count: pluginBasicInfo.relatedConfCount, // 关联的配置数量
         config_version_old: pluginBasicInfo.configVersion, // 版本对比信息
         enable_field_blacklist: pluginBasicInfo.enable_field_blacklist, // 是否开启自动采集新增指标
-        is_split_measurement: pluginBasicInfo.is_split_measurement // 开启新增指标的提示是否需要隐藏
+        is_split_measurement: pluginBasicInfo.is_split_measurement, // 开启新增指标的提示是否需要隐藏
       };
       this.getCollectorJsonParam(params, pluginBasicInfo);
       this.getConfigParam(params, pluginBasicInfo);
@@ -1270,7 +1273,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         type: 'text',
         name: 'host',
         description: this.$t('监听IP'),
-        visible: false
+        visible: false,
       };
       if (params.plugin_type === 'JMX') {
         params.config_json = this.deleteDisabled(pluginBasicInfo.jmxParams);
@@ -1282,7 +1285,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
           type: 'text',
           name: 'port',
           description: this.$t('监听端口'),
-          visible: false
+          visible: false,
         });
       }
     },
@@ -1291,7 +1294,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
      * @param { Object } params
      */
     deleteDisabled(params) {
-      return params.map((item) => {
+      return params.map(item => {
         delete item.disabled;
         return item;
       });
@@ -1308,14 +1311,14 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         if (contents) {
           if (params.plugin_type === 'Script') {
             params.collector_json = {};
-            contents.forEach((item) => {
+            contents.forEach(item => {
               const { system } = item;
               this.pluginMonaco.selectedSystemList.push(item.system);
               const { lang } = item;
               params.collector_json[system] = {
                 filename: lang.lang === 'custom' ? pluginBasicInfo.name : `${pluginBasicInfo.name}.${lang.abb}`,
                 type: lang.lang,
-                script_content_base64: window.btoa(unescape(encodeURI(lang.text.replace(/\r\n/g, '\n'))))
+                script_content_base64: window.btoa(unescape(encodeURI(lang.text.replace(/\r\n/g, '\n')))),
               };
             });
           } else {
@@ -1327,7 +1330,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         params.collector_json = {
           snmp_version: pluginBasicInfo.snmpVersion,
           filename: pluginBasicInfo.snmpConfig.name,
-          config_yaml: pluginBasicInfo.snmpConfig.content
+          config_yaml: pluginBasicInfo.snmpConfig.content,
         };
       } else if (params.plugin_type === 'Pushgateway') {
         params.collector_json = {};
@@ -1341,11 +1344,11 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
      * @param { Array } data
      */
     getSystemTabs(data) {
-      data.forEach((os) => {
+      data.forEach(os => {
         const osObj = {
           name: os.os_type,
           val: os.os_type,
-          id: os.os_type_id
+          id: os.os_type_id,
         };
         if (os.os_type === 'linux') {
           this.systemTabs.list.unshift(osObj);
@@ -1367,7 +1370,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     getLabelList(data) {
       this.pluginBasicInfo.label.list = data.map(item => ({
         ...item,
-        children: item.children.map(label => ({ disabled: false, ...label }))
+        children: item.children.map(label => ({ disabled: false, ...label })),
       }));
     },
     // 获取exportrt脚本上传文件信息
@@ -1396,7 +1399,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       const pluginStatus = typeof this.pluginBasicInfo.stage === 'undefined' ? false : data.stage === 'release';
       const polling = (params, callBack) => {
         queryAsyncTaskResult(params)
-          .then((data) => {
+          .then(data => {
             if (!data.is_completed) {
               const timer = setTimeout(() => {
                 polling(params, callBack);
@@ -1405,12 +1408,12 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
             }
             callBack(data);
           })
-          .catch((err) => {
+          .catch(err => {
             const result = {
               is_completed: true,
               state: 'FAILURE',
               data: err.data,
-              message: err.message
+              message: err.message,
             };
             callBack(result);
           });
@@ -1422,11 +1425,11 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
           const params = {
             plugin_id: this.pluginData.pluginId,
             config_version: this.pluginData.config_version,
-            info_version: this.pluginData.info_version
+            info_version: this.pluginData.info_version,
           };
           pluginRegister(params, { isAsync: true })
-            .then((data) => {
-              polling(data, (data) => {
+            .then(data => {
+              polling(data, data => {
                 if (data.is_completed && data.state === 'SUCCESS') {
                   this.pluginData.is_completed = data.is_completed;
                   if (data.data?.token?.length) {
@@ -1435,7 +1438,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
                   } else {
                     this.registerDialog.status.msg = this.$t('插件包生成失败, 没有返回插件token数据');
                     this.registerDialog.status.failMsg = this.$t('插件包生成失败, 没有返回插件token数据');
-                    // eslint-disable-next-line prefer-promise-reject-errors
+
                     reject(this.$t('没有返回插件token数据'));
                   }
                 } else if (data.is_completed && data.state === 'FAILURE') {
@@ -1445,7 +1448,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
                 }
               });
             })
-            .catch((err) => {
+            .catch(err => {
               this.registerDialog.status.msg = this.$t('生成插件包失败');
               this.registerDialog.status.failMsg = err.message || this.$t('生成插件包失败');
               reject(err);
@@ -1503,7 +1506,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         importPluginConfig = {
           collector_json: this.pluginConfigCache.collector_json,
           config_json: this.pluginConfigCache.config_json,
-          is_support_remote: this.pluginConfigCache.is_support_remote
+          is_support_remote: this.pluginConfigCache.is_support_remote,
         };
       }
       // 导入插件信息
@@ -1511,32 +1514,33 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       if (this.$route.params.isImportPlugin) {
         importPluginMetricJson = this.pluginConfigCache.metric_json;
       }
-      const params =        isEdit || this.data.back
-        ? [
-          this.pluginBasicInfo.name,
-          {
-            ...this.pluginData,
-            import_plugin_config: importPluginConfig,
-            import_plugin_metric_json: importPluginMetricJson || []
-          }
-        ]
-        : [
-          {
-            ...this.pluginData,
-            import_plugin_config: importPluginConfig,
-            import_plugin_metric_json: importPluginMetricJson || []
-          }
-        ];
+      const params =
+        isEdit || this.data.back
+          ? [
+              this.pluginBasicInfo.name,
+              {
+                ...this.pluginData,
+                import_plugin_config: importPluginConfig,
+                import_plugin_metric_json: importPluginMetricJson || [],
+              },
+            ]
+          : [
+              {
+                ...this.pluginData,
+                import_plugin_config: importPluginConfig,
+                import_plugin_metric_json: importPluginMetricJson || [],
+              },
+            ];
       const ajax = isEdit || this.data.back ? editCollectorPlugin : createCollectorPlugin;
       this.registerDialog.status.failMsg = '';
       return ajax(...params)
-        .then((data) => {
+        .then(data => {
           this.addPluginDataProp(data);
           if (
-            this.data.isEdit
-            && (!this.pluginData.sameConfig || !this.pluginData.sameInfo)
-            && this.pluginBasicInfo.stage === 'release'
-            && this.pluginChangeMsg.isChange
+            this.data.isEdit &&
+            (!this.pluginData.sameConfig || !this.pluginData.sameInfo) &&
+            this.pluginBasicInfo.stage === 'release' &&
+            this.pluginChangeMsg.isChange
           ) {
             this.pluginChangeMsg.show = true;
             // 编辑关键选项，返回reject，阻止注册，让用户选填修改信息，等再次确认时注册插件
@@ -1579,26 +1583,26 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       this.pluginData.need_debug = data.need_debug;
       this.pluginData.metric_json = this.pluginBasicInfo.metricJson;
       this.getPluginVersion();
-      this.systemTabs.list.forEach((system) => {
+      this.systemTabs.list.forEach(system => {
         if (['JMX', 'DataDog', 'Pushgateway', 'SNMP'].includes(this.pluginBasicInfo.type.value)) {
           if (data.os_type_list.some(os => os === system.name)) {
             this.pluginData.systemList.push({
               os_type: system.name,
-              os_id: system.id
+              os_id: system.id,
             });
           }
         } else if (this.pluginBasicInfo.type.value === 'Script') {
           if (this.pluginMonaco.selectedSystemList.includes(system.name)) {
             this.pluginData.systemList.push({
               os_type: system.name,
-              os_id: system.id
+              os_id: system.id,
             });
           }
         } else if (this.pluginBasicInfo.type.value === 'Exporter') {
           if (this.pluginData.collector_json[system.name]) {
             this.pluginData.systemList.push({
               os_type: system.name,
-              os_id: system.id
+              os_id: system.id,
             });
           }
         }
@@ -1633,7 +1637,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     validateUploadFile() {
       let hasCollectorJson = false;
       const collectorJson = this.pluginData.collector_json;
-      // eslint-disable-next-line no-restricted-syntax
+
       for (const key in collectorJson) {
         if (Object.prototype.hasOwnProperty.call(collectorJson, key) && collectorJson[key]) {
           hasCollectorJson = true;
@@ -1665,7 +1669,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     validateExporterParam() {
       let hasHost = false;
       let hasPort = false;
-      this.params.forEach((item) => {
+      this.params.forEach(item => {
         if (typeof item.default === 'string' && item.default.includes('${host}')) {
           hasHost = true;
         }
@@ -1757,8 +1761,8 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     handleOsSwitcherChange(systemList) {
       const checkedList = systemList.filter(item => item.enable);
       this.pluginMonaco.selectedSystemList = checkedList.map(item => item.name);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

@@ -26,16 +26,16 @@
  */
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 
 import { toPerformanceDetail } from '../../../common/go-link';
 import { getOperatorDisabled } from '../utils';
-
 import { IDetail } from './type';
 
 import './basic-info.scss';
-/* eslint-disable camelcase */
+
 interface IBasicInfoProps {
   basicInfo: IDetail;
 }
@@ -43,7 +43,7 @@ interface IEvents {
   onAlarmDispatch?: () => void;
 }
 @Component({
-  name: 'BasicInfo'
+  name: 'BasicInfo',
 })
 export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   @Prop({ type: Object, default: () => ({}) }) basicInfo: IDetail;
@@ -135,7 +135,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     const classList = {
       RECOVERED: 'bar-recovered',
       ABNORMAL: 'bar-abnormal',
-      CLOSED: 'bar-closed'
+      CLOSED: 'bar-closed',
     };
     const className = eventStatus ? classList[eventStatus] : '';
     return <div class={[className, { 'bar-small': isShielded }]}></div>;
@@ -145,7 +145,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     const level = {
       1: { label: this.$t('致命'), className: 'level-tag-fatal' },
       2: { label: this.$t('预警'), className: 'level-tag-warning' },
-      3: { label: this.$t('提醒'), className: 'level-tag-info' }
+      3: { label: this.$t('提醒'), className: 'level-tag-info' },
     };
     const className = severity ? level[severity].className : '';
     const label = severity ? level[severity].label : '';
@@ -156,20 +156,20 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       ? this.filterDimensions?.map((item, index) => [
           index !== 0 && <span>&nbsp;,&nbsp;</span>,
           <span
-            onClick={() => !this.readonly && this.handleToPerformance(item)}
             style={{
-              cursor: this.ipMap.includes(item.key) ? 'pointer' : 'auto'
+              cursor: this.ipMap.includes(item.key) ? 'pointer' : 'auto',
             }}
+            onClick={() => !this.readonly && this.handleToPerformance(item)}
           >
             <span>{item.display_key}</span>
             <span>=</span>
             <span
-              class={{ 'info-check': this.ipMap.includes(item.key) }}
               style='margin-left: 0;'
+              class={{ 'info-check': this.ipMap.includes(item.key) }}
             >
               {item.display_value}
             </span>
-          </span>
+          </span>,
         ])
       : '--';
   }
@@ -212,7 +212,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       // is_shielded, // 是否屏蔽
       // is_handled // 是否已处理
       stage_display, // 处理阶段
-      appointee
+      appointee,
     } = this.basicInfo;
     // 处理阶段 优先级: is_shielded > is_ack > is_handled
     // const handleStatus = () => (is_shielded ? this.$t('已屏蔽') : false)
@@ -230,11 +230,11 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           ></span>,
           <span
             class='alarm-dispatch'
-            onClick={this.handleAlarmDispatch}
             v-bk-tooltips={{ content: this.$t('告警分派') }}
+            onClick={this.handleAlarmDispatch}
           >
             <span class='icon-monitor icon-fenpai'></span>
-          </span>
+          </span>,
         ]}
       </span>
     );
@@ -265,8 +265,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             content: alertInfoList,
             icon: alertInfoList === '--' ? '' : 'icon-tishi',
             iconTip: this.$t('处理详情'),
-            click: this.processingStatus
-          }
+            click: this.processingStatus,
+          },
           // {
           //   title: this.$t('告警名称'),
           //   content: [
@@ -290,50 +290,50 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           //   iconText: this.$t('策略详情'),
           //   click: this.toStrategyDetail
           // }
-        ]
+        ],
       },
       {
         children: [
           {
             title: this.$t('首次异常时间'),
             content: dayjs.tz(first_anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-            timeZone: dayjs.tz(first_anomaly_time * 1000).format('Z')
+            timeZone: dayjs.tz(first_anomaly_time * 1000).format('Z'),
           },
-          { title: this.$t('处理阶段'), content: handleStatus() }
-        ]
+          { title: this.$t('处理阶段'), content: handleStatus() },
+        ],
       },
       {
         children: [
           {
             title: this.$t('告警产生时间'),
             content: dayjs.tz(create_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-            timeZone: dayjs.tz(create_time * 1000).format('Z')
+            timeZone: dayjs.tz(create_time * 1000).format('Z'),
           },
           {
             title: this.$t('负责人'),
-            content: appointee?.join(',') || '--'
-          }
-        ]
+            content: appointee?.join(',') || '--',
+          },
+        ],
       },
       {
         children: [
           { title: this.$t('持续时间'), content: duration },
-          { title: this.$t('关注人'), content: this.getFollowerInfo() }
-        ]
-      }
+          { title: this.$t('关注人'), content: this.getFollowerInfo() },
+        ],
+      },
     ];
     const bottomItems = [
       {
         title: this.$t('维度信息'),
         content: this.getDimensionsInfo() || '--',
-        extCls: 'flex-wrap'
+        extCls: 'flex-wrap',
       },
-      { title: this.$t('告警内容'), content: description, extCls: 'flex-wrap' },
+      { title: this.$t('告警内容'), content: description, extCls: 'flex-wrap content-break-spaces' },
       {
         title: this.$t('关联信息'),
         content: relation_info || '--',
-        extCls: 'no-flex'
-      }
+        extCls: 'no-flex',
+      },
     ] as any;
     return (
       <div class='detail-form'>
@@ -353,9 +353,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                     {item.timeZone ? <span class='item-time-zone'>{item.timeZone}</span> : undefined}
                     {item.icon ? (
                       <span
-                        on-click={item.click ? item.click : false}
                         class={['icon-monitor', item.icon]}
                         v-bk-tooltips={{ content: item.iconTip, allowHTML: false }}
+                        on-click={item.click ? item.click : false}
                       >
                         <span class='icon-title'>{item?.iconText || ''}</span>
                       </span>
@@ -379,9 +379,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                 {item.content}
                 {item.icon ? (
                   <span
-                    on-click={item.click ? item.click : false}
                     class={['icon-monitor', item.icon]}
                     v-bk-tooltips={{ content: item.iconTip, allowHTML: false }}
+                    on-click={item.click ? item.click : false}
                   >
                     <span class='icon-title'>{item.iconText || ''}</span>
                   </span>
@@ -406,9 +406,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       this.readonly ? undefined : (
         <bk-button
           class='mr10'
-          theme='primary'
-          size='small'
           outline={true}
+          size='small'
+          theme='primary'
           on-click={this.handleQuickShield}
         >
           {this.$t('快捷屏蔽')}
@@ -417,9 +417,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     const confirmDom = () =>
       this.readonly ? undefined : (
         <bk-button
-          theme='primary'
-          size='small'
           outline={true}
+          size='small'
+          theme='primary'
           on-click={this.handleAlarmConfirm}
         >
           {this.$t('告警确认')}
@@ -469,7 +469,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               {this.$t('屏蔽策略')}
               <span class='icon-monitor icon-fenxiang'></span>
             </div>
-          ) : undefined
+          ) : undefined,
         ];
       } else if (isAck) {
         /* 未恢复已确认 */
@@ -488,9 +488,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         operateDom = !this.readonly ? (
           <div class='status-operate'>
             <bk-button
-              theme='primary'
-              size='small'
               outline={true}
+              size='small'
+              theme='primary'
               on-click={this.handleQuickShield}
             >
               {this.$t('快捷屏蔽')}
@@ -507,8 +507,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       <div class='right-status'>
         <div class='status-icon'>
           <span
-            class={['icon-monitor', iconName]}
             style={{ color: iconColor }}
+            class={['icon-monitor', iconName]}
           ></span>
           <div class='status-text'>{iconText}</div>
         </div>

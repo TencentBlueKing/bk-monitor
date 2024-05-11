@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 import { listApplicationServices, queryLabels } from 'monitor-api/modules/apm_profile';
@@ -37,9 +38,8 @@ import {
   IConditionItem,
   RetrievalFormData,
   SearchType,
-  ToolsFormData
+  ToolsFormData,
 } from '../typings';
-
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';
 
@@ -50,8 +50,8 @@ export default defineComponent({
   props: {
     formData: {
       type: Object as PropType<RetrievalFormData>,
-      default: () => null
-    }
+      default: () => null,
+    },
   },
   emits: ['change', 'typeChange', 'appServiceChange', 'showDetail'],
   setup(props, { emit }) {
@@ -61,27 +61,27 @@ export default defineComponent({
     const retrievalType = [
       {
         label: t('持续 Profiling'),
-        value: SearchType.Profiling
+        value: SearchType.Profiling,
       },
       {
         label: t('上传 Profiling'),
-        value: SearchType.Upload
-      }
+        value: SearchType.Upload,
+      },
     ];
     /** 应用/服务可选列表 */
     const applicationList = ref<ApplicationList>({
       normal: [],
-      no_data: []
+      no_data: [],
     });
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: {
         app_name: '',
-        service_name: ''
+        service_name: '',
       },
       isComparison: false,
       where: [],
-      comparisonWhere: []
+      comparisonWhere: [],
     });
 
     watch(
@@ -90,13 +90,13 @@ export default defineComponent({
         newVal && Object.assign(localFormData, newVal);
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
     watch(
       () => toolsFormData.value.timeRange,
       () => {
-        getLabelList();
+        // getLabelList();
         getApplicationList();
       }
     );
@@ -151,13 +151,13 @@ export default defineComponent({
         localFormData.where.push({
           key: '',
           method: 'eq',
-          value: ''
+          value: '',
         });
       } else {
         localFormData.comparisonWhere.push({
           key: '',
           method: 'eq',
-          value: ''
+          value: '',
         });
       }
       handleEmitChange(false);
@@ -207,10 +207,10 @@ export default defineComponent({
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       applicationList.value = await listApplicationServices({
         start_time: start,
-        end_time: end
+        end_time: end,
       }).catch(() => ({
         normal: [],
-        no_data: []
+        no_data: [],
       }));
     }
 
@@ -224,7 +224,7 @@ export default defineComponent({
       return {
         ...params,
         start: start * 1000 * 1000,
-        end: end * 1000 * 1000
+        end: end * 1000 * 1000,
       };
     });
 
@@ -234,9 +234,12 @@ export default defineComponent({
       localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item => !item.key);
       labelList.value = [];
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
-      const labels = await queryLabels({
-        ...labelCommonParams.value
-      }).catch(() => ({ label_keys: [] }));
+      const labels = await queryLabels(
+        {
+          ...labelCommonParams.value,
+        },
+        { needMessage: false }
+      ).catch(() => ({ label_keys: [] }));
       labelList.value = labels.label_keys;
     }
 
@@ -260,7 +263,7 @@ export default defineComponent({
       handleComparisonChange,
       addCondition,
       deleteCondition,
-      handleConditionChange
+      handleConditionChange,
     };
   },
   render() {
@@ -303,16 +306,16 @@ export default defineComponent({
                 <div class='content'>
                   <Switcher
                     modelValue={this.localFormData.isComparison}
-                    theme='primary'
                     size='small'
+                    theme='primary'
                     onChange={this.handleComparisonChange}
                   />
                 </div>
-              </div>
+              </div>,
             ]}
 
             <div class='search-panel'>
-              <div class='search-title'>{this.t('查询项')}</div>
+              <div class='search-title'>{this.t('当前查询项')}</div>
               {this.localFormData.where.map((item, index) => (
                 <ConditionItem
                   class='condition-item'
@@ -333,7 +336,7 @@ export default defineComponent({
             </div>
             {this.localFormData.isComparison && (
               <div class='search-panel'>
-                <div class='search-title'>{this.t('对比项')}</div>
+                <div class='search-title'>{this.t('参照查询项')}</div>
                 {this.localFormData.comparisonWhere.map((item, index) => (
                   <ConditionItem
                     class='condition-item'
@@ -359,5 +362,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

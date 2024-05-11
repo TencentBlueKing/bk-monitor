@@ -28,14 +28,14 @@
           <bk-button
             :class="!showOriginalLog ? 'is-selected' : ''"
             size="small"
-            @click="contentType = 'table'"
+            @click="handleClickTableBtn('table')"
           >
             {{ $t('表格') }}
           </bk-button>
           <bk-button
             :class="showOriginalLog ? 'is-selected' : ''"
             size="small"
-            @click="contentType = 'original'"
+            @click="handleClickTableBtn('original')"
           >
             {{ $t('原始') }}
           </bk-button>
@@ -49,6 +49,7 @@
             ref="configSelectRef"
             size="small"
             searchable
+            :disabled="fieldConfigIsLoading"
             :clearable="false"
             :value="filedSettingConfigID"
             :popover-min-width="240"
@@ -67,7 +68,7 @@
                 @click="handleAddNewConfig"
               >
                 <span class="bk-icon icon-close-circle"></span>
-                <span>{{ $t('新建配置') }}</span>
+                <span>{{ $t('查看配置') }}</span>
               </span>
             </div>
           </bk-select>
@@ -140,6 +141,7 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex';
 import TableLog from './table-log.vue';
 import FieldsSetting from '../../result-comp/fields-setting';
 import ExportLog from '../../result-comp/export-log.vue';
@@ -163,6 +165,10 @@ export default {
     queueStatus: {
       type: Boolean,
       default: true
+    },
+    configWatchBool: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -172,7 +178,8 @@ export default {
       showFieldsSetting: false,
       showAsyncExport: false, // 异步下载弹窗
       exportLoading: false,
-      fieldsConfigList: []
+      fieldsConfigList: [],
+      fieldConfigIsLoading: false
     };
   },
   computed: {
@@ -189,17 +196,29 @@ export default {
       // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
     },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch'
+    }),
+    watchQueryIndexValue() {
+      return `${this.routeIndexSet}_${this.configWatchBool}`;
+    },
     routeIndexSet() {
       return this.$route.params.indexId;
     }
   },
   watch: {
-    routeIndexSet: {
+    watchQueryIndexValue: {
       immediate: true,
-      handler(val) {
-        if (!!val) this.requestFiledConfig();
+      handler() {
+        if ((!this.isUnionSearch && this.routeIndexSet) || (this.isUnionSearch && this.unionIndexList?.length)) {
+          this.requestFiledConfig();
+        }
       }
     }
+  },
+  created() {
+    this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
   },
   methods: {
     // 字段设置
@@ -225,6 +244,7 @@ export default {
     closeDropdown() {
       this.showFieldsSetting = false;
       this.$refs.fieldsSettingPopper?.instance.hide();
+      this.$refs.fieldsSettingPopper?.instance.hide();
     },
     setPopperInstance(status = true) {
       this.$refs.fieldsSettingPopper?.instance.set({
@@ -233,15 +253,19 @@ export default {
     },
     async requestFiledConfig() {
       /** 获取配置列表 */
-      this.isLoading = true;
+      this.fieldConfigIsLoading = true;
       try {
         const res = await this.$http.request('retrieve/getFieldsListConfig', {
-          params: { index_set_id: this.routeIndexSet, scope: 'default' }
+          data: {
+            ...(this.isUnionSearch ? { index_set_ids: this.unionIndexList } : { index_set_id: this.routeIndexSet }),
+            scope: 'default',
+            index_set_type: this.isUnionSearch ? 'union' : 'single'
+          }
         });
         this.fieldsConfigList = res.data;
       } catch (error) {
       } finally {
-        this.isLoading = false;
+        this.fieldConfigIsLoading = false;
       }
     },
     async handleSelectFieldConfig(configID, option) {
@@ -249,10 +273,12 @@ export default {
       // 更新config
       await this.$http
         .request('retrieve/postFieldsConfig', {
-          params: { index_set_id: this.$route.params.indexId },
           data: {
-            display_fields: displayFields,
-            sort_list: sortList,
+            index_set_id: this.routeIndexSet,
+            index_set_ids: this.unionIndexList,
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+            display_fields: this.shadowVisible,
+            sort_list: this.shadowSort,
             config_id: configID
           }
         })
@@ -265,6 +291,10 @@ export default {
     handleAddNewConfig() {
       this.$refs.configSelectRef?.close();
       this.$refs.fieldsSettingPopper?.instance.show();
+    },
+    handleClickTableBtn(active = 'table') {
+      this.contentType = active;
+      localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
     }
   }
 };
