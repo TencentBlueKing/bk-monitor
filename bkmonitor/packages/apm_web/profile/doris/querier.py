@@ -170,19 +170,19 @@ class QueryTemplate:
         self.app_name = app_name
 
     def get_sample_info(
-        self, start: int, end: int, data_types: List[str], service_name: str, label_filter: dict = None
+        self, start: int, end: int, sample_types: List[str], service_name: str, label_filter: dict = None
     ):
         """查询样本基本信息"""
         label_filter = label_filter or {}
 
         res = {}
-        for data_type in data_types:
+        for sample_type in sample_types:
             info = Query(
                 api_type=APIType.QUERY_SAMPLE_BY_JSON,
                 api_params=APIParams(
                     biz_id=self.bk_biz_id,
                     app=self.app_name,
-                    type=data_type,
+                    general_filters={"sample_type": f"op_eq|{sample_type}"},
                     start=start,
                     end=end,
                     service_name=service_name,
@@ -200,7 +200,7 @@ class QueryTemplate:
             if not ts:
                 continue
 
-            res[data_type] = {"last_report_time": ts}
+            res[sample_type] = {"last_report_time": ts}
 
         return res
 
@@ -276,7 +276,7 @@ class QueryTemplate:
         return {i["service_name"]: i["count(*)"] for i in res["list"]}
 
     def get_count(
-        self, start_time: int, end_time: int, data_type: str, service_name: str = None, label_filter: dict = None
+        self, start_time: int, end_time: int, sample_type: str, service_name: str = None, label_filter: dict = None
     ):
         """根据查询条件获取数据条数"""
         label_filter = label_filter or {}
@@ -287,11 +287,11 @@ class QueryTemplate:
                 end=end_time,
                 biz_id=self.bk_biz_id,
                 app=self.app_name,
-                type=data_type,
                 label_filter=label_filter,
                 service_name=service_name,
                 metric_fields="count(*)",
                 dimension_fields="(ROUND(dtEventTimeStamp / 60000) * 60)",
+                general_filters={"sample_type": f"op_eq|{sample_type}"},
             ),
             result_table_id=self.result_table_id,
         ).execute()
@@ -304,7 +304,7 @@ class QueryTemplate:
         self,
         start_time: int,
         end_time: int,
-        data_type: str,
+        sample_type: str,
         service_name: str = None,
         label_filter: dict = None,
         limit: int = None,
@@ -320,7 +320,7 @@ class QueryTemplate:
                 end=end_time,
                 biz_id=self.bk_biz_id,
                 app=self.app_name,
-                type=data_type,
+                general_filters={"sample_type": f"op_eq|{sample_type}"},
                 label_filter=label_filter,
                 service_name=service_name,
                 limit={"rows": limit} if limit else None,

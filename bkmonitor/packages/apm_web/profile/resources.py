@@ -60,13 +60,15 @@ class QueryServicesDetailResource(Resource):
             raise ValueError(f"Profile 服务: {validated_data['service_name']} 不存在，请确认数据是否上报或稍后再试")
 
         # 实时查询最近上报时间等信息
-        data_type_info_mapping = QueryTemplate(validated_data["bk_biz_id"], validated_data["app_name"]).get_sample_info(
+        sample_type_info_mapping = QueryTemplate(
+            validated_data["bk_biz_id"], validated_data["app_name"]
+        ).get_sample_info(
             validated_data["start_time"] * 1000,
             validated_data["end_time"] * 1000,
-            data_types=[i["data_type"] for i in services],
+            sample_types=[i["sample_type"] for i in services],
             service_name=validated_data["service_name"],
         )
-        last_report_time = sorted([i["last_report_time"] for i in data_type_info_mapping.values()], reverse=True)
+        last_report_time = sorted([i["last_report_time"] for i in sample_type_info_mapping.values()], reverse=True)
 
         res = {
             "bk_biz_id": validated_data["bk_biz_id"],
@@ -230,7 +232,7 @@ class QueryProfileBarGraphResource(Resource):
         count_points = query_template.get_count(
             start_time=start_time * 1000,
             end_time=end_time * 1000,
-            data_type=validate_data["data_type"],
+            sample_type=validate_data["data_type"],
             service_name=validate_data["service_name"],
             label_filter={"profile_id": "op_is_not_null", **validate_data["filter_labels"]},
         )
@@ -250,7 +252,7 @@ class QueryProfileBarGraphResource(Resource):
                     {
                         "start_time": start_time * 1000,
                         "end_time": end_time * 1000,
-                        "data_type": validate_data["data_type"],
+                        "sample_type": validate_data["data_type"],
                         "service_name": validate_data["service_name"],
                     },
                     validate_data["filter_labels"],

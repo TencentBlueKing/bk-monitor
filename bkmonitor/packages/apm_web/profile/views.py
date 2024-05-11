@@ -171,6 +171,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         dimension_fields: str = None,
         data_type: str = None,
         sample_type: str = None,
+        order: str = None,
     ) -> Union[DorisConverter, dict]:
         """
         获取 profile 数据
@@ -200,6 +201,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             extra_params.setdefault("label_filter", {})
             extra_params["label_filter"].update({"profile_id": profile_id})
 
+        if order and "order" not in extra_params:
+            extra_params.setdefault("order", {})
+            sort = "desc" if order.startswith("-") else "asc"
+            extra_params["order"] = {"expr": order.replace("-", ""), "sort": sort}
+
         if "profile_id" in extra_params.get("label_filter", {}):
             retry_handler = functools.partial(
                 update_profile_id,
@@ -228,7 +234,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             ),
             result_table_id=result_table_id,
         )
-
         r = q.execute(retry_if_empty_handler=retry_handler)
         if r is None:
             raise ValueError(_("未查询到有效数据"))
@@ -311,6 +316,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             filter_labels=data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
             sample_type=data["data_type"],
+            order="sample_type",
         )
 
         if data["global_query"] and not doris_converter:
