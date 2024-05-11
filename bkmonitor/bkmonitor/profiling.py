@@ -18,7 +18,6 @@ import urllib.parse
 import six
 import tenacity
 from ddtrace.internal import agent
-from ddtrace.internal.utils import config
 from ddtrace.profiling import exporter
 from ddtrace.profiling.collector import _lock  # noqa
 from ddtrace.profiling.collector import memalloc, stack_event
@@ -28,6 +27,7 @@ from ddtrace.profiling.exporter.pprof import PprofExporter  # noqa
 from ddtrace.profiling.exporter.pprof import _get_thread_name  # noqa
 from ddtrace.profiling.exporter.pprof import _none_to_str  # noqa
 from ddtrace.profiling.exporter.pprof import _PprofConverter  # noqa; noqa
+from django.conf import settings
 from six.moves import http_client
 
 SAMPLE_TYPE_CONFIG = {
@@ -312,7 +312,7 @@ class PyroscopePprofHTTPExporter(PprofExporter):
         # which will cause Parser.Parse() failed
         # https://github.com/pyroscope-io/pyroscope/blob/c068c7c0db1550b85031d7df0b56c84ce63036f6/pkg/server/ingest.go#L163
         params = {
-            "name": os.getenv("DD_PROFILING_PYROSCOPE_APPNAME", config.get_application_name()),
+            "name": settings.SERVICE_NAME,
             "spyName": "ddtrace",
             "from": start_time_ns,
             "until": end_time_ns,
