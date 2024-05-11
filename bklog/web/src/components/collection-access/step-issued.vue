@@ -208,19 +208,23 @@
         {{ getNextPageStr }}
       </bk-button>
       <template v-else>
-        <bk-button
-          data-test-id="collectionDistribution_button_previous"
-          :disabled="hasRunning"
-          @click="prevHandler"
-          >{{ $t('上一步') }}</bk-button
-        >
-        <bk-button
-          theme="primary"
-          data-test-id="collectionDistribution_button_nextStep"
-          :disabled="hasRunning"
-          @click="nextHandler"
-          >{{ $t('下一步') }}</bk-button
-        >
+        <template v-if="!isFinishCreateStep">
+          <bk-button
+            data-test-id="collectionDistribution_button_previous"
+            :disabled="hasRunning"
+            @click="prevHandler"
+          >
+            {{ $t('上一步') }}
+          </bk-button>
+          <bk-button
+            theme="primary"
+            data-test-id="collectionDistribution_button_nextStep"
+            :disabled="hasRunning"
+            @click="nextHandler"
+          >
+            {{ $t('下一步') }}
+          </bk-button>
+        </template>
       </template>
       <bk-button
         data-test-id="collectionDistribution_button_cancel"
@@ -274,7 +278,11 @@ export default {
   },
   props: {
     operateType: String,
-    isSwitch: Boolean
+    isSwitch: Boolean,
+    isFinishCreateStep: {
+      type: Boolean,
+      default: false
+    }
   },
   data() {
     return {
@@ -338,7 +346,7 @@ export default {
       return !!this.tabList[3].num || this.notReady;
     },
     isEdit() {
-      return this.operateType === 'edit' || this.operateType === 'editFinish';
+      return this.operateType === 'edit';
     },
     isContainer() {
       return this.curCollect.environment === 'container';
@@ -456,6 +464,9 @@ export default {
       this.$emit('stepChange');
     },
     cancel() {
+      if (this.isFinishCreateStep) {
+        this.$emit('changeSubmit', true);
+      }
       this.$router.push({
         name: 'collection-item',
         query: {

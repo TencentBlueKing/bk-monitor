@@ -19,28 +19,12 @@ import shutil
 import tarfile
 import uuid
 from uuid import uuid4
+import re
 
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.utils.translation import ugettext as _
-from rest_framework.exceptions import ValidationError
-
-from api.grafana.exporter import DashboardExporter
-from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
-from bkmonitor.utils.request import get_request
-from bkmonitor.utils.text import convert_filename
-from bkmonitor.utils.time_tools import now
-from bkmonitor.views import serializers
-from constants.strategy import TargetFieldType
-from core.drf_resource import Resource, api, resource
-from core.drf_resource.tasks import step
-from core.errors.export_import import (
-    AddTargetError,
-    ImportConfigError,
-    ImportHistoryNotExistError,
-    UploadPackageError,
-)
 from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
@@ -70,6 +54,24 @@ from monitor_web.models import (
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.strategies.serializers import handle_target, is_validate_target
 from monitor_web.tasks import import_config, remove_file
+from rest_framework.exceptions import ValidationError
+
+from api.grafana.exporter import DashboardExporter
+from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
+from bkmonitor.utils.request import get_request
+from bkmonitor.utils.text import convert_filename
+from bkmonitor.utils.time_tools import now
+from bkmonitor.views import serializers
+from constants.strategy import TargetFieldType
+from constants.data_source import DataSourceLabel
+from core.drf_resource import Resource, api, resource
+from core.drf_resource.tasks import step
+from core.errors.export_import import (
+    AddTargetError,
+    ImportConfigError,
+    ImportHistoryNotExistError,
+    UploadPackageError,
+)
 
 logger = logging.getLogger("monitor_web")
 
@@ -470,6 +472,18 @@ class ExportPackageResource(Resource):
                         query_config["agg_dimension"] = extend_msg["agg_dimension"]
                         query_config["extend_fields"] = {}
                         query_config["agg_dimension"].extend(target_type_to_dimensions[target_type])
+
+                    # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID替换为 data_label
+                    data_label = query_config.get("data_label", None)
+                    if settings.ENABLE_DATA_LABEL_EXPORT and data_label and \
+                            (query_config.get("data_source_label", None)
+                             in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]):
+                        query_config["metric_id"] = re.sub(
+                            rf"\b{query_config['result_table_id']}\b",
+                            data_label,
+                            query_config["metric_id"]
+                        )
+                        query_config["result_table_id"] = data_label
 
             with open(
                 os.path.join(

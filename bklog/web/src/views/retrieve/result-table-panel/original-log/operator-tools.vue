@@ -148,10 +148,10 @@ export default {
       isUnionSearch: 'isUnionSearch'
     }),
     isActiveLog() {
-      return this.operatorConfig?.contextAndRealtime.is_active;
+      return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
     },
     isActiveWebConsole() {
-      return this.operatorConfig?.bcsWebConsole.is_active;
+      return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
     },
     /** 判断webConsole是否能点击 */
     isCanClickWebConsole() {
@@ -181,7 +181,13 @@ export default {
       return true;
     },
     toolMessage() {
-      return this.operatorConfig.toolMessage;
+      return (
+        this.operatorConfig?.toolMessage ?? {
+          realTimeLog: '',
+          webConsole: '',
+          contextLog: ''
+        }
+      );
     },
     isShowSourceField() {
       return this.operatorConfig?.isShowSourceField;

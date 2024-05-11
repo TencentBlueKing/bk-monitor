@@ -161,14 +161,14 @@ def manage_es_storage(es_storages):
     """
     # 遍历所有的ES存储并创建index, 并执行完整的es生命周期操作
     for es_storage in es_storages:
-        if es_storage.is_red():
-            logger.error(
-                "es cluster health is red, skip index lifecycle; name: %s, id: %s, domain: %s",
-                es_storage.storage_cluster.cluster_name,
-                es_storage.storage_cluster.cluster_id,
-                es_storage.storage_cluster.domain_name,
-            )
-            continue
+        # if es_storage.is_red():
+        #     logger.error(
+        #         "es cluster health is red, skip index lifecycle; name: %s, id: %s, domain: %s",
+        #         es_storage.storage_cluster.cluster_name,
+        #         es_storage.storage_cluster.cluster_id,
+        #         es_storage.storage_cluster.domain_name,
+        #     )
+        #     continue
         try:
             # 先预创建各个时间段的index，
             # 1. 同时判断各个预创建好的index是否字段与数据库的一致

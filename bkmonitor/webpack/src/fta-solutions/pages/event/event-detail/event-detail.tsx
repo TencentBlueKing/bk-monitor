@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
+import { Component, Emit, Mixins, Prop, ProvideReactive } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import { alertDetail, listAlertFeedback, searchAction } from 'monitor-api/modules/alert';
@@ -71,8 +71,6 @@ Component.registerHooks(['beforeRouteLeave']);
   name: 'EventDetail',
 })
 export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth)) {
-  @Provide('authorityFromEventDetail') authority;
-  @Provide('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetail;
   @Prop({ default: '', type: [String, Number] }) id: string;
   @Prop({ default: '', type: String }) activeTab: string;
   @Prop({ type: Number, default: +window.bk_biz_id }) bizId: number;
@@ -500,8 +498,10 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         onConfirm={this.handleConfirmAfter}
       ></AlarmConfirm>,
       <QuickShield
+        authority={this.authority}
         bizIds={[this.basicInfo.bk_biz_id]}
         details={detail}
+        handleShowAuthorityDetail={this.handleShowAuthorityDetail}
         ids={[this.basicInfo.id]}
         show={quickShield.show}
         on-change={this.quickShieldChange}

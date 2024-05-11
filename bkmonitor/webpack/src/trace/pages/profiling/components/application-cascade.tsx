@@ -98,16 +98,17 @@ export default defineComponent({
       /** 服务名称 */
       serviceName: null,
     });
-    const inputText = computed(() => {
-      if (!selectValue.appName || !selectValue.serviceName) return '';
-      return `${selectValue.appName} / ${selectValue.serviceName}`;
-    });
+
+    const inputText = ref('');
 
     watch(
       () => props.value,
       val => {
         selectValue.appName = val[0] || '';
         selectValue.serviceName = val[1] || '';
+        if (!!selectValue.appName && !!selectValue.serviceName) {
+          inputText.value = `${selectValue.appName} / ${selectValue.serviceName}`;
+        }
       },
       {
         immediate: true,
@@ -137,6 +138,7 @@ export default defineComponent({
       if (val.name === selectValue.serviceName) return;
       selectValue.serviceName = val.name;
       showPopover.value = false;
+      inputText.value = `${selectValue.appName} / ${selectValue.serviceName}`;
       emit('change', [selectValue.appName, selectValue.serviceName]);
     }
 
@@ -227,7 +229,10 @@ export default defineComponent({
                           onClick={() => this.handleAppClick(item)}
                         >
                           <i class='icon-monitor icon-mc-menu-apm'></i>
-                          <span class='name'>
+                          <span
+                            class='name'
+                            v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
+                          >
                             {item.app_name}
                             <span class='desc'>({item.app_alias})</span>
                           </span>
@@ -237,13 +242,17 @@ export default defineComponent({
                       ))}
                     </div>
                     <div class='group-title'>{this.t('无数据应用')}</div>
-                    {this.appList.no_data.map(item => (
+                    {this.appList.no_data.map((item, index) => (
                       <div
+                        key={`${item.app_name}_${index}`}
                         class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
                         onClick={() => this.handleAppClick(item)}
                       >
                         <i class='icon-monitor icon-mc-menu-apm'></i>
-                        <span class='name'>
+                        <span
+                          class='name'
+                          v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
+                        >
                           {item.app_name}
                           <span class='desc'>({item.app_alias})</span>
                         </span>
@@ -277,13 +286,15 @@ export default defineComponent({
                               <Form.FormItem label={this.t('描述')}>{this.appData.description}</Form.FormItem>
                               <Form.FormItem label='Token'>
                                 <span class='password'>{this.token || '●●●●●●●●●●'}</span>
-                                <Button
-                                  theme='primary'
-                                  text
-                                  onClick={this.handleViewToken}
-                                >
-                                  {this.t('点击查看')}
-                                </Button>
+                                {!this.token && (
+                                  <Button
+                                    theme='primary'
+                                    text
+                                    onClick={this.handleViewToken}
+                                  >
+                                    {this.t('点击查看')}
+                                  </Button>
+                                )}
                               </Form.FormItem>
                             </Form>
                             <div class='btn'>

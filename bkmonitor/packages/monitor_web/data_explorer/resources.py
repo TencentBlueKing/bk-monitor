@@ -450,10 +450,17 @@ class GetGraphQueryConfig(Resource):
 
         instance_dimensions_set: Set[Tuple] = set()
         for target_instance in target_instances:
-            dimensions = tuple(sorted([(key, str(value)) for key, value in target_instance.items()]))
-            if dimensions in target_dimensions_set:
-                continue
-            instance_dimensions_set.add(dimensions)
+            dimensions_list = [{}]
+            for key, value in target_instance.items():
+                if not isinstance(value, list):
+                    value = [value]
+                for v in value:
+                    dimensions_list = [{**dimension, key: v} for dimension in dimensions_list if key not in dimension]
+            for dimensions in dimensions_list:
+                dimension_tuple = tuple(sorted([(key, str(value)) for key, value in dimensions.items()]))
+                if dimension_tuple in target_dimensions_set:
+                    continue
+                instance_dimensions_set.add(dimension_tuple)
 
         # 有查询条件的，按条件维度补全空图
         condition_dimensions_set = cls.get_condition_set(unify_query_config, dimensions_set, instance_dimensions_set)

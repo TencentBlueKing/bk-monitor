@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 """
 import ntpath
 import os
+import sys
 from urllib.parse import urljoin
 
 from bkcrypto import constants
@@ -220,27 +221,14 @@ if SENTRY_DSN:
         "dsn": SENTRY_DSN,
     }
 
-# apm support
-APM_ID = os.environ.get("APM_ID")
-APM_TOKEN = os.environ.get("APM_TOKEN")
-if APM_ID and APM_TOKEN:
-    INSTALLED_APPS += ("ddtrace.contrib.django",)
-    DATADOG_TRACE = {
-        "TAGS": {
-            "env": os.getenv("BKPAAS_ENVIRONMENT", "dev"),
-            "apm_id": APM_ID,
-            "apm_token": APM_TOKEN,
-        },
-    }
-    # requests for APIGateway/ESB
-    # remove pymysql while Django Defaultdb has been traced already
-    try:
-        import requests  # noqa  # pylint: disable=unused-import
-        from ddtrace import patch
-
-        patch(requests=True, pymysql=False)
-    except Exception as err:  # pylint: disable=broad-except
-        print("patch fail for requests and pymysql: %s" % err)
+# Target: Observation data collection
+SERVICE_NAME = APP_CODE + "_web"
+if ROLE == "api":
+    SERVICE_NAME = APP_CODE + "_api"
+if "celery" in sys.argv or ROLE == "worker":
+    SERVICE_NAME = APP_CODE + "_worker"
+if "beat" in sys.argv:
+    SERVICE_NAME = APP_CODE + "_beat"
 
 # space 支持
 # 请求参数是否需要注入空间属性
@@ -550,6 +538,7 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
+APM_BMW_DEPLOY_BIZ_ID = 0
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
@@ -1340,6 +1329,9 @@ BASE64_ENCODE_TRIGGER_CHARS = []
 
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
+
+# grafana和策略导出是否支持data_label转换
+ENABLE_DATA_LABEL_EXPORT = True
 
 # 是否启用access数据批量处理
 ENABLED_ACCESS_DATA_BATCH_PROCESS = False

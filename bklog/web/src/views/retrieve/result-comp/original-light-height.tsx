@@ -63,7 +63,7 @@ export default class QueryStatement extends tsc<IProps> {
     });
     const sortObject = this.visibleFields.reduce((pre, cur) => {
       let fieldValue = visibleObject[cur.field_name];
-      if (this.operatorConfig.isShowSourceField && cur?.tag === 'union-source') {
+      if (this.operatorConfig?.isShowSourceField && cur?.tag === 'union-source') {
         fieldValue =
           this.unionIndexItemList.find(item => item.index_set_id === String(this.originJson.__index_set_id__))
             ?.index_set_name ?? '';

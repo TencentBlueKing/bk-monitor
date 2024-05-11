@@ -26,7 +26,7 @@
  */
 
 import { TranslateResult } from 'vue-i18n';
-import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -219,8 +219,6 @@ const filterIconMap = {
   name: 'Event',
 })
 class Event extends Mixins(authorityMixinCreate(eventAuth)) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   // 监控左侧栏是否收缩配置 自愈默认未收缩
   @Prop({ default: false, type: Boolean }) readonly toggleSet: boolean;
   // 是否是分屏模式下的事件展示
@@ -1986,8 +1984,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         onConfirm={this.handleConfirmAfter}
       ></AlarmConfirm>,
       <QuickShield
+        authority={this.authority}
         bizIds={this.dialog.quickShield.bizIds}
         details={this.dialog.quickShield.details}
+        handleShowAuthorityDetail={this.handleShowAuthorityDetail}
         ids={this.dialog.quickShield.ids}
         show={this.dialog.quickShield.show}
         on-change={this.quickShieldChange}
