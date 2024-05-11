@@ -81,8 +81,15 @@ class FunctionTree:
         if parent is not None:
             node.parent = parent
             parent.children.append(node)
+            self.update_parent_values(parent, v)
 
         return node
+
+    def update_parent_values(self, node: FunctionNode, value: int):
+        """Update all parent nodes values recursively"""
+        while node is not None:
+            node.value += value
+            node = node.parent
 
     @classmethod
     def load_from_profile(cls, converter: Converter) -> "FunctionTree":
@@ -109,6 +116,7 @@ class FunctionTree:
                         node = tree.add_function_node(function, sample_value, parent_node, converter)
                     else:
                         node.value += sample_value
+                        tree.update_parent_values(node.parent, sample_value)
 
                     parent_node = node
 
