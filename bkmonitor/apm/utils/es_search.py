@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import time
 from functools import wraps
-from threading import Lock
+from threading import Semaphore
 
 from elasticsearch.helpers.errors import ScanError
 from elasticsearch_dsl import Search
@@ -92,30 +92,24 @@ class RateLimiter:
     def __init__(self, calls, period):
         self.calls = calls
         self.period = period
-        self.counter = 0
+        self.semaphore = Semaphore(calls)
         self.start_time = time.time()
-        self.lock = Lock()
 
     def __call__(self, func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            with self.lock:
-                current_time = time.time()
-                elapsed = current_time - self.start_time
+            current_time = time.time()
+            elapsed = current_time - self.start_time
 
-                if elapsed > self.period:
-                    self.counter = 0
-                    self.start_time = current_time
+            if elapsed > self.period:
+                self.start_time = current_time
+                self.semaphore = Semaphore(self.calls)
 
-                if self.counter < self.calls:
-                    self.counter += 1
-                else:
-                    sleep_time = self.start_time + self.period - current_time
-                    if sleep_time > 0:
-                        time.sleep(sleep_time)
-                    self.start_time = current_time + sleep_time
-                    self.counter = 1
+            self.semaphore.acquire()
+            try:
                 return func(*args, **kwargs)
+            finally:
+                self.semaphore.release()
 
         return wrapper
 
