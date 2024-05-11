@@ -49,6 +49,7 @@ import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
 import TrendChart from './trend-chart/trend-chart';
+import { ProfileDataUnit } from './utils';
 
 import './profiling-graph.scss';
 
@@ -67,7 +68,7 @@ class ProfilingChart extends CommonSimpleChart {
     children: undefined,
     id: '',
   };
-  unit = '';
+  unit: ProfileDataUnit = 'nanoseconds';
   empty = true;
   emptyText = window.i18n.t('查无数据');
   // 视图模式
@@ -352,6 +353,7 @@ class ProfilingChart extends CommonSimpleChart {
                   isCompared={this.queryParams.is_compared}
                   showGraphTools={false}
                   textDirection={this.textDirection}
+                  unit={this.unit}
                   onUpdateHighlightId={id => (this.highlightId = id)}
                 />
               )}
