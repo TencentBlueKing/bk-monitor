@@ -316,7 +316,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             filter_labels=data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
             sample_type=data["data_type"],
-            order="sample_type",
         )
 
         if data["global_query"] and not doris_converter:
