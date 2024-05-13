@@ -128,3 +128,5 @@ bk-crypto-python-sdk==1.0.4
 
 # graphviz
 graphviz==0.19.1
+
+python-dotenv==0.20.0

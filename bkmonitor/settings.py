@@ -12,8 +12,12 @@ import logging
 import os
 import sys
 
+from dotenv import load_dotenv
+
 import monkey
 from config.tools.environment import ENVIRONMENT, ROLE
+
+load_dotenv()
 
 # settings加载顺序 config.default -> blueapps.patch -> config.{env} -> config.role.{role}
 
