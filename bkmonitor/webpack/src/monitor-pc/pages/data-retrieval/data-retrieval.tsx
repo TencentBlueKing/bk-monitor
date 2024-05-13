@@ -50,6 +50,7 @@ import {
 } from 'monitor-api/modules/strategies';
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
 import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
+import { IPanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import { EmptyStatusType } from '../../components/empty-status/types';
@@ -1644,6 +1645,7 @@ export default class DataRetrieval extends tsc<object> {
         this.queryTimeRange = +new Date() - queryStartTime;
         this.queryResult = data.panels;
         this.emptyStatus = 'search-empty';
+        this.routerParamsUpdate(data.panels || []);
       })
       .catch(() => {
         this.queryResult = [];
@@ -1651,6 +1653,26 @@ export default class DataRetrieval extends tsc<object> {
       })
       .finally(() => (this.loading = false));
     this.isHandleQuery = false;
+  }
+
+  /**
+   * @description 更新路由参数（检索的任何更改都需要记录到路由上）
+   * @param panels
+   */
+  routerParamsUpdate(panels: IPanelModel[]) {
+    let targets = panels.reduce((pre, item) => {
+      pre.push(...item.targets);
+      return pre;
+    }, []);
+    const routeParams = {
+      name: this.$route.name,
+      query: {
+        ...(this.$route.query || {}),
+        targets: JSON.stringify(targets),
+        key: random(10),
+      },
+    };
+    this.$router.replace(routeParams);
   }
 
   /**
@@ -2124,16 +2146,16 @@ export default class DataRetrieval extends tsc<object> {
       });
       return promqlData;
     }
-    if (targets?.[0]?.data?.query_configs?.[0]?.data_source_label === 'prometheus') {
-      targets[0].data.query_configs.forEach(q => {
+    targets.forEach(target => {
+      if (target?.data?.query_configs?.[0]?.data_source_label === 'prometheus') {
+        const q = target.data.query_configs[0];
         const temp = {
           code: q.promql,
           step: q.interval || q.agg_interval || 'auto',
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
-      });
-      return promqlData;
-    }
+      }
+    });
     return promqlData;
   }
   handleRoutePromqlData(promqlData: any[], from?: string, to?: string) {
@@ -2532,6 +2554,52 @@ export default class DataRetrieval extends tsc<object> {
       method: 'SUM',
       ...(params || deepClone(this.eventRetrievalRef.currentGroupByVarPramas)),
     };
+  }
+
+  /**
+   * @description 事件检索路由参数
+   * @param data
+   */
+  handleEventDataChange(data) {
+    const targets = [
+      {
+        data: {
+          query_configs: [
+            {
+              ...(() => {
+                const obj = {
+                  data_type_label: '',
+                  data_source_label: '',
+                };
+                if (data.eventType === 'custom_event') {
+                  obj.data_type_label = 'event';
+                  obj.data_source_label = 'custom';
+                } else if (data.eventType === 'bk_monitor_log') {
+                  obj.data_type_label = 'log';
+                  obj.data_source_label = 'bk_monitor';
+                }
+                return obj;
+              })(),
+              result_table_id: data.result_table_id || '',
+              where: data.where || [],
+              query_string: data.query_string || '',
+              group_by: [],
+              filter_dict: {},
+            },
+          ],
+        },
+      },
+    ];
+    const routeParams = {
+      name: this.$route.name,
+      query: {
+        ...(this.$route.query || {}),
+        targets: JSON.stringify(targets),
+        type: 'event',
+        key: random(10),
+      },
+    };
+    this.$router.replace(routeParams);
   }
 
   /**
@@ -3302,6 +3370,7 @@ export default class DataRetrieval extends tsc<object> {
                           where={this.eventWhere}
                           onAddFav={this.handleClickAddOrUpdateFav}
                           onAutoQueryChange={this.handleAutoQueryOfEventChange}
+                          onChange={this.handleEventDataChange}
                           onChartTitleChange={this.eventChartTitleChange}
                           onCountChange={count => (this.eventCount = count)}
                           onEmptyStatusChange={this.handleEmptyStatusChange}
