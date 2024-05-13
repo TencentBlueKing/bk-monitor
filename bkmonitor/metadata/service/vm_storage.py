@@ -192,7 +192,7 @@ def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
             "bk_base_data_id": bk_base_data_id,
         }
         if metric_type == "k8s_metric_data_id":
-            data["k8s_metric_rt"] = vm_rt_data_id["vm_rt"]
+            data["k8s_metric_rt"] = vm_rt
             data["k8s_metric_data_id"] = rt_data_ids
         else:
             data["custom_metric_rt"] = vm_rt
