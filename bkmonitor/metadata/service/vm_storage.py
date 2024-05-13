@@ -150,8 +150,11 @@ def query_vm_datalink(bk_data_id: int) -> Dict:
 def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
     """查询 bcs 集群接入 vm 的结果表"""
     # 获取集群信息，如果已经废弃，则忽略
-    cluster_infos = models.BCSClusterInfo.objects.filter(
-        cluster_id=bcs_cluster_id, status=models.BCSClusterInfo.CLUSTER_STATUS_RUNNING
+    cluster_infos = models.BCSClusterInfo.objects.filter(cluster_id=bcs_cluster_id).exclude(
+        status__in=[
+            models.BCSClusterInfo.CLUSTER_STATUS_DELETED,
+            models.BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
+        ]
     )
     # 集群不可用时，返回异常
     if not cluster_infos.exists():
