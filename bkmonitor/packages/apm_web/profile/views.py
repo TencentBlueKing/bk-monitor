@@ -337,7 +337,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                     )
 
         if (isinstance(doris_converter, dict) and not doris_converter.get("list")) or not doris_converter:
-            raise ValueError(_("未查询到有效数据"))
+            raise ValueError(_("当前查询条件未查询到有效数据，请调整后再试"))
 
         diagram_types = data["diagram_types"]
         options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
@@ -353,6 +353,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 result_table_id=essentials["result_table_id"],
                 sample_type=data["data_type"],
             )
+            if (
+                isinstance(diff_doris_converter, dict) and not diff_doris_converter.get("list")
+            ) or not diff_doris_converter:
+                raise ValueError(_("当前对比项查询条件未查询到有效数据，请调整后再试"))
+
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(doris_converter, diff_doris_converter, **options)
                 for d_type in diagram_types
