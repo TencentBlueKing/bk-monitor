@@ -26,8 +26,8 @@
 <template>
   <div class="event-tab">
     <van-tabs
-      :value="value"
       :class="'event-tab-' + tabList.length"
+      :value="value"
       @change="handleChangeTab"
     >
       <van-tab
@@ -40,8 +40,8 @@
               {{ item.count ? (item.shortTitle ? item.shortTitle : item.title) : item.title }}
             </span>
             <span
-              v-show="item.count"
               class="count"
+              v-show="item.count"
             >
               {{ handleCount(item.count) }}
             </span>
