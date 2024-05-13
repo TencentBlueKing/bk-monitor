@@ -180,7 +180,7 @@ class ServiceInfoResource(Resource):
         # 获取服务信息
         service_info = {"extra_data": {}, "topo_key": service_name}
         service_info.update(operate_record.get())
-        service_info.update(profiling_info)
+        service_info.update(profiling_info.get())
         resp = topo_node_res.get()
 
         service_info["relation"] = {
