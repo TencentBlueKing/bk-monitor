@@ -279,6 +279,28 @@ class QueryTemplate:
         # 计算平台 select_count 时, 固定的列名称为 count(1) . 所以这里这样写
         return {i["service_name"]: i["count(*)"] for i in res["list"]}
 
+    def get_service_count(self, start_time, end_time, service_name):
+        """获取单个 service 数据量"""
+
+        res = Query(
+            api_type=APIType.SELECT_COUNT,
+            api_params=APIParams(
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                start=start_time,
+                end=end_time,
+                service_name=service_name,
+                dimension_fields="service_name",
+                metric_fields="count(*)",
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+
+        if not res or not res.get("list"):
+            return None
+
+        return next(i["count(*)"] for i in res["list"])
+
     def get_count(
         self, start_time: int, end_time: int, sample_type: str, service_name: str = None, label_filter: dict = None
     ):
