@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+import gzip
 import json
 import logging
 import queue
@@ -21,6 +21,7 @@ from typing import Dict, List
 
 import arrow
 import pytz
+import redis
 from django.conf import settings
 from django.utils.functional import cached_property
 from kafka import KafkaConsumer
@@ -303,7 +304,15 @@ class AccessDataProcess(BaseAccessDataProcess):
             )
             cache_key.strategy_id = self.items[0].strategy.id
 
-            raw_points: List[str] = client.lrange(cache_key, 0, -1)
+            try:
+                raw_points: List[str] = client.lrange(cache_key, 0, -1)
+            except redis.ResponseError:
+                data = client.get(cache_key)
+                if data:
+                    raw_points = json.loads(gzip.decompress(data).decode("utf-8"))
+                else:
+                    raw_points = []
+
             client.delete(cache_key)
             points: List[Dict] = [json.loads(point) for point in raw_points]
         else:
@@ -422,11 +431,12 @@ class AccessDataProcess(BaseAccessDataProcess):
         """
         发送分批处理任务，并返回第一批数据
         """
-        self.batch_timestamp = int(time.time())
-
         from alarm_backends.service.access.tasks import run_access_batch_data
 
+        self.batch_timestamp = int(time.time())
+
         client = key.ACCESS_BATCH_DATA_KEY.client
+        pipeline = client.pipeline()
         first_batch_points = []
         latest_record_timestamp = None
         last_batch_index, batch_count = 0, 0
@@ -457,14 +467,15 @@ class AccessDataProcess(BaseAccessDataProcess):
                     strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
                 )
                 data_key.strategy_id = self.items[0].strategy.id
-                client.lpush(data_key, *[json.dumps(point) for point in batch_points])
-                key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
+                compress_batch_points = gzip.compress(json.dumps(batch_points).encode("utf-8"))
+                pipeline.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
 
                 # 发起异步任务
                 run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
 
             # 记录下一轮的起始位置
             last_batch_index = index
+        pipeline.execute()
 
         if batch_count > 1:
             self.sub_task_id = f"{self.batch_timestamp}.1"
