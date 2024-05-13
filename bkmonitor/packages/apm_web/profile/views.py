@@ -584,7 +584,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         export_format = validated_data.get("export_format", DEFAULT_EXPORT_FORMAT)
         if export_format not in EXPORT_FORMAT_MAP:
             raise ValueError(f"({export_format}) format is currently not supported")
-        now_str = timezone.now().strftime("%Y-%m-%d-%H-%M-%S")
+        now_str = timezone.localtime(timezone.now()).strftime("%Y-%m-%d-%H-%M-%S")
         file_name = PROFILE_EXPORT_FILE_NAME.format(
             app_name=app_name, data_type=validated_data["data_type"], time=now_str, format=export_format
         )
