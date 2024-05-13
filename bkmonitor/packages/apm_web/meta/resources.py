@@ -2708,3 +2708,31 @@ class GETDataEncodingResource(Resource):
     def perform_request(self, data):
         data = EncodingsEnum.get_choices_list_dict()
         return data
+
+
+class SimpleServiceList(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称")
+
+    def perform_request(self, validate_data):
+        app = Application.objects.filter(
+            bk_biz_id=validate_data["bk_biz_id"], app_name=validate_data["app_name"]
+        ).first()
+        if not app:
+            raise ValueError(_("应用{}不存在").format(validate_data["app_name"]))
+
+        services = ServiceHandler.list_services(app)
+
+        return [
+            {
+                "bk_biz_id": validate_data["bk_biz_id"],
+                "app_name": validate_data["app_name"],
+                "service_name": service["topo_key"],
+                "category": service.get("extra_data", {}).get("category"),
+                "kind": service.get("extra_data", {}).get("kind"),
+                "predicate_value": service.get("extra_data", {}).get("predicate_value"),
+                "language": service.get("extra_data", {}).get("service_language", ""),
+            }
+            for service in services
+        ]
