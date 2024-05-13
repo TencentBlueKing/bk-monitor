@@ -755,15 +755,15 @@ class AccessBatchDataProcess(AccessDataProcess):
 
         try:
             raw_points: List[str] = client.lrange(cache_key, 0, -1)
+            points: List[Dict] = [json.loads(point) for point in raw_points]
         except redis.ResponseError:
             data = client.get(cache_key)
             if data:
-                raw_points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
+                points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
             else:
-                raw_points = []
+                points = []
 
         client.delete(cache_key)
-        points: List[Dict] = [json.loads(point) for point in raw_points]
 
         self.filter_duplicates(points)
 
