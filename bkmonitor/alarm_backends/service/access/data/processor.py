@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import base64
 import gzip
 import json
 import logging
@@ -416,7 +417,6 @@ class AccessDataProcess(BaseAccessDataProcess):
         self.batch_timestamp = int(time.time())
 
         client = key.ACCESS_BATCH_DATA_KEY.client
-        pipeline = client.pipeline()
         first_batch_points = []
         latest_record_timestamp = None
         last_batch_index, batch_count = 0, 0
@@ -447,15 +447,14 @@ class AccessDataProcess(BaseAccessDataProcess):
                     strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
                 )
                 data_key.strategy_id = self.items[0].strategy.id
-                compress_batch_points = gzip.compress(json.dumps(batch_points).encode("utf-8"))
-                pipeline.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
+                compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_points).encode("utf-8")))
+                client.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
 
                 # 发起异步任务
                 run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
 
             # 记录下一轮的起始位置
             last_batch_index = index
-        pipeline.execute()
 
         if batch_count > 1:
             self.sub_task_id = f"{self.batch_timestamp}.1"
@@ -759,7 +758,7 @@ class AccessBatchDataProcess(AccessDataProcess):
         except redis.ResponseError:
             data = client.get(cache_key)
             if data:
-                raw_points = json.loads(gzip.decompress(data).decode("utf-8"))
+                raw_points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
             else:
                 raw_points = []
 
