@@ -762,7 +762,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     //  切换tab时初始化 showMode
     if (!this.sceneData.selectorPanel && this.showMode === 'list') {
       this.showMode = 'dashboard';
-    } else if (this.sceneData.options.panel_tool?.full_table) {
+    } else if (this.sceneData.options?.panel_tool?.full_table) {
       this.showMode = 'list';
     }
 
@@ -1196,7 +1196,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }
     });
     const queryDataStr = Object.keys(queryData).length ? encodeURIComponent(JSON.stringify(queryData)) : undefined;
-
     this.$router.replace({
       name: this.$route.name,
       query: {

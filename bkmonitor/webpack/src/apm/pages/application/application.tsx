@@ -26,15 +26,18 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-property-decorator';
 
+import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonAlert from 'monitor-pc/pages/monitor-k8s/components/common-alert';
-import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import CommonPage, { SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
+import ApmCommonNavBar, {
+  type INavItem,
+  type ISelectItem,
+} from '../../components/apm-common-nav-bar/apm-common-nav-bar';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import applicationStore from '../../store/modules/application';
@@ -64,7 +67,8 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   viewOptions: IViewOptions = {};
   // 导航条设置
   routeList: INavItem[] = [];
-
+  /** common-page组件key */
+  pageKey = 0;
   // 是否展示引导页
   showGuidePages = false;
 
@@ -77,6 +81,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
 
   /** 应用名 */
   appName = '';
+  appList = [];
   /** 选中的插件id */
   pluginId = '';
   /** 新建应用弹窗 */
@@ -140,6 +145,10 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           id: 'application',
           name: `${window.i18n.tc('应用')}：${appName}`,
           subName: '',
+          selectOption: {
+            value: appName,
+            selectList: [],
+          },
         },
       ];
       vm.viewOptions = {};
@@ -147,6 +156,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       vm.appName = query['filter-app_name'] as string;
       applicationStore.getPluginList();
       vm.handleGetAppInfo();
+      vm.getApplicationList();
     });
   }
   beforeRouteLeave(to, from, next) {
@@ -157,6 +167,36 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   handelTimeRangeChange() {
     this.handleGetAppInfo();
   }
+  async getApplicationList() {
+    const listData = await listApplicationInfo().catch(() => []);
+    this.appList = listData.map(item => ({
+      id: item.application_id,
+      name: item.app_name,
+      ...item,
+    }));
+    this.routeList[1].selectOption.selectList = this.appList;
+  }
+  /** 导航栏下拉选择 */
+  async handleNavSelect(item: ISelectItem) {
+    this.appName = item.name;
+    const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+    this.$router.replace({
+      name: this.$route.name,
+      query: {
+        to,
+        from,
+        interval,
+        timezone,
+        refleshInterval,
+        dashboardId,
+        'filter-app_name': this.appName,
+      },
+    });
+    this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
+    this.routeList[1].selectOption.value = this.appName;
+    this.pageKey += 1;
+  }
+
   /** 获取应用信息 */
   async handleGetAppInfo() {
     let queryTimeRange;
@@ -226,6 +266,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       <div class='application'>
         {
           <CommonPage
+            key={this.pageKey}
             ref='commonPageRef'
             backToOverviewKey={this.backToOverviewKey}
             defaultViewOptions={this.viewOptions}
@@ -238,13 +279,14 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
             onTimeRangeChange={this.handelTimeRangeChange}
             onTitleChange={this.handleTitleChange}
           >
-            <CommonNavBar
+            <ApmCommonNavBar
               slot='nav'
               needBack={false}
               needShadow={true}
               positionText={this.positonText}
               routeList={this.routeList}
               needCopyLink
+              onNavSelect={this.handleNavSelect}
             />
             {this.isReady && this.viewHasNoData && (
               <div slot='noData'>
