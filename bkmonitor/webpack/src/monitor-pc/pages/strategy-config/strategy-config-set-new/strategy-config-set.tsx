@@ -147,6 +147,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @Inject('strategyType') strategyType: strategyType;
   @ProvideReactive('metricFunctions') metricFunctions = [];
   @ProvideReactive('strategyId') strategyId = 0;
+  /** 是否启用时序预测 */
+  @ProvideReactive('enableTimeSeriesForecasting') enableTimeSeriesForecasting = false;
+  /** 是否启用离群检测 */
+  @ProvideReactive('enableAbnormalCluster') enableAbnormalCluster = false;
+  /** 是否启用单指标智能检测 */
+  @ProvideReactive('enableIntelligentDetect') enableIntelligentDetect = false;
   /** 当前编辑的策略是否存在智能异常检测算法 */
   @ProvideReactive('editStrategyIntelligentDetectList') editStrategyIntelligentDetectList: string[] = [];
 
