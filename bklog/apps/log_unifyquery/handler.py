@@ -8,3 +8,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Any, Dict
+
+from apps.api import UnifyQueryApi
+
+
+class UnifyQueryHandler(object):
+    def __init__(self, search_dict):
+        self.search_dict: Dict[str, Any] = search_dict
+        self.include_nested_fields: bool = search_dict.get("include_nested_fields", True)
+
+    def query_ts(self):
+        return UnifyQueryApi.unify_query.query_ts(self.search_dict)
+
+    def query_ts_reference(self):
+        return UnifyQueryApi.unify_query.query_ts_reference(self.search_dict)

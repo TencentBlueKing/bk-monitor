@@ -19,6 +19,12 @@ from apps.api.modules.utils import add_esb_info_before_request  # noqa
 from config.domains import UNIFYQUERY_APIGATEWAY_ROOT  # noqa
 
 
+def add_unify_query_header_before(params):
+    params = add_esb_info_before_request(params)
+    params["X-Bk-Scope-Skip-Space"] = "skip"
+    return params
+
+
 class _UnifyQueryApi(object):
     MODULE = _("UNIFYQUERY模块")
 
@@ -29,5 +35,15 @@ class _UnifyQueryApi(object):
             module=self.MODULE,
             description="时序型检索",
             default_return_value=None,
-            before_request=add_esb_info_before_request,
+            header_keys=["X-Bk-Scope-Skip-Space"],
+            before_request=add_unify_query_header_before,
+        )
+        self.query_ts_reference = DataAPI(
+            method="POST",
+            url=UNIFYQUERY_APIGATEWAY_ROOT + "query/ts/reference/",
+            module=self.MODULE,
+            description="非时序型检索",
+            default_return_value=None,
+            header_keys=["X-Bk-Scope-Skip-Space"],
+            before_request=add_unify_query_header_before,
         )

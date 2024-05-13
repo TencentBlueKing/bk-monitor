@@ -816,3 +816,56 @@ class GetDisplayNameSerializer(serializers.Serializer):
     """
 
     host_list = serializers.ListField(child=HostInfoSerializer(), default=[])
+
+
+class QueryFieldBaseSerializer(serializers.Serializer):
+    """
+    字段分析查询序列化
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
+    agg_field = serializers.CharField(label=_("字段名"), required=True)
+
+    # filter条件，span选择器等
+    addition = serializers.ListField(allow_empty=True, required=False, default="")
+    host_scopes = serializers.DictField(default={}, required=False)
+    ip_chooser = serializers.DictField(default={}, required=False)
+
+    # 时间选择器字段
+    start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S")
+    end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S")
+    time_range = serializers.CharField(required=False, default=None)
+
+    # 关键字填充条
+    keyword = serializers.CharField(allow_null=True, allow_blank=True)
+
+
+class FetchTopkListSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段topk计数列表序列化
+    """
+
+    limit = serializers.IntegerField(label=_("topk限制条数"), required=False, default=5)
+
+
+class FetchStatisticsInfoSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段统计信息
+    """
+
+    field_type = serializers.ChoiceField(
+        required=True, choices=["keyword", "text", "integer", "long", "double", "bool", "conflict"]
+    )
+
+
+class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段统计图表
+    """
+
+    field_type = serializers.ChoiceField(
+        required=True, choices=["keyword", "text", "integer", "long", "double", "bool", "conflict"]
+    )
+    max = serializers.IntegerField(label=_("最大值"), required=False)
+    min = serializers.IntegerField(label=_("最小值"), required=False)
+    distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)
