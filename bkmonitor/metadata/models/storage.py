@@ -2450,15 +2450,24 @@ class ESStorage(models.Model, StorageResultTable):
                     )
                     delete_list = []
 
+                # 组装需要新增或删除的索引和别名的关联关系
+                actions = [
+                    {"add": {"index": last_index_name, "alias": round_alias_name}},
+                    {"add": {"index": last_index_name, "alias": round_read_alias_name}},
+                ]
+                # 如果需要删除的列表不为空，则添加对应的 `remove` 操作
+                if delete_list:
+                    for _index in delete_list:
+                        actions.append({"remove": {"index": _index, "alias": round_alias_name}})
+                    logger.info(
+                        "table_id->[%s] index->[%s] alias->[%s] need delete",
+                        self.table_id,
+                        delete_list,
+                        round_alias_name,
+                    )
+
                 # 3.2 需要将循环中的别名都指向了最新的index
-                es_client.indices.update_aliases(
-                    body={
-                        "actions": [
-                            {"add": {"index": last_index_name, "alias": round_alias_name}},
-                            {"add": {"index": last_index_name, "alias": round_read_alias_name}},
-                        ]
-                    }
-                )
+                es_client.indices.update_aliases(body={"actions": actions})
 
                 logger.info(
                     "table_id->[%s] now has index->[%s] and alias->[%s | %s]",
@@ -2467,17 +2476,6 @@ class ESStorage(models.Model, StorageResultTable):
                     round_alias_name,
                     round_read_alias_name,
                 )
-
-                # 只有当index相关列表不为空的时候，才会进行别名关联清理
-                if len(delete_list) != 0:
-                    index_list_str = ",".join(delete_list)
-                    es_client.indices.delete_alias(index=index_list_str, name=round_alias_name)
-                    logger.info(
-                        "table_id->[%s] index->[%s] alias->[%s] relations now had delete.",
-                        self.table_id,
-                        delete_list,
-                        round_alias_name,
-                    )
 
             finally:
                 logger.info("all operations for index->[{}] gap->[{}] now is done.".format(self.table_id, now_gap))
