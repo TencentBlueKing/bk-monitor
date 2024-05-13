@@ -454,6 +454,13 @@ export default {
       timezone: dayjs.tz.guess(),
       /** 数据指纹是否请求布尔值 */
       fingerSearchState: false,
+      /** 是否需要初始化过滤条件回显所需的参数 */
+      isFilterInitPage: true,
+      /** 首次初始化回显时需要的参数 */
+      initFilterParams: {
+        queryParams: {},
+        initAddition: {}
+      },
       logSourceField: {
         description: null,
         es_doc_values: false,
@@ -1012,7 +1019,11 @@ export default {
     batchAddCondition(additionList, isLink) {
       if (isLink) {
         const notExistAddition = additionList.filter(item => !this.additionIsExist(item));
-        this.additionLinkOpen(notExistAddition, { activeTableTab: 'origin', clusterRouteParams: '{}' });
+        const changeOperatorAddition = notExistAddition.map(item => ({
+          ...item,
+          operator: this.getAdditionMappingOperator(item)
+        }));
+        this.additionLinkOpen(changeOperatorAddition, { activeTableTab: 'origin', clusterRouteParams: '{}' });
       } else {
         additionList.forEach(item => {
           const { field, operator, value } = item;
@@ -1376,6 +1387,13 @@ export default {
         this.resetResult();
         // 表格loading处理
         this.$refs.resultMainRef.reset();
+        // 字段过滤初始化所需的参数
+        if (this.isFilterInitPage) {
+          this.initFilterParams.queryParams = queryParams;
+          this.initFilterParams.initAddition = !!queryParamsStr?.addition
+            ? JSON.parse(queryParamsStr.addition)
+            : undefined;
+        }
         if (!this.totalFields.length || this.shouldUpdateFields) {
           window.bus.$emit('openChartLoading');
           this.isThollteField = false;
@@ -1398,11 +1416,6 @@ export default {
           Object.entries(clusteringParams).forEach(([key, val]) => {
             this[key] = val;
           });
-          await this.$nextTick();
-          // 初始化 回填添加条件
-          const addition = !!queryParamsStr.addition ? JSON.parse(queryParamsStr?.addition) : undefined;
-          const chooserSwitch = Boolean(queryParams.ip_chooser);
-          this.$refs.searchCompRef.initConditionList(addition, this.catchIpChooser, chooserSwitch); // 初始化 更新当前添加条件列表
           this.isInitPage = false;
         }
 
@@ -1559,7 +1572,17 @@ export default {
         this.isThollteField = false;
         this.$store.commit('retrieve/updateFiledSettingConfigID', config_id); // 当前配置ID
         this.$nextTick(() => {
-          this.$refs.searchCompRef?.initAdditionDefault();
+          if (this.isFilterInitPage) {
+            const { queryParams, initAddition } = this.initFilterParams;
+            // 初始化 回填添加条件
+            const chooserSwitch = Boolean(queryParams.ip_chooser);
+            // 初始化 更新当前添加条件列表
+            this.$refs.searchCompRef.initConditionList(initAddition, this.catchIpChooser, chooserSwitch);
+            this.initFilterParams = null;
+            this.isFilterInitPage = false;
+          } else {
+            this.$refs.searchCompRef?.initAdditionDefault();
+          }
           // 字段设置下拉列表更新
           this.configWatchBool = !this.configWatchBool;
         });
