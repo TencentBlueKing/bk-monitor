@@ -177,6 +177,9 @@ class QueryTemplate:
 
         res = {}
         for sample_type in sample_types:
+            if not sample_type:
+                continue
+
             info = Query(
                 api_type=APIType.QUERY_SAMPLE_BY_JSON,
                 api_params=APIParams(
@@ -189,6 +192,7 @@ class QueryTemplate:
                     limit={"offset": 0, "rows": 1},
                     order={"expr": "dtEventTimeStamp", "sort": "desc"},
                     label_filter=label_filter,
+                    dimension_fields="dtEventTimeStamp",
                 ),
                 result_table_id=self.result_table_id,
             ).execute()
