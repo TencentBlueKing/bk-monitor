@@ -47,6 +47,7 @@ from apm_web.meta.resources import (
     ServiceDetailResource,
     ServiceListResource,
     SetupResource,
+    SimpleServiceList,
     StartResource,
     StopResource,
     StorageFieldInfoResource,
@@ -104,10 +105,7 @@ class ApplicationViewSet(ResourceViewSet):
                     self.INSTANCE_ID, [ActionEnum.MANAGE_APM_APPLICATION], ResourceEnum.APM_APPLICATION
                 )
             ]
-        if self.action in [
-            "application_info_by_app_name",
-            "service_detail",
-        ]:
+        if self.action in ["application_info_by_app_name", "service_detail", "simple_service_list"]:
             return [
                 InstanceActionForDataPermission(
                     "app_name",
@@ -224,4 +222,5 @@ class ApplicationViewSet(ResourceViewSet):
         ),
         ResourceRoute("POST", CustomServiceDataSourceResource, endpoint="custom_service_url_list"),
         ResourceRoute("GET", GETDataEncodingResource, endpoint="data_encoding"),
+        ResourceRoute("POST", SimpleServiceList, endpoint="simple_service_list"),
     ]
