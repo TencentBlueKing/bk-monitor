@@ -674,14 +674,19 @@ def authorize_paas_space_cluster_data_source(space_cluster: Dict):
     paas_data_id_list = settings.BKPAAS_AUTHORIZED_DATA_ID_LIST
     # 进行数据匹配
     for space_id, data_ids in space_data_id_map.items():
-        paas_data_id_exist = False or bool(set(paas_data_id_list) & data_ids)
+        # 匹配到需要增加的数据源
+        need_create_data_ids = set(paas_data_id_list) - set(data_ids)
         try:
-            # 如果平台授权的数据源不存在，则进行创建
-            if not paas_data_id_exist:
-                for data_id in paas_data_id_list:
-                    models.SpaceDataSource.objects.create(
+            # 如果数据源不存在，则根据差异创建记录
+            if need_create_data_ids:
+                # 因为可能还会增加，更改为批量创建
+                objs = [
+                    models.SpaceDataSource(
                         space_type_id=space_type, space_id=space_id, bk_data_id=data_id, from_authorization=True
                     )
+                    for data_id in need_create_data_ids
+                ]
+                models.SpaceDataSource.objects.bulk_create(objs, batch_size=BULK_CREATE_BATCH_SIZE)
         except Exception as e:
             logger.error(
                 """authorize paas data_ids failed, space_type: %s, space_id: %s, data_ids: %s, error: %s""",
@@ -812,7 +817,7 @@ def refresh_bksaas_space_resouce():
     # 批量进行推送数据
     from metadata.task.tasks import multi_push_space_table_ids
 
-    space_ids = [{"space_type": space_type, "space_id": space["space_id"]} for space in space_id_list]
+    space_ids = [{"space_type": space_type, "space_id": space["app_code"]} for space in space_id_list]
     # NOTE: 此时集群或者公共插件相关的信息已经存在了，不需要再进行指标或 data_label 的映射
     bulk_handle(multi_push_space_table_ids, space_ids)
 
