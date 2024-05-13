@@ -75,7 +75,7 @@ class RecordRule(BaseModelWithTime):
 
             sql_and_metrics = utils.refine_bk_sql_and_metrics(expr, all_rule_record)
             rule_metric = utils.transform_record_to_metric_name(rule["record"])
-            rule_metrics = {rule["record"]: rule_metric}
+            rule_metrics.update({rule["record"]: rule_metric})
 
             sql = {
                 "count_freq": parse_duration(interval),

@@ -58,7 +58,7 @@ class RecordRuleService:
             table_id, bksql_metrics["bksql"], bksql_metrics["rule_metrics"], src_rts, dst_rt
         )
         # 创建结果表对应的指标
-        self._create_table_id_fields(table_id, bksql_metrics["rule_metrics"])
+        self._create_table_id_fields(table_id, list(bksql_metrics["rule_metrics"].values()))
 
     def _create_record_rule_record(
         self, table_id: str, bksql: List, rule_metrics: Dict, src_table_ids: List, dst_rt: str
