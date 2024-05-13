@@ -319,7 +319,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
 
             if len(result) == MAX_RETRIEVE_NUMBER:
                 # 数据大小刚好等于上限，说明可能还有数据，继续将此 data_id 重新发布任务
-                run_access_event_handler.delay(data_id=self.data_id, topic=self.topic)
+                run_access_event_handler.delay(data_id=self.data_id)
 
             for m in result:
                 if not m:
