@@ -59,7 +59,8 @@ class Config(AppConfig):
                 # enabling manually is a safer way to do in production
                 try:
                     from ddtrace.profiling.profiler import Profiler
-                    from profiling import patch_ddtrace_to_pyroscope
+
+                    from bkmonitor.profiling import patch_ddtrace_to_pyroscope
 
                     patch_ddtrace_to_pyroscope()
                     prof = Profiler()
