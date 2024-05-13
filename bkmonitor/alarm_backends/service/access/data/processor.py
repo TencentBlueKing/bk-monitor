@@ -297,40 +297,21 @@ class AccessDataProcess(BaseAccessDataProcess):
         if not self.items:
             return
 
-        if self.sub_task_id:
-            client = key.ACCESS_BATCH_DATA_KEY.client
-            cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
-                strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
-            )
-            cache_key.strategy_id = self.items[0].strategy.id
+        now_timestamp = arrow.utcnow().timestamp
 
-            try:
-                raw_points: List[str] = client.lrange(cache_key, 0, -1)
-            except redis.ResponseError:
-                data = client.get(cache_key)
-                if data:
-                    raw_points = json.loads(gzip.decompress(data).decode("utf-8"))
-                else:
-                    raw_points = []
+        # 设置查询时间范围
+        self.get_query_time_range(now_timestamp)
 
-            client.delete(cache_key)
-            points: List[Dict] = [json.loads(point) for point in raw_points]
-        else:
-            now_timestamp = arrow.utcnow().timestamp
+        # 如果策略更新导致查询时间错位，则跳过本次查询
+        if self.from_timestamp > self.until_timestamp:
+            return
 
-            # 设置查询时间范围
-            self.get_query_time_range(now_timestamp)
+        # 数据查询
+        points = self.query_data(now_timestamp)
 
-            # 如果策略更新导致查询时间错位，则跳过本次查询
-            if self.from_timestamp > self.until_timestamp:
-                return
-
-            # 数据查询
-            points = self.query_data(now_timestamp)
-
-            # 当点数大于阈值时，将数据拆分为多个批量任务
-            if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
-                points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
+        # 当点数大于阈值时，将数据拆分为多个批量任务
+        if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
+            points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
 
         # 过滤重复数据并实例化
         self.filter_duplicates(points)
@@ -361,7 +342,6 @@ class AccessDataProcess(BaseAccessDataProcess):
                 )
             )
             points = []
-        #  todo 分片处理
 
         # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
@@ -774,9 +754,17 @@ class AccessBatchDataProcess(AccessDataProcess):
         )
         cache_key.strategy_id = self.items[0].strategy.id
 
-        points: List[str] = client.lrange(cache_key, 0, -1)
+        try:
+            raw_points: List[str] = client.lrange(cache_key, 0, -1)
+        except redis.ResponseError:
+            data = client.get(cache_key)
+            if data:
+                raw_points = json.loads(gzip.decompress(data).decode("utf-8"))
+            else:
+                raw_points = []
+
         client.delete(cache_key)
-        points: List[Dict] = [json.loads(point) for point in points]
+        points: List[Dict] = [json.loads(point) for point in raw_points]
 
         self.filter_duplicates(points)
 
