@@ -108,8 +108,6 @@ def external(request):
             cc_biz_id = space.bk_biz_id
         except BKAPIError as e:
             logger.exception(f"获取空间信息({request.GET['space_uid']})失败：{e}")
-            if settings.DEMO_BIZ_ID:
-                cc_biz_id = settings.DEMO_BIZ_ID
     else:
         cc_biz_id = request.GET.get("bizId") or request.session.get("bk_biz_id") or request.COOKIES.get("bk_biz_id")
         if not cc_biz_id:
