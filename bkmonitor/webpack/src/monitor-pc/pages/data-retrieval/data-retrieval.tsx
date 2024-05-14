@@ -1620,6 +1620,19 @@ export default class DataRetrieval extends tsc<object> {
     //   this.loading = false
     //   console.error(err)
     // })
+    if (this.tabActive === 'event') {
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          ...(this.$route.query || {}),
+          from: this.compareValue.tools.timeRange[0],
+          to: this.compareValue.tools.timeRange[1],
+          timezone: this.compareValue.tools.timezone,
+          type: 'event',
+          key: random(10),
+        },
+      });
+    }
     let params = this.getQueryParams();
     // 过滤无效查询
     if (!params) {
@@ -2598,6 +2611,9 @@ export default class DataRetrieval extends tsc<object> {
       query: {
         ...(this.$route.query || {}),
         targets: JSON.stringify(targets),
+        from: this.compareValue.tools.timeRange[0],
+        to: this.compareValue.tools.timeRange[1],
+        timezone: this.compareValue.tools.timezone,
         type: 'event',
         key: random(10),
       },
