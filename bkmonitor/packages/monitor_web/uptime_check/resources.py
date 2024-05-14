@@ -1416,11 +1416,9 @@ class UpdateTaskRunningStatusResource(Resource):
             time.sleep(3)
             error_count = 0
             try:
-                status_result = api.node_man.subscription_instance_status(subscription_id_list=[subscription_id])[0][
-                    "instances"
-                ]
+                status_result = api.node_man.batch_task_result(subscription_id=subscription_id)
             except BKAPIError as e:
-                logger.error("请求节点管理任务执行结果接口失败: {}".format(e))
+                logger.error("请求节点管理任务{}执行结果接口:batch_task_result失败: {}".format(subscription_id, e))
                 return
             log = []
             nodeman_task_id = ""
