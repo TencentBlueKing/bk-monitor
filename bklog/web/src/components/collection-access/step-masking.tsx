@@ -70,6 +70,8 @@ export default class StepMasking extends tsc<IProps> {
   }
 
   getIsUpdateSubmitValue() {
+    // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
+    if ((this.maskingFieldRef as any).tableLoading) return false;
     const params = (this.maskingFieldRef as any).getQueryConfigParams();
     return !deepEqual(this.editComparedData, params);
   }
@@ -79,7 +81,7 @@ export default class StepMasking extends tsc<IProps> {
     this.submitSelectRule(false, callback);
   }
   /** 提交脱敏 */
-  async submitSelectRule(stepChange = false, callback) {
+  async submitSelectRule(stepChange = false, callback?) {
     const data = (this.maskingFieldRef as any).getQueryConfigParams();
     const isUpdate = (this.maskingFieldRef as any).isUpdate;
     if (!data.field_configs.length && !isUpdate) {
