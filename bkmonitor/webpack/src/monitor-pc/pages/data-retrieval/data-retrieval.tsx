@@ -1274,7 +1274,7 @@ export default class DataRetrieval extends tsc<object> {
           ...(metricData || {}),
           alias,
           enable: item.enable,
-          agg_condition: item.agg_condition || [],
+          agg_condition: item.agg_condition || item._agg_condition || [],
           agg_dimension: item.agg_dimension || [],
           agg_interval: item.agg_interval,
           agg_method: item.agg_method,
