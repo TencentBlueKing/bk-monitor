@@ -127,6 +127,8 @@ class ServiceInfoResource(Resource):
 
     def get_apdex_relation_info(self, bk_biz_id, app_name, service_name, topo_node):
         instance = ServiceHandler.get_apdex_relation_info(bk_biz_id, app_name, service_name, topo_node)
+        if not instance:
+            return {}
         return ServiceApdexConfigSerializer(instance=instance).data
 
     def get_profiling_info(self, bk_biz_id, app_name, service_name, start_time, end_time):

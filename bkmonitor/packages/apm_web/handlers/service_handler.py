@@ -253,7 +253,9 @@ class ServiceHandler:
 
         if not instance:
             # 填充默认值 判断服务类型得出Apdex类型
-            apdex_key = cls.get_service_apdex_key(bk_biz_id, app_name, service_name, nodes)
+            apdex_key = cls.get_service_apdex_key(bk_biz_id, app_name, service_name, nodes, raise_exception=False)
+            if not apdex_key:
+                return None
             apdex_value = ApdexCategoryMapping.get_apdex_default_value_by_category(apdex_key)
 
             instance = ApdexServiceRelation.objects.create(
@@ -267,13 +269,16 @@ class ServiceHandler:
         return instance
 
     @classmethod
-    def get_service_apdex_key(cls, bk_biz_id, app_name, service_name, nodes=None):
+    def get_service_apdex_key(cls, bk_biz_id, app_name, service_name, nodes=None, raise_exception=True):
         if not nodes:
             nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
 
         node = next((i for i in nodes if i["topo_key"] == service_name), None)
         if not node:
-            raise ValueError(_("此服务不存在或暂时未被发现"))
+            if raise_exception:
+                raise ValueError(_("此服务不存在或暂时未被发现"))
+            else:
+                return None
 
         category = node["extra_data"]["category"]
         return ApdexCategoryMapping.get_apdex_by_category(category)
