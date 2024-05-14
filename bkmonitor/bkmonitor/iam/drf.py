@@ -9,7 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from bkmonitor.utils.thread_backend import ThreadPool
 
 """
 DRF 插件
@@ -238,28 +239,24 @@ def batch_create_instance(
     :param instance_create_func: 自定义创建资源实例的函数
     """
     resources = []
-    with ThreadPoolExecutor() as executor:
-        futures = []
-        for item in result_list:
-            if not id_field(item):
-                continue
-            attribute = extract_attribute(item)
-            if instance_create_func:
-                future = executor.submit(instance_create_func, item)
-            else:
-                future = executor.submit(
-                    resource_meta.create_simple_instance, instance_id=id_field(item), attribute=attribute
-                )
-            futures.append(future)
+    futures = []
+    pool = ThreadPool()
+    for item in result_list:
+        if not id_field(item):
+            continue
+        attribute = extract_attribute(item)
+        if instance_create_func:
+            future = futures.append(pool.apply_async(instance_create_func, kwds=item))
+        else:
+            kwargs = {"instance_id": id_field(item), "attribute": attribute}
+            future = futures.append(pool.apply_async(resource_meta.create_simple_instance, kwds=kwargs))
+        futures.append(future)
 
-        # 并发处理结果
-        for future in as_completed(futures, timeout=60):
-            try:
-                result = future.result()
-                if result:
-                    resources.append([result])
-            except Exception as e:
-                logger.error(f"[APM] batch_create_instance error: {e}")
+    for future in futures:
+        try:
+            resources.append([future.get()])
+        except Exception as e:
+            logger.error(f"[APM] batch_create_instance error: {e}")
 
     return resources
 
