@@ -1669,6 +1669,9 @@ export default class DataRetrieval extends tsc<object> {
       query: {
         ...(this.$route.query || {}),
         targets: JSON.stringify(targets),
+        from: this.compareValue.tools.timeRange[0],
+        to: this.compareValue.tools.timeRange[1],
+        timezone: this.compareValue.tools.timezone,
         key: random(10),
       },
     };
