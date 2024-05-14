@@ -1,75 +1,105 @@
 .profiling-retrieval-chart {
+  position: relative;
   display: flex;
-  flex-direction: column;
   width: calc(100% + 34px);
   height: calc(100% + 34px);
-  margin-left: -16px;
   margin-top: -16px;
-  padding: 16px;
-  background-color: #f4f6f9;
+  margin-left: -16px;
 
-  .profiling-retrieval-header {
+  .main {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 50px;
-    margin-bottom: 4px;
-    padding: 16px 8px;
+    flex: 1 1 0%;
+    flex-direction: column;
+    padding: 16px;
+    overflow: hidden auto;
+    background-color: #f4f6f9;
 
-    .data-type {
+    .profiling-retrieval-header {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      height: 50px;
+      padding: 16px 8px;
+      margin-bottom: 4px;
   
-      &-list {
-        margin-left: 16px;
+      .data-type {
+        display: flex;
+        align-items: center;
+    
+        &-list {
+          margin-left: 16px;
+        }
+      }
+  
+      .link-tips {
+        .icon-monitor {
+          margin-right: 4px;
+          font-size: 14px;
+          color: #979ba5;
+        }
+  
+        .link-text {
+          color: #3A84FF;
+          cursor: pointer;
+        }
       }
     }
-
-    .link-tips {
-
-      .icon-monitor {
-        color: #979ba5;
-        font-size: 14px;
-        margin-right: 4px;
-      }
-
-      .link-text {
-        color: #3A84FF;
-        cursor: pointer;
-      }
-    }
-  }
-
-  .profiling-graph {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    flex: 1;
-    flex-direction: column;
-    background-color: white;
-    position: relative;
-    overflow: hidden;
   
-    &-content {
+    .profiling-graph {
+      position: relative;
       display: flex;
-      margin: 0 16px;
       flex: 1;
-      overflow: auto;
-      background-color: #f5f7fa;
-  
-      .bk-resize-layout-border {
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: white;
+    
+      &-content {
+        display: flex;
         flex: 1;
-        border: 0;
-        overflow-x: hidden;
+        margin: 0 16px;
+        overflow: auto;
+        background-color: #f5f7fa;
+    
+        .bk-resize-layout-border {
+          flex: 1;
+          overflow-x: hidden;
+          border: 0;
+        }
       }
     }
+    
+    .empty-chart {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
   }
-  
-  .empty-chart {
+
+  .empty-page {
     display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
     height: 100%;
-    flex: 1;
+
+    .text-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .text-row {
+      margin: 16px 0 24px;
+      font-size: 14px;
+      color: #979ba5;
+    }
+
+    .bk-button {
+      width: 88px;
+    }
   }
 }

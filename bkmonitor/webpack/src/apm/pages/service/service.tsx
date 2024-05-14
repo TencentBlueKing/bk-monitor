@@ -28,7 +28,6 @@ import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils/utils';
-import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import CommonPage, { SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
@@ -39,16 +38,7 @@ import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
 import { IAppSelectOptItem } from '../home/app-select';
 
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-
 import './service.scss';
-
-// interface IServiceConfigItem{
-//   id: string;
-//   name: TranslateResult;
-//   serviceName: TranslateResult;
-//   params: IServiceParams;
-// }
 
 interface IServiceParams {
   is_relation: boolean; // 是否关联
@@ -134,7 +124,6 @@ export default class Service extends tsc<object> {
       ];
       vm.viewOptions = {};
       vm.appName = query['filter-app_name'] as string;
-      vm.handleGetAppInfo();
     };
     next(nextTo);
   }
@@ -142,41 +131,7 @@ export default class Service extends tsc<object> {
     destroyTimezone();
     next();
   }
-  /** 切换时间范围重新请求以获取无数据状态 */
-  handelTimeRangeChange() {
-    this.handleGetAppInfo();
-  }
 
-  /** 通过应用信息接口获取无数据状态 */
-  async handleGetAppInfo() {
-    let queryTimeRange;
-    const { from, to } = this.$route.query;
-    if (from && to) {
-      const timeRanges = [from, to];
-      const formatValue = handleTransformToTimestamp(timeRanges as TimeRangeType);
-      if (formatValue) {
-        queryTimeRange = formatValue;
-      }
-    }
-    const timeRange = queryTimeRange || handleTransformToTimestamp(this.commonPageRef?.timeRange);
-    const [startTime, endTime] = timeRange;
-    const params = {
-      app_name: this.appName,
-      start_time: startTime,
-      end_time: endTime,
-    };
-    const data = await applicationStore.getAppInfo(params);
-
-    /** 当前应用无数据跳转应用无数据页面展示 */
-    if (data && data.data_status === 'no_data' && data.profiling_data_status === 'no_data') {
-      this.$router.push({
-        name: 'application',
-        query: {
-          'filter-app_name': this.appName,
-        },
-      });
-    }
-  }
   /** 更新当前路由的信息 */
   async handleUpdateAppName(id, name = '') {
     await this.$nextTick();
@@ -236,7 +191,6 @@ export default class Service extends tsc<object> {
             tab2SceneType
             onSceneTypeChange={this.handleSecendTypeChange}
             onTabChange={this.handleUpdateAppName}
-            onTimeRangeChange={this.handelTimeRangeChange}
             onTitleChange={this.handleTitleChange}
           >
             <CommonNavBar
