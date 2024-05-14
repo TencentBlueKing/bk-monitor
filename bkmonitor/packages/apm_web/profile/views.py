@@ -337,7 +337,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                     )
 
         if (isinstance(doris_converter, dict) and not doris_converter.get("list")) or not doris_converter:
-            raise ValueError(_("当前查询条件未查询到有效数据，请调整后再试"))
+            return Response(data={})
 
         diagram_types = data["diagram_types"]
         options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
