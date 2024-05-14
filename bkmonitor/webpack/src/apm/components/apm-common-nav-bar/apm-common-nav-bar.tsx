@@ -40,8 +40,12 @@ export interface INavItem {
   name: string;
   subName?: string;
   query?: Record<string, any>;
+  class?: string;
+  /** 下拉配置 */
   selectOption?: {
+    /** 下拉选择的值 */
     value: string;
+    /** 下拉列表 */
     selectList: ISelectItem[];
     loading?: boolean;
   };
@@ -161,7 +165,12 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
               {!item.selectOption?.loading ? (
                 [
                   <span
-                    class={`item-name ${!!item.id && index < len - 1 ? 'parent-nav' : ''} ${len === 1 ? 'only-title' : ''}`}
+                    class={{
+                      'item-name': true,
+                      'parent-nav': !!item.id && index < len - 1,
+                      'only-title': len === 1,
+                      [item.class]: !!item.class,
+                    }}
                     onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
                   >
                     <span class='item-name-text'>{item.name}</span>

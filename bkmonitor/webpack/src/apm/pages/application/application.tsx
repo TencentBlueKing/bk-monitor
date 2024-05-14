@@ -26,7 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-property-decorator';
 
-import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
+import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
@@ -81,7 +81,12 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
 
   /** 应用名 */
   appName = '';
+  /** 应用列表 */
   appList = [];
+  /** 服务列表 */
+  serviceList = [];
+  /** 服务列表缓存 */
+  serviceMapCache = new Map();
   /** 选中的插件id */
   pluginId = '';
   /** 新建应用弹窗 */
@@ -150,6 +155,16 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
             selectList: [],
           },
         },
+        {
+          id: 'service',
+          name: window.i18n.tc('选择服务'),
+          class: 'placeholder',
+          selectOption: {
+            value: '',
+            selectList: [],
+            loading: false,
+          },
+        },
       ];
       vm.viewOptions = {};
       const { query } = to;
@@ -157,6 +172,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       applicationStore.getPluginList();
       vm.handleGetAppInfo();
       vm.getApplicationList();
+      vm.getServiceList();
     });
   }
   beforeRouteLeave(to, from, next) {
@@ -167,6 +183,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   handelTimeRangeChange() {
     this.handleGetAppInfo();
   }
+  /** 获取应用列表 */
   async getApplicationList() {
     const listData = await listApplicationInfo().catch(() => []);
     this.appList = listData.map(item => ({
@@ -176,25 +193,57 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     }));
     this.routeList[1].selectOption.selectList = this.appList;
   }
+  /** 获取服务列表 */
+  async getServiceList() {
+    if (!this.appName) return;
+    let serviceList = [];
+    if (this.serviceMapCache.get(this.appName)) {
+      serviceList = this.serviceMapCache.get(this.appName);
+    } else {
+      this.routeList[2].selectOption.loading = true;
+      serviceList = await simpleServiceList({ app_name: this.appName }).catch(() => []);
+      this.routeList[2].selectOption.loading = false;
+    }
+    this.serviceList = serviceList.map(item => ({
+      id: item.service_name,
+      name: item.service_name,
+      ...item,
+    }));
+    this.routeList[2].selectOption.selectList = this.serviceList;
+  }
   /** 导航栏下拉选择 */
-  async handleNavSelect(item: ISelectItem) {
-    this.appName = item.name;
-    const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
-    this.$router.replace({
-      name: this.$route.name,
-      query: {
-        to,
-        from,
-        interval,
-        timezone,
-        refleshInterval,
-        dashboardId,
-        'filter-app_name': this.appName,
-      },
-    });
-    this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
-    this.routeList[1].selectOption.value = this.appName;
-    this.pageKey += 1;
+  async handleNavSelect(item: ISelectItem, navId: string) {
+    if (navId === 'application') {
+      this.appName = item.name;
+      this.getServiceList();
+      const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          to,
+          from,
+          interval,
+          timezone,
+          refleshInterval,
+          dashboardId,
+          'filter-app_name': this.appName,
+        },
+      });
+      this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
+      this.routeList[1].selectOption.value = this.appName;
+      this.pageKey += 1;
+    } else {
+      this.$router.push({
+        name: 'service',
+        query: {
+          'filter-app_name': item.app_name,
+          'filter-service_name': item.service_name,
+          'filter-category': item.category,
+          'filter-kind': item.kind,
+          'filter-predicate_value': item.predicate_value,
+        },
+      });
+    }
   }
 
   /** 获取应用信息 */

@@ -212,6 +212,7 @@ export default class Service extends tsc<object> {
     this.tabName = ['topo', 'overview'].includes(id) ? this.$t('服务') : name;
   }
 
+  /** 获取应用列表 */
   async getApplicationList() {
     this.routeList[1].selectOption.loading = true;
     const listData = await listApplicationInfo().catch(() => []);
@@ -224,32 +225,33 @@ export default class Service extends tsc<object> {
     this.routeList[1].selectOption.selectList = this.appList;
   }
 
+  /** 获取服务列表 */
   async getServiceList() {
     if (!this.appName) return;
     this.routeList[2].selectOption.loading = true;
     const listData = await simpleServiceList({ app_name: this.appName }).catch(() => []);
+    this.routeList[2].selectOption.loading = false;
     this.serviceList = listData.map(item => ({
       id: item.service_name,
       name: item.service_name,
       ...item,
     }));
-    this.routeList[2].selectOption.loading = false;
     this.routeList[2].selectOption.selectList = this.serviceList;
   }
 
   /** 导航栏下拉选择 */
   async handleNavSelect(item: ISelectItem, navId) {
-    let service;
     // 选择应用
     if (navId === 'application') {
+      const { id } = this.routeList[1];
       this.appName = item.name;
-      await this.getServiceList();
-      service = this.serviceList[0];
+      const targetRoute = this.$router.resolve({ name: id, query: { 'filter-app_name': this.appName } });
+      /** 防止出现跳转当前地址导致报错 */
+      if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+        this.$router.push({ name: id, query: { 'filter-app_name': this.appName } });
+      }
     } else {
-      service = item;
-    }
-    if (service) {
-      this.serviceName = service.name;
+      this.serviceName = item.name;
       const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
       this.$router.replace({
         name: this.$route.name,
@@ -260,11 +262,11 @@ export default class Service extends tsc<object> {
           timezone,
           refleshInterval,
           dashboardId,
-          'filter-app_name': service.app_name,
-          'filter-service_name': service.service_name,
-          'filter-category': service.category,
-          'filter-kind': service.kind,
-          'filter-predicate_value': service.predicate_value,
+          'filter-app_name': item.app_name,
+          'filter-service_name': item.service_name,
+          'filter-category': item.category,
+          'filter-kind': item.kind,
+          'filter-predicate_value': item.predicate_value,
         },
       });
       this.handleUpdateAppName(this.tabId);
