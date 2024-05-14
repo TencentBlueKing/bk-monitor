@@ -143,6 +143,7 @@ class ServiceInfoResource(Resource):
         # 获取此服务是否有 Profiling 数据
         count = QueryTemplate(bk_biz_id, app_name).get_service_count(start_time, end_time, service_name)
         res["is_profiling_data_normal"] = bool(count)
+        res["application_id"] = app.application_id
         return res
 
     def perform_request(self, validate_data):
