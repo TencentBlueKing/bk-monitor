@@ -13,6 +13,7 @@ import functools
 import itertools
 import operator
 import re
+from multiprocessing.pool import ApplyResult
 
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
@@ -180,7 +181,10 @@ class ServiceInfoResource(Resource):
         # 获取服务信息
         service_info = {"extra_data": {}, "topo_key": service_name}
         service_info.update(operate_record.get())
-        service_info.update(profiling_info.get())
+        if isinstance(profiling_info, ApplyResult):
+            execute_res = profiling_info.get()
+            if isinstance(execute_res, dict):
+                service_info.update(execute_res)
         resp = topo_node_res.get()
 
         service_info["relation"] = {
