@@ -27,14 +27,17 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
-import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import CommonPage, { SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
+import ApmCommonNavBar, {
+  type INavItem,
+  type ISelectItem,
+} from '../../components/apm-common-nav-bar/apm-common-nav-bar';
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
 import { IAppSelectOptItem } from '../home/app-select';
@@ -74,12 +77,17 @@ export default class Service extends tsc<object> {
 
   sceneType: SceneType = 'overview';
 
+  /** common-page组件的key */
+  pageKey = 1;
   appName = '';
+  serviceName = '';
   pluginId = '';
   dashboardId = '';
   tabId = '';
   tabName: TranslateResult | string = '';
   subName = '';
+  appList = [];
+  serviceList = [];
   // menu list
   menuList: IMenuItem[] = [
     {
@@ -126,15 +134,27 @@ export default class Service extends tsc<object> {
           query: {
             'filter-app_name': appName,
           },
+          selectOption: {
+            value: appName,
+            selectList: [],
+          },
         },
         {
           id: 'service',
           name: `${window.i18n.tc('服务')}：${serviceName}`,
+          selectOption: {
+            value: serviceName,
+            selectList: [],
+            loading: false,
+          },
         },
       ];
       vm.viewOptions = {};
-      vm.appName = query['filter-app_name'] as string;
+      vm.appName = appName;
+      vm.serviceName = serviceName;
       vm.handleGetAppInfo();
+      vm.getApplicationList();
+      vm.getServiceList();
     };
     next(nextTo);
   }
@@ -182,9 +202,76 @@ export default class Service extends tsc<object> {
     await this.$nextTick();
     const { query } = this.$route;
     this.appName = (query['filter-app_name'] as string) || '';
+    this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
+    this.routeList[1].selectOption.value = this.appName;
+    this.serviceName = (query['filter-service_name'] as string) || '';
+    this.routeList[2].name = `${this.$tc('服务')}：${this.serviceName}`;
+    this.routeList[2].selectOption.value = this.serviceName;
     this.dashboardId = (query.dashboardId as string) || '';
     this.tabId = id;
     this.tabName = ['topo', 'overview'].includes(id) ? this.$t('服务') : name;
+  }
+
+  /** 获取应用列表 */
+  async getApplicationList() {
+    this.routeList[1].selectOption.loading = true;
+    const listData = await listApplicationInfo().catch(() => []);
+    this.appList = listData.map(item => ({
+      id: item.application_id,
+      name: item.app_name,
+      ...item,
+    }));
+    this.routeList[1].selectOption.loading = false;
+    this.routeList[1].selectOption.selectList = this.appList;
+  }
+
+  /** 获取服务列表 */
+  async getServiceList() {
+    if (!this.appName) return;
+    this.routeList[2].selectOption.loading = true;
+    const listData = await simpleServiceList({ app_name: this.appName }).catch(() => []);
+    this.routeList[2].selectOption.loading = false;
+    this.serviceList = listData.map(item => ({
+      id: item.service_name,
+      name: item.service_name,
+      ...item,
+    }));
+    this.routeList[2].selectOption.selectList = this.serviceList;
+  }
+
+  /** 导航栏下拉选择 */
+  async handleNavSelect(item: ISelectItem, navId) {
+    // 选择应用
+    if (navId === 'application') {
+      const { id } = this.routeList[1];
+      this.appName = item.name;
+      const targetRoute = this.$router.resolve({ name: id, query: { 'filter-app_name': this.appName } });
+      /** 防止出现跳转当前地址导致报错 */
+      if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+        this.$router.push({ name: id, query: { 'filter-app_name': this.appName } });
+      }
+    } else {
+      this.serviceName = item.name;
+      const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          to,
+          from,
+          interval,
+          timezone,
+          refleshInterval,
+          dashboardId,
+          'filter-app_name': item.app_name,
+          'filter-service_name': item.service_name,
+          'filter-category': item.category,
+          'filter-kind': item.kind,
+          'filter-predicate_value': item.predicate_value,
+        },
+      });
+      this.handleUpdateAppName(this.tabId);
+      this.pageKey += 1;
+    }
   }
 
   /**
@@ -227,6 +314,7 @@ export default class Service extends tsc<object> {
       <div class='service'>
         {
           <CommonPage
+            key={this.pageKey}
             ref='commonPageRef'
             backToOverviewKey={this.backToOverviewKey}
             defaultViewOptions={this.viewOptions}
@@ -239,13 +327,14 @@ export default class Service extends tsc<object> {
             onTimeRangeChange={this.handelTimeRangeChange}
             onTitleChange={this.handleTitleChange}
           >
-            <CommonNavBar
+            <ApmCommonNavBar
               slot='nav'
               needBack={false}
               needShadow={true}
               positionText={this.positonText}
               routeList={this.routeList}
               needCopyLink
+              onNavSelect={this.handleNavSelect}
             />
             {!this.readonly && !!this.appName && (
               <div
