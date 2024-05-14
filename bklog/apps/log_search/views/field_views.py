@@ -14,14 +14,15 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
-from apps.log_search.models import LogIndexSet
+
+# from apps.log_search.models import LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     FetchStatisticsGraphSerializer,
     FetchStatisticsInfoSerializer,
     FetchTopkListSerializer,
 )
-from apps.utils.drf import detail_route
+from apps.utils.drf import list_route
 
 value_list = [[100, 12], [50, 11], [14, 5], [67, 1], [0, 10], [20, 9], [15, 7], [99, 3]]
 FieldTypeMap = {
@@ -40,9 +41,7 @@ class FieldViewSet(APIViewSet):
     字段分析
     """
 
-    queryset = LogIndexSet.objects.all()
     serializer_class = serializers.Serializer
-    lookup_field = "index_set_id"
 
     def get_permissions(self):
         if settings.BKAPP_IS_BKLOG_API:
@@ -54,7 +53,7 @@ class FieldViewSet(APIViewSet):
 
         return [ViewBusinessPermission()]
 
-    @detail_route(methods=["POST"], url_path="fetch_topk_list")
+    @list_route(methods=["POST"], url_path="fetch_topk_list")
     def fetch_topk_list(self, request, *args, **kwargs):
         """
         @api {get} /field/index_set/$index_set_id/fetch_topk_list/ 获取字段topk计数列表
@@ -76,7 +75,7 @@ class FieldViewSet(APIViewSet):
             }
         )
 
-    @detail_route(methods=["POST"], url_path="statistics/info")
+    @list_route(methods=["POST"], url_path="statistics/info")
     def fetch_statistics_info(self, request, *args, **kwargs):
         """
         @api {get} /field/index_set/$index_set_id/statistics/info/ 获取字段统计信息
@@ -103,7 +102,7 @@ class FieldViewSet(APIViewSet):
 
         return Response(data)
 
-    @detail_route(methods=["POST"], url_path="statistics/graph")
+    @list_route(methods=["POST"], url_path="statistics/graph")
     def fetch_statistics_graph(self, request, *args, **kwargs):
         """constants.py:1515
         @api {get} /field/index_set/$index_set_id/statistics/graph/ 获取字段统计图表

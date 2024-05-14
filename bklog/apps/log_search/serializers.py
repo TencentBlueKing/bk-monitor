@@ -824,6 +824,7 @@ class QueryFieldBaseSerializer(serializers.Serializer):
     """
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
+    index_set_ids = serializers.ListField(label=_("索引集列表"), required=True)
     agg_field = serializers.CharField(label=_("字段名"), required=True)
 
     # filter条件，span选择器等
