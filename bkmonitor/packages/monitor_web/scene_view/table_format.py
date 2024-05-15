@@ -12,6 +12,8 @@ import datetime
 from abc import ABC
 from typing import List
 
+import arrow
+from arrow.parser import ParserError
 from django.utils.translation import gettext_lazy as _lazy
 
 from core.unit import load_unit
@@ -171,7 +173,14 @@ class TimestampTableFormat(TableFormat):
         self.digits = digits
 
     def format(self, row: dict) -> str:
-        return datetime.datetime.fromtimestamp(int(row[self.id]) // self.digits).strftime("%Y-%m-%d %H:%M:%S")
+        content = row[self.id]
+        try:
+            return datetime.datetime.fromtimestamp(int(content) // self.digits).strftime("%Y-%m-%d %H:%M:%S")
+        except (TypeError, ValueError):
+            try:
+                return arrow.get(content).format("YYYY-MM-DD HH:mm:ss")
+            except ParserError:
+                return ""
 
 
 class LinkTableFormat(TableFormat):
