@@ -329,7 +329,11 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 计算平台指标查询localTime
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            first_item.data_sources[0].metrics.append({"field": "localTime", "method": "MAX", "alias": "_localTime"})
+            if len(first_item.expression.strip()) <= 1:
+                # 未配置多指标表达式， 则基于 bksql 查询，判断 localtime
+                first_item.data_sources[0].metrics.append(
+                    {"field": "localTime", "method": "MAX", "alias": "_localTime"}
+                )
 
         try:
             points = first_item.query_record(self.from_timestamp, self.until_timestamp)
