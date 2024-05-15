@@ -521,6 +521,13 @@ class Alarm(BaseContextObject):
         return self.topo_related_info + self.log_related_info
 
     @cached_property
+    def raw_related_info(self):
+        """
+        原始关联信息（未截断）
+        """
+        return self.log_raw_related_info
+
+    @cached_property
     def topo_related_info(self):
         # CMDB 拓扑层级相关联信息
         host = self.parent.target.host
@@ -532,6 +539,14 @@ class Alarm(BaseContextObject):
     def log_related_info(self):
         try:
             return get_alert_relation_info(self.parent.alert)
+        except Exception as err:
+            logger.exception("Get anomaly content err, msg is {}".format(err))
+        return ""
+
+    @cached_property
+    def log_raw_related_info(self):
+        try:
+            return get_alert_relation_info(self.parent.alert, length_limit=False)
         except Exception as err:
             logger.exception("Get anomaly content err, msg is {}".format(err))
         return ""
