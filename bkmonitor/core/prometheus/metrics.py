@@ -803,7 +803,7 @@ MEMORY_USED_STARTUP_BYTES = Gauge(
     labelnames=("node_type", "mastername", "role", "host", "port"),
 )
 
-MIGRATE_CACHED_SOCKETS_TOTAL = Gauge(
+MIGRATE_CACHED_SOCKETS_TOTAL = Counter(
     name="redis_migrate_cached_sockets_total",
     documentation="The number of sockets open for MIGRATE purposes",
     labelnames=("node_type", "mastername", "role", "host", "port"),
@@ -953,12 +953,6 @@ UP = Gauge(
     labelnames=("node_type", "mastername", "role", "host", "port"),
 )
 
-UPTIME_IN_SECONDS = Gauge(
-    name="redis_uptime_in_seconds",
-    documentation="Redis uptime in seconds",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
 CONNECTED_CLIENTS = Gauge(
     name="Redis_connected_clients",
     documentation="Number of client connections (excluding connections from slaves)",
@@ -983,30 +977,6 @@ BLOCKED_CLIENTS = Gauge(
     labelnames=("node_type", "mastername", "role", "host", "port"),
 )
 
-USED_MEMORY = Gauge(
-    name="redis_used_memory",
-    documentation="Redis分配的内存量",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-USED_MEMORY_RSS = Gauge(
-    name="redis_used_memory_rss",
-    documentation="The amount of memory used by Redis, including the shared memory",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-USED_MEMORY_PEAK = Gauge(
-    name="redis_used_memory_peak",
-    documentation="内存使用峰值",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-USED_MEMORY_LUA = Gauge(
-    name="redis_used_memory_lua",
-    documentation="lua引擎内存使用量",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
 MEM_FRAGMENTATION_RATIO = Gauge(
     name="redis_mem_fragmentation_ratio",
     documentation="内存碎片率",
@@ -1025,63 +995,15 @@ AOF_REWRITE_BUFFER_LENGTH = Gauge(
     labelnames=("node_type", "mastername", "role", "host", "port"),
 )
 
-AOF_LAST_REWRITE_TIME_SEC = Gauge(
-    name="redis_aof_last_rewrite_time_sec",
-    documentation="上次rewrite操作使用的时间",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
 AOF_CURRENT_SIZE = Gauge(
     name="redis_aof_current_size",
     documentation="aof当前文件大小",
     labelnames=("node_type", "mastername", "role", "host", "port"),
 )
 
-RDB_LAST_BGSAVE_TIME_SEC = Gauge(
-    name="redis_rdb_last_bgsave_time_sec",
-    documentation="aof最后一次落地所消耗的时长",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
 RDB_CHANGES_SINCE_LAST_SAVE = Gauge(
     name="redis_rdb_changes_since_last_save",
     documentation="最近生成rdb文件后写入命令的个数",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-USED_CPU_SYS = Gauge(
-    name="redis_used_cpu_sys",
-    documentation="Redis系统CPU消耗差值",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-USED_CPU_USER = Gauge(
-    name="redis_used_cpu_user",
-    documentation="Redis用户CPU消耗差值",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-USED_CPU_SYS_CHILDREN = Gauge(
-    name="redis_used_cpu_sys_children",
-    documentation="CPU用户子进程消耗差值",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-TOTAL_CONNECTIONS_RECEIVED = Gauge(
-    name="redis_total_connections_received",
-    documentation="每分钟接收的连接数差值",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-LATEST_FORK_USEC = Gauge(
-    name="redis_latest_fork_usec",
-    documentation="最后一次fork耗时",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-TOTAL_COMMANDS_PROCESSED = Gauge(
-    name="redis_total_commands_processed",
-    documentation="执行的命令次数差值",
     labelnames=("node_type", "mastername", "role", "host", "port"),
 )
 
@@ -1121,33 +1043,9 @@ MASTER_REPL_OFFSET = Gauge(
     labelnames=("node_type", "mastername", "role", "host", "port"),
 )
 
-REPL_BACKLOG_HISTLEN = Gauge(
-    name="redis_repl_backlog_histlen",
-    documentation="囤积的数据量",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
 MASTER_LAST_IO_SECONDS_AGO = Gauge(
     name="redis_master_last_io_seconds_ago",
     documentation="master延迟复制时长差值",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-VERSION = Gauge(
-    name="redis_version",
-    documentation="Version of the Redis server",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-BUILD_ID = Gauge(
-    name="redis_build_id",
-    documentation="The build id",
-    labelnames=("node_type", "mastername", "role", "host", "port"),
-)
-
-MODE = Gauge(
-    name="redis_mode",
-    documentation="The server's mode ('standalone', 'sentinel' or 'cluster')",
     labelnames=("node_type", "mastername", "role", "host", "port"),
 )
 
