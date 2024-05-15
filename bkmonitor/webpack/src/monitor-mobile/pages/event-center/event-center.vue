@@ -26,19 +26,19 @@
 <template>
   <div class="event-center">
     <event-tab
-      v-model="curTab"
       class="tab-list"
+      v-model="curTab"
       :tab-list="tabList"
       @change="changeTab"
     />
     <van-list
       ref="vanList"
-      v-model="loading"
       class="card-list"
-      :offset="10"
+      v-model="loading"
       :finished="finished"
-      :immediate-check="false"
       :finished-text="noDataText"
+      :immediate-check="false"
+      :offset="10"
       @load="getData"
     >
       <div class="event-center-content">
@@ -52,9 +52,9 @@
             span="8"
           >
             <select-button
-              :text="item.text"
-              :icon="item.icon"
               :active="curType.includes(item.type)"
+              :icon="item.icon"
+              :text="item.text"
               @click="changeType(item.type)"
             />
           </van-col>
@@ -65,8 +65,8 @@
         >
           <event-list-item
             v-for="(item, index) in listData"
-            :key="item.strategyId + '-' + index"
             :item-data="item"
+            :key="item.strategyId + '-' + index"
           />
         </div>
       </div>
