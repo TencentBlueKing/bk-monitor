@@ -128,3 +128,6 @@ bk-crypto-python-sdk==1.0.4
 
 # graphviz
 graphviz==0.19.1
+
+# kafka with sasl
+confluent-kafka==2.4.0

@@ -23,7 +23,6 @@ import copy
 from collections import defaultdict
 
 from django.conf import settings
-from django.db import connection
 from django.utils.translation import ugettext as _
 
 from apps.api import BKLoginApi, CmsiApi, TransferApi
@@ -37,7 +36,7 @@ from apps.log_search.constants import (
     UserMetaConfType,
 )
 from apps.log_search.exceptions import FunctionGuideException
-from apps.log_search.models import ProjectInfo, UserMetaConf
+from apps.log_search.models import ProjectInfo, Space, UserMetaConf
 from apps.utils import APIModel
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
@@ -47,31 +46,9 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 
 class MetaHandler(APIModel):
     @classmethod
-    def get_all_spaces(cls):
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT id,
-                       space_type_id,
-                       space_type_name,
-                       space_id,
-                       space_name,
-                       space_uid,
-                       space_code,
-                       bk_biz_id,
-                       JSON_EXTRACT(properties, '$.time_zone') AS time_zone
-                FROM log_search_space
-            """
-            )
-            columns = [col[0] for col in cursor.description]
-            spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-        return spaces
-
-    @classmethod
     def get_user_spaces(cls, username):
         # 获取业务列表
-        spaces = cls.get_all_spaces()
+        spaces = Space.get_all_spaces()
         allowed_spaces = Permission(username).filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, spaces)
         allowed_space_mapping = {space["bk_biz_id"] for space in allowed_spaces}
         # 获取置顶空间列表

@@ -28,6 +28,7 @@ from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.uptime_check import DeprecatedFunctionError
 from monitor.constants import UPTIME_CHECK_DB, UptimeCheckProtocol
+from monitor_web.collecting.constant import CollectStatus
 from monitor_web.models import OperateRecordModelBase
 from monitor_web.tasks import append_metric_list_cache, update_task_running_status
 
