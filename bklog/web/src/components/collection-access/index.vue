@@ -98,7 +98,6 @@ import stepResult from './step-result';
 import stepMasking from './step-masking.tsx';
 import advanceCleanLand from '@/components/collection-access/advance-clean-land';
 import * as authorityMap from '../../common/authority-map';
-import { deepClone } from '../../common/util';
 /** 左侧侧边栏一个步骤元素的高度 */
 const ONE_STEP_HEIGHT = 76;
 
@@ -170,12 +169,9 @@ export default {
     isSwitch() {
       return ['start', 'stop'].some(item => item === this.operateType);
     },
-    isItsmAndApplying() {
-      return this.isItsm && this.applyData?.itsm_ticket_status === 'applying';
-    },
     /** 左侧展示的步骤 */
     showStepsConf() {
-      let finishShowConf = deepClone(this.stepsConf);
+      let finishShowConf = this.stepsConf;
       // 启停情况下只有采集下发和完成两个步骤
       if (this.isSwitch) {
         finishShowConf = finishShowConf.filter(item => ['stepIssued', 'stepResult'].includes(item.stepStr));
@@ -191,10 +187,6 @@ export default {
       // 判断是否以及完成过一次步骤 有table_id的情况视为完成过一次完整的步骤  隐藏下发和完成两个步骤
       if (this.isFinishCreateStep && !this.isSwitch) {
         finishShowConf = finishShowConf.filter(item => !['stepIssued', 'stepResult'].includes(item.stepStr));
-      }
-      // itsm打开并且容量正在申请中则只展示完成步骤，且显示容量评估中
-      if (this.isItsmAndApplying) {
-        finishShowConf = this.stepsConf.filter(item => item.stepStr === 'stepResult');
       }
       return finishShowConf;
     },
@@ -327,10 +319,7 @@ export default {
               default:
                 break;
             }
-            const jumpPage = this.getShowStepsConf.find(item => item.stepStr === jumpComponentStr).icon;
-            const finishPag = this.getShowStepsConf.slice(-1).icon;
-            // 审批通过后编辑直接进入第三步字段提取，否则进入第二步容量评估
-            this.curStep = this.isItsmAndApplying ? finishPag : jumpPage;
+            this.curStep = this.getShowStepsConf.find(item => item.stepStr === jumpComponentStr).icon;
           }
         } catch (e) {
           console.warn(e);
@@ -373,12 +362,6 @@ export default {
               if (collect.collector_scenario_id !== 'wineventlog' && this.isPhysics && collect?.params.paths) {
                 collect.params.paths = collect.params.paths.map(item => ({ value: item }));
               }
-              // 如果当前页面采集流程未完成 则展示流程服务页面
-              const applyDataItem = {
-                iframe_ticket_url: collect.ticket_url,
-                itsm_ticket_status: collect.itsm_ticket_status
-              };
-              this.applyData = collect.itsm_ticket_status === 'applying' ? applyDataItem : {};
               this.itsmTicketIsApplying = false;
               this.$store.commit('collect/setCurCollect', collect);
               resolve(res.data);
