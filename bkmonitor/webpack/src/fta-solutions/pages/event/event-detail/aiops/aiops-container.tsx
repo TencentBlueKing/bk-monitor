@@ -26,6 +26,7 @@
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import FuctionalDependency from '@blueking/functional-dependency/vue2';
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { dimensionDrillDown, metricRecommendation } from 'monitor-api/modules/alert';
 import { frontendReportEvent } from 'monitor-api/modules/commons';
@@ -39,6 +40,7 @@ import TabTitle from './tab-title';
 import { ETabNames, EventReportType, IAnomalyDimensions, IInfo } from './types';
 
 import './aiops-container.scss';
+import '@blueking/functional-dependency/vue2/vue2.css';
 
 interface IPanel {
   info?: IInfo;
@@ -381,8 +383,11 @@ export default class AiopsContainer extends tsc<IProps> {
   unmounted() {
     this.observer?.disconnect();
   }
+  handleFunctionalDepsGotoMore() {
+    window.open('http://www.baidu.com', '__brank');
+  }
   render() {
-    if (!this.showDimensionDrill && !this.showMetricRecommendation) return <div />;
+    // if (!this.showDimensionDrill && !this.showMetricRecommendation) return <div />;
     return (
       <div
         ref='aiopsContainer'
@@ -404,27 +409,42 @@ export default class AiopsContainer extends tsc<IProps> {
             },
           }}
         />
-        <DimensionTable
-          ref='dimensionTable'
-          class={`aiops-container-${this.isCorrelationMetrics ? 'hide' : 'show'}`}
-          v-bkloading={{ isLoading: this.dimensionDrillDownLoading }}
-          dimensionDrillDownErr={this.dimensionDrillDownErr}
-          tableData={this.anomalyDimensions}
-          {...{
-            on: {
-              selectionChange: this.handleSelectionChange,
-              sortChange: this.handleSortChange,
-              tipsClick: this.handleTipsClick,
-            },
-          }}
-        ></DimensionTable>
-        <MetricsView
-          ref='metricsView'
-          info={this.tabData.index?.info || {}}
-          metricRecommendationErr={this.metricRecommendationErr}
-          metricRecommendationLoading={this.metricRecommendationLoading}
-          panelMap={this.panelMap}
-        ></MetricsView>
+        {!this.showDimensionDrill && !this.showMetricRecommendation ? (
+          <FuctionalDependency
+            functionalDesc={
+              this.$t('支持单指标异常检测、时序预测、离群检测等智能检测算法。').toString() +
+              this.$t('支持维度下钻、关联指标事件展示等功能。').toString()
+            }
+            guideDescList={[this.$t('需要部署bkbase，同时将AI相关的模型导入到该环境运行')]}
+            mode='partial'
+            title={this.$t('未启用智能分析功能')}
+            onGotoMore={this.handleFunctionalDepsGotoMore}
+          />
+        ) : (
+          [
+            <DimensionTable
+              ref='dimensionTable'
+              class={`aiops-container-${this.isCorrelationMetrics ? 'hide' : 'show'}`}
+              v-bkloading={{ isLoading: this.dimensionDrillDownLoading }}
+              dimensionDrillDownErr={this.dimensionDrillDownErr}
+              tableData={this.anomalyDimensions}
+              {...{
+                on: {
+                  selectionChange: this.handleSelectionChange,
+                  sortChange: this.handleSortChange,
+                  tipsClick: this.handleTipsClick,
+                },
+              }}
+            ></DimensionTable>,
+            <MetricsView
+              ref='metricsView'
+              info={this.tabData.index?.info || {}}
+              metricRecommendationErr={this.metricRecommendationErr}
+              metricRecommendationLoading={this.metricRecommendationLoading}
+              panelMap={this.panelMap}
+            ></MetricsView>,
+          ]
+        )}
       </div>
     );
   }

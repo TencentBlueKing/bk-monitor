@@ -209,4 +209,11 @@ export default {
   未审批: 'Not approved',
   请先在左侧选择应用: 'Please select an application on the left side first',
   '应用加载中，请耐心等候…': 'Application is loading, please wait patiently...',
+  未启用智能分析功能: 'The intelligent analysis feature is not enabled.',
+  '支持单指标异常检测、时序预测、离群检测等智能检测算法。':
+    'It supports intelligent detection algorithms such as single-metric anomaly detection, time series prediction, and outlier detection.',
+  '支持维度下钻、关联指标事件展示等功能':
+    'It supports features such as dimension drill-down and correlated metric event display.',
+  '需要部署bkbase，同时将AI相关的模型导入到该环境运行':
+    'To use these features, you need to deploy bkbase and import the AI-related models into the environment for execution.',
 };

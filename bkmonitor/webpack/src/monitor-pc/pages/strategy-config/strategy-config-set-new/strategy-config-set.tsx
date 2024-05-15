@@ -59,6 +59,7 @@ import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
 import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
+import IntelligentModelsStore from '../../../store/modules/intelligent-models';
 import { ISpaceItem } from '../../../types';
 import { IOptionsItem } from '../../calendar/types';
 import { IDataRetrieval } from '../../data-retrieval/typings';
@@ -147,12 +148,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @Inject('strategyType') strategyType: strategyType;
   @ProvideReactive('metricFunctions') metricFunctions = [];
   @ProvideReactive('strategyId') strategyId = 0;
-  /** 是否启用时序预测 */
-  @ProvideReactive('enableTimeSeriesForecasting') enableTimeSeriesForecasting = false;
-  /** 是否启用离群检测 */
-  @ProvideReactive('enableAbnormalCluster') enableAbnormalCluster = false;
-  /** 是否启用单指标智能检测 */
-  @ProvideReactive('enableIntelligentDetect') enableIntelligentDetect = false;
   /** 当前编辑的策略是否存在智能异常检测算法 */
   @ProvideReactive('editStrategyIntelligentDetectList') editStrategyIntelligentDetectList: string[] = [];
 
@@ -523,6 +518,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const { width } = this.contentRef.getBoundingClientRect();
     this.strategyView.rightWidth = Math.ceil(width / 3);
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
+    // 异步初始化所有ai模型列表 用于判断是否展示功能依赖 以及前置后面选择ai模型的初始化数据
+    IntelligentModelsStore.initAllListIntelligentModels();
   }
   beforeDestroy() {
     bus.$off(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
