@@ -136,7 +136,6 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
   }
 
   handleNavSelect(selectItem: ISelectItem, routeItem: INavItem) {
-    if (selectItem.name === routeItem.selectOption.value) return;
     this.$emit('navSelect', selectItem, routeItem.id);
     (this.$refs[`navSelectPopover_${routeItem.id}`] as any)?.hideHandler();
   }
@@ -162,16 +161,28 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
               class='bar-item'
             >
               {index > 0 ? <span class='item-split'>/</span> : undefined}
-              {!item.selectOption?.loading ? (
-                [
-                  <span
+              <bk-popover
+                ref={`navSelectPopover_${item.id}`}
+                arrow={false}
+                disabled={!item.selectOption}
+                distance={0}
+                offset={-10}
+                placement='bottom-end'
+                theme='light nav-bar-select-popover'
+                trigger='click'
+                onHide={() => this.handleNavSelectShow(item)}
+                onShow={() => this.handleNavSelectShow(item)}
+              >
+                {!item.selectOption?.loading ? (
+                  <div
                     class={{
                       'item-name': true,
-                      'parent-nav': !!item.id && index < len - 1,
+                      'parent-nav': !!item.id && index < len - 1 && !item.selectOption,
                       'only-title': len === 1,
                       [item.class]: !!item.class,
+                      active: this.navSelectShow[item.id],
                     }}
-                    onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
+                    onClick={() => item.id && index < len - 1 && !item.selectOption && this.handleGotoPage(item)}
                   >
                     <span class='item-name-text'>{item.name}</span>
                     {!!item.subName && (
@@ -179,49 +190,34 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                         {item.name ? '-' : ''}&nbsp;{item.subName}
                       </span>
                     )}
-                  </span>,
-                  item.selectOption && (
-                    <bk-popover
-                      ref={`navSelectPopover_${item.id}`}
-                      arrow={false}
-                      distance={0}
-                      offset={-10}
-                      placement='bottom-end'
-                      theme='light nav-bar-select-popover'
-                      trigger='click'
-                      onHide={() => this.handleNavSelectShow(item)}
-                      onShow={() => this.handleNavSelectShow(item)}
-                    >
-                      {
-                        <div class={{ 'arrow-wrap': true, active: this.navSelectShow[item.id] }}>
-                          <i class='icon-monitor icon-mc-arrow-down'></i>
-                        </div>
-                      }
-
-                      <ul
-                        class='nav-bar-select-popover-content'
-                        slot='content'
+                    {item.selectOption && (
+                      <div class='arrow-wrap'>
+                        <i class='icon-monitor icon-mc-arrow-down'></i>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div class='skeleton-element'></div>
+                )}
+                <ul
+                  class='nav-bar-select-popover-content'
+                  slot='content'
+                >
+                  {item.selectOption?.selectList.length ? (
+                    item.selectOption.selectList.map(selectItem => (
+                      <li
+                        class={{ item: true, active: selectItem.name === item.selectOption.value }}
+                        v-bk-overflow-tips
+                        onClick={() => this.handleNavSelect(selectItem, item)}
                       >
-                        {item.selectOption.selectList.length ? (
-                          item.selectOption.selectList?.map(selectItem => (
-                            <li
-                              class={{ item: true, active: selectItem.name === item.selectOption.value }}
-                              v-bk-overflow-tips
-                              onClick={() => this.handleNavSelect(selectItem, item)}
-                            >
-                              {selectItem.name}
-                            </li>
-                          ))
-                        ) : (
-                          <li class='empty'>{this.$t('暂无数据')}</li>
-                        )}
-                      </ul>
-                    </bk-popover>
-                  ),
-                ]
-              ) : (
-                <div class='skeleton-element'></div>
-              )}
+                        {selectItem.name}
+                      </li>
+                    ))
+                  ) : (
+                    <li class='empty'>{this.$t('暂无数据')}</li>
+                  )}
+                </ul>
+              </bk-popover>
             </li>
           ))}
         </ul>
