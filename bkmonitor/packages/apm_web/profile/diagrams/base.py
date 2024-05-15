@@ -7,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from dataclasses import dataclass, field
 from typing import ClassVar, Dict, List, Optional
 
 from apm_web.profile.converter import Converter
-from apm_web.profile.models import Function
 
 
 @dataclass
@@ -19,7 +19,6 @@ class FunctionNode:
     """Function based flame node"""
 
     id: int
-    value: int
     name: str
     system_name: str
     filename: str
@@ -27,7 +26,8 @@ class FunctionNode:
     is_root: bool = False
     parent: Optional["FunctionNode"] = None
     children: List["FunctionNode"] = field(default_factory=list)
-
+    value: int = 0
+    values: List[int] = field(default=list)
     ROOT_DISPLAY_NAME: ClassVar[str] = "root"
 
     @property
@@ -67,60 +67,65 @@ class FunctionTree:
 
     nodes_map: Dict[int, FunctionNode] = field(default_factory=dict)
 
-    def add_function_node(self, f: Function, v: int, parent: FunctionNode, converter: Converter) -> FunctionNode:
+    def add_function_node(self, function_id: int, v: int, parent: FunctionNode, converter: Converter) -> FunctionNode:
         """Add function node to tree"""
+        f = converter.get_function(function_id)
         node = FunctionNode(
             id=f.id,
-            value=v,
             name=converter.get_string(f.name),
             system_name=converter.get_string(f.system_name),
             filename=converter.get_string(f.filename),
+            values=[v],
         )
         self.nodes_map[f.id] = node
 
-        if parent is not None:
+        if parent:
             node.parent = parent
             parent.children.append(node)
-            self.update_parent_values(parent, v)
 
         return node
 
-    def update_parent_values(self, node: FunctionNode, value: int):
-        """Update all parent nodes values recursively"""
-        while node is not None:
-            node.value += value
-            node = node.parent
-
     @classmethod
     def load_from_profile(cls, converter: Converter) -> "FunctionTree":
-        profile = converter.profile
         root = FunctionNode(
-            id=0, value=0, is_root=True, name=FunctionNode.ROOT_DISPLAY_NAME, system_name="", filename=""
+            id=0,
+            is_root=True,
+            name=FunctionNode.ROOT_DISPLAY_NAME,
+            system_name="",
+            filename="",
+            values=[],
         )
         tree = cls(root=root)
 
-        for sample in profile.sample:
-            sample_value = sample.value[0]
-            parent_node = root
+        for sample in converter.profile.sample:
+            value = sample.value[0]
+            parent = None
 
-            # "The leaf is at location_id[0]." from profile.proto
-            # so build the tree reversely
-            for location_id in reversed(sample.location_id):
-                location = converter.get_location(location_id)
+            for stacktrace_id in reversed(sample.location_id):
+                stacktrace = converter.get_location(stacktrace_id)
+                if not stacktrace.line:
+                    parent = None
+                    continue
 
-                for line in location.line:
-                    node = tree.nodes_map.get(line.function_id)
+                for line in stacktrace.line:
+                    if not line:
+                        parent = None
+                        continue
 
-                    if node is None:
-                        function = converter.get_function(line.function_id)
-                        node = tree.add_function_node(function, sample_value, parent_node, converter)
+                    if line.function_id not in tree.nodes_map:
+                        node = tree.add_function_node(line.function_id, value, parent, converter)
                     else:
-                        node.value += sample_value
-                        tree.update_parent_values(node.parent, sample_value)
+                        node = tree.nodes_map[line.function_id]
+                        node.values.append(value)
+                    parent = node
 
-                    parent_node = node
+        for node in tree.nodes_map.values():
+            if not node.parent:
+                node.parent = root
+                root.children.append(node)
 
-        root.value = sum([i.value for i in root.children])
+        ValueCalculator.calculate_nodes(tree, converter.get_sample_type())
+
         return tree
 
     def find_similar_child(self, other_child: "FunctionNode") -> Optional["FunctionNode"]:
@@ -128,3 +133,46 @@ class FunctionTree:
             if node.unique_together == other_child.unique_together:
                 return node
         return None
+
+
+class ValueCalculator:
+    @classmethod
+    def mapping(cls):
+        return {
+            "goroutine": {
+                "count": cls.GoroutineCount,
+            }
+        }
+
+    @classmethod
+    def calculate_nodes(cls, tree, sample_type):
+        c = cls.mapping().get(sample_type["type"], {}).get(sample_type["unit"], cls.Default)
+        for node in tree.nodes_map.values():
+            node.value = c.calculate(node.values)
+
+        cls.ensure_parent_value(tree.root)
+
+    @classmethod
+    def ensure_parent_value(cls, node: FunctionNode):
+        children_total = sum(i.value for i in node.children)
+        if node.value < children_total:
+            node.value = children_total
+
+        for i in node.children:
+            cls.ensure_parent_value(i)
+
+    class GoroutineCount:
+        type = "goroutine"
+        unit = "count"
+
+        @classmethod
+        def calculate(cls, values):
+            if not values:
+                return 0
+
+            return int(sum(values) / len(values))
+
+    class Default:
+        @classmethod
+        def calculate(cls, values):
+            return sum(values)
