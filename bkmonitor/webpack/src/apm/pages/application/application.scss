@@ -57,6 +57,10 @@
     .item-name.placeholder {
       font-size: 14px;
       color: #c4c6cc;
+
+      &.active {
+        color: #3a84ff;
+      }
     }
   }
 }
