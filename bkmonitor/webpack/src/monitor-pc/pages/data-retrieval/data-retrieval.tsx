@@ -1680,7 +1680,7 @@ export default class DataRetrieval extends tsc<object> {
       this.localValue.forEach((item: DataRetrievalQueryItem) => {
         // 指标
         if (item.isMetric && !item.isNullMetric && !item.sourceCodeError) {
-          const queryConfigItem: IDataRetrieval.queryConfigsParams = {
+          const queryConfigItem: IDataRetrieval.queryConfigsParams | any = {
             metric: item.metric_field,
             method: item.agg_method,
             alias: item.alias,
@@ -1691,6 +1691,7 @@ export default class DataRetrieval extends tsc<object> {
             group_by: item.agg_dimension,
             where: item.agg_condition.filter(item => item.value.length).filter(item => item.key),
             functions: item.functions,
+            metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }],
           };
           item.index_set_id && (queryConfigItem.index_set_id = item.index_set_id);
           item.data_label && (queryConfigItem.data_label = item.data_label);
