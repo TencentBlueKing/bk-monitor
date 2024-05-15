@@ -30,6 +30,7 @@ import { Exception, Loading } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import { query } from 'monitor-api/modules/apm_profile';
 import { typeTools } from 'monitor-common/utils';
+import { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import { BaseDataType, ProfilingTableItem, ViewModeType } from 'monitor-ui/chart-plugins/typings';
 import { debounce } from 'throttle-debounce';
 
@@ -78,7 +79,7 @@ export default defineComponent({
       children: undefined,
       id: '',
     });
-    const unit = ref('');
+    const unit = ref<ProfileDataUnit>('nanoseconds');
     const highlightId = ref(-1);
     const filterKeyword = ref('');
     const topoSrc = ref('');
@@ -321,6 +322,7 @@ export default defineComponent({
                 isCompared={this.isCompared}
                 showGraphTools={false}
                 textDirection={this.textDirection}
+                unit={this.unit}
                 onUpdateHighlightId={id => (this.highlightId = id)}
               />
             )}
