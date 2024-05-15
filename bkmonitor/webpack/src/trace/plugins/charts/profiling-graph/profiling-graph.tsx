@@ -27,6 +27,7 @@
 import { computed, defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
 
 import { Exception, Loading } from 'bkui-vue';
+import { CancelToken } from 'monitor-api/index';
 import { query } from 'monitor-api/modules/apm_profile';
 import { typeTools } from 'monitor-common/utils';
 import { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
@@ -58,6 +59,10 @@ export default defineComponent({
   setup(props) {
     // 自动刷新定时任务
     let refleshIntervalInstance = null; // 自动刷新定时任务
+
+    /** 取消请求方法 */
+    let cancelTableFlameFn = () => {};
+    let cancelTopoFn = () => {};
 
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
     const searchType = inject<Ref<SearchType>>('profilingSearchType');
@@ -139,43 +144,54 @@ export default defineComponent({
     };
     /** 获取表格和火焰图 */
     const getTableFlameData = async () => {
-      try {
-        isLoading.value = true;
-        highlightId.value = -1;
-        const params = getParams({ diagram_types: ['table', 'flamegraph'] });
-        const data = await query(params).catch(() => false);
-        if (data) {
-          unit.value = data.unit || '';
-          tableData.value = data.table_data?.items ?? [];
-          flameData.value = data.flame_data;
-          empty.value = false;
-        } else {
-          empty.value = true;
-        }
-        isLoading.value = false;
-      } catch (e) {
-        console.error(e);
-        isLoading.value = false;
-        empty.value = true;
-      }
+      isLoading.value = true;
+      highlightId.value = -1;
+      cancelTableFlameFn();
+
+      const params = getParams({ diagram_types: ['table', 'flamegraph'] });
+      await query(params, {
+        cancelToken: new CancelToken((c: () => void) => (cancelTableFlameFn = c)),
+      })
+        .then(data => {
+          if (data) {
+            unit.value = data.unit || '';
+            tableData.value = data.table_data?.items ?? [];
+            flameData.value = data.flame_data;
+            empty.value = false;
+          } else {
+            empty.value = true;
+          }
+          isLoading.value = false;
+        })
+        .catch(e => {
+          if (e.message) {
+            isLoading.value = false;
+          }
+        });
     };
     /** 获取拓扑图 */
     const getTopoSrc = async () => {
-      try {
-        if (ViewModeType.Topo === activeMode.value) {
-          isLoading.value = true;
-        }
+      cancelTopoFn();
 
-        const params = getParams({ diagram_types: ['callgraph'] });
-        const data = await query(params).catch(() => false);
-        if (data) {
-          topoSrc.value = data.call_graph_data || '';
-        }
-        isLoading.value = false;
-      } catch (e) {
-        console.error(e);
-        isLoading.value = false;
+      if (ViewModeType.Topo === activeMode.value) {
+        isLoading.value = true;
       }
+
+      const params = getParams({ diagram_types: ['callgraph'] });
+      await query(params, {
+        cancelToken: new CancelToken((c: () => void) => (cancelTopoFn = c)),
+      })
+        .then(data => {
+          if (data) {
+            topoSrc.value = data.call_graph_data || '';
+          }
+          isLoading.value = false;
+        })
+        .catch(e => {
+          if (e.message) {
+            isLoading.value = false;
+          }
+        });
     };
     /** 切换视图模式 */
     const handleModeChange = async (val: ViewModeType) => {

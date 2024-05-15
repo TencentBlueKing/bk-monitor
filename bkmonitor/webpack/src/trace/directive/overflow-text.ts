@@ -23,6 +23,40 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-declare module '*.vue';
-declare module '*.svg';
-declare module '*.png';
+import { $bkPopover } from 'bkui-vue';
+
+import type { DirectiveBinding } from 'vue';
+interface IElement extends HTMLElement {
+  [prop: string]: any;
+}
+export default {
+  mounted(el: IElement, binding: DirectiveBinding) {
+    let instance = null;
+    function mouseenter(event: MouseEvent) {
+      event.stopPropagation();
+      if (!instance) {
+        instance = $bkPopover({
+          target: event.target,
+          content: binding.value.text || el.innerText,
+          trigger: 'hover',
+          placement: binding.value.placement || 'top',
+          popoverDelay: [300, 0],
+          onHide: () => {
+            instance?.hide?.();
+            instance = null;
+          },
+        });
+        setTimeout(() => {
+          instance?.show(event.target);
+        }, 50);
+      } else {
+        instance?.show(event.target);
+      }
+    }
+    setTimeout(() => {
+      if (el.scrollWidth > el.clientWidth + 1) {
+        el.addEventListener('mouseenter', mouseenter);
+      }
+    }, 300);
+  },
+};

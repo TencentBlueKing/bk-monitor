@@ -143,7 +143,6 @@ export default {
   无法定位上下文: 'Unable to locate context',
   trace检索: 'Trace query',
   仅显示同步请求: 'Show only synchronous requests',
-  该数据名已重复: 'This english name is already duplicated',
   保留匹配字符串: 'Retain matching string',
   过滤匹配字符串: 'Filter matching string',
   '第 {n} 列': 'Column {n}',
@@ -745,5 +744,9 @@ export default {
   我申请的: 'My Application',
   生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time',
   生效起始时间必填: 'Effective start time is required',
-  如: 'Example'
+  如: 'Example',
+  '您可以随时切换所选集群。切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。': 'You can switch selected clusters at any time. There will be no data loss after switching clusters. The original data will be automatically cleared after the new cluster storage period.',
+  '最大自定义分片数为: {n}': 'The maximum number of custom shards is: {n}',
+  '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
+  '是否保存本次操作？': 'Do you want to save this operation?'
 };

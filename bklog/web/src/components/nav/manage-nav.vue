@@ -141,7 +141,7 @@ export default {
         collectStorage: this.$t('route-编辑采集项').replace('route-', ''),
         collectStart: this.$t('route-编辑采集项').replace('route-', ''),
         collectStop: this.$t('route-编辑采集项').replace('route-', ''),
-        collectMasking: this.$t('route-日志脱敏').replace('route-', ''),
+        collectMasking: this.$t('route-编辑采集项').replace('route-', ''),
         'manage-collection': this.$t('route-采集详情').replace('route-', ''),
         'log-index-set-create': this.$t('route-新建索引集').replace('route-', ''),
         'log-index-set-edit': this.$t('route-编辑索引集').replace('route-', ''),

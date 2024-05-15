@@ -140,6 +140,9 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
             signatures = [dimensions["signature"]]
         # 新类敏感度默认取最低档，即最少告警
         sensitivity = dimensions.get("sensitivity", "__dist_09")
+        if not sensitivity.startswith("__"):
+            # 补充双下划线前缀
+            sensitivity = "__" + sensitivity
     except Exception as e:
         logger.exception("[get_alert_info_for_log_clustering_new_class] get dimension error: %s", e)
         sensitivity = "__dist_09"

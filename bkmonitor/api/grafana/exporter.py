@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 from typing import Dict, List, Union
 
+from django.conf import settings
+
+from constants.data_source import DataSourceLabel
+
 
 class DashboardExporter:
     def __init__(self, data_source_metas: List[Dict]):
@@ -69,6 +73,23 @@ class DashboardExporter:
         if datasource_mapping:
             datasource_mapping[ref_name] = data_source_meta["uid"]
 
+    def replace_table_id_with_data_label(self, query_config: Dict):
+        """
+         将结果表ID的值替换为 data_label 的值
+        """
+        if not query_config:
+            return
+
+        data_source_label = query_config.get("data_source_label")
+        if data_source_label not in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]:
+            return
+
+        data_label = query_config.get("data_label")
+        if not data_label:
+            return
+
+        query_config["result_table_id"] = data_label
+
     def make_exportable(self, dashboard: Dict, datasource_mapping: Dict = None):
         """
         仪表盘导出处理
@@ -92,8 +113,18 @@ class DashboardExporter:
                 for target in panel.get("targets") or []:
                     self.templateize_datasource(target, panel.get("datasource"), datasource_mapping=datasource_mapping)
 
+                    if not settings.ENABLE_DATA_LABEL_EXPORT:
+                        continue
+                    for query_config in target.get("query_configs") or {}:
+                        self.replace_table_id_with_data_label(query_config)
+
             for target in row.get("targets") or []:
                 self.templateize_datasource(target, row.get("datasource"), datasource_mapping=datasource_mapping)
+
+                if not settings.ENABLE_DATA_LABEL_EXPORT:
+                    continue
+                for query_config in target.get("query_configs") or {}:
+                    self.replace_table_id_with_data_label(query_config)
 
         # todo: libraryPanel处理
         dashboard["__inputs"] = list(self.inputs.values())

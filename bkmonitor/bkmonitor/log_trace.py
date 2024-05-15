@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import os
-import sys
 import threading
 from typing import Collection
 
@@ -84,6 +83,15 @@ def django_request_hook(span: Span, request):
     # Set the serialized parameters as an attribute on the span
     span.set_attribute("request.params", params_str)
 
+    # Set user information as an attribute on the span
+    user = getattr(request, "user", None)
+    if user and hasattr(user, "is_authenticated"):
+        is_authenticated = user.is_authenticated() if callable(user.is_authenticated) else user.is_authenticated
+        if is_authenticated:
+            span.set_attribute("user.username", user.username)
+        else:
+            span.set_attribute("user.username", "anonymous")
+
 
 def django_response_hook(span, request, response):
     if hasattr(response, "data"):
@@ -148,14 +156,6 @@ class BluekingInstrumentor(BaseInstrumentor):
         otlp_exporter = OTLPSpanExporter(endpoint=otlp_http_host)
         span_processor = LazyBatchSpanProcessor(otlp_exporter)
         sampler = DEFAULT_OFF
-        suffix = "web"
-
-        if settings.ROLE == "api":
-            suffix = "api"
-        if "celery" in sys.argv or settings.ROLE == "worker":
-            suffix = "worker"
-        if "beat" in sys.argv:
-            suffix = "beat"
 
         if sample_all:
             sampler = DEFAULT_ON
@@ -163,7 +163,7 @@ class BluekingInstrumentor(BaseInstrumentor):
         tracer_provider = TracerProvider(
             resource=Resource.create(
                 {
-                    "service.name": settings.APP_CODE + "_" + suffix,
+                    "service.name": settings.SERVICE_NAME,
                     "service.version": settings.VERSION,
                     "bk_data_id": otlp_bk_data_id,
                     "bk.data.token": otlp_bk_data_token,

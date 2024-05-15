@@ -239,10 +239,16 @@ class DataStatus:
     NORMAL = "normal"
     NO_DATA = "no_data"
     STOP = "stop"
+    DISABLED = "disabled"
 
     @classmethod
     def get_label_by_key(cls, key: str):
-        return {cls.NORMAL: _("正常"), cls.NO_DATA: _("无数据"), cls.STOP: _("已停止")}.get(key, key)
+        return {
+            cls.NORMAL: _("正常"),
+            cls.NO_DATA: _("无数据"),
+            cls.STOP: _("已停止"),
+            cls.DISABLED: _("未开启"),
+        }.get(key, key)
 
     @classmethod
     def get_status_by_key(cls, key: str):

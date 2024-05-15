@@ -164,10 +164,16 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                         "all not contains match phrase",
                         "&=~",
                         "&!=~",
-                    ] and isinstance(value, str):
-                        # 逗号分隔是存在问题的
-                        new_value = value.split(",")
+                    ]:
+                        # 以上操作符接受的是字符串的列表，如果是字符串，需要将其split
+                        if isinstance(value, str):
+                            new_value = value.split(",")
+                        else:
+                            new_value = value
                     else:
+                        # 其它操作符接受的是单个字符串，如果是列表，需要将其join起来
+                        if isinstance(value, list) and value:
+                            value = ",".join([str(v) for v in value])
                         new_value = value
 
                     new_filter.append(

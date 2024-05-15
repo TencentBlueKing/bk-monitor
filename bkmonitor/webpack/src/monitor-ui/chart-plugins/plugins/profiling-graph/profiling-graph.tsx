@@ -29,6 +29,7 @@ import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { CancelToken } from 'monitor-api/index';
 import { start } from 'monitor-api/modules/apm_meta';
 import { query, queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { serviceInfo } from 'monitor-api/modules/apm_service';
@@ -117,6 +118,9 @@ class ProfilingChart extends CommonSimpleChart {
       ],
     } as any);
   }
+
+  cancelTableFlameFn = () => {};
+  cancelTopoFn = () => {};
 
   get flameFilterKeywords() {
     return this.filterKeyword?.trim?.().length ? [this.filterKeyword] : [];
@@ -219,45 +223,55 @@ class ProfilingChart extends CommonSimpleChart {
   }
   /** 获取表格和火焰图 */
   async getTableFlameData(start_time = '', end_time = '') {
-    try {
-      this.isGraphLoading = true;
-      this.highlightId = -1;
-      this.emptyText = window.i18n.t('加载中...');
-      const params = this.getParams({ diagram_types: ['table', 'flamegraph'] }, start_time, end_time);
-      const data = await query(params).catch(() => false);
-      if (data) {
-        this.unit = data.unit || '';
-        this.tableData = data.table_data?.items ?? [];
-        this.flameData = data.flame_data;
-        this.empty = false;
-        this.emptyText = '';
-      } else {
-        this.empty = true;
-        this.emptyText = window.i18n.t('查无数据');
-      }
-      this.isGraphLoading = false;
-    } catch (e) {
-      console.error(e);
-      this.emptyText = '';
-      this.isGraphLoading = false;
-    }
+    this.isGraphLoading = true;
+    this.highlightId = -1;
+    this.emptyText = window.i18n.t('加载中...');
+    this.cancelTableFlameFn();
+    const params = this.getParams({ diagram_types: ['table', 'flamegraph'] }, start_time, end_time);
+    await query(params, {
+      cancelToken: new CancelToken(c => (this.cancelTableFlameFn = c)),
+    })
+      .then(data => {
+        if (data) {
+          this.unit = data.unit || '';
+          this.tableData = data.table_data?.items ?? [];
+          this.flameData = data.flame_data;
+          this.empty = false;
+          this.emptyText = '';
+        } else {
+          this.empty = true;
+          this.emptyText = window.i18n.t('查无数据');
+        }
+        this.isGraphLoading = false;
+      })
+      .catch(e => {
+        if (e.message) {
+          this.emptyText = '';
+          this.isGraphLoading = false;
+        }
+      });
   }
   /** 获取拓扑图 */
   async getTopoSrc(start_time = '', end_time = '') {
-    try {
-      if (ViewModeType.Topo === this.activeMode) {
-        this.isGraphLoading = true;
-      }
-      const params = this.getParams({ diagram_types: ['callgraph'] }, start_time, end_time);
-      const data = await query(params).catch(() => false);
-      if (data) {
-        this.topoSrc = data.call_graph_data || '';
-      }
-      this.isGraphLoading = false;
-    } catch (e) {
-      console.error(e);
-      this.isGraphLoading = false;
+    this.cancelTopoFn();
+    if (ViewModeType.Topo === this.activeMode) {
+      this.isGraphLoading = true;
     }
+    const params = this.getParams({ diagram_types: ['callgraph'] }, start_time, end_time);
+    await query(params, {
+      cancelToken: new CancelToken(c => (this.cancelTopoFn = c)),
+    })
+      .then(data => {
+        if (data) {
+          this.topoSrc = data.call_graph_data || '';
+        }
+        this.isGraphLoading = false;
+      })
+      .catch(e => {
+        if (e.message) {
+          this.isGraphLoading = false;
+        }
+      });
   }
   handleTimeRangeChange() {
     this.isFirstLoad = true;

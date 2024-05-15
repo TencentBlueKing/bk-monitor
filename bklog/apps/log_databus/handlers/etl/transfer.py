@@ -27,6 +27,7 @@ from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandl
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.exceptions import CollectorActiveException
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.etl import EtlHandler
@@ -146,6 +147,14 @@ class TransferEtlHandler(EtlHandler):
         if self.data.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value:
             custom_config = get_custom(self.data.custom_type)
             custom_config.after_etl_hook(self.data)
+
+        # create_clean_stash 直接集成到该接口，避免修改结果表失败导致 stash 数据不一致
+        CollectorHandler(collector_config_id=self.collector_config_id).create_clean_stash({
+            "clean_type": etl_config,
+            "etl_params": etl_params,
+            "etl_fields": fields,
+            "bk_biz_id": self.data.bk_biz_id,
+        })
 
         return {
             "collector_config_id": self.data.collector_config_id,
