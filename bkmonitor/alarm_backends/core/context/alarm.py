@@ -533,7 +533,15 @@ class Alarm(BaseContextObject):
         try:
             return get_alert_relation_info(self.parent.alert)
         except Exception as err:
-            logger.exception("Get anomaly content err, msg is {}".format(err))
+            logger.exception("Get alert relation info err, msg is %s", err)
+        return ""
+
+    @cached_property
+    def log_raw_related_info(self):
+        try:
+            return get_alert_relation_info(self.parent.alert, length_limit=False)
+        except Exception as err:
+            logger.exception("Get alert relation info err, msg is %s", err)
         return ""
 
     @cached_property
