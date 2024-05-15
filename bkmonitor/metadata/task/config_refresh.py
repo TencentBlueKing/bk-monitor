@@ -12,14 +12,19 @@ import json
 import logging
 import traceback
 
-import kafka
+from confluent_kafka import TopicCollection
+from confluent_kafka.admin import AdminClient
 from django.conf import settings
 from django.db.models import F
 from django.utils.translation import ugettext as _
 
 from alarm_backends.core.lock.service_lock import share_lock
 from metadata import models
-from metadata.config import PERIODIC_TASK_DEFAULT_TTL
+from metadata.config import (
+    KAFKA_SASL_MECHANISM,
+    KAFKA_SASL_PROTOCOL,
+    PERIODIC_TASK_DEFAULT_TTL,
+)
 from metadata.utils import consul_tools
 
 from .tasks import manage_es_storage
@@ -202,10 +207,26 @@ def refresh_kafka_topic_info():
                 client = cluster_map[datasource.mq_cluster_id]
             except KeyError:
                 cluster = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
-                hosts = "{}:{}".format(cluster.domain_name, cluster.port)
-                client = kafka.SimpleClient(hosts=hosts)
+                conf = {
+                    "bootstrap.servers": f"{cluster.domain_name}:{cluster.port}",
+                }
+                # NOTE: 当有用户名和密码时，指定对应的sasl_mechanism和security_protocol
+                if cluster.username and cluster.password:
+                    conf["sasl.mechanisms"] = KAFKA_SASL_MECHANISM
+                    conf["security.protocol"] = KAFKA_SASL_PROTOCOL
+                    conf["sasl.username"] = cluster.username
+                    conf["sasl.password"] = cluster.password
+
+                client = AdminClient(conf)
                 cluster_map[datasource.mq_cluster_id] = client
-            len_partition = len(client.topic_partitions.get(kafka_topic_info.topic, {}))
+            topics = client.describe_topics(TopicCollection([kafka_topic_info.topic]))
+            topic_detail = topics.get(kafka_topic_info.topic)
+            if not topic_detail:
+                continue
+            try:
+                len_partition = len(topic_detail.result().partitions)
+            except AttributeError:
+                continue
             if not len_partition:
                 raise ValueError(_("分区数量获取失败，请确认"))
 

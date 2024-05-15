@@ -402,7 +402,9 @@ class TaskResultResource(NodeManAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         subscription_id = serializers.IntegerField(required=True, label="订阅配置id")
         task_id_list = serializers.ListField(required=False, label="任务id列表")
-        need_detail = serializers.BooleanField(required=False, label="是否需要详细log")
+        need_detail = serializers.BooleanField(default=False, label="是否需要详细log")
+        need_aggregate_all_tasks = serializers.BooleanField(default=True, label="是否要合并任务")
+        need_out_of_scope_snapshots = serializers.BooleanField(default=False, label="是否需要已移除的记录")
         page = serializers.IntegerField(required=True, label="页数")
         pagesize = serializers.IntegerField(required=True, label="数量")
 
@@ -631,7 +633,9 @@ class BatchTaskResultResource(Resource):
     class RequestSerializer(serializers.Serializer):
         subscription_id = serializers.IntegerField(required=True, label="订阅配置id")
         task_id_list = serializers.ListField(required=False, label="任务id列表")
-        need_detail = serializers.BooleanField(required=False, label="是否需要详细log")
+        need_detail = serializers.BooleanField(default=False, label="是否需要详细log")
+        need_aggregate_all_tasks = serializers.BooleanField(default=True, label="是否要合并任务")
+        need_out_of_scope_snapshots = serializers.BooleanField(default=False, label="是否需要已移除的记录")
 
     def perform_request(self, params):
         def get_data(result):
@@ -644,13 +648,18 @@ class BatchTaskResultResource(Resource):
                 return None
             return result.get("total")
 
-        return batch_request(
+        instance_list = batch_request(
             TaskResultResource().__call__,
             params,
             get_data=get_data,
             get_count=get_count,
+            limit=1000,
             app="nodeman",
         )
+        if not params.get("need_detail", False):
+            for item in instance_list:
+                item.pop("steps", None)
+        return instance_list
 
     def validate_response_data(self, response_data):
         for instance in response_data:

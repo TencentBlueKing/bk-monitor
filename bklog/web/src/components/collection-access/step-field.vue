@@ -1998,6 +1998,8 @@ export default {
     },
     /** 判断是否有更改过值 */
     getIsUpdateSubmitValue() {
+      // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
+      if (this.basicLoading) return false;
       const fieldTableData = this.getNotParticipleFieldTableData();
       const editParams = this.editComparedData.comparedVal;
       const params = this.getSubmitParams(fieldTableData);
