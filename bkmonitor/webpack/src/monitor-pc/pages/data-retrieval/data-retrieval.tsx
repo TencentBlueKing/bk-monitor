@@ -50,7 +50,6 @@ import {
 } from 'monitor-api/modules/strategies';
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
 import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
-import { IPanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import { EmptyStatusType } from '../../components/empty-status/types';
@@ -1048,6 +1047,7 @@ export default class DataRetrieval extends tsc<object> {
     this.filterQueryResult = [];
     this.promqlData = [];
     this.promqlExpandedData = [];
+    this.routeParamsReset();
     this.handleAddQuery();
     this.handleAddCode();
   }
@@ -1658,13 +1658,15 @@ export default class DataRetrieval extends tsc<object> {
         this.queryTimeRange = +new Date() - queryStartTime;
         this.queryResult = data.panels;
         this.emptyStatus = 'search-empty';
-        this.routerParamsUpdate(data.panels || []);
       })
       .catch(() => {
         this.queryResult = [];
         this.emptyStatus = '500';
       })
-      .finally(() => (this.loading = false));
+      .finally(() => {
+        this.loading = false;
+        this.routerParamsUpdate();
+      });
     this.isHandleQuery = false;
   }
 
@@ -1672,16 +1674,92 @@ export default class DataRetrieval extends tsc<object> {
    * @description 更新路由参数（检索的任何更改都需要记录到路由上）
    * @param panels
    */
-  routerParamsUpdate(panels: IPanelModel[]) {
-    let targets = panels.reduce((pre, item) => {
-      pre.push(...item.targets);
-      return pre;
-    }, []);
+  routerParamsUpdate() {
+    const targets = [];
+    if (this.editMode === 'UI') {
+      this.localValue.forEach((item: DataRetrievalQueryItem) => {
+        // 指标
+        if (item.isMetric && !item.isNullMetric && !item.sourceCodeError) {
+          const queryConfigItem: IDataRetrieval.queryConfigsParams = {
+            metric: item.metric_field,
+            method: item.agg_method,
+            alias: item.alias,
+            interval: item.agg_interval,
+            table: item.result_table_id,
+            data_source_label: item.data_source_label,
+            data_type_label: item.data_type_label,
+            group_by: item.agg_dimension,
+            where: item.agg_condition.filter(item => item.value.length).filter(item => item.key),
+            functions: item.functions,
+          };
+          item.index_set_id && (queryConfigItem.index_set_id = item.index_set_id);
+          item.data_label && (queryConfigItem.data_label = item.data_label);
+          const temp = {
+            alias: item.alias,
+            data: {
+              query_configs: [queryConfigItem],
+              expression: item.alias,
+              alias: item.alias,
+            },
+          };
+          targets.push(temp);
+        } else if (!!item?.value || item?.functions?.length) {
+          const temp = {
+            alias: item.alias,
+            data: {
+              query_configs: [],
+              expression: item.value,
+              functions: item?.functions,
+              alias: item.alias,
+            },
+          };
+          targets.push(temp);
+        }
+      });
+    } else if (this.editMode === 'PromQL') {
+      this.promqlData.forEach(promqlItem => {
+        if (!!promqlItem.code && promqlItem.enable) {
+          const temp = {
+            data: {
+              query_configs: [
+                {
+                  data_source_label: 'prometheus',
+                  data_type_label: 'time_series',
+                  promql: promqlItem.code,
+                  interval: promqlItem.step || 'auto',
+                  alias: promqlItem.alias,
+                },
+              ],
+            },
+          };
+          targets.push(temp);
+        }
+      });
+    }
+
     const routeParams = {
       name: this.$route.name,
       query: {
         ...(this.$route.query || {}),
-        targets: JSON.stringify(targets),
+        targets: targets.length ? JSON.stringify(targets) : undefined,
+        from: this.compareValue.tools.timeRange[0],
+        to: this.compareValue.tools.timeRange[1],
+        timezone: this.compareValue.tools.timezone,
+        key: random(10),
+      },
+    };
+    this.$router.replace(routeParams);
+  }
+
+  /**
+   * @description 重置路由参数
+   */
+  routeParamsReset() {
+    const routeParams = {
+      name: this.$route.name,
+      query: {
+        ...(this.$route.query || {}),
+        targets: undefined,
         from: this.compareValue.tools.timeRange[0],
         to: this.compareValue.tools.timeRange[1],
         timezone: this.compareValue.tools.timezone,
