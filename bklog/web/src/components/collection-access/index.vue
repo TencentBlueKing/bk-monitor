@@ -47,10 +47,7 @@
             :before-change="stepChangeBeforeFn"
           >
           </bk-steps>
-          <div
-            class="step-arrow"
-            :style="{ top: `${getCurStepArrowTopNum}px` }"
-          ></div>
+          <div class="step-arrow"></div>
         </div>
       </section>
       <section
@@ -67,6 +64,7 @@
           :is-switch="isSwitch"
           :index-set-id="indexSetId"
           :apply-data="applyData"
+          :cur-step="curStep"
           :is-container-step="isContainerStep"
           :is-finish-create-step="isFinishCreateStep"
           :container-loading.sync="containerLoading"
@@ -208,10 +206,6 @@ export default {
     /** 左侧展示的步骤总高度 */
     getShowStepsConfHeightNum() {
       return this.getShowStepsConf.length * ONE_STEP_HEIGHT;
-    },
-    /** 箭头样式的top */
-    getCurStepArrowTopNum() {
-      return this.curStep * ONE_STEP_HEIGHT - 38;
     },
     /** 当前展示的组件 */
     getCurrentComponent() {
@@ -576,7 +570,8 @@ export default {
 
   .step-arrow {
     position: absolute;
-    right: 1px;
+    top: 38px;
+    right: -1px;
     width: 10px;
     height: 10px;
     background: #fff;
