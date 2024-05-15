@@ -45,7 +45,7 @@ elasticsearch6==6.4.2
 elasticsearch_dsl==7.0.0
 
 # kafka
-kafka-python==1.4.6
+kafka-python==2.0.2
 
 # iam
 cachetools==3.1.1
