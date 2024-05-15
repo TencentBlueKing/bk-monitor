@@ -30,6 +30,7 @@ from alarm_backends.service.access.priority import PriorityChecker
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
 from api.cmdb.define import TopoNode
 from bkmonitor.documents import AlertLog
+from bkmonitor.models import AlgorithmModel
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.time_tools import hms_string
 from constants.action import AssignMode
@@ -151,7 +152,11 @@ class CloseStatusChecker(BaseChecker):
         if not alert.is_no_data():
             latest_levels = [str(detect["level"]) for detect in latest_strategy["detects"]]
             origin_levels = [str(detect["level"]) for detect in origin_strategy["detects"]]
-            if alert.severity_source != AssignMode.BY_RULE and str(alert.severity) not in latest_levels:
+            if (
+                not self.check_skip_close_by_algorithm(latest_item)
+                and alert.severity_source != AssignMode.BY_RULE
+                and str(alert.severity) not in latest_levels
+            ):
                 logger.info(
                     "[process result] (closed) alert({}), strategy({}), "
                     "algorithm_level({}) has been deleted: {} -> {}".format(
@@ -400,3 +405,17 @@ class CloseStatusChecker(BaseChecker):
                     strategy_id=parser.strategy_id, item_id=parser.item_id, dimensions_md5=parser.dimensions_md5
                 ),
             )
+
+    def check_skip_close_by_algorithm(self, strategy_item) -> bool:
+        """检查是否需要根据算法来跳过关闭告警的逻辑.
+
+        :param strategy_item: 策略配置
+        :return: 是否需要跳过关闭检测
+        """
+        if (
+            len(strategy_item["algorithms"]) > 0
+            and strategy_item["algorithms"][0]["type"] == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection
+        ):
+            return True
+
+        return False

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-useless-escape */
+
 import { languages } from 'monaco-editor';
 // noinspection JSUnusedGlobalSymbols
 export const languageConfiguration = {
@@ -31,7 +31,7 @@ export const languageConfiguration = {
   wordPattern: /(-?\d*\.\d\w*)|([^`~!#%^&*()\-=+\[{\]}\\|;:'",.<>\/?\s]+)/g,
   // Not possible to make comments in PromQL syntax
   comments: {
-    lineComment: '#'
+    lineComment: '#',
   },
   brackets: [
     // ['{', '}'],
@@ -43,7 +43,7 @@ export const languageConfiguration = {
     { open: '[', close: ']' },
     { open: '(', close: ')' },
     { open: '"', close: '"' },
-    { open: "'", close: "'" }
+    { open: "'", close: "'" },
   ],
   surroundingPairs: [
     { open: '{', close: '}' },
@@ -51,9 +51,9 @@ export const languageConfiguration = {
     { open: '(', close: ')' },
     { open: '"', close: '"' },
     { open: "'", close: "'" },
-    { open: '<', close: '>' }
+    { open: '<', close: '>' },
   ],
-  folding: {}
+  folding: {},
 };
 // PromQL Aggregation Operators
 // (https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators)
@@ -69,7 +69,7 @@ const aggregations = [
   'count_values',
   'bottomk',
   'topk',
-  'quantile'
+  'quantile',
 ];
 const duration = ['1m', '5m', '10m', '30m', '1h', '1d'];
 // PromQL functions
@@ -139,7 +139,7 @@ const functions = [
   'time',
   'timestamp',
   'vector',
-  'year'
+  'year',
 ];
 // PromQL specific functions: Aggregations over time
 // (https://prometheus.io/docs/prometheus/latest/querying/functions/#aggregation_over_time)
@@ -168,7 +168,7 @@ const keywords = [
   ...aggregationsOverTime.map(str => ({ keyword: str, type: 'aggregationsOverTime' })),
   ...vectorMatching.map(str => ({ keyword: str, type: 'vectorMatching' })),
   ...offsetModifier.map(str => ({ keyword: str, type: 'offsetModifier' })),
-  ...duration.map(str => ({ keyword: str, type: 'duration' }))
+  ...duration.map(str => ({ keyword: str, type: 'duration' })),
 ];
 // const keywords = aggregations
 //   .concat(functions)
@@ -207,9 +207,9 @@ export const language = {
         {
           cases: {
             '@keywords': 'type',
-            '@default': 'identifier'
-          }
-        }
+            '@default': 'identifier',
+          },
+        },
       ],
       // strings
       [/"([^"\\]|\\.)*$/, 'string.invalid'],
@@ -227,9 +227,9 @@ export const language = {
         {
           cases: {
             '@operators': 'delimiter',
-            '@default': ''
-          }
-        }
+            '@default': '',
+          },
+        },
       ],
       // numbers
       [/\d+[smhdwy]/, 'number'],
@@ -239,32 +239,32 @@ export const language = {
       [/0[0-7']*[0-7](@integersuffix)/, 'number.octal'],
       [/0[bB][0-1']*[0-1](@integersuffix)/, 'number.binary'],
       [/\d[\d']*\d(@integersuffix)/, 'number'],
-      [/\d(@integersuffix)/, 'number']
+      [/\d(@integersuffix)/, 'number'],
     ],
     string_double: [
       [/[^\\"]+/, 'string'],
       [/@escapes/, 'string.escape'],
       [/\\./, 'string.escape.invalid'],
-      [/"/, 'string', '@pop']
+      [/"/, 'string', '@pop'],
     ],
     string_single: [
       [/[^\\']+/, 'string'],
       [/@escapes/, 'string.escape'],
       [/\\./, 'string.escape.invalid'],
-      [/'/, 'string', '@pop']
+      [/'/, 'string', '@pop'],
     ],
     string_backtick: [
       [/[^\\`$]+/, 'string'],
       [/@escapes/, 'string.escape'],
       [/\\./, 'string.escape.invalid'],
-      [/`/, 'string', '@pop']
+      [/`/, 'string', '@pop'],
     ],
     clauses: [
       [/[^(,)]/, 'tag'],
-      [/\)/, 'identifier', '@pop']
+      [/\)/, 'identifier', '@pop'],
     ],
-    whitespace: [[/[ \t\r\n]+/, 'white']]
-  }
+    whitespace: [[/[ \t\r\n]+/, 'white']],
+  },
 };
 
 function kindFn(type: string) {
@@ -294,10 +294,10 @@ export const completionItemProvider = {
         kind: kindFn(item.type),
         insertText: item.keyword,
         insertTextRules: languages.CompletionItemInsertTextRule.InsertAsSnippet,
-        sortText: index.toString().padStart(maxIndexDigits, '0')
+        sortText: index.toString().padStart(maxIndexDigits, '0'),
       };
     });
     return { suggestions };
   },
-  triggerCharacters: ['{', ',', '[', '(', '=', '~', ' ', '"']
+  triggerCharacters: ['{', ',', '[', '(', '=', '~', ' ', '"'],
 };

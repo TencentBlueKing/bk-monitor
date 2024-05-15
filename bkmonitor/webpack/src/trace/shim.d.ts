@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
-import type { Dayjs } from 'dayjs';
 
 import i18n from './i18n/i18n';
+
 import type { IBizItem, ISpaceItem } from './typings';
+import type { Dayjs } from 'dayjs';
 
 declare global {
   interface Window {
@@ -40,12 +40,12 @@ declare global {
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];
     csrf_cookie_name: string;
-    cc_biz_id: string | number;
-    bk_biz_id: string | number;
+    cc_biz_id: number | string;
+    bk_biz_id: number | string;
     bk_log_search_url: string;
     bklogsearch_host: string;
     bk_url: string;
-    source_app: 'trace';
+    source_app: string;
     i18n: typeof i18n.global;
     __BK_WEWEB_DATA__?: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: boolean;

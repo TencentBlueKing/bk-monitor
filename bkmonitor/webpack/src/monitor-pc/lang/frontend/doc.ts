@@ -331,5 +331,5 @@ export default {
     "Datadog is a one-stop cloud performance monitoring platform with rich collection capabilities. BlueKing Monitoring is compatible with Datadog's collection capabilities, and currently users cannot customize plug-ins. Because Datadog is written by python, it needs a python executable environment and does not need to occupy a port",
   '事件内容，必需项': 'Event content, required',
   '指标，必需项': 'Metrics, Required',
-  '来源标识如IP，必需项': 'Source identification such as IP, required'
+  '来源标识如IP，必需项': 'Source identification such as IP, required',
 };

@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType } from 'vue';
+
 import { Button } from 'bkui-vue';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
 import { IQueryParams } from '../../../typings/trace';
 import { DataTypeItem } from '../typings/profiling-retrieval';
-
 import TrendChart from './trend-chart';
 
 import './profiling-retrieval-view.scss';
@@ -39,16 +39,16 @@ export default defineComponent({
   props: {
     dataType: {
       type: String,
-      default: 'cpu'
+      default: 'cpu',
     },
     dataTypeList: {
       type: Array as PropType<DataTypeItem[]>,
-      default: () => []
+      default: () => [],
     },
     queryParams: {
       type: Object as PropType<IQueryParams>,
-      required: true
-    }
+      required: true,
+    },
   },
   emits: ['update:dataType'],
   setup() {},
@@ -82,5 +82,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

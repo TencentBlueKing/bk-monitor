@@ -14,7 +14,6 @@ import os
 import subprocess
 import traceback
 from functools import reduce
-from base64 import b64encode
 
 from django.conf import settings
 from django.db import models, transaction
@@ -29,6 +28,7 @@ from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.uptime_check import DeprecatedFunctionError
 from monitor.constants import UPTIME_CHECK_DB, UptimeCheckProtocol
+from monitor_web.collecting.constant import CollectStatus
 from monitor_web.models import OperateRecordModelBase
 from monitor_web.tasks import append_metric_list_cache, update_task_running_status
 
@@ -283,7 +283,7 @@ class UptimeCheckTask(OperateRecordModel):
     permission_exempt = True
 
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
-    name = models.CharField("任务名称", max_length=50, db_index=True)
+    name = models.CharField("任务名称", max_length=128, db_index=True)
     protocol = models.CharField("协议", choices=PROTOCOL_CHOICES, max_length=10)
     check_interval = models.PositiveIntegerField("拨测周期(分钟)", default=5)
     # 地点变为可选项
@@ -501,7 +501,7 @@ class UptimeCheckTask(OperateRecordModel):
                 "params": {
                     "context": {
                         "data_id": dataid_map[protocol.upper()],
-                        "max_timeout": str(settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT) + "ms",
+                        "max_timeout": "{}ms".format(timeout),
                         "tasks": resource.uptime_check.generate_sub_config({"task_id": pk}),
                         "config_hosts": self.config.get("hosts", []),
                         # 针对动态节点的情况, 注意，业务ID必须拿当前task的业务ID：
@@ -639,11 +639,10 @@ class UptimeCheckTask(OperateRecordModel):
                 "subscription_id", flat=1
             )
             if subscription_ids:
-                status_result = api.node_man.subscription_instance_status(subscription_id_list=subscription_ids)[0][
-                    "instances"
-                ]
-                for status in status_result:
-                    if status.get("running_task", None):
+                subscription_id = subscription_ids[0]
+                instance_list = api.node_man.batch_task_result(subscription_id=subscription_id)
+                for instance in instance_list:
+                    if instance.get("status", None) in [CollectStatus.PENDING, CollectStatus.RUNNING]:
                         raise CustomException(_("拨测任务启用失败：存在运行中的启停任务，请稍后再试"))
         except BKAPIError as e:
             logger.error(_("拨测任务启停前置检查失败: {}").format(e))
@@ -677,12 +676,14 @@ class UptimeCheckTask(OperateRecordModel):
             subscription_ids = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk).values_list(
                 "subscription_id", flat=1
             )
-            status_result = api.node_man.subscription_instance_status(subscription_id_list=subscription_ids)[0][
-                "instances"
-            ]
-            for status in status_result:
-                if status.get("running_task", None):
-                    raise CustomException(_("拨测任务停用失败：存在运行中的启停任务，请稍后再试"))
+            if subscription_ids:
+                subscription_id = subscription_ids[0]
+                instance_list = api.node_man.batch_task_result(subscription_id=subscription_id)
+                for instance in instance_list:
+                    if instance.get("status", None) in [CollectStatus.PENDING, CollectStatus.RUNNING]:
+                        raise CustomException(_("拨测任务停用失败：存在运行中的启停任务，请稍后再试"))
+            else:
+                raise CustomException(_("拨测任务对应订阅信息不存在"))
         except BKAPIError as e:
             logger.error(_("拨测任务启停前置检查失败: {}").format(e))
         self.status = self.Status.STOPING

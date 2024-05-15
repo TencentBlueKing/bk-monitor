@@ -468,7 +468,7 @@ export default class MonitorEcharts extends Vue {
         const chart: any = echarts.init(this.chartRef);
         this.chart = chart;
         if (this.autoresize) {
-          const handler = debounce(300, false, () => this.resize());
+          const handler = debounce(300, () => this.resize());
           this.resizeHandler = async () => {
             await this.$nextTick();
             this.chartRef && this.chartRef.offsetParent !== null && handler();
@@ -527,7 +527,7 @@ export default class MonitorEcharts extends Vue {
     }, 500);
   }
 
-  @Debounce(300)
+  @Debounce(30)
   // 获取seriesData
   async handleSeriesData(startTime?: string, endTime?: string) {
     if (this.isFinish) this.loading = true;

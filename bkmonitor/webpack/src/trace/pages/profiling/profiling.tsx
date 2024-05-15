@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, onMounted, provide, reactive, Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Dialog } from 'bkui-vue';
 import { queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
@@ -35,7 +36,6 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components
 import ProfilingQueryImage from '../../static/img/profiling-query.png';
 import ProfilingUploadQueryImage from '../../static/img/profiling-upload-query.png';
 import { monitorDrag } from '../../utils/drag-directive';
-
 import EmptyCard from './components/empty-card';
 import HandleBtn from './components/handle-btn';
 // import FavoriteList from './components/favorite-list';
@@ -44,8 +44,8 @@ import ProfilingDetail from './components/profiling-detail';
 import ProfilingRetrievalView from './components/profiling-retrieval-view';
 import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
-import { MenuEnum, ToolsFormData } from './typings/page-header';
 import { DataTypeItem, DetailType, FileDetail, PanelType, SearchState, SearchType, ServicesDetail } from './typings';
+import { MenuEnum, ToolsFormData } from './typings/page-header';
 
 import './profiling.scss';
 
@@ -58,9 +58,21 @@ export default defineComponent({
     const toolsFormData = ref<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefautTimezone(),
-      refreshInterval: -1
+      refreshInterval: -1,
     });
     provide<Ref<ToolsFormData>>('toolsFormData', toolsFormData);
+
+    // 是否展示复位
+    const showRestore = ref<boolean>(false);
+    // 时间范围缓存用于复位功能
+    const cacheTimeRange = ref('');
+    provide<Ref<boolean>>('showRestore', showRestore);
+    // 是否开启（框选/复位）全部操作
+    const enableSelectionRestoreAll = computed(() => searchState.formData.type === SearchType.Profiling);
+    provide<Ref<boolean>>('enableSelectionRestoreAll', enableSelectionRestoreAll);
+    // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+    provide('handleChartDataZoom', handleChartDataZoom);
+    provide('handleRestoreEvent', handleRestoreEvent);
 
     /** 当前选择服务的详情数据 */
     const selectServiceData = ref<ServicesDetail>();
@@ -75,11 +87,11 @@ export default defineComponent({
         isComparison: false,
         server: {
           app_name: '',
-          service_name: ''
+          service_name: '',
         },
         where: [],
-        comparisonWhere: []
-      }
+        comparisonWhere: [],
+      },
     });
 
     const searchType = computed(() => searchState.formData.type);
@@ -165,7 +177,7 @@ export default defineComponent({
         start_time: start,
         end_time: end,
         app_name,
-        service_name
+        service_name,
       }).catch(() => ({}));
       searchState.loading = false;
       detailData.value = selectServiceData.value;
@@ -201,8 +213,8 @@ export default defineComponent({
         comparisonWhere: [],
         server: {
           app_name: '',
-          service_name: ''
-        }
+          service_name: '',
+        },
       };
       isEmpty.value = true;
     }
@@ -214,7 +226,7 @@ export default defineComponent({
         profile_id: curFileInfo?.value?.profile_id,
         global_query: true,
         start: startTime,
-        end: endTime
+        end: endTime,
       };
       return {
         is_compared: isComparison,
@@ -227,7 +239,7 @@ export default defineComponent({
           return pre;
         }, {}),
         data_type: dataType.value,
-        ...(type === SearchType.Upload ? uploadParams : profilingParams)
+        ...(type === SearchType.Upload ? uploadParams : profilingParams),
       };
     }
 
@@ -241,9 +253,9 @@ export default defineComponent({
     // ----------------------详情-------------------------
     const detailShow = ref(false);
     const detailType = ref<DetailType>(DetailType.Application);
-    const detailData = ref<ServicesDetail | FileDetail>(null);
+    const detailData = ref<FileDetail | ServicesDetail>(null);
     /** 展示服务详情 */
-    function handleShowDetail(type: DetailType, detail: ServicesDetail | FileDetail) {
+    function handleShowDetail(type: DetailType, detail: FileDetail | ServicesDetail) {
       detailShow.value = true;
       detailType.value = type;
       detailData.value = detail;
@@ -266,12 +278,26 @@ export default defineComponent({
       handleQuery();
     }
 
-    function getDataTypeList(val: ServicesDetail | FileDetail) {
+    function getDataTypeList(val: FileDetail | ServicesDetail) {
       dataTypeList.value = val?.data_types || [];
       const target = dataTypeList.value.some(item => item.key === dataType.value);
       if (!target) {
         dataType.value = dataTypeList.value[0]?.key || '';
       }
+    }
+
+    // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+    function handleChartDataZoom(value) {
+      if (JSON.stringify(toolsFormData.value.timeRange) !== JSON.stringify(value)) {
+        cacheTimeRange.value = JSON.parse(JSON.stringify(toolsFormData.value.timeRange));
+        toolsFormData.value.timeRange = value;
+        showRestore.value = true;
+      }
+    }
+
+    function handleRestoreEvent() {
+      toolsFormData.value.timeRange = JSON.parse(JSON.stringify(cacheTimeRange.value));
+      showRestore.value = false;
     }
 
     return {
@@ -300,7 +326,7 @@ export default defineComponent({
       handleDataTypeChange,
       handleShowDetail,
       handleSelectFile,
-      handleMenuSelect
+      handleMenuSelect,
     };
   },
 
@@ -313,13 +339,13 @@ export default defineComponent({
       if (this.searchState.formData.type === SearchType.Upload) {
         return (
           <UploadRetrievalView
-            formData={this.searchState.formData}
-            queryParams={this.queryParams}
             dataType={this.dataType}
             dataTypeList={this.dataTypeList}
+            formData={this.searchState.formData}
+            queryParams={this.queryParams}
+            onDataTypeChange={this.handleDataTypeChange}
             onSelectFile={fileInfo => this.handleSelectFile(fileInfo)}
             onShowFileDetail={detail => this.handleShowDetail(DetailType.UploadFile, detail)}
-            onDataTypeChange={this.handleDataTypeChange}
           />
         );
       }
@@ -329,8 +355,8 @@ export default defineComponent({
           <div class='empty-wrap'>
             <div onClick={() => handleGuideClick(SearchType.Profiling)}>
               <EmptyCard
-                title={this.$t('持续 Profiling')}
                 desc={this.$t('直接进行 精准查询，定位到 Trace 详情')}
+                title={this.$t('持续 Profiling')}
               >
                 {{
                   img: () => (
@@ -338,14 +364,14 @@ export default defineComponent({
                       class='empty-image'
                       src={ProfilingQueryImage}
                     />
-                  )
+                  ),
                 }}
               </EmptyCard>
             </div>
             <div onClick={() => handleGuideClick(SearchType.Upload)}>
               <EmptyCard
-                title={this.$t('上传 Profiling')}
                 desc={this.$t('可以切换到 范围查询，根据条件筛选 Trace')}
+                title={this.$t('上传 Profiling')}
               >
                 {{
                   img: () => (
@@ -353,7 +379,7 @@ export default defineComponent({
                       class='empty-image'
                       src={ProfilingUploadQueryImage}
                     />
-                  )
+                  ),
                 }}
               </EmptyCard>
             </div>
@@ -374,13 +400,13 @@ export default defineComponent({
       <div class='profiling-page'>
         <div class='page-header'>
           <PageHeader
-            v-model={this.toolsFormData}
+            data={this.toolsFormData}
             isShowSearch={this.searchState.isShow}
-            onShowTypeChange={this.handleShowTypeChange}
             onChange={this.handleToolFormDataChange}
-            onRefreshIntervalChange={this.startAutoQueryTimer}
-            onMenuSelect={this.handleMenuSelect}
             onImmediateRefresh={this.handleQuery}
+            onMenuSelect={this.handleMenuSelect}
+            onRefreshIntervalChange={this.startAutoQueryTimer}
+            onShowTypeChange={this.handleShowTypeChange}
           ></PageHeader>
         </div>
         <div class='page-content'>
@@ -410,15 +436,15 @@ export default defineComponent({
               theme: 'simple',
               isShow: this.searchState.isShow,
               onWidthChange: () => {},
-              onHidden: () => this.handleShowTypeChange(PanelType.Search, false)
+              onHidden: () => this.handleShowTypeChange(PanelType.Search, false),
             }}
           >
             <RetrievalSearch
               formData={this.searchState.formData}
-              onChange={this.handleSearchFormDataChange}
-              onTypeChange={this.handleTypeChange}
               onAppServiceChange={this.handleAppServiceChange}
+              onChange={this.handleSearchFormDataChange}
               onShowDetail={() => this.handleShowDetail(DetailType.Application, this.selectServiceData)}
+              onTypeChange={this.handleTypeChange}
             >
               {{
                 query: () => (
@@ -427,10 +453,10 @@ export default defineComponent({
                     canQuery={this.canQuery}
                     loading={this.searchState.loading}
                     onChangeAutoQuery={this.handleAutoQueryChange}
-                    onQuery={this.handleQuery}
                     onClear={this.handleQueryClear}
+                    onQuery={this.handleQuery}
                   ></HandleBtn>
-                )
+                ),
               }}
             </RetrievalSearch>
           </div>
@@ -438,21 +464,22 @@ export default defineComponent({
         </div>
 
         <ProfilingDetail
-          show={this.detailShow}
-          detailType={this.detailType}
           detailData={this.detailData}
+          detailType={this.detailType}
+          show={this.detailShow}
           onShowChange={val => (this.detailShow = val)}
         ></ProfilingDetail>
 
         {this.isFull && (
           <Dialog
+            ext-cls='full-dialog'
+            dialog-type='show'
+            draggable={false}
+            header-align='center'
             is-show={this.isFull}
             title={this.t('查看大图')}
             zIndex={8004}
             fullscreen
-            header-align='center'
-            draggable={false}
-            ext-cls='full-dialog'
             onClosed={() => (this.isFull = false)}
           >
             <div class='view-wrap'>{renderView()}</div>
@@ -460,5 +487,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

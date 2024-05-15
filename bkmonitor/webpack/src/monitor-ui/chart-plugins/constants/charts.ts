@@ -81,7 +81,7 @@ export const COLOR_LIST = [
   '#FCE2DE',
   '#BADFF4',
   '#F9D9F9',
-  '#DEDAF7'
+  '#DEDAF7',
 ];
 
 export const COLOR_LIST_BAR = ['#689DF3', '#4051A3', ...COLOR_LIST];
@@ -103,7 +103,7 @@ export const COLOR_LIST_OUTLIER = [
   '#DBD84D',
   '#4E76B1',
   '#BF92CB',
-  ...COLOR_LIST
+  ...COLOR_LIST,
 ];
 
 /** 线性图配置 */
@@ -116,11 +116,11 @@ export const MONITOR_LINE_OPTIONS: MonitorEchartOptions = {
   animationDelay: 300,
   title: {
     text: '',
-    show: false
+    show: false,
   },
   color: COLOR_LIST,
   legend: {
-    show: false
+    show: false,
   },
   tooltip: {
     show: true,
@@ -128,8 +128,8 @@ export const MONITOR_LINE_OPTIONS: MonitorEchartOptions = {
     axisPointer: {
       type: 'line',
       label: {
-        backgroundColor: '#6a7985'
-      }
+        backgroundColor: '#6a7985',
+      },
     },
     transitionDuration: 0,
     alwaysShowContent: false,
@@ -137,9 +137,9 @@ export const MONITOR_LINE_OPTIONS: MonitorEchartOptions = {
     borderWidth: 0,
     textStyle: {
       fontSize: 12,
-      color: '#BEC0C6'
+      color: '#BEC0C6',
     },
-    extraCssText: 'border-radius: 4px'
+    extraCssText: 'border-radius: 4px',
   },
   toolbox: {
     showTitle: false,
@@ -149,25 +149,25 @@ export const MONITOR_LINE_OPTIONS: MonitorEchartOptions = {
       borderWidth: 0,
       shadowColor: '#979ba5',
       shadowOffsetX: 0,
-      shadowOffsetY: 0
+      shadowOffsetY: 0,
     },
     feature: {
       saveAsImage: {
-        icon: 'path://'
+        icon: 'path://',
       },
       dataZoom: {
         icon: {
           zoom: 'path://',
-          back: 'path://'
+          back: 'path://',
         },
         show: true,
         yAxisIndex: false,
         iconStyle: {
-          opacity: 0
-        }
+          opacity: 0,
+        },
       },
-      restore: { icon: 'path://' }
-    }
+      restore: { icon: 'path://' },
+    },
   },
   grid: {
     containLabel: true,
@@ -175,40 +175,40 @@ export const MONITOR_LINE_OPTIONS: MonitorEchartOptions = {
     right: 16,
     top: 10,
     bottom: 10,
-    backgroundColor: 'transparent'
+    backgroundColor: 'transparent',
   },
   xAxis: {
     type: 'time',
     boundaryGap: false,
     axisTick: {
-      show: false
+      show: false,
     },
     axisLine: {
       show: false,
       lineStyle: {
         color: '#ccd6eb',
         width: 1,
-        type: 'solid'
-      }
+        type: 'solid',
+      },
     },
     axisLabel: {
       fontSize: 12,
       color: '#979BA5',
       showMinLabel: false,
       showMaxLabel: false,
-      align: 'left'
+      align: 'left',
     },
     splitLine: {
-      show: false
+      show: false,
     },
     minInterval: 5 * 60 * 1000,
     splitNumber: 10,
-    scale: true
+    scale: true,
   },
   markLine: [
     {
-      z: 100 // markLine markArea不支持单独设置层级
-    }
+      z: 100, // markLine markArea不支持单独设置层级
+    },
   ],
   yAxis: {
     type: 'value',
@@ -217,27 +217,27 @@ export const MONITOR_LINE_OPTIONS: MonitorEchartOptions = {
       lineStyle: {
         color: '#ccd6eb',
         width: 1,
-        type: 'solid'
-      }
+        type: 'solid',
+      },
     },
     axisTick: {
-      show: false
+      show: false,
     },
     axisLabel: {
-      color: '#979BA5'
+      color: '#979BA5',
     },
     splitLine: {
       show: true,
       lineStyle: {
         color: '#F0F1F5',
-        type: 'dashed'
-      }
+        type: 'dashed',
+      },
     },
     scale: true,
     min: 'dataMin',
-    z: 3
+    z: 3,
   },
-  series: []
+  series: [],
 };
 
 /** 柱状图配置 */
@@ -250,21 +250,21 @@ export const MONITOR_BAR_OPTIONS = {
     right: 16,
     top: 10,
     bottom: 10,
-    backgroundColor: 'transparent'
+    backgroundColor: 'transparent',
   },
   xAxis: {
     type: 'time',
     boundaryGap: false,
     axisTick: {
-      show: false
+      show: false,
     },
     axisLine: {
       show: false,
       lineStyle: {
         color: '#ccd6eb',
         width: 1,
-        type: 'solid'
-      }
+        type: 'solid',
+      },
     },
     axisLabel: {
       fontSize: 12,
@@ -272,14 +272,14 @@ export const MONITOR_BAR_OPTIONS = {
       showMinLabel: false,
       showMaxLabel: false,
       align: 'center',
-      interval: 0
+      interval: 0,
     },
     splitLine: {
-      show: false
+      show: false,
     },
     minInterval: 0,
     splitNumber: 10,
-    scale: true
+    scale: true,
   },
   yAxis: {
     type: 'value',
@@ -288,24 +288,24 @@ export const MONITOR_BAR_OPTIONS = {
       lineStyle: {
         color: '#ccd6eb',
         width: 1,
-        type: 'solid'
-      }
+        type: 'solid',
+      },
     },
     axisTick: {
-      show: false
+      show: false,
     },
     axisLabel: {
-      color: '#979BA5'
+      color: '#979BA5',
     },
     splitLine: {
       show: true,
       lineStyle: {
         color: '#F0F1F5',
-        type: 'dashed'
-      }
+        type: 'dashed',
+      },
     },
     scale: false,
-    z: 3
+    z: 3,
   },
   tooltip: {
     show: true,
@@ -313,8 +313,8 @@ export const MONITOR_BAR_OPTIONS = {
     axisPointer: {
       type: 'line',
       label: {
-        backgroundColor: '#6a7985'
-      }
+        backgroundColor: '#6a7985',
+      },
     },
     transitionDuration: 0,
     alwaysShowContent: false,
@@ -322,14 +322,14 @@ export const MONITOR_BAR_OPTIONS = {
     borderWidth: 0,
     textStyle: {
       fontSize: 12,
-      color: '#BEC0C6'
+      color: '#BEC0C6',
     },
-    extraCssText: 'border-radius: 4px'
+    extraCssText: 'border-radius: 4px',
   },
   markLine: [
     {
-      z: 100 // markLine markArea不支持单独设置层级
-    }
+      z: 100, // markLine markArea不支持单独设置层级
+    },
   ],
   toolbox: {
     showTitle: false,
@@ -340,41 +340,41 @@ export const MONITOR_BAR_OPTIONS = {
       borderWidth: 0,
       shadowColor: '#979ba5',
       shadowOffsetX: 0,
-      shadowOffsetY: 0
+      shadowOffsetY: 0,
     },
     feature: {
       saveAsImage: {
-        icon: 'path://'
+        icon: 'path://',
       },
       dataZoom: {
         icon: {
           zoom: 'path://',
-          back: 'path://'
+          back: 'path://',
         },
         show: true,
         yAxisIndex: false,
         iconStyle: {
-          opacity: 0
-        }
+          opacity: 0,
+        },
       },
-      restore: { icon: 'path://' }
-    }
+      restore: { icon: 'path://' },
+    },
   },
   legend: {
-    show: false
-  }
+    show: false,
+  },
 };
 
 /** 饼图配置 */
 export const MONITOR_PIE_OPTIONS = {
   tooltip: {
     trigger: 'item',
-    formatter: ''
+    formatter: '',
   },
   legend: {
-    show: false
+    show: false,
   },
-  series: []
+  series: [],
 };
 
 /** 地图配置 */
@@ -383,7 +383,7 @@ export const CHINA_MAP_OPTIONS = {
     formatter(params: any) {
       if (isNaN(params.value)) return '';
       return `${params.seriesName}<br />${params.name}：${params.value}`;
-    } // 数据格式化
+    }, // 数据格式化
   },
   // visualMap: {
   //   min: 0,
@@ -404,13 +404,13 @@ export const CHINA_MAP_OPTIONS = {
       normal: {
         show: false,
         fontSize: '10',
-        color: 'rgba(0,0,0,0.7)'
-      }
+        color: 'rgba(0,0,0,0.7)',
+      },
     },
     itemStyle: {
       normal: {
         borderColor: 'rgba(0, 0, 0, 0.2)',
-        borderWidth: 1
+        borderWidth: 1,
       },
       emphasis: {
         areaColor: '#f7f7f7', // 鼠标选择区域颜色
@@ -418,9 +418,9 @@ export const CHINA_MAP_OPTIONS = {
         shadowOffsetY: 0,
         // shadowBlur: 20,
         borderWidth: 1,
-        shadowColor: 'rgba(0, 0, 0, 0.5)'
-      }
-    }
+        shadowColor: 'rgba(0, 0, 0, 0.5)',
+      },
+    },
   },
   series: [
     {
@@ -431,13 +431,13 @@ export const CHINA_MAP_OPTIONS = {
       itemStyle: {
         normal: {
           // 未选中状态
-          borderColor: 'rgba(0, 0, 0, 0.2)'
+          borderColor: 'rgba(0, 0, 0, 0.2)',
         },
         emphasis: {
-          areaColor: '#f7f7f7' // 鼠标选择区域颜色
-        }
+          areaColor: '#f7f7f7', // 鼠标选择区域颜色
+        },
       },
-      data: []
-    }
-  ]
+      data: [],
+    },
+  ],
 };

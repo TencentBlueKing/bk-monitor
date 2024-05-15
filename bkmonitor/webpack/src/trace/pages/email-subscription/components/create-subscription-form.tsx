@@ -25,6 +25,7 @@
  */
 import { defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import {
   Alert,
   Button,
@@ -39,18 +40,17 @@ import {
   Slider,
   Switcher,
   Table,
-  TimePicker
+  TimePicker,
 } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
+import { getExistReports, getVariables } from 'monitor-api/modules/new_report';
+import { copyText, deepClone, transformDataKey } from 'monitor-common/utils';
 
-import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
-import { getExistReports, getVariables } from '../../../../monitor-api/modules/new_report';
-import { copyText, deepClone, transformDataKey } from '../../../../monitor-common/utils';
 import MemberSelect from '../../../components/member-select/member-select';
 import { Scenario } from '../mapping';
 import { FrequencyType, Report } from '../types';
 import { getDefaultReportData, switchReportDataForCreate, switchReportDataForUpdate } from '../utils';
-
 import ExistedReportAlert from './existed-report-alert';
 
 import './create-subscription-form.scss';
@@ -61,7 +61,7 @@ enum PatternLevelEnum {
   '03' = 75,
   '05' = 50,
   '07' = 25,
-  '09' = 0
+  '09' = 0,
 }
 /** 按天频率 包含周末 */
 const INCLUDES_WEEKEND = [1, 2, 3, 4, 5, 6, 7];
@@ -77,15 +77,15 @@ export default defineComponent({
      */
     mode: {
       type: String as PropType<'create' | 'edit'>,
-      default: 'create'
+      default: 'create',
     },
     /** 编辑 模式的时候需要用到这个，作为初始化值 */
     detailInfo: {
       type: Object as PropType<Report>,
       default: () => {
         return getDefaultReportData();
-      }
-    }
+      },
+    },
   },
   emits: ['SelectExistedReport'],
   setup(props, { emit }) {
@@ -108,8 +108,8 @@ export default defineComponent({
             }
           },
           message: t('必填项'),
-          trigger: 'blur'
-        }
+          trigger: 'blur',
+        },
       ],
       channels: [
         // 这个数组顺序不要改
@@ -161,8 +161,8 @@ export default defineComponent({
           },
           // 给个空格，
           message: ' ',
-          trigger: 'blur'
-        }
+          trigger: 'blur',
+        },
       ],
       timerange: [
         {
@@ -170,7 +170,7 @@ export default defineComponent({
             return formData.timerange.length === 2 && !!formData.timerange[0];
           },
           message: t('生效起始时间必填'),
-          trigger: 'change'
+          trigger: 'change',
         },
         {
           validator: () => {
@@ -181,27 +181,27 @@ export default defineComponent({
             return result < 0;
           },
           message: t('生效结束时间不能小于生效起始时间'),
-          trigger: 'change'
-        }
-      ]
+          trigger: 'change',
+        },
+      ],
     };
     /** 针对 订阅人 一项进行特殊的校验异常提醒。因为该项内容有三个输入框要分别处理。 */
     const errorTips = reactive({
       user: {
         message: '',
         defaultMessage: t('内部邮件不可为空'),
-        isShow: false
+        isShow: false,
       },
       email: {
         message: '',
         defaultMessage: t('外部邮件不可为空'),
-        isShow: false
+        isShow: false,
       },
       wxbot: {
         message: '',
         defaultMessage: t('企业微信群不可为空'),
-        isShow: false
-      }
+        isShow: false,
+      },
     });
     /** Pattern 选择器 */
     const pattenLevelSlider = ref(0);
@@ -211,7 +211,7 @@ export default defineComponent({
     const subscriberInput = reactive({
       user: [],
       email: '',
-      wxbot: ''
+      wxbot: '',
     });
     const isIncludeWeekend = ref(true);
     /** 发送频率相关。该对象最后会把该对象数据copy到 formData 上，因为其中 run_time 的日期格式不同导致 日期组件 报异常，所以这里单独抽出整个对象。 */
@@ -221,9 +221,9 @@ export default defineComponent({
       run_time: dayjs().format('HH:mm:ss'),
       only_once_run_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
       week_list: [],
-      day_list: []
+      day_list: [],
     });
-    const subscribeFor = ref<'self' | 'others'>('self');
+    const subscribeFor = ref<'others' | 'self'>('self');
     /** 发送频率 中 按小时 的小时选项。 */
     const hourOption = [0.5, 1, 2, 6, 12].map(id => {
       return { id, name: t('{0}小时', [id]) };
@@ -242,7 +242,7 @@ export default defineComponent({
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const YOYList = [
       { id: 0, name: t('不比对') },
-      ...[1, 2, 3, 6, 12, 24].map(id => ({ id, name: t('{0}小时前', [id]) }))
+      ...[1, 2, 3, 6, 12, 24].map(id => ({ id, name: t('{0}小时前', [id]) })),
     ];
     /** 时间范围选项 */
     const timeRangeOption = [
@@ -250,7 +250,7 @@ export default defineComponent({
       // { id: 'none', name: t('按发送频率') },
       ...[5, 15, 30].map(n => ({ id: `${n}minutes`, name: t('近{n}分钟', { n }) })),
       ...[1, 3, 6, 12, 24].map(n => ({ id: `${n}hours`, name: t('近{n}小时', { n }) })),
-      ...[2, 7, 30].map(n => ({ id: `${n}days`, name: t('近 {n} 天', { n }) }))
+      ...[2, 7, 30].map(n => ({ id: `${n}days`, name: t('近 {n} 天', { n }) })),
     ];
     /** 订阅内容 表单实例 */
     const refOfContentForm = ref();
@@ -275,28 +275,28 @@ export default defineComponent({
                     {data.name}
                   </span>
                   <i
-                    class='icon-monitor icon-mc-copy'
                     style='font-size: 16px;margin-left: 5px;color: #3A84FF;cursor: pointer;'
+                    class='icon-monitor icon-mc-copy'
                     onClick={() => {
                       handleCopy(data.name);
                     }}
                   ></i>
                 </div>
               );
-            }
+            },
           },
           {
             width: '100px',
             label: `${t('变量说明')}`,
-            field: 'description'
+            field: 'description',
           },
           {
             width: '160px',
             label: `${t('示例')}`,
-            field: 'example'
-          }
-        ]
-      }
+            field: 'example',
+          },
+        ],
+      },
     });
     /** 当选择已创建过订阅的索引集时，显示该警告 */
     const isShowExistSubscriptionTips = ref(false);
@@ -306,7 +306,7 @@ export default defineComponent({
     // 任务有效期，视图绑定用。
     const timerange = reactive({
       start: '',
-      end: ''
+      end: '',
     });
     const effectiveEndRef = ref();
     /** 当选择 发送频率 为 仅一次 要保留当前所生成或选择的时间。否则就看起来是 bug 。 */
@@ -324,14 +324,14 @@ export default defineComponent({
       if (str === 'none') return undefined;
       let res = {
         timeLevel: 'hours',
-        number: 24
+        number: 24,
       };
       const isMatch = str.match(/(\d+)(minutes|hours|days)/);
       if (isMatch) {
         const [, date, level] = isMatch;
         res = {
           timeLevel: level,
-          number: +date
+          number: +date,
         };
       }
       return transformDataKey(res, true);
@@ -343,35 +343,35 @@ export default defineComponent({
         hour: 0,
         run_time: '',
         week_list: [],
-        day_list: []
+        day_list: [],
       });
       switch (formData.frequency.type) {
         case FrequencyType.hourly:
           Object.assign(formData.frequency, {
-            hour: frequency.hour
+            hour: frequency.hour,
           });
           break;
         case FrequencyType.dayly:
           Object.assign(formData.frequency, {
             run_time: frequency.run_time,
-            week_list: isIncludeWeekend.value ? INCLUDES_WEEKEND : EXCLUDES_WEEKEND
+            week_list: isIncludeWeekend.value ? INCLUDES_WEEKEND : EXCLUDES_WEEKEND,
           });
           break;
         case FrequencyType.weekly:
           Object.assign(formData.frequency, {
             run_time: frequency.run_time,
-            week_list: frequency.week_list
+            week_list: frequency.week_list,
           });
           break;
         case FrequencyType.monthly:
           Object.assign(formData.frequency, {
             run_time: frequency.run_time,
-            day_list: frequency.day_list
+            day_list: frequency.day_list,
           });
           break;
         case FrequencyType.onlyOnce:
           Object.assign(formData.frequency, {
-            run_time: frequency.only_once_run_time
+            run_time: frequency.only_once_run_time,
           });
           break;
         default:
@@ -397,7 +397,7 @@ export default defineComponent({
       return Promise.all([
         refOfContentForm.value?.validate?.(),
         refOfEmailSubscription.value?.validate?.(),
-        refOfSendingConfigurationForm.value?.validate?.()
+        refOfSendingConfigurationForm.value?.validate?.(),
       ])
         .then(() => {
           const clonedFormData = deepClone(formData);
@@ -405,12 +405,12 @@ export default defineComponent({
             props.mode === 'create'
               ? switchReportDataForCreate(clonedFormData)
               : switchReportDataForUpdate(clonedFormData);
-          /* eslint-disable */
+
           // const {
           //   timerange,
           //   ...deletedKeyFormData
           // } = clonedFormData;
-          /* eslint-enable */
+
           return deletedKeyFormData;
         })
         .catch(error => {
@@ -450,13 +450,13 @@ export default defineComponent({
       copyText(`{{${text}}}`, msg => {
         Message({
           message: msg,
-          theme: 'error'
+          theme: 'error',
         });
         return;
       });
       Message({
         message: t('复制成功'),
-        theme: 'success'
+        theme: 'success',
       });
     }
 
@@ -506,7 +506,7 @@ export default defineComponent({
           if (hourOption.every(item => Number(item.id) !== formData.frequency.hour)) {
             hourOption.push({
               id: Number(formData.frequency.hour),
-              name: t('{0}小时', [Number(formData.frequency.hour)])
+              name: t('{0}小时', [Number(formData.frequency.hour)]),
             });
           }
           frequency.hour = formData.frequency.hour;
@@ -533,7 +533,7 @@ export default defineComponent({
       formData.timerange = [
         formData.start_time ? dayjs.unix(formData.start_time).format('YYYY-MM-DD HH:mm:ss') : null,
         // 服务端返回 null 时代表永久，前端用 空串 或 null 可以代表永久。
-        formData.end_time ? dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss') : null
+        formData.end_time ? dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss') : null,
       ];
       // 给 任务有效期 添加数据
       const [start, end] = formData.timerange;
@@ -547,7 +547,7 @@ export default defineComponent({
     function checkExistSubscriptions() {
       getExistReports({
         scenario: formData.scenario,
-        index_set_id: formData.scenario_config.index_set_id
+        index_set_id: formData.scenario_config.index_set_id,
       }).then((response: []) => {
         existedReportList.value = response;
         isShowExistSubscriptionTips.value = !!response.length;
@@ -562,7 +562,7 @@ export default defineComponent({
         if (!formData.scenario_config.index_set_id) {
           Message({
             theme: 'warning',
-            message: t('请选择索引集')
+            message: t('请选择索引集'),
           });
           return;
         }
@@ -581,9 +581,9 @@ export default defineComponent({
               year_on_year_hour: formData.scenario_config.year_on_year_hour,
               show_new_pattern: formData.scenario_config.is_show_new_pattern,
               group_by: [],
-              size: 10000
-            }
-          })
+              size: 10000,
+            },
+          }),
         };
         // 根据 时间范围 添加相对应的表达式，日志平台的时间选择会用得上。
         const rangeObj = getTimeRangeObj(dataRange.value);
@@ -620,20 +620,19 @@ export default defineComponent({
         handleDataRangeExchange();
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
     watch(
       () => subscriberInput.user,
       () => {
         formData.channels[0].subscribers = deepClone(subscriberInput.user).map(item => {
-          // eslint-disable-next-line no-param-reassign
           item.is_enabled = true;
           return item;
         });
       },
       {
-        deep: true
+        deep: true,
       }
     );
     watch(
@@ -644,7 +643,7 @@ export default defineComponent({
           .map(item => {
             return {
               id: item,
-              is_enabled: true
+              is_enabled: true,
             };
           })
           .filter(item => item.id);
@@ -659,7 +658,7 @@ export default defineComponent({
           .map(item => {
             return {
               id: item,
-              is_enabled: true
+              is_enabled: true,
             };
           })
           .filter(item => item.id);
@@ -670,7 +669,7 @@ export default defineComponent({
       () => formData.scenario,
       () => {
         getVariables({
-          scenario: formData.scenario
+          scenario: formData.scenario,
         }).then(response => {
           variableTable.data = response;
         });
@@ -698,7 +697,7 @@ export default defineComponent({
     onMounted(() => {
       if (props.mode === 'edit') setFormData();
       logServiceRelationBkLogIndexSet({
-        clustering_only: true
+        clustering_only: true,
       }).then(response => {
         indexSetIDList.value = response;
       });
@@ -744,7 +743,7 @@ export default defineComponent({
       refOfFrequencyHour,
       timerange,
       handleDatePickerOpen,
-      effectiveEndRef
+      effectiveEndRef,
     };
   },
   render() {
@@ -754,8 +753,8 @@ export default defineComponent({
           <div class='title'>{this.t('订阅内容')}</div>
           <Form
             ref='refOfContentForm'
-            model={this.formData}
             label-width='200'
+            model={this.formData}
           >
             {this.mode === 'edit' && (
               <Form.FormItem label={this.t('订阅场景')}>{this.t(Scenario[this.formData.scenario])}</Form.FormItem>
@@ -767,10 +766,10 @@ export default defineComponent({
                 required
               >
                 <Select
+                  style='width: 465px;'
                   v-model={this.formData.scenario_config.index_set_id}
                   clearable={false}
                   filterable
-                  style='width: 465px;'
                   onChange={this.checkExistSubscriptions}
                 >
                   {this.indexSetIDList.map(item => {
@@ -785,8 +784,8 @@ export default defineComponent({
                 {this.isShowExistSubscriptionTips && (
                   <div style='margin-top: 8px;width: 100%;'>
                     <ExistedReportAlert
-                      existedReportList={this.existedReportList}
                       style='width: 465px;'
+                      existedReportList={this.existedReportList}
                       onReportNameClick={this.handleExistedReportNameClick}
                     />
                   </div>
@@ -806,8 +805,8 @@ export default defineComponent({
               >
                 <Radio.Group v-model={this.formData.scenario}>
                   <Radio.Button
-                    label='clustering'
                     style='width: 120px;'
+                    label='clustering'
                   >
                     {this.t('日志聚类')}
                   </Radio.Button>
@@ -826,9 +825,9 @@ export default defineComponent({
                   </Radio.Button> */}
                 </Radio.Group>
                 <Button
+                  style='margin-left: 24px;'
                   theme='primary'
                   text
-                  style='margin-left: 24px;'
                   onClick={this.goToTargetScene}
                 >
                   {this.t('跳转至场景查看')}
@@ -844,10 +843,10 @@ export default defineComponent({
                 required
               >
                 <Select
+                  style='width: 465px;'
                   v-model={this.formData.scenario_config.index_set_id}
                   clearable={false}
                   filterable
-                  style='width: 465px;'
                   onChange={this.checkExistSubscriptions}
                 >
                   {this.indexSetIDList.map(item => {
@@ -862,9 +861,9 @@ export default defineComponent({
                 {this.isShowExistSubscriptionTips && (
                   <div style='margin-top: 8px;width: 100%;'>
                     <ExistedReportAlert
+                      style='width: 465px;'
                       existedReportList={this.existedReportList}
                       onReportNameClick={this.handleExistedReportNameClick}
-                      style='width: 465px;'
                     />
                   </div>
                 )}
@@ -877,9 +876,9 @@ export default defineComponent({
                 required
               >
                 <Select
+                  style='width: 465px;'
                   v-model={this.dataRange}
                   clearable={false}
-                  style='width: 465px;'
                 >
                   {this.timeRangeOption.map(item => {
                     return (
@@ -893,13 +892,13 @@ export default defineComponent({
 
                 <div style='margin-top: 8px;width: 100%;'>
                   <Alert
-                    theme='warning'
                     style='width: 465px;'
                     v-slots={{
                       title: () => {
                         return this.t('当前日志查询时间范围不支持静态区间');
-                      }
+                      },
                     }}
+                    theme='warning'
                   ></Alert>
                 </div>
               </Form.FormItem>
@@ -907,16 +906,16 @@ export default defineComponent({
 
             <div>
               <Button
-                text
-                theme='primary'
-                onClick={() => (this.isShowAdvancedOption = !this.isShowAdvancedOption)}
                 style='margin-left: 144px;margin-bottom: 10px;'
+                theme='primary'
+                text
+                onClick={() => (this.isShowAdvancedOption = !this.isShowAdvancedOption)}
               >
                 {this.mode === 'create' && this.t('高级设置')}
                 {this.mode === 'edit' && this.t('内容配置')}
                 <i
-                  class={['icon-monitor', this.isShowAdvancedOption ? 'icon-double-down' : 'icon-double-up']}
                   style='font-size: 26px;'
+                  class={['icon-monitor', this.isShowAdvancedOption ? 'icon-double-down' : 'icon-double-up']}
                 ></i>
               </Button>
             </div>
@@ -931,9 +930,9 @@ export default defineComponent({
                       required
                     >
                       <Select
+                        style='width: 465px;'
                         v-model={this.dataRange}
                         clearable={false}
-                        style='width: 465px;'
                       >
                         {this.timeRangeOption.map(item => {
                           return (
@@ -946,13 +945,13 @@ export default defineComponent({
                       </Select>
                       <div style='margin-top: 8px;width: 100%;'>
                         <Alert
-                          theme='warning'
                           style='width: 465px;'
                           v-slots={{
                             title: () => {
                               return this.t('当前日志查询时间范围不支持静态区间');
-                            }
+                            },
                           }}
+                          theme='warning'
                         ></Alert>
                       </div>
                     </Form.FormItem>
@@ -969,8 +968,8 @@ export default defineComponent({
                     <Slider
                       class='slider'
                       v-model={this.pattenLevelSlider}
-                      step={25}
                       custom-content={this.customSliderContent}
+                      step={25}
                       onChange={this.handleSliderChange}
                     ></Slider>
                     <span>{this.t('多')}</span>
@@ -983,12 +982,12 @@ export default defineComponent({
                   required
                 >
                   <Input
-                    v-model={this.formData.scenario_config.log_display_count}
-                    type='number'
-                    suffix={this.t('条')}
-                    min={0}
-                    max={500}
                     style='width: 160px;'
+                    v-model={this.formData.scenario_config.log_display_count}
+                    max={500}
+                    min={0}
+                    suffix={this.t('条')}
+                    type='number'
                   ></Input>
                 </Form.FormItem>
 
@@ -1006,16 +1005,16 @@ export default defineComponent({
                       }}
                     ></Switcher>
                     <Select
-                      v-model={this.formData.scenario_config.year_on_year_hour}
-                      disabled={!this.isShowYOY}
-                      clearable={false}
                       style='width: 120px;margin-left: 24px;'
+                      v-model={this.formData.scenario_config.year_on_year_hour}
+                      clearable={false}
+                      disabled={!this.isShowYOY}
                     >
                       {this.YOYList.map(item => {
                         return (
                           <Select.Option
-                            v-show={this.isShowYOY && item.id !== 0}
                             id={item.id}
+                            v-show={this.isShowYOY && item.id !== 0}
                             name={item.name}
                           ></Select.Option>
                         );
@@ -1055,8 +1054,8 @@ export default defineComponent({
 
           <Form
             ref='refOfEmailSubscription'
-            model={this.formData}
             label-width='200'
+            model={this.formData}
           >
             <Form.FormItem
               label={this.t('邮件标题')}
@@ -1064,40 +1063,40 @@ export default defineComponent({
               required
             >
               <Input
+                style='width: 465px;'
                 v-model={this.formData.content_config.title}
                 placeholder={this.t('请输入')}
-                style='width: 465px;'
               ></Input>
 
               <Popover
-                trigger='click'
-                placement='bottom-start'
-                theme='light'
                 width='420px'
-                popoverDelay={0}
-                componentEventDelay={300}
                 v-slots={{
                   content: () => {
                     return (
                       <div>
                         <Table
-                          data={this.variableTable.data}
                           columns={this.variableTable.columns.fields}
+                          data={this.variableTable.data}
                           stripe
                         ></Table>
                       </div>
                     );
-                  }
+                  },
                 }}
+                componentEventDelay={300}
+                placement='bottom-start'
+                popoverDelay={0}
+                theme='light'
+                trigger='click'
               >
                 <Button
-                  text
-                  theme='primary'
                   style='margin-left: 16px'
+                  theme='primary'
+                  text
                 >
                   <i
-                    class='icon-monitor icon-mc-detail'
                     style='margin-right: 7px;'
+                    class='icon-monitor icon-mc-detail'
                   ></i>
                   {this.t('变量列表')}
                 </Button>
@@ -1122,9 +1121,9 @@ export default defineComponent({
 
           <Form
             ref='refOfSendingConfigurationForm'
+            label-width='200'
             model={this.formData}
             rules={this.formDataRules}
-            label-width='200'
           >
             <Form.FormItem
               label={this.t('订阅名称')}
@@ -1132,19 +1131,19 @@ export default defineComponent({
               required
             >
               <Input
-                v-model={this.formData.name}
                 style='width: 465px;'
+                v-model={this.formData.name}
               ></Input>
             </Form.FormItem>
 
             {/* 需要自定义校验规则 */}
             <Form.FormItem
               id='subscriptor-item'
-              tabindex='1'
+              data-property='channels'
               label={this.t('订阅人')}
               property='channels'
+              tabindex='1'
               required
-              data-property='channels'
             >
               {this.subscribeFor === 'self' && (
                 <div>
@@ -1154,9 +1153,9 @@ export default defineComponent({
                   <div data-is-show-error-msg={this.errorTips.user.isShow}>
                     <MemberSelect
                       id='user-input'
-                      tabindex='1'
-                      v-model={this.subscriberInput.user}
                       style='width: 465px;'
+                      v-model={this.subscriberInput.user}
+                      tabindex='1'
                       onChange={() => {
                         nextTick(() => {
                           this.formDataRules.channels[0].validator();
@@ -1168,53 +1167,50 @@ export default defineComponent({
 
                   <div style='margin-top: 10px;'>
                     <Checkbox
-                      v-model={this.formData.channels[1].is_enabled}
                       style='margin-top: 10px;'
+                      v-model={this.formData.channels[1].is_enabled}
                     >
                       {this.t('外部邮件')}
                     </Checkbox>
                   </div>
                   <div data-is-show-error-msg={this.errorTips.email.isShow}>
                     <Popover
-                      trigger='click'
+                      content={this.t('多个邮箱使用逗号隔开')}
                       placement='right'
                       theme='light'
-                      content={this.t('多个邮箱使用逗号隔开')}
+                      trigger='click'
                     >
                       <Input
                         id='email-input'
-                        v-model={this.subscriberInput.email}
-                        prefix={this.t('邮件列表')}
-                        disabled={!this.formData.channels[1].is_enabled}
                         style='width: 465px;'
+                        v-model={this.subscriberInput.email}
                         data-is-show-error-msg={this.errorTips.email.isShow}
+                        disabled={!this.formData.channels[1].is_enabled}
+                        prefix={this.t('邮件列表')}
                       ></Input>
                     </Popover>
                   </div>
                   <div data-is-show-error-msg='false'>
                     <Input
+                      style='width: 465px;margin-top: 10px;'
                       v-model={this.formData.channels[1].send_text}
-                      prefix={this.t('提示文案')}
                       disabled={!this.formData.channels[1].is_enabled}
                       placeholder={this.t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
-                      style='width: 465px;margin-top: 10px;'
+                      prefix={this.t('提示文案')}
                     ></Input>
                   </div>
                   {this.errorTips.email.isShow && <div class='bk-form-error'>{this.errorTips.email.message}</div>}
 
                   <div style='margin-top: 10px;'>
                     <Checkbox
-                      v-model={this.formData.channels[2].is_enabled}
                       style='margin-top: 10px;'
+                      v-model={this.formData.channels[2].is_enabled}
                     >
                       {this.t('企业微信群')}
                     </Checkbox>
                   </div>
                   <div data-is-show-error-msg={this.errorTips.wxbot.isShow}>
                     <Popover
-                      trigger='click'
-                      placement='right'
-                      theme='light'
                       v-slots={{
                         content: () => {
                           return (
@@ -1227,15 +1223,18 @@ export default defineComponent({
                               {this.t('3.将获取到的会话ID粘贴到输入框,使用逗号分隔')}
                             </div>
                           );
-                        }
+                        },
                       }}
+                      placement='right'
+                      theme='light'
+                      trigger='click'
                     >
                       <Input
                         id='wxbot-input'
-                        v-model={this.subscriberInput.wxbot}
-                        prefix={this.t('群ID')}
-                        disabled={!this.formData.channels[2].is_enabled}
                         style='width: 465px;'
+                        v-model={this.subscriberInput.wxbot}
+                        disabled={!this.formData.channels[2].is_enabled}
+                        prefix={this.t('群ID')}
                       ></Input>
                     </Popover>
                   </div>
@@ -1261,29 +1260,26 @@ export default defineComponent({
               {this.formData.frequency.type === FrequencyType.hourly && (
                 <Select
                   ref='refOfFrequencyHour'
-                  v-model={this.frequency.hour}
-                  clearable={false}
                   style='width: 240px;'
+                  v-model={this.frequency.hour}
                   v-slots={{
                     extension: () => {
                       return (
                         <div style='width: 100%;padding: 10px 16px;'>
                           <Input
                             v-model={this.customHourInput}
-                            type='number'
-                            size='small'
-                            placeholder={this.t('输入自定义小时，按 Enter 确认')}
-                            min={1}
                             max={24}
-                            // @ts-ignore 只允许输入正整数
-                            oninput="value=value.replace(/^(0+)|[^\d]+/g,'')"
+                            min={1}
+                            placeholder={this.t('输入自定义小时，按 Enter 确认')}
+                            size='small'
+                            type='number'
                             onEnter={() => {
                               // 添加自定义 发送频率 ，如果输入有重复要直接选中。
                               let inputNumber = Number(this.customHourInput);
                               if (!inputNumber) {
                                 return Message({
                                   theme: 'warning',
-                                  message: this.t('请输入有效数值')
+                                  message: this.t('请输入有效数值'),
                                 });
                               }
                               const minNum = 0.5;
@@ -1304,11 +1300,14 @@ export default defineComponent({
                               this.customHourInput = '';
                               this.refOfFrequencyHour.hidePopover();
                             }}
+                            // @ts-ignore 只允许输入正整数
+                            oninput="value=value.replace(/^(0+)|[^\d]+/g,'')"
                           ></Input>
                         </div>
                       );
-                    }
+                    },
                   }}
+                  clearable={false}
                 >
                   {this.hourOption.map(item => {
                     return (
@@ -1333,10 +1332,10 @@ export default defineComponent({
                 <div style='display: flex;align-items: center;'>
                   {this.formData.frequency.type === FrequencyType.weekly && (
                     <Select
-                      v-model={this.frequency.week_list}
-                      multiple
-                      clearable={false}
                       style='width: 160px;margin-right: 10px;height: 32px;'
+                      v-model={this.frequency.week_list}
+                      clearable={false}
+                      multiple
                     >
                       {this.weekList.map(item => {
                         return (
@@ -1350,10 +1349,10 @@ export default defineComponent({
                   )}
                   {this.formData.frequency.type === FrequencyType.monthly && (
                     <Select
-                      v-model={this.frequency.day_list}
-                      multiple
-                      clearable={false}
                       style='width: 160px;margin-right: 10px;height: 32px;'
+                      v-model={this.frequency.day_list}
+                      clearable={false}
+                      multiple
                     >
                       {Array(31)
                         .fill('')
@@ -1368,17 +1367,17 @@ export default defineComponent({
                     </Select>
                   )}
                   <TimePicker
-                    v-model={this.frequency.run_time}
-                    appendToBody
-                    placeholder={this.t('选择时间范围')}
-                    clearable={false}
                     style='width: 130px;'
+                    v-model={this.frequency.run_time}
+                    clearable={false}
+                    placeholder={this.t('选择时间范围')}
+                    appendToBody
                   />
                   {/* 该复选值不需要提交，后续在编辑的时候需要通过 INCLUDES_WEEKEND 和 weekList 去判断即可 */}
                   {this.formData.frequency.type === FrequencyType.dayly && (
                     <Checkbox
-                      v-model={this.isIncludeWeekend}
                       style='margin-left: 10px;font-size: 12px;'
+                      v-model={this.isIncludeWeekend}
                     >
                       {this.t('包含周末')}
                     </Checkbox>
@@ -1389,10 +1388,10 @@ export default defineComponent({
               {this.formData.frequency.type === FrequencyType.onlyOnce && (
                 <div>
                   <DatePicker
+                    style='width: 168px;'
+                    clearable={false}
                     modelValue={this.frequency.only_once_run_time}
                     type='datetime'
-                    clearable={false}
-                    style='width: 168px;'
                     onChange={v => {
                       this.frequency.only_once_run_time = v;
                     }}
@@ -1403,17 +1402,17 @@ export default defineComponent({
 
             {this.formData.frequency.type !== FrequencyType.onlyOnce && (
               <Form.FormItem
+                description={this.t('有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。')}
                 label={this.t('任务有效期')}
                 property='timerange'
                 required
-                description={this.t('有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。')}
               >
                 <DatePicker
-                  modelValue={this.timerange.start}
-                  type='datetime'
-                  placeholder={`${this.t('如')}: 2019-01-30 12:12:21`}
-                  clearable={false}
                   style='width: 220px;'
+                  clearable={false}
+                  modelValue={this.timerange.start}
+                  placeholder={`${this.t('如')}: 2019-01-30 12:12:21`}
+                  type='datetime'
                   onChange={v => {
                     this.timerange.start = v;
                     this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
@@ -1421,13 +1420,13 @@ export default defineComponent({
                 ></DatePicker>
                 <span style='padding: 0 10px;'>-</span>
                 <DatePicker
-                  modelValue={this.timerange.end}
                   ref='effectiveEndRef'
-                  class='effective-end'
-                  clearable
-                  type='datetime'
-                  placeholder={this.t('永久')}
                   style='width: 220px;'
+                  class='effective-end'
+                  modelValue={this.timerange.end}
+                  placeholder={this.t('永久')}
+                  type='datetime'
+                  clearable
                   onChange={v => {
                     this.timerange.end = v;
                     this.handleTimeRangeChange([this.timerange.start, this.timerange.end]);
@@ -1440,5 +1439,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

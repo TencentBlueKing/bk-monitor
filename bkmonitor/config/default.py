@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 """
 import ntpath
 import os
+import sys
 from urllib.parse import urljoin
 
 from bkcrypto import constants
@@ -220,27 +221,14 @@ if SENTRY_DSN:
         "dsn": SENTRY_DSN,
     }
 
-# apm support
-APM_ID = os.environ.get("APM_ID")
-APM_TOKEN = os.environ.get("APM_TOKEN")
-if APM_ID and APM_TOKEN:
-    INSTALLED_APPS += ("ddtrace.contrib.django",)
-    DATADOG_TRACE = {
-        "TAGS": {
-            "env": os.getenv("BKPAAS_ENVIRONMENT", "dev"),
-            "apm_id": APM_ID,
-            "apm_token": APM_TOKEN,
-        },
-    }
-    # requests for APIGateway/ESB
-    # remove pymysql while Django Defaultdb has been traced already
-    try:
-        import requests  # noqa  # pylint: disable=unused-import
-        from ddtrace import patch
-
-        patch(requests=True, pymysql=False)
-    except Exception as err:  # pylint: disable=broad-except
-        print("patch fail for requests and pymysql: %s" % err)
+# Target: Observation data collection
+SERVICE_NAME = APP_CODE + "_web"
+if ROLE == "api":
+    SERVICE_NAME = APP_CODE + "_api"
+if "celery" in sys.argv or ROLE == "worker":
+    SERVICE_NAME = APP_CODE + "_worker"
+if "beat" in sys.argv:
+    SERVICE_NAME = APP_CODE + "_beat"
 
 # space 支持
 # 请求参数是否需要注入空间属性
@@ -550,6 +538,7 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
+APM_BMW_DEPLOY_BIZ_ID = 0
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
@@ -845,6 +834,8 @@ BK_DATA_SCENE_ID_ABNORMAL_CLUSTER = 33
 BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION = 15
 # 指标推荐
 BK_DATA_SCENE_ID_METRIC_RECOMMENDATION = 17
+# 主机异常检测
+BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION = 15
 
 # ai设置默认方案
 # 单指标异常检测
@@ -853,10 +844,13 @@ BK_DATA_PLAN_ID_INTELLIGENT_DETECTION = 87
 BK_DATA_PLAN_ID_MULTIVARIATE_ANOMALY_DETECTION = 155
 # 指标推荐
 BK_DATA_PLAN_ID_METRIC_RECOMMENDATION = 180
+# 主机异常检测
+BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION = 287
 
 BK_DATA_MULTIVARIATE_HOST_RT_ID = os.getenv(
     "BK_DATA_MULTIVARIATE_HOST_RT_ID", f"2_{BKAPP_DEPLOY_PLATFORM}_host_multivariate"
 )
+BK_DATA_MULTIVARIATE_HOST_MIDDLE_SUFFIX = "multivariate_detection"
 
 # 机器人默认跳转链接列表
 BK_DATA_ROBOT_LINK_LIST = os.getenv(
@@ -1055,8 +1049,8 @@ BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
 BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 
 # 以下专门用来测试bkchat
-BKHCAT_APP_CODE = os.getenv("BKHCAT_APP_CODE", "")
-BKHCAT_APP_SECRET = os.getenv("BKHCAT_APP_SECRET", "")
+BKCHAT_APP_CODE = os.getenv("BKCHAT_APP_CODE", os.getenv("BKHCAT_APP_CODE", ""))
+BKCHAT_APP_SECRET = os.getenv("BKCHAT_APP_SECRET", os.getenv("BKHCAT_APP_SECRET", ""))
 BKCHAT_BIZ_ID = os.getenv("BKCHAT_BIZ_ID", "2")
 
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
@@ -1337,3 +1331,11 @@ BASE64_ENCODE_TRIGGER_CHARS = []
 
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
+
+# grafana和策略导出是否支持data_label转换
+ENABLE_DATA_LABEL_EXPORT = True
+
+# 是否启用access数据批量处理
+ENABLED_ACCESS_DATA_BATCH_PROCESS = False
+ACCESS_DATA_BATCH_PROCESS_SIZE = 50000
+ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0

@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -207,5 +206,7 @@ export default {
   审批状态: 'Approval Status',
   已通过: 'Passed',
   未通过: 'Not passed',
-  未审批: 'Not approved'
+  未审批: 'Not approved',
+  请先在左侧选择应用: 'Please select an application on the left side first',
+  '应用加载中，请耐心等候…': 'Application is loading, please wait patiently...',
 };

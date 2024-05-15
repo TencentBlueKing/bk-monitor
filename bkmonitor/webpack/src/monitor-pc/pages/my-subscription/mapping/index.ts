@@ -27,24 +27,24 @@ import i18n from '../../../i18n/i18n';
 
 export const SendMode = {
   periodic: i18n.t('周期发送'),
-  one_time: i18n.t('仅发一次')
+  one_time: i18n.t('仅发一次'),
 };
 
 export const SendStatus = {
   failed: i18n.t('发送失败'),
   partial_failed: i18n.t('发送部分失败'),
   success: i18n.t('发送成功'),
-  no_status: i18n.t('未发送')
+  no_status: i18n.t('未发送'),
 };
 
 export const Scenario = {
   clustering: i18n.t('日志聚类'),
   dashboard: i18n.t('仪表盘'),
-  scene: i18n.t('观测场景')
+  scene: i18n.t('观测场景'),
 };
 
 export const ApplyStatus = {
   RUNNING: i18n.t('待审批'),
   SUCCESS: i18n.t('审批通过'),
-  FAILED: i18n.t('审批驳回')
+  FAILED: i18n.t('审批驳回'),
 };

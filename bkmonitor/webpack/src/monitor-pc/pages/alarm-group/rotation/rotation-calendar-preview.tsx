@@ -30,7 +30,7 @@ import {
   calendarDataConversion,
   getCalendarNew,
   ICalendarData,
-  ICalendarDataUser
+  ICalendarDataUser,
 } from '../../../../trace/pages/rotation/components/calendar-preview';
 
 import './rotation-calendar-preview.scss';
@@ -49,8 +49,8 @@ export default class RotationCalendarPreview extends tsc<IProps> {
     users: [],
     data: getCalendarNew().map(item => ({
       dates: item,
-      data: []
-    }))
+      data: [],
+    })),
   };
 
   weekList = [
@@ -60,7 +60,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
     window.i18n.t('周三'),
     window.i18n.t('周四'),
     window.i18n.t('周五'),
-    window.i18n.t('周六')
+    window.i18n.t('周六'),
   ];
 
   containerWidth = 1000;
@@ -69,7 +69,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
 
   popover = {
     users: '',
-    time: ''
+    time: '',
   };
   popoverInstance = null;
 
@@ -107,7 +107,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
       boundary: 'window',
       theme: 'light',
       arrow: true,
-      interactive: true
+      interactive: true,
     });
     this.popoverInstance?.show(100);
   }
@@ -115,8 +115,8 @@ export default class RotationCalendarPreview extends tsc<IProps> {
   render() {
     return (
       <div
-        class='rotation-calendar-preview-component'
         ref='content'
+        class='rotation-calendar-preview-component'
       >
         <div class='calendar-header'>
           {this.weekList.map(item => (
@@ -131,24 +131,24 @@ export default class RotationCalendarPreview extends tsc<IProps> {
         <div class='calendar-content'>
           {this.curCalendarData.data.map((item, index) => (
             <div
-              class='week-row'
-              style={{
-                height: `${120 + (item.maxRow >= 2 ? item.maxRow - 2 : 0) * 22}px`
-              }}
               key={index}
+              style={{
+                height: `${120 + (item.maxRow >= 2 ? item.maxRow - 2 : 0) * 22}px`,
+              }}
+              class='week-row'
             >
               {item.dates.map(date => (
                 <div
-                  class='day-col'
                   key={date.day}
+                  class='day-col'
                 >
                   <div
                     class={[
                       'day-label',
                       {
                         check: date.isCurDay,
-                        other: date.isOtherMonth
-                      }
+                        other: date.isOtherMonth,
+                      },
                     ]}
                   >
                     {date.day === 1 && !date.isCurDay ? this.$t('{0}月', [date.month + 1]) : date.day}
@@ -158,37 +158,37 @@ export default class RotationCalendarPreview extends tsc<IProps> {
               {item.data.map((data, _index) =>
                 !!data.users.length ? (
                   <div
-                    class='user-item'
                     style={{
                       top: `${48 + data.row * 22}px`,
                       width: `${
                         (data?.isStartBorder ? -1 : 0) + this.containerWidth * (data.range[1] - data.range[0])
                       }px`,
-                      left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`
+                      left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`,
                     }}
+                    class='user-item'
                     onMouseenter={(event: Event) => this.handleMouseenter(event, data.other)}
                   >
                     <div
-                      class='user-header'
                       style={{ background: data.color }}
+                      class='user-header'
                     ></div>
                     <div
-                      class='user-content'
                       style={{ color: data.color }}
+                      class='user-content'
                     >
                       <span>{data.users.map(u => u.name || u.id).join(',')}</span>
                     </div>
                   </div>
                 ) : (
                   <div
-                    class='user-item no-user'
-                    onMouseenter={(event: Event) => this.handleMouseenter(event, data.other)}
                     style={{
                       width: `${
                         (data?.isStartBorder ? -1 : 0) + this.containerWidth * (data.range[1] - data.range[0])
                       }px`,
-                      left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`
+                      left: `${(data?.isStartBorder ? 1 : 0) + this.containerWidth * data.range[0]}px`,
                     }}
+                    class='user-item no-user'
+                    onMouseenter={(event: Event) => this.handleMouseenter(event, data.other)}
                   ></div>
                 )
               )}
@@ -197,8 +197,8 @@ export default class RotationCalendarPreview extends tsc<IProps> {
         </div>
         <div style={{ display: 'none' }}>
           <div
-            class='rotation-calendar-preview-component-user-item-pop'
             ref='userTip'
+            class='rotation-calendar-preview-component-user-item-pop'
           >
             <div class='user-item'>
               <div class='time'>{this.popover.time}</div>

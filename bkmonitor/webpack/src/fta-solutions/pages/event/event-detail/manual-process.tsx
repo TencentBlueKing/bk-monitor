@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { batchCreate, getActionParams, getPluginTemplates } from 'monitor-api/modules/action';
 import { listActionConfig } from 'monitor-api/modules/model';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
@@ -36,7 +37,7 @@ import DynamicForm from '../../setting/set-meal/set-meal-add/components/dynamic-
 import HttpCallBack from '../../setting/set-meal/set-meal-add/meal-content/http-callback';
 import {
   mealDataInit,
-  transformMealContentParams
+  transformMealContentParams,
 } from '../../setting/set-meal/set-meal-add/meal-content/meal-content-data';
 
 import './manual-process.scss';
@@ -72,7 +73,7 @@ interface IFormData {
   formModel: { [propsName: string]: any };
   formRules: { [propsName: string]: IFormRule };
   name: string;
-  templateId: string | number;
+  templateId: number | string;
   timeout: number;
 }
 
@@ -101,14 +102,14 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
     formRules: {},
     name: window.i18n.t('参数填写') as string,
     templateId: '',
-    timeout: 0
+    timeout: 0,
   };
   /* http会回调数据 */
   webhookData = mealDataInit().webhook;
   webhookKey = random(8);
   /* 处理套餐列表 */
   mealList: {
-    id: string | number;
+    id: number | string;
     name: string;
     plugin_type: string;
     plugin_id: number;
@@ -131,7 +132,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
   } = {
     name: '',
     id: '',
-    allList: {}
+    allList: {},
   };
 
   loading = false;
@@ -166,7 +167,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
           formRules: {},
           name: window.i18n.t('参数填写') as string,
           templateId: '',
-          timeout: 0
+          timeout: 0,
         };
         this.webhookData = mealDataInit().webhook;
         this.webhookKey = random(8);
@@ -174,7 +175,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
       this.tempbizId = this.bizIds[0] || this.$store.getters.bizId;
       if (!this.mealList.length) {
         this.mealList = await listActionConfig({
-          bk_biz_id: this.bizIds[0] || this.$store.getters.bizId
+          bk_biz_id: this.bizIds[0] || this.$store.getters.bizId,
         })
           .then(data => data.filter(item => item.is_enabled))
           .catch(() => []);
@@ -189,7 +190,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
       const data = await getActionParams({
         bk_biz_id: this.bizIds[0] || this.$store.getters.bizId,
         alert_ids: this.alertIds.map(item => String(item)),
-        config_ids: [String(this.mealId)]
+        config_ids: [String(this.mealId)],
       }).catch(() => null);
       if (data) {
         await this.getTemplateData(data);
@@ -259,7 +260,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
     const data = await getActionParams({
       bk_biz_id: String(this.bizIds[0]) || this.$store.getters.bizId,
       alert_ids: this.alertIds.map(item => String(item)),
-      config_ids: [String(this.mealId)]
+      config_ids: [String(this.mealId)],
     }).catch(() => null);
     if (data) {
       await this.getTemplateData(data);
@@ -286,13 +287,13 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
             needPoll: templateDetail.needPoll,
             notifyInterval: templateDetail.notifyInterval / 60,
             retryInterval: templateDetail.failedRetry.retryInterval,
-            timeout: templateDetail.failedRetry.timeout
+            timeout: templateDetail.failedRetry.timeout,
           },
           url: templateDetail.url,
-          method: templateDetail.method
+          method: templateDetail.method,
         },
         // riskLevel: data.riskLevel,
-        timeout: data[0].execute_config.timeout / 60
+        timeout: data[0].execute_config.timeout / 60,
       } as any;
       this.webhookKey = random(8);
     } else {
@@ -328,7 +329,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
       plugin_id: this.curMeal.plugin_id,
       config_id: this.mealId,
       bk_biz_id: this.bizIds[0],
-      name: this.curMeal.name
+      name: this.curMeal.name,
     };
     if (this.curMeal?.plugin_type === 'webhook') {
       const validate = this.httpCallBackRef.validator();
@@ -336,38 +337,38 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
       const webhookParams = transformDataKey(
         transformMealContentParams({
           pluginType: this.curMeal.plugin_type,
-          webhook: this.webhookData as any
+          webhook: this.webhookData as any,
         }),
         true
       );
       paramsData = {
         execute_config: webhookParams,
-        ...commonParams
+        ...commonParams,
       };
     } else {
       const validate =
         this.formData.formList.length && Object.keys(this.formData.formModel).length
           ? this.dynamicformRef.validator()
           : true;
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       if (!validate) return;
       paramsData = {
         execute_config: {
           template_detail: this.formData.formModel,
           template_id: this.formData.templateId,
-          timeout: this.formData.timeout
+          timeout: this.formData.timeout,
         },
-        ...commonParams
+        ...commonParams,
       };
     }
     const params = {
       operate_data_list: [
         {
           alert_ids: this.alertIds,
-          action_configs: [paramsData]
-        }
+          action_configs: [paramsData],
+        },
       ],
-      bk_biz_id: this.bizIds[0] || this.$store.getters.bizId
+      bk_biz_id: this.bizIds[0] || this.$store.getters.bizId,
     };
     this.confirmLoading = true;
     const res = await batchCreate(params).catch(() => null);
@@ -385,7 +386,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
   async handleRefreshTemplate() {
     this.loading = true;
     this.mealList = await listActionConfig({
-      bk_biz_id: this.bizIds[0] || this.$store.getters.bizId
+      bk_biz_id: this.bizIds[0] || this.$store.getters.bizId,
     })
       .then(data => data.filter(item => item.is_enabled))
       .catch(() => []);
@@ -399,7 +400,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
       if (!this.templateData.allList?.[this.curMeal?.plugin_id]?.length) {
         const res = await getPluginTemplates({
           bk_biz_id: this.bizIds[0] || this.$store.getters.bizId,
-          plugin_id: this.curMeal.plugin_id
+          plugin_id: this.curMeal.plugin_id,
         }).catch(() => null);
         if (res) {
           this.templateData.allList[this.curMeal.plugin_id] = res.templates;
@@ -412,13 +413,13 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
   render() {
     return (
       <bk-dialog
-        ext-cls='manual-process-dialog-wrap'
-        value={this.show}
-        mask-close={true}
-        header-position='left'
         width={800}
-        title={this.$t('手动处理')}
+        ext-cls='manual-process-dialog-wrap'
+        header-position='left'
         loading={this.confirmLoading}
+        mask-close={true}
+        title={this.$t('手动处理')}
+        value={this.show}
         on-value-change={this.handleShowChange}
       >
         <div
@@ -430,13 +431,12 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
             <div class='wrap'>
               <GroupSelect
                 key={this.groupSelectKey}
-                value={this.mealId}
                 list={this.noNoticeActionConfigList}
                 placeholder={this.$tc('选择套餐')}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                value={this.mealId}
                 onChange={this.handleSelected}
               ></GroupSelect>
-              {/* eslint-disable-next-line @typescript-eslint/no-misused-promises */}
+              {}
               <i
                 class='icon-monitor icon-shuaxin'
                 onClick={this.handleRefreshTemplate}
@@ -454,8 +454,8 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
               >
                 {(this.templateData.allList?.[this.curMeal?.plugin_id] || []).map(item => (
                   <bk-option
-                    key={item.id}
                     id={item.id}
+                    key={item.id}
                     name={item.name}
                   ></bk-option>
                 ))}
@@ -465,11 +465,11 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
           <div class='meal-content'>
             {this.curMeal?.plugin_type === 'webhook' ? (
               <HttpCallBack
-                ref='httpCallBack'
                 key={this.webhookKey}
-                value={this.webhookData}
+                ref='httpCallBack'
                 isEdit={true}
                 isOnlyHttp={true}
+                value={this.webhookData}
                 onChange={this.handleWebhookData}
               ></HttpCallBack>
             ) : (
@@ -477,10 +477,10 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
                 {this.formData.formList.length && Object.keys(this.formData.formModel).length ? (
                   <DynamicForm
                     ref='dynamicform'
-                    labelWidth={500}
                     formList={this.formData.formList}
                     formModel={this.formData.formModel}
                     formRules={this.formData.formRules}
+                    labelWidth={500}
                     noAutoInput={true}
                   ></DynamicForm>
                 ) : (
@@ -506,8 +506,8 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             loading={this.confirmLoading}
+            theme='primary'
             onClick={() => !this.confirmLoading && this.handleConfirm()}
           >
             {window.i18n.t('确定')}

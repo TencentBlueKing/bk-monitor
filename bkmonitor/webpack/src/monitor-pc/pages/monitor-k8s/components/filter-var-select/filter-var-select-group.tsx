@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /*
  * Tencent is pleased to support the open source community by making
@@ -27,12 +26,12 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 import { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
 import { handleGetReferenceKeyList } from '../../utils';
-
 import FilterVarSelect, { CustomParamsType, FilterDictType } from './filter-var-select';
 
 import './filter-var-select-group.scss';
@@ -102,7 +101,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
   }
 
   /** 带有$开头的变量可选值映射表 */
-  get varOptionalMap(): Map<string, string[] | string> {
+  get varOptionalMap(): Map<string, string | string[]> {
     const varMap = new Map();
     this.localPanelList?.forEach(item => {
       const entries = Object.entries(item.value);
@@ -132,7 +131,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
     const otherParams = {
       scene_id: this.scencId,
       type: this.sceneType,
-      id: this.pageId
+      id: this.pageId,
       // view_options: viewOptions
     };
     return otherParams;
@@ -177,7 +176,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
         const { fieldsKey, fieldsSort } = item;
         /** 变量接口的请求状态，引用类型来关联同一个变量的key */
         const apiStatus = {
-          isReady: false
+          isReady: false,
         };
         fieldsSort.forEach(fielsItem => {
           /** 提取变量引用关系 */
@@ -189,7 +188,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
             fieldKey: item.fieldsKey,
             reference, // 变量存在的引用
             apiStatus, // 是否再等待接口返回
-            component: this.$refs[fieldsKey] as FilterVarSelect // 对应的变量组件
+            component: this.$refs[fieldsKey] as FilterVarSelect, // 对应的变量组件
           };
         });
       }
@@ -213,7 +212,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
           // eslint-disable-next-line @typescript-eslint/prefer-for-of
           for (let i = 0; i < list.length; i++) {
             const data = list[i];
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
             const [_, item] = data;
             /** 应用变量的数据请求状态 true则全部请求完毕 */
             const refVarIsReady = this.handleCheckStatus(item.reference);
@@ -327,23 +326,23 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
           {this.localPanelList.map(item =>
             item.checked ? (
               <FilterVarSelect
-                ref={item.fieldsKey}
                 key={item.title}
-                multiple={item.options?.variables?.multiple ?? true}
-                required={item.options?.variables?.required}
-                clearable={item.options?.variables?.clearable ?? true}
-                editable={this.editable}
-                customParams={this.filterCustomsParams}
+                ref={item.fieldsKey}
                 autoGetOption={this.editable}
-                panel={item}
-                label={item.title}
-                whereRefMap={this.varOptionalMap}
-                viewOptions={this.viewOptions}
-                variables={this.variables}
+                clearable={item.options?.variables?.clearable ?? true}
                 currentGroupValue={this.curentLocalValue}
-                onValueChange={val => this.handleVarSelectChange(item, val)}
+                customParams={this.filterCustomsParams}
+                editable={this.editable}
+                label={item.title}
+                multiple={item.options?.variables?.multiple ?? true}
+                panel={item}
+                required={item.options?.variables?.required}
+                variables={this.variables}
+                viewOptions={this.viewOptions}
+                whereRefMap={this.varOptionalMap}
                 onChange={val => this.handleVarSelectChange(item, val)}
                 onDefaultValue={val => this.handleSetDefaultValue(item, val)}
+                onValueChange={val => this.handleVarSelectChange(item, val)}
               />
             ) : undefined
           )}

@@ -2755,3 +2755,135 @@
   name: metadata_query_bcs_cluster_vm_table_ids
   path: /v2/monitor_v3/metadata_query_bcs_cluster_vm_table_ids/
   method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/calendars/save_calendar/
+  is_hidden: false
+  label: 保存日历
+  label_en: save calendar
+  name: save_calendar
+  path: /v2/monitor_v3/save_calendar/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/calendars/edit_calendar/
+  is_hidden: false
+  label: 修改日历
+  label_en: edit calendar
+  name: edit_calendar
+  path: /v2/monitor_v3/edit_calendar/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/calendars/delete_calendar/
+  is_hidden: false
+  label: 删除日历
+  label_en: delete calendar
+  name: delete_calendar
+  path: /v2/monitor_v3/delete_calendar/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/calendars/get_calendar/
+  is_hidden: false
+  label: 获取日历详情
+  label_en: get calendar
+  name: get_calendar
+  path: /v2/monitor_v3/get_calendar/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/calendars/list_calendar/
+  is_hidden: false
+  label: 获取日历列表
+  label_en: list calendar
+  name: list_calendar
+  path: /v2/monitor_v3/list_calendar/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/calendars/save_item/
+  is_hidden: false
+  label: 保存日历事项
+  label_en: save item
+  name: save_item
+  path: /v2/monitor_v3/save_item/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/calendars/edit_item/
+  is_hidden: false
+  label: 修改日历事项
+  label_en: edit item
+  name: edit_item
+  path: /v2/monitor_v3/edit_item/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/calendars/delete_item/
+  is_hidden: false
+  label: 删除日历事项
+  label_en: delete item
+  name: delete_item
+  path: /v2/monitor_v3/delete_item/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/calendars/item_detail/
+  is_hidden: false
+  label: 获取某些日历下某个时间点的所有事项
+  label_en: item detail
+  name: item_detail
+  path: /v2/monitor_v3/item_detail/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/calendars/item_list/
+  is_hidden: false
+  label: 查询规定日期内的所有日历事项列表
+  label_en: item list
+  name: item_list
+  path: /v2/monitor_v3/item_list/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/calendars/get_time_zone/
+  is_hidden: false
+  label: 获取时区信息
+  label_en: get time zone
+  name: get_time_zone
+  path: /v2/monitor_v3/get_time_zone/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/calendars/get_parent_item_list/
+  is_hidden: false
+  label: 获取所属日历下所有父类事项列表
+  label_en: get parent item list
+  name: get_parent_item_list
+  path: /v2/monitor_v3/get_parent_item_list/
+  method: GET

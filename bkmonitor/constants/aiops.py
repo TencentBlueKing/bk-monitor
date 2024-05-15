@@ -25,9 +25,19 @@ DIMENSION_DRILL = "dimension_drill"
 # ai设置指标推荐保存字段
 METRIC_RECOMMEND = "metric_recommend"
 
-
 # 多指标异常检测主机场景默认输入字段
 MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD = "metrics_json"
+
+# 主机异常检测默认输入字段
+HOST_ANOMALY_SCENE_INPUT_FIELDS = [
+    "anomaly_alert",
+    "metrics_score",
+    "threshold",
+    "anomaly_uncertainty",
+    "anomaly_score",
+    "metrics_json",
+    "features",
+]
 
 # 多指标异常检测主机场景默认metric_list
 MULTIVARIATE_ANOMALY_DETECTION_SCENE_HOST_METRIC_LIST = [

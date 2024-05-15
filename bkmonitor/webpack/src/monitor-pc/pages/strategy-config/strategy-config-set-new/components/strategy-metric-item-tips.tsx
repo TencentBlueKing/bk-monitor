@@ -27,14 +27,14 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { MetricDetail } from '../typings/index';
-/* eslint-disable camelcase */
+
 interface StrategyMetricItemTipsProps {
   data: MetricDetail;
   scenarioType: string;
 }
 
 @Component({
-  name: 'StrategyMetricItemTips'
+  name: 'StrategyMetricItemTips',
 })
 export default class StrategyMetricItemTips extends tsc<StrategyMetricItemTipsProps> {
   @Prop({ default: () => {}, type: Object }) data: MetricDetail;
@@ -57,7 +57,7 @@ export default class StrategyMetricItemTips extends tsc<StrategyMetricItemTipsPr
         theme: 'tippy-metric',
         arrow: true,
         placement: 'auto',
-        boundary: 'window'
+        boundary: 'window',
       });
       this.popoverInstance.show();
     }, 1000);
@@ -73,8 +73,8 @@ export default class StrategyMetricItemTips extends tsc<StrategyMetricItemTipsPr
     this.$router.push({
       name: 'uptime-check',
       params: {
-        taskId: this.uptimeCheckTaskId.toString()
-      }
+        taskId: this.uptimeCheckTaskId.toString(),
+      },
     });
   }
 
@@ -82,9 +82,9 @@ export default class StrategyMetricItemTips extends tsc<StrategyMetricItemTipsPr
     return (
       <div style={{ display: 'none' }}>
         <div
-          on-mouseleave={this.handleTipsLeave}
-          class='uptimecheck-tips'
           ref='uptimecheckTips'
+          class='uptimecheck-tips'
+          on-mouseleave={this.handleTipsLeave}
         >
           {this.$t('该指标需设置期望返回码/期望响应信息后才可选取')}
           <span
@@ -122,7 +122,7 @@ export default class StrategyMetricItemTips extends tsc<StrategyMetricItemTipsPr
     const options = [
       // 公共展示项
       { val: data.metric_field, label: this.$t('指标名') },
-      { val: data.metric_field_name, label: this.$t('指标别名') }
+      { val: data.metric_field_name, label: this.$t('指标别名') },
     ];
     const elList = {
       bk_monitor_time_series: [
@@ -132,7 +132,7 @@ export default class StrategyMetricItemTips extends tsc<StrategyMetricItemTipsPr
         { val: data.related_name, label: this.$t('插件名') },
         { val: data.result_table_id, label: this.$t('分类ID') },
         { val: data.result_table_name, label: this.$t('分类名') },
-        { val: data.description, label: this.$t('含义') }
+        { val: data.description, label: this.$t('含义') },
       ],
       log_time_series: [
         // 日志平台指标
@@ -140,27 +140,27 @@ export default class StrategyMetricItemTips extends tsc<StrategyMetricItemTipsPr
         { val: data.related_name, label: this.$t('索引集') },
         { val: data.result_table_id, label: this.$t('索引') },
         { val: data?.extend_fields?.scenario_name, label: this.$t('数据源类别') },
-        { val: data?.extend_fields?.storage_cluster_name, label: this.$t('数据源名') }
+        { val: data?.extend_fields?.storage_cluster_name, label: this.$t('数据源名') },
       ],
       bk_data_time_series: [
         // 计算平台指标
         ...options,
-        { val: data.result_table_id, label: this.$t('表名') }
+        { val: data.result_table_id, label: this.$t('表名') },
       ],
       custom_time_series: [
         // 自定义指标
         ...options,
         { val: data?.extend_fields?.bk_data_id, label: this.$t('数据ID') },
-        { val: data.result_table_name, label: this.$t('数据名') }
+        { val: data.result_table_name, label: this.$t('数据名') },
       ],
       custom_event: [
         // 自定义事件
-        ...options
+        ...options,
       ],
       bk_monitor_event: [
         // 系统事件
-        ...options
-      ]
+        ...options,
+      ],
     };
     // 拨测指标融合后不需要显示插件id插件名
     const resultTableLabel = data.result_table_label;

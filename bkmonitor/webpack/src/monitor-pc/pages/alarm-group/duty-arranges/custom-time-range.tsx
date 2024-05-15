@@ -70,15 +70,15 @@ export default class CustomTimeRange extends tsc<IProps, IEvents> {
     return (
       <div class='custom-time-range-component'>
         <bk-time-picker
-          v-model={this.localValue}
-          type={'timerange'}
-          placeholder={this.$t('选择')}
-          format={'HH:mm'}
-          transfer={true}
           ref='timepicker'
+          v-model={this.localValue}
           allowCrossDay={this.allowCrossDay}
-          on-open-change={this.handleOpen}
+          format={'HH:mm'}
+          placeholder={this.$t('选择')}
+          transfer={true}
+          type={'timerange'}
           on-change={this.handleChange}
+          on-open-change={this.handleOpen}
         ></bk-time-picker>
         <span
           class={['time-btn', { active: this.isActive }]}

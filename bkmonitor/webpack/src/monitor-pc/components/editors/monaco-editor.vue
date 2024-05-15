@@ -130,6 +130,7 @@ export default class MonacoEditor extends Vue {
   beforeDestroy() {
     this.editor?.dispose();
     window.removeEventListener('resize', this.handleFullScreen);
+    monaco.editor.getModels().forEach(model => model.dispose());
   }
 
   calcSize(size: string | number): string {
@@ -246,7 +247,7 @@ export default class MonacoEditor extends Vue {
   position: absolute;
   top: 10px;
   right: 15px;
-  z-index: 1;
+  z-index: 10;
   color: #fff;
   cursor: pointer;
 }

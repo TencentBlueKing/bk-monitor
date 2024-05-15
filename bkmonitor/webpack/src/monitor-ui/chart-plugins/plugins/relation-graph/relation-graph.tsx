@@ -25,6 +25,7 @@
  */
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import G6 from '@antv/g6';
 import dayjs from 'dayjs';
 import bus from 'monitor-common/utils/event-bus';
@@ -34,7 +35,7 @@ import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { IFilterDict, ITableColumn, ITableFilterItem, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
-import { transformConditionValueParams } from 'monitor-pc/pages/monitor-k8s/utils';
+import { transformConditionSearchList, transformConditionValueParams } from 'monitor-pc/pages/monitor-k8s/utils';
 
 import RatioLegend from '../../components/chart-legend/relation-legend';
 import RelationChartTitle from '../../components/relation-chart-title/relation-chart-title';
@@ -97,7 +98,7 @@ export class RelationGraph extends CommonSimpleChart {
   pagination: ITablePagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   /* 表格排序 */
   sortKey = '';
@@ -131,7 +132,7 @@ export class RelationGraph extends CommonSimpleChart {
     maxIteration: 1000, // 最大迭代次数
     preventOverlap: true, // 是否防止重叠
     nodeSize: 40, // 节点大小（直径）
-    nodeSpacing: 500 // preventOverlap 为 true 时生效, 防止重叠时节点边缘间距的最小值
+    nodeSpacing: 500, // preventOverlap 为 true 时生效, 防止重叠时节点边缘间距的最小值
   };
   /** gForce 布局配置 */
   gForceLayoutConf: ILayout = {
@@ -140,7 +141,7 @@ export class RelationGraph extends CommonSimpleChart {
     linkDistance: 200,
     nodeSpacing: 200,
     maxIteration: 4000,
-    workerEnabled: true // 可选，开启 web-worker
+    workerEnabled: true, // 可选，开启 web-worker
   };
   /** 辐射形 Radial 布局配置 */
   radialLayoutConf: ILayout = {
@@ -148,7 +149,7 @@ export class RelationGraph extends CommonSimpleChart {
     type: 'radial',
     maxPreventOverlapIteration: 1000, // 防止重叠步骤的最大迭代次数
     unitRadius: 200, // 每一圈距离上一圈的距离
-    strictRadial: false // 是否必须是严格的 radial 布局，及每一层的节点严格布局在一个环上。preventOverlap 为 true 时生效。
+    strictRadial: false, // 是否必须是严格的 radial 布局，及每一层的节点严格布局在一个环上。preventOverlap 为 true 时生效。
     // workerEnabled: true // 可选，开启 web-worker
   };
   /** 层次 Dagre 布局配置 */
@@ -156,7 +157,7 @@ export class RelationGraph extends CommonSimpleChart {
     type: 'dagre',
     rankdir: 'LR', // 布局的方向 从左至右
     nodesep: 30, // 节点的间距
-    ranksep: 100 // 层间距
+    ranksep: 100, // 层间距
   };
   // 表格列数据项过滤
   tableFilterDict: IFilterDict = {};
@@ -166,7 +167,7 @@ export class RelationGraph extends CommonSimpleChart {
   legendFilters = {
     status: [],
     request_count: [],
-    avg_duration: []
+    avg_duration: [],
   };
   emptyStatusType: EmptyStatusType = 'empty';
 
@@ -187,7 +188,7 @@ export class RelationGraph extends CommonSimpleChart {
     // 默认使用 radial 辐射布局
     return Object.assign(this.radialLayoutConf, {
       // 当节点数量大于 LIMIT_WORKER_ENABLED 开启
-      workerEnabled: curNodeLen > LIMIT_WORKER_ENABLED
+      workerEnabled: curNodeLen > LIMIT_WORKER_ENABLED,
     });
   }
 
@@ -240,7 +241,7 @@ export class RelationGraph extends CommonSimpleChart {
       },
       handleMenuClick: (target, item) => this.handleNodeMenuClick(target, item),
       // 在哪些类型的元素上响应 node：节点 | canvas：画布
-      itemTypes: ['node']
+      itemTypes: ['node'],
     });
   }
   // 节点自定义tooltips
@@ -262,7 +263,7 @@ export class RelationGraph extends CommonSimpleChart {
         return false;
       },
       // 自定义 tooltip 内容
-      getContent: e => this.getTooltipsContent(e)
+      getContent: e => this.getTooltipsContent(e),
     });
   }
   /**
@@ -280,7 +281,7 @@ export class RelationGraph extends CommonSimpleChart {
       this.legendFilters = {
         status: [],
         request_count: [],
-        avg_duration: []
+        avg_duration: [],
       };
     }
     this.emptyText = window.i18n.tc('加载中...');
@@ -291,7 +292,7 @@ export class RelationGraph extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const variablesService = new VariablesService(this.viewOptions);
       let promiseList = [];
@@ -314,14 +315,14 @@ export class RelationGraph extends CommonSimpleChart {
                     condition_list: transformConditionValueParams(this.conditionList),
                     size_category: this.sizeCategory,
                     view_options: {
-                      ...this.viewOptions
-                    }
+                      ...this.viewOptions,
+                    },
                   },
                   {
                     ...this.viewOptions.filters,
                     ...(this.viewOptions.filters?.current_target || {}),
                     ...this.viewOptions,
-                    ...this.viewOptions.variables
+                    ...this.viewOptions.variables,
                   }
                 ),
                 { needMessage: false }
@@ -329,14 +330,14 @@ export class RelationGraph extends CommonSimpleChart {
               .then(res => {
                 const legendStatusData = res.legend_data.statusList.map(item => ({
                   ...item,
-                  show: true
+                  show: true,
                 }));
                 const legendStatisticsData = res.legend_data.statistics.map(option => ({
                   ...option,
                   data: option.data.map(val => ({
                     ...val,
-                    select: false
-                  }))
+                    select: false,
+                  })),
                 }));
                 this.filterList = res.filter_list;
                 const graphData = {
@@ -344,8 +345,8 @@ export class RelationGraph extends CommonSimpleChart {
                   edges: res.edges.map(edge => ({
                     ...edge,
                     type: 'line-dash', // 使用自定义的边类型
-                    direction: edge.type // 后端定义的 type 为边的方向（单向/双向）
-                  }))
+                    direction: edge.type, // 后端定义的 type 为边的方向（单向/双向）
+                  })),
                 };
                 this.graphData = graphData;
                 this.legendStatusData = legendStatusData;
@@ -375,14 +376,14 @@ export class RelationGraph extends CommonSimpleChart {
                     keyword: this.keyword,
                     condition_list: transformConditionValueParams(this.conditionList),
                     view_options: {
-                      ...this.viewOptions
-                    }
+                      ...this.viewOptions,
+                    },
                   },
                   {
                     ...this.viewOptions.filters,
                     ...(this.viewOptions.filters?.current_target || {}),
                     ...this.viewOptions,
-                    ...this.viewOptions.variables
+                    ...this.viewOptions.variables,
                   }
                 ),
                 { needMessage: false }
@@ -392,9 +393,9 @@ export class RelationGraph extends CommonSimpleChart {
                 this.tableData = data || [];
                 this.columns = (columns || []).map(item => ({
                   ...item,
-                  checked: this.checkedColumns.length ? this.checkedColumns.includes(item.id) : item.checked
+                  checked: this.checkedColumns.length ? this.checkedColumns.includes(item.id) : item.checked,
                 }));
-                this.conditionOptions = condition_list || [];
+                this.conditionOptions = transformConditionSearchList(condition_list || []);
                 this.pagination.count = total || 0;
                 this.clearErrorMsg();
                 return true;
@@ -462,7 +463,7 @@ export class RelationGraph extends CommonSimpleChart {
            * @param  {Object} value 状态值
            * @param  {Node} node 节点
            */
-          setState: (name, value, item) => this.setNodeState(name, value, item)
+          setState: (name, value, item) => this.setNodeState(name, value, item),
         },
         'circle'
       );
@@ -484,7 +485,7 @@ export class RelationGraph extends CommonSimpleChart {
            * @param  {Object} value 状态值
            * @param  {Edge} edge 边
            */
-          setState: (name, value, item) => this.setEdgeState(name, value, item)
+          setState: (name, value, item) => this.setEdgeState(name, value, item),
         },
         this.serviceName ? 'cubic-horizontal' : 'quadratic'
       );
@@ -503,8 +504,8 @@ export class RelationGraph extends CommonSimpleChart {
           default: [
             'drag-canvas', // 拖拽画布
             'zoom-canvas', // 缩放画布
-            !!this.serviceName ? '' : 'drag-node' // 拖拽节点 服务拓扑不可拖拽节点
-          ]
+            !!this.serviceName ? '' : 'drag-node', // 拖拽节点 服务拓扑不可拖拽节点
+          ],
         },
         /** 图布局 */
         layout: { ...this.graphLayout },
@@ -513,18 +514,18 @@ export class RelationGraph extends CommonSimpleChart {
           type: 'line-dash',
           style: {
             stroke: '#979BA5',
-            lineWidth: 1
-          }
+            lineWidth: 1,
+          },
         },
         defaultNode: {
           // 节点配置
-          type: 'custom-node'
+          type: 'custom-node',
         },
         plugins: [
           // 插件配置
           this.nodeTooltip(), // 节点tooltips
-          this.contextMenu() // 节点菜单
-        ]
+          this.contextMenu(), // 节点菜单
+        ],
       });
       this.bindListener(this.graph); // 图监听事件
       this.graph.data(this.graphData); // 读取数据源到图上
@@ -545,9 +546,9 @@ export class RelationGraph extends CommonSimpleChart {
         stroke: `${cfg.stroke}`, // 描边颜色
         lineWidth: cfg.have_data ? 4 : 2, // 描边宽度
         cursor: 'pointer', // 手势类型
-        r: Number(cfg.size) // 圆半径
+        r: Number(cfg.size), // 圆半径
       },
-      name: 'custom-node-keyShape'
+      name: 'custom-node-keyShape',
     });
 
     if (this.serviceName && this.serviceName === cfg.name) {
@@ -558,9 +559,9 @@ export class RelationGraph extends CommonSimpleChart {
           lineWidth: 28, // 描边宽度
           cursor: 'pointer', // 手势类型
           r: Number(cfg.size + 14 + (cfg.have_data ? 2 : 1)), // 圆半径
-          opacity: 0.08
+          opacity: 0.08,
         },
-        name: 'custom-node-outline'
+        name: 'custom-node-outline',
       });
     }
 
@@ -572,20 +573,20 @@ export class RelationGraph extends CommonSimpleChart {
           positionObj = {
             x: -Number(cfg.size) - 12,
             y: Number(cfg.size) / 6, // label在y轴上的偏移
-            textAlign: 'right'
+            textAlign: 'right',
           };
           break;
         case 'downstream':
           positionObj = {
             x: Number(cfg.size) + 12,
-            y: Number(cfg.size) / 6 // label在y轴上的偏移
+            y: Number(cfg.size) / 6, // label在y轴上的偏移
           };
           break;
         default:
           positionObj = {
             x: 0,
             y: Number(cfg.size + 12), // label在y轴上的偏移
-            textAlign: 'center' // 文本内容的当前对齐方式
+            textAlign: 'center', // 文本内容的当前对齐方式
           };
       }
       group.addShape('text', {
@@ -595,11 +596,11 @@ export class RelationGraph extends CommonSimpleChart {
           fill: '#222', // 填充颜色,
           fontSize: 14,
           lineWidth: 3, // 描边宽度
-          stroke: '#fff' // 描边颜色
+          stroke: '#fff', // 描边颜色
         },
         name: 'text-shape',
         // 设置 draggable 以允许响应鼠标的图拽事件
-        draggable: true
+        draggable: true,
       });
     }
     // 节点中心icon
@@ -610,11 +611,11 @@ export class RelationGraph extends CommonSimpleChart {
         width: 24,
         height: 24,
         cursor: 'pointer', // 手势类型
-        img: cfg.icon // 图片资源
+        img: cfg.icon, // 图片资源
       },
       name: 'node-icon-shape',
       // 设置 draggable 以允许响应鼠标的图拽事件
-      draggable: true
+      draggable: true,
     });
     // 语言标签
     if (cfg.have_data && cfg.language_icon) {
@@ -625,9 +626,9 @@ export class RelationGraph extends CommonSimpleChart {
           fill: '#FAFBFD',
           stroke: `#979BA5`, // 描边颜色
           lineWidth: 1, // 描边宽度
-          r: 10 // 圆半径
+          r: 10, // 圆半径
         },
-        name: 'language-circle'
+        name: 'language-circle',
       });
       group.addShape('image', {
         attrs: {
@@ -635,9 +636,9 @@ export class RelationGraph extends CommonSimpleChart {
           y: -cfg.size / 2 - 18.5,
           width: 13,
           height: 13,
-          img: cfg.language_icon
+          img: cfg.language_icon,
         },
-        name: 'language-image-shape'
+        name: 'language-image-shape',
       });
     }
     // 起始服务 icon
@@ -649,9 +650,9 @@ export class RelationGraph extends CommonSimpleChart {
           fill: '#EDF4FF',
           stroke: `#3A84FF`, // 描边颜色
           lineWidth: 1, // 描边宽度
-          r: 10 // 圆半径
+          r: 10, // 圆半径
         },
-        name: 'start-circle'
+        name: 'start-circle',
       });
       group.addShape('image', {
         attrs: {
@@ -659,9 +660,9 @@ export class RelationGraph extends CommonSimpleChart {
           y: -cfg.size / 2 - 16.5 + 25,
           width: 10,
           height: 10,
-          img: bannerIcon
+          img: bannerIcon,
         },
-        name: 'start'
+        name: 'start',
       });
     }
     // 展开服务节点 返回按钮
@@ -675,11 +676,11 @@ export class RelationGraph extends CommonSimpleChart {
           fill: '#3A84FF', // 填充颜色,
           fontSize: 12,
           lineWidth: 3, // 描边宽度
-          cursor: 'pointer' // 手势类型
+          cursor: 'pointer', // 手势类型
         },
         name: 'back-text-shape',
         // 设置 draggable 以允许响应鼠标的图拽事件
-        draggable: true
+        draggable: true,
       });
 
       group.addShape('image', {
@@ -689,9 +690,9 @@ export class RelationGraph extends CommonSimpleChart {
           width: 10,
           height: 10,
           img: backIcon,
-          cursor: 'pointer' // 手势类型
+          cursor: 'pointer', // 手势类型
         },
-        name: 'back-icon-shape'
+        name: 'back-icon-shape',
       });
     }
     return keyShape;
@@ -713,8 +714,8 @@ export class RelationGraph extends CommonSimpleChart {
       const languageImageShape = group.find(e => e.get('name') === 'language-image-shape');
       const startCircle = group.find(e => e.get('name') === 'start-circle');
       const start = group.find(e => e.get('name') === 'start');
-      [nodeShape, labelShape, iconShape, languageCircle, languageImageShape, startCircle, start].forEach(
-        shape => shape?.attr({ opacity: value ? 0.1 : 1 })
+      [nodeShape, labelShape, iconShape, languageCircle, languageImageShape, startCircle, start].forEach(shape =>
+        shape?.attr({ opacity: value ? 0.1 : 1 })
       );
     }
   }
@@ -729,7 +730,7 @@ export class RelationGraph extends CommonSimpleChart {
       path: G6.Arrow.triangle(10, 10, 0), // 路径
       fill: '#979BA5', // 填充颜色
       stroke: '#979BA5', // 描边颜色
-      strokeOpacity: 0 // 描边透明度
+      strokeOpacity: 0, // 描边透明度
     };
     // 双向箭头连线
     const startArrow = cfg.direction === 'complex' ? endArrow : false;
@@ -738,10 +739,10 @@ export class RelationGraph extends CommonSimpleChart {
       attrs: {
         path: G6.Arrow.triangle(10, 10, 0), // 路径
         startArrow,
-        endArrow
+        endArrow,
       },
       className: 'edge-shape',
-      name: 'edge-shape'
+      name: 'edge-shape',
     });
     return keyShape;
   }
@@ -765,8 +766,8 @@ export class RelationGraph extends CommonSimpleChart {
             path: G6.Arrow.triangle(10, 10, 0), // 线条路径 String | Array
             fill: '#979BA5', // 填充颜色
             stroke: '#979BA5', // 描边颜色
-            strokeOpacity: 0 // 描边透明度
-          }
+            strokeOpacity: 0, // 描边透明度
+          },
         });
         // 设置边动画
         keyShape.animate(
@@ -777,7 +778,7 @@ export class RelationGraph extends CommonSimpleChart {
           },
           {
             repeat: true, // whether executes the animation repeatly
-            duration: 3000 // the duration for executing once
+            duration: 3000, // the duration for executing once
           }
         );
       } else {
@@ -785,7 +786,7 @@ export class RelationGraph extends CommonSimpleChart {
         keyShape.stopAnimate();
         keyShape.attr({
           strokeOpacity: 1, // 描边透明度
-          lineDash: [] // 恢复实线
+          lineDash: [], // 恢复实线
         });
       }
     }
@@ -794,12 +795,12 @@ export class RelationGraph extends CommonSimpleChart {
       if (value) {
         keyShape.attr({
           strokeOpacity: 0.2,
-          lineDash: []
+          lineDash: [],
         });
       } else {
         keyShape.attr({
           strokeOpacity: 1,
-          lineDash: []
+          lineDash: [],
         });
       }
     }
@@ -811,13 +812,13 @@ export class RelationGraph extends CommonSimpleChart {
    */
   handleNodeMenuClick(target, item) {
     if (this.readonly) return;
-    // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+
     const linkObj = JSON.parse(target.closest('li')?.id || '');
     const linkClick = item => {
       if (!item.url) return;
       if (item.target === 'self') {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.url}`.replace(/\/\//g, '/')
+          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.url}`.replace(/\/\//g, '/'),
         });
         return;
       }
@@ -864,7 +865,7 @@ export class RelationGraph extends CommonSimpleChart {
       kind,
       language_icon: languageIcon,
       language,
-      is_root_service: isRootService
+      is_root_service: isRootService,
     } = e.item.getModel();
     const isService = kind === 'service';
 
@@ -1058,7 +1059,7 @@ export class RelationGraph extends CommonSimpleChart {
     this.checkedColumns = list;
   }
   /* 关键字搜索 */
-  handleSearchChange(value: string | number) {
+  handleSearchChange(value: number | string) {
     this.keyword = value as any;
     if (this.isOverview) {
       this.handleHighlightNode();
@@ -1168,7 +1169,7 @@ export class RelationGraph extends CommonSimpleChart {
       if (option === 'status') {
         this.legendStatusData = this.legendStatusData.map(legend => ({
           ...legend,
-          show: item.color === legend.color ? !legend.show : legend.show
+          show: item.color === legend.color ? !legend.show : legend.show,
         }));
       } else {
         this.legendStatisticsData = this.legendStatisticsData.map(statis => ({
@@ -1177,9 +1178,9 @@ export class RelationGraph extends CommonSimpleChart {
             statis.id === option
               ? statis.data.map(val => ({
                   ...val,
-                  select: item.size === val.size ? !val.select : val.select
+                  select: item.size === val.size ? !val.select : val.select,
                 }))
-              : statis.data
+              : statis.data,
         }));
       }
     } else if (actionType === 'click') {
@@ -1187,7 +1188,7 @@ export class RelationGraph extends CommonSimpleChart {
         const hasOtherShow = this.legendStatusData.some(set => set.name !== item.name && set.show);
         this.legendStatusData = this.legendStatusData.map(legend => ({
           ...legend,
-          show: legend.color === item.color || !hasOtherShow
+          show: legend.color === item.color || !hasOtherShow,
         }));
       } else {
         const hasOtherSelect = this.legendStatisticsData.some(statistics =>
@@ -1199,9 +1200,9 @@ export class RelationGraph extends CommonSimpleChart {
             statis.id === option
               ? statis.data.map(val => ({
                   ...val,
-                  select: val.size === item.size || (!item.select ? false : !hasOtherSelect)
+                  select: val.size === item.size || (!item.select ? false : !hasOtherSelect),
                 }))
-              : statis.data
+              : statis.data,
         }));
       }
     }
@@ -1281,19 +1282,19 @@ export class RelationGraph extends CommonSimpleChart {
       <div class='relation-graph'>
         <RelationChartTitle
           ref='chartTitle'
-          isOverview={this.isOverview}
-          filterList={this.filterList}
-          showNoData={this.showNoData}
           conditionOptions={this.conditionOptions}
+          filterList={this.filterList}
           isFullScreen={this.isFullScreen}
-          onOverview={this.handleOverview}
-          onSearchChange={this.handleSearchChange}
+          isOverview={this.isOverview}
+          showNoData={this.showNoData}
+          onClearFilter={this.handleClearFilter}
           onConditionChange={this.handleConditionChange}
-          onbackToCenter={this.handlebackToCenter}
-          onShowNodata={this.handleShowNodata}
           onFilterChange={this.handleFilterChange}
           onFullScreen={this.handleFullScreen}
-          onClearFilter={this.handleClearFilter}
+          onOverview={this.handleOverview}
+          onSearchChange={this.handleSearchChange}
+          onShowNodata={this.handleShowNodata}
+          onbackToCenter={this.handlebackToCenter}
         />
         {this.isOverview ? (
           <div class='graph-main'>
@@ -1309,14 +1310,14 @@ export class RelationGraph extends CommonSimpleChart {
                       onClick={() => this.handleGraphZoom(this.zoomValue + 0.1)}
                     ></span>
                     <bk-slider
-                      v-model={this.zoomValue}
-                      class='slider-wrap'
                       height='82px'
-                      show-tip={false}
-                      vertical={true}
-                      min-value={this.minZoomVal}
+                      class='slider-wrap'
+                      v-model={this.zoomValue}
                       max-value={this.maxZoomVal}
+                      min-value={this.minZoomVal}
+                      show-tip={false}
                       step={0.1}
+                      vertical={true}
                       onChange={value => this.handleGraphZoom(value)}
                     ></bk-slider>
                     <span
@@ -1336,21 +1337,20 @@ export class RelationGraph extends CommonSimpleChart {
             <CommonTable
               style='background: #fff;'
               checkable={false}
-              data={this.tableData}
               columns={this.columns}
+              data={this.tableData}
               defaultSize='small'
-              paginationType='simple'
               pagination={this.pagination}
-              onSortChange={this.handleSortChange}
-              // eslint-disable-next-line @typescript-eslint/no-misused-promises
-              onLimitChange={this.handleLimitChange}
-              onPageChange={this.handlePageChange}
+              paginationType='simple'
               onColumnSettingChange={this.handleColumnChange}
               onFilterChange={this.handleTableFilterChange}
+              onLimitChange={this.handleLimitChange}
+              onPageChange={this.handlePageChange}
+              onSortChange={this.handleSortChange}
             >
               <EmptyStatus
-                type={this.emptyStatusType}
                 slot='empty'
+                type={this.emptyStatusType}
                 onOperation={this.handleOperation}
               />
             </CommonTable>
@@ -1361,11 +1361,10 @@ export class RelationGraph extends CommonSimpleChart {
           <RatioLegend
             key={this.legendKey}
             legendStatusData={this.legendStatusData}
-            statistics={this.legendStatisticsData}
             sizeCategory={this.sizeCategory}
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises
-            onStatisticsChange={this.handleChangeStatistics}
+            statistics={this.legendStatisticsData}
             onSelectLegend={this.handleSelectLegend}
+            onStatisticsChange={this.handleChangeStatistics}
           />
         ) : undefined}
       </div>

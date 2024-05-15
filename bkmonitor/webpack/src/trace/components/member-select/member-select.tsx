@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, TransitionGroup, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Loading, Popover } from 'bkui-vue';
 import { debounce, random } from 'lodash';
 import { listUsersUser } from 'monitor-api/modules/model';
@@ -54,32 +55,32 @@ export default defineComponent({
   props: {
     showType: {
       type: String as PropType<'avatar' | 'tag'>,
-      default: 'avatar'
+      default: 'avatar',
     },
     modelValue: {
       type: Array as PropType<DateItem[]>,
-      default: () => []
+      default: () => [],
     },
     filterMethod: {
       type: Function as PropType<FilterMethod>,
-      default: undefined
+      default: undefined,
     },
     hasDefaultGroup: {
       type: Boolean,
-      default: false
+      default: false,
     },
     defaultGroup: {
       type: Array as PropType<TagItemModel[]>,
-      default: () => []
+      default: () => [],
     },
     placeholder: {
       type: String,
-      default: ''
+      default: '',
     },
     tagTpl: {
       type: Function as PropType<(item: TagItemModel, index: number) => JSX.Element | JSX.Element[]>,
-      default: undefined
-    }
+      default: undefined,
+    },
   },
   emits: ['update:modelValue', 'change', 'selectEnd', 'drop'],
   setup(props, { emit }) {
@@ -90,7 +91,7 @@ export default defineComponent({
     /** 用户和用户组列表  */
     const userAndGroupList = reactive<{ group: TagItemModel[]; user: TagItemModel[] }>({
       group: [],
-      user: []
+      user: [],
     });
     /** 映射表，用于通过唯一值获取详情 */
     const userAndGroupMap = reactive(new Map<string, TagItemModel>());
@@ -103,7 +104,7 @@ export default defineComponent({
         setGroup(val);
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
     /** 获取用户组 */
@@ -123,7 +124,7 @@ export default defineComponent({
           id: item.id,
           type: 'group',
           username: item.display_name,
-          display_name: item.display_name
+          display_name: item.display_name,
         };
         !userAndGroupMap.has(obj.id) && userAndGroupMap.set(obj.id, obj);
         return obj;
@@ -142,10 +143,10 @@ export default defineComponent({
           app_code: 'bk-magicbox',
           page,
           page_size: pageSize,
-          fuzzy_lookups: keyword
+          fuzzy_lookups: keyword,
         },
         {
-          needCancel: true
+          needCancel: true,
         }
       )
         .then(res => {
@@ -167,7 +168,7 @@ export default defineComponent({
           type: 'user',
           logo: item.logo,
           username: item.username,
-          display_name: item.display_name
+          display_name: item.display_name,
         };
         !userAndGroupMap.has(obj.username) && userAndGroupMap.set(obj.username, obj);
         return obj;
@@ -179,7 +180,7 @@ export default defineComponent({
       tags.forEach(tag => {
         const item: TagItemModel = {
           ...tag,
-          username: tag.id
+          username: tag.id,
         };
         if (item.type === 'user' && !userAndGroupMap.has(item.username)) {
           userAndGroupMap.set(item.username, item);
@@ -225,8 +226,8 @@ export default defineComponent({
         return (
           <img
             class='user-logo'
-            src={tag.logo}
             alt=''
+            src={tag.logo}
           ></img>
         );
       }
@@ -245,7 +246,7 @@ export default defineComponent({
         <span
           class='icon-monitor icon-mc-close'
           onClick={e => handleCloseTag(e, ind)}
-        ></span>
+        ></span>,
       ];
     }
 
@@ -327,12 +328,12 @@ export default defineComponent({
     function renderInputContent() {
       return (
         <Popover
-          trigger='click'
-          theme='light'
           extCls='member-select-popover component'
           arrow={false}
-          placement='bottom-start'
           is-show={popoverShow.value}
+          placement='bottom-start'
+          theme='light'
+          trigger='click'
           onAfterHidden={handleAfterHidden}
         >
           {{
@@ -341,14 +342,14 @@ export default defineComponent({
               <input
                 key={`${inputIndex.value}_input`}
                 ref='inputRef'
-                class='input'
                 style={{ width: `${inputWidth.value}px` }}
+                class='input'
                 value={inputValue.value}
                 onClick={e => e.stopPropagation()}
                 onInput={handleInput}
                 onKeydown={e => handleInputKeyDown(e)}
               />
-            )
+            ),
           }}
         </Popover>
       );
@@ -396,8 +397,8 @@ export default defineComponent({
       return (
         <Loading loading={loading.value}>
           <div
-            class='member-select-popover-wrap'
             ref='popoverWrapRef'
+            class='member-select-popover-wrap'
           >
             {selectList.value.map(item => (
               <div
@@ -460,7 +461,7 @@ export default defineComponent({
       popoverShow,
       popoverWrapRef,
       selectList,
-      handleSelect
+      handleSelect,
     };
   },
   render() {
@@ -476,17 +477,17 @@ export default defineComponent({
             <TransitionGroup name={this.showType === 'tag' ? 'flip-list' : ''}>
               {this.tags.map((tag, ind) => (
                 <div
-                  class='list-item'
                   key={tag.id}
+                  class='list-item'
                 >
                   {this.inputIndex === 0 && ind === 0 && this.renderInputContent()}
                   <div
                     key={`${tag.id}_value`}
                     class={['tag-item', `${this.showType}-type`]}
-                    onClick={e => this.handleTagClick(e, ind)}
                     draggable={this.showType === 'tag'}
-                    onDragstart={e => this.handleDragstart(e, ind)}
+                    onClick={e => this.handleTagClick(e, ind)}
                     onDragover={e => this.handleDragover(e)}
+                    onDragstart={e => this.handleDragstart(e, ind)}
                     onDrop={e => this.handleDrop(e, ind)}
                   >
                     {this.renderTagItemContent(tag.id, ind)}
@@ -498,17 +499,17 @@ export default defineComponent({
           ) : (
             [
               this.inputIndex > -1 && this.renderInputContent(),
-              this.inputIndex === -1 && <div class='placeholder'>{this.placeholder || this.t('选择')}</div>
+              this.inputIndex === -1 && <div class='placeholder'>{this.placeholder || this.t('选择')}</div>,
             ]
           )}
         </div>
         <span
-          class='text-width-test'
           ref='textTestRef'
+          class='text-width-test'
         >
           {this.inputValue}
         </span>
       </div>
     );
-  }
+  },
 });

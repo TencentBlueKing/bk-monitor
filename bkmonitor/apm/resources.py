@@ -57,6 +57,7 @@ from apm.models.profile import ProfileService
 from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
+from apm_web.profile.constants import DataType
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -1625,7 +1626,7 @@ class QueryProfileServiceDetailResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
-        app_name = serializers.CharField()
+        app_name = serializers.CharField(required=False)
         service_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
         data_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
@@ -1641,13 +1642,14 @@ class QueryProfileServiceDetailResource(Resource):
     many_response_data = True
 
     def perform_request(self, validated_data):
-        params = {
-            "bk_biz_id": validated_data["bk_biz_id"],
-            "app_name": validated_data["app_name"],
-        }
+        params = {"bk_biz_id": validated_data["bk_biz_id"]}
+
+        if validated_data.get("app_name"):
+            params["app_name"] = validated_data["app_name"]
         if validated_data.get("service_name"):
             params["name"] = validated_data["service_name"]
         if validated_data.get("data_type"):
             params["data_type"] = validated_data["data_type"]
 
-        return ProfileService.objects.filter(**params).order_by("created_at")
+        # TODO 一期暂时过滤除 CPU 外的数据类型
+        return ProfileService.objects.filter(**params).exclude(~Q(data_type=DataType.CPU.value)).order_by("created_at")

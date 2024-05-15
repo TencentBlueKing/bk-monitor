@@ -37,7 +37,7 @@ export const labelListToTreeData = (list: IList[]): ITreeItem[] => {
       name: getNodeName(node.labelName),
       id: node.id,
       key: node.labelName,
-      parentKey
+      parentKey,
     };
     localList.push(item);
     map[item.key] = item;

@@ -35,10 +35,10 @@ interface ILoadingBoxProps {
 }
 
 @Component({
-  name: 'LoadingBox'
+  name: 'LoadingBox',
 })
 export default class LoadingBox extends tsc<ILoadingBoxProps> {
-  @Prop({ type: String, default: i18n.t('正加载更多内容…') }) label: String;
+  @Prop({ type: String, default: i18n.t('正加载更多内容…') }) label: string;
 
   render() {
     return (

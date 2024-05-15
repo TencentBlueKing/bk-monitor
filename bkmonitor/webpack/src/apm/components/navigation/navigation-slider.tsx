@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './navigation-slider.scss';
 
 @Component
-export default class FtaNavigationSlider extends tsc<{}> {
+export default class FtaNavigationSlider extends tsc<object> {
   render() {
     return <div class='fta-navigation-slider'></div>;
   }

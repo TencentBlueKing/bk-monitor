@@ -31,15 +31,17 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
 
 import { strategyType } from '../typings/index';
-
 import StrategyMetricTableEvent from './strategy-metric-table-event';
 
 import './strategy-metric-wrap.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
 interface IStrategyMetricWrap {
@@ -64,7 +66,7 @@ interface IPagination {
 }
 interface ITabItem {
   id: string;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
   count: number;
   data: any;
   show: boolean;
@@ -73,7 +75,7 @@ interface ITabItem {
 export type TMode = 'event' | 'log';
 
 @Component({
-  name: 'StrategyMetricWrap'
+  name: 'StrategyMetricWrap',
 })
 export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventFn> {
   @Prop({ default: 'event', type: String }) mode: TMode;
@@ -96,18 +98,18 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   searchData = {
     keyWord: [],
     interval: 7,
-    justSelected: false
+    justSelected: false,
   };
   // 分页数据
   pagination: IPagination = {
     page: 1,
-    limit: 20
+    limit: 20,
   };
 
   // 标题
   titleMap = {
     event: i18n.t('选择事件'),
-    log: i18n.t('选择日志关键字')
+    log: i18n.t('选择日志关键字'),
   };
 
   // 侧栏选中数据
@@ -120,13 +122,13 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   eventTabList: ITabItem[] = [
     { id: 'bk_monitor', name: i18n.t('系统事件'), count: 0, data: null, show: true },
     { id: 'custom', name: i18n.t('自定义事件'), count: 0, data: null, show: true },
-    { id: 'bk_fta', name: i18n.t('第三方告警'), count: 0, data: null, show: true }
+    { id: 'bk_fta', name: i18n.t('第三方告警'), count: 0, data: null, show: true },
   ];
   // 日志数据
   logTabList: ITabItem[] = [
     { id: 'bk_monitor', name: i18n.t('监控采集'), count: 0, data: null, show: true },
     { id: 'bk_log_search', name: i18n.t('日志平台'), count: 0, data: null, show: true },
-    { id: 'bk_apm', name: i18n.t('应用监控'), count: 0, data: null, show: true }
+    { id: 'bk_apm', name: i18n.t('应用监控'), count: 0, data: null, show: true },
   ];
 
   // 指标数据
@@ -141,7 +143,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   get tabList() {
     const map = {
       event: this.getEventTabList,
-      log: this.getLogTabList
+      log: this.getLogTabList,
     };
     return map[this.mode];
   }
@@ -256,7 +258,8 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
     this.clearLocalChecked();
   }
 
-  handleSearch() {
+  handleSearch(v) {
+    this.searchData.keyWord = v;
     this.pagination.page = 1;
     this.getMetricList();
   }
@@ -264,7 +267,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   getSearchCondition() {
     return this.searchData.keyWord.map(item => ({
       key: item.values ? item.id : 'query',
-      value: item.values ? item.values.map(val => val.id) : item.id
+      value: item.values ? item.values.map(val => val.id) : item.id,
     }));
   }
 
@@ -285,7 +288,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
         page,
         page_size: limit,
         result_table_label: this.leftActive,
-        conditions: this.getSearchCondition()
+        conditions: this.getSearchCondition(),
       };
       getMetricListV2(customParams || params)
         .then(res => {
@@ -407,7 +410,7 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
       { id: 'collect_config', name: this.$t('采集配置'), children: [] },
       { id: 'metric_field', name: this.$t('指标名'), children: [] },
       { id: 'metric_filed_name', name: this.$t('指标别名'), children: [] },
-      { id: 'plugin_type', name: this.$t('插件类型'), children: [] }
+      { id: 'plugin_type', name: this.$t('插件类型'), children: [] },
     ];
     const searchObj = {
       bk_monitor_time_series: [...options],
@@ -419,8 +422,8 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
         { id: 'result_table_name', name: this.$t('数据名称'), children: [] },
         { id: 'metric_field_name', name: this.$t('事件名称'), children: [] },
         { id: 'result_table_id', name: this.$t('数据ID'), children: [] },
-        { id: 'metric_field', name: this.$t('事件ID'), children: [] }
-      ]
+        { id: 'metric_field', name: this.$t('事件ID'), children: [] },
+      ],
     };
     let searchList = searchObj[sourceType] || [];
 
@@ -450,25 +453,24 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
   render() {
     return (
       <MonitorDialog
-        class='strategy-metric-wrap'
-        value={this.isShow}
-        title={this.getTitle}
         width='850'
+        class='strategy-metric-wrap'
+        title={this.getTitle}
+        value={this.isShow}
         {...{ on: { 'update:value': this.showChange } }}
       >
         <div v-bkloading={{ isLoading: this.isLoading }}>
           <div class='metric-wrap-common'>
             <div class='metric-handle-row'>
-              <bk-search-select
-                class='search-select'
-                v-model={this.searchData.keyWord}
-                showPopoverTagChange={false}
-                popoverZindex={2600}
-                data={this.searchKeyList}
-                placeholder={this.$t('关键字搜索')}
-                show-condition={false}
-                onChange={this.handleSearch}
-              ></bk-search-select>
+              <div class='search-select'>
+                <SearchSelect
+                  clearable={false}
+                  data={this.searchKeyList}
+                  modelValue={this.searchData.keyWord}
+                  placeholder={this.$t('关键字搜索')}
+                  onChange={this.handleSearch}
+                ></SearchSelect>
+              </div>
               <bk-button
                 class='btn-refresh'
                 icon='icon-refresh'
@@ -513,13 +515,13 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
               <div style='padding-top: 8px;'>
                 {/* 数据表格 */}
                 <StrategyMetricTableEvent
+                  checked={this.localCheckedId}
                   data={this.tabelData}
-                  type={this.tabActive}
                   mode={this.mode}
                   readonly={this.readonly}
-                  checked={this.localCheckedId}
-                  onScrollToEnd={this.handleScrollToEnd}
+                  type={this.tabActive}
                   onCheckedChange={this.handleCheckedChange}
+                  onScrollToEnd={this.handleScrollToEnd}
                 ></StrategyMetricTableEvent>
               </div>
             </div>
@@ -527,8 +529,8 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             disabled={this.readonly || this.isCanAdd}
+            theme='primary'
             onClick={this.handleAddMetric}
           >
             {this.$t('添加')}

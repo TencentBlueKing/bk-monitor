@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, PropType, ref } from 'vue';
+
 import { bkTooltips } from 'bkui-vue';
 import { type IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
@@ -34,6 +35,7 @@ import ExceptionGuide from '../charts/exception-guide/exception-guide';
 import RelatedLogChart from '../charts/related-log-chart/related-log-chart';
 import TimeSeries from '../charts/time-series/time-series';
 import { useReadonlyInject } from '../hooks';
+
 import type * as PanelModelTraceVersion from '../typings';
 
 import './chart-wrapper.scss';
@@ -41,14 +43,14 @@ import './chart-wrapper.scss';
 export default defineComponent({
   name: 'ChartWrapperMigrated',
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: {
     panel: { required: true, type: Object as PropType<PanelModel> },
     /** 检测算法 */
     detectionConfig: { default: () => {}, type: Object as PropType<IDetectionConfig> },
     /* 是否可选中图表 */
-    needCheck: { type: Boolean, default: false }
+    needCheck: { type: Boolean, default: false },
   },
   emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries'],
   setup(props, { emit }) {
@@ -118,8 +120,8 @@ export default defineComponent({
         case 'row':
           return (
             <ChartRow
-              panel={props.panel}
               clearErrorMsg={handleClearErrorMsg}
+              panel={props.panel}
               onCollapse={handleCollapsed}
               onErrorMsg={handleErrorMsgChange}
             />
@@ -129,19 +131,19 @@ export default defineComponent({
         case 'related-log-chart':
           return (
             <RelatedLogChart
-              panel={props.panel}
-              onLoading={handleChangeLoading}
-              onErrorMsg={handleErrorMsgChange}
               clearErrorMsg={handleClearErrorMsg}
+              panel={props.panel}
+              onErrorMsg={handleErrorMsgChange}
+              onLoading={handleChangeLoading}
             />
           );
         default:
           return (
             <TimeSeries
-              onLoading={handleChangeLoading}
               // 还不清楚该用新的还是旧的类型，这里先照旧
               panel={props.panel as PanelModelTraceVersion.PanelModel}
               showHeaderMoreTool={showHeaderMoreTool.value}
+              onLoading={handleChangeLoading}
             />
           );
       }
@@ -158,21 +160,21 @@ export default defineComponent({
       viewQueryConfig,
       handleCloseViewDetail,
       waterMaskImg,
-      errorMsg
+      errorMsg,
     };
   },
   render() {
     return (
       <div
+        style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
         class={{
           'chart-wrapper': true,
           'grafana-check': this.panel.canSetGrafana,
           'is-checked': this.panel.checked,
           'is-collapsed': this.panel.collapsed,
           'hover-style': this.needCheck && this.needHoverStryle,
-          'row-chart': this.panel.type === 'row'
+          'row-chart': this.panel.type === 'row',
         }}
-        style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
         onMouseenter={() => (this.showHeaderMoreTool = true)}
         onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
@@ -180,8 +182,8 @@ export default defineComponent({
         {this.loading ? (
           <img
             class='loading-icon'
-            src={loadingIcon}
             alt=''
+            src={loadingIcon}
           ></img>
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
@@ -194,7 +196,7 @@ export default defineComponent({
           <div
             class='wm'
             v-watermark={{
-              text: window.user_name || window.username
+              text: window.user_name || window.username,
             }}
           ></div>
         )}
@@ -204,11 +206,11 @@ export default defineComponent({
             v-bk-tooltips={{
               content: <div>{this.errorMsg}</div>,
               extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start'
+              placement: 'top-start',
             }}
           ></span>
         )}
       </div>
     );
-  }
+  },
 });

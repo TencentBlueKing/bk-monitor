@@ -32,35 +32,35 @@ export default defineComponent({
   props: {
     errMsg: {
       type: String,
-      default: ''
+      default: '',
     },
     label: {
       type: String as PropType<any>,
-      default: ''
+      default: '',
     },
     labelWidth: {
       type: Number,
-      default: 135
+      default: 135,
     },
     require: {
       type: Boolean,
-      default: false
+      default: false,
     },
     hasColon: {
       type: Boolean,
-      default: false
+      default: false,
     },
     contentCls: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   setup(props, { slots }) {
     return () => (
       <div class='rotation-config-form-item'>
         <div
-          class={['form-item-label', { require: !!props.require }]}
           style={{ minWidth: `${props.labelWidth}px` }}
+          class={['form-item-label', { require: !!props.require }]}
         >
           {props.label}
           {props.hasColon ? ' : ' : undefined}
@@ -71,5 +71,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

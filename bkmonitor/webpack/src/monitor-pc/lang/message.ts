@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -92,6 +91,8 @@ export default {
   批量修改生效时间段成功: 'Bulk modify effective time period successful',
   批量修改告警恢复通知成功: 'Bulk modify alarm recovery notification successful',
   批量修改告警风暴开关成功: 'Bulk modify alarm storm switch successful',
+  批量修改通知升级成功: 'Batch modification notification upgrade successful',
+  批量修改算法成功: 'Batch modification algorithm successful',
   更新成功: 'Update successful',
   成功: 'Success',
   成功时: 'Success',
@@ -444,5 +445,5 @@ export default {
   '是否取消 {0} 的订阅?': 'Do you want to unsubscribe {0}?',
   '是否重新订阅 {0} ?': 'Do you want to re-subscribe {0}?',
   取消订阅成功: 'Unsubscribe successful',
-  重新订阅成功: 'Re-subscribe successful'
+  重新订阅成功: 'Re-subscribe successful',
 };

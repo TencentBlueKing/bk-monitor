@@ -233,25 +233,32 @@ def get_cluster_data_ids(cluster_id_list: List, table_id_list: Optional[List] = 
         )
     # 如果集群存在，则获取集群下的内置和自定义数据源
     elif cluster_id_list:
-        metric_data_ids = models.BCSClusterInfo.objects.filter(
-            cluster_id__in=cluster_id_list, status=models.BCSClusterInfo.CLUSTER_STATUS_RUNNING
-        ).values("K8sMetricDataID", "CustomMetricDataID")
+        metric_data_ids = (
+            models.BCSClusterInfo.objects.filter(cluster_id__in=cluster_id_list)
+            .exclude(
+                status__in=[
+                    models.BCSClusterInfo.CLUSTER_STATUS_DELETED,
+                    models.BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
+                ],
+            )
+            .values("K8sMetricDataID", "CustomMetricDataID")
+        )
         for data in metric_data_ids:
             data_id_list.append(data["K8sMetricDataID"])
             data_id_list.append(data["CustomMetricDataID"])
     # 过滤到集群的数据源，仅包含两类，集群内置和集群自定义
     data_id_cluster_id = {
         data["K8sMetricDataID"]: data["cluster_id"]
-        for data in models.BCSClusterInfo.objects.filter(
-            K8sMetricDataID__in=data_id_list, status=models.BCSClusterInfo.CLUSTER_STATUS_RUNNING
-        ).values("K8sMetricDataID", "cluster_id")
+        for data in models.BCSClusterInfo.objects.filter(K8sMetricDataID__in=data_id_list).values(
+            "K8sMetricDataID", "cluster_id"
+        )
     }
     data_id_cluster_id.update(
         {
             data["CustomMetricDataID"]: data["cluster_id"]
-            for data in models.BCSClusterInfo.objects.filter(
-                CustomMetricDataID__in=data_id_list, status=models.BCSClusterInfo.CLUSTER_STATUS_RUNNING
-            ).values("CustomMetricDataID", "cluster_id")
+            for data in models.BCSClusterInfo.objects.filter(CustomMetricDataID__in=data_id_list).values(
+                "CustomMetricDataID", "cluster_id"
+            )
         }
     )
     return data_id_cluster_id
@@ -269,16 +276,26 @@ def get_table_id_cluster_id(table_id_list: Union[List, Set]) -> Dict[str, str]:
     # 过滤到集群的数据源，仅包含两类，集群内置和集群自定义
     data_id_cluster_id = {
         data["K8sMetricDataID"]: data["cluster_id"]
-        for data in models.BCSClusterInfo.objects.filter(
-            K8sMetricDataID__in=data_ids, status=models.BCSClusterInfo.CLUSTER_STATUS_RUNNING
-        ).values("K8sMetricDataID", "cluster_id")
+        for data in models.BCSClusterInfo.objects.filter(K8sMetricDataID__in=data_ids)
+        .exclude(
+            status__in=[
+                models.BCSClusterInfo.CLUSTER_STATUS_DELETED,
+                models.BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
+            ]
+        )
+        .values("K8sMetricDataID", "cluster_id")
     }
     data_id_cluster_id.update(
         {
             data["CustomMetricDataID"]: data["cluster_id"]
-            for data in models.BCSClusterInfo.objects.filter(
-                CustomMetricDataID__in=data_ids, status=models.BCSClusterInfo.CLUSTER_STATUS_RUNNING
-            ).values("CustomMetricDataID", "cluster_id")
+            for data in models.BCSClusterInfo.objects.filter(CustomMetricDataID__in=data_ids)
+            .exclude(
+                status__in=[
+                    models.BCSClusterInfo.CLUSTER_STATUS_DELETED,
+                    models.BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
+                ]
+            )
+            .values("CustomMetricDataID", "cluster_id")
         }
     )
     # 组装结果表到集群的信息

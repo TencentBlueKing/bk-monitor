@@ -232,5 +232,8 @@ class ActionProcessor(BaseActionProcessor):
             else:
                 values = str(values)
             converge_label_info[key] = values
+
+        # 去除策略ID避免存储被路由到不同的redis
+        converge_label_info.pop("strategy_id", None)
         biz_lock_key = FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.get_key(**converge_label_info)
         FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.client.delete(biz_lock_key)

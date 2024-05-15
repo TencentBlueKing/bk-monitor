@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
-/* eslint-disable import/prefer-default-export */
-import { CancelToken } from 'axios';
+
+import CancelToken from 'axios/lib/cancel/CancelToken';
 import { random } from 'monitor-common/utils/utils';
 
 import axios from './axios/axios';
@@ -41,7 +40,7 @@ const defaultConfig = {
   needCancel: false,
   needTraceId: true,
   cancelFn() {},
-  onUploadProgress() {}
+  onUploadProgress() {},
 };
 const noMessageCode = [3308005, 3314003, 3314004]; // 无数据状态下 不弹窗
 const pendingRequest = new Map(); // 请求取消映射表
@@ -81,13 +80,13 @@ export const request = function (method, url) {
     const methodType = method.toLocaleLowerCase() || 'get';
     if (config.isAsync) {
       config.headers = {
-        'X-Async-Task': true
+        'X-Async-Task': true,
       };
     }
     const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
     config.headers = {
       ...config.headers,
-      traceparent
+      traceparent,
     };
     // needCancel用于配置是否需要设置取消请求
     if (config.needCancel) {
@@ -107,7 +106,7 @@ export const request = function (method, url) {
         url: newUrl,
         params: data,
         needMessage: false,
-        ...config
+        ...config,
       })
         .then(res => {
           if (config.needRes) {
@@ -135,7 +134,7 @@ export const request = function (method, url) {
         config.headers = {
           ...config.headers,
           'content-type': 'multipart/form-data',
-          productionTip: true
+          productionTip: true,
         };
       }
     });
@@ -158,7 +157,7 @@ export const request = function (method, url) {
       method,
       url: newUrl,
       data,
-      ...config
+      ...config,
     })
       .then(res => {
         if (config.needRes) {

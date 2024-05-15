@@ -48,9 +48,9 @@
           @mouseleave="handleStaticMouseLeave"
           @mouseenter="handleStaticMouseEnter"
         >
-          <span
-            ref="staticTab"
-          ><slot name="left-tab"> {{ $t('静态') }} </slot></span>
+          <span ref="staticTab"
+            ><slot name="left-tab"> {{ $t('静态') }} </slot></span
+          >
         </span>
         <span
           class="left-tab-item"
@@ -60,9 +60,9 @@
           @mouseleave="handleDynamicMouseLeave"
           @mouseenter="handleDynamicMouseEnter"
         >
-          <span
-            ref="dynamicTab"
-          ><slot name="left-tab"> {{ $t('动态') }} </slot></span>
+          <span ref="dynamicTab"
+            ><slot name="left-tab"> {{ $t('动态') }} </slot></span
+          >
         </span>
       </div>
       <!--静态/动态 tree-->
@@ -74,16 +74,16 @@
           class="left-content-select"
           :popover-min-width="200"
           :clearable="false"
-          @change="handleActiveSelectChange"
           :popover-options="selectOption"
+          @change="handleActiveSelectChange"
         >
           <bk-option
             v-for="option in select.staticList"
-            :disabled="activeDiabled.includes(option.id)"
-            :key="option.id"
-            :id="option.id"
-            :name="option.name"
             v-show="!activeUnshow.includes(option.id)"
+            :id="option.id"
+            :key="option.id"
+            :disabled="activeDiabled.includes(option.id)"
+            :name="option.name"
           >
             <span v-show="option.id !== 4 || isExtranet">{{ option.name }}</span>
           </bk-option>
@@ -99,18 +99,18 @@
         >
           <bk-option
             v-for="option in select.dynamicList"
+            v-show="!activeUnshow.includes(option.id)"
+            :id="option.id"
             :key="option.id"
             :disabled="activeDiabled.includes(option.id)"
-            :id="option.id"
             :name="option.name"
-            v-show="!activeUnshow.includes(option.id)"
           />
         </bk-select>
         <!--静态/动态 tree组件-->
         <div
+          v-bkloading="{ isLoading: isShowTreeLoading && leftLoading }"
           class="left-content-wrap"
           :style="{ '--height': height + 'px' }"
-          v-bkloading="{ isLoading: isShowTreeLoading && leftLoading }"
         >
           <keep-alive>
             <!--静态-IP输入-->
@@ -119,7 +119,7 @@
               name="static-input"
               v-bind="{
                 defaultText: staticInput.defaultText,
-                checked: handleSelectChecked
+                checked: handleSelectChecked,
               }"
             >
               <template>
@@ -144,12 +144,13 @@
                 disabledData: staticTopo.disabledData,
                 filterMethod: filterMethod,
                 keyword: search.keyword,
-                nodeCheck: handleSelectChecked
+                nodeCheck: handleSelectChecked,
               }"
             >
               <template>
                 <static-topo
                   v-if="staticTopo.treeData.length"
+                  ref="staticTopo"
                   :tree-data="staticTopo.treeData"
                   :checked-data="staticChecked"
                   :disabled-data="staticTopo.disabledData"
@@ -159,7 +160,6 @@
                   :default-expand-node="staticTopo.defaultExpandNode"
                   :height="topoHeight"
                   @node-check="handleSelectChecked"
-                  ref="staticTopo"
                 />
               </template>
             </slot>
@@ -169,7 +169,7 @@
               name="static-extranet-input"
               v-bind="{
                 defaultText: staticExtranet.defaultText,
-                checked: handleSelectChecked
+                checked: handleSelectChecked,
               }"
             >
               <template>
@@ -195,19 +195,19 @@
                 filterMethod: filterMethod,
                 keyword: search.keyword,
                 refs: $refs.dynamicTopo,
-                nodeCheck: handleSelectChecked
+                nodeCheck: handleSelectChecked,
               }"
             >
               <template>
                 <dynamic-topo
                   v-if="dynamicTopo.treeData.length"
+                  ref="dynamicTopo"
                   :tree-data="dynamicTopo.treeData"
                   :checked-data="dynamicTopo.checkedData"
                   :disabled-data="dynamicTopo.disabledData"
                   :filter-method="filterMethod"
                   :keyword="search.keyword"
                   :is-search-no-data.sync="isSearchNoData"
-                  ref="dynamicTopo"
                   :default-expand-node="dynamicTopo.defaultExpandNode"
                   :height="topoHeight"
                   @node-check="handleSelectChecked"
@@ -225,18 +225,18 @@
                 filterMethod: filterMethod,
                 keyword: search.keyword,
                 refs: $refs.dynamicGroup,
-                nodeCheck: handleSelectChecked
+                nodeCheck: handleSelectChecked,
               }"
             >
               <template>
                 <dynamic-group
                   v-if="dynamicGroup.treeData.length"
+                  ref="dynamicGroup"
                   :tree-data="dynamicGroup.treeData"
                   :checked-data="dynamicGroup.checkedData"
                   :disabled-data="dynamicGroup.disabledData"
                   :filter-method="filterMethod"
                   :keyword="search.keyword"
-                  ref="dynamicGroup"
                   @node-check="handleSelectChecked"
                 />
               </template>
@@ -253,22 +253,22 @@
       </div>
       <!--tree搜索-->
       <div
+        v-show="curActive !== 0 && curActive !== 4"
         class="left-footer"
         :class="{ 'input-focus': search.focus }"
-        v-show="curActive !== 0 && curActive !== 4"
       >
         <i class="bk-icon icon-search left-footer-icon" />
         <input
+          v-model="search.keyword"
           class="left-footer-input"
           :placeholder="searchPlaceholder"
           @focus="handleSearchFocus"
           @blur="search.focus = false"
-          v-model="search.keyword"
-        >
+        />
       </div>
       <div
-        class="resize-line"
         v-show="resizeState.show"
+        class="resize-line"
         :style="{ left: resizeState.left + 'px' }"
       />
     </div>
@@ -276,23 +276,23 @@
     <div class="ip-select-right">
       <slot name="right-wrap">
         <div
+          v-if="staticTableData.length"
           :key="staticIp.type"
+          v-bkloading="{ isLoading: isShowTableLoading && staticLoading }"
           class="right-wrap"
           :class="{ 'is-expand': staticIp.expand }"
-          v-if="staticTableData.length"
-          v-bkloading="{ isLoading: isShowTableLoading && staticLoading }"
         >
           <right-panel
             v-model="staticIp.expand"
             type="staticIp"
-            @change="handleCollapseChange"
             :title="{ num: staticTopo.tableData.length }"
+            @change="handleCollapseChange"
           >
             <slot
               name="static-ip-panel"
               v-bind="{
                 data: staticTableData,
-                deleteClick: handleDeleteStaticIp
+                deleteClick: handleDeleteStaticIp,
               }"
             >
               <bk-table
@@ -321,7 +321,9 @@
                     <bk-button
                       text
                       @click="handleDeleteStaticIp(scope)"
-                    > {{ $t('移除') }} </bk-button>
+                    >
+                      {{ $t('移除') }}
+                    </bk-button>
                   </template>
                 </bk-table-column>
               </bk-table>
@@ -329,35 +331,36 @@
           </right-panel>
         </div>
         <div
-          :key="dynamicTopo.type"
-          class="right-wrap"
-          v-bkloading="{ isLoading: isShowTableLoading && dynamicTopo.loading }"
-          :class="{ 'is-expand': dynamicTopo.expand }"
           v-if="dynamicTopo.tableData.length"
+          :key="dynamicTopo.type"
+          v-bkloading="{ isLoading: isShowTableLoading && dynamicTopo.loading }"
+          class="right-wrap"
+          :class="{ 'is-expand': dynamicTopo.expand }"
         >
           <right-panel
             v-model="dynamicTopo.expand"
-            @change="handleCollapseChange"
             type="dynamicTopo"
             :title="{ num: dynamicTopo.tableData.length, type: $t('拓扑节点') }"
+            @change="handleCollapseChange"
           >
             <slot
               name="dynamic-topo-panel"
               v-bind="{
                 data: dynamicTopo.tableData,
-                deleteClick: handleDelDynamicTopo
+                deleteClick: handleDelDynamicTopo,
               }"
             >
               <ul class="topo-list">
                 <li
-                  class="topo-list-item"
                   v-for="(item, index) in dynamicTopo.tableData"
                   :key="index"
+                  class="topo-list-item"
                 >
                   <span class="item-name">{{ item.name }}</span>
                   <div class="item-desc">
                     {{ $t('现有主机') }}
-                    <span class="status-host">{{ item.host }}</span>，
+                    <span class="status-host">{{ item.host }}</span
+                    >，
                     <i18n path="{0}台主机Agent异常">
                       <span class="status-unusual">{{ item.unusual }}</span>
                     </i18n>
@@ -375,50 +378,50 @@
           </right-panel>
         </div>
         <div
-          :key="dynamicGroup.type"
-          class="right-wrap"
-          v-bkloading="{ isLoading: isShowTableLoading && dynamicGroup.loading }"
-          :class="{ 'is-expand': dynamicGroup.expand }"
           v-if="dynamicGroup.tableData.length"
+          :key="dynamicGroup.type"
+          v-bkloading="{ isLoading: isShowTableLoading && dynamicGroup.loading }"
+          class="right-wrap"
+          :class="{ 'is-expand': dynamicGroup.expand }"
         >
           <right-panel
             v-model="curComp.expand"
-            @change="handleCollapseChange"
             type="dynamicTopo"
+            @change="handleCollapseChange"
           >
             <slot
               name="dynamic-group-panel"
               v-bind="{
-                data: dynamicGroup.tableData
+                data: dynamicGroup.tableData,
               }"
             />
           </right-panel>
         </div>
         <div
-          :key="staticExtranet.type"
-          class="right-wrap"
-          v-bkloading="{ isLoading: isShowTableLoading && staticExtranet.loading }"
-          :class="{ 'is-expand': staticExtranet.expand }"
           v-if="staticExtranet.tableData.length"
+          :key="staticExtranet.type"
+          v-bkloading="{ isLoading: isShowTableLoading && staticExtranet.loading }"
+          class="right-wrap"
+          :class="{ 'is-expand': staticExtranet.expand }"
         >
           <right-panel
             v-model="curComp.expand"
-            @change="handleCollapseChange"
             type="staticExtranet"
             :title="{ num: staticExtranet.tableData.length, type: $t('外网IP') }"
+            @change="handleCollapseChange"
           >
             <slot
               name="static-extranet-panel"
               v-bind="{
-                data: staticExtranet.tableData
+                data: staticExtranet.tableData,
               }"
             />
           </right-panel>
         </div>
         <div
+          v-if="isNoData"
           key="right-empty"
           class="right-empty"
-          v-if="isNoData"
         >
           <span class="icon-monitor icon-hint" />
           <div class="right-empty-title">
@@ -448,113 +451,113 @@ export default {
     StaticInput,
     StaticTopo,
     DynamicTopo,
-    DynamicGroup
+    DynamicGroup,
   },
   props: {
     // IP选择器最小宽度
     minWidth: {
       type: [Number, String],
-      default: 850
+      default: 850,
     },
     maxWidth: {
       type: [Number, String],
-      default: 9999
+      default: 9999,
     },
     // IP选择器高度
     height: {
       type: [Number, String],
-      default: 460
+      default: 460,
     },
     idKey: {
       type: String,
-      default: 'id'
+      default: 'id',
     },
     nameKey: {
       type: String,
-      default: 'name'
+      default: 'name',
     },
     childrenKey: {
       type: String,
-      default: 'children'
+      default: 'children',
     },
     // 禁用 静态/动态 tab页
     tabDisabled: {
       type: Number,
-      default: -1
+      default: -1,
     },
     // 禁用 静态/动态 输入方式
     activeDiabled: {
       type: Array,
       default() {
         return [3];
-      }
+      },
     },
     // 是否显示 静态/动态 输入方式（选项）
     activeUnshow: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     // 是否显示 静态/动态 输入方式（select框）
     selectUnshow: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     // 默认激活的 静态/动态 tab页
     defaultActive: {
       type: Number,
-      required: true
+      required: true,
     },
     // 右侧表格空数据text
     defaultEmptyDesc: {
       type: String,
       default() {
         return this.$t('在左侧选择主机/节点/动态分组');
-      }
+      },
     },
     inputIpSplit: {
       type: String,
-      default: '|'
+      default: '|',
     },
     // 获取默认数据（tree数据、默认勾选数据、禁用数据、表格数据、默认展开节点数据）！！！！
     getDefaultData: {
       type: Function, // 需返回 treeData、checkedData（可选）、disabledData（可选）、tableData（可选）、defaultExpandNode（可选）
-      required: true
+      required: true,
     },
     // 勾选树节点时会触发此方法获取数据 ！！！！
     getFetchData: {
       type: Function,
-      required: true
+      required: true,
     },
     // 树过滤方法
     filterMethod: {
       type: Function,
-      default: () => () => {}
+      default: () => () => {},
     },
     isShowTreeLoading: {
       type: Boolean,
-      default: true
+      default: true,
     },
     isShowTableLoading: {
       type: Boolean,
-      default: true
+      default: true,
     },
     // 是否是实例（实例对象只能选择动态tab的业务拓扑）
     isInstance: Boolean,
     isExtranet: {
       type: Boolean,
-      default: false
+      default: false,
     },
     // 拓扑树的高度（设置此属性可开启虚拟滚动）
-    topoHeight: Number
+    topoHeight: Number,
   },
   data() {
     return {
       selectOption: {
-        boundary: 'window'
+        boundary: 'window',
       },
       active: 0, // 当前 active 的 tab
       changeInput: false,
@@ -564,33 +567,33 @@ export default {
           {
             id: 0,
             name: this.$t('输入IP'),
-            type: 'staticInput'
+            type: 'staticInput',
           },
           {
             id: 1,
             name: this.$t('业务拓扑'),
-            type: 'staticTopo'
+            type: 'staticTopo',
           },
           {
             id: 4,
             name: this.$t('外网IP'),
-            type: 'staticExtranet'
-          }
+            type: 'staticExtranet',
+          },
         ],
         dynamicList: [
           {
             id: 2,
             name: this.$t('业务拓扑'),
-            type: 'dynamicTopo'
+            type: 'dynamicTopo',
           },
           {
             id: 3,
             name: this.$t('动态分组'),
-            type: 'dynamicGroup'
-          }
+            type: 'dynamicGroup',
+          },
         ],
         staticActive: 0,
-        dynamicActive: 2
+        dynamicActive: 2,
       },
       // 静态输入
       staticInput: {
@@ -601,7 +604,7 @@ export default {
         tableData: [],
         type: 'static-ip',
         mark: false,
-        loading: false
+        loading: false,
       },
       // 静态拓扑（tree）
       staticTopo: {
@@ -613,7 +616,7 @@ export default {
         tableData: [],
         type: 'static-topo',
         loading: false,
-        defaultExpandNode: 1
+        defaultExpandNode: 1,
       },
       staticExtranet: {
         name: 'staticExtranet',
@@ -623,7 +626,7 @@ export default {
         tableData: [],
         type: 'static-extranet',
         mark: false,
-        loading: false
+        loading: false,
       },
       // 动态拓扑（tree）
       dynamicTopo: {
@@ -635,7 +638,7 @@ export default {
         tableData: [],
         type: 'dynamic-topo',
         loading: false,
-        defaultExpandNode: 1
+        defaultExpandNode: 1,
       },
       dynamicGroup: {
         name: 'dynamicGroup',
@@ -645,33 +648,33 @@ export default {
         expand: false,
         tableData: [],
         type: 'dynamic-group',
-        loading: false
+        loading: false,
       },
       // 搜索关键字
       search: {
         keyword: '',
-        focus: false
+        focus: false,
       },
       leftLoading: false,
       isSearchNoData: false,
       staticIp: {
-        expand: false
+        expand: false,
       },
       instance: {
         dynamic: null,
-        static: null
+        static: null,
       },
       // 搜索框placeholder
       searchPlaceholder: this.$t('输入IP'),
       left: {
-        width: 240
+        width: 240,
       },
       resizeState: {
         show: false,
         ready: false,
         left: 0,
-        draging: false
-      }
+        draging: false,
+      },
     };
   },
   computed: {
@@ -709,16 +712,16 @@ export default {
     },
     isNoData() {
       return (
-        !this.staticTableData.length
-        && !this.dynamicTopo.tableData.length
-        && !this.dynamicGroup.tableData.length
-        && !this.staticExtranet.tableData.length
+        !this.staticTableData.length &&
+        !this.dynamicTopo.tableData.length &&
+        !this.dynamicGroup.tableData.length &&
+        !this.staticExtranet.tableData.length
       );
-    }
+    },
   },
   watch: {
     curActive: {
-      handler: 'handlerCurActiveChange'
+      handler: 'handlerCurActiveChange',
       // immediate: true
     },
     defaultActive: {
@@ -734,8 +737,8 @@ export default {
           this.curComp.expand = true;
         }
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     handleMouseDown(e) {
@@ -752,7 +755,7 @@ export default {
         document.ondragstart = function () {
           return false;
         };
-        const handleMouseMove = (event) => {
+        const handleMouseMove = event => {
           this.resizeState.dragging = true;
           this.resizeState.left = event.clientX - rect.left;
         };
@@ -797,7 +800,7 @@ export default {
         curComp.loading = true;
         const { checkedData, tableData, disabledData } = await this.getFetchData(type, payload);
         if (type === 'static-extranet') {
-          tableData.forEach((item) => {
+          tableData.forEach(item => {
             if (!this.staticExtranet.tableData.find(el => el.ip === item.ip)) {
               this.staticExtranet.tableData.push(item);
             }
@@ -885,7 +888,7 @@ export default {
     },
     handleCollapseChange(v, set) {
       if (v) {
-        ['staticIp', 'dynamicTopo'].forEach((key) => {
+        ['staticIp', 'dynamicTopo'].forEach(key => {
           this[key].expand = set === key;
         });
       } else {
@@ -893,8 +896,9 @@ export default {
       }
     },
     handleDeleteStaticIp(scope) {
-      this.staticInput.tableData = this.staticInput
-        .tableData.filter(item => item[this.idKey] !== scope.row[this.idKey]);
+      this.staticInput.tableData = this.staticInput.tableData.filter(
+        item => item[this.idKey] !== scope.row[this.idKey]
+      );
       this.staticTopo.tableData = this.staticTopo.tableData.filter(item => item[this.idKey] !== scope.row[this.idKey]);
     },
     handleDelDynamicTopo(index, item) {
@@ -911,7 +915,7 @@ export default {
     getValues() {
       return {
         staticIp: this.staticTableData,
-        dynamicTopo: this.dynamicTopo.tableData
+        dynamicTopo: this.dynamicTopo.tableData,
       };
     },
     setCurActivedCheckedData(checkedData, type) {
@@ -960,7 +964,7 @@ export default {
           maxWidth: 250,
           showOnInit: true,
           distance: 14,
-          placement: 'right'
+          placement: 'right',
         });
       }
       this.instance.static.set({ content });
@@ -989,7 +993,7 @@ export default {
           maxWidth: 250,
           showOnInit: true,
           distance: 14,
-          placement: 'right'
+          placement: 'right',
         });
       }
       this.instance.dynamic.set({ content });
@@ -1005,7 +1009,7 @@ export default {
     handleActiveSelectChange(v, old) {
       this.$emit(EVENT_ACTIVESELECTCHANGE, {
         newValue: v,
-        oldValue: old
+        oldValue: old,
       });
     },
     setStaticExtranetData(data) {
@@ -1016,13 +1020,13 @@ export default {
       this.$nextTick(() => {
         const refsMap = {
           1: 'staticTopo',
-          2: 'dynamicTopo'
+          2: 'dynamicTopo',
         };
         const treeRefs = refsMap[this.curActive];
         treeRefs && this.$refs[treeRefs] && this.$refs[treeRefs].resize();
       });
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

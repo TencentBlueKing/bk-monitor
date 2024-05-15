@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-properties */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -26,6 +25,7 @@
  */
 import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Input, Slider } from 'bkui-vue';
 import { debounce } from 'monitor-common/utils/utils';
 
@@ -40,7 +40,7 @@ const DEFAULT_SLIDER_VALUE = {
   min: 0, // 最小值
   max: 1000, // 最大值
   step: 10, // 步长
-  disable: false
+  disable: false,
 };
 
 export default defineComponent({
@@ -48,8 +48,8 @@ export default defineComponent({
   props: {
     range: {
       type: Array as PropType<number[]> | null,
-      default: null
-    }
+      default: null,
+    },
   },
   emits: ['change'],
   setup(props, { emit }) {
@@ -105,7 +105,7 @@ export default defineComponent({
           min: start,
           max: end,
           step: Math.abs(start - end) / 100,
-          disable: start === end
+          disable: start === end,
         });
         errMsg.value = '';
         showExchange.value = false;
@@ -139,7 +139,7 @@ export default defineComponent({
       errMsg.value = '';
     };
     /** 输入框数值改变 */
-    const handleInputChange = (val: string, type: 'start' | 'end') => {
+    const handleInputChange = (val: string, type: 'end' | 'start') => {
       const isError = !inputReg.test(val);
       type === 'start' ? (startError.value = isError) : (endError.value = isError);
       if (!startError.value && !endError.value) {
@@ -189,7 +189,7 @@ export default defineComponent({
       handleInputChange,
       handleExchange,
       handleRangeChange,
-      handleChangeDebounce
+      handleChangeDebounce,
     };
   },
   render() {
@@ -198,26 +198,26 @@ export default defineComponent({
         <div class='filter-tools'>
           <div class={['verify-input', { 'is-error': this.startError }]}>
             <Input
-              placeholder={'0ns'}
               v-model={this.startVal}
+              placeholder={'0ns'}
               onChange={val => this.handleInputChange(val, 'start')}
             />
           </div>
           <Slider
-            range
             class='duration-slider'
             v-model={this.durationSlider.curValue}
-            minValue={this.durationSlider.min}
-            maxValue={this.durationSlider.max}
-            step={this.durationSlider.step}
             disable={this.durationSlider.disable}
+            maxValue={this.durationSlider.max}
+            minValue={this.durationSlider.min}
+            step={this.durationSlider.step}
+            range
             onChange={() => this.handleChangeDebounce()}
             onUpdate:modelValue={this.handleRangeChange}
           />
           <div class={['verify-input', { 'is-error': this.endError }]}>
             <Input
-              placeholder={'1s'}
               v-model={this.endVal}
+              placeholder={'1s'}
               onChange={val => this.handleInputChange(val, 'end')}
             />
           </div>
@@ -237,5 +237,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

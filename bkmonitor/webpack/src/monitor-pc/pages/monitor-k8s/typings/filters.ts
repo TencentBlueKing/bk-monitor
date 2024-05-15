@@ -28,7 +28,7 @@ import { IWhere } from './book-mark';
 export interface IFilterVarList {
   key: string;
   name: string;
-  value: string[] | string;
+  value: string | string[];
   where: IWhere[];
   options: IFilterVarOptions[];
 }

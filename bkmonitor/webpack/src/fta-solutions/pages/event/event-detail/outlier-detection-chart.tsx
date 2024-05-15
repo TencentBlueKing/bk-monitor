@@ -25,6 +25,7 @@
  */
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -37,7 +38,7 @@ import './outlier-detection-chart.scss';
  * 事件中心离群检测算法图表
  */
 @Component
-export default class OutlierDetectionChart extends tsc<{}> {
+export default class OutlierDetectionChart extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) detail: IDetail;
 
   @ProvideReactive('timeRange') timeRange: any = 1 * 60 * 60 * 1000;
@@ -59,7 +60,6 @@ export default class OutlierDetectionChart extends tsc<{}> {
   }
 
   async initPanel() {
-    // eslint-disable-next-line max-len
     const { startTime, endTime } = createAutoTimerange(
       this.detail.begin_time,
       this.detail.end_time,
@@ -81,10 +81,10 @@ export default class OutlierDetectionChart extends tsc<{}> {
         data: {
           ...item.data,
           id: this.detail.id,
-          function: undefined
+          function: undefined,
         },
-        api: 'alert.alertGraphQuery'
-      }))
+        api: 'alert.alertGraphQuery',
+      })),
     };
     this.panel = new PanelModel(panelData);
   }

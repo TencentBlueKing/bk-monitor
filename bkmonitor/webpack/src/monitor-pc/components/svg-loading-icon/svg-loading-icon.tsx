@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './svg-loading-icon.scss';
 
 @Component
-export default class SvgLoadingIcon extends tsc<{}> {
+export default class SvgLoadingIcon extends tsc<object> {
   render() {
     return (
       <svg

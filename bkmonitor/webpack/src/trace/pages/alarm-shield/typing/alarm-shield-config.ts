@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 export enum EShieldCycle {
-  single = 'single',
   day = 'day',
+  month = 'month',
+  single = 'single',
   week = 'week',
-  month = 'month'
 }
 export type INoticeDate = {
   [key in EShieldCycle]: {
-    list: { id: string; name: string }[] | (number | string)[];
+    list: (number | string)[] | { id: string; name: string }[];
     range: string[];
   };
 } & {
@@ -43,16 +43,16 @@ export type INoticeDate = {
 export const Ipv6FieldMap = {
   ip: 'host_list',
   node: 'node_list',
-  instance: 'service_instance_list'
+  instance: 'service_instance_list',
 };
 
 export const ShieldDimension2NodeType = {
   ip: 'INSTANCE',
   node: 'TOPO',
-  instance: 'SERVICE_INSTANCE'
+  instance: 'SERVICE_INSTANCE',
 };
 export const ShieldDetailTargetFieldMap = {
   ip: 'bk_target_ip',
   node: 'bk_topo_node',
-  instance: 'service_instance_id'
+  instance: 'service_instance_id',
 };

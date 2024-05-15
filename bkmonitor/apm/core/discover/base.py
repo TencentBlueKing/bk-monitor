@@ -17,15 +17,16 @@ import traceback
 from abc import ABC
 from typing import List, NamedTuple, Tuple
 
+from opentelemetry.semconv.resource import ResourceAttributes
+
 from apm import constants
 from apm.core.discover.precalculation.processor import PrecalculateProcessor
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
-from constants.apm import OtlpKey, SpanKind
-from opentelemetry.semconv.resource import ResourceAttributes
-
+from apm.utils.es_search import limits
 from bkmonitor.utils.thread_backend import ThreadPool
+from constants.apm import OtlpKey, SpanKind
 
 logger = logging.getLogger("apm")
 
@@ -166,7 +167,6 @@ class DiscoverBase(ABC):
 
 
 class TopoHandler:
-
     TRACE_ID_CHUNK_MAX_DURATION = 10 * 60
     # 最大发现的TraceId数量
     TRACE_ID_MAX_SIZE = 50000
@@ -219,7 +219,6 @@ class TopoHandler:
         return body
 
     def list_trace_ids(self):
-
         start = datetime.datetime.now()
         after_key = None
 
@@ -248,15 +247,15 @@ class TopoHandler:
             if not after_key:
                 break
 
-    def list_span_by_trace_ids(self, trace_ids, max_result_count):
-
+    @limits(calls=100, period=1)
+    def list_span_by_trace_ids(self, trace_ids, max_result_count, index_name):
         if max_result_count >= constants.DISCOVER_BATCH_SIZE * len(trace_ids):
             # 直接获取
             query = {
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
                 "size": constants.DISCOVER_BATCH_SIZE * len(trace_ids),
             }
-            response = self.datasource.es_client.search(index=self.datasource.index_name, body=query)
+            response = self.datasource.es_client.search(index=index_name, body=query)
             hits = response["hits"]["hits"]
             return [i["_source"] for i in hits]
         else:
@@ -266,7 +265,7 @@ class TopoHandler:
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
                 "size": constants.DISCOVER_BATCH_SIZE * len(trace_ids),
             }
-            response = self.datasource.es_client.search(index=self.datasource.index_name, body=query, scroll="5m")
+            response = self.datasource.es_client.search(index=index_name, body=query, scroll="5m")
             hits = response["hits"]["hits"]
             res += [i["_source"] for i in hits]
 
@@ -303,6 +302,7 @@ class TopoHandler:
 
     def _get_trace_task_splits(self):
         """根据此索引最大的结果返回数量判断每个子任务需要传递多少个traceId"""
+        index_name = self.datasource.index_name
         index_settings = self.datasource.es_client.indices.get_settings(index=self.datasource.index_name)
         if not index_settings:
             max_size_count = self._ES_MAX_RESULT_WINDOWS
@@ -313,15 +313,16 @@ class TopoHandler:
             )
 
             max_size_count = index_settings[lastly_index].get("settings", {}).get("index", {}).get("max_result_window")
+            index_name = lastly_index
         # ES 1.x-7.x默认值
         max_size_count = int(max_size_count) if max_size_count else self._ES_MAX_RESULT_WINDOWS
 
         if max_size_count >= constants.DISCOVER_BATCH_SIZE:
-            return max_size_count, max_size_count // constants.DISCOVER_BATCH_SIZE
+            return max_size_count, max_size_count // constants.DISCOVER_BATCH_SIZE, index_name
 
         logger.info(f"[TopoHandler] found max_size_count: {max_size_count} < {constants.DISCOVER_BATCH_SIZE}")
 
-        return max_size_count, 1
+        return max_size_count, 1, index_name
 
     def discover(self):
         """application spans discover"""
@@ -330,17 +331,40 @@ class TopoHandler:
         pre_calculate_storage = PrecalculateStorage(self.bk_biz_id, self.app_name)
         trace_id_count = 0
         span_count = 0
-        max_result_count, per_trace_size = self._get_trace_task_splits()
+        max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
 
-        for trace_ids in self.list_trace_ids():
+        for round_index, trace_ids in enumerate(self.list_trace_ids()):
             trace_id_count += len(trace_ids)
 
             pool = ThreadPool()
-            get_spans_params = [(i, max_result_count) for i in divide_biscuit(trace_ids, per_trace_size)]
+            get_spans_params = [(i, max_result_count, index_name) for i in divide_biscuit(trace_ids, per_trace_size)]
             results = pool.map_ignore_exception(self.list_span_by_trace_ids, get_spans_params)
-            all_spans = list(itertools.chain(*[i for i in results if i]))
-            span_count += len(all_spans)
+            all_spans_group = [i for i in results if i]
+            all_spans = list(itertools.chain(*all_spans_group))
+            avg_group_span_count = len(all_spans) / len(get_spans_params)
+            if round_index == 0:
+                # 如果每个 Trace 的 span 数量都远小于最大分析数量 那么可以增大每轮的并发数量
+                if avg_group_span_count * self.PER_ROUND_TRACE_ID_MAX_SIZE * 2 < constants.DISCOVER_BATCH_SIZE:
+                    # 平均每组 span 总数 * 当前轮次 trace 数量 远少于 单 trace 最大数量 认为可以直接使用一次并发就可以解决
+                    per_trace_size = self.PER_ROUND_TRACE_ID_MAX_SIZE
+                else:
+                    # 如果span 数量较多 使用 最大分析数量 / 2 / 每组 span 数量作为之后轮次的并发 trace 数
+                    # 预留一半空间防止真的出现单 trace 超过最大数量问题
+                    per_trace_size = int(
+                        min(
+                            constants.DISCOVER_BATCH_SIZE / 2 / avg_group_span_count,
+                            len(get_spans_params) / 2,
+                        )
+                    )
 
+                logger.info(
+                    f"[TopoHandler] "
+                    f"per_trace_size: {per_trace_size} "
+                    f"avg_group_span_count: {avg_group_span_count} "
+                    f"span_count: {len(all_spans)}"
+                )
+
+            span_count += len(all_spans)
             topo_spans = [i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND]
 
             # 拓扑发现任务

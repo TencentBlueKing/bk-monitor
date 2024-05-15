@@ -48,19 +48,19 @@
     <!-- 趋势图 -->
     <monitor-echarts
       v-if="series.length"
+      :key="chartKey"
       :unit="unit"
       :style="{ backgroundColor: '#f0f1f5' }"
-      :key="chartKey"
       :height="isLandscape ? 311 : 247"
       :series="series"
       :colors="['#7EB26D', '#EAB839']"
       :show-legend="true"
     />
     <div
-      class="no-data"
       v-else
+      class="no-data"
     >
-      {{ loading ? $t('加载中...' ) : $t('查无数据') }}
+      {{ loading ? $t('加载中...') : $t('查无数据') }}
     </div>
     <!-- 时间选择器 -->
     <datetime-picker
@@ -106,6 +106,7 @@
 <script lang="ts">
 import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
+
 import dayjs from 'dayjs';
 import { Popup } from 'vant';
 
@@ -116,7 +117,6 @@ import SelectButton from '../../components/select-button/select-button.vue';
 import HideChartTooltipMixin from '../../mixins/hideChartTooltipMixin';
 import EventModule from '../../store/modules/event-detail';
 import { ICompare, ICompareData, ISelectGroup, ISeriesData } from '../../types/tendency-chart';
-
 import DataCompare from './data-compare.vue';
 
 Component.registerHooks(['beforeRouteLeave']);
@@ -129,41 +129,41 @@ Component.registerHooks(['beforeRouteLeave']);
     DatetimePicker,
     ScreenOrientation,
     DataCompare,
-    [Popup.name]: Popup
-  }
+    [Popup.name]: Popup,
+  },
 })
 export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
   // 事件ID
-  @Prop({ default: -1 }) private readonly id!: string | number;
-  @Prop() private readonly routeKey: string;
-  private orientation = Math.abs(window.orientation as number) === 90 ? Screen.LANDSCAPE : Screen.PORTRAIT;
+  @Prop({ default: -1 }) readonly id!: number | string;
+  @Prop() readonly routeKey: string;
+  orientation = Math.abs(window.orientation as number) === 90 ? Screen.LANDSCAPE : Screen.PORTRAIT;
   // 图表数据
-  private series: ISeriesData[] = [];
-  private unit = '';
+  series: ISeriesData[] = [];
+  unit = '';
 
   // 选择按钮配置
-  private selectGroup: ISelectGroup = {
+  selectGroup: ISelectGroup = {
     list: [],
-    active: 1
+    active: 1,
   };
 
   // 时间范围
-  private minDate: Date = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000);
-  private maxDate: Date = new Date();
-  private customDate: Date = null;
+  minDate: Date = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000);
+  maxDate: Date = new Date();
+  customDate: Date = null;
   // datetime-picker 显示状态
-  private showDP = false;
+  showDP = false;
   // 数据对比弹窗（横屏有效）
-  private showPopup = false;
+  showPopup = false;
   // 对比时间（24h：一天前）
-  private timeCompare = 24;
-  private typeCompare = 1;
+  timeCompare = 24;
+  typeCompare = 1;
   // 表格对比数据
-  private compareData: ICompareData[] = [];
+  compareData: ICompareData[] = [];
   // 时间组件标题
-  private pickerTitle: string;
+  pickerTitle: string;
   // 手动切换横屏按钮
-  private showOrienBtn = false;
+  showOrienBtn = false;
 
   get loading() {
     return this.$store.state.app.loading;
@@ -198,7 +198,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
       width: '50%',
       height: '100%',
       overflow: 'visible',
-      boxShadow: '0px 3px 6px 0px rgba(79,85,96,0.3)'
+      boxShadow: '0px 3px 6px 0px rgba(79,85,96,0.3)',
     };
   }
 
@@ -211,20 +211,20 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
     this.selectGroup.list = [
       {
         text: this.$t('小时', { num: 1 }),
-        value: 1
+        value: 1,
       },
       {
         text: this.$t('小时', { num: 2 }),
-        value: 2
+        value: 2,
       },
       {
         text: this.$t('小时', { num: 24 }),
-        value: 24
+        value: 24,
       },
       {
         text: this.$t('自定义'),
-        value: 0
-      }
+        value: 0,
+      },
     ];
     this.pickerTitle = this.$tc('选择开始时间');
     this.handleGetChartData();
@@ -270,14 +270,12 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
   async handleGetChartData() {
     this.series = [];
     this.$store.commit('app/setPageLoading', true);
-    const startTime =      this.selectGroup.active === 0
-      ? dayjs(this.customDate).unix()
-      : dayjs().add(-this.selectGroup.active, 'h')
-        .unix();
+    const startTime =
+      this.selectGroup.active === 0 ? dayjs(this.customDate).unix() : dayjs().add(-this.selectGroup.active, 'h').unix();
     const params: any = {
       event_id: this.id,
       start_time: startTime,
-      end_time: dayjs().unix()
+      end_time: dayjs().unix(),
     };
     if (this.typeCompare > 0) {
       params.time_compare = this.timeCompare;
@@ -289,28 +287,40 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
       // 智能异常检测算法 边界画图设置
       const { dimensions } = chartSeries;
       const coverList = [];
-      const upBoundary =        data
-        .find(item => item.dimensions.bk_target_ip === dimensions.bk_target_ip
-              && item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id
-              && item.metric.metric_field.includes('upper_bound'))
-        ?.datapoints?.map(item => [item[1], item[0]]) || [];
-      const lowBoundary =        data
-        .find(item => item.dimensions.bk_target_ip === dimensions.bk_target_ip
-              && item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id
-              && item.metric.metric_field.includes('lower_bound'))
-        ?.datapoints?.map(item => [item[1], item[0]]) || [];
-      const coverData =        data.find(item => item?.dimensions?.bk_target_ip === dimensions.bk_target_ip
-            && item?.dimensions?.bk_target_cloud_id === dimensions.bk_target_cloud_id
-            && item?.metric?.metric_field?.includes('is_anomaly'))?.datapoints || [];
+      const upBoundary =
+        data
+          .find(
+            item =>
+              item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
+              item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
+              item.metric.metric_field.includes('upper_bound')
+          )
+          ?.datapoints?.map(item => [item[1], item[0]]) || [];
+      const lowBoundary =
+        data
+          .find(
+            item =>
+              item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
+              item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
+              item.metric.metric_field.includes('lower_bound')
+          )
+          ?.datapoints?.map(item => [item[1], item[0]]) || [];
+      const coverData =
+        data.find(
+          item =>
+            item?.dimensions?.bk_target_ip === dimensions.bk_target_ip &&
+            item?.dimensions?.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
+            item?.metric?.metric_field?.includes('is_anomaly')
+        )?.datapoints || [];
       if (coverData.length) {
         coverList.push({
           data: coverData.map((item, index) => [
             chartSeries?.datapoints[index][1],
-            item[0] > 0 ? chartSeries?.datapoints[index][0] : null
+            item[0] > 0 ? chartSeries?.datapoints[index][0] : null,
           ]),
           color: '#ea3636',
           z: 11,
-          name: '1-cover'
+          name: '1-cover',
         });
       }
       chartData = data
@@ -319,7 +329,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
           const item = {
             datapoints,
             ...setData,
-            target
+            target,
           };
           if (setData.time_offset === 'current') {
             return {
@@ -330,10 +340,10 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
                   lowBoundary,
                   color: '#ccc',
                   stack: `1-boundary-${item.target}`,
-                  z: 5
-                }
+                  z: 5,
+                },
               ],
-              coverSeries: coverList.map(set => ({ ...set, name: `${set.name}-${item.target}` }))
+              coverSeries: coverList.map(set => ({ ...set, name: `${set.name}-${item.target}` })),
             };
           }
           return item;
@@ -344,7 +354,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
         chartData = data;
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     this.series = chartData.map(({ markTimeRange, markPoints, ...item }) => {
       item.target = this.getSemanticsTime(item.target);
       return item;
@@ -359,7 +369,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
   handleSetCompareData(series = []) {
     this.compareData = series.map(item => ({
       ...item.statistics,
-      name: item.name || item.target.split('-')[0]
+      name: item.name || item.target.split('-')[0],
     }));
   }
 
@@ -408,7 +418,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
       color: $defaultFontColor;
 
       :deep(.text) {
-        font-size: .8rem;
+        font-size: 0.8rem;
       }
 
       .select-btn-item {
@@ -436,7 +446,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
       height: 2rem;
 
       :deep(.text) {
-        font-size: .8rem;
+        font-size: 0.8rem;
       }
     }
   }
@@ -451,7 +461,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
     height: 3rem;
     background: #fff;
     border-radius: 4px 0 0 4px;
-    box-shadow: -1px 1px 2px 0 rgba(79, 85, 96, .3);
+    box-shadow: -1px 1px 2px 0 rgba(79, 85, 96, 0.3);
     transform: translate(-1.2rem, -50%);
 
     i {

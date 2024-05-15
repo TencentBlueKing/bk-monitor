@@ -13,12 +13,12 @@ import json
 import time
 from collections import defaultdict
 
-import fakeredis
 import mock
 import pytest
+from django.conf import settings
 
 from alarm_backends.core.cache import key
-from alarm_backends.service.access.data import AccessDataProcess
+from alarm_backends.service.access.data import AccessBatchDataProcess, AccessDataProcess
 from bkmonitor.models import CacheNode
 from bkmonitor.utils.common_utils import count_md5
 
@@ -47,8 +47,8 @@ class MockRecord:
 class TestAccessDataProcess(object):
     def setup_method(self):
         CacheNode.refresh_from_settings()
-        redis = fakeredis.FakeRedis(decode_responses=True)
-        redis.flushall()
+        c = key.ACCESS_BATCH_DATA_KEY.client
+        c.flushall()
 
     def teardown_method(self):
         pass
@@ -70,19 +70,61 @@ class TestAccessDataProcess(object):
             "bk_target_ip": "127.0.0.2",
             "load5": 0,
             "bk_target_cloud_id": "0",
-            "_time_": 1569246480000,
+            "_time_": 1569246420,
             "_result_": 0,
         }
         assert acc_data.record_list[1].raw_data == {
             "bk_target_ip": "127.0.0.1",
             "load5": 1.381234,
             "bk_target_cloud_id": "0",
-            "_time_": 1569246480000,
+            "_time_": 1569246480,
             "_result_": 1.381234,
         }
         assert mock_strategy.call_count == 1
         assert mock_records.call_count == 1
         assert mock_strategy_group.call_count == 1
+
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_V3
+    )
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_group_detail", return_value={"1": [1]}
+    )
+    @mock.patch("alarm_backends.core.control.item.Item.query_record", return_value=query_record)
+    @mock.patch("alarm_backends.service.access.tasks.run_access_batch_data")
+    def test_pull_batch(self, mock_batch, mock_records, mock_strategy_group, mock_strategy):
+        strategy_group_key = "123456789"
+        acc_data = AccessDataProcess(strategy_group_key)
+        settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 2
+        settings.ACCESS_DATA_BATCH_PROCESS_SIZE = 1
+        acc_data.pull()
+
+        c = key.ACCESS_BATCH_DATA_KEY.client
+        data_key = key.ACCESS_BATCH_DATA_KEY.get_key(
+            strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.batch_timestamp}.2"
+        )
+        result = c.lrange(data_key, 0, -1)
+        assert len(result) == 2
+        assert (
+            result[0]
+            == '{"bk_target_ip":"127.0.0.3","load5":null,"bk_target_cloud_id":"0","_time_":1569246420,"_result_":null}'
+        )
+        assert len(acc_data.record_list) == 1
+        assert mock_batch.delay.call_count == 1
+
+        p = AccessBatchDataProcess(strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.batch_timestamp}.2")
+        p.filters = []
+        p.process()
+        assert len(p.record_list) == 1
+
+        result = c.lrange(
+            key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(
+                strategy_group_key=strategy_group_key, timestamp=acc_data.batch_timestamp
+            ),
+            0,
+            -1,
+        )
+        assert len(result) == 1
 
     @mock.patch(
         "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_V3

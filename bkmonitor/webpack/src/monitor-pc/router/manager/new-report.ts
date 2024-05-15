@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 import * as reportAuth from '../../pages/new-report/authority-map';
@@ -36,7 +36,7 @@ export default [
     path: '/trace/report',
     name: 'report',
     components: {
-      noCache: Report
+      noCache: Report,
     },
     meta: {
       title: '邮件订阅',
@@ -44,18 +44,18 @@ export default [
       noNavBar: true,
       authority: {
         map: reportAuth,
-        page: [reportAuth.MANAGE_AUTH]
+        page: [reportAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'manager'
-      }
-    }
+        parent: 'manager',
+      },
+    },
   },
   {
     path: '/trace/report/create',
     name: 'create-report',
     components: {
-      noCache: Report
+      noCache: Report,
     },
     meta: {
       title: '新建订阅',
@@ -63,46 +63,46 @@ export default [
       navId: 'report',
       authority: {
         map: reportAuth,
-        page: [reportAuth.MANAGE_AUTH]
+        page: [reportAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'report'
+        parent: 'report',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   // 20240229 该 我的订阅 页面作为 iframe 嵌入到 日志平台 展示
   {
     path: '/trace/report/my-report',
     name: 'my-report',
     components: {
-      noCache: MyReport
+      noCache: MyReport,
     },
     meta: {
       title: '我的订阅',
       needBack: true,
       navId: 'report',
       route: {
-        parent: 'report'
+        parent: 'report',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   // 20240229 该 我的申请 页面作为 iframe 嵌入到 日志平台 展示
   {
     path: '/trace/report/my-applied-report',
     name: 'my-applied-report',
     components: {
-      noCache: MyAppliedReport
+      noCache: MyAppliedReport,
     },
     meta: {
       title: '我的申请',
       needBack: true,
       navId: 'report',
       route: {
-        parent: 'report'
+        parent: 'report',
       },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

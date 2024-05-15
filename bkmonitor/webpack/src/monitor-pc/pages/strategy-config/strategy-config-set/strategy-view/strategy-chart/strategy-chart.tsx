@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable no-param-reassign */
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,11 +27,13 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, random, typeTools } from 'monitor-common/utils/utils';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 
+import { LETTERS } from '../../../../../common/constant';
 import { SET_DIMENSIONS_OF_SERIES } from '../../../../../store/modules/strategy-config';
 import { ChartType } from '../../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
 import { IFunctionsValue } from '../../../strategy-config-set-new/monitor-data/function-select';
@@ -48,7 +50,7 @@ interface IProps {
   dimensions?: Record<string, any>;
   aiopsChartType?: ChartType;
   needConnect?: boolean;
-  chartType?: 'line' | 'bar';
+  chartType?: 'bar' | 'line';
   expFunctions: IFunctionsValue[];
   editMode?: EditModeType;
   sourceData?: ISourceData;
@@ -79,7 +81,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   /** 是否需要图表联动 */
   @Prop({ default: true, type: Boolean }) needConnect: boolean;
   /** 图表类型 */
-  @Prop({ default: 'line', type: String }) chartType: 'line' | 'bar';
+  @Prop({ default: 'line', type: String }) chartType: 'bar' | 'line';
   /** 表达式函数 */
   @Prop({ default: () => [], type: Array }) expFunctions: IFunctionsValue[];
   @Prop({ default: () => [], type: Array }) strategyTarget: any[];
@@ -144,12 +146,12 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
             level: 1,
             type: 'Threshold',
             config: [[{ method: 'gte', threshold: val, name: this.$t('异常分值阈值') }]],
-            title: this.$t('异常分值阈值')
-          }
+            title: this.$t('异常分值阈值'),
+          },
         ],
         unit: '',
         unitList: [],
-        unitType: ''
+        unitType: '',
       };
     }
     return null;
@@ -216,10 +218,10 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
         type: 'graphs',
         options: {
           time_series_list: {
-            need_hover_style: false
-          }
+            need_hover_style: false,
+          },
         },
-        panels: [await this.createLocalMetricPanel()]
+        panels: [await this.createLocalMetricPanel()],
       };
     }
     if (this.hasIntelligentDetect && this.aiopsChartType === 'score') {
@@ -235,12 +237,12 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   /** 根据表达式生成指标图的title */
   getMetricName() {
     // 字符串分隔成多个单词
-    const metricName = (this.expression || 'a').replace(/\b\w+\b/g, alias => {
+    const metricName = (this.expression || LETTERS.at(0)).replace(/\b\w+\b/g, alias => {
       // 单词分隔成多个关键字
       return alias.replace(/and|or|\w/g, keyword => {
         if (keyword === 'and' || keyword === 'or') return keyword;
         const metric = this.metricData.find(item => item.alias === keyword);
-        if (metric) return metric.metric_field_name;
+        if (metric) return metric.metric_field_name || alias;
         return keyword || '';
       });
     });
@@ -264,13 +266,13 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
           type: this.chartType,
           only_one_result: true,
           custom_timerange: true,
-          nearSeriesNum: this.isNear ? this.nearNum : 0
+          nearSeriesNum: this.isNear ? this.nearNum : 0,
         },
         time_series_forecast: {
           need_hover_style: false,
           duration: this.duration,
-          ...thresholdOptions
-        }
+          ...thresholdOptions,
+        },
       },
       targets: [
         {
@@ -278,20 +280,20 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
           alias: '',
           datasource: 'time_series',
           data_type: 'time_series',
-          api: 'grafana.graphUnifyQuery'
+          api: 'grafana.graphUnifyQuery',
         },
         {
           data: this.getQueryParams(this.hasTimeSeriesForecast, true, [
             { field: 'predict', alias: undefined, method: '', display: true },
             { field: 'upper_bound', alias: undefined, method: '', display: true },
-            { field: 'lower_bound', alias: undefined, method: '', display: true }
+            { field: 'lower_bound', alias: undefined, method: '', display: true },
           ]),
           alias: '',
           datasource: 'time_series',
           data_type: 'time_series',
-          api: 'grafana.graphUnifyQuery'
-        }
-      ]
+          api: 'grafana.graphUnifyQuery',
+        },
+      ],
     };
     return new PanelModel(data as any);
   }
@@ -303,7 +305,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
    */
   async createLocalMetricPanel(isMetric = true) {
     const queryConfigs = this.getQueryParams(this.hasIntelligentDetect, isMetric);
-    // eslint-disable-next-line max-len
+
     const thresholdOptions = await handleThreshold(
       isMetric ? this.detectionConfig : this.scoreThreshold,
       this.yAxisNeedUnitGetter
@@ -322,8 +324,8 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
           noTransformVariables: this.editMode === 'Source',
           only_one_result: !this.isNear,
           nearSeriesNum: this.isNear ? this.nearNum : 0,
-          ...thresholdOptions
-        }
+          ...thresholdOptions,
+        },
       },
       targets: [
         {
@@ -331,16 +333,16 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
           alias: '',
           datasource: 'time_series',
           data_type: 'time_series',
-          api: 'grafana.graphUnifyQuery'
-        }
-      ]
+          api: 'grafana.graphUnifyQuery',
+        },
+      ],
     };
     if (!isMetric) {
       data.options = {
         ...data.options,
         header: {
-          tips: this.$t('异常分值范围从0～1，越大越异常')
-        }
+          tips: this.$t('异常分值范围从0～1，越大越异常'),
+        },
       } as any;
     }
     return new PanelModel(data as any);
@@ -354,7 +356,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
    */
   getQueryParams(isDetect = false, isMetric = true, metrics?) {
     const params = {
-      expression: this.expression || 'a',
+      expression: this.expression || LETTERS.at(0),
       functions: this.expression ? this.expFunctions : [],
       target: this.strategyTarget || [],
       query_configs:
@@ -364,8 +366,8 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 data_source_label: 'prometheus',
                 data_type_label: 'time_series',
                 promql: this.sourceData.sourceCode.replace(/\n/g, ''),
-                agg_interval: this.sourceData.step
-              }
+                agg_interval: this.sourceData.step,
+              },
             ]
           : this.metricData.map(
               ({
@@ -388,7 +390,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 time_field: timeField,
                 bkmonitor_strategy_id: bkmonitorStrategyId,
                 custom_event_name: customEventName,
-                curRealMetric
+                curRealMetric,
               }) => {
                 dataSourceLabel = curRealMetric?.data_source_label || dataSourceLabel;
                 dataTypeLabel = curRealMetric?.data_type_label || dataTypeLabel;
@@ -400,7 +402,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                       dataSourceLabel,
                       resultTableId,
                       metricField,
-                      dataTypeLabel
+                      dataTypeLabel,
                     }
                   : {};
                 const fieldValue = () => {
@@ -416,7 +418,14 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 const method = aggMethod === 'REAL_TIME' || this.dataMode === 'realtime' ? 'REAL_TIME' : aggMethod;
                 let localMetrics = this.hasIntelligentDetect
                   ? this.createMetrics(isMetric)
-                  : [{ field: fieldValue(), method, alias: alias || 'a', display: dataTypeLabel === 'alert' }];
+                  : [
+                      {
+                        field: fieldValue(),
+                        method,
+                        alias: alias || LETTERS.at(0),
+                        display: dataTypeLabel === 'alert',
+                      },
+                    ];
                 if (this.hasTimeSeriesForecast && metrics) {
                   // 时序预测
                   localMetrics = [...localMetrics, ...metrics];
@@ -428,7 +437,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                     metricMetaId === 'bk_log_search|log'
                       ? {
                           index_set_id,
-                          query_string: keywords_query_string
+                          query_string: keywords_query_string,
                         }
                       : { index_set_id: extendFields.index_set_id || '' };
                 }
@@ -461,7 +470,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                       }, {}),
                   functions: isDetect ? [] : func,
                   target: this.strategyTarget || [],
-                  ...logParam
+                  ...logParam,
                 };
                 const tempAggDimension = [...agg_dimension];
                 /** 指标带有智能检测算法的数据时候使用 */
@@ -471,7 +480,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                     data_type_label,
                     result_table_id,
                     agg_dimension = tempAggDimension,
-                    agg_condition
+                    agg_condition,
                   } = this.intelligentDetect;
                   result.data_source_label = data_source_label;
                   result.data_type_label = data_type_label;
@@ -481,7 +490,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 }
                 return result;
               }
-            )
+            ),
     };
     return params;
   }
@@ -493,11 +502,11 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     if (type === 'none') metricFields = ['value', 'is_anomaly'];
     if (type === 'boundary') metricFields = ['value', 'lower_bound', 'upper_bound', 'is_anomaly'];
     if (type === 'score') metricFields = isMetric ? ['value', 'is_anomaly'] : ['anomaly_score'];
-    const metrics = metricFields.map(field => ({
+    const metrics = metricFields.map((field, index) => ({
       field,
       method: field === 'anomaly_score' ? '' : this.intelligentDetect?.agg_method || method,
-      alias: field === 'value' ? alias : 'a',
-      display: ['anomaly_score', 'value'].includes(field) ? undefined : true
+      alias: field === 'value' ? alias : LETTERS.at(index),
+      display: ['anomaly_score', 'value'].includes(field) ? undefined : true,
     }));
     return metrics;
   }
@@ -511,8 +520,8 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       <div class={['aiops-chart-strategy-wrap', { 'time-series-forecast': this.hasTimeSeriesForecast }]}>
         {!!this.panel && (
           <ChartWrapper
-            panel={this.panel}
             needHoverStryle={false}
+            panel={this.panel}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
           ></ChartWrapper>
         )}

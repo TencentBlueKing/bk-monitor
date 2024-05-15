@@ -68,7 +68,7 @@ export default class DaysSelect extends tsc<IProps> {
       const map = {
         [ERepeatTypeId.weeks]: () => [new Date().getDay()],
         [ERepeatTypeId.months]: () => [new Date().getDate()],
-        [ERepeatTypeId.years]: () => [new Date().getMonth() + 1]
+        [ERepeatTypeId.years]: () => [new Date().getMonth() + 1],
       };
       checkedList = map[this.mode]?.();
     }
@@ -89,20 +89,20 @@ export default class DaysSelect extends tsc<IProps> {
         name: index => {
           const mapList = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
           return this.$t(mapList[index]);
-        }
+        },
       },
       [ERepeatTypeId.months]: { count: 31, name: index => `${index + 1}`, id: index => index + 1 },
       [ERepeatTypeId.years]: {
         count: 12,
         name: index => `${index + 1}月`,
-        id: index => index + 1
-      }
+        id: index => index + 1,
+      },
     };
     const obj = map[this.mode];
     const list = new Array(obj.count).fill(null).map((item, index) => ({
       id: obj.id?.(index),
       name: obj.name(index),
-      checked: this.value.includes(index)
+      checked: this.value.includes(index),
     }));
     this.optionsList = list;
   }

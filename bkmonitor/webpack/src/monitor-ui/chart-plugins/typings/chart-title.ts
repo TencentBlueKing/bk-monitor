@@ -64,13 +64,13 @@ export type CurrentTargetType = {
 };
 
 export type ChartTitleMenuType =
-  | 'save'
-  | 'screenshot'
-  | 'fullscreen'
-  | 'explore'
-  | 'strategy'
-  | 'set'
   | 'area'
   | 'drill-down'
+  | 'explore'
+  | 'fullscreen'
+  | 'more'
   | 'relate-alert'
-  | 'more';
+  | 'save'
+  | 'screenshot'
+  | 'set'
+  | 'strategy';

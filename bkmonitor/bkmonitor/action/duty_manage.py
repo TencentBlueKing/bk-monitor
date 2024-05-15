@@ -10,10 +10,13 @@ specific language governing permissions and limitations under the License.
 """
 import calendar
 import logging
+import time
+import typing
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from dateutil.relativedelta import relativedelta
+from django.db import OperationalError, transaction
 from django.db.models import Q
 
 from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
@@ -24,6 +27,9 @@ from constants.action import NoticeWay
 from constants.common import DutyGroupType, RotationType, WorkTimeType
 
 logger = logging.getLogger("fta_action.run")
+
+MAX_RETRIES = 3  # 最大重试次数
+BATCH_SIZE = 1000  # 每批次更新的记录数量
 
 
 class DutyCalendar:
@@ -495,6 +501,30 @@ class DutyRuleManager:
         )
         return duty_work_time
 
+    @classmethod
+    def refresh_duty_rule_from_any_begin_time(
+        cls, duty_rule: typing.Dict[str, typing.Any], begin_time: str
+    ) -> typing.Optional["DutyRuleManager"]:
+        """
+        从任何起点刷新 duty_rule 排班
+
+        背景：新创建的轮值快照以「创建/任务时间」作为起始时间进行排班，和规则「生效时间」脱钩
+        导致问题：告警组关联轮值在新建、轮值规则变更等场景下，基于「创建/任务时间（begin_time）」重新排班会导致
+        思路：交替排班是基于「生效时间」生成的连续排班规则，
+             每次新建排班快照，都要预计算生效时间到 begin_time，把 duty_rule_snap 的 index 和 begin_time 刷对
+
+        :param duty_rule:
+        :param begin_time:
+        :return:
+        """
+        is_handoff: bool = duty_rule.get("category") == "handoff"
+        if begin_time > duty_rule["effective_time"] and is_handoff:
+            duty_manager = cls(duty_rule, end_time=begin_time)
+            # 排班会刷新 rule_snap 中 duty_time["begin_time"] 和 duty_arrange["last_user_index"]
+            duty_manager.get_duty_plan()
+            return duty_manager
+        return None
+
 
 class GroupDutyRuleManager:
     """
@@ -557,9 +587,20 @@ class GroupDutyRuleManager:
             DutyRuleSnap.objects.filter(duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id).delete()
 
             # 已经设置的好的排班计划，也需要设置为不生效
-            DutyPlan.objects.filter(
-                duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id, is_effective=1
-            ).update(is_effective=0)
+            for retry_count in range(MAX_RETRIES):
+                try:
+                    self.update_duty_plan(disabled_duty_rules, self.user_group.id)
+                    break  # 成功执行，跳出循环
+                except OperationalError as e:
+                    if 'Deadlock' in str(e):
+                        # 如果已达到最大重试次数，抛出异常
+                        if retry_count == MAX_RETRIES - 1:
+                            raise e
+                        time.sleep(0.5)  # 一段时间后重试
+                        continue
+                    else:
+                        # 非死锁异常,直接抛出
+                        raise e
 
         # 排除掉没有发生变化的，其他的都需要重新生效
         new_group_rule_snaps = [
@@ -582,6 +623,21 @@ class GroupDutyRuleManager:
 
         # step1 先创建一波新的snap
         if new_group_rule_snaps:
+            # Q：为什么不在上方 DutyRuleSnap 初始化时就执行 effective_time ~ task_time 的刷新？
+            # A：只有「新建 / 快照变更」场景需要根据 effective_time 刷对顺序，如果 DutyRuleSnap 已存在，排班顺序是有保障的
+            # Q：为什么 DutyRuleSnap 存在时，排班顺序有保障？
+            # A：DutyRuleManager.get_duty_plan 每次都会迭代 snap 里的 begin_time 和 user_index
+            for new_group_rule_snap in new_group_rule_snaps:
+                refresh_duty_manager: typing.Optional[
+                    DutyRuleManager
+                ] = DutyRuleManager.refresh_duty_rule_from_any_begin_time(
+                    new_group_rule_snap.rule_snap, begin_time=task_time
+                )
+                if refresh_duty_manager:
+                    # 更新对应的rule_snap的下一次管理计划任务时间
+                    new_group_rule_snap.next_plan_time = refresh_duty_manager.end_time
+                    new_group_rule_snap.next_user_index = refresh_duty_manager.last_user_index
+
             DutyRuleSnap.objects.bulk_create(new_group_rule_snaps)
 
         # step2 然后再来一波更新
@@ -598,6 +654,22 @@ class GroupDutyRuleManager:
             next_plan_time__lte=time_tools.datetime2str(plan_time), user_group_id=self.user_group.id, enabled=True
         ):
             self.manage_duty_plan(rule_snap=rule_snap)
+
+    def update_duty_plan(self, disabled_duty_rules, user_group_id):
+        """
+        分批更新失效的排班计划
+        """
+        with transaction.atomic():
+            # 使用 select_for_update() 锁定相关记录
+            duty_plans = DutyPlan.objects.select_for_update().filter(
+                duty_rule_id__in=disabled_duty_rules, user_group_id=user_group_id, is_effective=1
+            )
+
+            # 分批更新记录
+            for i in range(0, len(duty_plans), BATCH_SIZE):
+                duty_plan_batch = duty_plans[i : i + BATCH_SIZE]
+                duty_plan_ids = [duty_plan.id for duty_plan in duty_plan_batch]
+                DutyPlan.objects.filter(id__in=duty_plan_ids).update(is_effective=0)
 
     def manage_duty_plan(self, rule_snap: DutyRuleSnap):
         """

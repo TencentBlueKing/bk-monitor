@@ -32,8 +32,8 @@ export default defineComponent({
   props: {
     content: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   setup(props) {
     return () => (
@@ -42,5 +42,5 @@ export default defineComponent({
         {props.content}
       </div>
     );
-  }
+  },
 });

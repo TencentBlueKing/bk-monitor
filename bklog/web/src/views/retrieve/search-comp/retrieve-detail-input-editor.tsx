@@ -25,7 +25,6 @@ import MonacoEditor from '../../../components/collection-access/components/step-
 import * as monaco from 'monaco-editor';
 import './retrieve-detail-input-editor.scss';
 import classDragMixin from '../../../mixins/class-drag-mixin';
-import { Debounce } from '../../../common/util';
 
 @Component
 export default class UiQuery extends Mixins(classDragMixin) {
@@ -106,7 +105,6 @@ export default class UiQuery extends Mixins(classDragMixin) {
   @Emit('focus')
   emitFocus() {}
 
-  @Debounce(300)
   @Emit('input')
   emitInput(value) {
     return value;

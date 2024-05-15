@@ -25,13 +25,13 @@
  */
 import Vue from 'vue';
 import VueI18n from 'vue-i18n';
+
 import { lang, locale } from 'bk-magic-vue';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { docCookies } from 'monitor-common/utils/utils';
 
-import './dayjs';
-
 import { mergeI18nJson } from './commmon';
+import './dayjs';
 // 获取语言偏好设置
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
 
@@ -58,8 +58,8 @@ const i18n = new VueI18n({
   silentTranslationWarn: false, // 是否警告翻译缺失
   messages: {
     // 翻译文件
-    ...mergeI18nJson()
-  }
+    ...mergeI18nJson(),
+  },
 });
 
 // 将 VueI18n 实例挂载到全局变量 window.i18n 上
