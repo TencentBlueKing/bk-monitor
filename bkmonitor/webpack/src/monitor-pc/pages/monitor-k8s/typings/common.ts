@@ -51,7 +51,7 @@ export type IQueryDataSearch = Array<Record<string, string | string[]>>;
 export interface IBkSeachSelectValue {
   id: string;
   name: string;
-  multiable?: boolean;
+  multiple?: boolean;
   values?: Array<{ id: string; name: string }>;
-  chidlren?: Array<{ id: string; name: string }>;
+  children?: Array<{ id: string; name: string }>;
 }

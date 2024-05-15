@@ -73,6 +73,7 @@ export default defineComponent({
       normal: [],
       no_data: [],
     });
+    const applicationListLoading = ref(false);
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: {
@@ -204,6 +205,7 @@ export default defineComponent({
 
     /** 获取应用/服务列表 */
     async function getApplicationList() {
+      applicationListLoading.value = true;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       applicationList.value = await listApplicationServices({
         start_time: start,
@@ -212,6 +214,7 @@ export default defineComponent({
         normal: [],
         no_data: [],
       }));
+      applicationListLoading.value = false;
     }
 
     /** 查询项公共参数 */
@@ -234,9 +237,12 @@ export default defineComponent({
       localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item => !item.key);
       labelList.value = [];
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
-      const labels = await queryLabels({
-        ...labelCommonParams.value,
-      }).catch(() => ({ label_keys: [] }));
+      const labels = await queryLabels(
+        {
+          ...labelCommonParams.value,
+        },
+        { needMessage: false }
+      ).catch(() => ({ label_keys: [] }));
       labelList.value = labels.label_keys;
     }
 
@@ -250,6 +256,7 @@ export default defineComponent({
     return {
       t,
       applicationList,
+      applicationListLoading,
       localFormData,
       retrievalType,
       labelList,
@@ -287,6 +294,7 @@ export default defineComponent({
                 <div class='content'>
                   <ApplicationCascade
                     list={this.applicationList}
+                    loading={this.applicationListLoading}
                     value={[this.localFormData.server.app_name, this.localFormData.server.service_name]}
                     onChange={this.handleApplicationChange}
                   ></ApplicationCascade>

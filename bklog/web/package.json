@@ -30,7 +30,7 @@
     "@opentelemetry/sdk-trace-base": "^1.23.0",
     "@opentelemetry/sdk-trace-web": "^1.23.0",
     "axios": "1.6.0",
-    "bk-magic-vue": "2.5.8",
+    "bk-magic-vue": "2.5.9-beta.22",
     "dayjs": "^1.11.10",
     "deepmerge": "^4.3.1",
     "echarts": "^4.9.0",

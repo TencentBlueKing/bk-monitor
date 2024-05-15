@@ -674,17 +674,13 @@ export default class BasicInfo extends tsc<object> {
                           <bk-form-item property='relatedBizId'>
                             <bk-select
                               vModel={this.localRelationInfo.relatedBizId}
+                              display-key='name'
+                              id-Key='id'
+                              list={this.bizSelectList}
+                              enable-virtual-scroll
                               searchable
                               onChange={v => this.handleLogBizChange(v)}
-                            >
-                              {this.bizSelectList.map(option => (
-                                <bk-option
-                                  id={option.id}
-                                  key={option.id}
-                                  name={option.name}
-                                ></bk-option>
-                              ))}
-                            </bk-select>
+                            ></bk-select>
                           </bk-form-item>
                           <bk-form-item property='logValue'>
                             <bk-select
@@ -745,17 +741,13 @@ export default class BasicInfo extends tsc<object> {
                   <div class='edit-form-item app-form-item'>
                     <bk-select
                       vModel={this.localRelationInfo.bizId}
+                      display-key='name'
+                      id-Key='id'
+                      list={this.bizSelectList}
+                      enable-virtual-scroll
                       searchable
                       onChange={v => this.handleBizChange(v)}
-                    >
-                      {this.bizSelectList.map(option => (
-                        <bk-option
-                          id={option.id}
-                          key={option.id}
-                          name={option.name}
-                        ></bk-option>
-                      ))}
-                    </bk-select>
+                    ></bk-select>
                     <bk-form
                       ref='appForm'
                       {...{

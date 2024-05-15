@@ -82,13 +82,13 @@ MOCK_K8S_NODE_LIST_BY_CLUSTER = [
     [
         {
             "bcs_cluster_id": "BCS-K8S-00000",
-            "node_ip": "1.1.1.1",
+            "node_ip": "127.0.0.1",
         }
     ],
     [
         {
             "bcs_cluster_id": "BCS-K8S-00001",
-            "node_ip": "2.2.2.2",
+            "node_ip": "127.0.0.2",
         }
     ],
 ]
@@ -98,8 +98,8 @@ MOCK_CMDB_GET_HOST_BY_IP = [
         Host(
             {
                 "bk_biz_id": 2,
-                "bk_host_innerip": "1.1.1.1",
-                "ip": "1.1.1.1",
+                "bk_host_innerip": "127.0.0.1",
+                "ip": "127.0.0.1",
                 "bk_host_id": 1,
                 "bk_cloud_id": 0,
             }
@@ -109,8 +109,8 @@ MOCK_CMDB_GET_HOST_BY_IP = [
         Host(
             {
                 "bk_biz_id": 2,
-                "bk_host_innerip": "2.2.2.2",
-                "ip": "2.2.2.2",
+                "bk_host_innerip": "127.0.0.2",
+                "ip": "127.0.0.2",
                 "bk_host_id": 2,
                 "bk_cloud_id": 1,
             }

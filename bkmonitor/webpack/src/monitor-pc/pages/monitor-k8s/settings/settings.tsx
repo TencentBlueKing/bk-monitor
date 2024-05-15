@@ -70,7 +70,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
   /** 设置页签的切换 */
   localActiveTab = '';
   /** 首次通过dashboard进入设置页面的页签数据，用户比较设置弹窗关闭后判断是否需要更新页签 */
-  sourceTabData = {};
+  sourceTabData: Record<string, any> = {};
   localBookMarkData: IBookMark[] = [];
   isShowPanelChange = false;
 
@@ -94,7 +94,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
   /** 判断是否可新增删除页签 目前未动态配置 暂时由前端配置 采集、自定义指标支持 */
   get canAddTab() {
     // 匹配采集场景
-    return /^collect_|custom_metric_.*$/.test(this.sceneId) || this.$route.name === 'custom-scenes-view';
+    return this.sourceTabData?.options?.view_editable;
   }
 
   created() {
@@ -240,7 +240,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
     this.isShowPanelChange = data.show_panel_count;
     this.handleSaveConfig(config, tabData).then(async () => {
       const newTabData = await this.getTabList();
-      const curPageData = await this.localBookMarkData.find(item => item.id === data.id);
+      const curPageData = this.localBookMarkData.find(item => item.id === data.id);
       const isPanelChange = JSON.stringify(newTabData) !== JSON.stringify(this.bookMarkData);
       curPageData && (curPageData.show_panel_count = data.show_panel_count);
       this.handlePanelChange(isPanelChange);

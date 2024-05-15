@@ -16,9 +16,10 @@
   "dependencies": {
     "@antv/g6": "^4.8.24",
     "@blueking/fork-resize-detector": "^0.0.2",
+    "@blueking/search-select-v3": "0.0.1-beta.8",
     "@toast-ui/editor": "^3.2.2",
-    "bk-magic-vue": "2.5.8",
     "big.js": "^6.2.1",
+    "bk-magic-vue": "2.5.8",
     "d3-array": "^3.1.1",
     "d3-dispatch": "^3.0.1",
     "d3-ease": "^3.0.1",

@@ -26,6 +26,7 @@
 import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -35,6 +36,7 @@ import { IStatusData } from '../../../collector-config/collector-view-detail/sta
 import { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName,
@@ -42,6 +44,7 @@ import {
 import { StatusClassNameType } from '../host-tree/host-tree';
 
 import './host-list.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 export const DEFAULT_TAB_LIST = [
   {
@@ -252,7 +255,7 @@ export default class HostList extends tsc<IProps, IEvents> {
         })
         .then(data => {
           const list = typeTools.isObject(data) ? data.data : data;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           return list;
         })
@@ -363,7 +366,8 @@ export default class HostList extends tsc<IProps, IEvents> {
     return matchStatus && matchName;
   }
 
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.handleGetDataList();
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
@@ -465,12 +469,11 @@ export default class HostList extends tsc<IProps, IEvents> {
         <div class='host-list-main'>
           <div class='host-list-tool'>
             {this.conditionList.length ? (
-              <bk-search-select
-                vModel={this.searchCondition}
+              <SearchSelect
+                clearable={false}
                 data={this.currentConditionList}
+                modelValue={this.searchCondition}
                 placeholder={this.$t('搜索')}
-                show-condition={false}
-                show-popover-tag-change={false}
                 onChange={this.handleSearch}
               />
             ) : (
