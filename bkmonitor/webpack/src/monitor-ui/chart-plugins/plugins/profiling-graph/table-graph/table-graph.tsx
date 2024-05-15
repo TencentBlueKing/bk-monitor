@@ -110,7 +110,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
 
   getTableData() {
     const filterList = deepClone(this.data || [])
-      .filter(item => (!!this.filterKeyword ? item.name.includes(this.filterKeyword) : true))
+      .filter(item =>
+        !!this.filterKeyword ? item.name.toLocaleLowerCase().includes(this.filterKeyword.toLocaleLowerCase()) : true
+      )
       .map(item => {
         const palette = Object.values(ColorTypes);
         const colorIndex = getHashVal(item.name) % palette.length;

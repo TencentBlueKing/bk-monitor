@@ -124,7 +124,11 @@ export default defineComponent({
     function getTableData() {
       const filterList = deepClone(
         props.data
-          .filter(item => (!!props.filterKeyword ? item.name.includes(props.filterKeyword) : true))
+          .filter(item =>
+            !!props.filterKeyword
+              ? item.name.toLocaleLowerCase().includes(props.filterKeyword.toLocaleLowerCase())
+              : true
+          )
           .map(item => {
             const palette = Object.values(ColorTypes);
             const colorIndex = getHashVal(item.name) % palette.length;
