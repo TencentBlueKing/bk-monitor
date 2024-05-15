@@ -414,6 +414,7 @@ export default {
   观测: 'Observe',
   使用文档: 'Documents',
   'Profile 接入指引': 'Profile Access Guide',
+  查看接入指引: 'View access instructions',
 
   更新执行历史: 'Update Execution History',
   告警分析: 'Analysis',

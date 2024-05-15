@@ -1200,6 +1200,7 @@ class CollectorHandler(object):
             "topic": data_result["mq_config"]["storage_config"]["topic"],
             "username": data_result["mq_config"]["auth_info"]["username"],
             "password": data_result["mq_config"]["auth_info"]["password"],
+            "sasl_mechanism": data_result["mq_config"]["auth_info"].get("sasl_mechanisms"),
             "is_ssl_verify": cluster_config.get("is_ssl_verify", False),
             "ssl_insecure_skip_verify": cluster_config.get("ssl_insecure_skip_verify", True),
             "ssl_cafile": ssl_cafile,

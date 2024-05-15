@@ -2471,18 +2471,10 @@ class CollectInstanceStatusResource(CollectTargetStatusResource):
         res_data = api.node_man.batch_task_result(
             subscription_id=self.config.deployment_config.subscription_id, need_detail=True
         )
-
-        last_task_list = []
         for instance in res_data:
-            task_info = dict()
-            task_info["task_id"] = instance["task_id"]
             if instance["status"] in [TaskStatus.DEPLOYING, TaskStatus.RUNNING]:
-                task_info["status"] = self.running_status.get(self.config.last_operation, TaskStatus.DEPLOYING)
-
-            task_info.update(instance_info=instance["instance_info"], instance_id=instance["instance_id"])
-            last_task_list.append(task_info)
-
-        return last_task_list
+                instance["status"] = self.running_status.get(self.config.last_operation, TaskStatus.DEPLOYING)
+        return res_data
 
     def classify_instances(self, instance_list):
         if instance_list:

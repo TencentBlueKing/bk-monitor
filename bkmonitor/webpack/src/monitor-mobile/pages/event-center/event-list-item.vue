@@ -44,13 +44,13 @@
     </transition>
     <ul
       ref="event-list"
-      :data-show="showTarget"
       :class="['event-item-target']"
+      :data-show="showTarget"
     >
       <li
         v-for="(item, index) in itemData.events"
-        :key="item.eventId + '-' + index"
         class="target-item"
+        :key="item.eventId + '-' + index"
         @click="goToDetail(item)"
       >
         <template v-if="!itemData.target">

@@ -83,6 +83,15 @@ def django_request_hook(span: Span, request):
     # Set the serialized parameters as an attribute on the span
     span.set_attribute("request.params", params_str)
 
+    # Set user information as an attribute on the span
+    user = getattr(request, "user", None)
+    if user and hasattr(user, "is_authenticated"):
+        is_authenticated = user.is_authenticated() if callable(user.is_authenticated) else user.is_authenticated
+        if is_authenticated:
+            span.set_attribute("user.username", user.username)
+        else:
+            span.set_attribute("user.username", "anonymous")
+
 
 def django_response_hook(span, request, response):
     if hasattr(response, "data"):

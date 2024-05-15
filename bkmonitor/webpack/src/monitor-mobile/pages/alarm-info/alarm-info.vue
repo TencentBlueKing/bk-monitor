@@ -32,12 +32,12 @@
     >
       <van-collapse-item
         v-for="item in header.list"
-        :key="item.id"
         class="header-item"
-        :title="item.title"
-        :is-link="item.id === 'message'"
         :border="item.id !== 'message'"
+        :is-link="item.id === 'message'"
+        :key="item.id"
         :name="item.id"
+        :title="item.title"
       >
         <template
           v-if="item.id !== 'message'"
@@ -46,7 +46,6 @@
           {{ item.value }}
         </template>
         <template v-else-if="item.value">
-          <!-- eslint-disable-next-line vue/singleline-html-element-content-newline -->
           <div class="header-item-pre">{{ item.value }}</div>
         </template>
       </van-collapse-item>
@@ -57,8 +56,8 @@
     <van-list class="card-list">
       <div
         v-for="(item, index) in eventList"
-        :key="index"
         class="card-list-item"
+        :key="index"
         @click="handleGotoDetail(item)"
       >
         <div class="card-title">
@@ -118,18 +117,18 @@
           >
             <monitor-mobile-echarts
               height="70"
-              :options="chartOption"
-              :get-series-data="() => handleGetChartData(item)"
               class="card-chart"
+              :get-series-data="() => handleGetChartData(item)"
+              :options="chartOption"
               @click="handleGotoTendency(item)"
             />
           </div>
         </div>
         <van-button
           class="card-button"
-          plain
-          type="info"
           :disabled="item.isShielded"
+          type="info"
+          plain
           @click.stop="!item.isShielded && handleGotoShield(item.id)"
         >
           {{ $t('快捷屏蔽') }}

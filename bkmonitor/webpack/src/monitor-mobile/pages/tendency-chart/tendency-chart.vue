@@ -30,11 +30,11 @@
       <div class="select-btn">
         <select-button
           v-for="(item, index) in selectGroup.list"
-          :key="index"
           class="select-btn-item"
-          :class="orientation"
-          :text="item.text"
           :active="item.value === selectGroup.active"
+          :class="orientation"
+          :key="index"
+          :text="item.text"
           @click="changeTime(item.value)"
         />
       </div>
@@ -48,13 +48,13 @@
     <!-- 趋势图 -->
     <monitor-echarts
       v-if="series.length"
-      :key="chartKey"
-      :unit="unit"
       :style="{ backgroundColor: '#f0f1f5' }"
-      :height="isLandscape ? 311 : 247"
-      :series="series"
       :colors="['#7EB26D', '#EAB839']"
+      :height="isLandscape ? 311 : 247"
+      :key="chartKey"
+      :series="series"
       :show-legend="true"
+      :unit="unit"
     />
     <div
       v-else
@@ -64,19 +64,19 @@
     </div>
     <!-- 时间选择器 -->
     <datetime-picker
-      :title="pickerTitle"
       :max-date="maxDate"
       :min-date="minDate"
       :show.sync="showDP"
+      :title="pickerTitle"
       @confirm="getDatetime"
     />
     <!-- 数据对比 -->
     <van-popup
       v-if="isLandscape"
-      v-model="showPopup"
-      position="right"
-      :overlay="false"
       :style="popupStyle"
+      v-model="showPopup"
+      :overlay="false"
+      position="right"
     >
       <span
         class="popup-icon"
@@ -85,21 +85,21 @@
         <i class="icon-monitor icon-arrow-right" />
       </span>
       <data-compare
-        :data="compareData"
         :colors="['#7EB26D', '#EAB839']"
+        :data="compareData"
         @change="handleCompareChange"
       />
     </van-popup>
     <data-compare
       v-else
-      :data="compareData"
       :colors="['#7EB26D', '#EAB839']"
+      :data="compareData"
       @change="handleCompareChange"
     />
     <!-- 横屏和竖屏 -->
     <screen-orientation
-      v-show="showOrienBtn"
       v-model="orientation"
+      v-show="showOrienBtn"
     />
   </div>
 </template>
