@@ -106,12 +106,13 @@ PYINSTRUMENT_URL_ARGUMENT = "bk-log-profile"
 # 这里是默认的中间件，大部分情况下，不需要改动
 # 如果你已经了解每个默认 MIDDLEWARE 的作用，确实需要去掉某些 MIDDLEWARE，或者改动先后顺序，请去掉下面的注释，然后修改
 MIDDLEWARE = (
+    # 性能分析
+    "apps.middleware.pyinstrument.ProfilerMiddleware",
     # http -> https 转换中间件
     "apps.middlewares.HttpsMiddleware",
     "django.middleware.gzip.GZipMiddleware",
     "apps.middleware.user_middleware.BkLogMetricsBeforeMiddleware",
     # request instance provider
-    "apps.middleware.pyinstrument.ProfilerMiddleware",
     "blueapps.middleware.request_provider.RequestProvider",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
