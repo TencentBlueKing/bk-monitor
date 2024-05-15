@@ -150,16 +150,16 @@ class ValueCalculator:
         for node in tree.nodes_map.values():
             node.value = c.calculate(node.values)
 
-        cls.ensure_parent_value(tree.root)
+        tree.root.value = cls.adjust_node_values(tree.root)
 
     @classmethod
-    def ensure_parent_value(cls, node: FunctionNode):
-        children_total = sum(i.value for i in node.children)
-        if node.value < children_total:
-            node.value = children_total
+    def adjust_node_values(cls, node: FunctionNode):
+        if not node.children:
+            return node.value
 
-        for i in node.children:
-            cls.ensure_parent_value(i)
+        total_child_value = sum(cls.adjust_node_values(child) for child in node.children)
+        node.value = max(node.value, total_child_value)
+        return node.value
 
     class GoroutineCount:
         type = "goroutine"
