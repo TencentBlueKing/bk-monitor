@@ -62,7 +62,8 @@ def get_event_relation_info(event: Event):
         }
     )
 
-    return get_data_source_log(data_source, query_config, int(event.latest_anomaly_record.source_time.timestamp()))
+    content = get_data_source_log(data_source, query_config, int(event.latest_anomaly_record.source_time.timestamp()))
+    return content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
 
 
 def get_alert_relation_info(alert: AlertDocument, length_limit=True):
@@ -248,7 +249,6 @@ def get_clustering_log(
             logger.exception(f"get alert[{alert.id}] signature[{log_signature}] log clustering new pattern error: {e}")
 
     content = json.dumps(record, ensure_ascii=False)
-    # 截断
     return content
 
 
