@@ -1843,4 +1843,6 @@ export default {
   内容配置: 'Content configuration',
   邮件配置: 'Email configuration',
   只展示新类: 'Only show new classes',
+  关闭检测的对象: 'Disable detection object',
+  方案: 'Plan',
 };
