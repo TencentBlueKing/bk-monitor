@@ -328,9 +328,7 @@
             <span
               v-bk-tooltips.top="{
                 content: getDisabledTipsMessage(props.row, 'search'),
-                disabled:
-                  !props.row.status ||
-                  !(!props.row.is_active || (!props.row.index_set_id && !props.row.bkdata_index_set_ids.length)),
+                disabled: getOperatorCanClick(props.row, 'search'),
                 delay: 500
               }"
               class="king-button"
@@ -339,45 +337,56 @@
                 v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
                 theme="primary"
                 text
-                :disabled="!props.row.is_active || (!props.row.index_set_id && !props.row.bkdata_index_set_ids.length)"
+                :disabled="!getOperatorCanClick(props.row, 'search')"
                 @click="operateHandler(props.row, 'search')"
               >
                 {{ $t('检索') }}
               </bk-button>
             </span>
             <!-- 编辑 -->
-            <bk-button
-              v-cursor="{
-                active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-              }"
-              theme="primary"
-              text
-              class="king-button"
-              @click.stop="operateHandler(props.row, 'edit')"
-            >
-              {{ $t('编辑') }}
-            </bk-button>
             <span
               v-bk-tooltips.top="{
-                content: getDisabledTipsMessage(props.row, 'clean'),
-                disabled: !props.row.status || props.row.table_id,
+                content: getDisabledTipsMessage(props.row, 'edit'),
+                disabled: getOperatorCanClick(props.row, 'edit'),
                 delay: 500
               }"
+              class="king-button"
             >
-              <!-- 清洗 -->
               <bk-button
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                 }"
                 theme="primary"
                 text
-                class="king-button"
-                :disabled="!props.row.table_id"
+                :disabled="!getOperatorCanClick(props.row, 'edit')"
+                @click.stop="operateHandler(props.row, 'edit')"
+              >
+                {{ $t('编辑') }}
+              </bk-button>
+            </span>
+
+            <!-- 清洗 -->
+            <span
+              v-bk-tooltips.top="{
+                content: getDisabledTipsMessage(props.row, 'clean'),
+                disabled: getOperatorCanClick(props.row, 'clean'),
+                delay: 500
+              }"
+              class="king-button"
+            >
+              <bk-button
+                v-cursor="{
+                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                }"
+                theme="primary"
+                text
+                :disabled="!getOperatorCanClick(props.row, 'clean')"
                 @click.stop="operateHandler(props.row, 'clean')"
               >
                 {{ $t('清洗') }}
               </bk-button>
             </span>
+
             <bk-popover
               class="dot-menu"
               placement="bottom-start"
@@ -401,6 +410,12 @@
                     v-cursor="{
                       active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH])
                     }"
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'view'),
+                      disabled: getOperatorCanClick(props.row, 'view'),
+                      delay: 500
+                    }"
+                    :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'view') }"
                     href="javascript:;"
                     @click="operateHandler(props.row, 'view')"
                   >
@@ -409,7 +424,13 @@
                 </li>
                 <li v-if="isShowMaskingTemplate">
                   <a
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'masking'),
+                      disabled: getOperatorCanClick(props.row, 'masking'),
+                      delay: 500
+                    }"
                     href="javascript:;"
+                    :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'masking') }"
                     @click.stop="operateHandler(props.row, 'masking')"
                   >
                     {{ $t('日志脱敏') }}
@@ -418,22 +439,15 @@
                 <!-- 存储设置 -->
                 <li>
                   <a
-                    v-if="!props.row.table_id"
-                    v-bk-tooltips.top="{
-                      content: getDisabledTipsMessage(props.row, 'storage'),
-                      disabled: !props.row.status || props.row.table_id,
-                      delay: 500
-                    }"
-                    href="javascript:;"
-                    class="text-disabled"
-                  >
-                    {{ $t('存储设置') }}
-                  </a>
-                  <a
-                    v-else
                     v-cursor="{
                       active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                     }"
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'storage'),
+                      disabled: getOperatorCanClick(props.row, 'storage'),
+                      delay: 500
+                    }"
+                    :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'storage') }"
                     href="javascript:;"
                     @click.stop="operateHandler(props.row, 'storage')"
                     >{{ $t('存储设置') }}</a
@@ -442,98 +456,80 @@
                 <!-- 克隆 -->
                 <li>
                   <a
-                    v-if="!props.row.table_id"
+                    v-cursor="{
+                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                    }"
                     v-bk-tooltips.top="{
                       content: getDisabledTipsMessage(props.row, 'clone'),
-                      disabled: !props.row.status || props.row.table_id,
+                      disabled: getOperatorCanClick(props.row, 'clone'),
                       delay: 500
                     }"
+                    :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'clone') }"
                     href="javascript:;"
-                    class="text-disabled"
+                    @click.stop="operateHandler(props.row, 'clone')"
                   >
                     {{ $t('克隆') }}
                   </a>
-                  <a
-                    v-else
-                    v-cursor="{
-                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                    }"
-                    href="javascript:;"
-                    @click.stop="operateHandler(props.row, 'clone')"
-                    >{{ $t('克隆') }}</a
-                  >
                 </li>
                 <li v-if="props.row.is_active">
                   <a
-                    v-if="
-                      !props.row.status ||
-                      props.row.status === 'running' ||
-                      props.row.status === 'prepare' ||
-                      !collectProject
-                    "
+                    v-cursor="{
+                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                    }"
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'stop'),
+                      disabled: getOperatorCanClick(props.row, 'stop'),
+                      delay: 500
+                    }"
+                    :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'stop') }"
                     href="javascript:;"
-                    class="text-disabled"
+                    @click.stop="operateHandler(props.row, 'stop')"
                   >
                     {{ $t('停用') }}
                   </a>
-                  <a
-                    v-else
-                    v-cursor="{
-                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                    }"
-                    href="javascript:;"
-                    @click.stop="operateHandler(props.row, 'stop')"
-                    >{{ $t('停用') }}</a
-                  >
                 </li>
                 <li v-else>
                   <a
-                    v-if="
-                      !props.row.status ||
-                      props.row.status === 'running' ||
-                      props.row.status === 'prepare' ||
-                      !collectProject
-                    "
+                    v-cursor="{
+                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                    }"
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'start'),
+                      disabled: getOperatorCanClick(props.row, 'start'),
+                      delay: 500
+                    }"
+                    :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'start') }"
                     href="javascript:;"
-                    class="text-disabled"
+                    @click.stop="operateHandler(props.row, 'start')"
                   >
                     {{ $t('启用') }}
                   </a>
-                  <a
-                    v-else
-                    v-cursor="{
-                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                    }"
-                    href="javascript:;"
-                    @click.stop="operateHandler(props.row, 'start')"
-                    >{{ $t('启用') }}</a
-                  >
                 </li>
                 <li>
                   <a
-                    v-if="!props.row.status || props.row.status === 'running' || props.row.is_active || !collectProject"
-                    v-bk-tooltips.top="{
-                      content: getDisabledTipsMessage(props.row, 'delete'),
-                      disabled: !props.row.status,
-                      delay: 500
-                    }"
-                    href="javascript:;"
-                    class="text-disabled"
-                  >
-                    {{ $t('删除') }}
-                  </a>
-                  <a
-                    v-else
                     v-cursor="{
                       active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                     }"
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'delete'),
+                      disabled: getOperatorCanClick(props.row, 'delete'),
+                      delay: 500
+                    }"
+                    :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'start') }"
                     href="javascript:;"
                     @click.stop="operateHandler(props.row, 'delete')"
-                    >{{ $t('删除') }}</a
                   >
+                    {{ $t('删除') }}
+                  </a>
                 </li>
                 <li v-if="enableCheckCollector">
                   <a
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'report'),
+                      disabled: getOperatorCanClick(props.row, 'report'),
+                      delay: 500
+                    }"
+                    :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'report') }"
                     href="javascript:;"
                     @click.stop="handleShowReport(props.row)"
                   >
