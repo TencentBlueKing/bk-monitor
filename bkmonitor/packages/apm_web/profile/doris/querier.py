@@ -316,15 +316,14 @@ class QueryTemplate:
                 label_filter=label_filter,
                 service_name=service_name,
                 metric_fields="count(*)",
-                dimension_fields="(ROUND(dtEventTimeStamp / 60000) * 60)",
+                dimension_fields="FLOOR((dtEventTimeStamp / 1000) / 60) * 60000 AS time",
                 general_filters={"sample_type": f"op_eq|{sample_type}"},
             ),
             result_table_id=self.result_table_id,
         ).execute()
         if not res or not res.get("list", []):
             return None
-        field_key = "((round((CAST(`dtEventTimeStamp` AS DOUBLE) / 60000)) * 60))"
-        return [[i["count(*)"], int(i[field_key]) * 1000] for i in res["list"] if field_key in i]
+        return [[i["count(*)"], int(i["time"])] for i in res["list"] if "time" in i]
 
     def list_labels(
         self,
