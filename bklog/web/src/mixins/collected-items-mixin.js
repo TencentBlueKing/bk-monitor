@@ -183,33 +183,27 @@ export default {
       }
     },
     getDisabledTipsMessage(row, operateType) {
-      if (row.itsm_ticket_status !== 'applying') {
-        if (operateType === 'delete') return this.disabledTips.delete;
-        if (!this.disabledTips[row.status]) return '--';
-        if (this.disabledTips[row.status].operateType?.includes(operateType)) {
-          return this.disabledTips[row.status].tips;
-        }
-        return '--';
+      if (operateType === 'delete') return this.disabledTips.delete;
+      if (!this.disabledTips[row.status]) return '--';
+      if (this.disabledTips[row.status].operateType?.includes(operateType)) {
+        return this.disabledTips[row.status].tips;
       }
-      return this.$t('容量审核中，请等待');
+      return '--';
     },
     getOperatorCanClick(row, operateType) {
-      if (row.itsm_ticket_status !== 'applying') {
-        if (operateType === 'search') {
-          return !(!row.is_active || (!row.index_set_id && !row.bkdata_index_set_ids.length));
-        }
-        if (['clean', 'storage', 'clone'].includes(operateType)) {
-          return !row.status || row.table_id;
-        }
-        if (['stop', 'start'].includes(operateType)) {
-          return !(!row.status || row.status === 'running' || row.status === 'prepare' || !this.collectProject);
-        }
-        if (operateType === 'delete') {
-          return !(!row.status || row.status === 'running' || row.is_active || !this.collectProject);
-        }
-        return true;
+      if (operateType === 'search') {
+        return !(!row.is_active || (!row.index_set_id && !row.bkdata_index_set_ids.length));
       }
-      return false;
+      if (['clean', 'storage', 'clone'].includes(operateType)) {
+        return !row.status || row.table_id;
+      }
+      if (['stop', 'start'].includes(operateType)) {
+        return !(!row.status || row.status === 'running' || row.status === 'prepare' || !this.collectProject);
+      }
+      if (operateType === 'delete') {
+        return !(!row.status || row.status === 'running' || row.is_active || !this.collectProject);
+      }
+      return true;
     }
   }
 };
