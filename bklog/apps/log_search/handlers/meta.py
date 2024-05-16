@@ -25,7 +25,7 @@ from collections import defaultdict
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
-from apps.api import BKLoginApi, CmsiApi, TransferApi
+from apps.api import CmsiApi, TransferApi
 from apps.feature_toggle.handlers import toggle
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.iam import ActionEnum, Permission
@@ -38,7 +38,7 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import FunctionGuideException
 from apps.log_search.models import ProjectInfo, Space, UserMetaConf
 from apps.utils import APIModel
-from apps.utils.local import get_request_username
+from apps.utils.local import get_request
 from apps.utils.log import logger
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -170,8 +170,9 @@ class MetaHandler(APIModel):
 
     @classmethod
     def get_user(cls):
-        username = get_request_username()
-        data = BKLoginApi.get_user()
+        request = get_request()
+        username = request.user.username
+        data = request.user_info
         return {
             "username": username,
             "language": data.get("language", "zh-cn"),

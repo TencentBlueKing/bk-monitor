@@ -529,7 +529,12 @@ class LogIndexSet(SoftDeleteModel):
 
         tags_data_dic = IndexSetTag.batch_get_tags(set(tag_id_list))
 
-        no_data_check_time_list = [cls.no_data_check_time(str(index_set_id)) for index_set_id in index_set_ids]
+        no_data_check_time = None
+        for index_set_id in index_set_ids:
+            no_data_check_time = cls.no_data_check_time(str(index_set_id))
+            if no_data_check_time:
+                # 这里只要近似值，只要取到其中一个即可，没有必要将全部索引的时间都查出来
+                break
 
         mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, get_request_username()))
 
@@ -545,7 +550,7 @@ class LogIndexSet(SoftDeleteModel):
         )
 
         result = []
-        for index_set, no_data_check_time in zip(index_sets, no_data_check_time_list):
+        for index_set in index_sets:
             if show_indices:
                 index_set["indices"] = index_set_data.get(index_set["index_set_id"], [])
                 if not index_set["indices"]:
