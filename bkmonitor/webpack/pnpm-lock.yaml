@@ -195,8 +195,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/functional-dependency':
-        specifier: 0.0.1-beta.9
-        version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16)
+        specifier: 0.0.1-beta.10
+        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.1
         version: 1.0.1
@@ -344,8 +344,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/functional-dependency':
-        specifier: 0.0.1-beta.9
-        version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16)
+        specifier: 0.0.1-beta.10
+        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16)
       '@blueking/ip-selector':
         specifier: 0.2.0-beta
         version: 0.2.0-beta
@@ -2422,8 +2422,8 @@ packages:
     resolution: {integrity: sha512-gHy4ulTJzy1IG/2o+X13hkC/pN9hbD3WTJz2h9ILSMZy7jHdpQt2Utj0Ppn8MSS/go9QKm0fbHFvNUaLt1/tVw==}
     dev: false
 
-  /@blueking/functional-dependency@0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16):
-    resolution: {integrity: sha512-n+p1RFDQfio8bYktfx2tXTBy7Uy4UzkygGxxol9xIVwgkVr5K1nM1g7RJg54M06H/z1pVkmGoU4Y/OIgAGMkvw==}
+  /@blueking/functional-dependency@0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.59)(vue@2.7.16):
+    resolution: {integrity: sha512-bQXGIJP5tI+IHtS7moLyqUqX4dDASCCShc2tniMdWakFJCXH7WZasHPJGmzieNhGIzIRFk4lwlVPY6kk5TEzJQ==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4

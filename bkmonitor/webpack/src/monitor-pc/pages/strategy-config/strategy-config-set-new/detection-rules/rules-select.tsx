@@ -79,6 +79,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
   }
 
   handleTypeChange(item) {
+    this.showFunctionalDepsDialog = true;
     if (item.disabled) {
       this.showFunctionalDepsDialog = true;
       return;
@@ -92,7 +93,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
     this.show = !this.show;
   }
   handleFunctionalDepsGotoMore() {
-    window.open('http://www.baidu.com', '__brank');
+    window.open(`${window.bk_docs_site_url}markdown/ZH/DeploymentGuides/7.1/index.md`, '__brank');
   }
   render() {
     return (
@@ -170,14 +171,12 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
           </div>
         )}
         <FuctionalDependency
-          functionalDesc={
-            this.$t('支持单指标异常检测、时序预测、离群检测等智能检测算法。').toString() +
-            this.$t('支持维度下钻、关联指标事件展示等功能。').toString()
-          }
-          guideDescList={[this.$t('需要部署bkbase，同时将AI相关的模型导入到该环境运行')]}
+          functionalDesc={this.$t('支持单指标异常检测、时序预测、离群检测等智能检测算法')}
+          guideDescList={[this.$t('1. 基础计算平台：将 AI 相关的模型导入到该环境运行')]}
+          guideTitle={this.$t('如需使用该功能，需要部署：')}
           mode='dialog'
           showDialog={this.showFunctionalDepsDialog}
-          title={this.$t('未启用智能分析功能')}
+          title={this.$t('暂无 AI 功能')}
           onGotoMore={this.handleFunctionalDepsGotoMore}
           onShowDialogChange={v => (this.showFunctionalDepsDialog = v)}
         />
