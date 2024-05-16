@@ -94,6 +94,7 @@ DATASOURCE_QUERY_TIME = Histogram(
     name="bkmonitor_datasource_query_time",
     documentation="各数据源查询请求耗时",
     labelnames=("data_source_label", "data_type_label", "role", "result_table", "api"),
+    buckets=(0.1, 0.5, 1, 3, 5, 10, 15, 30, 100, 300, INF),
 )
 
 DATASOURCE_QUERY_COUNT = Counter(
@@ -107,6 +108,7 @@ ACCESS_DATA_PROCESS_TIME = Histogram(
     name="bkmonitor_access_data_process_time",
     documentation="access(data) 模块处理耗时",
     labelnames=("strategy_group_key",),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 ACCESS_DATA_PROCESS_COUNT = Counter(
@@ -125,6 +127,7 @@ ACCESS_EVENT_PROCESS_TIME = Histogram(
     name="bkmonitor_access_event_process_time",
     documentation="access(event) 模块处理耗时",
     labelnames=("data_id",),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 ACCESS_EVENT_PROCESS_COUNT = Counter(
@@ -155,6 +158,7 @@ DETECT_PROCESS_TIME = Histogram(
     name="bkmonitor_detect_process_time",
     documentation="detect 模块处理耗时",
     labelnames=("strategy_id",),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 DETECT_PROCESS_COUNT = Counter(
@@ -174,6 +178,7 @@ TRIGGER_PROCESS_TIME = Histogram(
     name="bkmonitor_trigger_process_time",
     documentation="trigger 模块处理耗时",
     labelnames=("strategy_id",),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 TRIGGER_PROCESS_COUNT = Counter(
@@ -199,6 +204,7 @@ NODATA_PROCESS_TIME = Histogram(
     name="bkmonitor_nodata_process_time",
     documentation="nodata 模块处理耗时",
     labelnames=("strategy_id",),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 NODATA_PROCESS_COUNT = Counter(
@@ -224,6 +230,7 @@ ALERT_PROCESS_TIME = Histogram(
     name="bkmonitor_alert_process_time",
     documentation="alert(builder) 模块处理耗时",
     labelnames=(),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 ALERT_PROCESS_COUNT = Counter(
@@ -236,6 +243,7 @@ ALERT_POLLER_TIME = Histogram(
     name="bkmonitor_alert_poller_time",
     documentation="alert(builder) 模块拉取处理时间",
     labelnames=("bk_data_id",),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 ALERT_POLLER_COUNT = Counter(
@@ -248,6 +256,7 @@ ALERT_MANAGE_TIME = Histogram(
     name="bkmonitor_alert_manage_time",
     documentation="alert(manager) 模块处理耗时",
     labelnames=("status", "exception"),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 ALERT_MANAGE_COUNT = Counter(
@@ -319,6 +328,7 @@ COMPOSITE_PROCESS_TIME = Histogram(
     name="bkmonitor_composite_process_time",
     documentation="composite 模块处理耗时",
     labelnames=("strategy_id",),
+    buckets=(0.1, 0.5, 1, 2, 3, 5, 10, 30, 60, 180, 300, INF),
 )
 
 COMPOSITE_PROCESS_COUNT = Counter(
@@ -348,6 +358,7 @@ CONVERGE_PROCESS_TIME = Histogram(
         "strategy_id",
         "instance_type",
     ),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 CONVERGE_PROCESS_COUNT = Counter(
@@ -373,6 +384,7 @@ ALERT_ASSIGN_PROCESS_TIME = Histogram(
     name="bkmonitor_alert_assign_process_time",
     documentation="分派处理耗时",
     labelnames=("bk_biz_id", "assign_type", "alert_source", "notice_type"),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 ALERT_ASSIGN_PROCESS_COUNT = Counter(
@@ -386,6 +398,7 @@ ACTION_CREATE_PROCESS_TIME = Histogram(
     name="bkmonitor_action_create_process_time",
     documentation="action 模块动作创建耗时",
     labelnames=("strategy_id", "signal", "run_type", "notice_type"),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 ACTION_CREATE_PROCESS_COUNT = Counter(
@@ -404,6 +417,7 @@ ACTION_EXECUTE_TIME = Histogram(
     name="bkmonitor_action_execute_time",
     documentation="action 模块动作执行耗时",
     labelnames=("bk_biz_id", "plugin_type", "strategy_id", "signal"),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
 ACTION_EXECUTE_COUNT = Counter(
@@ -462,7 +476,10 @@ CELERY_TASK_EXECUTE_TIME = Histogram(
 
 
 ALARM_CONTEXT_GET_FIELD_TIME = Histogram(
-    name="bkmonitor_alarm_context_get_field_time", documentation="处理套餐上下文字段获取耗时", labelnames=("field", "exception")
+    name="bkmonitor_alarm_context_get_field_time",
+    documentation="处理套餐上下文字段获取耗时",
+    labelnames=("field", "exception"),
+    buckets=(0.1, 0.5, 1, 3, 5, 10, 30, 60, 300, 1800, INF),
 )
 
 API_FAILED_REQUESTS_TOTAL = Counter(
