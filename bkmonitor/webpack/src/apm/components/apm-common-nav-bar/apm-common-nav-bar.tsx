@@ -41,6 +41,8 @@ export interface INavItem {
   subName?: string;
   query?: Record<string, any>;
   class?: string;
+  // 不需要文本点击跳转功能
+  notLink?: boolean;
   /** 下拉配置 */
   selectOption?: {
     /** 下拉选择的值 */
@@ -77,7 +79,7 @@ interface ICommonNavBarEvents {
 export type NavBarMode = 'copy' | 'display' | 'share';
 
 @Component({
-  name: 'CommonNavBar',
+  name: 'ApmCommonNavBar',
   components: {
     TemporaryShare: () =>
       import(/* webpackChunkName: "TemporaryShare" */ 'monitor-pc/components/temporary-share/temporary-share') as any,
@@ -106,7 +108,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
 
   // goto page by name
   handleGotoPage(item: INavItem) {
-    if (this.readonly) return;
+    if (this.readonly || item.notLink) return;
     const targetRoute = this.$router.resolve({ name: item.id, query: item.query || {} });
     /** 防止出现跳转当前地址导致报错 */
     if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
@@ -136,6 +138,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
   }
 
   handleNavSelect(selectItem: ISelectItem, routeItem: INavItem) {
+    if (selectItem.name === routeItem.selectOption.value) return;
     this.$emit('navSelect', selectItem, routeItem.id);
     (this.$refs[`navSelectPopover_${routeItem.id}`] as any)?.hideHandler();
   }
@@ -161,28 +164,16 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
               class='bar-item'
             >
               {index > 0 ? <span class='item-split'>/</span> : undefined}
-              <bk-popover
-                ref={`navSelectPopover_${item.id}`}
-                arrow={false}
-                disabled={!item.selectOption}
-                distance={0}
-                offset={-10}
-                placement='bottom-end'
-                theme='light nav-bar-select-popover'
-                trigger='click'
-                onHide={() => this.handleNavSelectShow(item)}
-                onShow={() => this.handleNavSelectShow(item)}
-              >
-                {!item.selectOption?.loading ? (
-                  <div
+              {!item.selectOption?.loading ? (
+                [
+                  <span
                     class={{
                       'item-name': true,
-                      'parent-nav': !!item.id && index < len - 1 && !item.selectOption,
+                      'parent-nav': !!item.id && index < len - 1 && !item.notLink,
                       'only-title': len === 1,
                       [item.class]: !!item.class,
-                      active: this.navSelectShow[item.id],
                     }}
-                    onClick={() => item.id && index < len - 1 && !item.selectOption && this.handleGotoPage(item)}
+                    onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
                   >
                     <span class='item-name-text'>{item.name}</span>
                     {!!item.subName && (
@@ -190,34 +181,49 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                         {item.name ? '-' : ''}&nbsp;{item.subName}
                       </span>
                     )}
-                    {item.selectOption && (
-                      <div class='arrow-wrap'>
-                        <i class='icon-monitor icon-mc-arrow-down'></i>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div class='skeleton-element'></div>
-                )}
-                <ul
-                  class='nav-bar-select-popover-content'
-                  slot='content'
-                >
-                  {item.selectOption?.selectList.length ? (
-                    item.selectOption.selectList.map(selectItem => (
-                      <li
-                        class={{ item: true, active: selectItem.name === item.selectOption.value }}
-                        v-bk-overflow-tips
-                        onClick={() => this.handleNavSelect(selectItem, item)}
+                  </span>,
+                  item.selectOption && (
+                    <bk-popover
+                      ref={`navSelectPopover_${item.id}`}
+                      arrow={false}
+                      distance={0}
+                      offset={-10}
+                      placement='bottom-end'
+                      theme='light nav-bar-select-popover'
+                      trigger='click'
+                      onHide={() => this.handleNavSelectShow(item)}
+                      onShow={() => this.handleNavSelectShow(item)}
+                    >
+                      {
+                        <div class={{ 'arrow-wrap': true, active: this.navSelectShow[item.id] }}>
+                          <i class='icon-monitor icon-mc-arrow-down'></i>
+                        </div>
+                      }
+
+                      <ul
+                        class='nav-bar-select-popover-content'
+                        slot='content'
                       >
-                        {selectItem.name}
-                      </li>
-                    ))
-                  ) : (
-                    <li class='empty'>{this.$t('暂无数据')}</li>
-                  )}
-                </ul>
-              </bk-popover>
+                        {item.selectOption.selectList.length ? (
+                          item.selectOption.selectList?.map(selectItem => (
+                            <li
+                              class={{ item: true, active: selectItem.name === item.selectOption.value }}
+                              v-bk-overflow-tips
+                              onClick={() => this.handleNavSelect(selectItem, item)}
+                            >
+                              {selectItem.name}
+                            </li>
+                          ))
+                        ) : (
+                          <li class='empty'>{this.$t('暂无数据')}</li>
+                        )}
+                      </ul>
+                    </bk-popover>
+                  ),
+                ]
+              ) : (
+                <div class='skeleton-element'></div>
+              )}
             </li>
           ))}
         </ul>

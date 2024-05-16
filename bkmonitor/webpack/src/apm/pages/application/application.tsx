@@ -150,6 +150,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           id: 'application',
           name: `${window.i18n.tc('应用')}：${appName}`,
           subName: '',
+          notLink: true,
           selectOption: {
             value: appName,
             selectList: [],
