@@ -23,12 +23,6 @@
     height: 21px;
     line-height: 21px;
 
-    &:not(:first-child) {
-      .item-name:hover {
-        background-color: #f0f1f5;
-      }
-    }
-
     .item-split {
       display: flex;
       align-items: center;
@@ -42,26 +36,20 @@
       align-items: center;
       font-size: 14px;
       color: #313238;
-      cursor: pointer;
+      cursor: initial;
 
       &.only-title {
         font-size: 16px;
       }
 
-      &.active {
+      &.parent-nav {
         color: #3a84ff;
-        background-color: #e1ecff;
-
-        .arrow-wrap {
-          color: #3a84ff;
-          transform: rotateZ(180deg);
-        }
+        cursor: pointer;
       }
 
       .item-name-text {
         display: inline-block;
         height: 20px;
-        padding-left: 5px;
         line-height: 20px;
       }
 
@@ -83,6 +71,16 @@
       text-align: center;
       background-color: transparent;
       border-radius: 2px;
+
+      &:hover {
+        background-color: #f0f1f5;
+      }
+
+      &.active {
+        color: #3a84ff;
+        background-color: #e1ecff;
+        transform: rotateZ(180deg);
+      }
     }
 
     .skeleton-element {
