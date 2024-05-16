@@ -242,12 +242,11 @@ class QueryProfileBarGraphResource(Resource):
 
     def perform_request(self, validate_data):
         interval = get_interval(validate_data["start_time"], validate_data["end_time"])
-        datapoint, start_time, end_time = split_by_interval(
+        _, start_time, end_time = split_by_interval(
             validate_data["start_time"],
             validate_data["end_time"],
             interval,
         )
-        print(datapoint)
         query_template = QueryTemplate(validate_data["bk_biz_id"], validate_data["app_name"])
 
         count_points = query_template.get_count(
