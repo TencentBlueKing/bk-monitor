@@ -60,8 +60,11 @@
         :size="size"
         :pagination="pagination"
         :limit-list="pagination.limitList"
-        @filter-change="handleFilterChange"
+        :row-class-name="handleRowClassName"
         @page-change="handlePageChange"
+        @row-mouse-enter="handleRowMouseEnter"
+        @row-mouse-leave="handleRowMouseLeave"
+        @filter-change="handleFilterChange"
         @page-limit-change="handleLimitChange"
       >
         <bk-table-column
@@ -1088,6 +1091,34 @@ export default {
       } catch (error) {
         this.selectLabelList = [];
       }
+    },
+    handleRowClassName({ row }) {
+      if (row.itsm_ticket_status === 'applying') {
+        return 'itsm-ticket-applying';
+      }
+
+      return '';
+    },
+    handleRowMouseEnter(_index, e, row) {
+      if (row.itsm_ticket_status === 'applying') {
+        if (!this.itsmApplyingPopoverInstance) {
+          this.itsmApplyingPopoverInstance = this.$bkPopover(e.target, {
+            content: this.$t('容量审核中，请等待'),
+            placement: 'top',
+            arrow: true,
+            extCls: 'itsm-applying-popover',
+            onHidden: () => {
+              this.itsmApplyingPopoverInstance?.destroy();
+              this.itsmApplyingPopoverInstance = null;
+            }
+          });
+        }
+        this.itsmApplyingPopoverInstance?.show(300);
+      }
+    },
+    handleRowMouseLeave() {
+      this.itsmApplyingPopoverInstance?.destroy();
+      this.itsmApplyingPopoverInstance = null;
     }
   }
 };
@@ -1131,6 +1162,12 @@ export default {
       .cell {
         /* stylelint-disable-next-line declaration-no-important */
         display: flex !important;
+      }
+    }
+
+    .itsm-ticket-applying {
+      .cell {
+        pointer-events: none;
       }
     }
   }
@@ -1264,6 +1301,12 @@ export default {
 
   .bk-table-setting-content .content-line-height {
     display: none;
+  }
+}
+
+.itsm-applying-popover {
+  .tippy-content {
+    font-size: 12px;
   }
 }
 </style>

@@ -387,23 +387,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     ):
         """获取时序表数据"""
 
-        # 需要先获取数据类型的单位
-        service_detail = api.apm_api.query_profile_services_detail(
-            **{
-                "bk_biz_id": essentials["bk_biz_id"],
-                "app_name": essentials["app_name"],
-                "service_name": essentials["service_name"],
-                "sample_type": sample_type,
-            }
-        )
-
-        if service_detail:
-            service_period = service_detail[0].get("period_type", "samples/count")
-        else:
-            service_period = "samples/count"
-
-        generate_filters = {"sample_type": f"op_eq|{service_period}"}
-
         tendency_data = self._query(
             api_type=APIType.SELECT_COUNT,
             bk_biz_id=essentials["bk_biz_id"],
@@ -416,11 +399,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             filter_labels=filter_labels,
             result_table_id=essentials["result_table_id"],
             converted=False,
-            dimension_fields="sample_type,(ROUND(dtEventTimeStamp / 60000) * 60)",
+            dimension_fields="FLOOR((dtEventTimeStamp / 1000) / 60) * 60000 AS time",
             extra_params={
                 "metric_fields": "sum(value)",
-                "general_filters": generate_filters,
-                "order": {"expr": "(ROUND(dtEventTimeStamp / 60000) * 60)", "sort": "asc"},
+                "order": {"expr": "(FLOOR((dtEventTimeStamp / 1000) / 60) * 60000)", "sort": "asc"},
             },
         )
 
@@ -438,20 +420,19 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 filter_labels=diff_filter_labels,
                 result_table_id=essentials["result_table_id"],
                 converted=False,
-                dimension_fields="sample_type,(ROUND(dtEventTimeStamp / 60000) * 60)",
+                dimension_fields="FLOOR((dtEventTimeStamp / 1000) / 60) * 60000 AS time",
                 extra_params={
                     "metric_fields": "sum(value)",
-                    "general_filters": generate_filters,
-                    "order": {"expr": "(ROUND(dtEventTimeStamp / 60000) * 60)", "sort": "asc"},
+                    "order": {"expr": "(FLOOR((dtEventTimeStamp / 1000) / 60) * 60000)", "sort": "asc"},
                 },
             )
             compare_tendency_result = get_diagrammer("tendency").diff(
                 tendency_data,
                 compare_tendency_data,
-                sample_type=service_period,
+                sample_type=sample_type,
             )
 
-        tendency_data = get_diagrammer("tendency").draw(tendency_data, sample_type=service_period)
+        tendency_data = get_diagrammer("tendency").draw(tendency_data, sample_type=sample_type)
         return tendency_data, compare_tendency_result
 
     @staticmethod

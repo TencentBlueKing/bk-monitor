@@ -1326,6 +1326,7 @@ class DimensionUnifyQuery(Resource):
             limit=params["slimit"],
             start_time=params["start_time"] * 1000,
             end_time=params["end_time"] * 1000,
+            interval=600,
         )
 
         # 处理数据，支持多字段查找
