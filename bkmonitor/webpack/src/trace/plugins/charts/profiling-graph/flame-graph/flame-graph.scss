@@ -9,6 +9,9 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
   .flame-graph {
     padding: 8px 16px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    overflow: hidden !important;
   }
 }
 

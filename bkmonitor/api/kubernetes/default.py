@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import abc
+import collections
 import json
 import logging
 import operator
@@ -438,35 +439,7 @@ class FetchK8sNodePerformanceResource(FetchKubernetesGrafanaMetricRecords):
         return promql
 
 
-class FetchK8sPodListResource(CacheResource):
-    cache_type = CacheType.BCS
-    CONCURRENCY = 50
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-
-    def perform_request(self, params):
-        bk_biz_id = params["bk_biz_id"]
-        cluster_list = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
-        data = []
-        bulk_data = []
-        bulk_request_params = []
-        for cluster in cluster_list:
-            bcs_cluster_id = cluster["bcs_cluster_id"]
-            bulk_request_params.append({"bcs_cluster_id": bcs_cluster_id})
-            if len(bulk_request_params) >= self.CONCURRENCY:
-                bulk_data += api.kubernetes.fetch_k8s_pod_list_by_cluster.bulk_request(bulk_request_params)
-                bulk_request_params = []
-        if len(bulk_request_params) > 0:
-            bulk_data += api.kubernetes.fetch_k8s_pod_list_by_cluster.bulk_request(bulk_request_params)
-        for cluster_data in bulk_data:
-            data += cluster_data
-        return data
-
-
 class FetchK8sPodListByClusterResource(CacheResource):
-    cache_type = CacheType.BCS
-
     class RequestSerializer(serializers.Serializer):
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
         namespace_list = serializers.ListField(
@@ -522,19 +495,36 @@ class FetchK8sPodListByClusterResource(CacheResource):
     def perform_request(self, params):
         bcs_cluster_id = params["bcs_cluster_id"]
         namespace_list = params["namespace_list"]
-        node_field = self.get_node_field()
-        replica_set_field = self.get_replica_set_field()
-        pod_field = self.get_pod_field()
-        job_field = self.get_job_field()
-        [node_list, replica_set_list, pod_data, job_list] = api.bcs_storage.fetch.bulk_request(
+
+        node_list, replica_set_list, job_list = api.bcs_storage.fetch.bulk_request(
             [
-                {"cluster_id": bcs_cluster_id, "type": "Node", "field": node_field},
-                {"cluster_id": bcs_cluster_id, "type": "ReplicaSet", "field": replica_set_field},
-                {"cluster_id": bcs_cluster_id, "type": "Pod", "field": pod_field},
-                {"cluster_id": bcs_cluster_id, "type": "Job", "field": job_field},
+                {"cluster_id": bcs_cluster_id, "type": "Node", "field": self.get_node_field()},
+                {"cluster_id": bcs_cluster_id, "type": "ReplicaSet", "field": self.get_replica_set_field()},
+                {"cluster_id": bcs_cluster_id, "type": "Job", "field": self.get_job_field()},
             ]
         )
-        data = []
+        pod_data = api.bcs_storage.fetch_iterator(bcs_cluster_id, "Pod", self.get_pod_field())
+
+        # node的ip与name的映射
+        node_ip_name_map = {}
+        for node in node_list:
+            node_parser = KubernetesNodeJsonParser(node)
+            node_ip_name_map[node_parser.node_ip] = node_parser.name
+
+        # workload的ownerReferences映射
+        workload_map = {"ReplicaSet": replica_set_list, "Job": job_list}
+        workload_parent_map = collections.defaultdict(lambda: collections.defaultdict(list))
+        for workload_type, workload_list in workload_map.items():
+            for workload in workload_list:
+                workload_metadata = workload.get("metadata", {})
+                workload_owner_references = workload_metadata.get("ownerReferences", [])
+                if not workload_owner_references:
+                    continue
+                workload_parent_map[workload_type][workload_metadata["name"]] = workload_owner_references
+
+        # 内存释放
+        del replica_set_list, job_list, node_list
+
         namespace_set = set(namespace_list)
         for pod in pod_data:
             pod_parser = KubernetesPodJsonParser(pod)
@@ -556,19 +546,27 @@ class FetchK8sPodListByClusterResource(CacheResource):
             pod_name = pod_parser.name
             status = pod_parser.service_status
 
-            workloads = pod_parser.get_workloads(replica_set_list, job_list)
-            workload_name = workloads["workload_name"]
-            workload_type = workloads["workload_type"]
-            owner_references = workloads["owner_references"]
-
+            # 获取pod关联的workload
+            workload_type, workload_name = "", ""
             pod_workloads = []
-            for owner_reference in owner_references:
-                pod_workloads.append(
-                    {
-                        "key": owner_reference.get("kind"),
-                        "value": owner_reference.get("name"),
-                    }
-                )
+            owner_references = pod_parser.metadata.get("ownerReferences", [])
+            for index, owner_reference in enumerate(owner_references):
+                kind, name = owner_reference["kind"], owner_reference["name"]
+                pod_workloads.append({"key": kind, "value": name})
+                p_owner_references = workload_parent_map.get(kind, {}).get(name, [])
+
+                # 记录关联的workload
+                if not workload_type:
+                    workload_type, workload_name = kind, name
+
+                # 记录关联的workload的父级
+                for p_owner_reference in p_owner_references:
+                    kind, name = p_owner_reference["kind"], p_owner_reference["name"]
+                    pod_workloads.append({"key": kind, "value": name})
+
+                    # 只尝试获取第一个OwnerReference关联的workload的父级
+                    if index == 0:
+                        workload_type, workload_name = kind, name
 
             resources = pod_parser.resources
             requests_cpu = resources["requests_cpu"]
@@ -576,62 +574,51 @@ class FetchK8sPodListByClusterResource(CacheResource):
             requests_memory = resources["requests_memory"]
             limits_memory = resources["limits_memory"]
 
-            # 获得节点名称
-            node_name = ""
-            for node in node_list:
-                node_parser = KubernetesNodeJsonParser(node)
-                node_item_ip = node_parser.node_ip
-                if node_item_ip == node_ip:
-                    node_name = node_parser.name
-
-            data.append(
-                {
-                    "bcs_cluster_id": bcs_cluster_id,
-                    "pod": pod,
-                    "name": pod_name,
-                    "requests_cpu": requests_cpu,
-                    "limits_cpu": limits_cpu,
-                    "requests_memory": requests_memory,
-                    "limits_memory": limits_memory,
-                    "resources": [
-                        {
-                            "key": "requests.cpu",
-                            "value": requests_cpu,
-                        },
-                        {
-                            "key": "limits.cpu",
-                            "value": limits_cpu,
-                        },
-                        {
-                            "key": "requests.memory",
-                            "value": get_bytes_unit_human_readable(requests_memory),
-                        },
-                        {
-                            "key": "limits.memory",
-                            "value": get_bytes_unit_human_readable(limits_memory),
-                        },
-                    ],
-                    "node_name": node_name,
-                    "node_ip": node_ip,
-                    "workloads": pod_workloads,
-                    "workload_type": workload_type,
-                    "workload_name": workload_name,
-                    "namespace": namespace,
-                    "status": status,
-                    "total_container_count": ready_total,
-                    "ready_container_count": ready_count,
-                    "ready": f"{ready_count}/{ready_total}",
-                    "container_number": ready_total,
-                    "label_list": label_list,
-                    "labels": labels,
-                    "pod_ip": pod_ip,
-                    "image_id_list": images_list,
-                    "restarts": restart_count,
-                    "created_at": creation_timestamp,
-                    "age": age,
-                }
-            )
-        return data
+            yield {
+                "bcs_cluster_id": bcs_cluster_id,
+                "pod": pod,
+                "name": pod_name,
+                "requests_cpu": requests_cpu,
+                "limits_cpu": limits_cpu,
+                "requests_memory": requests_memory,
+                "limits_memory": limits_memory,
+                "resources": [
+                    {
+                        "key": "requests.cpu",
+                        "value": requests_cpu,
+                    },
+                    {
+                        "key": "limits.cpu",
+                        "value": limits_cpu,
+                    },
+                    {
+                        "key": "requests.memory",
+                        "value": get_bytes_unit_human_readable(requests_memory),
+                    },
+                    {
+                        "key": "limits.memory",
+                        "value": get_bytes_unit_human_readable(limits_memory),
+                    },
+                ],
+                "node_name": node_ip_name_map.get(node_ip, ""),
+                "node_ip": node_ip,
+                "workloads": pod_workloads,
+                "workload_type": workload_type,
+                "workload_name": workload_name,
+                "namespace": namespace,
+                "status": status,
+                "total_container_count": ready_total,
+                "ready_container_count": ready_count,
+                "ready": f"{ready_count}/{ready_total}",
+                "container_number": ready_total,
+                "label_list": label_list,
+                "labels": labels,
+                "pod_ip": pod_ip,
+                "image_id_list": images_list,
+                "restarts": restart_count,
+                "created_at": creation_timestamp,
+                "age": age,
+            }
 
 
 class FetchK8sClusterListResource(CacheResource):
@@ -784,32 +771,6 @@ class FetchK8sClusterListResource(CacheResource):
         return self.get_clusters_from_bcs_cluster_manager(params)
 
 
-class FetchK8sServiceListResource(CacheResource):
-    cache_type = CacheType.BCS
-    CONCURRENCY = 50
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-
-    def perform_request(self, params):
-        bk_biz_id = params.get("bk_biz_id")
-        clusters = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
-        data = []
-        bulk_data = []
-        bulk_request_params = []
-        for cluster in clusters:
-            bcs_cluster_id = cluster["bcs_cluster_id"]
-            bulk_request_params.append({"bcs_cluster_id": bcs_cluster_id})
-            if len(bulk_request_params) >= self.CONCURRENCY:
-                bulk_data += api.kubernetes.fetch_k8s_service_list_by_cluster.bulk_request(bulk_request_params)
-                bulk_request_params = []
-        if len(bulk_request_params) > 0:
-            bulk_data += api.kubernetes.fetch_k8s_service_list_by_cluster.bulk_request(bulk_request_params)
-        for cluster_data in bulk_data:
-            data += cluster_data
-        return data
-
-
 class FetchK8sServiceListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
@@ -890,32 +851,6 @@ class FetchK8sServiceListByClusterResource(CacheResource):
         return data
 
 
-class FetchK8sServiceMonitorListResource(CacheResource):
-    cache_type = CacheType.BCS
-    CONCURRENCY = 50
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-
-    def perform_request(self, params):
-        bk_biz_id = params.get("bk_biz_id")
-        clusters = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
-        data = []
-        bulk_data = []
-        bulk_request_params = []
-        for cluster in clusters:
-            bcs_cluster_id = cluster["bcs_cluster_id"]
-            bulk_request_params.append({"bcs_cluster_id": bcs_cluster_id})
-            if len(bulk_request_params) >= self.CONCURRENCY:
-                bulk_data += api.kubernetes.fetch_k8s_service_monitor_list_by_cluster.bulk_request(bulk_request_params)
-                bulk_request_params = []
-        if len(bulk_request_params) > 0:
-            bulk_data += api.kubernetes.fetch_k8s_service_monitor_list_by_cluster.bulk_request(bulk_request_params)
-        for cluster_data in bulk_data:
-            data += cluster_data
-        return data
-
-
 class FetchK8sServiceMonitorListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
@@ -979,7 +914,7 @@ class FetchK8sServiceMonitorListByClusterResource(CacheResource):
         return data
 
 
-class FetchK8sMonitorEndpointList(CacheResource):
+class FetchK8sMonitorEndpointListResource(CacheResource):
     """获得servicemointor/podmonitor监听的endpoints列表 ."""
 
     cache_type = CacheType.BCS
@@ -1065,32 +1000,6 @@ class FetchK8sMonitorEndpointList(CacheResource):
         return result
 
 
-class FetchK8sPodMonitorListResource(CacheResource):
-    cache_type = CacheType.BCS
-    CONCURRENCY = 50
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-
-    def perform_request(self, params):
-        bk_biz_id = params.get("bk_biz_id")
-        clusters = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
-        data = []
-        bulk_data = []
-        bulk_request_params = []
-        for cluster in clusters:
-            bcs_cluster_id = cluster["bcs_cluster_id"]
-            bulk_request_params.append({"bcs_cluster_id": bcs_cluster_id})
-            if len(bulk_request_params) >= self.CONCURRENCY:
-                bulk_data += api.kubernetes.fetch_k8s_pod_monitor_list_by_cluster.bulk_request(bulk_request_params)
-                bulk_request_params = []
-        if len(bulk_request_params) > 0:
-            bulk_data += api.kubernetes.fetch_k8s_pod_monitor_list_by_cluster.bulk_request(bulk_request_params)
-        for cluster_data in bulk_data:
-            data += cluster_data
-        return data
-
-
 class FetchK8sPodMonitorListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
@@ -1154,32 +1063,6 @@ class FetchK8sPodMonitorListByClusterResource(CacheResource):
         return data
 
 
-class FetchK8sEndpointListResource(CacheResource):
-    cache_type = CacheType.BCS
-    CONCURRENCY = 50
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-
-    def perform_request(self, params):
-        bk_biz_id = params.get("bk_biz_id")
-        cluster_list = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
-        data = []
-        bulk_data = []
-        bulk_request_params = []
-        for cluster in cluster_list:
-            bcs_cluster_id = cluster["bcs_cluster_id"]
-            bulk_request_params.append({"bcs_cluster_id": bcs_cluster_id})
-            if len(bulk_request_params) >= self.CONCURRENCY:
-                bulk_data += api.kubernetes.fetch_k8s_endpoint_list_by_cluster.bulk_request(bulk_request_params)
-                bulk_request_params = []
-        if len(bulk_request_params) > 0:
-            bulk_data += api.kubernetes.fetch_k8s_endpoint_list_by_cluster.bulk_request(bulk_request_params)
-        for cluster_data in bulk_data:
-            data += cluster_data
-        return data
-
-
 class FetchK8sEndpointListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
@@ -1200,41 +1083,14 @@ class FetchK8sEndpointListByClusterResource(CacheResource):
         return data
 
 
-class FetchK8sContainerListResource(CacheResource):
-    cache_type = CacheType.BCS
-    CONCURRENCY = 50
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-
-    def perform_request(self, params):
-        bk_biz_id = params.get("bk_biz_id")
-        cluster_list = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
-        data = []
-        bulk_data = []
-        bulk_request_params = []
-        for cluster in cluster_list:
-            bcs_cluster_id = cluster["bcs_cluster_id"]
-            bulk_request_params.append({"bcs_cluster_id": bcs_cluster_id})
-            if len(bulk_request_params) >= self.CONCURRENCY:
-                bulk_data += api.kubernetes.fetch_k8s_container_list_by_cluster.bulk_request(bulk_request_params)
-                bulk_request_params = []
-        if len(bulk_request_params) > 0:
-            bulk_data += api.kubernetes.fetch_k8s_container_list_by_cluster.bulk_request(bulk_request_params)
-        for cluster_data in bulk_data:
-            data += cluster_data
-        return data
-
-
 class FetchK8sContainerListByClusterResource(CacheResource):
-    cache_type = CacheType.BCS
-
     class RequestSerializer(serializers.Serializer):
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
-    @staticmethod
-    def format_container_list(pods):
-        data = []
+    def perform_request(self, params):
+        bcs_cluster_id = params["bcs_cluster_id"]
+        pods = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
+
         for pod in pods:
             pod_parser = KubernetesPodJsonParser(pod.get("pod", {}))
             containers = pod_parser.containers
@@ -1258,80 +1114,30 @@ class FetchK8sContainerListByClusterResource(CacheResource):
                 requests_memory = resources["requests_memory"]
                 limits_memory = resources["limits_memory"]
 
-                data.append(
-                    {
-                        "bcs_cluster_id": bcs_cluster_id,
-                        "container": container,
-                        "container_status": container_status,
-                        "requests_cpu": requests_cpu,
-                        "limits_cpu": limits_cpu,
-                        "requests_memory": requests_memory,
-                        "limits_memory": limits_memory,
-                        "name": container_name,
-                        "labels": labels,
-                        "container_name": container_name,
-                        "pod_name": pod_parser.name,
-                        "node_name": pod["node_name"],
-                        "node_ip": pod["node_ip"],
-                        "workloads": pod["workloads"],
-                        "workload_type": pod["workload_type"],
-                        "workload_name": pod["workload_name"],
-                        "namespace": pod_parser.namespace,
-                        "image": image,
-                        "container_status_ready": container_status_ready,
-                        "status": status,
-                        "created_at": created_at,
-                        "age": age,
-                    }
-                )
-
-        return data
-
-    def perform_request(self, params):
-        bcs_cluster_id = params["bcs_cluster_id"]
-        pods = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
-        data = self.format_container_list(pods)
-        return data
-
-
-class FetchK8sPodAndContainerListByClusterResource(FetchK8sContainerListByClusterResource):
-    # cache_type = CacheType.BCS
-
-    class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
-
-    def perform_request(self, params):
-        bcs_cluster_id = params["bcs_cluster_id"]
-        pods = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
-        containers = self.format_container_list(pods)
-        return pods, containers
-
-
-class FetchK8sNodeListResource(CacheResource):
-    cache_type = CacheType.BCS
-    CONCURRENCY = 50
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-
-    def perform_request(self, params):
-        # 获得集群列表
-        bk_biz_id = params.get("bk_biz_id")
-        cluster_list = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
-        data = []
-        bulk_data = []
-        bulk_request_params = []
-        for cluster in cluster_list:
-            bcs_cluster_id = cluster["bcs_cluster_id"]
-            bulk_request_params.append({"bcs_cluster_id": bcs_cluster_id})
-            if len(bulk_request_params) >= self.CONCURRENCY:
-                bulk_data += api.kubernetes.fetch_k8s_node_list_by_cluster.bulk_request(bulk_request_params)
-                bulk_request_params = []
-        if len(bulk_request_params) > 0:
-            bulk_data += api.kubernetes.fetch_k8s_node_list_by_cluster.bulk_request(bulk_request_params)
-        for cluster_data in bulk_data:
-            data += cluster_data
-        return data
+                yield {
+                    "bcs_cluster_id": bcs_cluster_id,
+                    "container": container,
+                    "container_status": container_status,
+                    "requests_cpu": requests_cpu,
+                    "limits_cpu": limits_cpu,
+                    "requests_memory": requests_memory,
+                    "limits_memory": limits_memory,
+                    "name": container_name,
+                    "labels": labels,
+                    "container_name": container_name,
+                    "pod_name": pod_parser.name,
+                    "node_name": pod["node_name"],
+                    "node_ip": pod["node_ip"],
+                    "workloads": pod["workloads"],
+                    "workload_type": pod["workload_type"],
+                    "workload_name": pod["workload_name"],
+                    "namespace": pod_parser.namespace,
+                    "image": image,
+                    "container_status_ready": container_status_ready,
+                    "status": status,
+                    "created_at": created_at,
+                    "age": age,
+                }
 
 
 class FetchK8sNodeListByClusterResource(CacheResource):
@@ -1473,32 +1279,6 @@ class FetchK8sWorkloadTypeListResource(Resource):
         return workload_type_list
 
 
-class FetchK8sWorkloadListResource(CacheResource):
-    cache_type = CacheType.BCS
-    CONCURRENCY = 50
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-
-    def perform_request(self, params):
-        bk_biz_id = params.get("bk_biz_id")
-        cluster_list = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
-        data = []
-        bulk_data = []
-        bulk_request_params = []
-        for cluster in cluster_list:
-            bcs_cluster_id = cluster["bcs_cluster_id"]
-            bulk_request_params.append({"bcs_cluster_id": bcs_cluster_id})
-            if len(bulk_request_params) >= self.CONCURRENCY:
-                bulk_data += api.kubernetes.fetch_k8s_workload_list_by_cluster.bulk_request(bulk_request_params)
-                bulk_request_params = []
-        if len(bulk_request_params) > 0:
-            bulk_data += api.kubernetes.fetch_k8s_workload_list_by_cluster.bulk_request(bulk_request_params)
-        for cluster_data in bulk_data:
-            data.extend(cluster_data)
-        return data
-
-
 class FetchK8sWorkloadListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
@@ -1531,7 +1311,24 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
         workload_type_list = params.get("workload_type_list")
         if not workload_type_list:
             workload_type_list = api.kubernetes.fetch_k8s_workload_type_list({"bcs_cluster_id": bcs_cluster_id})
+
+        # 计算关联pod的资源情况
         pod_list = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
+        workload_resources_map = collections.defaultdict(
+            lambda: {"requests_cpu": 0, "limits_cpu": 0, "requests_memory": 0, "limits_memory": 0, "pod_names": []}
+        )
+        for pod in pod_list:
+            if not pod.get("workload_type"):
+                continue
+            pod_resource = workload_resources_map[
+                (pod["workload_type"], pod["workload_name"], pod["namespace"], pod["bcs_cluster_id"])
+            ]
+            pod_resource["requests_cpu"] += pod.get("requests_cpu", 0)
+            pod_resource["limits_cpu"] += pod.get("limits_cpu", 0)
+            pod_resource["requests_memory"] += pod.get("requests_memory", 0)
+            pod_resource["limits_memory"] += pod.get("limits_memory", 0)
+            pod_resource["pod_names"].append(pod["name"])
+
         workload_field = self.get_workload_field()
         for workload_type in workload_type_list:
             items = api.bcs_storage.fetch(
@@ -1556,30 +1353,10 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
                 workload_status = workload_specification.workload_status
                 top_workload_type = workload_specification.top_workload_type
 
-                # 获得管理的POD
-                pod_name_list = []
-                requests_cpu = 0
-                limits_cpu = 0
-                requests_memory = 0
-                limits_memory = 0
-                for pod in pod_list:
-                    pod_workload_type = pod.get("workload_type", [])
-                    pod_workload_name = pod.get("workload_name", [])
-                    pod_namespace = pod.get("namespace", [])
-                    pod_bcs_cluster_id = pod.get("bcs_cluster_id", [])
-                    if (
-                        workload_type in pod_workload_type
-                        and workload_name in pod_workload_name
-                        and workload_namespace == pod_namespace
-                        and pod_bcs_cluster_id == bcs_cluster_id
-                    ):
-                        pod_name_list.append(pod.get("name"))
-                        requests_cpu += pod.get("requests_cpu", 0)
-                        limits_cpu += pod.get("limits_cpu", 0)
-                        requests_memory += pod.get("requests_memory", 0)
-                        limits_memory += pod.get("limits_memory", 0)
-
-                # 忽略中间的workoad
+                workload_resource = workload_resources_map[
+                    (workload_type, workload_name, workload_namespace, bcs_cluster_id)
+                ]
+                # 忽略中间的workload
                 item = {
                     "bcs_cluster_id": bcs_cluster_id,
                     "workload_type": workload_type,
@@ -1587,35 +1364,35 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
                     "workload_name": workload_name,
                     "workload_labels": workload_labels,
                     "name": workload_name,
-                    "requests_cpu": requests_cpu,
-                    "limits_cpu": limits_cpu,
-                    "requests_memory": requests_memory,
-                    "limits_memory": limits_memory,
+                    "requests_cpu": workload_resource["requests_cpu"],
+                    "limits_cpu": workload_resource["limits_cpu"],
+                    "requests_memory": workload_resource["requests_memory"],
+                    "limits_memory": workload_resource["limits_memory"],
                     "resources": [
                         {
                             "key": "requests.cpu",
-                            "value": requests_cpu,
+                            "value": workload_resource["requests_cpu"],
                         },
                         {
                             "key": "limits.cpu",
-                            "value": limits_cpu,
+                            "value": workload_resource["limits_cpu"],
                         },
                         {
                             "key": "requests.memory",
-                            "value": get_bytes_unit_human_readable(requests_memory),
+                            "value": get_bytes_unit_human_readable(workload_resource["requests_memory"]),
                         },
                         {
                             "key": "limits.memory",
-                            "value": get_bytes_unit_human_readable(limits_memory),
+                            "value": get_bytes_unit_human_readable(workload_resource["limits_memory"]),
                         },
                     ],
                     "namespace": workload_namespace,
                     "images": "\n".join(image_list),
                     "label_list": label_list,
                     "labels": workload_labels,
-                    "pod_count": len(pod_name_list),
+                    "pod_count": len(workload_resource["pod_names"]),
                     "container_number": container_number,
-                    "pod_name": pod_name_list,
+                    "pod_name": workload_resource["pod_names"],
                     "created_at": creation_timestamp,
                     "age": age,
                 }

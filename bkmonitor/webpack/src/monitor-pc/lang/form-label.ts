@@ -1829,6 +1829,7 @@ export default {
   文件md5: 'File md5',
   上传人: 'Uploader',
   上传时间: 'Upload time',
+  pprof文件时间: 'Pprof file time',
   错误信息: 'Error message',
   最大展示: 'Maximum display',
   展示同比: 'Display ratio',

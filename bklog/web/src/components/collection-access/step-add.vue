@@ -757,7 +757,7 @@
           :title="isFinishCreateStep ? $t('保存') : $t('开始采集')"
           :loading="isHandle"
           :disabled="!collectProject"
-          @click.stop.prevent="startCollect"
+          @click.stop.prevent="startCollect()"
         >
           {{ isFinishCreateStep ? $t('保存') : $t('下一步') }}
         </bk-button>
@@ -974,7 +974,7 @@ export default {
           {
             // 检查数据名是否可用
             validator: this.checkEnNameRepeat,
-            message: this.$t('该数据名已重复'),
+            message: () => this.enNameErrorMessage,
             trigger: 'blur'
           }
         ],
@@ -1051,6 +1051,8 @@ export default {
       // isConfigConflict: false, // 配置项是否有冲突
       conflictList: [], // 冲突列表
       conflictMessage: '', // 冲突信息
+      /** 英文名错误信息 */
+      enNameErrorMessage: '',
       clusterList: [], // 集群列表
       nameSpacesSelectList: [], // namespace 列表
       operatorSelectList: [
@@ -1389,15 +1391,26 @@ export default {
       if (splitList.length === 1 && splitList[0] === '') return [];
       return splitList;
     },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.startCollect(callback);
+    },
     // 开始采集
-    async startCollect() {
+    async startCollect(callback) {
       const isCanSubmit = await this.submitDataValidate();
-      if (!isCanSubmit) return;
+      if (!isCanSubmit) {
+        callback?.(false);
+        return;
+      }
       const params = this.handleParams();
       if (deepEqual(this.localParams, params)) {
         this.isHandle = false;
         if (this.isFinishCreateStep) {
           // 保存的情况下, 没有任何改变, 回退到列表
+          if (callback) {
+            callback(true);
+            return;
+          }
           this.cancel();
         } else {
           // 未修改表单 直接跳转下一步
@@ -1408,9 +1421,13 @@ export default {
       this.$refs.validateForm.validate().then(
         () => {
           this.isCloseDataLink && delete params.data_link_id;
-          this.isPhysicsEnvironment ? this.setCollection(params) : this.setContainerCollection(params);
+          this.isPhysicsEnvironment
+            ? this.setCollection(params, callback)
+            : this.setContainerCollection(params, callback);
         },
-        () => {}
+        () => {
+          callback?.(false);
+        }
       );
     },
     /**
@@ -1486,7 +1503,7 @@ export default {
       return true;
     },
     // 新增/修改采集
-    setCollection(params) {
+    setCollection(params, callback) {
       this.isHandle = true;
       const urlParams = {};
       let requestUrl;
@@ -1511,7 +1528,12 @@ export default {
               // 修改过非基本信息的值 重新下发 不改变步骤 直接展示下发组件 否则直接回列表
               if (this.isUpdateIssuedShowValue() && !this.isContainerStep) {
                 this.$emit('update:force-show-component', 'stepIssued');
+                callback?.(false);
               } else {
+                if (callback) {
+                  callback(true);
+                  return;
+                }
                 this.cancel();
               }
             } else {
@@ -1520,12 +1542,13 @@ export default {
             }
           }
         })
+        .catch(() => callback?.(false))
         .finally(() => {
           this.isHandle = false;
         });
     },
     // 容器日志新增/修改采集
-    setContainerCollection(params) {
+    setContainerCollection(params, callback) {
       this.isHandle = true;
       this.$emit('update:container-loading', true);
       const urlParams = {};
@@ -1549,6 +1572,10 @@ export default {
             this.setDetail(res.data.collector_config_id);
             // 容器环境没有下发步骤 直接回到列表或者下一步
             if (this.isFinishCreateStep) {
+              if (callback) {
+                callback(true);
+                return;
+              }
               this.cancel();
             } else {
               this.$emit('stepChange');
@@ -1557,6 +1584,7 @@ export default {
         })
         .catch(error => {
           console.warn(error);
+          callback?.(false);
           // this.isShowSubmitErrorDialog = true;
           // this.submitErrorMessage = error.message;
         })
@@ -1758,9 +1786,17 @@ export default {
       if (this.isFinishCreateStep) {
         this.$emit('changeSubmit', true);
       }
+      let routeName;
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
+      } else {
+        routeName = 'collection-item';
+      }
       this.$router.push({
-        name: 'collection-item',
+        name: routeName,
         query: {
+          ...reset,
           spaceUid: this.$store.state.spaceUid
         }
       });
@@ -1835,7 +1871,10 @@ export default {
         const res = await this.$http.request('collect/getPreCheck', {
           params: { collector_config_name_en: val, bk_biz_id: this.$store.state.bkBizId }
         });
-        if (res.data) return res.data.allowed;
+        if (res.data) {
+          this.enNameErrorMessage = res.data.message;
+          return res.data.allowed;
+        }
       } catch (error) {
         return false;
       }

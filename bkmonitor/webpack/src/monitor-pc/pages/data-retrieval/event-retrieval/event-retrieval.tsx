@@ -300,6 +300,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     this.handleChartTitleChange();
     this.getGroupByList();
     this.emptyStatusChange(this.localValue.result_table_id ? 'search-empty' : 'empty');
+    this.$emit('change', this.localValue);
     // 每次查询若输入框的值与kv列表下钻的值不同则清空下钻查询语句
     if (this.drillKeywords !== this.localValue.query_string) this.handleClearDrillKeywords();
     return deepClone(this.currentGroupByVarPramas);

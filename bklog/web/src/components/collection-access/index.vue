@@ -47,10 +47,7 @@
             :before-change="stepChangeBeforeFn"
           >
           </bk-steps>
-          <div
-            class="step-arrow"
-            :style="{ top: `${getCurStepArrowTopNum}px` }"
-          ></div>
+          <div class="step-arrow"></div>
         </div>
       </section>
       <section
@@ -67,10 +64,12 @@
           :is-switch="isSwitch"
           :index-set-id="indexSetId"
           :apply-data="applyData"
+          :cur-step="curStep"
           :is-container-step="isContainerStep"
           :is-finish-create-step="isFinishCreateStep"
           :container-loading.sync="containerLoading"
           :force-show-component.sync="forceShowComponent"
+          @resetCurCollectVal="() => getDetail()"
           @setAssessmentItem="v => (applyData = v)"
           @changeIndexSetId="v => (indexSetId = v)"
           @changeSubmit="v => (isSubmit = v)"
@@ -134,6 +133,8 @@ export default {
       isFinishCreateStep: false,
       /** 强制渲染的组件 */
       forceShowComponent: '',
+      /** 编辑时切换步骤 */
+      isChangeStepLoading: false,
       /** 步骤所对应的组件 */
       // componentStepObj: {
       //   1: 'stepAdd',
@@ -166,9 +167,6 @@ export default {
     isSwitch() {
       return ['start', 'stop'].some(item => item === this.operateType);
     },
-    isItsmAndNotStartOrStop() {
-      return this.isItsm && this.operateType !== 'start' && this.operateType !== 'stop';
-    },
     /** 左侧展示的步骤 */
     showStepsConf() {
       let finishShowConf = this.stepsConf;
@@ -200,10 +198,6 @@ export default {
     /** 左侧展示的步骤总高度 */
     getShowStepsConfHeightNum() {
       return this.getShowStepsConf.length * ONE_STEP_HEIGHT;
-    },
-    /** 箭头样式的top */
-    getCurStepArrowTopNum() {
-      return this.curStep * ONE_STEP_HEIGHT - 38;
     },
     /** 当前展示的组件 */
     getCurrentComponent() {
@@ -302,7 +296,6 @@ export default {
           } else {
             // 容器环境  非启用停用 非克隆状态则展示容器日志步骤
             if (!this.isPhysics && !this.isSwitch && type !== 'clone') this.isContainerStep = true;
-            const finishPag = this.getShowStepsConf.slice(-1).icon;
             let jumpComponentStr = 'stepAdd';
             switch (this.operateType) {
               case 'edit': // 完成或者未完成编辑都从第一步走
@@ -320,9 +313,7 @@ export default {
               default:
                 break;
             }
-            const jumpPage = this.getShowStepsConf.find(item => item.stepStr === jumpComponentStr).icon;
-            // 审批通过后编辑直接进入第三步字段提取，否则进入第二步容量评估
-            this.curStep = this.isItsm && this.applyData.itsm_ticket_status === 'applying' ? finishPag : jumpPage;
+            this.curStep = this.getShowStepsConf.find(item => item.stepStr === jumpComponentStr).icon;
           }
         } catch (e) {
           console.warn(e);
@@ -365,12 +356,6 @@ export default {
               if (collect.collector_scenario_id !== 'wineventlog' && this.isPhysics && collect?.params.paths) {
                 collect.params.paths = collect.params.paths.map(item => ({ value: item }));
               }
-              // 如果当前页面采集流程未完成 则展示流程服务页面
-              const applyDataItem = {
-                iframe_ticket_url: collect.ticket_url,
-                itsm_ticket_status: collect.itsm_ticket_status
-              };
-              this.applyData = collect.itsm_ticket_status === 'applying' ? applyDataItem : {};
               this.itsmTicketIsApplying = false;
               this.$store.commit('collect/setCurCollect', collect);
               resolve(res.data);
@@ -399,8 +384,27 @@ export default {
       }
       return new Promise(resolve => {
         this.$bkInfo({
-          title: this.$t('是否放弃本次操作？'),
-          confirmFn: () => {
+          title: this.$t('是否保存本次操作？'),
+          confirmLoading: true,
+          confirmFn: async () => {
+            await new Promise(infoResolve => {
+              if (this.$refs.currentRef?.stepSubmitFun) {
+                if (this.isChangeStepLoading) return;
+                // 正在请求中
+                this.isChangeStepLoading = true;
+                this.$refs.currentRef.stepSubmitFun(isCanChangeStep => {
+                  resolve(isCanChangeStep);
+                  infoResolve(isCanChangeStep);
+                  this.isChangeStepLoading = false;
+                  if (isCanChangeStep) this.forceShowComponent = '';
+                });
+                return;
+              }
+              infoResolve(false);
+              resolve(false);
+            });
+          },
+          cancelFn: () => {
             this.forceShowComponent = '';
             resolve(true);
           }
@@ -549,7 +553,8 @@ export default {
 
   .step-arrow {
     position: absolute;
-    right: 1px;
+    top: 38px;
+    right: -1px;
     width: 10px;
     height: 10px;
     background: #fff;

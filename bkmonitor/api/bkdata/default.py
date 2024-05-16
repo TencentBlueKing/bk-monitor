@@ -1050,3 +1050,15 @@ class GetResourceSet(DataAccessAPIResource):
 
     action = "/v3/resourcecenter/resource_sets/{resource_set_id}/"
     method = "GET"
+
+
+class ApplyDataFlow(DataAccessAPIResource):
+    """创建计算平台流程"""
+
+    action = "/v3/dataflow/flow/flows/create/"
+    method = "POST"
+
+    class RequestSerializer(CommonRequestSerializer):
+        project_id = serializers.IntegerField(label="计算平台的项目 ID")
+        flow_name = serializers.CharField(label="流程名称")
+        nodes = serializers.ListField(label="流程节点")

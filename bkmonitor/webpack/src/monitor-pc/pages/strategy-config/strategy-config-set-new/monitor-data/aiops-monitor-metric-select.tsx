@@ -196,6 +196,7 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
   handleChange() {
     this.localValue = this.tags.map(item => item.metric_id);
     this.$emit('change', this.localValue);
+    this.dispatch('bk-form-item', 'form-change');
   }
 
   /**
@@ -210,10 +211,27 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
       fIndex >= 0 && this.localValue.splice(fIndex, 1);
     }
     this.$emit('change', this.localValue);
+    this.dispatch('bk-form-item', 'form-change');
     this.handleGetMetricTag();
     this.$nextTick(() => {
       this.getOverflowHideCount();
     });
+  }
+
+  dispatch(componentName: string, eventName: string) {
+    let parent = this.$parent || this.$root;
+    let name = parent.$options.name;
+
+    while (parent && (!name || name !== componentName)) {
+      parent = parent.$parent;
+
+      if (parent) {
+        name = parent.$options.name;
+      }
+    }
+    if (parent) {
+      parent.$emit.apply(parent, [eventName]);
+    }
   }
 
   /**

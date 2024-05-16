@@ -45,6 +45,10 @@ export default defineComponent({
       type: Object as PropType<string[]>,
       required: true,
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['change'],
   setup(props, { emit }) {
@@ -206,116 +210,136 @@ export default defineComponent({
             ),
             content: () => (
               <div class='application-cascade-popover-content'>
-                <div class='search-wrap'>
-                  <i class='icon-monitor icon-mc-search search-icon'></i>
-                  <Input
-                    class='search-input'
-                    v-model={this.searchKey}
-                    placeholder={this.t('输入关键字')}
-                  ></Input>
-                </div>
-                <div class='select-wrap'>
-                  <div class='first panel'>
-                    <div class='group-title'>{this.t('有数据应用')}</div>
-                    <div class='group-wrap'>
-                      {this.appList.normal.map(item => (
-                        <div
-                          key={item.application_id}
-                          class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
-                          onClick={() => this.handleAppClick(item)}
-                        >
-                          <i class='icon-monitor icon-mc-menu-apm'></i>
-                          <span
-                            class='name'
-                            v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
-                          >
-                            {item.app_name}
-                            <span class='desc'>({item.app_alias})</span>
-                          </span>
-
-                          <i class='icon-monitor icon-arrow-right'></i>
-                        </div>
-                      ))}
+                {!this.loading ? (
+                  <>
+                    <div class='search-wrap'>
+                      <i class='icon-monitor icon-mc-search search-icon'></i>
+                      <Input
+                        class='search-input'
+                        v-model={this.searchKey}
+                        placeholder={this.t('输入关键字')}
+                      ></Input>
                     </div>
-                    <div class='group-title'>{this.t('无数据应用')}</div>
-                    {this.appList.no_data.map((item, index) => (
-                      <div
-                        key={`${item.app_name}_${index}`}
-                        class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
-                        onClick={() => this.handleAppClick(item)}
-                      >
-                        <i class='icon-monitor icon-mc-menu-apm'></i>
-                        <span
-                          class='name'
-                          v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
-                        >
-                          {item.app_name}
-                          <span class='desc'>({item.app_alias})</span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {this.selectValue.appName && (
-                    <div class='second panel'>
-                      {this.hasData ? (
-                        <div class='has-data-wrap'>
-                          {this.serviceList.map(item => (
+                    <div class='select-wrap'>
+                      <div class='first panel'>
+                        <div class='group-title'>{this.t('有数据应用')}</div>
+                        <div class='group-wrap'>
+                          {this.appList.normal.map(item => (
                             <div
-                              class={{ 'group-item': true, active: item.name === this.selectValue.serviceName }}
-                              onClick={() => this.handleServiceClick(item)}
+                              key={item.application_id}
+                              class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
+                              onClick={() => this.handleAppClick(item)}
                             >
-                              <i class='icon-monitor icon-mc-grafana-home'></i>
-                              <span class='name'>{item.name}</span>
+                              <i class='icon-monitor icon-mc-menu-apm'></i>
+                              <span
+                                class='name'
+                                v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
+                              >
+                                {item.app_name}
+                                <span class='desc'>({item.app_alias})</span>
+                              </span>
+
+                              <i class='icon-monitor icon-arrow-right'></i>
                             </div>
                           ))}
                         </div>
-                      ) : (
-                        <div class='no-data-wrap'>
-                          <Loading
-                            loading={this.tokenLoading}
-                            mode='spin'
-                            theme='primary'
+                        <div class='group-title'>{this.t('无数据应用')}</div>
+                        {this.appList.no_data.map((item, index) => (
+                          <div
+                            key={`${item.app_name}_${index}`}
+                            class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
+                            onClick={() => this.handleAppClick(item)}
                           >
-                            <Form labelWidth={100}>
-                              <Form.FormItem label={this.t('应用名')}>{this.appData.app_name}</Form.FormItem>
-                              <Form.FormItem label={this.t('应用别名')}>{this.appData.app_alias}</Form.FormItem>
-                              <Form.FormItem label={this.t('描述')}>{this.appData.description}</Form.FormItem>
-                              <Form.FormItem label='Token'>
-                                <span class='password'>{this.token || '●●●●●●●●●●'}</span>
-                                {!this.token && (
-                                  <Button
-                                    theme='primary'
-                                    text
-                                    onClick={this.handleViewToken}
-                                  >
-                                    {this.t('点击查看')}
-                                  </Button>
-                                )}
-                              </Form.FormItem>
-                            </Form>
-                            <div class='btn'>
-                              <a
-                                class='link'
-                                target='_blank'
-                                onClick={() => this.handleGotoLink('profiling_docs')}
-                              >
-                                {this.t('Profile 接入指引')}
-                              </a>
-                              <i class='icon-monitor icon-fenxiang'></i>
-                            </div>
-                            <div
-                              class='btn'
-                              onClick={this.handleViewApp}
+                            <i class='icon-monitor icon-mc-menu-apm'></i>
+                            <span
+                              class='name'
+                              v-overflowText={{ text: `${item.app_name} (${item.app_alias})`, placement: 'right' }}
                             >
-                              <span>{this.t('查看应用')}</span>
-                              <i class='icon-monitor icon-fenxiang'></i>
+                              {item.app_name}
+                              <span class='desc'>({item.app_alias})</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {this.selectValue.appName ? (
+                        <div class='second panel'>
+                          {this.hasData ? (
+                            <div class='has-data-wrap'>
+                              {this.serviceList.map(item => (
+                                <div
+                                  class={{ 'group-item': true, active: item.name === this.selectValue.serviceName }}
+                                  onClick={() => this.handleServiceClick(item)}
+                                >
+                                  <i class='icon-monitor icon-mc-grafana-home'></i>
+                                  <span class='name'>{item.name}</span>
+                                </div>
+                              ))}
                             </div>
-                          </Loading>
+                          ) : (
+                            <div class='no-data-wrap'>
+                              <Loading
+                                loading={this.tokenLoading}
+                                mode='spin'
+                                theme='primary'
+                              >
+                                <Form labelWidth={100}>
+                                  <Form.FormItem label={this.t('应用名')}>{this.appData.app_name}</Form.FormItem>
+                                  <Form.FormItem label={this.t('应用别名')}>{this.appData.app_alias}</Form.FormItem>
+                                  <Form.FormItem label={this.t('描述')}>{this.appData.description}</Form.FormItem>
+                                  <Form.FormItem label='Token'>
+                                    <span class='password'>{this.token || '●●●●●●●●●●'}</span>
+                                    {!this.token && (
+                                      <Button
+                                        theme='primary'
+                                        text
+                                        onClick={this.handleViewToken}
+                                      >
+                                        {this.t('点击查看')}
+                                      </Button>
+                                    )}
+                                  </Form.FormItem>
+                                </Form>
+                                <div class='btn'>
+                                  <a
+                                    class='link'
+                                    target='_blank'
+                                    onClick={() => this.handleGotoLink('profiling_docs')}
+                                  >
+                                    {this.t('Profile 接入指引')}
+                                  </a>
+                                  <i class='icon-monitor icon-fenxiang'></i>
+                                </div>
+                                <div
+                                  class='btn'
+                                  onClick={this.handleViewApp}
+                                >
+                                  <span>{this.t('查看应用')}</span>
+                                  <i class='icon-monitor icon-fenxiang'></i>
+                                </div>
+                              </Loading>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div class='second panel no-select'>
+                          <div class='no-select-text'>{this.t('请先在左侧选择应用')}</div>
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  <div class='loading-wrap'>
+                    <Loading
+                      loading={true}
+                      mode='spin'
+                      size='small'
+                      theme='primary'
+                    >
+                      <div class='loading-spin'></div>
+                    </Loading>
+                    <div class='loading-text'>{this.$t('应用加载中，请耐心等候…')}</div>
+                  </div>
+                )}
                 <div class='footer-wrap'>
                   <div
                     class='jump-btn'

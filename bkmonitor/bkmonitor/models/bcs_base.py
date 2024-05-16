@@ -249,9 +249,17 @@ class BCSBase(models.Model):
         """获得资源的标签hash_id ."""
         has_ids = []
         for item in items:
-            if not item.id:
+            if isinstance(item, dict):
+                item_id = item.get("id")
+                item_labels = item.get("api_labels", {})
+            else:
+                item_id = item.id
+                item_labels = item.api_labels
+
+            if not item_id:
                 continue
-            for k, v in item.api_labels.items():
+
+            for k, v in item_labels.items():
                 if k in IGNORE_LABEL_KEYS:
                     continue
                 hash_id = cls.md5str(k + ":" + v)
@@ -278,15 +286,25 @@ class BCSBase(models.Model):
 
         # 批量添加标签
         for item in items:
-            if not item.id:
+            if isinstance(item, dict):
+                item_id = item.get("id")
+                item_labels = item.get("api_labels", {})
+                bcs_cluster_id = item.get("bcs_cluster_id")
+            else:
+                item_id = item.id
+                item_labels = item.api_labels
+                bcs_cluster_id = item.bcs_cluster_id
+
+            if not item_id:
                 continue
-            for k, v in item.api_labels.items():
+
+            for k, v in item_labels.items():
                 if k in IGNORE_LABEL_KEYS:
                     continue
-                bcs_cluster_id_list.append(item.bcs_cluster_id)
+                bcs_cluster_id_list.append(bcs_cluster_id)
                 # 获得标签hash值
                 hash_id = cls.md5str(k + ":" + v)
-                resource_id_map_hash_ids.setdefault((item.id, item.bcs_cluster_id), []).append(hash_id)
+                resource_id_map_hash_ids.setdefault((item_id, bcs_cluster_id), []).append(hash_id)
                 # 需要新增的标签
                 if hash_id in hash_id_created:
                     bulk_create_label_list.append(BCSLabel(hash_id=hash_id, key=k, value=v))

@@ -180,7 +180,9 @@ export default {
         name: 'collectStorage',
         params,
         query: {
-          spaceUid: this.$store.state.spaceUid
+          spaceUid: this.$store.state.spaceUid,
+          backRoute: 'manage-collection',
+          type: 'dataStorage'
         }
       });
     }

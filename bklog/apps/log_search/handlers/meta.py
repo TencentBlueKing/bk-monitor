@@ -48,17 +48,7 @@ class MetaHandler(APIModel):
     @classmethod
     def get_user_spaces(cls, username):
         # 获取业务列表
-        spaces = Space.objects.values(
-            "id",
-            "space_type_id",
-            "space_type_name",
-            "space_id",
-            "space_name",
-            "space_uid",
-            "space_code",
-            "bk_biz_id",
-            "properties",
-        )
+        spaces = Space.get_all_spaces()
         allowed_spaces = Permission(username).filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, spaces)
         allowed_space_mapping = {space["bk_biz_id"] for space in allowed_spaces}
         # 获取置顶空间列表
@@ -85,18 +75,22 @@ class MetaHandler(APIModel):
         spaces.extend(spaces_by_type[SpaceTypeEnum.BKSAAS.value])
 
         result = []
+        space_type_translation = {}
         for space in spaces:
+            if space["space_type_id"] not in space_type_translation:
+                # 最多仅做一次翻译，提高遍历性能
+                space_type_translation[space["space_type_id"]] = _(space["space_type_name"])
             result.append(
                 {
                     "id": space["id"],
                     "space_type_id": space["space_type_id"],
-                    "space_type_name": _(space["space_type_name"]),
+                    "space_type_name": space_type_translation[space["space_type_id"]],
                     "space_id": space["space_id"],
                     "space_name": space["space_name"],
                     "space_uid": space["space_uid"],
                     "space_code": space["space_code"],
                     "bk_biz_id": space["bk_biz_id"],
-                    "time_zone": space["properties"].get("time_zone", "Asia/Shanghai"),
+                    "time_zone": (space["time_zone"] or "Asia/Shanghai").strip("\""),
                     "is_sticky": space["space_uid"] in sticky_spaces,
                     "permission": {ActionEnum.VIEW_BUSINESS.id: space["bk_biz_id"] in allowed_space_mapping},
                 }
