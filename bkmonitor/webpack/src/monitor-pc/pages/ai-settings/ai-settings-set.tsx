@@ -23,16 +23,46 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { TranslateResult } from 'vue-i18n';
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
 
+import ErrorMsg from '../../components/error-msg/error-msg';
 import AnomalyDetection from './components/anomaly-detection';
 import { SchemeItem } from './types';
 
 import './ai-settings-set.scss';
+
+type IntelligentDetectData = {
+  default_plan_id: number;
+};
+type HostData = {
+  default_plan_id: number;
+  default_sensitivity: number;
+  is_enabled: boolean;
+  exclude_target: string[];
+  intelligent_detect: Record<string, any>; // 可能需要根据实际需要调整类型
+};
+export type SettingsData =
+  | {
+      type: 'IntelligentDetect';
+      title: TranslateResult | string;
+      errorsMsg?: Record<string, string>;
+      data: IntelligentDetectData;
+    }
+  | {
+      type: 'MultivariateAnomalyDetection';
+      title: TranslateResult | string;
+      data: {
+        type: string;
+        title: TranslateResult | string;
+        data: HostData;
+        errorsMsg?: Record<string, string>;
+      }[];
+    };
 
 @Component
 export default class AiSettingsSet extends tsc<object> {
@@ -40,12 +70,15 @@ export default class AiSettingsSet extends tsc<object> {
   /* ai设置原始数据 */
   aiSetting = null;
   /* 前端表单数据 */
-  settingsData = [
+  settingsData: SettingsData[] = [
     {
       type: 'IntelligentDetect',
       title: window.i18n.t('单指标异常检测'),
       data: {
         default_plan_id: 0,
+      },
+      errorsMsg: {
+        default_plan_id: '',
       },
     },
     {
@@ -53,7 +86,7 @@ export default class AiSettingsSet extends tsc<object> {
       title: window.i18n.t('场景智能异常检测'),
       data: [
         {
-          tpye: 'host',
+          type: 'host',
           title: window.i18n.t('主机'),
           data: {
             default_plan_id: 0,
@@ -108,6 +141,83 @@ export default class AiSettingsSet extends tsc<object> {
 
   handleCancel() {}
 
+  formItemRender(label, content, isRequired = false) {
+    return (
+      <div class='settings-form-item'>
+        <div class={['item-label', { required: isRequired }]}>{label}</div>
+        <div class='item-content'>{content}</div>
+      </div>
+    );
+  }
+  contentRender(settingsItem: SettingsData) {
+    if (settingsItem.type === 'IntelligentDetect') {
+      /* 单指标异常检测 */
+      return (
+        <div class='form-items'>
+          {this.formItemRender(
+            this.$t('默认方案'),
+            <ErrorMsg
+              style='width: 100%;'
+              message={settingsItem.errorsMsg.default_plan_id}
+            >
+              <bk-select
+                v-model={settingsItem.data.default_plan_id}
+                clearable={false}
+                ext-popover-cls='ai-settings-scheme-select'
+                searchable
+              >
+                {this.schemeList.map(item => (
+                  <bk-option
+                    id={item.id}
+                    style='width: 100%;'
+                    name={item.name}
+                  >
+                    <bk-popover
+                      style='width: 100%;'
+                      ext-cls='programme-item-popover'
+                      placement='right-end'
+                      theme='light'
+                    >
+                      <div style='width: 100%;'>{item.name}</div>
+                      <div slot='content'>
+                        <div class='content-item'>
+                          <span class='content-item-title'>{this.$t('依赖历史数据长度')}:</span>
+                          <span>{item.ts_depend}</span>
+                        </div>
+                        <div class='content-item'>
+                          <span class='content-item-title'>{this.$t('数据频率')}:</span>
+                          <span>{item.ts_freq || this.$t('无限制')}</span>
+                        </div>
+                        <div class='content-item'>
+                          <span class='content-item-title'>{this.$t('描述')}:</span>
+                          <span class='content-item-description'>{item.description}</span>
+                        </div>
+                      </div>
+                    </bk-popover>
+                  </bk-option>
+                ))}
+              </bk-select>
+            </ErrorMsg>,
+            true
+          )}
+        </div>
+      );
+    }
+    if (settingsItem.type === 'MultivariateAnomalyDetection') {
+      /* 场景智能异常检测 */
+      return settingsItem.data.map(child => {
+        if (child.type === 'host') {
+          return (
+            <div
+              key={child.type}
+              class='form-items gray-bg'
+            ></div>
+          );
+        }
+      });
+    }
+  }
+
   render() {
     return (
       <div
@@ -120,7 +230,9 @@ export default class AiSettingsSet extends tsc<object> {
               key={item.type}
               showExpand={true}
               title={item.title}
-            ></AnomalyDetection>
+            >
+              {this.contentRender(item)}
+            </AnomalyDetection>
           ))}
         </div>
         <div class='ai-settings-set-footer'>
