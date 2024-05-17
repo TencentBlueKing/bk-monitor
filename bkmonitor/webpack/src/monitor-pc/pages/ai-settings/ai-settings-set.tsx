@@ -73,7 +73,20 @@ export default class AiSettingsSet extends tsc<object> {
   loading = false;
   btnLoading = false;
   /* ai设置原始数据 */
-  aiSetting = null;
+  aiSetting = {
+    kpi_anomaly_detection: {
+      default_plan_id: 0,
+    },
+    multivariate_anomaly_detection: {
+      host: {
+        default_plan_id: 0,
+        default_sensitivity: 0,
+        is_enabled: true,
+        exclude_target: [],
+        intelligent_detect: {},
+      },
+    },
+  };
   /* 前端表单数据 */
   settingsData: SettingsData[] = [
     {
@@ -124,7 +137,7 @@ export default class AiSettingsSet extends tsc<object> {
   // 多指标场景
   multipleSchemeList: SchemeItem[] = [];
 
-  created() {
+  async created() {
     this.getSchemeList();
     this.getAiSetting();
   }
@@ -150,8 +163,9 @@ export default class AiSettingsSet extends tsc<object> {
    */
   async getAiSetting() {
     this.loading = true;
-    this.aiSetting = await fetchAiSetting().catch(() => (this.loading = false));
-    if (this.aiSetting) {
+    const aiSetting = await fetchAiSetting().catch(() => null);
+    if (aiSetting) {
+      this.aiSetting = aiSetting;
       this.settingsData[0].data.default_plan_id = this.aiSetting.kpi_anomaly_detection.default_plan_id;
       this.settingsData[1].data[0].data = this.aiSetting.multivariate_anomaly_detection.host;
     }
@@ -259,8 +273,6 @@ export default class AiSettingsSet extends tsc<object> {
     this.excludeTargetDetail.show = true;
   }
 
-  handleBaseConfigChange() {}
-
   formItemRender(label, content, isRequired = false) {
     return (
       <div class='settings-form-item'>
@@ -285,6 +297,9 @@ export default class AiSettingsSet extends tsc<object> {
                 clearable={false}
                 ext-popover-cls='ai-settings-scheme-select'
                 searchable
+                on-change={() => {
+                  settingsItem.errorsMsg.default_plan_id = '';
+                }}
               >
                 {this.schemeList.map(item => (
                   <bk-option
@@ -373,7 +388,9 @@ export default class AiSettingsSet extends tsc<object> {
                       clearable={false}
                       ext-popover-cls='ai-settings-scheme-select'
                       searchable
-                      on-change={this.handleBaseConfigChange}
+                      on-change={() => {
+                        child.errorsMsg.default_plan_id = '';
+                      }}
                     >
                       {this.multipleSchemeList.map(item => (
                         <bk-option
@@ -415,7 +432,6 @@ export default class AiSettingsSet extends tsc<object> {
                     <bk-slider
                       v-model={child.data.default_sensitivity}
                       max-value={10}
-                      on-change={this.handleBaseConfigChange}
                     ></bk-slider>
                     <div class='sensitivity-tips'>
                       <span>{this.$t('较少告警')}</span>
