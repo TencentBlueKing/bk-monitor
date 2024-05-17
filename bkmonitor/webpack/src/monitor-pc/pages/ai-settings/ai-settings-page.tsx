@@ -234,7 +234,10 @@ export default class AiSettingsPage extends tsc<object> {
 
   render() {
     return (
-      <div class='ai-settings-page'>
+      <div
+        class='ai-settings-page'
+        v-bkloading={{ isLoading: this.loading }}
+      >
         {/* <bk-alert
           title='错误的提示文字'
           type='error'
