@@ -238,4 +238,5 @@ export default {
     'The APM application where this service is located does not have the profiling function enabled.',
   '已开启 Profiling 功能，请参考接入指引进行数据上报':
     'The Profiling has been turned on, please refer to the access guide for data reporting.',
+  显示完整信息: 'Show full information',
 };
