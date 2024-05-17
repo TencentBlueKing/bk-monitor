@@ -25,7 +25,8 @@
  */
 import { RouteConfig } from 'vue-router';
 
-const AiSettings = () => import(/* webpackChunkName: 'ai-settigns' */ '../../pages/ai-settings/ai-settings-set');
+const AiSettingsSet = () => import(/* webpackChunkName: 'ai-settigns' */ '../../pages/ai-settings/ai-settings-set');
+const AiSettings = () => import(/* webpackChunkName: 'ai-settigns' */ '../../pages/ai-settings/ai-settings-page');
 export default [
   {
     name: 'ai-settings',
@@ -46,7 +47,7 @@ export default [
     name: 'ai-settings-set',
     path: '/ai-settings-set',
     components: {
-      noCache: AiSettings,
+      noCache: AiSettingsSet,
     },
     meta: {
       title: window.i18n.t('route-AI设置'),

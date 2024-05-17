@@ -131,4 +131,5 @@ export default {
   订阅详情: 'Subscription details',
   '暂未开启 Profiling 功能': 'Profiling is not enabled yet',
   '暂无 Profiling 数据': 'No profiling data yet',
+  关闭目标: 'Close target',
 };

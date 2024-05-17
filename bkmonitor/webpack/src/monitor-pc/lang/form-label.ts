@@ -1845,4 +1845,6 @@ export default {
   只展示新类: 'Only show new classes',
   关闭检测的对象: 'Disable detection object',
   方案: 'Plan',
+  关闭通知的对象: 'Object for closing notifications',
+  默认敏感度: 'Default sensitivity',
 };
