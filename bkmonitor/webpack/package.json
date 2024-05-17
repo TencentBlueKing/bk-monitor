@@ -87,9 +87,10 @@
   "pnpm": {
     "overrides": {
       "@blueking/user-selector>vue": "v2-latest",
-      "monaco-editor-webpack-plugin>monaco-editor": "0.44.0",
       "bk-magic-vue": "2.5.8",
       "eslint": "$eslint",
+      "monaco-editor": "0.44.0",
+      "monaco-editor-webpack-plugin>monaco-editor": "0.44.0",
       "semver": "^7.6.0",
       "vue-class-component": "^7.2.6",
       "vue-property-decorator": "^9.1.2",
