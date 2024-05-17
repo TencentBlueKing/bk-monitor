@@ -167,7 +167,7 @@ export default class Notification extends tsc<NotificationProps> {
             class='add-tag'
             onClick={this.handleShowSelect}
           >
-            <span class='icon-monitor icon-mc-add'></span>
+            <span class='icon-monitor icon-mc-plus-fill'></span>
             <span class='add-tag-text'>{this.$t('关闭对象')}</span>
           </span>
         ) : (

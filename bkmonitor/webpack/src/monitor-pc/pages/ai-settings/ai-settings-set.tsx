@@ -228,7 +228,7 @@ export default class AiSettingsSet extends tsc<object> {
    */
   async handleExcludeTargetChange() {
     const excludeTarget = this.settingsData[1].data[0].data.exclude_target;
-    if (excludeTarget.length) {
+    if (excludeTarget?.[0]?.[0]?.value?.length) {
       const data = await getBusinessTargetDetail({
         target: excludeTarget,
       }).catch(() => null);
