@@ -429,30 +429,15 @@
                 <bk-select
                   v-show="scopeValueType"
                   v-model="visibleBkBiz"
+                  display-key="space_full_code_name"
+                  id-key="bk_biz_id"
+                  enable-virtual-scroll
+                  :list="mySpaceList"
+                  :virtual-scroll-render="virtualscrollSpaceList"
                   searchable
                   multiple
                   display-tag
                 >
-                  <bk-option
-                    v-for="item in mySpaceList"
-                    :id="item.bk_biz_id"
-                    :key="item.space_uid"
-                    :name="item.space_full_code_name"
-                  >
-                    <div class="space-code-option">
-                      <span
-                        class="code-name"
-                        :title="item.space_full_code_name"
-                        >{{ item.space_full_code_name }}</span
-                      >
-                      <div class="list-item-right">
-                        <span :class="['list-item-tag', 'light-theme', item.space_type_id || 'other-type']">
-                          {{ item.space_type_name }}
-                        </span>
-                        <span :class="`${visibleBkBiz.includes(item.bk_biz_id) && 'bk-icon icon-check-1'}`"></span>
-                      </div>
-                    </div>
-                  </bk-option>
                 </bk-select>
               </div>
             </template>
@@ -689,12 +674,14 @@ import AuthContainerPage from '@/components/common/auth-container-page';
 import { projectManages } from '@/common/util';
 import * as authorityMap from '../../common/authority-map';
 import { deepClone, deepEqual } from '../../common/util';
+import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
 
 export default {
   components: {
     fieldTable,
     AuthContainerPage
   },
+  mixins: [SpaceSelectorMixin],
   props: {
     operateType: String,
     curStep: {
@@ -862,7 +849,8 @@ export default {
       editComparedData: {
         isLogOriginLast: false,
         comparedVal: {}
-      }
+      },
+      isUseMark: false
     };
   },
   computed: {

@@ -3,6 +3,18 @@
   width: 100%;
   justify-content: space-between;
   align-items: center;
+  padding: 0 16px;
+  cursor: pointer;
+
+  &.is-selected {
+    color: #3a84ff;
+    background-color: #f4f6fa;
+  }
+
+  &:hover {
+    color: #63656e;
+    background-color: #f5f7fa;
+  }
 
   .code-name {
     overflow: hidden;
