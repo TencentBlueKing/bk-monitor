@@ -37,17 +37,24 @@ interface IProps {
 export default class ExpanCard extends tsc<IProps> {
   @Prop({ type: String, default: '' }) title: string;
   @Prop({ type: Boolean, default: false }) expand: boolean;
+
+  localExpand = false;
+
+  created() {
+    this.localExpand = this.expand;
+  }
+
   render() {
     return (
       <div class='ai-setting-expan-card'>
         <div
           class='card-header'
-          onClick={() => (this.expand = !this.expand)}
+          onClick={() => (this.localExpand = !this.localExpand)}
         >
-          <span class={['icon-monitor icon-arrow-down', { expand: this.expand }]}></span>
+          <span class={['icon-monitor icon-arrow-down', { expand: this.localExpand }]}></span>
           <span class='card-header-title'>{this.title}</span>
         </div>
-        <div class={['card-content', { displaynone: !this.expand }]}>{this.$slots.default}</div>
+        <div class={['card-content', { displaynone: !this.localExpand }]}>{this.$slots.default}</div>
       </div>
     );
   }
