@@ -138,8 +138,10 @@ export default class AiSettingsSet extends tsc<object> {
   multipleSchemeList: SchemeItem[] = [];
 
   async created() {
-    this.getSchemeList();
-    this.getAiSetting();
+    this.loading = true;
+    await this.getSchemeList();
+    await this.getAiSetting();
+    this.loading = false;
   }
 
   /**
@@ -147,22 +149,17 @@ export default class AiSettingsSet extends tsc<object> {
    */
   async getSchemeList() {
     // 获取单指标
-    this.schemeList = await listIntelligentModels({ algorithm: AISettingType.IntelligentDetect }).catch(() => {
-      this.loading = false;
-    });
+    this.schemeList = await listIntelligentModels({ algorithm: AISettingType.IntelligentDetect }).catch(() => []);
     // 获取多场景
     this.multipleSchemeList = await listIntelligentModels({
       algorithm: AISettingType.MultivariateAnomalyDetection,
-    }).catch(() => {
-      this.loading = false;
-    });
+    }).catch(() => []);
   }
 
   /** *
    *  获取ai设置
    */
   async getAiSetting() {
-    this.loading = true;
     const aiSetting = await fetchAiSetting().catch(() => null);
     if (aiSetting) {
       this.aiSetting = aiSetting;
@@ -170,7 +167,6 @@ export default class AiSettingsSet extends tsc<object> {
       this.settingsData[1].data[0].data = this.aiSetting.multivariate_anomaly_detection.host;
     }
     await this.handleExcludeTargetChange();
-    this.loading = false;
   }
 
   handleValidate() {
