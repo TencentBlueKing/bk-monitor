@@ -386,6 +386,10 @@ class Application(AbstractRecordModel):
 
         if enabled_profiling:
             create_params["enabled_profiling"] = True
+
+        if bk_biz_id in settings.APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID:
+            create_params["enabled_create_virtual_metric"] = True
+
         application_info = api.apm_api.create_application(create_params)
 
         application = cls.objects.create(

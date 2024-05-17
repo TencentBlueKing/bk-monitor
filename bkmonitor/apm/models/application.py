@@ -120,9 +120,10 @@ class ApmApplication(AbstractRecordModel):
         datasource_info = cls.apply_datasource(bk_biz_id, app_name, es_storage_config, options)
 
         # step3: 创建虚拟指标
-        from apm.task.tasks import create_virtual_metric
+        if options.get("enabled_create_virtual_metric"):
+            from apm.task.tasks import create_virtual_metric
 
-        create_virtual_metric.delay(bk_biz_id, app_name)
+            create_virtual_metric.delay(bk_biz_id, app_name)
 
         return {
             "bk_biz_id": bk_biz_id,
