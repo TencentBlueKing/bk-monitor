@@ -181,6 +181,7 @@ export default class Notification extends tsc<NotificationProps> {
           class='ai-settings-notification-component-dialog'
           confirm-fn={this.handleConfirm}
           header-position='left'
+          position={{ top: (document.body.clientHeight - 821) / 2 }}
           render-directive='if'
           show-footer={this.isEdit}
           value={this.showTopoSelector}

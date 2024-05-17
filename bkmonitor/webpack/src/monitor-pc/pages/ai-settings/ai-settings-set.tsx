@@ -27,7 +27,7 @@ import { TranslateResult } from 'vue-i18n';
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { fetchAiSetting } from 'monitor-api/modules/aiops';
+import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
 import { getBusinessTargetDetail } from 'monitor-api/modules/commons';
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
 import { transformDataKey } from 'monitor-common/utils';
@@ -41,42 +41,37 @@ import { SchemeItem } from './types';
 
 import './ai-settings-set.scss';
 
-type IntelligentDetectData = {
-  default_plan_id: number;
-};
-type HostData = {
+interface HostData {
   default_plan_id: number;
   default_sensitivity: number;
   is_enabled: boolean;
   exclude_target: string[];
   intelligent_detect: Record<string, any>; // 可能需要根据实际需要调整类型
-};
+}
 enum AISettingType {
   IntelligentDetect = 'IntelligentDetect',
   MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
 }
-export type SettingsData =
-  | {
-      type: AISettingType.IntelligentDetect;
-      title: TranslateResult | string;
-      errorsMsg?: Record<string, string>;
-      data: IntelligentDetectData;
-    }
-  | {
-      type: AISettingType.MultivariateAnomalyDetection;
-      title: TranslateResult | string;
-      data: {
+
+interface SettingsData {
+  type: AISettingType;
+  title: TranslateResult | string;
+  data:
+    | {
         type: string;
         title: TranslateResult | string;
         data: HostData;
-        errorsMsg?: Record<string, string>;
-        // excludeTargetDetail?: any;
-      }[];
-    };
+        errorsMsg?: Record<string, TranslateResult | string>;
+      }[]
+    | { default_plan_id: number }
+    | any;
+  errorsMsg?: Record<string, TranslateResult | string>;
+}
 
 @Component
 export default class AiSettingsSet extends tsc<object> {
   loading = false;
+  btnLoading = false;
   /* ai设置原始数据 */
   aiSetting = null;
   /* 前端表单数据 */
@@ -131,6 +126,7 @@ export default class AiSettingsSet extends tsc<object> {
 
   created() {
     this.getSchemeList();
+    this.getAiSetting();
   }
 
   /**
@@ -155,18 +151,67 @@ export default class AiSettingsSet extends tsc<object> {
   async getAiSetting() {
     this.loading = true;
     this.aiSetting = await fetchAiSetting().catch(() => (this.loading = false));
-    await this.getTargetDetail();
+    if (this.aiSetting) {
+      this.settingsData[0].data.default_plan_id = this.aiSetting.kpi_anomaly_detection.default_plan_id;
+      this.settingsData[1].data[0].data = this.aiSetting.multivariate_anomaly_detection.host;
+    }
+    await this.handleExcludeTargetChange();
     this.loading = false;
   }
 
+  handleValidate() {
+    if (!this.settingsData[0].data.default_plan_id) {
+      this.settingsData[0].errorsMsg.default_plan_id = window.i18n.t('请选择默认方案');
+    }
+    if (!this.settingsData[1].data[0].data.default_plan_id) {
+      this.settingsData[1].data[0].errorsMsg.default_plan_id = window.i18n.t('请选择默认方案');
+    }
+    return (
+      Object.keys(this.settingsData[0].errorsMsg).every(key => !this.settingsData[0].errorsMsg[key]) &&
+      Object.keys(this.settingsData[1].data[0].errorsMsg).every(key => !this.settingsData[1].data[0].errorsMsg[key])
+    );
+  }
+
   /**
-   * @description 获取检测对象
+   * @description 保存
    */
-  async getTargetDetail() {}
+  async handleSubmit() {
+    const validate = this.handleValidate();
+    if (validate) {
+      this.btnLoading = true;
+      const excludeTarget = this.settingsData[1].data[0].data.exclude_target;
+      const excludeTargetValue = excludeTarget?.[0]?.[0]?.value || [];
+      const params = {
+        ...this.aiSetting,
+        multivariate_anomaly_detection: {
+          ...this.aiSetting.multivariate_anomaly_detection,
+          host: {
+            ...this.aiSetting.multivariate_anomaly_detection.host,
+            ...this.settingsData[1].data[0].data,
+            exclude_target: excludeTargetValue.length ? excludeTarget : [],
+          },
+        },
+        kpi_anomaly_detection: {
+          ...this.aiSetting.kpi_anomaly_detection,
+          ...this.settingsData[0].data,
+          is_enabled: undefined, // 单指标异常检测需去除是否启用
+          default_sensitivity: undefined,
+        },
+      };
+      await saveAiSetting(params).catch(() => (this.btnLoading = false));
+      this.btnLoading = false;
+      this.$bkMessage({
+        theme: 'success',
+        message: this.$t('保存成功！'),
+      });
+    }
+  }
 
-  handleSubmit() {}
-
-  handleCancel() {}
+  handleCancel() {
+    this.$router.push({
+      name: 'ai-settings',
+    });
+  }
 
   /**
    * @description 主机区域关闭通知的对象
@@ -233,7 +278,7 @@ export default class AiSettingsSet extends tsc<object> {
             <span class='item-label required mt-6'>{this.$t('默认方案')}</span>,
             <ErrorMsg
               style='width: 100%;'
-              message={settingsItem.errorsMsg.default_plan_id}
+              message={settingsItem.errorsMsg.default_plan_id as string}
             >
               <bk-select
                 v-model={settingsItem.data.default_plan_id}
@@ -409,6 +454,7 @@ export default class AiSettingsSet extends tsc<object> {
         <div class='ai-settings-set-footer'>
           <bk-button
             class='mr-8 w-88'
+            loading={this.btnLoading}
             theme='primary'
             on-click={this.handleSubmit}
           >

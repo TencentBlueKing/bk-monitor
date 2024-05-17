@@ -52,6 +52,7 @@ export default [
     meta: {
       title: window.i18n.t('route-AI设置'),
       noNavBar: false,
+      needBack: true,
       navId: 'ai-settings',
       route: {
         parent: 'manager',

@@ -15,6 +15,10 @@
     width: 88px;
   }
 
+  .bk-slider-button {
+    z-index: 1;
+  }
+
   .ai-settings-set-content {
     margin: 24px 24px 0 24px;
 
@@ -42,7 +46,7 @@
 
       .item-content {
         position: relative;
-        width: 413px;
+        min-width: 400px;
       }
 
       .enable-switch-wrap {
