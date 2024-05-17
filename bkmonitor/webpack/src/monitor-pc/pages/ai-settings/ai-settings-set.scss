@@ -1,19 +1,27 @@
 .ai-settings-set {
+  .mt-6 {
+    margin-top: 6px;
+  }
+
+  .mb-16 {
+    margin-bottom: 16px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .w-88 {
+    width: 88px;
+  }
+
   .ai-settings-set-content {
     margin: 24px 24px 0 24px;
-
-    .form-items {
-      &.gray-bg {
-        margin-bottom: 16px;
-        background: #F5F7FA;
-        border-radius: 2px;
-      }
-    }
 
     .settings-form-item {
       display: flex;
       align-items: flex-start;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
       font-size: 12px;
       color: #63656e;
 
@@ -21,7 +29,6 @@
         position: relative;
         width: 152px;
         margin-right: 24px;
-        line-height: 32px;
         text-align: right;
 
         &.required::after {
@@ -36,6 +43,31 @@
       .item-content {
         position: relative;
         width: 413px;
+      }
+
+      .enable-switch-wrap {
+        display: flex;
+        align-items: center;
+      }
+
+      .right-tip {
+        margin-left: 16px;
+        font-size: 12px;
+        color: #979BA5;
+
+        .icon-hint {
+          margin-right: 4px;
+          font-size: 14px;
+        }
+      }
+
+      .sensitivity-tips {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #979ba5;
       }
     }
   }

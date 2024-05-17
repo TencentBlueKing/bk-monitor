@@ -28,10 +28,15 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
+import { getBusinessTargetDetail } from 'monitor-api/modules/commons';
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
+import { transformDataKey } from 'monitor-common/utils';
 
 import ErrorMsg from '../../components/error-msg/error-msg';
 import AnomalyDetection from './components/anomaly-detection';
+import { handleSetTargetDesc } from './components/common';
+import ExpanCard from './components/expan-card';
+import Notification from './components/notification';
 import { SchemeItem } from './types';
 
 import './ai-settings-set.scss';
@@ -46,21 +51,26 @@ type HostData = {
   exclude_target: string[];
   intelligent_detect: Record<string, any>; // 可能需要根据实际需要调整类型
 };
+enum AISettingType {
+  IntelligentDetect = 'IntelligentDetect',
+  MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
+}
 export type SettingsData =
   | {
-      type: 'IntelligentDetect';
+      type: AISettingType.IntelligentDetect;
       title: TranslateResult | string;
       errorsMsg?: Record<string, string>;
       data: IntelligentDetectData;
     }
   | {
-      type: 'MultivariateAnomalyDetection';
+      type: AISettingType.MultivariateAnomalyDetection;
       title: TranslateResult | string;
       data: {
         type: string;
         title: TranslateResult | string;
         data: HostData;
         errorsMsg?: Record<string, string>;
+        // excludeTargetDetail?: any;
       }[];
     };
 
@@ -72,7 +82,7 @@ export default class AiSettingsSet extends tsc<object> {
   /* 前端表单数据 */
   settingsData: SettingsData[] = [
     {
-      type: 'IntelligentDetect',
+      type: AISettingType.IntelligentDetect,
       title: window.i18n.t('单指标异常检测'),
       data: {
         default_plan_id: 0,
@@ -82,7 +92,7 @@ export default class AiSettingsSet extends tsc<object> {
       },
     },
     {
-      type: 'MultivariateAnomalyDetection',
+      type: AISettingType.MultivariateAnomalyDetection,
       title: window.i18n.t('场景智能异常检测'),
       data: [
         {
@@ -95,10 +105,25 @@ export default class AiSettingsSet extends tsc<object> {
             exclude_target: [],
             intelligent_detect: {},
           },
+          errorsMsg: {
+            default_plan_id: '',
+          },
         },
       ],
     },
   ];
+  /* 关闭通知的对象 */
+  excludeTargetDetail = {
+    targets: [],
+    targetTable: [],
+    targetType: '',
+    objType: '',
+    desc: '',
+    nodeCount: 0,
+    instanceCount: 0,
+    info: null,
+    show: false,
+  };
   // 单指标
   schemeList: SchemeItem[] = [];
   // 多指标场景
@@ -113,11 +138,13 @@ export default class AiSettingsSet extends tsc<object> {
    */
   async getSchemeList() {
     // 获取单指标
-    this.schemeList = await listIntelligentModels({ algorithm: 'IntelligentDetect' }).catch(() => {
+    this.schemeList = await listIntelligentModels({ algorithm: AISettingType.IntelligentDetect }).catch(() => {
       this.loading = false;
     });
     // 获取多场景
-    this.multipleSchemeList = await listIntelligentModels({ algorithm: 'MultivariateAnomalyDetection' }).catch(() => {
+    this.multipleSchemeList = await listIntelligentModels({
+      algorithm: AISettingType.MultivariateAnomalyDetection,
+    }).catch(() => {
       this.loading = false;
     });
   }
@@ -141,21 +168,69 @@ export default class AiSettingsSet extends tsc<object> {
 
   handleCancel() {}
 
+  /**
+   * @description 主机区域关闭通知的对象
+   */
+  async handleExcludeTargetChange() {
+    const excludeTarget = this.settingsData[1].data[0].data.exclude_target;
+    if (excludeTarget.length) {
+      const data = await getBusinessTargetDetail({
+        target: excludeTarget,
+      }).catch(() => null);
+      if (data) {
+        const excludeTargetDetail = {
+          ...this.excludeTargetDetail,
+          targets: data.target_detail,
+          targetTable: transformDataKey(data.target_detail),
+          targetType: data.node_type,
+          objType: data.instance_type,
+          nodeCount: data.node_count,
+          instanceCount: data.instance_count,
+          desc: '',
+        };
+        const info = handleSetTargetDesc(
+          excludeTargetDetail.targets,
+          excludeTargetDetail.targetType as any,
+          excludeTargetDetail.objType,
+          excludeTargetDetail.nodeCount,
+          excludeTargetDetail.instanceCount
+        );
+        this.excludeTargetDetail = {
+          ...excludeTargetDetail,
+          info,
+        };
+      } else {
+        this.excludeTargetDetail.info = {
+          message: '',
+          messageCount: 0,
+          subMessage: '',
+          subMessageCount: 0,
+        };
+      }
+    }
+  }
+
+  handleShowTargetDetail() {
+    this.excludeTargetDetail.show = true;
+  }
+
+  handleBaseConfigChange() {}
+
   formItemRender(label, content, isRequired = false) {
     return (
       <div class='settings-form-item'>
-        <div class={['item-label', { required: isRequired }]}>{label}</div>
+        {typeof label === 'string' ? <div class={['item-label', { required: isRequired }]}>{label}</div> : label}
         <div class='item-content'>{content}</div>
       </div>
     );
   }
   contentRender(settingsItem: SettingsData) {
-    if (settingsItem.type === 'IntelligentDetect') {
+    if (settingsItem.type === AISettingType.IntelligentDetect) {
       /* 单指标异常检测 */
       return (
         <div class='form-items'>
           {this.formItemRender(
-            this.$t('默认方案'),
+            <span class='item-label required mt-6'>{this.$t('默认方案')}</span>,
             <ErrorMsg
               style='width: 100%;'
               message={settingsItem.errorsMsg.default_plan_id}
@@ -203,19 +278,115 @@ export default class AiSettingsSet extends tsc<object> {
         </div>
       );
     }
-    if (settingsItem.type === 'MultivariateAnomalyDetection') {
+    if (settingsItem.type === AISettingType.MultivariateAnomalyDetection) {
       /* 场景智能异常检测 */
       return settingsItem.data.map(child => {
         if (child.type === 'host') {
           return (
-            <div
+            <ExpanCard
               key={child.type}
-              class='form-items gray-bg'
-            ></div>
+              class='mb-16'
+              expand={true}
+              title={child.title as string}
+            >
+              <div class='form-items'>
+                {this.formItemRender(
+                  this.$t('是否启用'),
+                  <span class='enable-switch-wrap'>
+                    <bk-switcher
+                      v-model={child.data.is_enabled}
+                      behavior='simplicity'
+                      size='small'
+                      theme='primary'
+                    ></bk-switcher>
+                    <span class='right-tip'>
+                      <span class='icon-monitor icon-hint'></span>
+                      <span class='tip-text'>
+                        {this.$t('启用后将自动进行主机异常检测，也可在监控策略中配置此类告警')}
+                      </span>
+                    </span>
+                  </span>
+                )}
+                {this.formItemRender(
+                  <span class='item-label'>{this.$t('关闭通知的对象')}</span>,
+                  <Notification
+                    v-model={child.data.exclude_target}
+                    hostInfo={this.excludeTargetDetail.info}
+                    isEdit={true}
+                    onChange={this.handleExcludeTargetChange}
+                    onShowTargetDetail={this.handleShowTargetDetail}
+                  ></Notification>
+                )}
+                {this.formItemRender(
+                  <span class='item-label required mt-6'>{this.$t('默认方案')}</span>,
+                  <ErrorMsg
+                    style='width: 100%;'
+                    message={child.errorsMsg.default_plan_id}
+                  >
+                    <bk-select
+                      v-model={child.data.default_plan_id}
+                      clearable={false}
+                      ext-popover-cls='ai-settings-scheme-select'
+                      searchable
+                      on-change={this.handleBaseConfigChange}
+                    >
+                      {this.multipleSchemeList.map(item => (
+                        <bk-option
+                          id={item.id}
+                          style='width: 100%;'
+                          name={item.name}
+                        >
+                          <bk-popover
+                            style='width: 100%;'
+                            ext-cls='programme-item-popover'
+                            placement='right-end'
+                            theme='light'
+                          >
+                            <div style='width: 100%;'>{item.name}</div>
+                            <div slot='content'>
+                              <div class='content-item'>
+                                <span class='content-item-title'>{this.$t('依赖历史数据长度')}:</span>
+                                <span>{item.ts_depend}</span>
+                              </div>
+                              <div class='content-item'>
+                                <span class='content-item-title'>{this.$t('数据频率')}:</span>
+                                <span>{item.ts_freq || this.$t('无限制')}</span>
+                              </div>
+                              <div class='content-item'>
+                                <span class='content-item-title'>{this.$t('描述')}:</span>
+                                <span class='content-item-description'>{item.description}</span>
+                              </div>
+                            </div>
+                          </bk-popover>
+                        </bk-option>
+                      ))}
+                    </bk-select>
+                  </ErrorMsg>,
+                  true
+                )}
+                {this.formItemRender(
+                  <span class='item-label required'>{this.$t('敏感度')}</span>,
+                  <div class='mt-6'>
+                    <bk-slider
+                      v-model={child.data.default_sensitivity}
+                      max-value={10}
+                      on-change={this.handleBaseConfigChange}
+                    ></bk-slider>
+                    <div class='sensitivity-tips'>
+                      <span>{this.$t('较少告警')}</span>
+                      <span>{this.$t('较多告警')}</span>
+                    </div>
+                  </div>,
+                  true
+                )}
+              </div>
+            </ExpanCard>
           );
         }
+        return undefined;
       });
     }
+    return undefined;
   }
 
   render() {
@@ -237,13 +408,14 @@ export default class AiSettingsSet extends tsc<object> {
         </div>
         <div class='ai-settings-set-footer'>
           <bk-button
-            class='mr10'
+            class='mr-8 w-88'
             theme='primary'
             on-click={this.handleSubmit}
           >
             {this.$t('保存')}
           </bk-button>
           <bk-button
+            class='w-88'
             theme='default'
             onClick={this.handleCancel}
           >
