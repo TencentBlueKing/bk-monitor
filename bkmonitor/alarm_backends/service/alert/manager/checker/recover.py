@@ -411,6 +411,7 @@ class RecoverStatusChecker(BaseChecker):
             logger.info("load value unit for alert(%s) failed %s, current value(%s)", alert.id, str(error), value)
             return value
 
+    @classmethod
     def check_is_multi_indicator_strategy(cls, strategy_item) -> bool:
         """检查策略是否包含动态告警级别.
 

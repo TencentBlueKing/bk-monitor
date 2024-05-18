@@ -64,7 +64,7 @@ import {
 import create from './vue3.x';
 
 import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
-
+import './monitor-ip-selector.scss';
 const BkIpSelector: any = create({
   version: '4',
   serviceConfigError: false,
@@ -428,6 +428,7 @@ export default defineComponent({
   render() {
     return (
       <BkIpSelector
+        class='monitor-ip-selector'
         config={this.ipSelectorConfig}
         defaultOutputFieldList={this.defaultOutputFieldList}
         disableDialogSubmitMethod={this.disableDialogSubmitMethod}

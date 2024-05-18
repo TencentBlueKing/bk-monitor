@@ -43,7 +43,7 @@ interface IMarkdownEditorProps {
   flowchartStyle?: boolean;
 }
 @Component
-export default class MyComponent extends tsc<IMarkdownEditorProps> {
+export default class MarkdownEditor extends tsc<IMarkdownEditorProps> {
   editor: Editor = null;
   editorEvents: string[] = ['load', 'change', 'stateChange', 'focus', 'blur'];
   valueUpdateMethod: string[] = ['insertText', 'setValue', 'setMarkdown', 'setHtml', 'reset'];

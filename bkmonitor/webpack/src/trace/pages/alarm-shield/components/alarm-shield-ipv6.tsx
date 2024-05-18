@@ -66,7 +66,7 @@ export default defineComponent({
     watch(
       () => props.checkedValue,
       () => {
-        ipCheckValue.value = Ipv6FieldMap[props.shieldDimension]
+        ipCheckValue.value = !Ipv6FieldMap[props.shieldDimension]
           ? undefined
           : {
               [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]] || [],
@@ -100,6 +100,7 @@ export default defineComponent({
       <div class='alarm-shield-ipv6-component'>
         {!!panelList.value.length && (
           <MonitorIpSelector
+            class='alarm-shield-bk-ip-selector-box'
             mode={'dialog'}
             originalValue={props.originCheckedValue}
             panelList={panelList.value}
