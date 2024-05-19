@@ -11,11 +11,14 @@ specific language governing permissions and limitations under the License.
 from typing import List, Union
 
 import requests
+from django.conf import settings
 from elasticsearch import Elasticsearch as Elasticsearch
 from elasticsearch5 import Elasticsearch as Elasticsearch5
 from elasticsearch6 import Elasticsearch as Elasticsearch6
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+DEFAULT_ES_TIMEOUT = 10
 
 
 def get_value_if_not_none(value, default):
@@ -61,7 +64,14 @@ def get_client(cluster):
         elastic_client = Elasticsearch5
     elif cluster_info.version.startswith("6."):
         elastic_client = Elasticsearch6
-    es_client = elastic_client(**connection_info)
+
+    # 获取超时时间
+    timeout_config = settings.METADATA_REQUEST_ES_TIMEOUT
+    timeout = timeout_config.get(cluster_info.domain_name)
+    if not timeout:
+        timeout = timeout_config.get("default") or DEFAULT_ES_TIMEOUT
+
+    es_client = elastic_client(**connection_info, timeout=timeout)
     return es_client
 
 
