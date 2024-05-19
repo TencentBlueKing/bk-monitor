@@ -392,7 +392,7 @@ class ReleaseAppConfigResource(Resource):
 
         db_slow_command_config = DbSlowCommandConfigSerializer(label="慢命令配置", default={})
 
-        qps = serializers.IntegerField(label="qps", min_value=1, required=False)
+        qps = serializers.IntegerField(label="qps", min_value=1, required=False, default=settings.APM_APP_QPS)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
