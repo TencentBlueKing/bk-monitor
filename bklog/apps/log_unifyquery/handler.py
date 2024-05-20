@@ -109,7 +109,7 @@ class UnifyQueryHandler(object):
                 query["function"] = [{"method": agg_method}]
         data = UnifyQueryApi.query_ts_reference(search_dict)
         series = data["series"][0]
-        return series["values"][0][1]
+        return round(series["values"][0][1], 2)
 
     def get_topk_list(self):
         search_dict = copy.deepcopy(self.base_dict)

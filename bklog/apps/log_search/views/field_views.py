@@ -55,7 +55,7 @@ class FieldViewSet(APIViewSet):
     @list_route(methods=["POST"], url_path="fetch_topk_list")
     def fetch_topk_list(self, request, *args, **kwargs):
         """
-        @api {get} /field/index_set/$index_set_id/fetch_topk_list/ 获取字段topk计数列表
+        @api {get} /field/index_set/fetch_topk_list/ 获取字段topk计数列表
         @apiName fetch_topk_list
         """
         params = self.params_valid(FetchTopkListSerializer)
@@ -78,7 +78,7 @@ class FieldViewSet(APIViewSet):
     @list_route(methods=["POST"], url_path="statistics/info")
     def fetch_statistics_info(self, request, *args, **kwargs):
         """
-        @api {get} /field/index_set/$index_set_id/statistics/info/ 获取字段统计信息
+        @api {get} /field/index_set/statistics/info/ 获取字段统计信息
         @apiName fetch_statistics_info
         """
         params = self.params_valid(FetchStatisticsInfoSerializer)
@@ -88,17 +88,17 @@ class FieldViewSet(APIViewSet):
         field_count = query_handler.get_field_count()
         distinct_count = query_handler.get_distinct_count()
         field_percent = round(field_count / total_count, 2)
-        max_value = query_handler.get_agg_value("max")
-        min_value = query_handler.get_agg_value("min")
-        avg_value = query_handler.get_agg_value("avg")
-        median_value = query_handler.get_agg_value("median")
         data = {
-            "total_count": query_handler,
+            "total_count": total_count,
             "field_count": field_count,
             "distinct_count": distinct_count,
             "field_percent": field_percent,
         }
         if FieldTypeMap[params["field_type"]] == "int":
+            max_value = query_handler.get_agg_value("max")
+            min_value = query_handler.get_agg_value("min")
+            avg_value = query_handler.get_agg_value("avg")
+            median_value = query_handler.get_agg_value("median")
             data["value_analysis"] = {"max": max_value, "min": min_value, "avg": avg_value, "median": median_value}
 
         return Response(data)
@@ -106,7 +106,7 @@ class FieldViewSet(APIViewSet):
     @list_route(methods=["POST"], url_path="statistics/graph")
     def fetch_statistics_graph(self, request, *args, **kwargs):
         """constants.py:1515
-        @api {get} /field/index_set/$index_set_id/statistics/graph/ 获取字段统计图表
+        @api {get} /field/index_set/statistics/graph/ 获取字段统计图表
         @apiName fetch_statistics_graph
         """
         params = self.params_valid(FetchStatisticsGraphSerializer)
