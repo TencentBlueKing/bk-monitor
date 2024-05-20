@@ -41,7 +41,7 @@ from apps.log_search.constants import (
     TagColor,
     TemplateType,
 )
-from apps.log_search.models import ProjectInfo, Scenario
+from apps.log_search.models import LogIndexSetData, ProjectInfo, Scenario
 from apps.utils.drf import DateTimeFieldWithEpoch
 from apps.utils.local import get_local_param
 from apps.utils.lucene import EnhanceLuceneAdapter
@@ -833,12 +833,21 @@ class QueryFieldBaseSerializer(serializers.Serializer):
     ip_chooser = serializers.DictField(default={}, required=False)
 
     # 时间选择器字段
-    start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S")
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
     time_range = serializers.CharField(required=False, default=None)
 
     # 关键字填充条
     keyword = serializers.CharField(allow_null=True, allow_blank=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["result_table_ids"] = list(
+            LogIndexSetData.objects.filter(index_set_id__in=attrs["index_set_ids"]).values_list(
+                "result_table_id", flat=1
+            )
+        )
+        return attrs
 
 
 class FetchTopkListSerializer(QueryFieldBaseSerializer):

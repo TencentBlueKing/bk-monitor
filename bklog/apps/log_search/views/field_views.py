@@ -14,14 +14,13 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
-
-# from apps.log_search.models import LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     FetchStatisticsGraphSerializer,
     FetchStatisticsInfoSerializer,
     FetchTopkListSerializer,
 )
+from apps.log_unifyquery.handler import UnifyQueryHandler
 from apps.utils.drf import list_route
 
 value_list = [[100, 12], [50, 11], [14, 5], [67, 1], [0, 10], [20, 9], [15, 7], [99, 3]]
@@ -38,7 +37,7 @@ FieldTypeMap = {
 
 class FieldViewSet(APIViewSet):
     """
-    字段分析
+    字段统计&分析
     """
 
     serializer_class = serializers.Serializer
@@ -60,9 +59,10 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_topk_list
         """
         params = self.params_valid(FetchTopkListSerializer)
-        values = sorted(value_list, key=lambda x: x[1])[: params["limit"]]
-        total_count = 120
-        field_count = sum([field[1] for field in value_list])
+        query_handler = UnifyQueryHandler(params)
+        total_count = query_handler.get_total_count()
+        field_count = query_handler.get_field_count()
+        topk_list = query_handler.get_topk_list()
         return Response(
             {
                 "name": params["agg_field"],
@@ -71,7 +71,7 @@ class FieldViewSet(APIViewSet):
                 "limit": params["limit"],
                 "total_count": total_count,
                 "field_count": field_count,
-                "values": values,
+                "values": topk_list,
             }
         )
 
@@ -82,17 +82,18 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_statistics_info
         """
         params = self.params_valid(FetchStatisticsInfoSerializer)
-        total_count = 120
-        field_count = 58
-        distinct_count = 8
-        field_percent = round(field_count / total_count, 2)
+        query_handler = UnifyQueryHandler(params)
 
-        max_value = max(value[0] for value in value_list)
-        min_value = min(value[0] for value in value_list)
-        avg_value = sum(value[0] for value in value_list) / len(value_list)
-        median_value = 50
+        total_count = query_handler.get_total_count()
+        field_count = query_handler.get_field_count()
+        distinct_count = query_handler.get_distinct_count()
+        field_percent = round(field_count / total_count, 2)
+        max_value = query_handler.get_agg_value("max")
+        min_value = query_handler.get_agg_value("min")
+        avg_value = query_handler.get_agg_value("avg")
+        median_value = query_handler.get_agg_value("median")
         data = {
-            "total_count": total_count,
+            "total_count": query_handler,
             "field_count": field_count,
             "distinct_count": distinct_count,
             "field_percent": field_percent,
@@ -109,15 +110,5 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_statistics_graph
         """
         params = self.params_valid(FetchStatisticsGraphSerializer)
-        return Response(
-            {
-                "series": [
-                    {
-                        "name": params["agg_field"],
-                        "columns": ["_value", "_count"],
-                        "types": ["float", "float"],
-                        "values": value_list,
-                    }
-                ]
-            }
-        )
+        query_handler = UnifyQueryHandler(params)
+        return Response(query_handler.get_topk_ts_data(5))

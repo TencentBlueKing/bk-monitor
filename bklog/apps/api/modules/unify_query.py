@@ -18,11 +18,19 @@ from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request  # noqa
 from config.domains import UNIFYQUERY_APIGATEWAY_ROOT  # noqa
 
+UNIFYQUERY_APIGATEWAY_ROOT = "http://bkapi.bk-dev.woa.com/api/bk-unify-query/prod/"
+
 
 def add_unify_query_header_before(params):
     params = add_esb_info_before_request(params)
     params["X-Bk-Scope-Skip-Space"] = "skip"
     return params
+
+
+def add_data_after_request(response_data):
+    result = response_data.pop("result", True)
+    data = {"data": response_data, "result": result}
+    return data
 
 
 class _UnifyQueryApi(object):
@@ -34,7 +42,7 @@ class _UnifyQueryApi(object):
             url=UNIFYQUERY_APIGATEWAY_ROOT + "query/ts/",
             module=self.MODULE,
             description="时序型检索",
-            default_return_value=None,
+            after_request=add_data_after_request,
             header_keys=["X-Bk-Scope-Skip-Space"],
             before_request=add_unify_query_header_before,
         )
@@ -43,7 +51,7 @@ class _UnifyQueryApi(object):
             url=UNIFYQUERY_APIGATEWAY_ROOT + "query/ts/reference/",
             module=self.MODULE,
             description="非时序型检索",
-            default_return_value=None,
+            after_request=add_data_after_request,
             header_keys=["X-Bk-Scope-Skip-Space"],
             before_request=add_unify_query_header_before,
         )
