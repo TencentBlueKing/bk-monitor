@@ -286,11 +286,11 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
           item.disabled = true;
           item.disabledTip = this.$tc('只支持监控平台和计算平台的单指标数据');
         }
-
-        if (!window.enable_aiops) {
-          item.disabled = !IntelligentModelsStore.isEnableIntelligentRule(item.id.toString() as IntelligentModelsType);
-          item.disabledTip = '';
-        }
+        item.disabled = !(
+          window.enable_aiops &&
+          IntelligentModelsStore.intelligentModelsMap.get(item.id.toString() as IntelligentModelsType)?.length > 0
+        );
+        item.disabledTip = '';
       }
 
       // 智能算法规则

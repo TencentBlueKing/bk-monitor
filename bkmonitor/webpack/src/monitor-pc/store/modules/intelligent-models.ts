@@ -38,6 +38,23 @@ export enum IntelligentModelsType {
 class IntelligentModels extends VuexModule {
   public intelligentModelsMap = new Map<IntelligentModelsType, Array<Record<string, any>>>();
   public loading = false;
+  get isEnableAbnormalCluster() {
+    return window.enable_aiops && this.intelligentModelsMap.get(IntelligentModelsType.AbnormalCluster)?.length > 0;
+  }
+  get isEnableIntelligentDetect() {
+    return window.enable_aiops && this.intelligentModelsMap.get(IntelligentModelsType.IntelligentDetect)?.length > 0;
+  }
+  get isEnableMultivariateAnomalyDetection() {
+    return (
+      window.enable_aiops &&
+      this.intelligentModelsMap.get(IntelligentModelsType.MultivariateAnomalyDetection)?.length > 0
+    );
+  }
+  get isEnableTimeSeriesForecasting() {
+    return (
+      window.enable_aiops && this.intelligentModelsMap.get(IntelligentModelsType.TimeSeriesForecasting)?.length > 0
+    );
+  }
   @Action
   public async getListIntelligentModels(params: Record<'algorithm', IntelligentModelsType>) {
     const models = this.intelligentModelsMap.get(params.algorithm);
@@ -53,7 +70,7 @@ class IntelligentModels extends VuexModule {
   }
   @Action
   public async initAllListIntelligentModels() {
-    Object.values(IntelligentModelsType).map(async v => {
+    Object.values(IntelligentModelsType).forEach(async v => {
       const data = await listIntelligentModels({ algorithm: v }).catch(() => []);
       this.setIntelligentModels({
         key: v,

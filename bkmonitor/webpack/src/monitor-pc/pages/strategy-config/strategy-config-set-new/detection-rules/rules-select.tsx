@@ -79,7 +79,6 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
   }
 
   handleTypeChange(item) {
-    this.showFunctionalDepsDialog = true;
     if (item.disabled) {
       this.showFunctionalDepsDialog = true;
       return;
@@ -93,7 +92,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
     this.show = !this.show;
   }
   handleFunctionalDepsGotoMore() {
-    window.open(`${window.bk_docs_site_url}markdown/ZH/DeploymentGuides/7.1/index.md`, '__brank');
+    window.open(`${window.bk_docs_site_url}markdown/ZH/DeploymentGuides/7.1/index.md`, '_blank');
   }
   render() {
     return (

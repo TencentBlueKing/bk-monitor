@@ -384,7 +384,7 @@ export default class AiopsContainer extends tsc<IProps> {
     this.observer?.disconnect();
   }
   handleFunctionalDepsGotoMore() {
-    window.open(`${window.bk_docs_site_url}markdown/ZH/DeploymentGuides/7.1/index.md`, '__brank');
+    window.open(`${window.bk_docs_site_url}markdown/ZH/DeploymentGuides/7.1/index.md`, '_blank');
   }
   render() {
     // if (!this.showDimensionDrill && !this.showMetricRecommendation) return <div />;

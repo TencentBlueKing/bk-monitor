@@ -345,13 +345,13 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     if (!data.apply_url) return;
     try {
       if (self === top) {
-        window.open(data.apply_url, '__blank');
+        window.open(data.apply_url, '_blank');
       } else {
         (top as any).BLUEKING.api.open_app_by_other('bk_iam', data.apply_url);
       }
     } catch (_) {
       // 防止跨域问题
-      window.open(data.apply_url, '__blank');
+      window.open(data.apply_url, '_blank');
     }
   }
   @Emit('openSpaceManager')
