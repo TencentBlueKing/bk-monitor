@@ -25,7 +25,7 @@
  */
 import { RouteConfig } from 'vue-router';
 
-const AiSettingsSet = () => import(/* webpackChunkName: 'ai-settigns' */ '../../pages/ai-settings/ai-settings-set');
+const AiSettingsSet = () => import(/* webpackChunkName: 'ai-settigns-set' */ '../../pages/ai-settings/ai-settings-set');
 const AiSettings = () => import(/* webpackChunkName: 'ai-settigns' */ '../../pages/ai-settings/ai-settings-page');
 export default [
   {
