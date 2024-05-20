@@ -42,10 +42,15 @@ from packages.monitor_web.new_report.resources import ReportCallbackResource
 
 
 def user_exit(request):
+    def add_logout_slug(self):
+        return {"is_from_logout": "1"}
+
+    # 退出登录
     logout(request)
     # 验证不通过，需要跳转至统一登录平台
     request.path = request.path.replace("logout", "")
     handler = ResponseHandler(ConfFixture, settings)
+    handler._build_extra_args = add_logout_slug
     return handler.build_401_response(request)
 
 

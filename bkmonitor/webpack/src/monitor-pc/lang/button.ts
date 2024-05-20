@@ -165,7 +165,7 @@ export default {
   新建订阅: 'New Subscription',
   上传文件: 'Upload File',
   上传内容: 'Upload Content',
-  修改时间: 'Mofidy Time',
+  修改时间: 'Modify Time',
   修改标签: 'Modify Tag',
   修改目标: 'Modify Target',
   创建分组: 'Create Group',
