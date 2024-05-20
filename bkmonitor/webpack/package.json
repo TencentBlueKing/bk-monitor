@@ -78,8 +78,7 @@
       "local.settings.js",
       "webpack.config.js",
       "pnpm-lock.yaml"
-    ],
-    "extentions": []
+    ]
   },
   "engines": {
     "node": ">= 18.16"
