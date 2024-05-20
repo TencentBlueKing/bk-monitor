@@ -1033,6 +1033,10 @@ BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(BK_IAM_APP_CO
 BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_center", bk_paas_host=BK_PAAS_HOST)
 DOC_HOST = "https://bk.tencent.com/docs/"
 
+# 版本差异变量
+if PLATFORM == "community":
+    BK_DOCS_SITE_URL = DOC_HOST
+
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
@@ -1119,12 +1123,6 @@ HOST_GET_PROCESS_MAX_PORT = 12
 
 # 迁移工具使用文档地址
 MIGRATE_GUIDE_URL = os.getenv("BKAPP_MIGRATE_GUIDE_URL", "")
-
-# 版本差异变量
-if PLATFORM == "enterprise":
-    BK_DOCS_SITE_URL = BK_PAAS_HOST + "/o/bk_docs_center/"
-else:
-    BK_DOCS_SITE_URL = "https://bk.tencent.com/docs/"
 
 # IP选择器接口类
 BKM_IPCHOOSER_BKAPI_CLASS = "api.cmdb.ipchooser.IpChooserApi"
