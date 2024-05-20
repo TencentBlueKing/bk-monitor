@@ -363,79 +363,83 @@ export default class AiSettingsSet extends tsc<object> {
                     </span>
                   </span>
                 )}
-                {this.formItemRender(
-                  <span class='item-label'>{this.$t('关闭通知的对象')}</span>,
-                  <Notification
-                    v-model={child.data.exclude_target}
-                    hostInfo={this.excludeTargetDetail.info}
-                    isEdit={true}
-                    onChange={this.handleExcludeTargetChange}
-                    onShowTargetDetail={this.handleShowTargetDetail}
-                  ></Notification>
-                )}
-                {this.formItemRender(
-                  <span class='item-label required mt-6'>{this.$t('默认方案')}</span>,
-                  <ErrorMsg
-                    style='width: 100%;'
-                    message={child.errorsMsg.default_plan_id}
-                  >
-                    <bk-select
-                      v-model={child.data.default_plan_id}
-                      clearable={false}
-                      ext-popover-cls='ai-settings-scheme-select'
-                      searchable
-                      on-change={() => {
-                        child.errorsMsg.default_plan_id = '';
-                      }}
-                    >
-                      {this.multipleSchemeList.map(item => (
-                        <bk-option
-                          id={item.id}
+                {child.data.is_enabled
+                  ? [
+                      this.formItemRender(
+                        <span class='item-label'>{this.$t('关闭通知的对象')}</span>,
+                        <Notification
+                          v-model={child.data.exclude_target}
+                          hostInfo={this.excludeTargetDetail.info}
+                          isEdit={true}
+                          onChange={this.handleExcludeTargetChange}
+                          onShowTargetDetail={this.handleShowTargetDetail}
+                        ></Notification>
+                      ),
+                      this.formItemRender(
+                        <span class='item-label required mt-6'>{this.$t('默认方案')}</span>,
+                        <ErrorMsg
                           style='width: 100%;'
-                          name={item.name}
+                          message={child.errorsMsg.default_plan_id}
                         >
-                          <bk-popover
-                            style='width: 100%;'
-                            ext-cls='programme-item-popover'
-                            placement='right-end'
-                            theme='light'
+                          <bk-select
+                            v-model={child.data.default_plan_id}
+                            clearable={false}
+                            ext-popover-cls='ai-settings-scheme-select'
+                            searchable
+                            on-change={() => {
+                              child.errorsMsg.default_plan_id = '';
+                            }}
                           >
-                            <div style='width: 100%;'>{item.name}</div>
-                            <div slot='content'>
-                              <div class='content-item'>
-                                <span class='content-item-title'>{this.$t('依赖历史数据长度')}:</span>
-                                <span>{item.ts_depend}</span>
-                              </div>
-                              <div class='content-item'>
-                                <span class='content-item-title'>{this.$t('数据频率')}:</span>
-                                <span>{item.ts_freq || this.$t('无限制')}</span>
-                              </div>
-                              <div class='content-item'>
-                                <span class='content-item-title'>{this.$t('描述')}:</span>
-                                <span class='content-item-description'>{item.description}</span>
-                              </div>
-                            </div>
-                          </bk-popover>
-                        </bk-option>
-                      ))}
-                    </bk-select>
-                  </ErrorMsg>,
-                  true
-                )}
-                {this.formItemRender(
-                  <span class='item-label required'>{this.$t('敏感度')}</span>,
-                  <div class='mt-6'>
-                    <bk-slider
-                      v-model={child.data.default_sensitivity}
-                      max-value={10}
-                    ></bk-slider>
-                    <div class='sensitivity-tips'>
-                      <span>{this.$t('较少告警')}</span>
-                      <span>{this.$t('较多告警')}</span>
-                    </div>
-                  </div>,
-                  true
-                )}
+                            {this.multipleSchemeList.map(item => (
+                              <bk-option
+                                id={item.id}
+                                style='width: 100%;'
+                                name={item.name}
+                              >
+                                <bk-popover
+                                  style='width: 100%;'
+                                  ext-cls='programme-item-popover'
+                                  placement='right-end'
+                                  theme='light'
+                                >
+                                  <div style='width: 100%;'>{item.name}</div>
+                                  <div slot='content'>
+                                    <div class='content-item'>
+                                      <span class='content-item-title'>{this.$t('依赖历史数据长度')}:</span>
+                                      <span>{item.ts_depend}</span>
+                                    </div>
+                                    <div class='content-item'>
+                                      <span class='content-item-title'>{this.$t('数据频率')}:</span>
+                                      <span>{item.ts_freq || this.$t('无限制')}</span>
+                                    </div>
+                                    <div class='content-item'>
+                                      <span class='content-item-title'>{this.$t('描述')}:</span>
+                                      <span class='content-item-description'>{item.description}</span>
+                                    </div>
+                                  </div>
+                                </bk-popover>
+                              </bk-option>
+                            ))}
+                          </bk-select>
+                        </ErrorMsg>,
+                        true
+                      ),
+                      this.formItemRender(
+                        <span class='item-label required'>{this.$t('敏感度')}</span>,
+                        <div class='mt-6'>
+                          <bk-slider
+                            v-model={child.data.default_sensitivity}
+                            max-value={10}
+                          ></bk-slider>
+                          <div class='sensitivity-tips'>
+                            <span>{this.$t('较少告警')}</span>
+                            <span>{this.$t('较多告警')}</span>
+                          </div>
+                        </div>,
+                        true
+                      ),
+                    ]
+                  : undefined}
               </div>
             </ExpanCard>
           );
