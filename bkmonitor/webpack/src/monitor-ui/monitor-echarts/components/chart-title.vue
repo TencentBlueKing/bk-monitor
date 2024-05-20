@@ -34,8 +34,8 @@
     >
       <div class="main-title">
         <i
-          v-bk-tooltips="alarmTips"
           v-if="hasMetric"
+          v-bk-tooltips="alarmTips"
           class="icon-monitor icon-inform alarm-icon"
           :class="`status-${alarmStatus.status + 1}`"
           @click.self.stop="handleAlarmClick"
@@ -44,8 +44,8 @@
           {{ title }}
         </div>
         <span
-          class="title-interval"
           v-if="hasMetric && extendMetricData.collect_interval"
+          class="title-interval"
           >{{ extendMetricData.collect_interval }}m</span
         >
         <i
@@ -56,8 +56,8 @@
           @mouseleave.self.stop="handleHideTips"
         />
         <i
-          :style="{ marginLeft: hasMetric ? '0px' : 'auto' }"
           v-show="showMore"
+          :style="{ marginLeft: hasMetric ? '0px' : 'auto' }"
           class="icon-monitor icon-mc-more more-icon"
         />
       </div>
@@ -72,13 +72,12 @@
     <chart-menu
       v-show="showMenu"
       :list="menuList"
-      @menu-click="handleMenuClick"
       :style="{ left: menuLeft + 'px' }"
+      @menu-click="handleMenuClick"
     />
   </div>
 </template>
 <script lang="ts">
-/* eslint-disable camelcase */
 import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
 import ChartMenu from './chart-menu.vue';
@@ -106,8 +105,8 @@ interface IExtendMetricData {
 @Component({
   name: 'chart-title',
   components: {
-    ChartMenu
-  }
+    ChartMenu,
+  },
 })
 export default class ChartTitle extends Vue {
   @Prop({ default: '' }) title: string;
@@ -117,7 +116,7 @@ export default class ChartTitle extends Vue {
   @Prop({
     default() {
       return {};
-    }
+    },
   })
   extendMetricData: IExtendMetricData;
   @Prop({ default: '3' }) collectInterval: string;
@@ -147,7 +146,7 @@ export default class ChartTitle extends Vue {
       showOnInit: false,
       trigger: 'mouseenter',
       placements: ['top'],
-      allowHTML: false
+      allowHTML: false,
     };
   }
   get hasMetric() {
@@ -173,7 +172,7 @@ export default class ChartTitle extends Vue {
       theme: 'tippy-metric',
       arrow: true,
       placement: 'auto',
-      boundary: 'window'
+      boundary: 'window',
     });
     this.popoverInstance?.show(100);
   }
@@ -189,7 +188,7 @@ export default class ChartTitle extends Vue {
     const options = [
       // 公共展示项
       { val: data.metric_field, label: this.$t('指标名') },
-      { val: data.metric_field_name, label: this.$t('指标别名') }
+      { val: data.metric_field_name, label: this.$t('指标别名') },
     ];
     const elList = {
       bk_monitor_time_series: [
@@ -199,7 +198,7 @@ export default class ChartTitle extends Vue {
         { val: data.related_name, label: this.$t('插件名') },
         { val: data.result_table_id, label: this.$t('分类ID') },
         { val: data.result_table_name, label: this.$t('分类名') },
-        { val: data.description, label: this.$t('含义') }
+        { val: data.description, label: this.$t('含义') },
       ],
       bk_log_search_time_series: [
         // 日志采集
@@ -207,20 +206,20 @@ export default class ChartTitle extends Vue {
         { val: data.related_name, label: this.$t('索引集') },
         { val: data.result_table_id, label: this.$t('索引') },
         { val: data.extend_fields.scenario_name, label: this.$t('数据源类别') },
-        { val: data.extend_fields.storage_cluster_name, label: this.$t('数据源名') }
+        { val: data.extend_fields.storage_cluster_name, label: this.$t('数据源名') },
       ],
       bk_data_time_series: [
         // 数据平台
         ...options,
-        { val: data.result_table_id, label: this.$t('表名') }
+        { val: data.result_table_id, label: this.$t('表名') },
       ],
       custom_time_series: [
         // 自定义指标
         ...options,
         { val: data.extend_fields.bk_data_id, label: this.$t('数据ID') },
-        { val: data.result_table_name, label: this.$t('数据名') }
+        { val: data.result_table_name, label: this.$t('数据名') },
       ],
-      bk_monitor_log: [...options]
+      bk_monitor_log: [...options],
     };
     // 拨测指标融合后不需要显示插件id插件名
     const resultTableLabel = data.result_table_label;
@@ -319,7 +318,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         font-size: 12px;
         font-weight: normal;
         color: #63656e;
-        border: 1px solid rgba(151, 155, 165, .3);
+        border: 1px solid rgba(151, 155, 165, 0.3);
         border-radius: 2px;
       }
 

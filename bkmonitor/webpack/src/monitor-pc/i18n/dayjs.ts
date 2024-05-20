@@ -34,9 +34,8 @@ import localizedFormat from 'dayjs/plugin/localizedFormat';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import tz from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
-
-import { LANGUAGE_COOKIE_KEY, TIMEZONE_STORE_KEY } from '../../monitor-common/utils/constant';
-import { docCookies } from '../../monitor-common/utils/utils';
+import { LANGUAGE_COOKIE_KEY, TIMEZONE_STORE_KEY } from 'monitor-common/utils/constant';
+import { docCookies } from 'monitor-common/utils/utils';
 
 dayjs.extend(customParseFormat);
 dayjs.extend(localizedFormat);
@@ -50,7 +49,7 @@ dayjs.extend(duration);
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
 dayjs.locale({
   ...(currentLang === 'en' ? en : cn),
-  weekStart: 1
+  weekStart: 1,
 });
 // window.timezone = dayjs.tz.guess();
 // dayjs.tz.setDefault(window.timezone);

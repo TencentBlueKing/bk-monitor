@@ -25,11 +25,11 @@
  */
 import { defineComponent, onMounted, PropType, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Button, Exception } from 'bkui-vue';
 
-import { random } from '../../../../monitor-common/utils/utils';
-import { ITableItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import { PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+import { Button, Exception } from 'bkui-vue';
+import { random } from 'monitor-common/utils/utils';
+import { type ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './exception-guide.scss';
 
@@ -44,7 +44,7 @@ export default defineComponent({
   name: 'ExceptionGuideMigrated',
   props: {
     // 以下是继承自 common-simple-chart 的属性
-    panel: { required: true, type: Object as PropType<PanelModel> }
+    panel: { required: true, type: Object as PropType<PanelModel> },
     // 结束
   },
   setup(props) {
@@ -54,7 +54,7 @@ export default defineComponent({
       type: '',
       title: '',
       subTitle: '',
-      link: null
+      link: null,
     });
 
     onMounted(() => {
@@ -81,7 +81,7 @@ export default defineComponent({
 
         if (link.target === 'self') {
           router.push({
-            path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/')
+            path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/'),
           });
           return;
         }
@@ -93,7 +93,7 @@ export default defineComponent({
     return {
       guideInfo,
       handleSetGuide,
-      handleButton
+      handleButton,
     };
   },
   render() {
@@ -115,5 +115,5 @@ export default defineComponent({
         </Exception>
       </div>
     );
-  }
+  },
 });

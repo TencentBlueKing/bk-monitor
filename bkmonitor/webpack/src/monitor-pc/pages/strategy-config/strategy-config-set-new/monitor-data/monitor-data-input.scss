@@ -1,5 +1,6 @@
 @mixin key {
   display: flex;
+  flex: 0 0 32px;
   align-items: center;
   justify-content: center;
   width: 32px;
@@ -46,10 +47,6 @@
     position: relative;
     display: flex;
 
-    &:hover {
-      cursor: pointer;
-    }
-
     .item-key {
       position: relative;
 
@@ -74,10 +71,19 @@
       display: flex;
       flex: 1;
       flex-wrap: wrap;
+      max-width: 100%;
 
       .simple-condition-input-component {
+        max-width: 100%;
+
         .bk-form-input {
           border: 1px solid #dcdee5;
+        }
+
+        .bk-tag-input {
+          .tag-list {
+            flex-wrap: wrap;
+          }
         }
       }
     }
@@ -87,7 +93,7 @@
       padding-left: 8px;
 
       &-btn {
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         width: 24px;
@@ -101,6 +107,14 @@
         &:hover {
           color: #ff5656;
         }
+      }
+    }
+
+    &:hover {
+      cursor: pointer;
+
+      .item-delete-btn {
+        display: flex;
       }
     }
   }

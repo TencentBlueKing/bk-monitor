@@ -38,12 +38,12 @@ export default [
     redirect: '/set-meal',
     meta: {
       title: '管理',
-      navId: 'set-meal'
-    }
+      navId: 'set-meal',
+    },
   },
   ...alarmGroupRoutes,
   ...alarmShieldRoutes,
   ...setMealRoutes,
   ...strategyConfigRoutes,
-  ...alarmDispatch
+  ...alarmDispatch,
 ] as RouteConfig[];

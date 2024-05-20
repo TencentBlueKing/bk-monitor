@@ -27,7 +27,8 @@ import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator
 import { Component as tsc } from 'vue-tsx-support';
 
 //
-import { createEventPluginInstance, getEventPluginInstance } from '../../../monitor-api/modules/event_plugin';
+import { createEventPluginInstance, getEventPluginInstance } from 'monitor-api/modules/event_plugin';
+
 import DynamicForm from '../setting/set-meal/set-meal-add/components/dynamic-form/dynamic-form';
 
 import './install-plugin-dialog.scss';
@@ -124,12 +125,12 @@ export default class InstallPluginDialog extends tsc<IInstallPluginDialogProps, 
     this.loading = true;
     const data = await createEventPluginInstance(this.data.pluginId, {
       version: this.data.version,
-      config_params: this.formModel
+      config_params: this.formModel,
     }).catch(() => null);
     if (data) {
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('安装成功')
+        message: this.$t('安装成功'),
       });
       this.$emit('change', false);
       this.$emit('success');
@@ -144,12 +145,12 @@ export default class InstallPluginDialog extends tsc<IInstallPluginDialogProps, 
   render() {
     return (
       <bk-dialog
-        value={this.value}
-        header-position='left'
-        title={this.$t('安装插件')}
-        ok-text={this.$t('安装')}
-        auto-close={false}
         ext-cls='integrated-install-plugin-dialog'
+        auto-close={false}
+        header-position='left'
+        ok-text={this.$t('安装')}
+        title={this.$t('安装插件')}
+        value={this.value}
         on-value-change={this.handleValueChange}
       >
         <div
@@ -169,9 +170,9 @@ export default class InstallPluginDialog extends tsc<IInstallPluginDialogProps, 
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             class='mr10'
             loading={this.loading}
+            theme='primary'
             onClick={this.handleConfirm}
           >
             {this.$t('确认')}

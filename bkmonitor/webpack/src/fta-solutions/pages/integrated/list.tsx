@@ -26,8 +26,8 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/components/empty-status/types';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import { IPluginDetail, OperateType } from './content-group-item';
 import { IGroupData } from './group';
@@ -69,7 +69,7 @@ export default class List extends tsc<IListProps, IListEvents> {
     NO_DATA: this.$t('无数据'),
     REMOVE_SOON: this.$t('将下架'),
     REMOVED: this.$t('已下架'),
-    DISABLED: this.$t('已停用')
+    DISABLED: this.$t('已停用'),
   };
 
   @Emit('emptyOperate')
@@ -80,10 +80,10 @@ export default class List extends tsc<IListProps, IListEvents> {
   render() {
     return (
       <bk-table
-        data={this.tableData}
-        size='medium'
         class='list-view'
+        data={this.tableData}
         row-class-name={this.getRowClassName}
+        size='medium'
       >
         <div slot='empty'>
           <EmptyStatus
@@ -92,15 +92,13 @@ export default class List extends tsc<IListProps, IListEvents> {
           />
         </div>
         <bk-table-column
-          label={this.$t('名称')}
-          min-width={200}
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <div class='col-name'>
                 {row.logo ? (
                   <img
-                    alt=''
                     class='img-logo'
+                    alt=''
                     src={`data:image/png;base64,${row.logo}`}
                   ></img>
                 ) : (
@@ -121,16 +119,18 @@ export default class List extends tsc<IListProps, IListEvents> {
                   </span>
                 </div>
               </div>
-            )
+            ),
           }}
+          label={this.$t('名称')}
+          min-width={200}
         ></bk-table-column>
         <bk-table-column
           label={this.$t('方式')}
           prop='main_type_display'
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('类型')}
           width={100}
+          label={this.$t('类型')}
           prop='category_display'
         ></bk-table-column>
         <bk-table-column
@@ -138,26 +138,24 @@ export default class List extends tsc<IListProps, IListEvents> {
           prop='scenario_display'
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('标签')}
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <div class='col-tag'>{row?.tags?.map(tag => <span class='tag'>{tag}</span>) || '--'}</div>
-            )
+            ),
           }}
+          label={this.$t('标签')}
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('状态')}
           width={100}
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <span class={`col-status ${row.status.toLocaleLowerCase()}`}>{this.statusMap[row.status]}</span>
-            )
+            ),
           }}
+          label={this.$t('状态')}
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('热度')}
           width={80}
-          align='center'
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <span class='col-popularity'>
@@ -170,45 +168,47 @@ export default class List extends tsc<IListProps, IListEvents> {
                   '--'
                 )}
               </span>
-            )
+            ),
           }}
+          align='center'
+          label={this.$t('热度')}
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('创建记录')}
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <div>
                 <div>{row.create_user}</div>
                 <div>{row.create_time}</div>
               </div>
-            )
+            ),
           }}
+          label={this.$t('创建记录')}
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('更新记录')}
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <div>
                 <div>{row.update_user}</div>
                 <div>{row.update_time}</div>
               </div>
-            )
+            ),
           }}
+          label={this.$t('更新记录')}
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('操作')}
           width={100}
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <bk-button
+                v-en-style='width: 72px;'
                 text
                 onClick={() => this.handleConfig(row)}
-                v-en-style='width: 72px;'
               >
                 {this.$t('配置')}
               </bk-button>
-            )
+            ),
           }}
+          label={this.$t('操作')}
         ></bk-table-column>
       </bk-table>
     );
@@ -222,7 +222,7 @@ export default class List extends tsc<IListProps, IListEvents> {
   handleGotoDetail(row: IPluginDetail): IOperateData {
     return {
       type: 'detail',
-      item: row
+      item: row,
     };
   }
 
@@ -230,7 +230,7 @@ export default class List extends tsc<IListProps, IListEvents> {
   handleConfig(row: IPluginDetail): IOperateData {
     return {
       type: 'config',
-      item: row
+      item: row,
     };
   }
 }

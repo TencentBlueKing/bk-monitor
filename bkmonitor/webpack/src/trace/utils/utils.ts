@@ -25,8 +25,8 @@
  */
 
 import dayjs from 'dayjs';
+import { xssFilter } from 'monitor-common/utils/xss';
 
-import { xssFilter } from '../../monitor-common/utils/xss';
 import { IExtendMetricData } from '../plugins/typings';
 
 export const specialEqual = (v: any, o: any) => {
@@ -58,7 +58,7 @@ export const isShadowEqual = (v: Record<string, any>, o: Record<string, any>) =>
 export const MAX_PONIT_COUNT = 2880;
 export const MIN_PONIT_COUNT = 1440;
 export const INTERVAL_CONTANT_LIST = [10, 30, 60, 2 * 60, 5 * 60, 10 * 60, 30 * 60, 60 * 60];
-export const reviewInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const reviewInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     reviewInterval = interval;
@@ -73,7 +73,7 @@ export const reviewInterval = (interval: number | 'auto' | string, timeRange: nu
   return reviewInterval;
 };
 
-export const recheckInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const recheckInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     const minInterval = (timeRange / (step || 60) / MAX_PONIT_COUNT) * 60;
@@ -104,7 +104,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   const options = [
     // 公共展示项
     { val: data.metric_field, label: window.i18n.t('指标名') },
-    { val: data.metric_field_name, label: window.i18n.t('指标别名') }
+    { val: data.metric_field_name, label: window.i18n.t('指标别名') },
   ];
   const elList = {
     bk_monitor_time_series: [
@@ -114,7 +114,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
       { val: data.related_name, label: window.i18n.t('插件名') },
       { val: data.result_table_id, label: window.i18n.t('分类ID') },
       { val: data.result_table_name, label: window.i18n.t('分类名') },
-      { val: data.description, label: window.i18n.t('含义') }
+      { val: data.description, label: window.i18n.t('含义') },
     ],
     bk_log_search_time_series: [
       // 日志采集
@@ -122,20 +122,20 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
       { val: data.related_name, label: window.i18n.t('索引集') },
       { val: data.result_table_id, label: window.i18n.t('索引') },
       { val: data.extend_fields?.scenario_name, label: window.i18n.t('数据源类别') },
-      { val: data.extend_fields?.storage_cluster_name, label: window.i18n.t('数据源名') }
+      { val: data.extend_fields?.storage_cluster_name, label: window.i18n.t('数据源名') },
     ],
     bk_data_time_series: [
       // 数据平台
       ...options,
-      { val: data.result_table_id, label: window.i18n.t('表名') }
+      { val: data.result_table_id, label: window.i18n.t('表名') },
     ],
     custom_time_series: [
       // 自定义指标
       ...options,
       { val: data.extend_fields?.bk_data_id, label: window.i18n.t('数据ID') },
-      { val: data.result_table_name, label: window.i18n.t('数据名') }
+      { val: data.result_table_name, label: window.i18n.t('数据名') },
     ],
-    bk_monitor_log: [...options]
+    bk_monitor_log: [...options],
   };
   // 拨测指标融合后不需要显示插件id插件名
   const resultTableLabel = data.result_table_label;
@@ -202,4 +202,27 @@ export const getSpanKindIcon = (kind: number) => {
     default:
       return '';
   }
+};
+
+/**
+ * 把Byte数值转换成最适合的单位数值
+ * @param size 大小
+ * @returns 最终结果
+ */
+export const transformByte = (size: number) => {
+  const units = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  let index = 0;
+  let number = size;
+
+  if (isNaN(size) || size < 0) {
+    return '-';
+  }
+
+  while (number > 1024 && index < units.length - 1) {
+    number /= 1024;
+    index += 1;
+  }
+
+  number = Math.round(number * 100) / 100;
+  return `${number}${units[index]}`;
 };

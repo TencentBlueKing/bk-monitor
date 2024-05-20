@@ -31,13 +31,13 @@
     :mask-close="false"
     :header-position="'left'"
     :title="''"
-    @value-change="handleValueChange"
     :value="isModalShow"
+    @value-change="handleValueChange"
     @cancel="onCloseDialog"
   >
     <div
-      class="permission-modal"
       v-bkloading="{ isLoading: loading }"
+      class="permission-modal"
     >
       <div class="permission-header">
         <span class="title-icon">
@@ -45,7 +45,7 @@
             :src="lock"
             alt="permission-lock"
             class="lock-img"
-          >
+          />
         </span>
         <h3>{{ $t('该操作需要以下权限') }}</h3>
       </div>
@@ -76,9 +76,9 @@
                 </td>
                 <td width="50%">
                   <p
-                    class="resource-type-item"
                     v-for="(reItem, reIndex) in getResource(action.relatedResourceTypes)"
                     :key="reIndex"
+                    class="resource-type-item"
                   >
                     {{ reItem }}
                   </p>
@@ -89,25 +89,29 @@
               <td
                 class="no-data"
                 colspan="3"
-              >{{ $t('无数据') }}</td>
+              >
+                {{ $t('无数据') }}
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
     <div
-      class="permission-footer"
       slot="footer"
+      class="permission-footer"
     >
       <div class="button-group">
         <bk-button
           theme="primary"
           @click="goToApply"
-        >{{ $t('去申请') }}</bk-button>
+          >{{ $t('去申请') }}</bk-button
+        >
         <bk-button
           theme="default"
           @click="onCloseDialog"
-        >{{ $t('取消') }}</bk-button>
+          >{{ $t('取消') }}</bk-button
+        >
       </div>
     </div>
   </bk-dialog>
@@ -115,10 +119,10 @@
 <script lang="ts">
 import { Component, Vue, Watch } from 'vue-property-decorator';
 // 20231205 代码还原，先保留原有部分
-// import { showAccessRequest } from '../../monitor-pc/components/access-request-dialog';
+// import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
+// @ts-ignore
 import authorityStore from '@store/modules/authority';
-
-import lockImg from '../../monitor-pc/static/images/svg/lock-radius.svg';
+import lockImg from 'monitor-pc/static/images/svg/lock-radius.svg';
 
 @Component
 export default class AuthorityModal extends Vue {
@@ -152,7 +156,7 @@ export default class AuthorityModal extends Vue {
     }
 
     const data = [];
-    resoures.forEach((resource) => {
+    resoures.forEach(resource => {
       if (resource.instances.length > 0) {
         const instances = resource.instances
           .map(instanceItem => instanceItem.map(item => item.name).join('，'))
@@ -189,7 +193,7 @@ export default class AuthorityModal extends Vue {
 }
 </style>
 <style lang="scss" scoped>
-@import '../../monitor-pc/theme/mixin.scss';
+@import 'monitor-pc/theme/mixin.scss';
 
 .permission-modal {
   @include permission-fix;

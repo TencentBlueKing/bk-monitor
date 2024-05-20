@@ -44,6 +44,11 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
   // 图例数据
   @Prop({ required: true }) readonly legendData: ILegendItem[];
 
+  mouseEvent = {
+    isMouseDown: false,
+    isMouseMove: false,
+  };
+
   @Emit('selectLegend')
   handleLegendEvent(e: MouseEvent, actionType: LegendActionType, item: ILegendItem) {
     let eventType = actionType;
@@ -53,6 +58,19 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
     return { actionType: eventType, item };
   }
 
+  handleLegendMouseEvent(e, mouseType: string, item?: ILegendItem) {
+    // 鼠标拖动选中文本不执行点击事件
+    if (mouseType === 'mousedown') {
+      this.mouseEvent.isMouseDown = true;
+    } else if (mouseType === 'mousemove') {
+      if (this.mouseEvent.isMouseDown) this.mouseEvent.isMouseMove = true;
+    } else {
+      !this.mouseEvent.isMouseMove && this.handleLegendEvent(e, 'click', item);
+      this.mouseEvent.isMouseDown = false;
+      this.mouseEvent.isMouseMove = false;
+    }
+  }
+
   render() {
     return (
       <div class='common-legend'>
@@ -60,19 +78,19 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
           if (legend.hidden) return undefined;
           return (
             <div
-              class='common-legend-item'
               key={index}
+              class='common-legend-item'
               onClick={e => this.handleLegendEvent(e, 'click', legend)}
               onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
               onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}
             >
               <span
-                class='legend-icon'
                 style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
+                class='legend-icon'
               ></span>
               <div
-                class='legend-name'
                 style={{ color: legend.show ? '#63656e' : '#ccc' }}
+                class='legend-name'
               >
                 {legend.alias || legend.name}
               </div>
@@ -81,8 +99,8 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
         })}
         {this.$slots.expand && (
           <div
-            class='common-legend-item'
             style='position: relative'
+            class='common-legend-item'
           >
             {this.$slots.expand}
           </div>

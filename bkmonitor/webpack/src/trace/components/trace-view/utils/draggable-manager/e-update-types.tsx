@@ -30,7 +30,7 @@ enum EUpdateTypes {
   DragStart = 'DragStart',
   MouseEnter = 'MouseEnter',
   MouseLeave = 'MouseLeave',
-  MouseMove = 'MouseMove'
+  MouseMove = 'MouseMove',
 }
 
 export default EUpdateTypes;

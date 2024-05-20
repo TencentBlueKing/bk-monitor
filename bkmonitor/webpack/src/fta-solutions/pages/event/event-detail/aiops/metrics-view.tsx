@@ -26,9 +26,9 @@
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from '../../../../../monitor-common/utils/utils';
-import DashboardPanel from '../../../../../monitor-ui/chart-plugins/components/flex-dashboard-panel';
-import { IPanelModel, IViewOptions } from '../../../../../monitor-ui/chart-plugins/typings';
+import { random } from 'monitor-common/utils/utils';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
+import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import CorrelationNav from './correlation-nav';
 import MetricsCollapse from './metrics-collapse';
@@ -75,7 +75,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 指标布局列
-  @ProvideReactive('layoutActive') layoutActive: Number = 2;
+  @ProvideReactive('layoutActive') layoutActive = 2;
 
   loading = false;
   /** 关联指标是否触发吸附 */
@@ -110,7 +110,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       return;
     }
     scrollToDom.scrollIntoView({
-      behavior: 'smooth'
+      behavior: 'smooth',
     });
     scrollToDom.classList.add('select');
     setTimeout(() => {
@@ -159,14 +159,14 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       <div class='panel-warp'>
         {item.panels?.length > 0 ? (
           <DashboardPanel
-            panels={item.panels}
             id={item.metric_name}
             key={item.metric_name}
             column={props.column}
             customHeightFn={column => '200px' || (column === 1 ? '220px' : '256px')}
-            needOverviewBtn={false}
-            isSplitPanel={false}
             isSingleChart={false}
+            isSplitPanel={false}
+            needOverviewBtn={false}
+            panels={item.panels}
           ></DashboardPanel>
         ) : (
           ''
@@ -188,21 +188,21 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
     const panelLen = this.recommendedMetricPanels.length;
     return (
       <MetricsCollapse
-        class={[panelLen > 1 && index !== panelLen - 1 ? 'mb10' : '']}
-        key={`${item.metric_name}_collapse`}
         id={`${item.metric_name}_collapse`}
+        key={`${item.metric_name}_collapse`}
         ref={`${item.metric_name}_collapse`}
+        class={[panelLen > 1 && index !== panelLen - 1 ? 'mb10' : '']}
         info={this.info}
-        title={`【${item.title}】${item.metric_name_alias}`}
-        needLayout={true}
         layoutActive={this.layoutActive}
+        needLayout={true}
+        title={`【${item.title}】${item.metric_name_alias}`}
         {...{
           on: {
-            layoutChange: val => (this.layoutActive = val)
+            layoutChange: val => (this.layoutActive = val),
           },
           scopedSlots: {
-            default: this.renderDashboardPanel.bind(this, item)
-          }
+            default: this.renderDashboardPanel.bind(this, item),
+          },
         }}
       ></MetricsCollapse>
     );
@@ -217,7 +217,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       return;
     }
     current.scrollIntoView({
-      behavior: 'smooth'
+      behavior: 'smooth',
     });
     if (this.$refs[key] && (this.$refs[key] as any).isCollapse) {
       setTimeout(() => {
@@ -248,19 +248,19 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   renderCorrelationMetricPanels() {
     return (
       <div
-        v-bkloading={{ isLoading: this.metricRecommendationLoading }}
         class={[
           'correlation-metric-wrap',
           !this.isCorrelationMetrics ? 'aiops-metrics-view-hide' : '',
-          this.metricRecommendationErr ? 'metrics-err' : ''
+          this.metricRecommendationErr ? 'metrics-err' : '',
         ]}
+        v-bkloading={{ isLoading: this.metricRecommendationLoading }}
       >
         {this.panelMap.recommendedMetricPanels.length > 0 ? (
           [
             <div class='correlation-metric-nav-wrap-bg'></div>,
             <div
-              class={['correlation-metric-nav-wrap', this.isFixed && 'correlation-metric-fixed']}
               style={this.isFixed ? { top: this.isDetailRoute ? '52px' : '60px' } : {}}
+              class={['correlation-metric-nav-wrap', this.isFixed && 'correlation-metric-fixed']}
             >
               <CorrelationNav
                 ref='correlationNav'
@@ -270,13 +270,13 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             </div>,
             <div class={['correlation-metric-panels', this.isFixed && 'correlation-metric-fixed-padding']}>
               {this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))}
-            </div>
+            </div>,
           ]
         ) : (
           <div class={`bk-table-empty-block aiops-metrics-view-${!this.isCorrelationMetrics ? 'hide' : 'show'}`}>
             <bk-exception
-              type={this.metricRecommendationErr ? '500' : 'empty'}
               scene='part'
+              type={this.metricRecommendationErr ? '500' : 'empty'}
             >
               {this.metricRecommendationErr ? this.metricRecommendationErr : this.$t('暂无数据')}
             </bk-exception>
@@ -293,15 +293,15 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   renderDimensionPanels() {
     return this.panelMap?.dimensionPanels?.length > 0 ? (
       <DashboardPanel
-        class={[`aiops-metrics-view-${this.isCorrelationMetrics ? 'hide' : 'show'}`, 'aiops-dimension-panels']}
         id={this.dashboardPanelId}
         key={this.dashboardPanelId}
-        panels={this.panelMap.dimensionPanels}
+        class={[`aiops-metrics-view-${this.isCorrelationMetrics ? 'hide' : 'show'}`, 'aiops-dimension-panels']}
         column={this.dimensionPanelsColumn}
         customHeightFn={column => '200px' || (column === 1 ? '220px' : '256px')}
-        needOverviewBtn={false}
-        isSplitPanel={false}
         isSingleChart={false}
+        isSplitPanel={false}
+        needOverviewBtn={false}
+        panels={this.panelMap.dimensionPanels}
       ></DashboardPanel>
     ) : (
       ''

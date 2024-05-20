@@ -26,10 +26,11 @@
 import { Component, Emit, Prop, Provide, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import BusinessItem, { IData as IBusinessCard } from '../../../fta-solutions/pages/home/business-item';
-import { monitorInfo } from '../../../monitor-api/modules/overview';
+import BusinessItem, { IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
+import { monitorInfo } from 'monitor-api/modules/overview';
 
 import BusinessAlarmOverview from './components/business-alarm-overiview';
+import BusinessRight from './skeleton/business-right';
 
 import './business-item-big.scss';
 
@@ -47,7 +48,7 @@ interface IEvent {
 }
 
 @Component({
-  name: 'BusinessItemBig'
+  name: 'BusinessItemBig',
 })
 export default class BusinessItemBig extends tsc<IProps, IEvent> {
   @Prop({
@@ -58,24 +59,24 @@ export default class BusinessItemBig extends tsc<IProps, IEvent> {
       eventCounts: [
         { id: 'event', name: '', count: 0, unit: '' },
         { id: 'alert', name: '', count: 0, unit: '' },
-        { id: 'action', name: '', count: 0, unit: '' }
+        { id: 'action', name: '', count: 0, unit: '' },
       ],
       seriesData: [
         { level: 2, count: 1 },
         { level: 3, count: 1 },
-        { level: 1, count: 1 }
+        { level: 1, count: 1 },
       ],
       countSum: 0,
       dataCounts: [
         { id: 'noise_reduction_ratio', name: '', count: 0, unit: '' },
         { id: 'auto_recovery_ratio', name: '', count: 0, unit: '' },
         { id: 'mtta', name: 'MTTA', count: 0, unit: '' },
-        { id: 'mttr', name: 'MTTR', count: 0, unit: '' }
+        { id: 'mttr', name: 'MTTR', count: 0, unit: '' },
       ],
       isFavorite: false,
       isSticky: false,
-      isDemo: false
-    })
+      isDemo: false,
+    }),
   })
   data: IBusinessCard;
   @Prop({ type: Number, default: 7 }) homeDays: number;
@@ -101,12 +102,12 @@ export default class BusinessItemBig extends tsc<IProps, IEvent> {
     this.businessAlarmLoading = true;
     const data = await monitorInfo({
       bk_biz_id: this.data.id,
-      days: this.homeDays
+      days: this.homeDays,
     }).catch(() => ({
       uptimecheck: [],
       service: [],
       process: [],
-      os: []
+      os: [],
     }));
     this.businessAlarm = [data.uptimecheck, data.service, data.process, data.os];
     this.businessAlarmLoading = false;
@@ -131,15 +132,19 @@ export default class BusinessItemBig extends tsc<IProps, IEvent> {
           onToEvent={this.handleToEvent}
         ></BusinessItem>
         <div class='line'></div>
-        <div
-          class='right-content'
-          v-bkloading={{ isLoading: this.businessAlarmLoading }}
-        >
-          <BusinessAlarmOverview
-            homeDays={this.homeDays}
-            businessAlarm={this.businessAlarm}
-          ></BusinessAlarmOverview>
-        </div>
+        {this.businessAlarmLoading ? (
+          <BusinessRight></BusinessRight>
+        ) : (
+          <div
+            class='right-content'
+            // v-bkloading={{ isLoading: this.businessAlarmLoading }}
+          >
+            <BusinessAlarmOverview
+              businessAlarm={this.businessAlarm}
+              homeDays={this.homeDays}
+            ></BusinessAlarmOverview>
+          </div>
+        )}
       </div>
     );
   }

@@ -568,3 +568,67 @@ BK_LOG_COLLECTOR_CONTAINER_NAME = "bkunifylogbeat-bklog"
 BK_LOG_COLLECTOR_MAIN_CONFIG_NAME = "bkunifylogbeat.conf"
 # 采集器子配置路径
 BK_LOG_COLLECTOR_SUB_CONFIG_PATH = "bkunifylogbeat"
+
+
+class PluginParamLogicOpEnum(ChoicesEnum):
+    AND = "and"
+    OR = "or"
+
+    _choices_labels = (
+        (AND, _("and")),
+        (OR, _("or")),
+    )
+
+
+class PluginParamOpEnum(ChoicesEnum):
+    OP_OLD_EQ = "="
+    OP_OLD_NEQ = "!="
+    OP_EQ = "eq"
+    OP_NEQ = "neq"
+    OP_INCLUDE = "include"
+    OP_EXCLUDE = "exclude"
+    OP_REGEX = "regex"
+    OP_NREGEX = "nregex"
+
+    _choices_labels = (
+        (OP_EQ, _("等于")),
+        (OP_NEQ, _("不等于")),
+        (OP_INCLUDE, _("包含")),
+        (OP_EXCLUDE, _("排除")),
+        (OP_REGEX, _("正则匹配")),
+        (OP_NREGEX, _("正则不匹配")),
+    )
+
+
+class SyslogProtocolEnum(ChoicesEnum):
+    TCP = "tcp"
+    UDP = "udp"
+
+    _choices_labels = (
+        (TCP, _("tcp协议")),
+        (UDP, _("udp协议")),
+    )
+
+
+class SyslogFilterFieldEnum(ChoicesEnum):
+    ADDRESS = "address"
+    PORT = "port"
+    PRIORITY = "priority"
+    FACILITY = "facility"
+    FACILITY_LABEL = "facility_label"
+    SEVERITY = "severity"
+    SEVERITY_LABEL = "severity_label"
+    PROGRAM = "program"
+    PID = "pid"
+
+    _choices_labels = (
+        (ADDRESS, _("地址")),
+        (PORT, _("端口")),
+        (PRIORITY, _("优先级")),
+        (FACILITY, _("设备")),
+        (FACILITY_LABEL, _("设备标签")),
+        (SEVERITY, _("严重性")),
+        (SEVERITY_LABEL, _("严重级别")),
+        (PROGRAM, _("进程")),
+        (PID, _("进程标识符")),
+    )

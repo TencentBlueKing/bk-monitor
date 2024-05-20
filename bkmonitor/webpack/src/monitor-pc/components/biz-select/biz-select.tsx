@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,12 +26,12 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from '../../../monitor-common/utils/utils';
+import { Debounce } from 'monitor-common/utils/utils';
+
 import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../common/constant';
 import authorityStore from '../../store/modules/authority';
 import { ISpaceItem } from '../../types';
 import { Storage } from '../../utils';
-
 import List, { ETagsType, IListItem } from './list';
 
 import './biz-select.scss';
@@ -49,7 +48,7 @@ const BIZ_COLOR_LIST = [
   '#E9AE1D',
   '#EB9258',
   '#D36C68',
-  '#BC4FB3'
+  '#BC4FB3',
 ];
 interface IProps {
   value: number;
@@ -81,7 +80,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   @Prop({
     default: 'light',
     type: String,
-    validator: (val: string) => ['dark', 'light'].includes(val)
+    validator: (val: string) => ['dark', 'light'].includes(val),
   })
   theme: ThemeType;
   @Ref() menuSearchInput: any;
@@ -116,14 +115,14 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     current: 1,
     count: 0,
     limit: 20,
-    data: []
+    data: [],
   };
 
   /* type栏左右切换数据 */
   typeWrapInfo = {
     showBtn: false,
     nextDisable: false,
-    preDisable: false
+    preDisable: false,
   };
 
   firstCodeBgColor = '';
@@ -141,7 +140,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
-      styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {}
+      styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
     }));
     this.getFirstCodeBgColor();
   }
@@ -210,17 +209,17 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     const stickyList: IListItem = {
       id: null,
       name: this.$tc('置顶'),
-      children: []
+      children: [],
     };
     const commonList: IListItem = {
       id: null,
       name: this.$tc('常用的'),
-      children: []
+      children: [],
     };
     const list: IListItem = {
       id: 'general',
       name: '' /** 普通列表 */,
-      children: []
+      children: [],
     };
     const keyword = this.keyword.trim().toLocaleLowerCase();
     const generalList = [];
@@ -235,7 +234,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       if ((show && keyword) || (!this.searchTypeId && !show)) {
         show =
           item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
-          item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
+          item.py_text.indexOf(keyword) > -1 ||
+          item.pyf_text.indexOf(keyword) > -1 ||
           `${item.id}`.includes(keyword) ||
           `${item.space_id}`.toLocaleLowerCase().includes(keyword);
       }
@@ -247,7 +247,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         const newItem = {
           ...item,
           name: item.space_name.replace(/\[.*?\]/, ''),
-          tags
+          tags,
         };
         if (this.stickyList.includes(item.space_uid)) {
           /** 置顶数据 */
@@ -335,7 +335,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.popoverRef.instance.popper.querySelector('.tippy-tooltip').style.width = `${this.listWidth}px`;
     this.zIndex &&
       this.popoverRef.instance.set({
-        zIndex: this.zIndex
+        zIndex: this.zIndex,
       });
     this.typeListWrapNextPreShowChange();
   }
@@ -379,7 +379,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         /** 切换为demo业务 */
         this.$store.commit('app/handleChangeBizId', {
           bizId: this.demo.id,
-          ctx: this
+          ctx: this,
         });
       }
     }
@@ -427,7 +427,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
    * @description 左右切换type栏
    * @param type
    */
-  handleTypeWrapScrollChange(type: 'pre' | 'next') {
+  handleTypeWrapScrollChange(type: 'next' | 'pre') {
     const smoothScrollTo = (element: HTMLDivElement, targetPosition: number, duration: number, callback) => {
       const startPosition = element.scrollLeft;
       const distance = targetPosition - startPosition;
@@ -478,8 +478,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   render() {
     const firstCode = (
       <span
-        class='biz-name-first-code'
         style={{ backgroundColor: this.firstCodeBgColor }}
+        class='biz-name-first-code'
       >
         {this.bizSortNameKey}
       </span>
@@ -488,23 +488,24 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       <div class={['biz-select-wrap', this.theme]}>
         <bk-popover
           ref='popoverRef'
-          trigger='click'
-          placement='bottom-start'
-          theme={`${this.theme} common-popover list-${this.theme}`}
-          animation='slide-toggle'
-          ext-cls={`biz-select-list-${this.theme}`}
-          arrow={false}
-          offset={-1}
-          distance={16}
           width={this.listWidth}
+          ext-cls={`biz-select-list-${this.theme}`}
           tippy-options={{
             appendTo: 'parent',
             onShow: this.handleSetListWidth,
             onHide: () => {
               this.showBizList = false;
+              this.handleBizSearch('');
               return true;
-            }
+            },
           }}
+          animation='slide-toggle'
+          arrow={false}
+          distance={16}
+          offset={-1}
+          placement='bottom-start'
+          theme={`${this.theme} common-popover list-${this.theme}`}
+          trigger='click'
         >
           <div class={['biz-select-target', { 'is-shrink': this.isShrink }]}>
             {this.isShrink ? (
@@ -520,47 +521,47 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   <span class='biz-name-text-id'>({this.curentBizId})</span>
                 </span>
                 <i
-                  class='icon-monitor icon-mc-triangle-down'
                   style={{ transform: `rotate(${!this.showBizList ? '0deg' : '-180deg'})` }}
+                  class='icon-monitor icon-mc-triangle-down'
                 ></i>
               </div>
             )}
           </div>
           <div
-            slot='content'
-            class={['biz-list-wrap', this.theme]}
-            onMousedown={this.handleContentMouseDown}
             style={{ width: `${this.listWidth}px`, minWidth: `${this.minWidth}px` }}
+            class={['biz-list-wrap', this.theme]}
+            slot='content'
+            onMousedown={this.handleContentMouseDown}
           >
             <div class='biz-list-mian'>
               <div class='biz-search-wrap'>
                 <bk-input
                   ref='menuSearchInput'
                   class='biz-search'
+                  behavior='simplicity'
                   clearable={false}
                   left-icon='bk-icon icon-search'
                   placeholder={this.$t('输入关键字')}
-                  behavior='simplicity'
                   value={this.keyword}
-                  on-clear={() => this.handleBizSearch('')}
-                  on-change={this.handleBizSearch}
                   on-blur={this.handleSearchBlur}
+                  on-change={this.handleBizSearch}
+                  on-clear={() => this.handleBizSearch('')}
                 />
               </div>
               {this.spaceTypeIdList.length > 1 && (
                 <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }, this.theme]}>
                   <ul
-                    class={'space-type-list'}
                     ref='typeList'
+                    class={'space-type-list'}
                   >
                     {this.spaceTypeIdList.map(item => (
                       <li
-                        class='space-type-item'
+                        key={item.id}
                         style={{
                           ...item.styles,
-                          borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent'
+                          borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent',
                         }}
-                        key={item.id}
+                        class='space-type-item'
                         onClick={() => this.handleSearchType(item.id)}
                       >
                         {item.name}
@@ -586,8 +587,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 onScroll={this.handleScroll}
               >
                 <List
-                  list={this.bizListFilter}
                   checked={this.localValue}
+                  list={this.bizListFilter}
                   theme={this.theme}
                   onSelected={this.handleBizChange}
                 ></List>

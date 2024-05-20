@@ -25,8 +25,10 @@
  */
 import { inject, onBeforeUnmount, provide, Ref, watch, WatchStopHandle } from 'vue';
 
-import { PanelToolsType } from '../../../monitor-pc/pages/monitor-k8s/typings';
+import { type PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+
 import { TimeRangeType } from '../../components/time-range/utils';
+import { SearchType } from '../../pages/profiling/typings';
 import { isShadowEqual } from '../../utils';
 import { IViewOptions } from '../typings';
 
@@ -53,7 +55,7 @@ export interface IChartProvider {
   // 图表是否立即刷新
   readonly refleshImmediate: Ref<number | string>;
   // 图表对比数据
-  readonly timeOffset: Ref<string[] | number[]>;
+  readonly timeOffset: Ref<number[] | string[]>;
 }
 
 // 通用视图注入数据
@@ -78,7 +80,12 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
   // 数据时间间隔
   const timeRange = useTimeRanceInject();
   let unWatchTimeRange: WatchStopHandle | null = null;
-  if (timeRange) {
+
+  /** 用于 profiling 趋势图注入的查询类型 */
+  /** 当前如果是上传 profiling 则不需要监听时间选择器变化 */
+  const uploadProfilingSearch = inject<Ref<SearchType>>('profilingSearchType')?.value === SearchType.Upload;
+
+  if (timeRange && !uploadProfilingSearch) {
     unWatchTimeRange = watch(timeRange, () => getPanelData());
   }
   // 时区
@@ -147,7 +154,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
     unWatchTimeOffset,
     unWatchTimezone,
     refleshIntervalTimer,
-    beforeUnmount
+    beforeUnmount,
   };
 };
 
@@ -176,17 +183,17 @@ export const useRefleshImmediateProvider = (refleshImmediate: boolean) => {
 };
 export const useRefleshImmediateInject = () => inject<Ref<boolean>>(REFLESH_IMMEDIATE_KEY);
 
-export const useTimeOffsetProvider = (timeOffset: string | number) => {
+export const useTimeOffsetProvider = (timeOffset: number | string) => {
   provide(TIME_OFFSET_KEY, timeOffset);
 };
-export const useTimeOffsetInject = () => inject<Ref<string[] | number[]>>(TIME_OFFSET_KEY);
+export const useTimeOffsetInject = () => inject<Ref<number[] | string[]>>(TIME_OFFSET_KEY);
 
 // 好像用不着
-export const useQueryDataProvider = (queryData: Ref<Object>) => {
+export const useQueryDataProvider = (queryData: Ref<object>) => {
   provide(QUERY_DATA_KEY, queryData);
 };
 // 好像用不着
-export const useQueryDataInject = () => inject<Ref<Object>>(QUERY_DATA_KEY);
+export const useQueryDataInject = () => inject<Ref<object>>(QUERY_DATA_KEY);
 
 export const useCompareTypeProvider = (compareType: PanelToolsType.CompareId) => {
   provide(COMPARE_TYPE, compareType);

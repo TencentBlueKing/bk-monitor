@@ -25,9 +25,10 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { random } from 'monitor-common/utils';
 import { throttle } from 'throttle-debounce';
 
-import { random } from '../../../../../monitor-common/utils';
 import { getEventPaths } from '../../../../utils';
 
 import './target-compare-select.scss';
@@ -52,7 +53,7 @@ interface ILocalListItem extends IItem {
 const INPUT_ITEM = {
   type: 'input',
   id: '___input___',
-  name: '___input___'
+  name: '___input___',
 };
 
 const numClassName = 'num-overflow-item';
@@ -98,7 +99,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
     current: 1,
     count: 0,
     limit: 20,
-    data: []
+    data: [],
   };
   /* 监听容器宽度的变化(节流) */
   throttleOverflow = () => {};
@@ -126,7 +127,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
   /* 初始化 */
   created() {
     this.init();
-    this.throttleOverflow = throttle(300, false, this.handleOverflow);
+    this.throttleOverflow = throttle(300, this.handleOverflow);
   }
   init() {
     const value = [];
@@ -184,7 +185,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
     const overflowTagWidth = 35;
     let totalWidth = 0;
     await this.$nextTick();
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const i in childs) {
       const item = childs[i] as HTMLDivElement;
       if (!item.className || item.className.indexOf('list-item') === -1) continue;
@@ -259,7 +260,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
         ...item,
         isCheck: isHas,
         show: isSearch,
-        lightContent: this.highLightContent(this.inputValue, item.name)
+        lightContent: this.highLightContent(this.inputValue, item.name),
       };
     });
     this.setPaginationData(true);
@@ -302,7 +303,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
       if (index !== indexRanges.length - 1) {
         return [
           <span>{content.slice(range[0], range[1])}</span>,
-          <span class='light'>{content.slice(range[1], indexRanges[index + 1][0])}</span>
+          <span class='light'>{content.slice(range[1], indexRanges[index + 1][0])}</span>,
         ];
       }
       return <span>{content.slice(range[0], range[1])}</span>;
@@ -350,7 +351,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
       arrow: false,
       placement: 'bottom-start',
       boundary: 'window',
-      hideOnClick: false
+      hideOnClick: false,
     });
     this.popoverInstance?.show?.();
   }
@@ -476,30 +477,30 @@ export default class TargetCompareSelect extends tsc<IProps> {
   render() {
     return (
       <div
-        class={['target-compare-select-component', { 'is-expand': this.isExpand }]}
         key={this.refleshKey}
+        class={['target-compare-select-component', { 'is-expand': this.isExpand }]}
         onClick={this.handleClickWrap}
       >
         <ul
-          class='more-list'
           ref='list'
+          class='more-list'
           onClick={this.handleClickWrap}
         >
           {this.localValue.map((item, index) =>
             item?.type === 'input' ? (
               <div
-                class='input-wrap'
                 key={index}
+                class='input-wrap'
               >
                 <span class='input-value'>{this.inputValue}</span>
                 <input
-                  class='input'
                   ref='input'
+                  class='input'
                   v-model={this.inputValue}
                   onBlur={this.handBlur}
                   onInput={this.handleInput}
-                  onPaste={this.handlePaste}
                   onKeydown={e => this.handleInputKeydown(e)}
+                  onPaste={this.handlePaste}
                 ></input>
               </div>
             ) : (
@@ -530,19 +531,19 @@ export default class TargetCompareSelect extends tsc<IProps> {
         {!this.localValue.length && <span class='placeholder-wrap'>{this.$t('选择目标')}</span>}
         <div style='display: none'>
           <div
+            ref='options'
             class={[
               'target-compare-select-component-list-wrap',
-              { 'no-data': !this.pagination.data.filter(item => !!item.show).length }
+              { 'no-data': !this.pagination.data.filter(item => !!item.show).length },
             ]}
-            ref='options'
             onScroll={this.handleScroll}
           >
             {this.pagination.data
               .filter(item => !!item.show)
               .map((item, index) => (
                 <div
-                  class={[`list-item ${this.classId}`, { active: this.activeIndex === index }]}
                   key={item.id}
+                  class={[`list-item ${this.classId}`, { active: this.activeIndex === index }]}
                   onClick={() => this.handleSelectItem(item)}
                 >
                   <span>{item.lightContent || item.name}</span>

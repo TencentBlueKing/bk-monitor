@@ -44,6 +44,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.strategy.new_strategy import (
     ActionRelation,
+    Algorithm,
     NoticeRelation,
     QueryConfig,
     Strategy,
@@ -1229,6 +1230,10 @@ class GetMetricListV2Resource(Resource):
             "related_name",
         ]
 
+        # 过滤为空的data_label条件
+        if "data_label" in filter_dict:
+            filter_dict["data_label"] = [label for label in filter_dict["data_label"] if label]
+
         # 直接过滤字段
         metrics = metrics.filter(
             **{f"{field}__in": filter_dict[field] for field in search_fields if filter_dict[field]}
@@ -1834,6 +1839,7 @@ class UpdatePartialStrategyV2Resource(Resource):
                 required=False, child=serializers.ListField(child=serializers.DictField(), allow_empty=True)
             )
             actions = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
+            algorithms = Algorithm.Serializer(many=True, required=False)
 
             def validate_target(self, target):
                 if target and target[0]:
@@ -1930,6 +1936,12 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         for item in strategy.items:
             item.target = target
+
+    @staticmethod
+    def update_algorithms(strategy: Strategy, algorithms: List[dict]):
+        """更新检测算法。"""
+        for item in strategy.items:
+            item.algorithms = [Algorithm(strategy.id, item.id, **data) for data in algorithms]
 
     @staticmethod
     def update_message_template(strategy: Strategy, message_template: str):
@@ -2277,6 +2289,7 @@ class QueryConfigToPromql(Resource):
                 if data_source not in [
                     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
                     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+                    (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
                 ]:
                     raise ValidationError(f"not support data_source({data_source})")
 
@@ -2344,9 +2357,13 @@ class QueryConfigToPromql(Resource):
             "bk_log_search": "bklog",
         }
         for query_config in params["query_configs"]:
-            data_source_label = data_source_label_mapping.get(query_config["data_source_label"], "bkmonitor")
+            data_source_label = data_source_label_mapping.get(query_config["data_source_label"], data_source_label)
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-            data_sources.append(data_source_class.init_by_query_config(query_config=query_config))
+            init_params = dict(query_config=query_config)
+            if data_source_label == "bkdata":
+                init_params.update({"bk_biz_id": params["bk_biz_id"]})
+
+            data_sources.append(data_source_class.init_by_query_config(**init_params))
 
         # 构造统一查询配置
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=data_sources, expression=params["expression"])

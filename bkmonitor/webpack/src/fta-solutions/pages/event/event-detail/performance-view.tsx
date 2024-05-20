@@ -26,12 +26,12 @@
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getSceneView } from '../../../../monitor-api/modules/scene_view';
-import { random } from '../../../../monitor-common/utils/utils';
-import { type TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
+import { getSceneView } from 'monitor-api/modules/scene_view';
+import { random } from 'monitor-common/utils/utils';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
 import { IDetail, setBizIdToPanel } from './type';
@@ -70,7 +70,7 @@ export default class PerformanceView extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 当前业务id
-  @ProvideReactive('bkBizId') bkBizId: string | number = null;
+  @ProvideReactive('bkBizId') bkBizId: number | string = null;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   @Watch('show')
@@ -85,13 +85,13 @@ export default class PerformanceView extends tsc<IProps> {
     this.loading = true;
     const currentTarget: Record<string, any> = {
       bk_target_ip: '0.0.0.0',
-      bk_target_cloud_id: '0'
+      bk_target_cloud_id: '0',
     };
     const variables: Record<string, any> = {
       bk_target_ip: '0.0.0.0',
       bk_target_cloud_id: '0',
       ip: '0.0.0.0',
-      bk_cloud_id: '0'
+      bk_cloud_id: '0',
     };
     this.bkBizId = this.detail.bk_biz_id;
     this.detail.tags?.forEach(item => {
@@ -124,7 +124,7 @@ export default class PerformanceView extends tsc<IProps> {
       variables,
       interval,
       group_by: [],
-      current_target: currentTarget
+      current_target: currentTarget,
     };
     const data: IBookMark = await getSceneView(
       this.isProcess
@@ -132,13 +132,13 @@ export default class PerformanceView extends tsc<IProps> {
             bk_biz_id: this.detail.bk_biz_id,
             scene_id: 'host',
             type: 'detail',
-            id: 'process'
+            id: 'process',
           }
         : {
             bk_biz_id: this.detail.bk_biz_id,
             scene_id: 'host',
             type: 'detail',
-            id: 'host'
+            id: 'host',
           }
     ).catch(() => ({ id: '', panels: [], name: '' }));
     this.sceneData = new BookMarkModel(data || { id: '', panels: [], name: '' });
@@ -191,17 +191,17 @@ export default class PerformanceView extends tsc<IProps> {
       >
         {this.localPanels.length ? (
           <DashboardPanel
-            panels={this.localPanels}
-            needOverviewBtn={false}
-            isSplitPanel={false}
-            isSingleChart={false}
-            column={3}
             id={this.dashboardPanelId}
+            column={3}
+            isSingleChart={false}
+            isSplitPanel={false}
+            needOverviewBtn={false}
+            panels={this.localPanels}
           ></DashboardPanel>
         ) : (
           <div class='no-data'>
             {/* 无数据情况暂且不做 */}
-            {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
+            {}
             {/* <img class="no-data-img" src={require('../../../static/img/empty.svg')}></img>
           <div class="no-data-msg">
             {(() => {

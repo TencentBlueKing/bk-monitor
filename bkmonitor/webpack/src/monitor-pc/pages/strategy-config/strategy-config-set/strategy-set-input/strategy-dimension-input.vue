@@ -26,23 +26,23 @@
 <template>
   <div class="strategy-dimension-input">
     <component
-      v-for="(item, index) in alarmConditionList"
-      :key="item.type + '-' + item.compKey"
       :is="item.component"
+      v-for="(item, index) in alarmConditionList"
+      v-show="item.show"
+      :key="item.type + '-' + item.compKey"
       :ref="'component-' + index"
       :display-key="setInputDisplayKey"
-      v-show="item.show"
       unique
+      v-bind="item"
       @remove="handleItemRemove(item, index)"
       @set-hide="handleSetHide(item, index)"
-      @item-select="(data) => handleItemSelect(data, item, index)"
+      @item-select="data => handleItemSelect(data, item, index)"
       @set-add="item.addEvent && handleSetAdd($event, item, index)"
-      v-bind="item"
     />
     <bk-popover class="help-tips">
       <i
-        class="icon-monitor icon-mc-help-fill"
         v-if="alarmDimensionList.length"
+        class="icon-monitor icon-mc-help-fill"
       />
       <div slot="content">
         <div class="help-text">
@@ -61,9 +61,9 @@
   </div>
 </template>
 <script>
-import { deepClone, getCookie, random } from '../../../../../monitor-common/utils/utils';
-import documentLinkMixin from '../../../../mixins//documentLinkMixin';
+import { deepClone, getCookie, random } from 'monitor-common/utils/utils';
 
+import documentLinkMixin from '../../../../mixins//documentLinkMixin';
 import SetAdd from './set-add';
 import SetInput from './set-input';
 
@@ -71,42 +71,42 @@ export default {
   name: 'StrategyDimensionInput',
   components: {
     SetInput,
-    SetAdd
+    SetAdd,
   },
   mixins: [documentLinkMixin],
   props: {
     monitorType: {
       type: String,
-      required: false
+      required: false,
     },
     dimensionList: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     dimensions: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     metricField: {
       type: [String, Number],
-      required: true
+      required: true,
     },
     typeId: {
       type: [String, Number],
-      required: true
+      required: true,
     },
     dataTypeLabel: {
       type: String,
-      required: true
+      required: true,
     },
     dataSourceLabel: {
       type: String,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
@@ -117,8 +117,8 @@ export default {
         bk_monitor_time_series: 'fromMonitor', // 监控采集
         bk_log_search_time_series: 'formLogPlatform', // 日志采集
         bk_data_time_series: 'fromDataSource', // 数据平台
-        custom_time_series: 'fromCustomRreporting' // 自定义指标
-      }
+        custom_time_series: 'fromCustomRreporting', // 自定义指标
+      },
     };
   },
   computed: {
@@ -131,26 +131,26 @@ export default {
       return this.alarmConditionList
         .filter(item => item.type !== 'add')
         .map(item => ({
-          ...item.value
+          ...item.value,
         }));
-    }
+    },
   },
   watch: {
     dimensionList: {
       handler() {
         const arr = deepClone(this.dimensionList).map(item => ({
           ...item,
-          show: !this.dimensions.includes(item.id)
+          show: !this.dimensions.includes(item.id),
         }));
         this.defaultDimensionList = arr;
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   created() {
     // 处理setInput组件国际化
     this.setInputDisplayKey = getCookie() === 'en' ? 'id' : 'name';
-    this.dimensions.forEach((demension) => {
+    this.dimensions.forEach(demension => {
       if (demension) {
         const item = this.getDefaultKey();
         item.value.id = demension;
@@ -173,14 +173,14 @@ export default {
         list: this.defaultDimensionList,
         value: {
           id: '',
-          name: ''
+          name: '',
         },
         component: 'set-input',
         show: true,
         type: 'key',
         'is-key': true,
         compKey: key,
-        readonly: this.isReadOnly
+        readonly: this.isReadOnly,
       };
     },
     getDefaultAdd() {
@@ -195,7 +195,7 @@ export default {
         addType:
           this.alarmConditionList.length > 0 && this.alarmConditionList.some(item => item.type !== 'add')
             ? 'common'
-            : 'character'
+            : 'character',
       };
     },
     handleSetAdd(e, item, index) {
@@ -221,30 +221,32 @@ export default {
       item.show = false;
       const len = this.alarmConditionList.length;
       this.alarmConditionList[this.alarmConditionList.length - 1].show = true;
-      this.alarmConditionList[len - 1].addType =        len > 1 && this.alarmConditionList.filter(item => item.show).some(item => item.type !== 'add')
-        ? 'common'
-        : 'character';
+      this.alarmConditionList[len - 1].addType =
+        len > 1 && this.alarmConditionList.filter(item => item.show).some(item => item.type !== 'add')
+          ? 'common'
+          : 'character';
     },
     handleItemRemove(item, index) {
       this.alarmConditionList.splice(index, 1);
       const len = this.alarmConditionList.length;
       this.alarmConditionList[len - 1].show = true;
-      this.alarmConditionList[len - 1].addType =        len > 1 && this.alarmConditionList.filter(item => item.show).some(item => item.type !== 'add')
-        ? 'common'
-        : 'character';
+      this.alarmConditionList[len - 1].addType =
+        len > 1 && this.alarmConditionList.filter(item => item.show).some(item => item.type !== 'add')
+          ? 'common'
+          : 'character';
       this.$emit('dimension-delete', { ...item.value }, this.alarmDimensionList);
     },
     getValue() {
       const data = [];
-      this.alarmConditionList.forEach((item) => {
+      this.alarmConditionList.forEach(item => {
         const { type } = item;
         if (type === 'key' && `${item.value.id}`.length) {
           data.push(item.value.id);
         }
       });
       return data;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -252,39 +254,46 @@ export default {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  color: #63656e;
-  font-size: 12px;
   width: 100%;
+  font-size: 12px;
+  color: #63656e;
+
   .input-blank {
     box-sizing: border-box;
-    height: 32px;
     flex: 1;
-    border: 1px solid #f0f1f5;
-    background: #fafbfd;
-    border-radius: 2px;
-    margin-right: 2px;
+    height: 32px;
     margin-top: 2px;
+    margin-right: 2px;
+    background: #fafbfd;
+    border: 1px solid #f0f1f5;
+    border-radius: 2px;
   }
+
   .icon-mc-help-fill {
     font-size: 16px;
     color: #c4c6cc;
+
     &:hover {
       color: #3a84ff;
     }
   }
 }
+
 .help-tips {
   margin-left: 10px;
 }
+
 .help-text {
   display: flex;
   align-items: center;
+
   .help-icon {
     display: flex;
     align-items: center;
     line-height: 16px;
     color: #3a84ff;
     cursor: pointer;
+
     .icon-mc-wailian {
       font-size: 24px;
     }

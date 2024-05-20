@@ -26,7 +26,8 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { deepClone, isPostiveInt } from '../../../../../../../monitor-common/utils';
+import { deepClone, isPostiveInt } from 'monitor-common/utils';
+
 import { SIMPLE_METHOD_LIST } from '../../../../../../constant/constant';
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
 
@@ -47,27 +48,27 @@ interface YearRoundEvents {
 const typeModelMap = {
   [DetectionRuleTypeEnum.SimpleYearRound]: {
     floor: '',
-    ceil: ''
+    ceil: '',
   },
   [DetectionRuleTypeEnum.AdvancedYearRound]: {
     floor: '',
     floor_interval: '',
     ceil: '',
     ceil_interval: '',
-    fetch_type: 'avg'
+    fetch_type: 'avg',
   },
   [DetectionRuleTypeEnum.YearRoundAmplitude]: {
     ratio: 0,
     shock: 0,
     days: 1,
-    method: 'gte'
+    method: 'gte',
   },
   [DetectionRuleTypeEnum.YearRoundRange]: {
     ratio: 0,
     shock: 0,
     days: 1,
-    method: 'gte'
-  }
+    method: 'gte',
+  },
 };
 
 @Component({})
@@ -88,8 +89,8 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
     level: 1,
     config: {
       floor: '',
-      ceil: ''
-    }
+      ceil: '',
+    },
   };
 
   errorMsg = '';
@@ -101,21 +102,21 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
       {
         validator: this.checkConfig,
         message: this.showMsg,
-        trigger: 'change'
-      }
-    ]
+        trigger: 'change',
+      },
+    ],
   };
 
   /** 简易模板 */
   simpleTemplate = [
     { value: 'ceil', text: this.$t('升') },
-    { value: 'floor', text: this.$t('降') }
+    { value: 'floor', text: this.$t('降') },
   ];
 
   /** 高级模板 */
   advancedTemplate = [
     { value1: 'ceil_interval', value2: 'ceil', value3: 'fetch_type', text: window.i18n.t('升') },
-    { value1: 'floor_interval', value2: 'floor', value3: 'fetch_type', text: window.i18n.t('降') }
+    { value1: 'floor_interval', value2: 'floor', value3: 'fetch_type', text: window.i18n.t('降') },
   ];
 
   // 在 同比策略 的 高级算法类型 下，记录当前在 告警条件 里是输入还是选择 均值/瞬间值 （因为在选择时不需要参与表单校验）
@@ -132,7 +133,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
       [DetectionRuleTypeEnum.SimpleYearRound]: [],
       [DetectionRuleTypeEnum.AdvancedYearRound]: [],
       [DetectionRuleTypeEnum.YearRoundAmplitude]: [],
-      [DetectionRuleTypeEnum.YearRoundRange]: []
+      [DetectionRuleTypeEnum.YearRoundRange]: [],
     };
     this.otherSelectRuleData.forEach(item => {
       if (map[item.type]) map[item.type].push(item.level);
@@ -145,7 +146,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
     const list = [
       { id: 1, name: window.i18n.t('致命'), disabled: false, icon: 'icon-danger' },
       { id: 2, name: window.i18n.t('预警'), disabled: false, icon: 'icon-mind-fill' },
-      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' }
+      { id: 3, name: window.i18n.t('提醒'), disabled: false, icon: 'icon-tips' },
     ];
     list.forEach(item => {
       item.disabled = this.selectTypeOrLevelMap[this.localData.type]?.includes(item.id);
@@ -159,7 +160,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
       { id: DetectionRuleTypeEnum.SimpleYearRound, name: window.i18n.t('简易'), disabled: false },
       { id: DetectionRuleTypeEnum.AdvancedYearRound, name: window.i18n.t('高级'), disabled: false },
       { id: DetectionRuleTypeEnum.YearRoundAmplitude, name: window.i18n.t('振幅'), disabled: false },
-      { id: DetectionRuleTypeEnum.YearRoundRange, name: window.i18n.t('区间'), disabled: false }
+      { id: DetectionRuleTypeEnum.YearRoundRange, name: window.i18n.t('区间'), disabled: false },
     ];
     list.forEach(item => {
       item.disabled = this.selectTypeOrLevelMap[item.id]?.includes(this.localData.level);
@@ -297,8 +298,8 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
         <bk-form
           ref='formRef'
           {...{ props: { model: this.localData } }}
-          rules={this.rules}
           label-width={126}
+          rules={this.rules}
         >
           <bk-form-item
             label={this.$t('告警级别')}
@@ -307,24 +308,24 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
           >
             <bk-select
               ext-cls='level-select'
-              ext-popover-cls='level-select-popover'
-              clearable={false}
-              behavior='simplicity'
               v-model={this.localData.level}
+              behavior='simplicity'
+              clearable={false}
+              ext-popover-cls='level-select-popover'
               prefix-icon={`icon-monitor ${this.levelList[this.localData.level - 1].icon}`}
               onChange={this.emitLocalData}
             >
               {this.levelList.map(level => (
                 <bk-option
-                  key={level.id}
-                  disabled={level.disabled}
                   id={level.id}
-                  name={level.name}
+                  key={level.id}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', { name: level.name }),
                     disabled: !level.disabled,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
+                  disabled={level.disabled}
+                  name={level.name}
                 >
                   <i class={`icon-monitor ${level.icon}`}></i>
                   <span class='name'>{level.name}</span>
@@ -344,15 +345,15 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
             >
               {this.typeList.map(type => (
                 <bk-radio
-                  value={type.id}
-                  disabled={type.disabled}
                   v-bk-tooltips={{
                     content: this.$t('已有相同算法,设置为{name}级别', {
-                      name: this.levelList[this.localData.level - 1].name
+                      name: this.levelList[this.localData.level - 1].name,
                     }),
                     disabled: !type.disabled,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
+                  disabled={type.disabled}
+                  value={type.id}
                 >
                   {type.name}
                 </bk-radio>
@@ -360,17 +361,17 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
             </bk-radio-group>
           </bk-form-item>
           <bk-form-item
+            error-display-type='normal'
             label={this.$t('告警条件')}
             property='config'
             required
-            error-display-type='normal'
           >
             {
               // 同比策略(简易)
               this.localData.type === DetectionRuleTypeEnum.SimpleYearRound && (
                 <div
-                  class='year-round-condition-list'
                   key={`${this.localData.type}-${this.localData.level}`}
+                  class='year-round-condition-list'
                 >
                   {this.simpleTemplate.map(item => (
                     <div class='year-round-condition-list-item'>
@@ -379,17 +380,17 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                         path='当前值较上周同一时刻{0}时触发告警'
                       >
                         <bk-input
-                          class='input-align-center inline-input input-arrow'
-                          behavior='simplicity'
-                          show-controls={false}
-                          readonly={this.readonly}
-                          size='small'
-                          v-model={this.localData.config[item.value]}
                           style='margin: 0 10px;'
-                          type='number'
-                          placeholder={this.$t('输入数字')}
-                          onChange={this.emitLocalData}
+                          class='input-align-center inline-input input-arrow'
+                          v-model={this.localData.config[item.value]}
+                          behavior='simplicity'
                           min={0}
+                          placeholder={this.$t('输入数字')}
+                          readonly={this.readonly}
+                          show-controls={false}
+                          size='small'
+                          type='number'
+                          onChange={this.emitLocalData}
                         >
                           <template slot='prepend'>
                             <div class={['left-text', { 'left-text-red': item.value === 'floor' }]}> {item.text} </div>
@@ -408,8 +409,8 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
               // 同比策略(高级)
               this.localData.type === DetectionRuleTypeEnum.AdvancedYearRound && (
                 <div
-                  class='year-round-condition-list'
                   key={`${this.localData.type}-${this.localData.level}`}
+                  class='year-round-condition-list'
                 >
                   {this.advancedTemplate.map(item => (
                     <div class='year-round-condition-list-item'>
@@ -418,29 +419,29 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                         path='较前{0}天同一时刻绝对值的{1}{2}时触发告警'
                       >
                         <bk-input
-                          class='input-align-center inline-input'
-                          behavior='simplicity'
-                          show-controls={false}
-                          readonly={this.readonly}
                           style='width: 86px; margin: 0 10px;'
-                          clearable={true}
+                          class='input-align-center inline-input'
                           v-model_number={this.localData.config[item.value1]}
-                          type='number'
-                          placeholder={this.$t('输入整数')}
+                          behavior='simplicity'
+                          clearable={true}
                           min={1}
+                          placeholder={this.$t('输入整数')}
                           precision={0}
+                          readonly={this.readonly}
+                          show-controls={false}
+                          type='number'
                           onChange={() => {
                             this.inputOrSelectInAdvancedMode = 'input';
                             this.emitLocalData();
                           }}
                         />
                         <bk-select
-                          v-model={this.localData.config[item.value3]}
+                          style='width: 100px;'
                           ext-cls='timing-selector'
-                          size='small'
+                          v-model={this.localData.config[item.value3]}
                           behavior='simplicity'
                           clearable={false}
-                          style='width: 100px;'
+                          size='small'
                           onChange={() => {
                             this.inputOrSelectInAdvancedMode = 'select';
                             this.emitLocalData();
@@ -456,16 +457,16 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                           ></bk-option>
                         </bk-select>
                         <bk-input
-                          class='input-align-center inline-input input-arrow'
                           style='margin: 0 10px;'
-                          behavior='simplicity'
-                          show-controls={false}
+                          class='input-align-center inline-input input-arrow'
                           v-model={this.localData.config[item.value2]}
+                          behavior='simplicity'
+                          min={0}
+                          placeholder={this.$t('输入数字')}
                           readonly={this.readonly}
+                          show-controls={false}
                           // class={['number-input', { 'is-readonly': this.readonly }]}
                           type='number'
-                          placeholder={this.$t('输入数字')}
-                          min={0}
                           onChange={() => {
                             this.inputOrSelectInAdvancedMode = 'input';
                             this.emitLocalData();
@@ -491,59 +492,59 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
               // 同比策略(振幅)
               this.localData.type === DetectionRuleTypeEnum.YearRoundAmplitude && (
                 <div
-                  class='amplitude-wrap concise'
                   key={`${this.localData.type}-${this.localData.level}`}
+                  class='amplitude-wrap concise'
                 >
                   <i18n
-                    path='(当前值 - 前一时刻值){0}过去{1}天内任意一天同时刻的 (差值 ×{2}+{3}) 时触发告警'
                     class='i18n-path'
+                    path='(当前值 - 前一时刻值){0}过去{1}天内任意一天同时刻的 (差值 ×{2}+{3}) 时触发告警'
                   >
                     <bk-select
                       class='select-method'
-                      popover-min-width={50}
-                      readonly={this.readonly}
                       v-model={this.localData.config.method}
                       clearable={false}
+                      popover-min-width={50}
+                      readonly={this.readonly}
                       onChange={this.emitLocalData}
                     >
                       {this.getSimpleMethodList.map(opt => (
                         <bk-option
-                          key={opt.id}
                           id={opt.id}
+                          key={opt.id}
                           name={opt.name}
                         ></bk-option>
                       ))}
                     </bk-select>
                     <bk-input
-                      class='input-align-center inline-input number-handle-input'
-                      behavior='simplicity'
-                      readonly={this.readonly}
                       style='width: 78px'
+                      class='input-align-center inline-input number-handle-input'
                       v-model={this.localData.config.days}
+                      behavior='simplicity'
                       clearable={false}
                       min={1}
                       precision={0}
+                      readonly={this.readonly}
                       type='number'
                       onChange={this.emitLocalData}
                     />
                     <bk-input
-                      class='input-align-center inline-input number-handle-input'
-                      behavior='simplicity'
-                      readonly={this.readonly}
                       style='width: 72px'
-                      type='number'
+                      class='input-align-center inline-input number-handle-input'
                       v-model={this.localData.config.ratio}
+                      behavior='simplicity'
                       clearable={false}
+                      readonly={this.readonly}
+                      type='number'
                       onChange={this.emitLocalData}
                     />
                     <bk-input
-                      class='input-align-center inline-input number-handle-input'
-                      behavior='simplicity'
-                      readonly={this.readonly}
                       style='width: 72px'
-                      type='number'
+                      class='input-align-center inline-input number-handle-input'
                       v-model={this.localData.config.shock}
+                      behavior='simplicity'
                       clearable={false}
+                      readonly={this.readonly}
+                      type='number'
                       onChange={this.emitLocalData}
                     />
                   </i18n>
@@ -554,60 +555,60 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
               // 同比策略(区间)
               this.localData.type === DetectionRuleTypeEnum.YearRoundRange && (
                 <div
-                  class='amplitude-wrap concise'
                   key={`${this.localData.type}-${this.localData.level}`}
+                  class='amplitude-wrap concise'
                 >
                   <i18n
-                    path='当前值 {0} 过去{1}天内同时刻绝对值 ×{2}+{3}'
                     class='i18n-path'
+                    path='当前值 {0} 过去{1}天内同时刻绝对值 ×{2}+{3}'
                   >
                     <bk-select
                       class='select-method'
-                      popover-min-width={50}
-                      readonly={this.readonly}
                       v-model={this.localData.config.method}
                       clearable={false}
+                      popover-min-width={50}
+                      readonly={this.readonly}
                       onChange={this.emitLocalData}
                     >
                       {this.getSimpleMethodList.map(opt => (
                         <bk-option
-                          key={opt.id}
                           id={opt.id}
+                          key={opt.id}
                           name={opt.name}
                         ></bk-option>
                       ))}
                     </bk-select>
                     <bk-input
-                      class='input-align-center inline-input number-handle-input'
-                      behavior='simplicity'
-                      readonly={this.readonly}
                       style='width: 78px'
+                      class='input-align-center inline-input number-handle-input'
                       v-model={this.localData.config.days}
+                      behavior='simplicity'
                       clearable={false}
                       min={1}
                       precision={0}
+                      readonly={this.readonly}
                       type='number'
                       onChange={this.emitLocalData}
                     />
                     <bk-input
-                      class='input-align-center inline-input number-handle-input'
-                      behavior='simplicity'
-                      readonly={this.readonly}
                       style='width: 72px'
+                      class='input-align-center inline-input number-handle-input'
                       v-model={this.localData.config.ratio}
+                      behavior='simplicity'
+                      clearable={false}
                       min={1}
                       precision={0}
-                      clearable={false}
+                      readonly={this.readonly}
                       type='number'
                       onChange={this.emitLocalData}
                     />
                     <bk-input
-                      class='input-align-center inline-input number-handle-input'
-                      behavior='simplicity'
-                      readonly={this.readonly}
                       style='width: 72px'
+                      class='input-align-center inline-input number-handle-input'
                       v-model={this.localData.config.shock}
+                      behavior='simplicity'
                       clearable={false}
+                      readonly={this.readonly}
                       type='number'
                       onChange={this.emitLocalData}
                     />

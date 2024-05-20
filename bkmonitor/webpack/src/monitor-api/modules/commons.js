@@ -21,6 +21,7 @@ export const getStorageClusterDetail = request('GET', 'rest/v2/commons/get_stora
 export const registerCluster = request('POST', 'rest/v2/commons/register_cluster/');
 export const updateRegisteredCluster = request('POST', 'rest/v2/commons/update_registered_cluster/');
 export const getDocLink = request('GET', 'rest/v2/commons/get_docs_link/');
+export const getLinkMapping = request('GET', 'rest/v2/commons/get_docs_link/mapping/');
 export const countryList = request('GET', 'rest/v2/commons/country_list/');
 export const ispList = request('GET', 'rest/v2/commons/isp_list/');
 export const hostRegionIspInfo = request('GET', 'rest/v2/commons/host_region_isp_info/');
@@ -67,6 +68,7 @@ export default {
   registerCluster,
   updateRegisteredCluster,
   getDocLink,
+  getLinkMapping,
   countryList,
   ispList,
   hostRegionIspInfo,

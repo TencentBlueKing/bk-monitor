@@ -1,30 +1,29 @@
 @font-face {
   font-family: 'log';
+  font-style: normal;
+  font-weight: normal;
   src: url('iconcool.svg#iconcool') format('svg'),
     url('iconcool.ttf') format('truetype'),
     url('iconcool.woff') format('woff'),
     url('iconcool.eot?#iefix') format('embedded-opentype');
-  font-weight: normal;
-  font-style: normal;
 }
 
 .log-icon {
   /* stylelint-disable-next-line declaration-no-important */
   font-family: 'log' !important;
 
-  /* speak: none; */
-  font-style: normal;
-  font-weight: normal;
-  font-variant: normal;
-  text-transform: none;
-  line-height: 1;
-  text-align: center;
-
   /* Better Font Rendering =========== */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
 
+  /* speak: none; */
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  text-align: center;
+  text-transform: none;
+  font-variant: normal;
+}
 
 .icon-app-store:before {
   content: '\e162';
@@ -164,6 +163,14 @@
 
 .icon-locale:before {
   content: '\e117';
+}
+
+.icon-collapse-small:before {
+  content: '\e18a';
+}
+
+.icon-expand-small:before {
+  content: '\e189';
 }
 
 .icon-new-_empty-fill:before {
@@ -405,3 +412,4 @@
 .icon-log-remark:before {
   content: '\e187';
 }
+

@@ -25,17 +25,18 @@
  */
 import { type RouteConfig } from 'vue-router';
 
-import { spaceIntroduce } from '../../monitor-api/modules/commons';
+import { spaceIntroduce } from 'monitor-api/modules/commons';
+
 import { ISPaceIntroduceData } from '../types';
 
 export enum IntroduceRouteKey {
-  'performance' = 'performance',
-  'uptime-check' = 'uptime-check',
   'apm-home' = 'apm-home',
-  'k8s' = 'k8s',
-  'custom-scenes' = 'custom-scenes',
   'collect-config' = 'collect-config',
-  'plugin-manager' = 'plugin-manager'
+  'custom-scenes' = 'custom-scenes',
+  'k8s' = 'k8s',
+  'performance' = 'performance',
+  'plugin-manager' = 'plugin-manager',
+  'uptime-check' = 'uptime-check',
 }
 export type IntroduceStoreData = Record<
   IntroduceRouteKey,
@@ -48,16 +49,14 @@ class IntroduceStore {
   // 使用一个对象存储介绍数据和加载状态
   data: Partial<IntroduceStoreData> = {};
   constructor() {
-    // eslint-disable-next-line no-restricted-syntax
     for (const key in IntroduceRouteKey) {
       this.data[key] = {
         introduce: null,
-        loading: false
+        loading: false,
       };
     }
   }
   clear() {
-    // eslint-disable-next-line no-restricted-syntax
     for (const key in IntroduceRouteKey) {
       this.data[key].introduce = null;
     }
@@ -87,6 +86,17 @@ class IntroduceStore {
     this.data[tag].introduce = data;
   }
 
+  // 获取路由对应的 getIntroduce 方法
+  getRouteFunc(routeId: IntroduceRouteKey) {
+    return this.getIntroduce(routeId);
+  }
+
+  // 根据路由判断是否显示指南页面
+  getShowGuidePageByRoute(routeId: IntroduceRouteKey) {
+    if (routeId === IntroduceRouteKey['plugin-manager']) return !!this.data[routeId]?.introduce.is_no_source;
+    return !!(this.data[routeId]?.introduce.is_no_data || this.data[routeId]?.introduce.is_no_source);
+  }
+
   // 初始化所有介绍数据
   initIntroduce(to: RouteConfig) {
     const toNavId = to.meta.navId;
@@ -109,17 +119,6 @@ class IntroduceStore {
         });
       }
     });
-  }
-
-  // 获取路由对应的 getIntroduce 方法
-  getRouteFunc(routeId: IntroduceRouteKey) {
-    return this.getIntroduce(routeId);
-  }
-
-  // 根据路由判断是否显示指南页面
-  getShowGuidePageByRoute(routeId: IntroduceRouteKey) {
-    if (routeId === IntroduceRouteKey['plugin-manager']) return !!this.data[routeId]?.introduce.is_no_source;
-    return !!(this.data[routeId]?.introduce.is_no_data || this.data[routeId]?.introduce.is_no_source);
   }
 }
 

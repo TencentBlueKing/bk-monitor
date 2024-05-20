@@ -39,12 +39,12 @@ export default [
       navId: 'custom-metric',
       authority: {
         map: customAuth,
-        page: customAuth.VIEW_CUSTOM_METRIC
+        page: customAuth.VIEW_CUSTOM_METRIC,
       },
       route: {
-        parent: 'integrated'
+        parent: 'integrated',
       },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

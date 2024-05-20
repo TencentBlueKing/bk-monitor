@@ -25,12 +25,12 @@
  */
 import Vue from 'vue';
 import VueI18n from 'vue-i18n';
+
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { getCookie } from 'monitor-common/utils/utils';
 import enUS from 'vant/lib/locale/lang/en-US';
 
 import '../../monitor-pc/i18n/dayjs';
-
-import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils/constant';
-import { getCookie } from '../../monitor-common/utils/utils';
 import englishJson from '../lang/en.json';
 import chineseJson from '../lang/zh-cn.json';
 
@@ -40,7 +40,7 @@ const i18n = new VueI18n({
   fallbackLocale: 'zh-cn',
   messages: {
     en: Object.assign({}, enUS, englishJson),
-    'zh-cn': Object.assign({}, chineseJson)
-  }
+    'zh-cn': Object.assign({}, chineseJson),
+  },
 });
 export default i18n;

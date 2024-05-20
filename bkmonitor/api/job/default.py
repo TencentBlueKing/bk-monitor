@@ -46,6 +46,9 @@ class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
             assignee = [settings.COMMON_USERNAME]
 
         if not assignee:
+            self.report_api_failure_metric(
+                error_code=EmptyAssigneeError.code, exception_type=EmptyAssigneeError.__name__
+            )
             raise EmptyAssigneeError()
 
         for index, username in enumerate(assignee):
@@ -53,6 +56,9 @@ class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
             try:
                 return super(JobBaseResource, self).perform_request(params)
             except APIPermissionDeniedError as error:
+                self.report_api_failure_metric(
+                    error_code=getattr(error, 'code', 0), exception_type=APIPermissionDeniedError.__name__
+                )
                 # 权限不足的时候，继续运行
                 if index < len(assignee) - 1:
                     continue

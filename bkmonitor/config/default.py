@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 """
 import ntpath
 import os
+import sys
 from urllib.parse import urljoin
 
 from bkcrypto import constants
@@ -220,27 +221,14 @@ if SENTRY_DSN:
         "dsn": SENTRY_DSN,
     }
 
-# apm support
-APM_ID = os.environ.get("APM_ID")
-APM_TOKEN = os.environ.get("APM_TOKEN")
-if APM_ID and APM_TOKEN:
-    INSTALLED_APPS += ("ddtrace.contrib.django",)
-    DATADOG_TRACE = {
-        "TAGS": {
-            "env": os.getenv("BKPAAS_ENVIRONMENT", "dev"),
-            "apm_id": APM_ID,
-            "apm_token": APM_TOKEN,
-        },
-    }
-    # requests for APIGateway/ESB
-    # remove pymysql while Django Defaultdb has been traced already
-    try:
-        import requests  # noqa  # pylint: disable=unused-import
-        from ddtrace import patch
-
-        patch(requests=True, pymysql=False)
-    except Exception as err:  # pylint: disable=broad-except
-        print("patch fail for requests and pymysql: %s" % err)
+# Target: Observation data collection
+SERVICE_NAME = APP_CODE + "_web"
+if ROLE == "api":
+    SERVICE_NAME = APP_CODE + "_api"
+if "celery" in sys.argv or ROLE == "worker":
+    SERVICE_NAME = APP_CODE + "_worker"
+if "beat" in sys.argv:
+    SERVICE_NAME = APP_CODE + "_beat"
 
 # space 支持
 # 请求参数是否需要注入空间属性
@@ -311,68 +299,6 @@ CLOSE_EVNET_METRIC_IDS = [
 
 FAKE_EVENT_AGG_INTERVAL = 60
 
-PUBLIC_NOTICE_CONFIG = {
-    "alert_notice": [
-        {
-            "time_range": "00:00:00--23:59:59",
-            "notify_config": [
-                {"level": 1, "type": ["weixin", "mail"]},
-                {"level": 2, "type": ["weixin", "mail"]},
-                {"level": 3, "type": ["weixin", "mail"]},
-            ],
-        }
-    ],
-    "action_notice": [
-        {
-            "time_range": "00:00:00--23:59:59",
-            "notify_config": [
-                {"phase": 1, "type": ["mail"]},
-                {"phase": 2, "type": ["mail"]},
-                {"phase": 3, "type": ["mail"]},
-            ],
-        }
-    ],
-    "message": "",
-}
-DEFAULT_NOTICE_GROUPS = [
-    {
-        "name": _("主备负责人"),
-        "notice_receiver": [{"id": "operator", "type": "group"}, {"id": "bk_bak_operator", "type": "group"}],
-        **PUBLIC_NOTICE_CONFIG,
-    },
-    {"name": _("运维"), "notice_receiver": [{"id": "bk_biz_maintainer", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-    {"name": _("开发"), "notice_receiver": [{"id": "bk_biz_developer", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-    {"name": _("测试"), "notice_receiver": [{"id": "bk_biz_tester", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-    {"name": _("产品"), "notice_receiver": [{"id": "bk_biz_productor", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
-]
-
-DEFAULT_NOTICE_MESSAGE_TEMPLATE = [
-    {
-        "signal": "abnormal",
-        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n"
-        "{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n"
-        "{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n"
-        "{{content.dimension}}\n{{content.detail}}\n{{content.related_info}}",
-        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-    },
-    {
-        "signal": "recovered",
-        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}"
-        "\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n"
-        "{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n"
-        "{{content.detail}}\n{{content.related_info}}",
-        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-    },
-    {
-        "signal": "closed",
-        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n"
-        "{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n"
-        "{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n"
-        "{{content.detail}}\n{{content.related_info}}",
-        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-    },
-]
-
 AES_X_KEY_FIELD = "SECRET_KEY"
 
 # 时序数据精度
@@ -409,6 +335,7 @@ ACTIVE_VIEWS = {
         "share": "monitor_web.share.views",
         "promql_import": "monitor_web.promql_import.views",
         "datalink": "monitor_web.datalink.views",
+        "new_report": "monitor_web.new_report.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -427,6 +354,7 @@ ACTIVE_VIEWS = {
         "apm_service": "apm_web.service.views",
         "apm_log": "apm_web.log.views",
         "apm_db": "apm_web.db.views",
+        "apm_profile": "apm_web.profile.views",
     },
 }
 
@@ -610,6 +538,9 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
+APM_BMW_DEPLOY_BIZ_ID = 0
+# 在列表中业务，才会创建虚拟指标， [2]
+APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
 
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
@@ -891,6 +822,8 @@ BK_DATA_KAFKA_BROKER_URL = "127.0.0.1:9092"
 BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW = 5
 BK_DATA_FLOW_CLUSTER_GROUP = "default_inland"
 BK_DATA_REALTIME_NODE_WAIT_TIME = 10
+# 监控使用计算平台 flow 的项目 ID
+BK_DATA_RECORD_RULE_PROJECT_ID = 1
 
 # 场景服务ID
 # 单指标异常检测
@@ -903,6 +836,8 @@ BK_DATA_SCENE_ID_ABNORMAL_CLUSTER = 33
 BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION = 15
 # 指标推荐
 BK_DATA_SCENE_ID_METRIC_RECOMMENDATION = 17
+# 主机异常检测
+BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION = 15
 
 # ai设置默认方案
 # 单指标异常检测
@@ -911,10 +846,13 @@ BK_DATA_PLAN_ID_INTELLIGENT_DETECTION = 87
 BK_DATA_PLAN_ID_MULTIVARIATE_ANOMALY_DETECTION = 155
 # 指标推荐
 BK_DATA_PLAN_ID_METRIC_RECOMMENDATION = 180
+# 主机异常检测
+BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION = 287
 
 BK_DATA_MULTIVARIATE_HOST_RT_ID = os.getenv(
     "BK_DATA_MULTIVARIATE_HOST_RT_ID", f"2_{BKAPP_DEPLOY_PLATFORM}_host_multivariate"
 )
+BK_DATA_MULTIVARIATE_HOST_MIDDLE_SUFFIX = "multivariate_detection"
 
 # 机器人默认跳转链接列表
 BK_DATA_ROBOT_LINK_LIST = os.getenv(
@@ -1097,6 +1035,10 @@ BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(BK_IAM_APP_CO
 BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_center", bk_paas_host=BK_PAAS_HOST)
 DOC_HOST = "https://bk.tencent.com/docs/"
 
+# 版本差异变量
+if PLATFORM == "community":
+    BK_DOCS_SITE_URL = DOC_HOST
+
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
@@ -1113,8 +1055,8 @@ BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
 BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 
 # 以下专门用来测试bkchat
-BKHCAT_APP_CODE = os.getenv("BKHCAT_APP_CODE", "")
-BKHCAT_APP_SECRET = os.getenv("BKHCAT_APP_SECRET", "")
+BKCHAT_APP_CODE = os.getenv("BKCHAT_APP_CODE", os.getenv("BKHCAT_APP_CODE", ""))
+BKCHAT_APP_SECRET = os.getenv("BKCHAT_APP_SECRET", os.getenv("BKHCAT_APP_SECRET", ""))
 BKCHAT_BIZ_ID = os.getenv("BKCHAT_BIZ_ID", "2")
 
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
@@ -1184,18 +1126,14 @@ HOST_GET_PROCESS_MAX_PORT = 12
 # 迁移工具使用文档地址
 MIGRATE_GUIDE_URL = os.getenv("BKAPP_MIGRATE_GUIDE_URL", "")
 
-# 版本差异变量
-if PLATFORM == "enterprise":
-    BK_DOCS_SITE_URL = BK_PAAS_HOST + "/o/bk_docs_center/"
-else:
-    BK_DOCS_SITE_URL = "https://bk.tencent.com/docs/"
-
 # IP选择器接口类
 BKM_IPCHOOSER_BKAPI_CLASS = "api.cmdb.ipchooser.IpChooserApi"
 
 # IPv6特性开关
 # 当gse新API就绪时可以，此时会切换为新API，在正式出包后可以删除该开关
 USE_GSE_AGENT_STATUS_NEW_API = True
+# GSE APIGW 的地址
+BKGSE_APIGW_BASE_URL = os.getenv("BKAPP_BKGSE_APIGW_BASE_URL", "")
 # 全面启用IPv6功能特性
 IPV6_SUPPORT_BIZ_LIST = []
 # 主机展示字段
@@ -1369,3 +1307,39 @@ OUTER_COLLOCTOR_HOST = ""
 
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
+
+# BCS 数据合流配置， 默认为 不启用
+BCS_DATA_CONVERGENCE_CONFIG = {}
+
+# 是否启用 BCS CC 的项目接口
+ENABLE_BCS_CC_PROJECT_API = False
+
+# 独立的vm集群的空间列表
+SINGLE_VM_SPACE_ID_LIST = []
+
+# 文档链接配置 格式: {"key1": {"type": "splice/link", "value": ""}}
+DOC_LINK_MAPPING = {}
+
+# 插件授权给 bkci 空间使用
+BKCI_SPACE_ACCESS_PLUGIN_LIST = []
+
+# 禁用告警CMDB缓存刷新
+DISABLE_ALARM_CMDB_CACHE_REFRESH = []
+
+# 需要base64编码的特殊字符
+BASE64_ENCODE_TRIGGER_CHARS = []
+
+# 邮件订阅审批服务ID
+REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
+
+# grafana和策略导出是否支持data_label转换
+ENABLE_DATA_LABEL_EXPORT = True
+
+# 是否启用access数据批量处理
+ENABLED_ACCESS_DATA_BATCH_PROCESS = False
+ACCESS_DATA_BATCH_PROCESS_SIZE = 50000
+ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0
+
+# metadta请求es超时配置, 单位为秒，默认10秒
+# 格式: {default: 10, 集群域名: 20}
+METADATA_REQUEST_ES_TIMEOUT = {}

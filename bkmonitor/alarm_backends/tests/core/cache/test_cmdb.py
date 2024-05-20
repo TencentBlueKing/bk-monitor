@@ -18,7 +18,6 @@ from django.test import TestCase
 
 from alarm_backends.core.cache.cmdb import (
     BusinessManager,
-    HostIDManager,
     HostManager,
     ModuleManager,
     ServiceInstanceManager,
@@ -37,32 +36,60 @@ BIZ_IDS = [2, 3, 4, 5, 6, 10, 20, 21]
 
 ALL_BUSINESS = [Business(bk_biz_id=i) for i in BIZ_IDS]
 
-mock.patch("alarm_backends.core.cache.cmdb.business.api.cmdb.get_business", return_value=ALL_BUSINESS).start()
 
-get_hosts = mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_host_by_topo_node").start()
-get_hosts.side_effect = lambda bk_biz_id, **kwargs: [host for host in ALL_HOSTS if host.bk_biz_id == bk_biz_id]
-
-get_modules = mock.patch("alarm_backends.core.cache.cmdb.module.api.cmdb.get_module").start()
-get_modules.side_effect = lambda bk_biz_id: [module for module in ALL_MODULES if module.bk_biz_id == bk_biz_id]
-
-
-get_service_instances = mock.patch(
-    "alarm_backends.core.cache.cmdb." "service_instance.api.cmdb.get_service_instance_by_topo_node"
-).start()
-get_service_instances.side_effect = lambda bk_biz_id: [
-    instance for instance in ALL_SERVICE_INSTANCES if instance.bk_biz_id == bk_biz_id
-]
-
-mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_topo_tree", return_value=TOPO_TREE).start()
-mock.patch("alarm_backends.core.cache.cmdb.service_instance.api.cmdb.get_topo_tree", return_value=TOPO_TREE).start()
-mock.patch("alarm_backends.core.cache.cmdb.service_instance.api.cmdb.get_set", return_value=[]).start()
-
-
-class TestBusinessManager(TestCase):
+class TestCMDBBaseTestCase(TestCase):
     def setUp(self):
+        self.get_hosts = mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_host_by_topo_node")
+        self.get_hosts.start().side_effect = lambda bk_biz_id, **kwargs: [
+            host for host in ALL_HOSTS if host.bk_biz_id == bk_biz_id
+        ]
+
+        self.get_modules = mock.patch("alarm_backends.core.cache.cmdb.module.api.cmdb.get_module")
+        self.get_modules.start().side_effect = lambda bk_biz_id: [
+            module for module in ALL_MODULES if module.bk_biz_id == bk_biz_id
+        ]
+
+        self.get_service_instances = mock.patch(
+            "alarm_backends.core.cache.cmdb." "service_instance.api.cmdb.get_service_instance_by_topo_node"
+        )
+        self.get_service_instances.start().side_effect = lambda bk_biz_id: [
+            instance for instance in ALL_SERVICE_INSTANCES if instance.bk_biz_id == bk_biz_id
+        ]
+
+        self.get_topo_tree = mock.patch(
+            "alarm_backends.core.cache.cmdb.host.api.cmdb.get_topo_tree", return_value=TOPO_TREE
+        )
+
+        self.get_topo_tree_1 = mock.patch(
+            "alarm_backends.core.cache.cmdb.service_instance.api.cmdb.get_topo_tree", return_value=TOPO_TREE
+        )
+        self.get_set = mock.patch("alarm_backends.core.cache.cmdb.service_instance.api.cmdb.get_set", return_value=[])
+        self.get_business = mock.patch(
+            "alarm_backends.core.cache.cmdb.business.api.cmdb.get_business", return_value=ALL_BUSINESS
+        )
+
+        self.get_topo_tree.start()
+        self.get_topo_tree_1.start()
+        self.get_set.start()
+        self.get_business.start()
+
+    def tearDown(self):
+        self.get_hosts.stop()
+        self.get_modules.stop()
+        self.get_service_instances.stop()
+        self.get_topo_tree.stop()
+        self.get_topo_tree_1.stop()
+        self.get_set.stop()
+        self.get_business.stop()
+
+
+class TestBusinessManager(TestCMDBBaseTestCase):
+    def setUp(self):
+        super().setUp()
         BusinessManager.clear()
 
     def tearDown(self):
+        super().tearDown()
         BusinessManager.clear()
 
     def test_serialize(self):
@@ -121,13 +148,15 @@ class TestBusinessManager(TestCase):
         self.assertSetEqual(set(new_business_list), set(BusinessManager.all()))
 
 
-class TestHostManager(TestCase):
+class TestHostManager(TestCMDBBaseTestCase):
     def setUp(self):
+        super().setUp()
         caches["locmem"].clear()
         HostManager.clear()
         local.host_cache = {}
 
     def tearDown(self):
+        super().tearDown()
         HostManager.clear()
 
     def test_serialize(self):
@@ -189,7 +218,6 @@ class TestHostManager(TestCase):
         self.assertSetEqual(set(ALL_HOSTS), set(hosts))
 
     def test_clear(self):
-
         HostManager.refresh()
         keys = HostManager.cache.hkeys(HostManager.CACHE_KEY)
         biz_keys = HostManager.cache.hkeys(HostManager.get_biz_cache_key())
@@ -300,52 +328,13 @@ class TestHostManager(TestCase):
         self.assertTrue(HostManager.key_to_internal_value(ip, bk_cloud_id) in local.host_cache)
 
 
-class TestHostIDManager(TestCase):
+class TestModuleManager(TestCMDBBaseTestCase):
     def setUp(self):
-        HostIDManager.clear()
-
-    def tearDown(self):
-        HostIDManager.clear()
-
-    def test_serialize(self):
-        obj_bin = HostManager.serialize("10.0.0.1|0")
-        new_host_obj = HostManager.deserialize(obj_bin)
-        self.assertEqual("10.0.0.1|0", new_host_obj)
-
-    def test_key_convert(self):
-        self.assertEqual("1", HostIDManager.key_to_internal_value(1))
-        self.assertEqual("1", HostIDManager.key_to_internal_value("1"))
-        self.assertEqual("1", HostIDManager.key_to_representation("1"))
-
-    def test_refresh(self):
-        HostIDManager.refresh()
-        host_ids = HostIDManager.cache.hkeys(HostIDManager.CACHE_KEY)
-        excepted_host_ids = [HostIDManager.key_to_internal_value(host.bk_host_id) for host in ALL_HOSTS]
-        self.assertSetEqual(set(excepted_host_ids), set(host_ids))
-
-    def test_keys(self):
-        HostIDManager.refresh()
-        host_ids = list(HostIDManager.keys())
-        excepted_host_ids = [HostIDManager.key_to_internal_value(host.bk_host_id) for host in ALL_HOSTS]
-        self.assertSetEqual(set(excepted_host_ids), set(host_ids))
-
-    def test_get(self):
-        HostIDManager.refresh()
-        for host in ALL_HOSTS:
-            actual_host = HostIDManager.get(host.bk_host_id)
-            self.assertEqual("{}|{}".format(host.ip, host.bk_cloud_id), actual_host)
-
-    def test_all(self):
-        HostIDManager.refresh()
-        host_keys = HostIDManager.all()
-        self.assertSetEqual({"{}|{}".format(host.ip, host.bk_cloud_id) for host in ALL_HOSTS}, set(host_keys))
-
-
-class TestModuleManager(TestCase):
-    def setUp(self):
+        super().setUp()
         ModuleManager.clear()
 
     def tearDown(self):
+        super().tearDown()
         ModuleManager.clear()
 
     def test_serialize(self):
@@ -385,7 +374,6 @@ class TestModuleManager(TestCase):
         self.assertSetEqual(set(ALL_MODULES), set(modules))
 
     def test_clear(self):
-
         ModuleManager.refresh()
         keys = ModuleManager.cache.hkeys(ModuleManager.CACHE_KEY)
         biz_keys = ModuleManager.cache.hkeys(ModuleManager.get_biz_cache_key())
@@ -398,11 +386,13 @@ class TestModuleManager(TestCase):
         self.assertEqual(len(ModuleManager.cache.hkeys(ModuleManager.get_biz_cache_key())), 0)
 
 
-class TestServiceInstanceManager(TestCase):
+class TestServiceInstanceManager(TestCMDBBaseTestCase):
     def setUp(self):
+        super().setUp()
         ServiceInstanceManager.clear()
 
     def tearDown(self):
+        super().tearDown()
         ServiceInstanceManager.clear()
 
     def test_serialize(self):
@@ -463,12 +453,14 @@ class TestServiceInstanceManager(TestCase):
         self.assertEqual(len(ServiceInstanceManager.cache.hkeys(ServiceInstanceManager.get_biz_cache_key())), 0)
 
 
-class TestTopoManager(TestCase):
+class TestTopoManager(TestCMDBBaseTestCase):
     def setUp(self):
+        super().setUp()
         TopoManager.clear()
         TopoManager.refresh()
 
     def tearDown(self):
+        super().tearDown()
         TopoManager.clear()
 
     def test_serialize(self):

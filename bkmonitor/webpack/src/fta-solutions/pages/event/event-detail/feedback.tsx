@@ -26,8 +26,8 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { feedbackAlert } from '../../../../monitor-api/modules/alert';
-import MonitorDialog from '../../../../monitor-ui/monitor-dialog/monitor-dialog.vue';
+import { feedbackAlert } from 'monitor-api/modules/alert';
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import './feedback.scss';
 
@@ -43,7 +43,7 @@ interface IEvent {
 }
 
 @Component({
-  name: 'AlarmConfirm'
+  name: 'AlarmConfirm',
 })
 export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -89,7 +89,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
     const params = {
       alert_id: this.ids[0],
       is_anomaly: this.state === 1,
-      description: this.description
+      description: this.description,
     };
     this.loading = true;
     const res = await feedbackAlert(params)
@@ -99,13 +99,13 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
     if (res) {
       this.$bkMessage({
         theme: 'success',
-        message: window.i18n.tc('反馈成功')
+        message: window.i18n.tc('反馈成功'),
       });
       this.handleConfirm(true);
     } else {
       this.$bkMessage({
         theme: 'error',
-        message: window.i18n.tc('反馈失败')
+        message: window.i18n.tc('反馈失败'),
       });
     }
     this.handleShowChange(false);
@@ -128,11 +128,11 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
   render() {
     return (
       <MonitorDialog
+        width={480}
+        header-position={'left'}
+        title={this.$t('反馈')}
         value={this.show}
         on-change={this.handleShowChange}
-        title={this.$t('反馈')}
-        header-position={'left'}
-        width={480}
       >
         <div
           class='event-detail-feedbak-dialog'
@@ -169,10 +169,10 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
               </div>
             )}
             <bk-input
-              v-model={this.description}
-              type={'textarea'}
-              rows={3}
               class='content-text'
+              v-model={this.description}
+              rows={3}
+              type={'textarea'}
               onChange={() => (this.errMsg = '')}
             ></bk-input>
             {this.errMsg ? <div class='err-msg'>{this.errMsg}</div> : undefined}
@@ -180,10 +180,10 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
         </div>
         <template slot='footer'>
           <bk-button
-            on-click={this.handleAlarmConfirm}
-            theme='primary'
             style='margin-right: 10px'
             disabled={this.loading}
+            theme='primary'
+            on-click={this.handleAlarmConfirm}
           >
             {this.$t('确认')}
           </bk-button>

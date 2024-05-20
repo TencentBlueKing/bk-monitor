@@ -27,10 +27,9 @@ import { Component, Mixins, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import { secToString } from '../../../../components/cycle-input/utils';
-import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
+import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixinTsx';
 import { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
 import { MetricDetail } from '../../strategy-config-set-new/typings';
-
 import WhereDisplay from './where-display';
 
 import './metric-list-item.scss';
@@ -42,10 +41,10 @@ interface IProps {
 }
 
 interface IConfigsItem {
-  key: 'metricName' | 'method' | 'groupBy' | 'function' | 'where' | 'interval' | 'localQueryString' | 'logMetricName';
+  key: 'function' | 'groupBy' | 'interval' | 'localQueryString' | 'logMetricName' | 'method' | 'metricName' | 'where';
   label: string;
-  value: string | VueTsxSupport.JSX.Element | VueTsxSupport.JSX.Element[];
-  format?: Function;
+  value: VueTsxSupport.JSX.Element | VueTsxSupport.JSX.Element[] | string;
+  format?: (val: any) => any;
   enabled: boolean;
 }
 
@@ -68,51 +67,51 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
       key: 'metricName',
       label: window.i18n.tc('指标'),
       enabled: true,
-      value: ''
+      value: '',
     },
     {
       key: 'localQueryString',
       label: window.i18n.tc('检索语句'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'method',
       label: window.i18n.tc('汇聚'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'logMetricName',
       label: window.i18n.tc('指标'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'interval',
       label: window.i18n.tc('周期'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'groupBy',
       label: window.i18n.tc('维度'),
       enabled: false,
-      value: ''
+      value: '',
     },
     {
       key: 'where',
       label: window.i18n.tc('条件'),
       enabled: true,
       value: '',
-      format: null
+      format: null,
     },
     {
       key: 'function',
       label: window.i18n.tc('函数'),
       enabled: false,
-      value: ''
-    }
+      value: '',
+    },
   ];
 
   get currentConfigsList() {
@@ -125,6 +124,12 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
 
   created() {
     !this.expression && this.handleConfigsList();
+  }
+
+  beforeDestroy() {
+    this.popoverInstance?.hide?.();
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
   }
 
   /** 处理指标展示数据 */
@@ -147,17 +152,14 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
         switch (item.key) {
           case 'metricName':
             item.value = (
-              <span
-                onMouseenter={e => this.handleMetricMouseenter(e)}
-                onMouseleave={this.handleMetricMouseleave}
-              >
+              <span onMouseenter={e => this.handleMetricMouseenter(e)}>
                 {metric.metric_field_name || (metric.metric_id as any)}
               </span>
             );
             item.label = this.metricNameLabel();
             break;
           case 'logMetricName':
-            item.value = metric.curRealMetric?.metric_field_name || metric.curRealMetric?.metric_id;
+            item.value = metric.curRealMetric?.metric_field_name || String(metric.curRealMetric?.metric_id);
             break;
           case 'localQueryString':
             item.value = metric.localQueryString;
@@ -166,12 +168,11 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
             item.value = metric.agg_method;
             break;
           case 'interval':
-            // eslint-disable-next-line no-case-declarations
             const unitMap = {
               m: 'min',
-              s: 's'
+              s: 's',
             };
-            // eslint-disable-next-line no-case-declarations
+
             const interalObj = secToString({ value: metric.agg_interval, unit: '' });
             item.value = `${interalObj?.value} ${unitMap[interalObj?.unit]}`;
             break;
@@ -192,28 +193,17 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
   }
 
   handleMetricMouseenter(e) {
-    let content = '';
-    try {
-      content = this.handleGetMetricTipsContent(this.metric);
-    } catch (error) {
-      // content = `${this.$t('指标不存在')}`;
-    }
-    if (content) {
+    if (this.$refs.metricTipsContent) {
       this.popoverInstance = this.$bkPopover(e.target, {
-        content,
+        content: this.$refs.metricTipsContent,
         placement: 'right',
         theme: 'monitor-metric-popover',
         arrow: true,
-        flip: false
+        interactive: true,
+        flip: false,
       });
       this.popoverInstance?.show?.(100);
     }
-  }
-
-  handleMetricMouseleave() {
-    this.popoverInstance?.hide?.();
-    this.popoverInstance?.destroy?.();
-    this.popoverInstance = null;
   }
 
   /** 指标名label */
@@ -253,7 +243,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
                 zIndex: 9999,
                 offset: '0, 6',
                 boundary: document.body,
-                allowHTML: false
+                allowHTML: false,
               }}
             >
               {name}
@@ -280,9 +270,9 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
   handleWhereTps() {
     return this.metric.agg_condition?.length ? (
       <WhereDisplay
-        value={this.metric.agg_condition}
         groupByList={this.metric.dimensions}
         metric={this.metric}
+        value={this.metric.agg_condition}
       />
     ) : undefined;
   }
@@ -318,6 +308,10 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
               <span class='flex-item'></span>
             </div>
           )}
+        </div>
+
+        <div style='display:none'>
+          {this.metric && <div ref='metricTipsContent'>{this.handleGetMetricTipsContent(this.metric)}</div>}
         </div>
       </div>
     );

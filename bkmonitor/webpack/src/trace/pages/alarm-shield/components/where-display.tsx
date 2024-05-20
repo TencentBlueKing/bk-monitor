@@ -25,16 +25,16 @@
  */
 import { defineComponent, PropType, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Popover } from 'bkui-vue';
 
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
-import { random } from '../../../../monitor-common/utils';
-import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../monitor-pc/constant/constant';
+import { Popover } from 'bkui-vue';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { random } from 'monitor-common/utils';
+import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from 'monitor-pc/constant/constant';
 import {
-  ICommonItem,
-  IWhereItem,
-  MetricDetail
-} from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+  type ICommonItem,
+  type IWhereItem,
+  type MetricDetail,
+} from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './where-display.scss';
 
@@ -43,43 +43,43 @@ export default defineComponent({
   props: {
     value: {
       type: Array as PropType<IWhereItem[]>,
-      default: () => []
+      default: () => [],
     },
     groupByList: {
       type: Array as PropType<ICommonItem[]>,
-      default: () => []
+      default: () => [],
     },
     metric: {
       type: Object as PropType<MetricDetail>,
-      default: () => null
+      default: () => null,
     },
     allWhereValueMap: {
       type: Map as PropType<Map<string, ICommonItem[]>>,
-      default: () => new Map()
+      default: () => new Map(),
     },
     readonly: {
       type: Boolean,
-      default: false
+      default: false,
     },
     allNames: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     onValueMapChange: {
       type: Function as PropType<(_v: Map<string, ICommonItem[]>) => void>,
-      default: _v => {}
-    }
+      default: _v => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
     const maps = reactive<{
-      whereNameMap: Map<string | number, string>;
+      whereNameMap: Map<number | string, string>;
       methodNameMap: Map<string, string>;
       whereValueMap: Map<string, ICommonItem[]>;
     }>({
       whereNameMap: new Map(),
       methodNameMap: new Map(),
-      whereValueMap: new Map()
+      whereValueMap: new Map(),
     });
     const valueKey = ref(random(8));
 
@@ -112,9 +112,9 @@ export default defineComponent({
             data_type_label,
             metric_field,
             result_table_id,
-            where: []
+            where: [],
           },
-          type: 'dimension'
+          type: 'dimension',
         };
         if (props.allWhereValueMap.get(item.key)) {
           maps.whereValueMap.set(item.key, props.allWhereValueMap.get(item.key));
@@ -167,16 +167,16 @@ export default defineComponent({
               {!!item.condition && !!index ? <span class='where-condition'>{` ${item.condition} `}</span> : undefined}
               <Popover
                 content={item?.key}
+                disabled={!item?.key || item?.key === getFieldName(item)}
                 placement={'top'}
                 popoverDelay={[300, 0]}
-                disabled={!item?.key || item?.key === getFieldName(item)}
               >
                 <span class='where-field'>{` ${getFieldName(item)} `}</span>
               </Popover>
               <span class='where-method'>{` ${maps.methodNameMap.get(item.method) || item.method} `}</span>
               <span
-                class='where-content'
                 key={valueKey.value}
+                class='where-content'
               >
                 {handleValue(item.value, item.key)}
               </span>
@@ -188,10 +188,10 @@ export default defineComponent({
 
     return {
       renderFn,
-      maps
+      maps,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

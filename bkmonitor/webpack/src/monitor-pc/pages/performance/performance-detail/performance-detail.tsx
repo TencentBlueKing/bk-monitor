@@ -26,7 +26,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getHostInfo } from '../../../../monitor-api/modules/scene_view';
+import { getHostInfo } from 'monitor-api/modules/scene_view';
+
 import introduce from '../../../common/introduce';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { destroyTimezone } from '../../../i18n/dayjs';
@@ -38,7 +39,7 @@ import './performance-detail.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class PerformanceDetail extends tsc<{}> {
+export default class PerformanceDetail extends tsc<object> {
   @Prop({ type: [String, Number], default: '' }) id: string;
   @Prop({ type: [String, Number], default: '' }) process: string;
   @Prop({ type: String, default: '' }) title: string;
@@ -57,8 +58,8 @@ export default class PerformanceDetail extends tsc<{}> {
         filters: {
           bk_target_cloud_id: data.bk_cloud_id,
           bk_target_ip: data.ip,
-          bk_host_id: data.bk_host_id
-        }
+          bk_host_id: data.bk_host_id,
+        },
       };
     }
     if (this.id.toString() === v.toString()) return;
@@ -76,31 +77,33 @@ export default class PerformanceDetail extends tsc<{}> {
         params = { bk_host_id: vm.id };
       }
       vm.loading = true;
-      const { bk_os_type, bk_cloud_id, ip, bk_host_id, display_name } = await getHostInfo(params).catch(() => ({
-        bk_os_type: ''
-      }));
+      const { bk_os_type, bk_cloud_id, ip, bk_host_id, display_name } = await getHostInfo(params)
+        .then(data => ({ ...data }))
+        .catch(() => ({
+          bk_os_type: '',
+        }));
       vm.routeList = [
         {
           id: '',
-          name: display_name || ip
-        }
+          name: display_name || ip,
+        },
       ];
       vm.viewOptions = {
         filters: {
           bk_target_cloud_id: bk_cloud_id,
           bk_target_ip: ip,
-          bk_host_id
+          bk_host_id,
         },
         variables: vm.process
           ? {
-              display_name: vm.process
+              display_name: vm.process,
             }
           : {},
         matchFields: !vm.process
           ? {
-              os_type: bk_os_type
+              os_type: bk_os_type,
             }
-          : {}
+          : {},
       };
       vm.loading = false;
     });
@@ -113,7 +116,7 @@ export default class PerformanceDetail extends tsc<{}> {
   handleBack() {
     if (window.history.length <= 1) {
       this.$router.push({
-        name: 'performance'
+        name: 'performance',
       });
     } else {
       this.$router.back();
@@ -129,20 +132,20 @@ export default class PerformanceDetail extends tsc<{}> {
       >
         {!this.loading && (
           <CommonPage
+            defalutMethod={'MAX'}
+            defaultViewOptions={this.viewOptions}
             sceneId={this.viewOptions.variables?.display_name ? 'process' : 'host'}
             sceneType={'detail'}
-            defaultViewOptions={this.viewOptions}
-            defalutMethod={'MAX'}
             onTitleChange={this.headerTitleChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
-              needBack={true}
-              navMode={'share'}
               callbackRouterBack={this.handleBack}
+              navMode={'share'}
+              needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             />
           </CommonPage>
         )}

@@ -173,9 +173,9 @@
 </template>
 <script lang="ts">
 import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+import { createDashboardOrFolder, getDirectoryTree, saveToDashboard } from 'monitor-api/modules/grafana';
+import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
 
-import { createDashboardOrFolder, getDirectoryTree, saveToDashboard } from '../../../../monitor-api/modules/grafana';
-import { filterDictConvertedToWhere } from '../../../../monitor-ui/chart-plugins/utils';
 import { Debounce } from '../../../components/ip-selector/common/util';
 import { DASHBOARD_ID_KEY } from '../../../constant/constant';
 import collapseMixin from '../../../mixins/collapseMixin';

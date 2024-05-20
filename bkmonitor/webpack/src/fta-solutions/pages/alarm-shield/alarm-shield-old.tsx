@@ -25,8 +25,8 @@
  */
 import { Component, Provide } from 'vue-property-decorator';
 
-import AlarmShield from '../../../monitor-pc/pages/alarm-shield/alarm-shield-list/alarm-shield.vue';
-import authorityMixinCreate from '../../../monitor-ui/mixins/authorityMixin';
+import AlarmShield from 'monitor-pc/pages/alarm-shield/alarm-shield-list/alarm-shield.vue';
+import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import * as alarmShieldAuth from './authority-map';
 

@@ -25,12 +25,12 @@
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 
-import CommonNavBar from '../../../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import { INavItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
+import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
+import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
+
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as authorityMap from '../../home/authority-map';
-
 import BasicInfo from './basic-info';
 
 import './configuration.scss';
@@ -86,8 +86,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
         // }
         {
           id: 'configuration',
-          name: window.i18n.tc('配置服务')
-        }
+          name: window.i18n.tc('配置服务'),
+        },
       ];
       vm.appName = appName;
       vm.serviceName = serviceName;
@@ -107,8 +107,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       name: 'service',
       query: {
         'filter-app_name': this.appName,
-        'filter-service_name': this.serviceName
-      }
+        'filter-service_name': this.serviceName,
+      },
     });
   }
 
@@ -118,17 +118,17 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
         <CommonNavBar
           class='service-configuration-nav'
           slot='nav'
-          routeList={this.routeList}
-          needCopyLink
+          navMode={'display'}
           needBack={true}
           needShadow={true}
-          navMode={'display'}
           positionText={this.positonText}
+          routeList={this.routeList}
+          needCopyLink
         />
         <div class='configuration-content'>
           <ConfigurationNav
-            menuList={this.menuList}
             active={this.activeMenu}
+            menuList={this.menuList}
             onAlertClick={this.handleClickAlert}
           >
             {this.getContentPanel()}

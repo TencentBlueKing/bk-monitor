@@ -25,11 +25,12 @@
  */
 import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Collapse, Progress } from 'bkui-vue';
 import { EnlargeLine, NarrowLine } from 'bkui-vue/lib/icon';
+import { deepClone } from 'monitor-common/utils/utils';
+import { type FieldListType, type FieldValue } from 'monitor-pc/pages/data-retrieval/typings';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
-import { FieldListType, FieldValue } from '../../../../monitor-pc/pages/data-retrieval/typings';
 import { SPAN_KIND_MAPS, SPAN_STATUS_CODE } from '../../../store/constant';
 
 import './field-list.scss';
@@ -54,18 +55,18 @@ const TOP_NUM = 5;
 const IProps = {
   value: {
     type: Array as PropType<TraceFieldValue[]>,
-    default: () => []
+    default: () => [],
   },
   total: {
     // 记录总数
     type: Number,
-    default: 0
+    default: 0,
   },
   allowDisplay: {
     // 允许控制显示隐藏
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 };
 
 export default defineComponent({
@@ -96,7 +97,7 @@ export default defineComponent({
       emit('checkedChange', {
         index,
         checked: !item.checked,
-        field: item.field
+        field: item.field,
       });
     };
 
@@ -110,7 +111,7 @@ export default defineComponent({
         key: item.field,
         method,
         value: [val.id],
-        condition: 'and'
+        condition: 'and',
       });
     };
 
@@ -133,7 +134,7 @@ export default defineComponent({
         interface_name: t('接口名'),
         interface_service_name: t('所属Service'),
         service_name_in_service_statistic: 'Service',
-        service_type_in_service_statistic: t('服务类型')
+        service_type_in_service_statistic: t('服务类型'),
       };
       return aliasMap[key] || key;
     };
@@ -152,7 +153,7 @@ export default defineComponent({
       total,
       allowDisplay,
       localValue,
-      handleChangeShowMore
+      handleChangeShowMore,
     };
   },
   render() {
@@ -222,10 +223,10 @@ export default defineComponent({
                   <span class='percent'>{val.percent}%</span>
                 </div>
                 <Progress
-                  theme='success'
                   percent={val.percent}
                   show-text={false}
                   stroke-width={4}
+                  theme='success'
                 ></Progress>
               </div>
               <div class='icon-box'>
@@ -258,12 +259,12 @@ export default defineComponent({
       <Collapse
         class='collapse-wrap collapse-wrap-event'
         v-model={this.expandedData}
-        list={this.localValue}
-        idFiled='key'
         v-slots={{
           default: (item: TraceFieldValue, index: number) => titleSlot(item, index),
-          content: (item: TraceFieldValue) => contentSlot(item)
+          content: (item: TraceFieldValue) => contentSlot(item),
         }}
+        idFiled='key'
+        list={this.localValue}
       >
         {/* <div class="collapse-wrap collapse-wrap-event">
           {
@@ -283,5 +284,5 @@ export default defineComponent({
         </div> */}
       </Collapse>
     );
-  }
+  },
 });

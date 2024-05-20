@@ -25,14 +25,13 @@
  */
 import Vue from 'vue';
 import VueI18n from 'vue-i18n';
+
 import { lang, locale } from 'bk-magic-vue';
-
-import './dayjs';
-
-import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils/constant';
-import { docCookies } from '../../monitor-common/utils/utils';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { docCookies } from 'monitor-common/utils/utils';
 
 import { mergeI18nJson } from './commmon';
+import './dayjs';
 // 获取语言偏好设置
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
 
@@ -41,7 +40,7 @@ export const isEn = currentLang === 'en';
 document.documentElement.setAttribute('lang', currentLang);
 
 // 设置网页标题
-document.title = isEn ? 'BKMonitor | Tencent BlueKing' : '监控平台 | 腾讯蓝鲸智云';
+document.title = window.page_title || (isEn ? 'BKMonitor | Tencent BlueKing' : '监控平台 | 腾讯蓝鲸智云');
 
 // 设置 VueI18n 使用的语言
 const i18nLocale = isEn ? 'enUS' : 'zhCN';
@@ -59,12 +58,11 @@ const i18n = new VueI18n({
   silentTranslationWarn: false, // 是否警告翻译缺失
   messages: {
     // 翻译文件
-    ...mergeI18nJson()
-  }
+    ...mergeI18nJson(),
+  },
 });
 
 // 将 VueI18n 实例挂载到全局变量 window.i18n 上
 window.i18n = i18n;
-
 // 导出 VueI18n 实例作为默认值
 export default i18n;

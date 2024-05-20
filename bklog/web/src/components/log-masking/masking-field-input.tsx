@@ -20,24 +20,15 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component as tsc } from 'vue-tsx-support';
-import {
-  Component,
-  Prop,
-  Emit,
-} from 'vue-property-decorator';
-import {
-  Button,
-  Tab,
-  TabPanel,
-  Alert,
-} from 'bk-magic-vue';
+import { Component, Prop, Emit, Mixins } from 'vue-property-decorator';
+import { Button, Tab, TabPanel, Alert } from 'bk-magic-vue';
 import MonacoEditor from '../../components/collection-access/components/step-add/monaco-editor.vue';
+import classDragMixin from '../../mixins/class-drag-mixin';
 import $http from '../../api';
 import './masking-field-input.scss';
 
 @Component
-export default class MaskingFieldInput extends tsc<{}> {
+export default class MaskingFieldInput extends Mixins(classDragMixin) {
   /** 是否是采集项脱敏 */
   @Prop({ type: Boolean, default: true }) isIndexSetMasking: boolean;
   @Prop({ type: String, required: true }) operateType: string;
@@ -48,16 +39,11 @@ export default class MaskingFieldInput extends tsc<{}> {
   catchJsonList = [];
   /** 是否钉住 */
   inputFix = false;
-  /** 是否正在改变输入框高度 */
-  isChangingHeight = false;
   /** 输入框最小高度 */
   collectMinHeight = 160;
   /** 输入框最大高度 */
   collectMaxHeight = 600;
-  /** 当前收藏容器的高度 */
-  currentTreeBoxHeight = null;
-  currentScreenY = null;
-  /** 当前收藏容器的高度 */
+  /** 当前容器的高度 */
   collectHeight = 160;
   /** 采样日志列表 */
   jsonValueList = [];
@@ -78,13 +64,14 @@ export default class MaskingFieldInput extends tsc<{}> {
     lineNumbers: 'off', // 左侧是否展示行
     // scrollBeyondLastLine: true,
     minimap: {
-      enabled: false, // 是否启用预览图
+      enabled: false // 是否启用预览图
     },
-    scrollbar: { // 滚动条设置
+    scrollbar: {
+      // 滚动条设置
       verticalScrollbarSize: 4, // 竖滚动条
-      horizontalScrollbarSize: 4, // 横滚动条
+      horizontalScrollbarSize: 4 // 横滚动条
       // useShadows: true, // 失焦阴影动画
-    },
+    }
   };
   /** 是否是第一次添加采样 */
   isAddNewPanel = false;
@@ -94,9 +81,7 @@ export default class MaskingFieldInput extends tsc<{}> {
   }
   /** 获取所有输入框的json元素列表 */
   get getJsonParseList() {
-    return this.jsonValueList
-      .filter(item => this.isHaveValJSON(item.jsonStr))
-      .map(item => JSON.parse(item.jsonStr));
+    return this.jsonValueList.filter(item => this.isHaveValJSON(item.jsonStr)).map(item => JSON.parse(item.jsonStr));
   }
   /** 是否展示正在下发采集配置警告 */
   get isShowAlertTips() {
@@ -130,17 +115,18 @@ export default class MaskingFieldInput extends tsc<{}> {
     try {
       this.inputLoading = true;
       const res = await $http.request('masking/getMaskingSearchStr', {
-        params: { index_set_id: this.indexSetId },
+        params: { index_set_id: this.indexSetId }
       });
       if (res.data.list.length) {
         // 缓存当前的日志
         this.catchJsonList = res.data.list;
-        if (!isRefreshInput) { // 有数据 且不是刷新按钮点击的 全都一次性展示出来
+        if (!isRefreshInput) {
+          // 有数据 且不是刷新按钮点击的 全都一次性展示出来
           this.addPanel(false);
           this.addPanel(false);
           this.addPanel(false);
         }
-      };
+      }
       this.handleBlurConfigInput(isPreview);
     } catch (err) {
       return '';
@@ -183,7 +169,7 @@ export default class MaskingFieldInput extends tsc<{}> {
       catchJsonStr: '',
       name: String(id),
       isJsonError: false,
-      label: `${this.$t('采样日志')}${id + 1}`,
+      label: `${this.$t('采样日志')}${id + 1}`
     });
     if (isQuery) {
       this.activeTab = String(id);
@@ -220,138 +206,130 @@ export default class MaskingFieldInput extends tsc<{}> {
   isHaveValJSON(str: string): boolean {
     try {
       JSON.parse(str);
-      return (JSON.parse(str) instanceof Object) && str !== '{}';
+      return JSON.parse(str) instanceof Object && str !== '{}';
     } catch (error) {
       return false;
     }
   }
 
-  /** 控制页面布局宽度 */
-  dragBegin(e) {
-    e.stopPropagation();
-    this.isChangingHeight = true;
-    this.currentTreeBoxHeight = this.collectHeight;
-    this.currentScreenY = e.screenY;
-    window.addEventListener('mousemove', this.dragMoving, { passive: true });
-    window.addEventListener('mouseup', this.dragStop, { passive: true });
-  }
-  dragMoving(e) {
-    const newTreeBoxHeight = this.currentTreeBoxHeight + e.screenY - this.currentScreenY;
-    if (newTreeBoxHeight < this.collectMinHeight) {
-      this.collectHeight = this.collectMinHeight;
-      this.dragStop();
-    } else if (newTreeBoxHeight >= this.collectMaxHeight) {
-      this.collectHeight = this.collectMaxHeight;
-    } else {
-      this.collectHeight = newTreeBoxHeight;
-    }
-  }
-  dragStop() {
-    this.isChangingHeight = false;
-    this.currentTreeBoxHeight = null;
-    this.currentScreenY = null;
-    window.removeEventListener('mousemove', this.dragMoving);
-    window.removeEventListener('mouseup', this.dragStop);
-  }
-
   render() {
     return (
-      <div class={
-        ['item-container field-input',
+      <div
+        class={[
+          'item-container field-input',
           {
             'input-fix': this.inputFix,
-            'other-color': !this.isIndexSetMasking,
-          }]
-        }>
-        {
-          this.isShowAlertTips && <Alert
-          type="warning"
-          show-icon={false}
-          closable
-          style="margin-bottom: 16px;">
-          <div slot="title">
-            <i class="log-icon icon-log-loading"></i>
-            <span>{this.$t('正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…')}</span>
+            'other-color': !this.isIndexSetMasking
+          }
+        ]}
+      >
+        {this.isShowAlertTips && (
+          <Alert
+            type='warning'
+            show-icon={false}
+            closable
+            style='margin-bottom: 16px;'
+          >
+            <div slot='title'>
+              <i class='log-icon icon-log-loading'></i>
+              <span>{this.$t('正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…')}</span>
+            </div>
+          </Alert>
+        )}
+        <div class='item-title'>
+          <div class='left'>
+            <span class='title'>{this.$t('采样日志')}</span>
+            <span class='alert'>
+              {this.$t(
+                '日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志'
+              )}
+            </span>
           </div>
-        </Alert>
-        }
-        <div class="item-title">
-          <div class="left">
-            <span class="title">{this.$t('采样日志')}</span>
-            <span class="alert">{this.$t('日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志')}</span>
-          </div>
-          <div class="right-fix" onClick={() => this.inputFix = !this.inputFix}>
+          <div
+            class='right-fix'
+            onClick={() => (this.inputFix = !this.inputFix)}
+          >
             <i class={['log-icon', this.inputFix ? 'icon-fix-shape' : 'icon-fix-line']}></i>
-            <span class="text">{this.inputFix ? this.$t('取消钉住') : this.$t('钉住')}</span>
+            <span class='text'>{this.inputFix ? this.$t('取消钉住') : this.$t('钉住')}</span>
           </div>
         </div>
         <Tab
           closable
-          type="border-card"
+          type='border-card'
           class={{ 'hidden-input is-not-log': !this.jsonValueList.length }}
           active={this.activeTab}
           on-tab-change={this.tabChange}
-          on-close-panel={this.closePanel}>
-            <div slot="setting" class="text-btn" onClick={() => this.handleRefreshConfigStr(true, true)}>
-              <i class="icon bk-icon icon-right-turn-line"></i>
-              <span class="text">{this.$t('刷新')}</span>
+          on-close-panel={this.closePanel}
+        >
+          <div
+            slot='setting'
+            class='text-btn'
+            onClick={() => this.handleRefreshConfigStr(true, true)}
+          >
+            <i class='icon bk-icon icon-right-turn-line'></i>
+            <span class='text'>{this.$t('刷新')}</span>
+          </div>
+          <div
+            slot='add'
+            onClick={() => this.addPanel()}
+          >
+            <div
+              style='margin-left: 10px;'
+              class='text-btn'
+            >
+              <i class='icon bk-icon icon-plus push'></i>
+              <span class='text'>{this.$t('新增采样')}</span>
             </div>
-            <div slot="add" onClick={() => this.addPanel()}>
-              <div style="margin-left: 10px;" class="text-btn">
-                <i class="icon bk-icon icon-plus push"></i>
-                <span class="text">{this.$t('新增采样')}</span>
+          </div>
+          {this.jsonValueList.map((panel, index) => (
+            <TabPanel
+              {...{ props: panel }}
+              key={index}
+            />
+          ))}
+          {!!this.jsonValueList.length ? (
+            <div>
+              <div
+                class='json-editor'
+                v-bkloading={{ isLoading: this.inputLoading }}
+              >
+                <MonacoEditor
+                  v-model={this.activeJsonValue.jsonStr}
+                  is-show-top-label={false}
+                  is-show-problem-drag={false}
+                  theme='vs'
+                  language='json'
+                  height={this.collectHeight}
+                  font-size={14}
+                  monaco-config={this.monacoConfig}
+                  placeholder={this.$t('请输入 JSON 格式日志')}
+                  on-get-problem-state={(err: boolean) => (this.activeJsonValue.isJsonError = err)}
+                  on-blur={() => this.handleBlurConfigInput()}
+                ></MonacoEditor>
               </div>
+              <div
+                class={['drag-bottom', { 'drag-ing': this.isChanging }]}
+                onMousedown={e => this.dragBegin(e, 'dragY')}
+              ></div>
             </div>
-            {
-              this.jsonValueList.map((panel, index) => (
-              <TabPanel {...{ props: panel }} key={index} />
-              ))
-            }
-            {
-              !!this.jsonValueList.length
-                ? <div>
-                  <div
-                    class="json-editor"
-                    v-bkloading={{ isLoading: this.inputLoading }}>
-                    <MonacoEditor
-                      v-model={this.activeJsonValue.jsonStr}
-                      is-show-top-label={false}
-                      is-show-problem-drag={false}
-                      theme="vs"
-                      language="json"
-                      height={this.collectHeight}
-                      font-size={14}
-                      monaco-config={this.monacoConfig}
-                      placeholder={this.$t('请输入 JSON 格式日志')}
-                      on-get-problem-state={(err: boolean) => this.activeJsonValue.isJsonError = err}
-                      on-blur={() => this.handleBlurConfigInput()}>
-                    </MonacoEditor>
-                  </div>
-                  <div
-                    class={['drag-right', { 'drag-ing': this.isChangingHeight }]}
-                    onMousedown={this.dragBegin}
-                  ></div>
-                </div>
-                : <div class="no-data-tips">
-                    <span>{this.$t('暂无采样日志')}</span>
-                  </div>
-            }
+          ) : (
+            <div class='no-data-tips'>
+              <span>{this.$t('暂无采样日志')}</span>
+            </div>
+          )}
         </Tab>
-        <div class="sync-rule-box">
+        <div class='sync-rule-box'>
           <Button
-            theme="primary"
-            size="small"
+            theme='primary'
+            size='small'
             outline
             disabled={!this.jsonValueList.length}
-            onClick={() => this.handleCreateRule()}>
-              {this.$t('自动匹配脱敏规则')}
+            onClick={() => this.handleCreateRule()}
+          >
+            {this.$t('自动匹配脱敏规则')}
           </Button>
-          {
-            this.isShowCannotCreateRuleTips && <span>{this.$t('未检测到采样日志内容，无法同步规则')}</span>
-          }
-          {
-            this.isJSONStrError && <span>{this.$t('当前日志不符合JSON格式，请确认后重试')}</span>
-          }
+          {this.isShowCannotCreateRuleTips && <span>{this.$t('未检测到采样日志内容，无法同步规则')}</span>}
+          {this.isJSONStrError && <span>{this.$t('当前日志不符合JSON格式，请确认后重试')}</span>}
         </div>
         {this.$slots.default}
       </div>

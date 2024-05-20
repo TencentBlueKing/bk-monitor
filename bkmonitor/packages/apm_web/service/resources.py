@@ -13,7 +13,13 @@ import functools
 import itertools
 import operator
 import re
+from multiprocessing.pool import ApplyResult
 
+from django.utils.translation import ugettext as _
+from django.utils.translation import ugettext_lazy as _lazy
+from rest_framework import serializers
+
+from api.cmdb.define import Business
 from apm_web.constants import (
     CategoryEnum,
     CMDBCategoryIconMap,
@@ -32,19 +38,16 @@ from apm_web.models import (
     LogServiceRelation,
     UriServiceRelation,
 )
+from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
     ServiceConfigSerializer,
 )
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
-from rest_framework import serializers
-
-from api.cmdb.define import Business
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource, api
 
 
@@ -63,6 +66,8 @@ class ServiceInfoResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务")
+        start_time = serializers.IntegerField(required=False, default=None, label="数据开始时间")
+        end_time = serializers.IntegerField(required=False, default=None, label="数据结束时间")
 
     def get_operate_record(self, bk_biz_id, app_name, service_name):
         """获取操作记录"""
@@ -122,29 +127,79 @@ class ServiceInfoResource(Resource):
 
     def get_apdex_relation_info(self, bk_biz_id, app_name, service_name, topo_node):
         instance = ServiceHandler.get_apdex_relation_info(bk_biz_id, app_name, service_name, topo_node)
+        if not instance:
+            return {}
         return ServiceApdexConfigSerializer(instance=instance).data
 
-    def perform_request(self, validated_request_data):
+    def get_profiling_info(self, bk_biz_id, app_name, service_name, start_time, end_time):
+        """获取服务的 profiling 状态"""
+
+        res = {}
+        # 获取应用是否开启 Profiling
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            raise ValueError("应用不存在")
+
+        res["is_enabled_profiling"] = app.is_enabled_profiling
+
+        # 获取此服务是否有 Profiling 数据
+        count = QueryTemplate(bk_biz_id, app_name).get_service_count(start_time, end_time, service_name)
+        res["is_profiling_data_normal"] = bool(count)
+        res["application_id"] = app.application_id
+        return res
+
+    def perform_request(self, validate_data):
         # 获取请求数据
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        service_name = validated_request_data["service_name"]
+        bk_biz_id = validate_data["bk_biz_id"]
+        app_name = validate_data["app_name"]
+        service_name = validate_data["service_name"]
+
+        query_instance_param = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": [service_name],
+            "filters": {
+                "instance_topo_kind": TopoNodeKind.SERVICE,
+            },
+        }
+        pool = ThreadPool()
+        topo_node_res = pool.apply_async(
+            api.apm_api.query_topo_node, kwds={"bk_biz_id": bk_biz_id, "app_name": app_name}
+        )
+        instance_res = pool.apply_async(api.apm_api.query_instance, kwds=query_instance_param)
+        app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
+        log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name))
+        cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
+        uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
+        operate_record = pool.apply_async(self.get_operate_record, args=(bk_biz_id, app_name, service_name))
+        profiling_info = {}
+        if validate_data.get("start_time") and validate_data.get("end_time"):
+            profiling_info = pool.apply_async(
+                self.get_profiling_info,
+                args=(bk_biz_id, app_name, service_name, validate_data["start_time"], validate_data["end_time"]),
+            )
+        pool.close()
+        pool.join()
 
         # 获取服务信息
         service_info = {"extra_data": {}, "topo_key": service_name}
-        service_info.update(self.get_operate_record(bk_biz_id, app_name, service_name))
-        resp = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
-        # 获取关联信息
+        service_info.update(operate_record.get())
+        if isinstance(profiling_info, ApplyResult):
+            execute_res = profiling_info.get()
+            if isinstance(execute_res, dict):
+                service_info.update(execute_res)
+        resp = topo_node_res.get()
+
         service_info["relation"] = {
-            "app_relation": self.get_app_relation_info(bk_biz_id, app_name, service_name),
-            "log_relation": self.get_log_relation_info(bk_biz_id, app_name, service_name),
-            "cmdb_relation": self.get_cmdb_relation_info(bk_biz_id, app_name, service_name),
-            "uri_relation": self.get_uri_relation_info(bk_biz_id, app_name, service_name),
+            "app_relation": app_relation.get(),
+            "log_relation": log_relation.get(),
+            "cmdb_relation": cmdb_relation.get(),
+            "uri_relation": uri_relation.get(),
             "apdex_relation": self.get_apdex_relation_info(bk_biz_id, app_name, service_name, resp),
         }
 
         for service in resp:
-            if service["topo_key"] == validated_request_data["service_name"]:
+            if service["topo_key"] == validate_data["service_name"]:
                 service_info.update(service)
         # 一级目录名称
         category_key = service_info["extra_data"].get("category", "")
@@ -161,16 +216,7 @@ class ServiceInfoResource(Resource):
         if second_category:
             service_info["extra_data"]["predicate_value_icon"] = get_icon(second_category)
         # 实例数
-        instance_map = api.apm_api.query_instance(
-            {
-                "bk_biz_id": bk_biz_id,
-                "app_name": app_name,
-                "service_name": [service_name],
-                "filters": {
-                    "instance_topo_kind": TopoNodeKind.SERVICE,
-                },
-            }
-        )
+        instance_map = instance_res.get()
         service_info["instance_count"] = instance_map.get("total", 0)
         # 响应
         return service_info
@@ -287,9 +333,20 @@ class LogServiceChoiceListResource(Resource):
 class LogServiceRelationBkLogIndexSet(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
+        # 是否仅过滤开启数据指纹的索引集
+        clustering_only = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, validated_request_data):
         index_set = api.log_search.search_index_set(bk_biz_id=validated_request_data["bk_biz_id"])
+        if validated_request_data.get("clustering_only"):
+            # 过滤开启数据指纹的索引集，根据是否携带关联tag判定
+            new_index_set = []
+            for index in index_set:
+                for tag in index.get("tags", []):
+                    if tag["name"] == "数据指纹" and tag["color"] == "green":
+                        new_index_set.append(index)
+                        continue
+            index_set = new_index_set
         return [{"id": i["index_set_id"], "name": i["index_set_name"]} for i in index_set]
 
 
@@ -297,7 +354,6 @@ class ServiceConfigResource(Resource):
     RequestSerializer = ServiceConfigSerializer
 
     def perform_request(self, validated_request_data):
-
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
         service_name = validated_request_data["service_name"]
@@ -334,7 +390,6 @@ class ServiceConfigResource(Resource):
         }
 
         for index, item in enumerate(uri_relations):
-
             qs = relations.filter(uri=item)
             if qs.exists():
                 qs.update(rank=index)

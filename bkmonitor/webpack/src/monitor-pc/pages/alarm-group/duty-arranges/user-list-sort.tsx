@@ -26,7 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from '../../../../monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
 
 import { randomColor } from './color';
 import UserSelector, { IGroupListItem } from './user-selector';
@@ -78,7 +78,7 @@ const defaultUserItem = (index: number) => {
     draggable: false,
     userList: [],
     users: [],
-    key: random(8)
+    key: random(8),
   };
 };
 
@@ -99,7 +99,7 @@ export default class UserListSort extends tsc<IProps, IEvents> {
         ...item,
         draggable: false,
         users: item.users.map(u => u.id),
-        userList: item.users
+        userList: item.users,
       }));
     } else {
       this.userList.push(defaultUserItem(0));
@@ -188,22 +188,22 @@ export default class UserListSort extends tsc<IProps, IEvents> {
           >
             {this.userList.map((item, index) => (
               <div
-                class='user-list-item'
                 key={item.key}
+                class='user-list-item'
                 draggable={item.draggable}
-                onDragstart={(event: DragEvent) => this.handleDragStart(event, index)}
                 onDragend={(event: DragEvent) => this.handleDragEnd(event)}
                 onDragover={(event: DragEvent) => this.handleDragOver(event, index)}
+                onDragstart={(event: DragEvent) => this.handleDragStart(event, index)}
                 onDrop={(event: DragEvent) => this.handleDrop(event)}
               >
                 <UserSelector
-                  color={item.color}
                   key={item.key}
-                  value={item.users}
+                  color={item.color}
                   groupList={this.defaultGroupList}
                   hasDrag={this.hasAdd}
-                  onDraggableChange={(v: boolean) => this.handleDraggableChange(v, index)}
+                  value={item.users}
                   onChange={v => this.handleUserChange(v as any, index)}
+                  onDraggableChange={(v: boolean) => this.handleDraggableChange(v, index)}
                 ></UserSelector>
                 <div class='right-wrap'>
                   {this.userList.length > 1 && (
@@ -221,10 +221,10 @@ export default class UserListSort extends tsc<IProps, IEvents> {
           {this.hasAdd && (
             <bk-button
               class='add-btn'
+              icon='plus'
+              size='small'
               text={true}
               title='primary'
-              size='small'
-              icon='plus'
               onClick={this.handleAdd}
             >
               {window.i18n.t('添加用户组')}

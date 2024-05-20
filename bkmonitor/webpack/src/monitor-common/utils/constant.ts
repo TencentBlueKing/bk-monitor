@@ -37,7 +37,7 @@ export const APP_NAV_COLORS = {
   'item-active-icon-color': '#FFFFFE',
   'item-hover-icon-color': '#FFFFFF',
   'item-child-icon-active-color': '#FFFFFF',
-  'sub-menu-open-bg-color': '#151D2C'
+  'sub-menu-open-bg-color': '#151D2C',
 };
 // bizid localstorage key
 export const LOCAL_BIZ_STORE_KEY = '__biz_id__';

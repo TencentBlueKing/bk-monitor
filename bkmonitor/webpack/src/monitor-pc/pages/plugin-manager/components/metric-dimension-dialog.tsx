@@ -25,12 +25,13 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
-import { releaseCollectorPlugin, retrieveCollectorPlugin } from '../../../../monitor-api/modules/model';
-import { saveMetric } from '../../../../monitor-api/modules/plugin';
-import { getUnitList } from '../../../../monitor-api/modules/strategies';
-import { deepClone, random } from '../../../../monitor-common/utils';
+import dayjs from 'dayjs';
+import { releaseCollectorPlugin, retrieveCollectorPlugin } from 'monitor-api/modules/model';
+import { saveMetric } from 'monitor-api/modules/plugin';
+import { getUnitList } from 'monitor-api/modules/strategies';
+import { deepClone, random } from 'monitor-common/utils';
+
 import MonitorExport from '../../../components/monitor-export/monitor-export.vue';
 import MonitorImport from '../../../components/monitor-import/monitor-import.vue';
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
@@ -92,15 +93,15 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     rule_list: [],
     name: '',
     desc: '',
-    index: -1
+    index: -1,
   };
   rule = {
-    isNameEmpty: false
+    isNameEmpty: false,
   };
   tableData = [];
   unitList = [];
   tippyOptions = {
-    distance: 0
+    distance: 0,
   };
   isShowCancel = false;
   isImport = false;
@@ -200,7 +201,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     const list = [
       //  类别表
       { id: 'double', name: 'double' },
-      { id: 'int', name: 'int' }
+      { id: 'int', name: 'int' },
     ];
     if (
       this.localPluginData &&
@@ -272,14 +273,14 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           showInput: false,
           isFirst: false,
           isDisabled: false,
-          order: item.monitor_type === 'metric' ? 0 : 1
-        }))
+          order: item.monitor_type === 'metric' ? 0 : 1,
+        })),
       }));
       this.localPluginData = {
         plugin_id: detailData.plugin_id,
         plugin_type: detailData.plugin_type,
         config_version: detailData.config_version,
-        info_version: detailData.info_version
+        info_version: detailData.info_version,
       };
     } else {
       this.localMetricData = this.metricJson;
@@ -290,7 +291,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         plugin_id: this.pluginData.plugin_id,
         plugin_type: this.pluginData.plugin_type,
         config_version: this.pluginData.config_version,
-        info_version: this.pluginData.info_version
+        info_version: this.pluginData.info_version,
       };
       this.isAutoCollect = this.pluginData.enable_field_blacklist;
       this.isHiddenTip = this.pluginData.is_split_measurement;
@@ -308,7 +309,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         table_name: GROUP_DEFAULT_NAME,
         table_desc: this.$t('默认分组'),
         rule_list: [],
-        fields: []
+        fields: [],
       });
     }
   }
@@ -337,7 +338,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     );
     this.$bkMessage({
       message,
-      theme: 'error'
+      theme: 'error',
     });
   }
   //  别名列表
@@ -362,7 +363,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         this.unitList = data.map(item => ({
           ...item,
           children: item.formats,
-          id: item.name
+          id: item.name,
         }));
       })
       .catch(() => {});
@@ -377,7 +378,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       value: {
         linux: null,
         windows: null,
-        aix: null
+        aix: null,
       },
       isFirst: false,
       is_active: true,
@@ -388,7 +389,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       reValue: false,
       descReValue: false,
       showInput: false,
-      id: random(10)
+      id: random(10),
     } as any;
     if (type === 'metric') {
       item.order = 1;
@@ -458,7 +459,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         table_name: group.name,
         table_desc: group.desc || group.name,
         rule_list: group.rule_list,
-        fields: []
+        fields: [],
       });
     }
     group.isShow = false;
@@ -527,7 +528,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     if (data.monitor_type === 'dimension') {
       const targetName = type === 'name' ? data.oldName : data.name;
       const keyMap = {
-        field_name: 'name'
+        field_name: 'name',
       };
       group.fields.forEach(field => {
         if (field.monitor_type === 'metric' && field.tag_list?.length) {
@@ -673,7 +674,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     if (!this.canSave) {
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('所有的指标/维度的英文名和别名不能重名或为空')
+        message: this.$t('所有的指标/维度的英文名和别名不能重名或为空'),
       });
       return;
     }
@@ -702,15 +703,15 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           tmpSet.is_manual =
             !item.rule_list.some(rule => matchRuleFn(set.name, rule)) && item.table_name !== GROUP_DEFAULT_NAME;
           return tmpSet;
-        })
-      }))
+        }),
+      })),
     } as any;
     if (this.isRoutePage || !this.isToken) {
       params.need_upgrade = true;
     }
     this.loading = true;
     this.$bkLoading({
-      extCls: 'metric-dimension-confirm-loading'
+      extCls: 'metric-dimension-confirm-loading',
     });
     const data = await saveMetric(params, { needMessage: false }).catch(err => {
       this.$bkMessage({ theme: 'error', message: err.message, ellipsisLine: 0 });
@@ -763,14 +764,14 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           if (!Array.isArray(contents)) {
             this.$bkMessage({
               theme: 'error',
-              message: this.$t('文件内容不符合规范')
+              message: this.$t('文件内容不符合规范'),
             });
           } else {
             contents.forEach(item => {
               result.push({
                 fields: Array.isArray(item.fields) ? item.fields : [],
                 table_name: item.table_name || '',
-                table_desc: item.table_desc || ''
+                table_desc: item.table_desc || '',
               });
             });
           }
@@ -805,7 +806,6 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   handleExportMetric(cb) {
     typeof cb === 'function' &&
       cb(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.tableData
           .filter(item => item.table_name)
           .map(item => ({
@@ -822,9 +822,8 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   unit,
                   is_active,
                   dimensions = [],
-                  tag_list = []
+                  tag_list = [],
                 }) => {
-                  // eslint-disable-next-line camelcase
                   if (monitor_type === 'metric') {
                     return {
                       description,
@@ -835,7 +834,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                       type,
                       unit,
                       dimensions,
-                      tag_list
+                      tag_list,
                     };
                   }
                   return {
@@ -844,10 +843,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     name,
                     type,
                     unit,
-                    is_active
+                    is_active,
                   };
                 }
-              )
+              ),
           })),
         `${this.localPluginData.plugin_id}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`
       );
@@ -869,7 +868,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
             table_name: item.table_name,
             table_desc: item.table_desc || item.table_name,
             rule_list: item.rule_list || [],
-            fields: []
+            fields: [],
           };
           const fieldList = [];
           const oldTableItem = this.tableData.find(set => set.table_name === item.table_name);
@@ -878,7 +877,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               errorList.push(
                 this.$t('分组：{tableName} 第{index}个字段未填写名称', {
                   tableName: item.table_name,
-                  index: childIndex + 1
+                  index: childIndex + 1,
                 })
               );
             }
@@ -886,7 +885,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               errorList.push(
                 this.$t('分组：{tableName} 别名：{fieldName}重复', {
                   tableName: item.table_name,
-                  fieldName: field.description
+                  fieldName: field.description,
                 })
               );
             }
@@ -895,7 +894,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 errorList.push(
                   this.$t('分组：{tableName} 指标名：{fieldName}重复', {
                     tableName: item.table_name,
-                    fieldName: field.name
+                    fieldName: field.name,
                   })
                 );
               }
@@ -913,7 +912,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 errorList.push(
                   this.$t('分组：{tableName} 指标名：{fieldName}重复', {
                     tableName: item.table_name,
-                    fieldName: field.name
+                    fieldName: field.name,
                   })
                 );
               }
@@ -930,7 +929,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               errorList.push(
                 this.$t('分组：{tableName} 字段：{fieldName}填写字段分类错误', {
                   tableName: item.table_name,
-                  fieldName: field.name
+                  fieldName: field.name,
                 })
               );
             }
@@ -944,7 +943,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     } else {
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('未检测到需要导入的指标和维度')
+        message: this.$t('未检测到需要导入的指标和维度'),
       });
       return;
     }
@@ -957,7 +956,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           errorList.map(message => this.$createElement('li', {}, message))
         ),
         delay: 10000,
-        ellipsisLine: 0
+        ellipsisLine: 0,
       });
       return;
     }
@@ -970,15 +969,15 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   }
   getDefaultMetric({
     description = '',
-    // eslint-disable-next-line camelcase
+
     is_active = true,
-    // eslint-disable-next-line camelcase
+
     is_diff_metric = false,
     name,
     type = 'double',
     unit = 'none',
     dimensions = [],
-    tag_list = []
+    tag_list = [],
   }) {
     return {
       dimensions,
@@ -997,17 +996,17 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       value: {
         linux: null,
         windows: null,
-        aix: null
+        aix: null,
       },
       order: 1,
-      id: random(10)
+      id: random(10),
     };
   }
   getDefaultDimension({
     description = '',
-    // eslint-disable-next-line camelcase
+
     is_active = true,
-    name
+    name,
   }) {
     return {
       description,
@@ -1024,10 +1023,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       value: {
         linux: null,
         windows: null,
-        aix: null
+        aix: null,
       },
       order: 3,
-      id: random(10)
+      id: random(10),
     };
   }
 
@@ -1071,7 +1070,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         },
         cancelFn: () => {
           this.isAutoCollect = false;
-        }
+        },
       });
     }
   }
@@ -1083,26 +1082,26 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           <div class='operate-left'>
             <bk-button
               class='mr-8'
-              icon='plus'
               v-authority={{
-                active: !this.authority.MANAGE_AUTH
+                active: !this.authority.MANAGE_AUTH,
               }}
+              icon='plus'
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleAddGroup() : this.handleShowAuthorityDetail())}
             >
               {this.$t('新建组')}
             </bk-button>
             <bk-dropdown-menu disabled={!this.canMoveBtn}>
               <bk-button
-                type='primary'
-                slot='dropdown-trigger'
                 class='move'
+                slot='dropdown-trigger'
+                type='primary'
               >
                 <span>{this.$t('移动到...')}</span>
                 <i class='bk-icon icon-angle-down'></i>
               </bk-button>
               <ul
-                class='bk-dropdown-list'
                 style='overflow: auto'
+                class='bk-dropdown-list'
                 slot='dropdown-content'
                 v-authority={{ active: !this.authority.MANAGE_AUTH }}
                 onClick={() => !this.authority.MANAGE_AUTH && this.handleShowAuthorityDetail()}
@@ -1119,9 +1118,9 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               </ul>
             </bk-dropdown-menu>
             <bk-popover
+              delay={200}
               placement='top-start'
               tippy-options={this.tippyOptions}
-              delay={200}
             >
               {!this.isRoutePage ? (
                 <bk-button
@@ -1154,9 +1153,9 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 return [
                   <MonitorImport
                     class='mr-24'
-                    return-text={true}
-                    accept='application/json'
                     v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                    accept='application/json'
+                    return-text={true}
                     onChange={data =>
                       this.authority.MANAGE_AUTH ? this.handleImportMetric(data) : this.handleShowAuthorityDetail()
                     }
@@ -1189,14 +1188,14 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     v-model={this.dataPreview}
                     size='small'
                     theme='primary'
-                  ></bk-switcher>
+                  ></bk-switcher>,
                 ];
               }
               return [
                 <MonitorImport
                   class='mr-24'
-                  return-text={true}
                   v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                  return-text={true}
                   onChange={data =>
                     this.authority.MANAGE_AUTH ? this.handleImportMetric(data) : this.handleShowAuthorityDetail()
                   }
@@ -1225,7 +1224,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     size='small'
                     theme='primary'
                   ></bk-switcher>
-                </span>
+                </span>,
               ];
             })()}
           </div>
@@ -1234,45 +1233,45 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           {this.tableData.map((group, index) => (
             <MetricGroup
               key={index}
-              is-default-group={group.table_name === GROUP_DEFAULT_NAME}
-              metric-data={group.fields}
               group-name={
                 group.table_name !== GROUP_DEFAULT_NAME
                   ? `${group.table_name}(${group.table_desc})`
                   : this.$t('默认分组')
               }
+              desc-name-list={this.descNameList(group.fields)}
               group-index={index}
               group-rules={group.rule_list}
-              unit-list={this.unitList}
               hide-stop={this.hideStop}
-              is-show-data={this.dataPreview}
-              os-type-list={this.osTypeList}
-              name-list={this.nameList}
-              desc-name-list={this.descNameList(group.fields)}
+              is-default-group={group.table_name === GROUP_DEFAULT_NAME}
               is-from-home={this.isRoutePage}
-              type-list={this.typeList}
+              is-show-data={this.dataPreview}
+              metric-data={group.fields}
+              name-list={this.nameList}
+              os-type-list={this.osTypeList}
               transFromAll={this.transFromAll}
-              on-edit-group={this.handleEditGroup}
-              on-del-group={this.handleDelGroup}
-              on-add-row={this.handleAddRow}
-              on-del-row={this.handleDelRow}
-              on-edit-row={this.handleEditRow}
+              type-list={this.typeList}
+              unit-list={this.unitList}
               on-add-first={this.handleAddFirstRow}
+              on-add-row={this.handleAddRow}
               on-add-rule={(val, index) => this.handleAddRule(val, index, group)}
+              on-del-group={this.handleDelGroup}
+              on-del-row={this.handleDelRow}
               on-del-rule={index => this.handleDelRule(index, group)}
+              on-edit-group={this.handleEditGroup}
+              on-edit-row={this.handleEditRow}
             />
           ))}
         </div>
         <bk-dialog
-          v-model={this.groupDialog.isShow}
-          mask-close={false}
-          header-position={'left'}
-          show-footer={false}
           width={480}
+          class='metric-dimension-add-group-dialog'
+          v-model={this.groupDialog.isShow}
+          header-position={'left'}
+          mask-close={false}
+          show-footer={false}
           title={this.groupDialog.isEdit ? this.$t('编辑指标分类') : this.$t('增加指标分类')}
           on-after-leave={this.afterLeave}
           on-confirm={this.handleSetGroup}
-          class='metric-dimension-add-group-dialog'
         >
           <div class='metric-name'>
             <div class='hint'>
@@ -1282,12 +1281,12 @@ export default class MetricDimensionDialog extends tsc<IProps> {
             <p class='item required'>{this.$t('名称')}</p>
             <VerifyInput
               class='verify-input'
-              validator={{ content: this.$tc('输入指标名,以字母开头,允许包含下划线和数字且不能为group_default') }}
               show-validate={this.rule.isNameEmpty}
+              validator={{ content: this.$tc('输入指标名,以字母开头,允许包含下划线和数字且不能为group_default') }}
             >
               <bk-input
-                placeholder={this.$t('英文名')}
                 v-model={this.groupDialog.name}
+                placeholder={this.$t('英文名')}
                 on-blur={() =>
                   (this.rule.isNameEmpty =
                     !groupNameRegx.test(this.groupDialog.name) || this.groupDialog.name === GROUP_DEFAULT_NAME)
@@ -1305,11 +1304,11 @@ export default class MetricDimensionDialog extends tsc<IProps> {
             <VerifyInput>
               <bk-tag-input
                 v-model={this.groupDialog.rule_list}
-                show-clear-only-hover
                 allow-create={true}
-                free-paste
-                allow-auto-match
                 placeholder={this.$t('匹配规则')}
+                allow-auto-match
+                free-paste
+                show-clear-only-hover
               />
             </VerifyInput>
             <p class='rule-desc'>{this.$tc('支持JS正则匹配方式， 如子串前缀匹配go_，模糊匹配(.*?)_total')}</p>
@@ -1329,10 +1328,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           <div class='bottom-operate'>
             <bk-button
               class='mr-8'
-              theme='primary'
               v-authority={{
-                active: !this.authority.MANAGE_AUTH
+                active: !this.authority.MANAGE_AUTH,
               }}
+              theme='primary'
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleSave() : this.handleShowAuthorityDetail())}
             >
               {this.$t('保存')}
@@ -1351,11 +1350,11 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       </div>
     ) : (
       <bk-dialog
-        ext-cls='metric-dimension-dialog-component'
-        value={this.show}
-        mask-close={true}
-        header-position='left'
         width={1280}
+        ext-cls='metric-dimension-dialog-component'
+        header-position='left'
+        mask-close={true}
+        value={this.show}
         on-value-change={this.handleShowChange}
       >
         {this.contentRender()}
@@ -1368,8 +1367,8 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           </div>
         </div>
         <div
-          slot='footer'
           class='footer-operate'
+          slot='footer'
         >
           <span class='footer-tip'>
             {this.hasWrongFormat.length
@@ -1384,15 +1383,15 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   >
                     <span class='icon-monitor icon-zhuanhuan'></span>
                     <span>{this.$t('一键转换')}</span>
-                  </span>
+                  </span>,
                 ]
               : undefined}
           </span>
           <span class='footer-opreate'>
             <bk-button
               class='mr-8'
-              theme='primary'
               disabled={this.loading}
+              theme='primary'
               onClick={this.handleSave}
             >
               {this.$t('保存')}

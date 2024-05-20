@@ -103,10 +103,9 @@ class QueryProxy:
         )
         return asdict(TraceInfoList(total=size, data=data))
 
-    def query_trace_detail(self, trace_id, displays, bk_biz_id=None):
+    def query_trace_detail(self, trace_id, displays, bk_biz_id=None, query_trace_relation_app: bool = False):
         """Trace详情"""
         # query otel data
-        client = Permission()
         spans = self.span_query.query_by_trace_id(trace_id)
 
         # query ebpf data
@@ -119,6 +118,9 @@ class QueryProxy:
         if not self.is_trace_query_valid:
             return spans, relation_mapping
 
+        if not query_trace_relation_app:
+            return spans, relation_mapping
+
         trace_relation = self._get_trace_relation(trace_id)
         if trace_relation:
             relation_app = ApmApplication.objects.filter(
@@ -129,6 +131,7 @@ class QueryProxy:
                     relation_app.trace_datasource.es_client, relation_app.trace_datasource.result_table_id
                 )
                 relation_spans = span_query.query_by_trace_id(trace_id)
+                client = Permission()
                 permission = client.is_allowed(
                     ActionEnum.VIEW_APM_APPLICATION,
                     resources=[ResourceEnum.APM_APPLICATION.create_instance(relation_app.id)],

@@ -86,8 +86,11 @@ CREATE_SUCCESS = {
         "is_active": True,
         "fields_snapshot": None,
         "source_app_code": settings.APP_CODE,
-        "tag_ids": "",
+        "tag_ids": [],
         "is_editable": True,
+        "sort_fields": [],
+        "target_fields": [],
+        "result_window": 10000,
     },
     "code": 0,
     "message": "",
@@ -153,8 +156,11 @@ UPDATE_INDEX_SET = {
     "is_active": True,
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
-    "tag_ids": "[]",
+    "tag_ids": [],
     "is_editable": True,
+    "sort_fields": [],
+    "target_fields": [],
+    "result_window": 10000,
 }
 
 NOT_EDITABLE_RETURN = {
@@ -226,7 +232,7 @@ INDEX_SET_LISTS = {
             "is_active": True,
             "fields_snapshot": "{}",
             "source_app_code": settings.APP_CODE,
-            "tag_ids": "[]",
+            "tags": [],
             "category_name": "其他",
             "scenario_name": "第三方ES",
             "storage_cluster_name": "",
@@ -235,6 +241,9 @@ INDEX_SET_LISTS = {
             "bk_biz_id": 2,
             "permission": {},
             "is_editable": True,
+            "sort_fields": [],
+            "target_fields": [],
+            "result_window": 10000,
         }
     ],
 }
@@ -353,8 +362,11 @@ RETRIEVE_LIST = {
     "is_active": True,
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
-    "tag_ids": "[]",
+    "tag_ids": [],
     "is_editable": True,
+    "sort_fields": [],
+    "target_fields": [],
+    "result_window": 10000,
 }
 
 
@@ -473,7 +485,10 @@ class TestIndexSet(TestCase):
         self.sync_index_id(INDEX_SET_LISTS["list"][0], index_ids)
         self.sync_indexes(INDEX_SET_LISTS["list"][0], index_set_id=index_set_id)
         self.sync_params(
-            INDEX_SET_LISTS["list"][0], index_set_id=index_set_id, created_at=created_at, updated_at=updated_at
+            INDEX_SET_LISTS["list"][0],
+            index_set_id=index_set_id,
+            created_at=created_at,
+            updated_at=updated_at,
         )
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)

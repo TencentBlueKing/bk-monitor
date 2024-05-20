@@ -18,6 +18,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.serializers import UserGroupDetailSlz
 from bkmonitor.models import UserGroup
+from constants.alert import DEFAULT_NOTICE_GROUPS, PUBLIC_NOTICE_CONFIG
 from core.drf_resource import api
 
 
@@ -28,12 +29,12 @@ def create_default_notice_group(bk_biz_id: int, group_name=None) -> int:
     :param bk_biz_id: 业务ID
     :return: 通知组ID
     """
-    default_group_names = [six.text_type(group["name"]) for group in settings.DEFAULT_NOTICE_GROUPS]
+    default_group_names = [six.text_type(group["name"]) for group in DEFAULT_NOTICE_GROUPS]
     if group_name not in default_group_names:
         # 不存在默认用第一个
         group_name = default_group_names[0]
     if not UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=group_name).exists():
-        for user_group in settings.DEFAULT_NOTICE_GROUPS:
+        for user_group in DEFAULT_NOTICE_GROUPS:
             user_group_serializer = UserGroupDetailSlz(
                 data={
                     "bk_biz_id": bk_biz_id,
@@ -60,9 +61,9 @@ def _get_or_create_user_group(bk_biz_id, group_name, receivers):
                 "bk_biz_id": bk_biz_id,
                 "name": group_name,
                 "duty_arranges": [{"users": receivers}],
-                "desc": settings.DEFAULT_NOTICE_GROUPS[0]["message"],
-                "alert_notice": settings.DEFAULT_NOTICE_GROUPS[0]["alert_notice"],
-                "action_notice": settings.DEFAULT_NOTICE_GROUPS[0]["action_notice"],
+                "desc": DEFAULT_NOTICE_GROUPS[0]["message"],
+                "alert_notice": DEFAULT_NOTICE_GROUPS[0]["alert_notice"],
+                "action_notice": DEFAULT_NOTICE_GROUPS[0]["action_notice"],
             }
         )
         user_group_serializer.is_valid(True)
@@ -107,7 +108,7 @@ def get_or_create_ops_notice_group(bk_biz_id: int) -> Optional[int]:
     :param bk_biz_id: 业务ID
     """
     # 获得内置的运维告警组配置
-    user_group = settings.DEFAULT_NOTICE_GROUPS[1]
+    user_group = DEFAULT_NOTICE_GROUPS[1]
     # 判断业务下的告警组是否已经创建
     if not UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=six.text_type(user_group["name"])).exists():
         user_group_serializer = UserGroupDetailSlz(
@@ -126,15 +127,17 @@ def get_or_create_ops_notice_group(bk_biz_id: int) -> Optional[int]:
     return UserGroup.objects.get(bk_biz_id=bk_biz_id, name=six.text_type(user_group["name"])).id
 
 
+COLLECTING_GROUP_NAME = _("采集负责人")
+
+
 def add_member_to_collecting_notice_group(bk_biz_id: int, user_id: str) -> int:
     """创建采集负责人"""
-    collecting_group_name = _("采集负责人")
-    instances = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=collecting_group_name)
+    instances = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=COLLECTING_GROUP_NAME)
     if not instances.exists():
         user_group = {
-            "name": collecting_group_name,
+            "name": COLLECTING_GROUP_NAME,
             "notice_receiver": [{"id": user_id, "type": "user"}],
-            **settings.PUBLIC_NOTICE_CONFIG,
+            **PUBLIC_NOTICE_CONFIG,
         }
         user_group_serializer = UserGroupDetailSlz(
             data={
@@ -163,3 +166,17 @@ def add_member_to_collecting_notice_group(bk_biz_id: int, user_id: str) -> int:
     user_group_serializer.is_valid(True)
     inst = user_group_serializer.save()
     return inst.id
+
+
+def remove_member_from_collecting_notice_group(bk_biz_id: int, user_id: str) -> None:
+    """移除采集负责人。"""
+    group = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=COLLECTING_GROUP_NAME).last()
+    if not group or not group.duty_arranges:
+        return
+
+    users = group.duty_arranges[0].users
+    new_users = [user for user in users if user.get("id") != user_id]
+
+    serializer = UserGroupDetailSlz(group, data={"duty_arranges": [{"users": new_users}]}, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()

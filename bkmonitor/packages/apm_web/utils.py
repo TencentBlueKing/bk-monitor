@@ -89,3 +89,56 @@ class Calculator:
     @classmethod
     def sum(cls):
         return sum
+
+
+def get_interval(start_time, end_time, interval="auto"):
+    """计算出适合的时间间隔"""
+    if not interval or interval == "auto":
+        hour_interval = (end_time - start_time) // 3600
+        if hour_interval <= 1:
+            interval = "1m"
+        elif hour_interval <= 6:
+            interval = "5m"
+        elif hour_interval <= 72:
+            interval = "1h"
+        else:
+            interval = "1d"
+
+    return interval
+
+
+def split_by_interval(start_time, end_time, interval):
+    """根据 interval 对开始时间和结束时间进行分割"""
+    if interval[-1] == "m":
+        interval_seconds = int(interval[:-1]) * 60
+    elif interval[-1] == "h":
+        interval_seconds = int(interval[:-1]) * 3600
+    elif interval[-1] == "d":
+        interval_seconds = int(interval[:-1]) * 86400
+    else:
+        raise ValueError("Invalid interval format")
+
+    start_time = datetime.datetime.fromtimestamp(start_time)
+    end_time = datetime.datetime.fromtimestamp(end_time)
+
+    if start_time.second != 0:
+        start_time = start_time.replace(second=0)
+
+    if end_time.second != 0:
+        end_time += datetime.timedelta(minutes=1)
+        end_time = end_time.replace(second=0)
+
+    split_points = []
+    current_time = start_time
+    while current_time + datetime.timedelta(seconds=interval_seconds) <= end_time:
+        next_time = current_time + datetime.timedelta(seconds=interval_seconds)
+        split_points.append([int(current_time.timestamp()), int(next_time.timestamp())])
+        current_time = next_time
+
+    if split_points:
+        min_time = split_points[0][0]
+        max_time = split_points[-1][1]
+    else:
+        min_time = max_time = None
+
+    return split_points, min_time, max_time

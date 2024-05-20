@@ -26,8 +26,9 @@
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import SetMealDeail from '../../../../../fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
+import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import * as ruleAuth from '../../authority-map';
 import CommonItem from '../components/common-form-item';
 import GroupSelect, { IGroupItem } from '../components/group-select';
@@ -93,7 +94,7 @@ interface IAlarmHandlingNewEvent {
 }
 
 @Component({
-  name: 'AlarmHandlingNew'
+  name: 'AlarmHandlingNew',
 })
 export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarmHandlingNewEvent> {
   @Prop({
@@ -106,10 +107,10 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           converge_func: 'skip_when_success', // 防御动作
           timedelta: 1, // 防御窗口大小（秒），默认设置为 60
           count: 1, // 执行次数，默认设置为 1
-          is_enabled: true
-        }
-      }
-    })
+          is_enabled: true,
+        },
+      },
+    }),
   })
   value: IAlarmHandlingNewProps['value'];
   @Prop({ type: Array, default: () => [] }) allDefense: IAlarmHandlingNewProps['allDefense'];
@@ -145,9 +146,9 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         converge_func: 'skip_when_success', // 防御动作
         timedelta: 1, // 防御窗口大小（秒），默认设置为 60
         count: 1, // 执行次数，默认设置为 1
-        is_enabled: true
-      }
-    }
+        is_enabled: true,
+      },
+    },
   };
   isShowDetail = false;
 
@@ -180,8 +181,8 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
       this.$router.push({
         name: 'set-meal-add',
         params: {
-          strategyId: !this.isSimple ? `${this.strategyId}` : undefined
-        }
+          strategyId: !this.isSimple ? `${this.strategyId}` : undefined,
+        },
       });
     }, 300);
   }
@@ -203,11 +204,11 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           <span>{this.$t('当告警触发时执行')}</span>
           <GroupSelect
             ref='selectMeal'
-            value={this.data.config_id}
-            list={this.noNoticeActionConfigList}
             class='select-warp'
-            readonly={this.readonly}
+            list={this.noNoticeActionConfigList}
             placeholder={this.$tc('选择套餐')}
+            readonly={this.readonly}
+            value={this.data.config_id}
             onChange={data => this.handleChangeConfigId(data)}
             onClear={() => this.handleClearConfigId()}
           >
@@ -222,14 +223,14 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
               }
             >
               <i
-                class='icon-monitor icon-jia'
                 style='margin: 4px 4px 0 0;'
+                class='icon-monitor icon-jia'
               ></i>
               <span
                 class='add-text'
                 v-bk-tooltips={{
                   content: this.$t('进入新增页，新增完可直接返回不会丢失数据'),
-                  disabled: this.isSimple
+                  disabled: this.isSimple,
                 }}
               >
                 {this.$t('新建套餐')}
@@ -241,11 +242,11 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           </GroupSelect>
           {!this.isSimple ? (
             <bk-button
-              text
-              title='primary'
-              size='small'
-              disabled={this.data.config_id === 0}
               style={{ padding: 0 }}
+              disabled={this.data.config_id === 0}
+              size='small'
+              title='primary'
+              text
               on-click={this.handleShowMealDetail}
             >
               {this.$t('button-预览')}
@@ -259,25 +260,25 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           <bk-switcher
             style={{ marginRight: '8px' }}
             v-model={this.data.options.converge_config.is_enabled}
-            theme='primary'
-            size='small'
             disabled={this.readonly}
+            size='small'
+            theme='primary'
             on-change={this.handleChange}
           ></bk-switcher>
           {this.data.options.converge_config.is_enabled && (
             <i18n
-              path='当{0}分钟内执行{1}次时，防御动作{2}'
               class={`defense-wrap ${this.isSimple ? 'simple' : ''}`}
+              path='当{0}分钟内执行{1}次时，防御动作{2}'
             >
               {!this.readonly ? (
                 <bk-input
-                  type='number'
-                  size='small'
                   class='small-input'
-                  behavior='simplicity'
-                  showControls={false}
-                  readonly={this.readonly}
                   v-model={this.data.options.converge_config.timedelta}
+                  behavior='simplicity'
+                  readonly={this.readonly}
+                  showControls={false}
+                  size='small'
+                  type='number'
                   on-change={this.handleChange}
                 ></bk-input>
               ) : (
@@ -285,13 +286,13 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
               )}
               {!this.readonly ? (
                 <bk-input
-                  type='number'
-                  size='small'
                   class='small-input'
-                  behavior='simplicity'
-                  showControls={false}
-                  readonly={this.readonly}
                   v-model={this.data.options.converge_config.count}
+                  behavior='simplicity'
+                  readonly={this.readonly}
+                  showControls={false}
+                  size='small'
+                  type='number'
                   on-change={this.handleChange}
                 ></bk-input>
               ) : (
@@ -299,19 +300,19 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
               )}
               <bk-select
                 class='select-inline'
-                popover-min-width={140}
                 v-model={this.data.options.converge_config.converge_func}
                 behavior={'simplicity'}
-                size='small'
                 clearable={false}
-                searchable
+                popover-min-width={140}
                 readonly={this.readonly}
+                size='small'
+                searchable
                 on-change={this.handleChange}
               >
                 {this.allDefense.map(option => (
                   <bk-option
-                    key={option.key}
                     id={option.key}
+                    key={option.key}
                     name={option.name}
                   ></bk-option>
                 ))}
@@ -332,9 +333,9 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         <SetMealDeail
           id={this.data.config_id}
           v-model={this.isShowDetail}
-          strategyType={this.strategyType}
-          strategyId={this.strategyId}
           needEditTips={!this.readonly}
+          strategyId={this.strategyId}
+          strategyType={this.strategyType}
         ></SetMealDeail>
       </div>
     );

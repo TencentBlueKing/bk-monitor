@@ -25,7 +25,7 @@
  */
 import { RouteConfig } from 'vue-router';
 
-import * as eventCenterAuth from '../../../monitor-pc/pages/event-center/authority-map';
+import * as eventCenterAuth from 'monitor-pc/pages/event-center/authority-map';
 
 const Event = () => import(/* webpackChunkName: "Event" */ '../../pages/event/event');
 const EventDetail = () => import(/* webpackChunkName: "EventDetail" */ '../../pages/event/event-detail/event-detail');
@@ -38,10 +38,10 @@ export default [
     path: '/event-center',
     name: 'event-center',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: Event
+      noCache: Event,
     },
     meta: {
       title: '事件',
@@ -52,60 +52,60 @@ export default [
         ? {
             authorityList: ['view_event_v2'],
             authority: {
-              page: eventCenterAuth.VIEW_AUTH
-            }
+              page: eventCenterAuth.VIEW_AUTH,
+            },
           }
-        : {})
-    }
+        : {}),
+    },
   },
   {
     path: '/event-center/detail/:id',
     name: 'event-center-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: EventDetail
+      noCache: EventDetail,
     },
     meta: {
       title: '告警详情',
       navId: 'event-center',
       route: {
-        parent: 'event-center'
+        parent: 'event-center',
       },
       noNavBar: true,
       ...(!isSpecEvent
         ? {
             authority: {
-              page: eventCenterAuth.VIEW_AUTH
-            }
+              page: eventCenterAuth.VIEW_AUTH,
+            },
           }
-        : {})
-    }
+        : {}),
+    },
   },
   {
     path: '/event-center/action-detail/:id',
     name: 'event-center-action-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: ActionDetail
+      noCache: ActionDetail,
     },
     meta: {
       title: '处理记录详情',
       navId: 'event-center',
       noNavBar: true,
       route: {
-        parent: 'event-center'
+        parent: 'event-center',
       },
       ...(!isSpecEvent
         ? {
             authority: {
-              page: eventCenterAuth.VIEW_AUTH
-            }
+              page: eventCenterAuth.VIEW_AUTH,
+            },
           }
-        : {})
-    }
-  }
+        : {}),
+    },
+  },
 ] as RouteConfig[];

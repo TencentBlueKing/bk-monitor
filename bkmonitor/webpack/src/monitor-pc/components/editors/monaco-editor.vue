@@ -47,6 +47,7 @@
 <script lang="ts">
 import { Component, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 import * as monaco from 'monaco-editor';
+
 import { IMonacoEditorInstance } from '../../types/index';
 // @ts-ignore
 self.MonacoEnvironment = {
@@ -129,6 +130,7 @@ export default class MonacoEditor extends Vue {
   beforeDestroy() {
     this.editor?.dispose();
     window.removeEventListener('resize', this.handleFullScreen);
+    monaco.editor.getModels().forEach(model => model.dispose());
   }
 
   calcSize(size: string | number): string {
@@ -245,7 +247,7 @@ export default class MonacoEditor extends Vue {
   position: absolute;
   top: 10px;
   right: 15px;
-  z-index: 1;
+  z-index: 10;
   color: #fff;
   cursor: pointer;
 }

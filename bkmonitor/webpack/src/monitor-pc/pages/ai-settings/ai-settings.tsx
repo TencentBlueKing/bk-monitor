@@ -26,12 +26,12 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { fetchAiSetting, saveAiSetting } from '../../../monitor-api/modules/aiops';
-import { getBusinessTargetDetail } from '../../../monitor-api/modules/commons';
-import { listIntelligentModels } from '../../../monitor-api/modules/strategies';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
-import StrategyTargetTable from '../strategy-config/strategy-config-detail/strategy-config-detail-table.vue';
+import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
+import { getBusinessTargetDetail } from 'monitor-api/modules/commons';
+import { listIntelligentModels } from 'monitor-api/modules/strategies';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
+import StrategyTargetTable from '../strategy-config/strategy-config-detail/strategy-config-detail-table.vue';
 import AnomalyDetection from './components/anomaly-detection';
 import { handleSetTargetDesc } from './components/common';
 import Notification from './components/notification';
@@ -41,7 +41,7 @@ import { AiSetting, SchemeItem } from './types';
 import './ai-settings.scss';
 
 @Component
-export default class AiSettings extends tsc<{}> {
+export default class AiSettings extends tsc<object> {
   @Ref('single-indicator') readonly singleIndicatorEl: SingleIndicator;
   @Ref('single-host') readonly singleIndicatorHostEl: SingleIndicator;
 
@@ -56,7 +56,7 @@ export default class AiSettings extends tsc<{}> {
   // ai设置数据
   aiSetting: AiSetting = {
     kpi_anomaly_detection: {
-      default_plan_id: 0
+      default_plan_id: 0,
     },
     multivariate_anomaly_detection: {
       host: {
@@ -64,9 +64,9 @@ export default class AiSettings extends tsc<{}> {
         default_sensitivity: 0,
         is_enabled: true,
         exclude_target: [],
-        intelligent_detect: {}
-      }
-    }
+        intelligent_detect: {},
+      },
+    },
   };
 
   excludeTargetDetail = {
@@ -78,7 +78,7 @@ export default class AiSettings extends tsc<{}> {
     nodeCount: 0,
     instanceCount: 0,
     info: null,
-    show: false
+    show: false,
   };
 
   /**
@@ -136,14 +136,14 @@ export default class AiSettings extends tsc<{}> {
           ...this.aiSetting.multivariate_anomaly_detection,
           host: {
             ...this.aiSetting.multivariate_anomaly_detection.host,
-            exclude_target: excludeTargetValue.length ? excludeTarget : []
-          }
+            exclude_target: excludeTargetValue.length ? excludeTarget : [],
+          },
         },
         kpi_anomaly_detection: {
           ...this.aiSetting.kpi_anomaly_detection,
           is_enabled: undefined, // 单指标异常检测需去除是否启用
-          default_sensitivity: undefined
-        }
+          default_sensitivity: undefined,
+        },
       };
       await saveAiSetting(params).catch(() => (this.loading = false));
       this.btnLoading = false;
@@ -151,7 +151,7 @@ export default class AiSettings extends tsc<{}> {
       this.isEdit = false;
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('保存成功！')
+        message: this.$t('保存成功！'),
       });
     }
   }
@@ -174,7 +174,7 @@ export default class AiSettings extends tsc<{}> {
   async getTargetDetail() {
     if (this.aiSetting.multivariate_anomaly_detection.host.exclude_target?.[0]?.[0]?.value?.length) {
       const data = await getBusinessTargetDetail({
-        target: this.aiSetting.multivariate_anomaly_detection.host.exclude_target
+        target: this.aiSetting.multivariate_anomaly_detection.host.exclude_target,
       }).catch(() => null);
       if (data) {
         this.excludeTargetDetail = {
@@ -184,7 +184,7 @@ export default class AiSettings extends tsc<{}> {
           targetType: data.node_type,
           objType: data.instance_type,
           nodeCount: data.node_count,
-          instanceCount: data.instance_count
+          instanceCount: data.instance_count,
         };
         this.excludeTargetDetail.desc = '';
         const info = handleSetTargetDesc(
@@ -201,7 +201,7 @@ export default class AiSettings extends tsc<{}> {
         message: '',
         messageCount: 0,
         subMessage: '',
-        subMessageCount: 0
+        subMessageCount: 0,
       };
     }
   }
@@ -220,39 +220,39 @@ export default class AiSettings extends tsc<{}> {
       >
         <div style={{ margin: '24px' }}>
           <AnomalyDetection
-            title={this.$t('单指标异常检测')}
             showExpand={true}
+            title={this.$t('单指标异常检测')}
           >
             <SingleIndicator
               ref='single-indicator'
-              isEdit={this.isEdit}
               data={this.aiSetting.kpi_anomaly_detection}
-              schemeList={this.schemeList}
+              isEdit={this.isEdit}
               isSingle={true}
+              schemeList={this.schemeList}
             />
           </AnomalyDetection>
           <AnomalyDetection
-            title={this.$t('场景智能异常检测')}
             showExpand={true}
+            title={this.$t('场景智能异常检测')}
           >
             <AnomalyDetection
-              title={this.$t('主机')}
               showExpand={true}
               theme='dark'
+              title={this.$t('主机')}
             >
               <SingleIndicator
                 ref='single-host'
-                isEdit={this.isEdit}
                 data={this.aiSetting.multivariate_anomaly_detection.host}
+                isEdit={this.isEdit}
                 schemeList={this.multipleSchemeList}
               >
                 <Notification
                   slot='notification'
-                  isEdit={this.isEdit}
-                  hostInfo={this.excludeTargetDetail.info}
                   v-model={this.aiSetting.multivariate_anomaly_detection.host.exclude_target}
-                  onShowTargetDetail={this.handleShowTargetDetail}
+                  hostInfo={this.excludeTargetDetail.info}
+                  isEdit={this.isEdit}
                   onChange={this.handleExcludeTargetChange as any}
+                  onShowTargetDetail={this.handleShowTargetDetail}
                 />
               </SingleIndicator>
             </AnomalyDetection>
@@ -264,16 +264,16 @@ export default class AiSettings extends tsc<{}> {
             <span>
               <bk-button
                 class='mr10'
-                theme='primary'
                 loading={this.btnLoading}
+                theme='primary'
                 on-click={this.handleSubmit}
               >
                 {this.$t('保存')}
               </bk-button>
               <bk-button
+                class='mr10'
                 theme='default'
                 onClick={this.handleReSet}
-                class='mr10'
               >
                 {this.$t('重置')}
               </bk-button>
@@ -286,8 +286,8 @@ export default class AiSettings extends tsc<{}> {
             </span>
           ) : (
             <bk-button
-              onClick={() => (this.isEdit = true)}
               theme='primary'
+              onClick={() => (this.isEdit = true)}
             >
               {this.$t('button-编辑')}
             </bk-button>
@@ -295,19 +295,19 @@ export default class AiSettings extends tsc<{}> {
         </div>
         {!!this.excludeTargetDetail.targetTable ? (
           <bk-dialog
+            width='1100'
+            ext-cls='target-table-wrap'
             v-model={this.excludeTargetDetail.show}
-            on-change={v => (this.excludeTargetDetail.show = v)}
-            show-footer={false}
             header-position='left'
             need-footer={false}
-            width='1100'
+            show-footer={false}
             title={this.$t('关闭目标')}
-            ext-cls='target-table-wrap'
+            on-change={v => (this.excludeTargetDetail.show = v)}
           >
             <StrategyTargetTable
+              objType={this.excludeTargetDetail.objType}
               tableData={this.excludeTargetDetail.targetTable}
               targetType={this.excludeTargetDetail.targetType}
-              objType={this.excludeTargetDetail.objType}
             ></StrategyTargetTable>
           </bk-dialog>
         ) : undefined}

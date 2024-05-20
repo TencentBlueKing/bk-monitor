@@ -100,7 +100,6 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-
         # index_set_id覆盖信息
         index_set_id = attrs.get("index_set_id")
 
@@ -149,10 +148,7 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                 value = __filter.get("value")
                 operator: str = __filter.get("method") if __filter.get("method") else __filter.get("operator")
 
-                if isinstance(value, list) and value:
-                    value = ",".join([str(v) for v in value])
-
-                if field and operator and value or isinstance(value, str):
+                if field and operator and value:
                     if operator in [
                         "is one of",
                         "is not one of",
@@ -164,10 +160,20 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                         "not contains",
                         "contains match phrase",
                         "not contains match phrase",
+                        "all contains match phrase",
+                        "all not contains match phrase",
+                        "&=~",
+                        "&!=~",
                     ]:
-                        # 逗号分隔是存在问题的
-                        new_value = value.split(",")
+                        # 以上操作符接受的是字符串的列表，如果是字符串，需要将其split
+                        if isinstance(value, str):
+                            new_value = value.split(",")
+                        else:
+                            new_value = value
                     else:
+                        # 其它操作符接受的是单个字符串，如果是列表，需要将其join起来
+                        if isinstance(value, list) and value:
+                            value = ",".join([str(v) for v in value])
                         new_value = value
 
                     new_filter.append(
@@ -196,7 +202,7 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 class EsQueryScrollAttrSerializer(serializers.Serializer):
     indices = serializers.CharField(required=False)
     scenario_id = serializers.ChoiceField(choices=Scenario.CHOICES)
-    storage_cluster_id = serializers.IntegerField()
+    storage_cluster_id = serializers.IntegerField(required=False, default=-1, allow_null=True)
     scroll_id = serializers.CharField(required=True)
     scroll = serializers.CharField(required=False, default=SCROLL)
 
@@ -329,6 +335,8 @@ class EsQueryDslAttrSerializer(serializers.Serializer):
 
     scenario_id = serializers.CharField(required=False, default="log", allow_null=True, allow_blank=True)
     storage_cluster_id = serializers.IntegerField(required=False, default=-1, allow_null=True)
+    # 添加scroll参数
+    scroll = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     bkdata_authentication_method = serializers.CharField(required=False)
     bkdata_data_token = serializers.CharField(required=False)
@@ -357,6 +365,8 @@ class EsQueryMappingAttrSerializer(serializers.Serializer):
     start_time = serializers.CharField(required=False, default="", allow_blank=True, allow_null=True)
     end_time = serializers.CharField(required=False, default="", allow_blank=True, allow_null=True)
     time_zone = serializers.CharField(required=False, allow_blank=True, default=None, allow_null=True)
+    # 是否添加settings详细信息, 针对自定义analysis的场景
+    add_settings_details = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

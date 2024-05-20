@@ -25,9 +25,10 @@
  */
 
 import { ref, shallowRef } from 'vue';
+
+import { deepClone } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
-import { deepClone } from '../../../monitor-common/utils';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import { Span, TraceData } from '../../components/trace-view/typings';
 import { formatDuration } from '../../components/trace-view/utils/date';
@@ -37,7 +38,7 @@ import {
   interfaceStatisticsSetting,
   serviceStatisticsSetting,
   spanListSetting,
-  traceListSetting
+  traceListSetting,
 } from '../../pages/main/inquire-content/table-settings';
 import {
   DirectionType,
@@ -46,11 +47,11 @@ import {
   ITraceData,
   ITraceListItem,
   ITraceTree,
-  OriginCrossAppSpanMap
+  OriginCrossAppSpanMap,
 } from '../../typings';
 import { DEFAULT_TRACE_DATA } from '../constant';
 
-export type ListType = 'trace' | 'span' | 'interfaceStatistics' | 'serviceStatistics' | string;
+export type ListType = 'interfaceStatistics' | 'serviceStatistics' | 'span' | 'trace' | string;
 export type TraceListMode = 'origin' | 'pre_calculation';
 
 export type IInterfaceStatisticsType = {
@@ -93,7 +94,7 @@ export const useTraceStore = defineStore('trace', () => {
     trace: traceListSetting,
     span: spanListSetting,
     interfaceStatistics: interfaceStatisticsSetting,
-    serviceStatistics: serviceStatisticsSetting
+    serviceStatistics: serviceStatisticsSetting,
   });
 
   /** 更新页面 loading */
@@ -121,9 +122,9 @@ export const useTraceStore = defineStore('trace', () => {
       span_classify: rest.span_classify?.length
         ? rest.span_classify.map(val => ({
             ...val,
-            app_name: data.appName
+            app_name: data.appName,
           }))
-        : []
+        : [],
     };
     originTraceTree.value = { ...(tree as ITraceTree) };
     traceTree.value = tree
@@ -161,7 +162,7 @@ export const useTraceStore = defineStore('trace', () => {
         status: item.root_status_code?.type,
         // 修改结构、key
         // type: item.trace_info.category
-        type: item.root_category
+        type: item.root_category,
       })) || [];
   }
 
@@ -199,7 +200,7 @@ export const useTraceStore = defineStore('trace', () => {
     const newTree = mergeTraceTree(originTraceTree.value, tree as ITraceTree);
     const {
       original_data: originalData,
-      trace_info: { app_name: appName = 'd' }
+      trace_info: { app_name: appName = 'd' },
     } = rest;
 
     // 生成跨应用span 原始数据的 appName 映射
@@ -362,6 +363,6 @@ export const useTraceStore = defineStore('trace', () => {
     compareTraceOriginalData,
     updateCompareTraceOriginalData,
     tableSettings,
-    updateTableCheckedSettings
+    updateTableCheckedSettings,
   };
 });

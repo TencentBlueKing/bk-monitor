@@ -29,6 +29,7 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.api import BKLoginApi
 from apps.constants import ExternalPermissionActionEnum
 from apps.generic import APIViewSet
 from apps.log_commons.cc import get_maintainers
@@ -305,6 +306,20 @@ class FrontendEventViewSet(APIViewSet):
 
         url = f"{host}/v2/push/"
 
+        username = params["dimensions"]["user_name"]
+        info = BKLoginApi.list_department_profiles({"id": username, "with_family": True})
+        dept = info[0]
+        family = dept["family"]
+        departments = []
+        for f in family:
+            departments.append(f["name"])
+        departments.append(dept["name"])
+        # 当前组织架构暂定层级5
+        while len(departments) < 5:
+            departments.append("")
+
+        for index, dept in enumerate(departments):
+            params["dimensions"][f"department_{index}"] = dept
         params["dimensions"]["app_code"] = "bklog"
         params["target"] = settings.ENVIRONMENT_CODE
         report_data = {

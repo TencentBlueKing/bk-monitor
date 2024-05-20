@@ -502,15 +502,10 @@ class ResultTable(models.Model):
         default_storage_config: Optional[Dict] = None,
     ) -> bool:
         """检测并创建存储
-        NOTE: 针对 influxdb 类型的存储，当为单指标单表时，如果功能开关设置为禁用，则禁用 influxdb 写入
+        NOTE: 针对 influxdb 类型的存储，如果功能开关设置为禁用，则禁用所有新建结果表 influxdb 写入
         """
         storage_enabled = True
-        if (
-            self.default_storage == ClusterInfo.TYPE_INFLUXDB
-            and option
-            and option.get("is_split_measurement", False)
-            and not settings.ENABLE_INFLUXDB_STORAGE
-        ):
+        if self.default_storage == ClusterInfo.TYPE_INFLUXDB and not settings.ENABLE_INFLUXDB_STORAGE:
             storage_enabled = False
 
         if storage_enabled:
@@ -1513,7 +1508,7 @@ class ResultTableField(models.Model):
     }
 
     table_id = models.CharField("结果表名", max_length=128)
-    field_name = models.CharField("字段名", max_length=255)
+    field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
     field_type = models.CharField("字段类型", max_length=32, choices=FIELD_TYPE_CHOICES)
     description = models.TextField("字段描述")
     # 单位存在默认值，默认为空
@@ -2490,7 +2485,7 @@ class ResultTableFieldOption(OptionBase):
     OPTION_INFLUXDB_DISABLED = "influxdb_disabled"
 
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
-    field_name = models.CharField("字段名", max_length=255)
+    field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
     name = models.CharField(
         "option名称",
         choices=(

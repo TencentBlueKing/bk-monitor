@@ -1,5 +1,3 @@
-/* eslint-disable no-nested-ternary */
-/* eslint-disable max-len */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -35,15 +33,16 @@ import {
   reactive,
   ref,
   toRefs,
-  watch
+  watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import G6, { Graph, IEdge, INode } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Alert, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { traceDiagram } from 'monitor-api/modules/apm_trace';
 
-import { traceDiagram } from '../../../monitor-api/modules/apm_trace';
 import { formatDuration } from '../../components/trace-view/utils/date';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../plugins/charts/view-legend/view-legend';
@@ -58,7 +57,7 @@ import {
   COMPARE_REMOVED_COLOR,
   getDiffPercentColor,
   getSingleDiffColor,
-  updateTemporaryCompareTrace
+  updateTemporaryCompareTrace,
 } from '../../utils/compare';
 import transformTraceTree from '../trace-view/model/transform-trace-data';
 import { Span } from '../trace-view/typings';
@@ -81,9 +80,9 @@ interface IState {
 const RelationTopoProps = {
   compareTraceID: {
     type: String,
-    default: ''
+    default: '',
   },
-  updateMatchedSpanIds: Function as PropType<(count: number) => void>
+  updateMatchedSpanIds: Function as PropType<(count: number) => void>,
 };
 
 export default defineComponent({
@@ -114,7 +113,7 @@ export default defineComponent({
       curSelectedSpanId: '',
       /** 定位搜索结果当前高亮索引 */
       curMathesFocusIndex: -1,
-      isCompareView: false
+      isCompareView: false,
     });
     const graphContainer = ref<Element>();
     const emptyText = ref<string>('加载中...');
@@ -144,7 +143,7 @@ export default defineComponent({
     const rootNodeId = computed(() => traceData.value?.trace_info?.root_span_id || '');
     const graphData = computed(() => ({
       nodes: nodes.value || [],
-      edges: edges.value || []
+      edges: edges.value || [],
     }));
     const graphLayout = computed(() => ({
       type: 'dagre',
@@ -152,7 +151,7 @@ export default defineComponent({
       nodesep: 70, // 节点的水平间距
       ranksep: 30, // 相邻层间距
       workerEnabled: true,
-      workerScriptURL: 'https://unpkg.com/@antv/layout@0.3.20/dist/layout.min.js'
+      workerScriptURL: 'https://unpkg.com/@antv/layout@0.3.20/dist/layout.min.js',
       // workerScriptURL: 'https://unpkg.com/@antv/layout@1.2.0/dist/index.min.js'
 
       // type: 'dagre',
@@ -302,7 +301,7 @@ export default defineComponent({
             showThumbnail.value = true;
             graphToolsRect.value = {
               width: 240,
-              height: 148
+              height: 148,
             };
           }
         }, 500);
@@ -338,7 +337,7 @@ export default defineComponent({
       if (showLegend.value) {
         graphToolsRect.value = {
           width: 120,
-          height: 300
+          height: 300,
         };
       }
     };
@@ -357,9 +356,9 @@ export default defineComponent({
           height: 72,
           stroke: '',
           radius: 4,
-          fill: 'transparent'
+          fill: 'transparent',
         },
-        name: 'custom-node-outline'
+        name: 'custom-node-outline',
       });
 
       /** 节点基础矩形结构 */
@@ -372,9 +371,9 @@ export default defineComponent({
           stroke: '#DCDEE5',
           radius: 2,
           fill: '#FFFFFF',
-          cursor: 'pointer'
+          cursor: 'pointer',
         },
-        name: 'main-box'
+        name: 'main-box',
       });
 
       /** 左侧颜色描边矩形 */
@@ -386,9 +385,9 @@ export default defineComponent({
           height: 48,
           fill: cfg.color,
           radius: 2,
-          cursor: 'pointer'
+          cursor: 'pointer',
         },
-        name: 'left-border-rect'
+        name: 'left-border-rect',
       });
 
       let durationRect;
@@ -402,9 +401,9 @@ export default defineComponent({
           attrs: {
             fill: '#979BA5',
             radius: 2,
-            cursor: 'pointer'
+            cursor: 'pointer',
           },
-          name: 'duration-container'
+          name: 'duration-container',
         });
 
         /** 耗时文字 */
@@ -420,9 +419,9 @@ export default defineComponent({
             textAlign: 'left',
             textBaseline: 'middle',
             fill: isDiffAdded ? COMPARE_ADDED_COLOR : isDiffRemoved ? COMPARE_REMOVED_COLOR : '#FFFFFF',
-            cursor: 'pointer'
+            cursor: 'pointer',
           },
-          name: 'duration-text'
+          name: 'duration-text',
         });
 
         /** 根据耗时文字长度设置其背景矩形长度和位置 */
@@ -431,7 +430,7 @@ export default defineComponent({
           x: 12,
           y: durationBBox.minY - 1,
           width: durationBBox.width + 8,
-          height: durationBBox.height + 2
+          height: durationBBox.height + 2,
         });
       }
 
@@ -441,9 +440,9 @@ export default defineComponent({
         const collapsedCircle = group.addShape('circle', {
           attrs: {
             fill: '#A2AFD2',
-            cursor: 'pointer'
+            cursor: 'pointer',
           },
-          name: 'collapsed-container'
+          name: 'collapsed-container',
         });
 
         const collapsedText = group.addShape('text', {
@@ -455,9 +454,9 @@ export default defineComponent({
             textAlign: 'right',
             textBaseline: 'middle',
             fill: '#fff',
-            cursor: 'pointer'
+            cursor: 'pointer',
           },
-          name: 'collapsedText'
+          name: 'collapsedText',
         });
 
         /** 折叠数字长度和位置 */
@@ -466,7 +465,7 @@ export default defineComponent({
         collapsedCircle.attr({
           x: collapsedBBox.x + collapsedBBox.width / 2,
           y: 14,
-          r: cfg.spans.length > 100 ? 10 : 8
+          r: cfg.spans.length > 100 ? 10 : 8,
         });
 
         containerWidth = collapsedCircle.getBBox().x;
@@ -490,9 +489,9 @@ export default defineComponent({
           textAlign: 'left',
           textBaseline: 'middle',
           fill: cfg.error ? '#EA3636' : '#313238',
-          cursor: 'pointer'
+          cursor: 'pointer',
         },
-        name: 'endpoint-text'
+        name: 'endpoint-text',
       });
 
       /** icon */
@@ -503,9 +502,9 @@ export default defineComponent({
           width: 14,
           height: 14,
           cursor: 'pointer',
-          img: cfg.icon
+          img: cfg.icon,
         },
-        name: 'icon'
+        name: 'icon',
       });
 
       /** 服务名称文字 */
@@ -518,9 +517,9 @@ export default defineComponent({
           fontSize: 12,
           textAlign: 'left',
           fill: '#979BA5',
-          cursor: 'pointer'
+          cursor: 'pointer',
         },
-        name: 'server-text'
+        name: 'server-text',
       });
 
       /** 非叶子节点 需包含展开/收起按钮 */
@@ -535,9 +534,9 @@ export default defineComponent({
             width: 14,
             height: 14,
             cursor: 'pointer',
-            img: CollapseIcon
+            img: CollapseIcon,
           },
-          name: 'collapse-icon'
+          name: 'collapse-icon',
         });
       }
 
@@ -556,7 +555,7 @@ export default defineComponent({
       if (name === 'focus') {
         const nodeMainShape = group.find((e: any) => e.get('name') === 'custom-node-outline');
         nodeMainShape.attr({
-          fill: value ? 'rgba(255,226,148,0.30)' : 'transparent'
+          fill: value ? 'rgba(255,226,148,0.30)' : 'transparent',
         });
       }
       // 未匹配的搜索结果
@@ -565,12 +564,12 @@ export default defineComponent({
         const defaultNodeFill = state.isCompareView ? model.bgColor : '#FFFFFF';
         nodeMainShape.attr({
           fill: value ? '#FAFBFD' : defaultNodeFill,
-          stroke: value ? 'transparent' : '#DCDEE5'
+          stroke: value ? 'transparent' : '#DCDEE5',
         });
 
         const leftBorderShape = group.find((e: any) => e.get('name') === 'left-border-rect');
         leftBorderShape.attr({
-          opacity: value ? 0.3 : 1
+          opacity: value ? 0.3 : 1,
         });
 
         if (isShowDuration.value || ['added', 'removed'].includes(model.diff_info?.[model.id]?.mark)) {
@@ -583,26 +582,25 @@ export default defineComponent({
               : '#63656E'
             : '#979BA5';
           durationShape?.attr({
-            fill: value ? '#DCDEE5' : defaultDurationFill
+            fill: value ? '#DCDEE5' : defaultDurationFill,
           });
         }
 
         const endpointShape = group.find((e: any) => e.get('name') === 'endpoint-text');
         const defaultEndpointFill = model.error ? (state.isCompareView ? '#FFFFFF' : '#EA3636') : '#313238';
         endpointShape.attr({
-          // eslint-disable-next-line no-nested-ternary
-          fill: value ? '#979BA5' : defaultEndpointFill
+          fill: value ? '#979BA5' : defaultEndpointFill,
         });
 
         const iconShape = group.find((e: any) => e.get('name') === 'icon');
         iconShape.attr({
-          opacity: value ? 0.3 : 1
+          opacity: value ? 0.3 : 1,
         });
 
         const serverShape = group.find((e: any) => e.get('name') === 'server-text');
         const defaultServiceFill = state.isCompareView ? '#313238' : '#979BA5';
         serverShape.attr({
-          fill: value ? '#C4C6CC' : defaultServiceFill
+          fill: value ? '#C4C6CC' : defaultServiceFill,
         });
       }
 
@@ -610,7 +608,7 @@ export default defineComponent({
         const nodeMainShape = group.find((e: any) => e.get('name') === 'main-box');
         nodeMainShape.attr({
           shadowColor: value ? '#C4C6CC' : '',
-          shadowBlur: value ? 10 : 0
+          shadowBlur: value ? 10 : 0,
         });
         parseEndPointName(model, group, value);
         parseServiceName(model, group, value);
@@ -620,21 +618,21 @@ export default defineComponent({
         const { id } = model;
         const nodeMainShape = group.find((e: any) => e.get('name') === 'main-box');
         nodeMainShape.attr({
-          stroke: value && id === state.curSelectedSpanId ? '#3A84FF' : '#DCDEE5'
+          stroke: value && id === state.curSelectedSpanId ? '#3A84FF' : '#DCDEE5',
         });
       }
 
       if (name === 'collapse') {
         const iconShape = group.find((e: any) => e.get('name') === 'collapse-icon');
         iconShape.attr({
-          img: value ? ExpandIcon : CollapseIcon
+          img: value ? ExpandIcon : CollapseIcon,
         });
       }
 
       if (name === 'collapseHover') {
         const iconShape = group.find((e: any) => e.get('name') === 'collapse-icon');
         iconShape.attr({
-          img: value
+          img: value,
         });
       }
     };
@@ -733,7 +731,7 @@ export default defineComponent({
         return {
           ...diffInfo[item],
           id: item,
-          diffPercent
+          diffPercent,
         };
       });
       const outDiv = document.createElement('div');
@@ -798,10 +796,10 @@ export default defineComponent({
           setState: (name, value, item) => setNodeState(name as string, value as boolean, item as any),
           getAnchorPoints: () => [
             [0.5, 1],
-            [0.5, 0]
+            [0.5, 0],
             // [1, 0.5],
             // [0, 0.5]
-          ]
+          ],
         },
         'rect'
       );
@@ -826,7 +824,7 @@ export default defineComponent({
       const grid = new G6.Grid();
       const minimap = new G6.Minimap({
         container: topoThumbnailRef.value,
-        size: [236, 146]
+        size: [236, 146],
       });
       const plugins = [grid, minimap];
 
@@ -841,7 +839,7 @@ export default defineComponent({
             // 允许出现 tooltip 的 item 类型
             itemTypes: ['node'],
             // 自定义 tooltip 内容
-            getContent: e => getTooltipsContent(e)
+            getContent: e => getTooltipsContent(e),
           });
         plugins.push(nodeTooltip() as any);
       }
@@ -860,9 +858,9 @@ export default defineComponent({
           // 设置画布的交互模式
           default: [
             'drag-canvas', // 拖拽画布
-            'zoom-canvas' // 缩放画布
+            'zoom-canvas', // 缩放画布
             // !!this.serviceName ? '' : 'drag-node' // 拖拽节点 服务拓扑不可拖拽节点
-          ]
+          ],
         },
         /** 图布局 */
         layout: graphLayout.value,
@@ -878,15 +876,15 @@ export default defineComponent({
               path: G6.Arrow.triangle(10, 10, 0), // 路径
               fill: '#C4C6CC', // 填充颜色
               stroke: '#C4C6CC', // 描边颜色
-              strokeOpacity: 0 // 描边透明度
-            }
-          }
+              strokeOpacity: 0, // 描边透明度
+            },
+          },
         },
         defaultNode: {
           // 节点配置
-          type: 'custom-node'
+          type: 'custom-node',
         },
-        plugins
+        plugins,
       });
       graph.data(state.isCompareView ? compareData : graphData.value); // 读取数据源到图上
       graph.render(); // 渲染图
@@ -946,7 +944,7 @@ export default defineComponent({
       const cutEndPointStr = fittingString(operationName, endPointMaxWidth, 12);
       if (cutEndPointStr !== operationName) {
         endPointText.attr({
-          text: value ? operationName : cutEndPointStr
+          text: value ? operationName : cutEndPointStr,
         });
       }
     };
@@ -960,7 +958,7 @@ export default defineComponent({
       const cutStr = fittingString(serviceName, serviceMaxWidth, 12);
       if (cutStr !== serviceName) {
         serviceText.attr({
-          text: value ? serviceName : cutStr
+          text: value ? serviceName : cutStr,
         });
       }
     };
@@ -974,7 +972,7 @@ export default defineComponent({
           app_name: appName,
           trace_id: sourceTraceID,
           diff_trace_id: traceID,
-          diagram_type: 'topo'
+          diagram_type: 'topo',
         };
         handleCloseCompareMessage();
         showCompareError.value = false;
@@ -987,11 +985,11 @@ export default defineComponent({
               const { diagram_data: diagramData, original_data: originalData, trace_tree: traceTree } = data;
               const nodes = (diagramData.nodes || []).map(node => ({
                 ...node,
-                bgColor: getDiffPercentColor(node.diff_info)
+                bgColor: getDiffPercentColor(node.diff_info),
               }));
               compareData = {
                 nodes,
-                edges: diagramData.relations || []
+                edges: diagramData.relations || [],
               };
               updateTemporaryCompareTrace(traceID);
               state.isCompareView = true;
@@ -1062,7 +1060,7 @@ export default defineComponent({
       if (showThumbnail.value) {
         graphToolsRect.value = {
           width: 240,
-          height: 148
+          height: 148,
         };
       }
       showLegend.value = false;
@@ -1076,7 +1074,7 @@ export default defineComponent({
       const name = `${traceID}_${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
       graph.downloadFullImage(name, 'image/png', {
         backgroundColor: '#fff',
-        padding: 30
+        padding: 30,
       });
     };
 
@@ -1103,7 +1101,7 @@ export default defineComponent({
       clearSearch,
       handleKeywordFliter,
       handleClassifyFilter,
-      viewCompare
+      viewCompare,
     });
 
     return {
@@ -1121,7 +1119,7 @@ export default defineComponent({
       downloadAsImage,
       graphToolsRect,
       handleShowLegend,
-      compareWarningAlert
+      compareWarningAlert,
     };
   },
 
@@ -1130,67 +1128,67 @@ export default defineComponent({
       <div class='relation-topo'>
         {this.empty && <div class='empty-chart'>{this.emptyText}</div>}
         <div
-          class='graph-container'
           ref='graphContainer'
+          class='graph-container'
         />
         <div class='graph-tools'>
           <Popover
-            trigger='manual'
-            isShow={this.showThumbnail || this.showLegend}
-            theme='light'
-            placement='top-start'
-            allowHtml={false}
-            arrow={false}
-            zIndex={1001}
-            extCls='topo-thumbnail-popover'
             width={this.graphToolsRect.width}
             height={this.graphToolsRect.height}
-            content={this.topoGraphContent}
+            extCls='topo-thumbnail-popover'
+            allowHtml={false}
+            arrow={false}
             boundary={'parent'}
+            content={this.topoGraphContent}
+            isShow={this.showThumbnail || this.showLegend}
+            placement='top-start'
             renderType='auto'
+            theme='light'
+            trigger='manual'
+            zIndex={1001}
           >
             {{
               default: () => (
                 <GraphTools
                   class='topo-graph-tools'
-                  scaleStep={10}
+                  legendActive={this.showLegend}
                   minScale={10}
+                  scaleStep={10}
                   scaleValue={this.zoomValue}
                   thumbnailActive={this.showThumbnail}
-                  legendActive={this.showLegend}
-                  onShowThumbnail={this.handleShowThumbnail}
-                  onStoreImg={this.downloadAsImage}
                   onScaleChange={this.handleGraphZoom}
                   onShowLegend={this.handleShowLegend}
+                  onShowThumbnail={this.handleShowThumbnail}
+                  onStoreImg={this.downloadAsImage}
                 />
               ),
               content: () => (
                 <div
-                  class='topo-graph-content'
                   ref='topoGraphContent'
+                  class='topo-graph-content'
                 >
                   <div
                     ref='topoThumbnailRef'
-                    class='topo-thumbnail'
                     style={`display: ${this.showLegend ? 'none' : 'block'}`}
+                    class='topo-thumbnail'
                   ></div>
                   {this.showLegend && <ViewLegend />}
                 </div>
-              )
+              ),
             }}
           </Popover>
         </div>
         {this.compareWarningAlert.length ? (
           <Alert
-            closable
             class='compare-warning-alert'
             theme='warning'
             title={this.compareWarningAlert}
+            closable
           ></Alert>
         ) : (
           ''
         )}
       </div>
     );
-  }
+  },
 });

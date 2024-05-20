@@ -26,33 +26,26 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 
 import alarmShield from './modules/alarm-shield';
+import Report from './modules/email-subscription';
 import homeRoutes from './modules/home';
+import profilingRoutes from './modules/profiling';
 import rotationRoutes from './modules/rotation';
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    ...homeRoutes.map(item => ({
+    ...[...homeRoutes, ...alarmShield, ...rotationRoutes, ...profilingRoutes, ...Report].map(item => ({
       ...item,
-      path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
-    })),
-    ...rotationRoutes.map(item => ({
-      ...item,
-      path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
-    })),
-    ...alarmShield.map(item => ({
-      ...item,
-      path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
+      path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/'),
     })),
     {
       path: '/:pathMatch(.*)',
       redirect: {
-        name: 'home'
-      }
-    }
-  ]
+        name: 'home',
+      },
+    },
+  ],
 });
-console.dir('router: ', router);
 router.onError(e => {
   console.error('router error: ', e);
 });

@@ -37,26 +37,26 @@ export interface ICalendarTypeListItem {
 
 /** 日历列表数据 */
 export interface ICalendarListItem {
-  id: string | number;
+  id: number | string;
   name: string;
   checked: boolean;
   color: string;
 }
 
 export interface IOptionsItem {
-  id: string | number;
+  id: number | string;
   name: string;
   disabled?: boolean;
 }
 
 export enum ERepeatKey {
-  noRepeat = 'no-repeat',
+  custom = 'custom',
   everyDay = 'every-day',
-  everyWorkingDay = 'every-working-day',
-  everyWeek = 'every-week',
   everyMonth = 'every-month',
+  everyWeek = 'every-week',
+  everyWorkingDay = 'every-working-day',
   everyYear = 'every-year',
-  custom = 'custom'
+  noRepeat = 'no-repeat',
 }
 
 export interface IRepeatParams {
@@ -70,9 +70,9 @@ export interface IRepeatParams {
 /** 自定义类型id */
 export enum ERepeatTypeId {
   days = 'day', // 天
-  weeks = 'week', // 周
   months = 'month', // 月
-  years = 'year' // 年
+  weeks = 'week', // 周
+  years = 'year', // 年
 }
 
 /** 事项列表数据结构 */
@@ -99,44 +99,44 @@ export interface IRepeatConfig {
 }
 
 /** 重复选项的接口参数 */
-export const repeatParamsMap: Record<ERepeatKey, IRepeatConfig | {}> = {
+export const repeatParamsMap: Record<ERepeatKey, {} | IRepeatConfig> = {
   [ERepeatKey.noRepeat]: {},
   [ERepeatKey.everyDay]: {
     freq: 'day',
     interval: 1, // 间隔
     until: null, // 结束日期
     every: [], // 区间
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
   [ERepeatKey.everyWorkingDay]: {
     freq: 'week',
     interval: 1,
     until: null, // 永不结束
     every: [1, 2, 3, 4, 5],
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
   [ERepeatKey.everyWeek]: {
     freq: 'week',
     interval: 1,
     until: null,
     every: [],
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
   [ERepeatKey.everyMonth]: {
     freq: 'month',
     interval: 1,
     until: null,
     every: [],
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
   [ERepeatKey.everyYear]: {
     freq: 'year',
     interval: 1,
     until: null,
     every: [],
-    exclude_date: [] // 排除事项日期
+    exclude_date: [], // 排除事项日期
   },
-  [ERepeatKey.custom]: null // 自定义
+  [ERepeatKey.custom]: null, // 自定义
 };
 
 /**
@@ -150,5 +150,5 @@ export const WORKING_DATE_LIST = [1, 2, 3, 4, 5];
 export enum EDelAndEditType {
   all = 0,
   current = 1,
-  currentAndFuture = 2
+  currentAndFuture = 2,
 }

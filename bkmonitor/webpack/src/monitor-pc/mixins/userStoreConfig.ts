@@ -25,7 +25,7 @@
  */
 import { Component, Vue } from 'vue-property-decorator';
 
-import { createUserConfig, listUserConfig, partialUpdateUserConfig } from '../../monitor-api/modules/model';
+import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
 
 @Component
 // 设置全局通用的Loading
@@ -34,18 +34,6 @@ export default class UserConfigMixin extends Vue {
   storeId = '';
   get hasBusinessAuth() {
     return window.space_list.some(item => +item.id === +window.cc_biz_id);
-  }
-  /**
-   * @description: 设置用户配置
-   * @param {string} key
-   * @param {string} value
-   * @return {*}
-   */
-  public async handleSetUserConfig(key: string, value: string): Promise<boolean> {
-    if (!this.hasBusinessAuth) return false;
-    return await partialUpdateUserConfig(this.storeId, { value }, { reject403: true })
-      .then(() => true)
-      .catch(() => false);
   }
   /**
    * @description: 获取用户个性化配置
@@ -70,5 +58,17 @@ export default class UserConfigMixin extends Vue {
       console.error('parse user stiky note error');
     }
     return undefined;
+  }
+  /**
+   * @description: 设置用户配置
+   * @param {string} key
+   * @param {string} value
+   * @return {*}
+   */
+  public async handleSetUserConfig(key: string, value: string): Promise<boolean> {
+    if (!this.hasBusinessAuth) return false;
+    return await partialUpdateUserConfig(this.storeId, { value }, { reject403: true })
+      .then(() => true)
+      .catch(() => false);
   }
 }

@@ -26,7 +26,8 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
+import { fetchBusinessInfo } from 'monitor-api/modules/commons';
+
 import authorityStore from '../../store/modules/authority';
 
 // 20231205 代码还原，先保留原有部分
@@ -59,7 +60,7 @@ export default class NoPermission extends tsc<AuthorityIDProps> {
     this.getAccess = {
       url: data.get_access_url || '',
       operator: data.operator || [],
-      businessName: data.bk_biz_name || ''
+      businessName: data.bk_biz_name || '',
     };
   }
   handleApply() {
@@ -75,8 +76,8 @@ export default class NoPermission extends tsc<AuthorityIDProps> {
         <div class='title'>{this.$t('无权限访问')}</div>
         <div class='msg'>{this.$t('您没有该资源的权限，请先申请!')}</div>
         <bk-button
-          theme='primary'
           class='submit'
+          theme='primary'
           on-click={this.handleApply}
         >
           {this.$t('去申请')}

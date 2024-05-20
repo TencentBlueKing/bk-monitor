@@ -50,18 +50,18 @@
         }
 
         .title-left {
-          font-size: 22px;
           display: flex;
           align-content: center;
           align-items: center;
+          font-size: 22px;
           line-height: 26px;
           border-radius: 2px;
 
           .icon-mc-triangle-down {
             display: inline-block;
-            transform: rotateZ(-90deg);
-            transition: transform .3s;
             color: #63656e;
+            transition: transform .3s;
+            transform: rotateZ(-90deg);
           }
 
           span {
@@ -72,20 +72,20 @@
           .type-icon {
             display: inline-block;
             width: 22px;
-            text-align: center;
-            color: #979ba5;
             margin-left: -6px;
+            color: #979ba5;
+            text-align: center;
           }
 
           .field-value-count {
             height: 16px;
             padding: 0 4px;
-            background: #fff;
-            border: 1px solid #dcdee5;
-            border-radius: 2px;
             margin-left: 8px;
             line-height: 16px;
             color: #63656e;
+            background: #fff;
+            border: 1px solid #dcdee5;
+            border-radius: 2px;
           }
 
           .field-name {
@@ -103,8 +103,8 @@
 
         .display-btn {
           display: none;
-          font-size: 12px;
           height: 26px;
+          font-size: 12px;
           line-height: 26px;
         }
       }
@@ -120,8 +120,8 @@
 
     .field-list-item-content {
       .field-list-item-desc {
-        line-height: 20px;
         margin-bottom: 4px;
+        line-height: 20px;
       }
 
       .val-percent-item {
@@ -130,16 +130,16 @@
         margin: 6px 0;
 
         .val-percent-text {
+          position: relative;
+          top: 4px;
           display: flex;
           justify-content: space-between;
           line-height: 14px;
-          position: relative;
-          top: 4px;
 
           .field {
-            color: #63656e;
-            font-size: 12px;
             overflow: hidden;
+            font-size: 12px;
+            color: #63656e;
             text-overflow: ellipsis;
             white-space: pre;
           }
@@ -151,9 +151,9 @@
 
         .val-percent-progress {
           position: relative;
+          flex: 1px;
           width: 100%;
           overflow: hidden;
-          flex: 1px;
 
           .bk-progress {
             .progress-bar {

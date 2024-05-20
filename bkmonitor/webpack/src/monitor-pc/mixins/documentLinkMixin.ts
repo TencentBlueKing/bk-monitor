@@ -25,18 +25,13 @@
  */
 import { Component, Vue } from 'vue-property-decorator';
 
+import { jumpToDocsLink } from 'monitor-common/utils';
+
 import { linkMap } from '../common/constant';
-import { rstrip } from '../utils';
 //  文档链接的Mixin
 @Component
 export default class DocumentLinkMixin extends Vue {
-  public linkMap: Object = linkMap;
-
   public handleGotoLink(id: string): void {
-    const path = this.linkMap[id];
-    if (path) {
-      const url = `${rstrip(window.bk_docs_site_url, '/')}/markdown/${path}`;
-      window.open(url, '_blank');
-    }
+    jumpToDocsLink(id, linkMap, window.docUrlMap);
   }
 }

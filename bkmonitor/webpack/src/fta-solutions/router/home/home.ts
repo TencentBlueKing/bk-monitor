@@ -25,7 +25,7 @@
  */
 import { RouteConfig } from 'vue-router';
 
-import * as HomeAuth from '../../../monitor-pc/pages/home/authority-map';
+import * as HomeAuth from 'monitor-pc/pages/home/authority-map';
 
 const Home = () => import(/* webpackChunkName: "Home" */ '../../pages/home/home');
 
@@ -35,16 +35,16 @@ export default [
     name: 'home',
     props: true,
     components: {
-      noCache: Home
+      noCache: Home,
     },
     meta: {
       title: '首页',
       navId: 'home',
       authority: {
         map: HomeAuth,
-        page: [HomeAuth.VIEW_AUTH]
+        page: [HomeAuth.VIEW_AUTH],
       },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

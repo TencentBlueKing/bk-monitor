@@ -26,12 +26,12 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { createDemoAction, getDemoActionDetail } from '../../../../../../monitor-api/modules/action';
-import { deepClone, transformDataKey } from '../../../../../../monitor-common/utils/utils';
+import { createDemoAction, getDemoActionDetail } from 'monitor-api/modules/action';
+import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
+
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
 import CommonItem from '../components/common-item';
 import SimpleForm from '../components/simple-form';
-
 import AlertNotice from './alert-notice';
 import HttpCallBack from './http-callback';
 import {
@@ -40,9 +40,10 @@ import {
   IPeripheral,
   IWebhook,
   mealDataInit,
-  transformMealContentParams
+  transformMealContentParams,
 } from './meal-content-data';
 import PeripheralSystem from './peripheral-system';
+import { setVariableToString } from './utils';
 
 import './meal-content.scss';
 
@@ -81,11 +82,11 @@ type PageType = 'add' | 'edit';
 
 const mealType = {
   notice: 'notice',
-  callback: 'webhook'
+  callback: 'webhook',
 };
 
 @Component({
-  name: 'MealContentNew'
+  name: 'MealContentNew',
 })
 export default class MealContentNew extends tsc<IMealContentNewProps, IMealContentNewEvent> {
   @Prop({ type: Object, default: () => ({}) }) mealData: IMealData;
@@ -105,11 +106,11 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   debugData: { type: string; webhook: IWebhook; peripheral: IPeripheral } = {
     type: '',
     webhook: {},
-    peripheral: {}
+    peripheral: {},
   };
   // 调试状态数据
   debugStatusData: {
-    status?: '' | 'success' | 'failure' | 'received' | 'running';
+    status?: '' | 'failure' | 'received' | 'running' | 'success';
     is_finished?: boolean;
     content?: { text: string; url: string; action_plugin_type: string };
   } = {};
@@ -174,10 +175,10 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         this.data.peripheral = {
           data: {
             formTemplateId: '',
-            templateDetail: {}
+            templateDetail: {},
           },
           riskLevel: 2,
-          timeout: 10
+          timeout: 10,
         };
       }
       this.peripheralSystemRef.formTemplateId = '';
@@ -235,7 +236,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   }
 
   /* 调试内容start */
-  handleDebug(type: 'webhook' | 'peripheral') {
+  handleDebug(type: 'peripheral' | 'webhook') {
     switch (type) {
       case 'peripheral':
         this.debugData.peripheral = deepClone(this.data.peripheral);
@@ -243,10 +244,41 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         break;
       case 'webhook':
         this.debugData.webhook = deepClone(this.data.webhook);
+        this.getHttpCallbackVariables();
         break;
     }
     this.debugData.type = type;
     this.isShowDebug = true;
+  }
+
+  /* 获取http回调变量数据 */
+  getHttpCallbackVariables() {
+    const templateListMap = new Map();
+    this.getMessageTemplateList.forEach(template => {
+      templateListMap.set(template.id, template);
+    });
+    const setVariable = obj => {
+      const tempObj = {};
+      const objKeys = Object.keys(obj);
+      objKeys.forEach(key => {
+        if (typeof obj[key] === 'string') {
+          tempObj[key] = setVariableToString(templateListMap, obj[key]);
+        } else if (typeof obj[key] === 'object') {
+          if (Array.isArray(obj[key])) {
+            tempObj[key] = [];
+            obj[key].forEach(item => {
+              tempObj[key].push(setVariable(item));
+            });
+          } else {
+            tempObj[key] = setVariable(obj[key]);
+          }
+        } else {
+          tempObj[key] = obj[key];
+        }
+      });
+      return tempObj;
+    };
+    this.debugData.webhook = setVariable(this.debugData.webhook);
   }
 
   // 获取调试变量数据
@@ -281,7 +313,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         value: v,
         lable: item.formItemProps.label,
         placeholder: item?.formChildProps?.placeholder || '',
-        subTitle
+        subTitle,
       };
       variableList.push(obj);
     });
@@ -318,7 +350,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         executeConfigData = transformDataKey(
           transformMealContentParams({
             pluginType: 'webhook',
-            webhook: this.debugData.webhook as any
+            webhook: this.debugData.webhook as any,
           }),
           true
         );
@@ -332,7 +364,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       execute_config: executeConfigData,
       plugin_id: this.data.id,
       creator: 'username',
-      name: this.name || undefined
+      name: this.name || undefined,
     })
       .then(data => data.action_id)
       .catch(() => 0);
@@ -353,7 +385,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
     executeConfigData = transformDataKey(
       transformMealContentParams({
         pluginType: 'peripheral',
-        peripheral: this.debugData.peripheral
+        peripheral: this.debugData.peripheral,
       }),
       true
     );
@@ -364,7 +396,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   // 轮询调试状态
   getDebugStatus() {
     let timer = null;
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     return new Promise(async resolve => {
       if (!this.isQueryStatus) {
         resolve({});
@@ -431,13 +463,13 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             required
           >
             <bk-select
-              value={this.data.id}
-              placeholder={this.$tc('选择')}
               class='select input-width'
-              clearable={false}
-              searchable={true}
-              ext-popover-cls='meal-select-popover-warp'
               behavior='simplicity'
+              clearable={false}
+              ext-popover-cls='meal-select-popover-warp'
+              placeholder={this.$tc('选择')}
+              searchable={true}
+              value={this.data.id}
               onSelected={this.mealTypeChange}
             >
               {this.mealTypeList.map(group => (
@@ -447,8 +479,8 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                 >
                   {group.children.map(option => (
                     <bk-option
-                      key={option.id}
                       id={option.id}
+                      key={option.id}
                       name={option.name}
                     >
                       <div class='meal-options'>
@@ -456,11 +488,11 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                         {option.pluginSource === 'peripheral' && option?.newInfo?.url && (
                           <span
                             class='icon-monitor icon-fenxiang icon-meal'
+                            v-bk-tooltips={{ content: option?.newInfo?.tips, allowHTML: false }}
                             onClick={(e: Event) => {
                               e.stopPropagation();
                               this.handleJumpToSurrounding(option?.newInfo?.url);
                             }}
-                            v-bk-tooltips={{ content: option?.newInfo?.tips, allowHTML: false }}
                           ></span>
                         )}
                       </div>
@@ -489,7 +521,10 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                   <HttpCallBack
                     ref='httpCallBackRef'
                     isEdit={true}
+                    pluginId={this.data.id}
+                    validatorHasVariable={true}
                     value={this.data.webhook}
+                    variableList={this.getMessageTemplateList}
                     onChange={data => this.handleHttpCallBackChange(data)}
                     onDebug={() => this.handleDebug('webhook')}
                   ></HttpCallBack>
@@ -498,11 +533,11 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
               if (this.data.pluginType !== '') {
                 return (
                   <PeripheralSystem
-                    ref='peripheralSystemRef'
-                    type={this.type}
-                    isInit={this.isInit}
                     id={this.data.id}
+                    ref='peripheralSystemRef'
+                    isInit={this.isInit}
                     peripheralData={this.data.peripheral}
+                    type={this.type}
                     onChange={data => this.handlePeripheralChange(data)}
                     onDebug={() => this.handleDebug('peripheral')}
                     onInit={(v: boolean) => (this.isInit = v)}
@@ -569,7 +604,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         <div class='failure'>
           <span class='icon-monitor icon-mc-close'></span>
         </div>
-      )
+      ),
     };
     return statusMap[this.debugStatusData?.status];
   }
@@ -579,7 +614,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       received: `${this.$t('调试中...')}...`,
       running: `${this.$t('调试中...')}...`,
       success: this.$t('调试成功'),
-      failure: this.$t('调试失败')
+      failure: this.$t('调试失败'),
     };
     return statusMap[this.debugStatusData?.status];
   }
@@ -601,7 +636,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
             {this.$t('再次调试')}
           </bk-button>
         </div>
-      )
+      ),
     };
     return statusMap[this.debugStatusData?.status];
   }
@@ -610,21 +645,21 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   getDebugDialog() {
     return [
       <bk-dialog
-        value={this.isShowDebug}
         width={this.debugData.type === 'webhook' ? 766 : 480}
         extCls={'meal-content-debug-dialog'}
-        renderDirective={'if'}
-        maskClose={false}
         headerPosition={'left'}
+        maskClose={false}
+        renderDirective={'if'}
         title={this.$t('输入变量')}
+        value={this.isShowDebug}
         on-cancel={this.handleCloseDebug}
       >
         <div>
           {this.debugData.type === 'webhook' && (
             <HttpCallBack
               isEdit={true}
-              value={this.debugData.webhook}
               isOnlyHttp={true}
+              value={this.debugData.webhook}
               onChange={data => this.handleDebugWebhookDataChange(data)}
             ></HttpCallBack>
           )}
@@ -637,9 +672,9 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             style={{ marginRight: '8px' }}
             loading={this.debugActionLoading}
+            theme='primary'
             onClick={() => this.handleDebugStart()}
           >
             {this.$t('调试')}
@@ -648,12 +683,12 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
         </div>
       </bk-dialog>,
       <bk-dialog
-        extCls={'meal-content-running-dialog'}
-        value={!!this.debugStatusData?.status}
         width={400}
-        renderDirective={'if'}
+        extCls={'meal-content-running-dialog'}
         maskClose={false}
+        renderDirective={'if'}
         showFooter={false}
+        value={!!this.debugStatusData?.status}
         on-cancel={() => this.handleStopDebug()}
       >
         <div class='status-content'>
@@ -662,7 +697,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
           <div class='status-text'>{this.debugStatusText(this.debugStatusData?.content)}</div>
           {this.debugStatusOperate()}
         </div>
-      </bk-dialog>
+      </bk-dialog>,
     ];
   }
 }

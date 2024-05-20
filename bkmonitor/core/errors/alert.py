@@ -61,3 +61,11 @@ class AIOpsMultiAnomlayDetectError(Error):
     code = 3324006
     name = _("主机智能异常检测结果内容异常")
     message_tpl = _("主机智能异常检测结果内容异常")
+
+
+class AIOpsDisableError(Error):
+    # 区别于 AIOpsFunctionAccessedError，AIOpsDisableError 表示功能在监控侧未开启
+    status_code = 200
+    code = 3324007
+    name = _("AIOps功能未开启")
+    message_tpl = _("当前空间尚未开[{func}]功能")

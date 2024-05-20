@@ -26,13 +26,13 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { createApplication, metaConfigInfo } from '../../../../monitor-api/modules/apm_meta';
-import { Debounce } from '../../../../monitor-common/utils/utils';
-import { INavItem, IRouteBackItem } from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import Viewer from '../../../../monitor-ui/markdown-editor/viewer';
+import { createApplication, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { Debounce } from 'monitor-common/utils/utils';
+import { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import Viewer from 'monitor-ui/markdown-editor/viewer';
+
 import { ICreateAppFormData } from '../../home/app-list';
 import NavBar from '../../home/nav-bar';
-
 import PluginStatusTag from './plugin-status-tag';
 import SelectSystem, { ICardItem, IListDataItem } from './select-system';
 import SettingParams, { IEsClusterInfo } from './setting-params';
@@ -62,7 +62,7 @@ export interface IPluginItem {
   id: string;
 }
 @Component
-export default class AppAdd extends tsc<{}> {
+export default class AppAdd extends tsc<object> {
   // @Prop({ default: '', type: String }) appInfo: string;
 
   loading = false;
@@ -71,17 +71,17 @@ export default class AppAdd extends tsc<{}> {
   routeList: INavItem[] = [
     {
       id: 'home',
-      name: 'APM'
+      name: 'APM',
     },
     {
       id: '',
-      name: window.i18n.tc('新建应用')
-    }
+      name: window.i18n.tc('新建应用'),
+    },
   ];
   /** 步骤数据 */
   steps = [
     { title: window.i18n.t('基本信息'), icon: 1 },
-    { title: window.i18n.t('参数设置'), icon: 2 }
+    { title: window.i18n.t('参数设置'), icon: 2 },
   ];
   /** 当前步骤 */
   currentStep: 1 | 2 | 3 = 1;
@@ -92,26 +92,26 @@ export default class AppAdd extends tsc<{}> {
   listData: IListDataItem[] = [
     {
       title: '支持插件',
-      list: []
+      list: [],
     },
     {
       title: '支持语言',
       multiple: true,
-      list: []
+      list: [],
     },
     {
       title: '支持环境',
       children: [
         {
           title: '容器环境',
-          list: []
+          list: [],
         },
         {
           title: '物理环境',
-          list: []
-        }
-      ]
-    }
+          list: [],
+        },
+      ],
+    },
   ];
 
   /** 集群信息 索引名 过期时间 副本数 */
@@ -120,13 +120,13 @@ export default class AppAdd extends tsc<{}> {
     es_retention_days: {
       default: 0,
       default_es_max: 0,
-      private_es_max: 0
+      private_es_max: 0,
     },
     es_number_of_replicas: {
       default: 0,
       default_es_max: 0,
-      private_es_max: 0
-    }
+      private_es_max: 0,
+    },
   };
 
   /** 倒计时 */
@@ -141,7 +141,7 @@ export default class AppAdd extends tsc<{}> {
 
   routeBackItem: IRouteBackItem = {
     id: '',
-    name: ''
+    name: '',
   };
 
   appInfo: ICreateAppFormData = {
@@ -154,8 +154,8 @@ export default class AppAdd extends tsc<{}> {
       target_object_type: 'HOST',
       target_nodes: [],
       data_encoding: '',
-      paths: ['']
-    }
+      paths: [''],
+    },
   };
 
   /** 插件状态 */
@@ -164,7 +164,7 @@ export default class AppAdd extends tsc<{}> {
       icon: 'icon-mc-check-fill',
       text: window.i18n.tc('官方'),
       checked: true,
-      tips: window.i18n.tc('来源')
+      tips: window.i18n.tc('来源'),
     },
     // {
     //   icon: 'icon-danger',
@@ -180,15 +180,15 @@ export default class AppAdd extends tsc<{}> {
       icon: 'icon-mc-user-one',
       text: '',
       checked: false,
-      tips: window.i18n.tc('创建人')
+      tips: window.i18n.tc('创建人'),
     },
     {
       icon: 'icon-bianji',
       text: '',
       checked: false,
       fontSize: 22,
-      tips: window.i18n.tc('最近更新人')
-    }
+      tips: window.i18n.tc('最近更新人'),
+    },
   ];
   pluginDescMd = '';
   currentPlugin: IPluginItem | null = null;
@@ -253,8 +253,8 @@ export default class AppAdd extends tsc<{}> {
     this.$router.push({
       name: 'application',
       query: {
-        'filter-app_name': this.appInfo.name
-      }
+        'filter-app_name': this.appInfo.name,
+      },
       // path: `/application?filter-app_name=${this.appInfoData.enName}`
     });
   }
@@ -272,9 +272,11 @@ export default class AppAdd extends tsc<{}> {
       app_alias: this.appInfo?.enName, // 应用别名
       description: this.appInfo?.desc, // 应用描述
       plugin_id: this.appInfo?.pluginId, // 插件id
+      enable_profiling: this.appInfo.enableProfiling,
+      enable_tracing: this.appInfo.enableTracing,
       deployment_ids: deploymentIds, // 环境id
       language_ids: languageIds, // 语言
-      datasource_option: clusterInfo
+      datasource_option: clusterInfo,
     };
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const plugin_config = {
@@ -283,7 +285,7 @@ export default class AppAdd extends tsc<{}> {
       // TOOD：这里需要过滤一下
       target_nodes: this.appInfo?.plugin_config?.target_nodes,
       data_encoding: this.appInfo?.plugin_config?.data_encoding,
-      paths: this.appInfo?.plugin_config?.paths
+      paths: this.appInfo?.plugin_config?.paths,
     };
     if (this.appInfo?.pluginId === 'log_trace') params.plugin_config = plugin_config;
     createApplication(params)
@@ -315,7 +317,7 @@ export default class AppAdd extends tsc<{}> {
     return {
       pluginId,
       deploymentIds,
-      languageIds
+      languageIds,
     };
   }
 
@@ -343,7 +345,7 @@ export default class AppAdd extends tsc<{}> {
   initRouteBackChange() {
     if (!this.appInfo) {
       this.routeBackItem = {
-        id: 'home'
+        id: 'home',
       };
     }
   }
@@ -352,38 +354,37 @@ export default class AppAdd extends tsc<{}> {
     return (
       <div class='app-add-wrap'>
         <NavBar
-          routeList={this.routeList}
           handlerPosition={'center'}
+          routeList={this.routeList}
         >
           <bk-steps
             class='app-add-steps-list'
             slot='handler'
-            steps={this.steps}
             cur-step={this.currentStep}
+            steps={this.steps}
           ></bk-steps>
         </NavBar>
         <div class='app-add-content'>
           <div
-            class='app-add-content-main'
             style={`background-color: ${this.currentStep !== 1 ? '#fff' : ''}`}
+            class='app-add-content-main'
           >
             {
               [
                 <SelectSystem
-                  loading={this.loading}
                   listData={this.listData}
-                  onNextStep={this.handleNext}
+                  loading={this.loading}
                   onChange={info => (this.appInfo = info)}
+                  onNextStep={this.handleNext}
                 ></SelectSystem>,
                 <SettingParams
-                  loading={this.loading}
                   appInfoData={this.appInfo}
+                  currentPlugin={this.currentPlugin}
+                  loading={this.loading}
                   setupData={this.setupData}
                   onPreStep={() => (this.currentStep = 1)}
-                  currentPlugin={this.currentPlugin}
-                  // eslint-disable-next-line @typescript-eslint/no-misused-promises
                   onSubmit={this.handleSubmit}
-                ></SettingParams>
+                ></SettingParams>,
               ][this.currentStep - 1]
             }
             {this.currentStep === 3 && (
@@ -391,9 +392,9 @@ export default class AppAdd extends tsc<{}> {
                 <i class='icon-monitor icon-check'></i>
                 <div class='success-text'>{this.$t('新建应用成功')}</div>
                 <i18n
-                  tag='div'
                   class='jump-link-row'
                   path='{0}秒后将自动跳转至{1}'
+                  tag='div'
                 >
                   <span class='time'>{this.countdown}</span>
                   <span
@@ -415,18 +416,18 @@ export default class AppAdd extends tsc<{}> {
                     {this.pluginStatusList.map(item => (
                       <PluginStatusTag
                         class='status-item'
-                        icon={item.icon}
                         checked={item.checked}
-                        text={item.text}
+                        icon={item.icon}
                         iconFontSize={item.fontSize}
+                        text={item.text}
                         tips={item.tips}
                       />
                     ))}
                   </div>
                 </div>
                 <Viewer
-                  value={this.pluginDescMd}
                   class='md-viewer'
+                  value={this.pluginDescMd}
                 ></Viewer>
               </div>
             </SideSlider>

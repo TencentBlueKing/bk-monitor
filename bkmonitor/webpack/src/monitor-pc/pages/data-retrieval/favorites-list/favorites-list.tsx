@@ -26,7 +26,8 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import { IFavList } from '../typings';
 
 import './favorites-list.scss';
@@ -68,7 +69,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
   emitSelectFav(data: IFavList.favList) {
     return {
       config: data.config,
-      name: data.name
+      name: data.name,
     };
   }
 
@@ -138,8 +139,8 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
     return (
       <div class={['favorites-list-wrap', { 'is-expand': this.isExpand }]}>
         <div
-          class='fav-main'
           ref='favMain'
+          class='fav-main'
         >
           <div class='box-shadow'></div>
           <span class='fav-label'>{this.$t('收藏')}</span>

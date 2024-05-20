@@ -26,7 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from '../../../monitor-common/utils';
+import { random } from 'monitor-common/utils';
 
 import { IInfluxdbChildData } from './type';
 
@@ -47,13 +47,13 @@ export default class InfluxdbChild extends tsc<IProps> {
       data: {
         columns: [
           { id: 'host', name: '域名' },
-          { id: 'port', name: '端口' }
+          { id: 'port', name: '端口' },
         ],
         data: [
           { host: '102.11.1000.1', port: '9092' },
-          { host: '102.11.1000.1', port: '9092' }
-        ]
-      }
+          { host: '102.11.1000.1', port: '9092' },
+        ],
+      },
     },
     {
       id: random(8),
@@ -62,14 +62,14 @@ export default class InfluxdbChild extends tsc<IProps> {
       data: {
         columns: [
           { id: 'host', name: '域名' },
-          { id: 'port', name: '端口' }
+          { id: 'port', name: '端口' },
         ],
         data: [
           { host: '102.11.1000.1', port: '9092' },
-          { host: '102.11.1000.1', port: '9092' }
-        ]
-      }
-    }
+          { host: '102.11.1000.1', port: '9092' },
+        ],
+      },
+    },
   ];
   @Emit('group-operation')
   handleGroupOperation(type = 'clone', data: any) {
@@ -91,7 +91,7 @@ export default class InfluxdbChild extends tsc<IProps> {
   }
 
   /* 状态 */
-  statusContent(status: 'normal' | 'failure') {
+  statusContent(status: 'failure' | 'normal') {
     return (
       <div class='status-info'>
         <div class={['status-point']}>
@@ -118,8 +118,8 @@ export default class InfluxdbChild extends tsc<IProps> {
       <div class='resource-register-page-influxdb-child'>
         {this.localValue.map((item, index) => (
           <div
-            class='expand-item'
             key={item.id}
+            class='expand-item'
           >
             <div
               class='item-header'
@@ -130,26 +130,26 @@ export default class InfluxdbChild extends tsc<IProps> {
               <span
                 class='icon-monitor icon-mc-copy'
                 v-bk-tooltips={{
-                  content: this.$t('克隆')
+                  content: this.$t('克隆'),
                 }}
                 onClick={(e: Event) => this.handleCopy(e, index)}
               ></span>
               <span
                 class='icon-monitor icon-bianji'
                 v-bk-tooltips={{
-                  content: this.$t('编辑组')
+                  content: this.$t('编辑组'),
                 }}
                 onClick={(e: Event) => this.handleEdit(e, index)}
               ></span>
             </div>
             <div class={['item-content', { active: item.isExpand }]}>
               <bk-table
-                outer-border={false}
                 header-border={false}
+                outer-border={false}
                 {...{
                   props: {
-                    data: item.data.data
-                  }
+                    data: item.data.data,
+                  },
                 }}
               >
                 {item.data.columns.map(column => {
@@ -157,10 +157,10 @@ export default class InfluxdbChild extends tsc<IProps> {
                   return (
                     <bk-table-column
                       key={key}
-                      prop={column.id}
-                      label={column.name}
                       column-key={column.id}
                       formatter={(row, _column, _cellValue, index) => this.handleSetFormatter(column.id, row, index)}
+                      label={column.name}
+                      prop={column.id}
                     ></bk-table-column>
                   );
                 })}

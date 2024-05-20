@@ -67,7 +67,7 @@
                 :class="{
                   'col-status-success': row.agentStatus === 0,
                   'col-status-error': row.agentStatus === -1,
-                  'col-status-not-exist': row.agentStatus === 2
+                  'col-status-not-exist': row.agentStatus === 2,
                 }"
               >
                 {{ agentStatusFilter(row.agentStatus) }}
@@ -91,7 +91,9 @@
               <bk-button
                 text
                 @click="handleDeleteStaticIp(rowData)"
-              > {{ $t('移除') }} </bk-button>
+              >
+                {{ $t('移除') }}
+              </bk-button>
             </template>
           </bk-table-column>
         </bk-table>
@@ -125,13 +127,16 @@
       <bk-button
         :title="$t('取消')"
         @click="handleCancel"
-      > {{ $t('取消') }} </bk-button>
+      >
+        {{ $t('取消') }}
+      </bk-button>
     </template>
   </bk-dialog>
 </template>
 <script>
-import { getTopoTree } from '../../../../monitor-api/modules/commons';
-import { transformDataKey } from '../../../../monitor-common/utils/utils';
+import { getTopoTree } from 'monitor-api/modules/commons';
+import { transformDataKey } from 'monitor-common/utils/utils';
+
 import IpSelector from '../../../components/ip-select/ip-select';
 import StaticRadioTopo from '../../../components/ip-select/static-radio-topo';
 
@@ -142,41 +147,41 @@ export default {
   name: 'UptimeCheckNodeEditTopo',
   components: {
     IpSelector,
-    StaticRadioTopo
+    StaticRadioTopo,
   },
   model: {
     prop: 'isShow',
-    event: 'change'
+    event: 'change',
   },
   props: {
     isShow: {
       type: Boolean,
-      default: false
+      default: false,
     },
     ipList: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     defaultCheckedIp: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   data() {
     return {
       selectorConfig: {
         isSearchNoData: false,
-        defaultExpandNode: 2
+        defaultExpandNode: 2,
       },
       selectorData: {
         treeData: [],
         checkedData: [],
         disabledData: [],
-        tableData: []
+        tableData: [],
       },
-      disabledAddBtn: false
+      disabledAddBtn: false,
     };
   },
   watch: {
@@ -185,8 +190,8 @@ export default {
         // target ip是否配置任务
         this.disabledAddBtn = !(v && v.length === 1 && !v[0].isBuilt);
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     agentStatusFilter(status) {
@@ -203,7 +208,7 @@ export default {
       this.selectorData.treeData = await getTopoTree({
         bk_biz_id: this.$store.getters.bizId,
         instance_type: 'host',
-        remove_empty_nodes: true
+        remove_empty_nodes: true,
       }).catch(() => []);
 
       const { treeData, checkedData, disabledData, tableData } = this.selectorData;
@@ -211,7 +216,7 @@ export default {
         treeData,
         checkedData,
         disabledData,
-        tableData
+        tableData,
       };
     },
     async getFetchData(type, payload) {
@@ -233,7 +238,7 @@ export default {
       return {
         checkedData,
         tableData,
-        disabledData
+        disabledData,
       };
     },
     handleDeleteStaticIp() {
@@ -253,8 +258,8 @@ export default {
     },
     findItemInIpList(data) {
       return this.ipList.find(item => item.ip === data.ip && item.bkCloudId === data.bk_cloud_id) || {};
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -318,5 +323,4 @@ export default {
     }
   }
 }
-
 </style>

@@ -26,18 +26,19 @@
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import ResizeContainer from '../../../../../fta-solutions/components/resize-container/resize-container';
-import AutoInput from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
-import CustomTab from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import ResizeContainer from 'fta-solutions/components/resize-container/resize-container';
+import AutoInput from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
+import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import {
   intervalModeTips,
-  templateSignalName
-} from '../../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealDeail from '../../../../../fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
-import SetMealAddStore from '../../../../../fta-solutions/store/modules/set-meal-add';
-import { deepClone } from '../../../../../monitor-common/utils/utils';
-import TemplateInput from '../../strategy-config-set/strategy-template-input/strategy-template-input';
-import StrategyTemplatePreview from '../../strategy-config-set/strategy-template-preview/strategy-template-preview';
+  templateSignalName,
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
+import { deepClone } from 'monitor-common/utils/utils';
+
+import TemplateInput from '../../strategy-config-set/strategy-template-input/strategy-template-input.vue';
+import StrategyTemplatePreview from '../../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import AlarmGroup from '../components/alarm-group';
 import CommonItem from '../components/common-form-item';
@@ -45,7 +46,6 @@ import GroupSelect, { IGroupItem } from '../components/group-select';
 import VerifyItem from '../components/verify-item';
 import { IAlarmGroupList } from '../strategy-config-set';
 import { ICommonItem, strategyType } from '../typings/index';
-
 import NoticeItem from './notice-item';
 
 import './notice-config.scss';
@@ -55,23 +55,23 @@ export const noticeOptions = [
   { key: 'abnormal', text: window.i18n.t('告警触发时') },
   { key: 'recovered', text: window.i18n.t('告警恢复时') },
   { key: 'closed', text: window.i18n.t('告警关闭时') },
-  { key: 'ack', text: window.i18n.t('告警确认时') }
+  { key: 'ack', text: window.i18n.t('告警确认时') },
 ];
 
 export const actionOption = [
   { key: 'execute', text: window.i18n.t('执行前') },
   { key: 'execute_success', text: window.i18n.t('执行成功') },
-  { key: 'execute_failed', text: window.i18n.t('执行失败') }
+  { key: 'execute_failed', text: window.i18n.t('执行失败') },
 ];
 
 export const intervalModeNames = {
   standard: window.i18n.t('固定'),
-  increasing: window.i18n.t('递增')
+  increasing: window.i18n.t('递增'),
 };
 
 export const intervalModeList = [
   { id: 'standard', name: intervalModeNames.standard },
-  { id: 'increasing', name: intervalModeNames.increasing }
+  { id: 'increasing', name: intervalModeNames.increasing },
 ];
 
 /* 包含排除选项的告警通知方式 */
@@ -103,7 +103,7 @@ export interface INoticeValue {
       count: number;
       dimensions: string[];
     };
-    assign_mode: AssignModeType[];
+    assign_mode?: AssignModeType[];
     upgrade_config?: {
       is_enabled: boolean;
       user_groups: number[];
@@ -119,6 +119,7 @@ interface INoticeConfigNewProps {
   value?: INoticeValue;
   allAction?: IGroupItem[]; // 套餐列表
   userList?: IAlarmGroupList[]; // 告警组
+  alarmGroupLoading?: boolean;
   readonly?: boolean;
   strategyId?: number | string;
   isExecuteDisable?: boolean;
@@ -131,7 +132,7 @@ interface INoticeConfigNewEvent {
 }
 
 @Component({
-  name: 'NoticeConfigNew'
+  name: 'NoticeConfigNew',
 })
 export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeConfigNewEvent> {
   @Prop({ type: Object, default: () => ({}) }) value: INoticeValue;
@@ -141,6 +142,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
   @Prop({ default: '', type: [Number, String] }) strategyId: number;
   @Prop({ default: false, type: Boolean }) isExecuteDisable: boolean;
   @Prop({ default: () => [], type: Array }) legalDimensionList: ICommonItem[];
+  @Prop({ default: false, type: Boolean }) alarmGroupLoading: boolean;
   /* dataTypeLabel === time_series 才显示降噪设置 */
   @Prop({ default: '', type: String }) dataTypeLabel: string;
 
@@ -157,24 +159,24 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
     signal: [], // 触发信号
     options: {
       converge_config: {
-        need_biz_converge: true // 告警风暴开关
+        need_biz_converge: true, // 告警风暴开关
       },
       exclude_notice_ways: {
         recovered: [],
-        closed: []
+        closed: [],
       },
       noise_reduce_config: {
         is_enabled: false,
         count: 10,
-        dimensions: []
+        dimensions: [],
       },
       upgrade_config: {
         is_enabled: false,
         user_groups: [],
-        upgrade_interval: 0
+        upgrade_interval: 0,
       },
       assign_mode: [],
-      chart_image_enabled: true
+      chart_image_enabled: true,
     },
     config: {
       // 高级配置
@@ -183,14 +185,14 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
       template: [
         { signal: 'abnormal', message_tmpl: '', title_tmpl: '' },
         { signal: 'recovered', message_tmpl: '', title_tmpl: '' },
-        { signal: 'closed', message_tmpl: '', title_tmpl: '' }
-      ]
-    }
+        { signal: 'closed', message_tmpl: '', title_tmpl: '' },
+      ],
+    },
   };
 
   assignMode = {
     by_rule: false,
-    only_notice: false
+    only_notice: false,
   };
 
   templateData: {
@@ -213,13 +215,13 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
     template: '', // 模板
     noise_reduce_config: '', // 降噪设置
     notice: '',
-    upgrade: '' // 通知升级
+    upgrade: '', // 通知升级
   };
 
   /* 排除通知方式下拉是否展开 */
   excludeNoticeWaysPop = {
     recovered: false,
-    closed: false
+    closed: false,
   };
 
   /* 全局设置蓝鲸监控机器人发送图片是否开启， 如果关闭则禁用是否附带图片选项 */
@@ -234,7 +236,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
     return (
       this.data.config.template.map(item => ({
         key: item.signal,
-        label: templateSignalName[item.signal]
+        label: templateSignalName[item.signal],
       })) || []
     );
   }
@@ -401,7 +403,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
       template: '',
       noise_reduce_config: '',
       notice: '',
-      upgrade: ''
+      upgrade: '',
     };
   }
 
@@ -554,20 +556,20 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
               {noticeOptions.map(item => (
                 <bk-checkbox
                   v-en-style='width: 160px'
-                  value={item.key}
                   disabled={this.readonly}
+                  value={item.key}
                 >
                   {hasExcludeNoticeWayOptions.includes(item.key) ? (
                     <bk-popover
-                      placement='top'
+                      ref={item.key}
                       extCls='notice-config-new-component-exclude-way-pop'
                       tippyOptions={{
                         theme: 'light',
                         trigger: 'manual',
                         hideOnClick: false,
-                        distance: 10
+                        distance: 10,
                       }}
-                      ref={item.key}
+                      placement='top'
                     >
                       <span
                         style={{ 'border-bottom': this.data.signal.includes(item.key) ? '1px dashed #979BA5' : 'none' }}
@@ -576,22 +578,22 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                         {item.text}
                       </span>
                       <span
-                        slot='content'
                         class='exclude-content'
+                        slot='content'
                         onMouseleave={() => this.handleExcludeMouseleave(item.key)}
                       >
                         <span>{window.i18n.tc('明确排除通知方式')}</span>
                         <bk-select
+                          class='exclude-select'
                           v-model={this.data.options.exclude_notice_ways[item.key]}
                           behavior='simplicity'
                           multiple
-                          class='exclude-select'
                           onToggle={v => this.handleExcludeToggle(v, item.key)}
                         >
                           {this.noticeWayList.map(way => (
                             <bk-option
-                              key={way.type}
                               id={way.type}
+                              key={way.type}
                               name={way.label}
                             ></bk-option>
                           ))}
@@ -618,8 +620,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
               {actionOption.map(item => (
                 <bk-checkbox
                   v-en-style='width: 160px'
-                  value={item.key}
                   disabled={this.readonly}
+                  value={item.key}
                 >
                   {item.text}
                 </bk-checkbox>
@@ -646,16 +648,16 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
         >
           <VerifyItem errorMsg={this.errMsg.notice}>
             <NoticeItem
-              value={this.assignMode.by_rule}
               clearError={this.clearNoticeError}
-              title={this.$t('基于分派规则通知')}
               subTitle={this.$t('可以基于不同的数据维度进行告警分派')}
+              title={this.$t('基于分派规则通知')}
+              value={this.assignMode.by_rule}
               onChange={v => this.handleCheckNoticeMode('by_rule', v)}
             >
               <span
+                class='view-alarm'
                 slot='header'
                 onClick={this.handleGotoAlarmDispatch}
-                class='view-alarm'
               >
                 <span
                   class='title'
@@ -667,60 +669,64 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
               </span>
             </NoticeItem>
             <NoticeItem
-              value={this.assignMode.only_notice}
-              title={this.$t('默认通知')}
               clearError={this.clearNoticeError}
               subTitle={this.$t('剩下的告警基于当前规则发送通知')}
+              title={this.$t('默认通知')}
+              value={this.assignMode.only_notice}
               onChange={v => this.handleCheckNoticeMode('only_notice', v)}
             >
               <CommonItem
                 title={this.$t('告警组')}
-                show-semicolon
                 isRequired
+                show-semicolon
               >
                 <VerifyItem errorMsg={this.errMsg.user_groups}>
-                  <AlarmGroup
-                    class='alarm-group'
-                    list={this.userList}
-                    value={this.data.user_groups}
-                    readonly={this.readonly}
-                    showAddTip={false}
-                    strategyId={this.strategyId}
-                    onChange={data => this.handleUserGroup(data)}
-                  ></AlarmGroup>
+                  {!this.alarmGroupLoading ? (
+                    <AlarmGroup
+                      class='alarm-group'
+                      list={this.userList}
+                      readonly={this.readonly}
+                      showAddTip={false}
+                      strategyId={this.strategyId}
+                      value={this.data.user_groups}
+                      onChange={data => this.handleUserGroup(data)}
+                    ></AlarmGroup>
+                  ) : (
+                    <div class='skeleton-element alarm-group-skeleton'></div>
+                  )}
                 </VerifyItem>
               </CommonItem>
               <CommonItem
-                title={this.$t('通知升级')}
-                show-semicolon
                 style={{
                   alignItems: this.data.options.upgrade_config.is_enabled ? 'inherit' : 'flex-end',
-                  marginBottom: this.errMsg.upgrade ? '15px' : 0
+                  marginBottom: this.errMsg.upgrade ? '15px' : 0,
                 }}
+                title={this.$t('通知升级')}
+                show-semicolon
               >
                 <VerifyItem errorMsg={this.errMsg.upgrade}>
                   <div class='upgrade-warp'>
                     <bk-switcher
-                      theme='primary'
-                      size='small'
                       v-model={this.data.options.upgrade_config.is_enabled}
+                      size='small'
+                      theme='primary'
                       onChange={this.clearError}
                     ></bk-switcher>
                     {this.data.options.upgrade_config.is_enabled && (
                       <i18n
                         class='text'
-                        tag='div'
                         path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
+                        tag='div'
                       >
                         <bk-select
+                          style='width: 78px'
+                          class='notice-select'
                           v-model={this.data.options.upgrade_config.upgrade_interval}
                           behavior='simplicity'
-                          style='width: 78px'
-                          zIndex={99999}
                           placeholder={this.$t('输入')}
+                          zIndex={99999}
                           allow-create
                           allow-enter
-                          class='notice-select'
                           onChange={this.clearError}
                         >
                           <bk-option
@@ -743,17 +749,21 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                       </i18n>
                     )}
                   </div>
-                  {this.data.options.upgrade_config.is_enabled && (
-                    <AlarmGroup
-                      v-model={this.data.options.upgrade_config.user_groups}
-                      class='alarm-group'
-                      list={this.userList}
-                      readonly={this.readonly}
-                      showAddTip={false}
-                      strategyId={this.strategyId}
-                      onChange={this.clearError}
-                    ></AlarmGroup>
-                  )}
+                  {this.data.options.upgrade_config.is_enabled ? (
+                    !this.alarmGroupLoading ? (
+                      <AlarmGroup
+                        class='alarm-group'
+                        v-model={this.data.options.upgrade_config.user_groups}
+                        list={this.userList}
+                        readonly={this.readonly}
+                        showAddTip={false}
+                        strategyId={this.strategyId}
+                        onChange={this.clearError}
+                      ></AlarmGroup>
+                    ) : (
+                      <div class='skeleton-element alarm-group-skeleton'></div>
+                    )
+                  ) : undefined}
                 </VerifyItem>
               </CommonItem>
             </NoticeItem>
@@ -783,53 +793,53 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
         </div>
         <div class={['expan-content', { show: this.expanShow }]}>
           <CommonItem
+            class='interval'
             title={this.$t('通知间隔')}
             show-semicolon
-            class='interval'
           >
             <VerifyItem errorMsg={this.errMsg.interval}>
               <span class='notice-interval'>
                 <i18n
-                  path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
                   class='content-interval'
+                  path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
                 >
                   {this.readonly
                     ? [
                         <span class='bold'>{intervalModeNames[this.data.config.interval_notify_mode]}</span>,
-                        <span class='bold'>{this.data.config.notify_interval}</span>
+                        <span class='bold'>{this.data.config.notify_interval}</span>,
                       ]
                     : [
                         <bk-select
-                          v-en-style='width: 100px'
                           class='select select-inline'
-                          clearable={false}
-                          behavior='simplicity'
-                          size='small'
+                          v-en-style='width: 100px'
                           v-model={this.data.config.interval_notify_mode}
+                          behavior='simplicity'
+                          clearable={false}
+                          size='small'
                           onChange={this.handleChange}
                         >
                           {intervalModeList.map(item => (
                             <bk-option
-                              key={item.id}
                               id={item.id}
+                              key={item.id}
                               name={item.name}
                             ></bk-option>
                           ))}
                         </bk-select>,
                         <bk-input
                           class='input-inline input-center'
-                          behavior='simplicity'
                           v-model={this.data.config.notify_interval}
-                          type='number'
+                          behavior='simplicity'
                           size='small'
+                          type='number'
                           onInput={this.handleChange}
-                        ></bk-input>
+                        ></bk-input>,
                       ]}
                 </i18n>
                 <span
+                  style={{ color: '#979ba5', marginTop: '-3px' }}
                   class='icon-monitor icon-hint'
                   v-bk-tooltips={{ content: intervalModeTips[this.data.config.interval_notify_mode], allowHTML: false }}
-                  style={{ color: '#979ba5', marginTop: '-3px' }}
                 ></span>
               </span>
             </VerifyItem>
@@ -841,9 +851,9 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
             <span class='alarm-storm'>
               <bk-switcher
                 v-model={this.data.options.converge_config.need_biz_converge}
-                theme='primary'
-                size='small'
                 disabled={this.readonly}
+                size='small'
+                theme='primary'
                 on-change={this.handleChange}
               ></bk-switcher>
               <i class='icon-monitor icon-hint'></i>
@@ -861,41 +871,40 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 <span class={['noise-reduce', { mt5: !this.data.options.noise_reduce_config.is_enabled }]}>
                   <bk-switcher
                     v-model={this.data.options.noise_reduce_config.is_enabled}
-                    theme='primary'
-                    size='small'
                     disabled={this.readonly}
+                    size='small'
+                    theme='primary'
                     on-change={this.handleChange}
                   ></bk-switcher>
                   {this.data.options.noise_reduce_config.is_enabled ? (
                     <i18n
-                      path='基于维度{0},当前策略异常告警达到比例{1}%才进行发送通知。'
                       class='noise-content'
+                      path='基于维度{0},当前策略异常告警达到比例{1}%才进行发送通知。'
                     >
                       <bk-select
                         class='select select-inline'
-                        clearable={false}
-                        behavior='simplicity'
-                        size='small'
-                        popover-min-width={140}
-                        placeholder={this.$t('选择')}
-                        multiple
-                        searchable
-                        v-model={this.data.options.noise_reduce_config.dimensions}
                         v-bk-tooltips={{
                           content: this.data.options.noise_reduce_config.dimensions.join('; '),
                           trigger: 'mouseenter',
                           zIndex: 9999,
                           boundary: document.body,
                           disabled: !this.data.options.noise_reduce_config.dimensions.length,
-                          allowHTML: false
+                          allowHTML: false,
                         }}
+                        v-model={this.data.options.noise_reduce_config.dimensions}
+                        behavior='simplicity'
+                        clearable={false}
+                        placeholder={this.$t('选择')}
+                        popover-min-width={140}
+                        size='small'
+                        multiple
+                        searchable
                         onSelected={this.handleDimensionsSelected}
                       >
                         {[{ id: 'all', name: window.i18n.tc('全部') }, ...this.legalDimensionList].map(item => (
                           <bk-option
-                            key={item.id}
                             id={item.id}
-                            name={item.name}
+                            key={item.id}
                             v-bk-tooltips={{
                               content: item.id,
                               placement: 'right',
@@ -903,18 +912,19 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                               boundary: document.body,
                               appendTo: document.body,
                               disabled: item.id === 'all',
-                              allowHTML: false
+                              allowHTML: false,
                             }}
+                            name={item.name}
                           ></bk-option>
                         ))}
                       </bk-select>
                       <bk-input
                         class='input-inline input-center'
+                        v-model={this.data.options.noise_reduce_config.count}
                         behavior='simplicity'
                         showControls={false}
-                        v-model={this.data.options.noise_reduce_config.count}
-                        type='number'
                         size='small'
+                        type='number'
                         onInput={this.handleChange}
                       ></bk-input>
                     </i18n>
@@ -926,34 +936,34 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
           <div class='content-wrap-key1'>
             <div class='wrap-top'>
               <CustomTab
-                panels={this.templateTypes}
                 active={this.templateActive}
+                panels={this.templateTypes}
                 type={'text'}
                 onChange={this.handleChangeTemplate}
               ></CustomTab>
             </div>
             <div class='wrap-bottom'>
               <CommonItem
-                title={this.$tc('告警标题')}
                 class='template'
+                title={this.$tc('告警标题')}
                 isRequired
               >
                 <VerifyItem
-                  errorMsg={this.errMsg.template}
                   style={{ flex: 1 }}
+                  errorMsg={this.errMsg.template}
                 >
                   <AutoInput
                     class='template-title'
-                    tipsList={this.getMessageTemplateList}
                     v-model={this.templateData.title_tmpl}
                     readonly={this.readonly}
+                    tipsList={this.getMessageTemplateList}
                     on-change={this.handleChange}
                   ></AutoInput>
                 </VerifyItem>
               </CommonItem>
               <div
-                class='label-wrap'
                 style={{ marginTop: '7px' }}
+                class='label-wrap'
               >
                 <span class='label'>
                   <span>{this.$t('告警通知模板')}</span>
@@ -962,10 +972,10 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                       v-bk-tooltips={{
                         content: this.$t('蓝鲸监控机器人发送图片全局设置已关闭'),
                         placements: ['top'],
-                        disabled: this.wxworkBotSendImage
+                        disabled: this.wxworkBotSendImage,
                       }}
-                      disabled={!this.wxworkBotSendImage}
                       v-model={this.data.options.chart_image_enabled}
+                      disabled={!this.wxworkBotSendImage}
                       on-change={this.handleChange}
                     >
                       {this.$t('是否附带图片')}
@@ -1002,11 +1012,11 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                   minWidth={200}
                 >
                   <TemplateInput
+                    style='width: 100%; height: 100%;'
                     extCls={'notice-config-template-pop'}
                     default-value={this.templateData.message_tmpl}
                     trigger-list={this.getMessageTemplateList}
                     onChange={this.noticeTemplateChange}
-                    style='width: 100%; height: 100%;'
                   ></TemplateInput>
                 </ResizeContainer>
               )}

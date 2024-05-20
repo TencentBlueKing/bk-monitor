@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 import * as alarmShieldAuth from '../../pages/alarm-shield/authority-map';
@@ -38,26 +38,26 @@ export default [
     path: '/trace/alarm-shield',
     name: 'alarm-shield',
     components: {
-      noCache: AlarmShield
+      noCache: AlarmShield,
     },
     meta: {
       title: '告警屏蔽',
       navId: 'alarm-shield',
       noNavBar: true,
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       authority: {
         map: alarmShieldAuth,
-        page: alarmShieldAuth.VIEW_AUTH
-      }
-    }
+        page: alarmShieldAuth.VIEW_AUTH,
+      },
+    },
   },
   {
     path: '/trace/alarm-shield/add',
     name: 'alarm-shield-add',
     components: {
-      noCache: AlarmShield
+      noCache: AlarmShield,
     },
     meta: {
       title: '新建屏蔽',
@@ -65,19 +65,19 @@ export default [
       navId: 'alarm-shield',
       authority: {
         map: alarmShieldAuth,
-        page: [alarmShieldAuth.MANAGE_AUTH]
+        page: [alarmShieldAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'alarm-shield'
+        parent: 'alarm-shield',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/trace/alarm-shield/clone/:id',
     name: 'alarm-shield-clone',
     components: {
-      noCache: AlarmShield
+      noCache: AlarmShield,
     },
     meta: {
       title: '克隆屏蔽',
@@ -86,19 +86,19 @@ export default [
       navId: 'alarm-shield',
       authority: {
         map: alarmShieldAuth,
-        page: [alarmShieldAuth.MANAGE_AUTH]
+        page: [alarmShieldAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'alarm-shield'
+        parent: 'alarm-shield',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/trace/alarm-shield/edit/:id',
     name: 'alarm-shield-edit',
     components: {
-      noCache: AlarmShield
+      noCache: AlarmShield,
     },
     meta: {
       title: '编辑屏蔽',
@@ -107,14 +107,14 @@ export default [
       navId: 'alarm-shield',
       authority: {
         map: alarmShieldAuth,
-        page: [alarmShieldAuth.MANAGE_AUTH]
+        page: [alarmShieldAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'alarm-shield'
+        parent: 'alarm-shield',
       },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
   // {
   //   path: '/alarm-shield-detail/:id',
   //   name: 'alarm-shield-detail',

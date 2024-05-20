@@ -26,8 +26,9 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getVariableValue } from '../../../monitor-api/modules/grafana';
-import { Debounce } from '../../../monitor-common/utils/utils';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { Debounce } from 'monitor-common/utils/utils';
+
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import TagList from '../../components/table-tag-list/table-tag-list';
@@ -42,7 +43,7 @@ const dimensionsColumns: ITableColumn[] = [
   { id: 'id', name: window.i18n.tc('维度名'), type: 'string' },
   { id: 'name', name: window.i18n.tc('维度别名'), type: 'string' },
   { id: 'type', name: window.i18n.tc('维度类型'), type: 'string' },
-  { id: 'value', name: window.i18n.tc('维度值'), showOverflowTooltip: false, type: 'scoped_slots' }
+  { id: 'value', name: window.i18n.tc('维度值'), showOverflowTooltip: false, type: 'scoped_slots' },
 ];
 
 interface IProps {
@@ -60,7 +61,7 @@ export default class DimensionTable extends tsc<IProps> {
     current: 1,
     count: 0,
     limit: 10,
-    showTotalCount: true
+    showTotalCount: true,
   };
   search = '';
 
@@ -118,14 +119,14 @@ export default class DimensionTable extends tsc<IProps> {
           field: id,
           metric_field: this.detail.metric_field,
           result_table_id: this.detail.result_table_id,
-          where: []
+          where: [],
         },
         this.detail.data_source_label === 'bk_log_search'
           ? {
-              index_set_id: this.detail.index_set_id
+              index_set_id: this.detail.index_set_id,
             }
           : {}
-      )
+      ),
     });
     const promisFn = id =>
       new Promise((resolve, reject) => {
@@ -167,10 +168,10 @@ export default class DimensionTable extends tsc<IProps> {
             values.map(item => this.$createElement('span', { class: 'label' }, item.label))
           )
         ),
-        this.$createElement('div', { class: 'bottom' }, this.$tc('当前仅展示{0}条数据', [values.length]))
+        this.$createElement('div', { class: 'bottom' }, this.$tc('当前仅展示{0}条数据', [values.length])),
       ]),
       showFooter: false,
-      width: 640
+      width: 640,
     });
   }
 
@@ -193,20 +194,13 @@ export default class DimensionTable extends tsc<IProps> {
         <bk-input
           class='dimension-search'
           v-model={this.search}
-          clearable
           placeholder={this.$t('输入')}
           rightIcon='bk-icon icon-search'
+          clearable
           on-change={this.handleSearch}
         ></bk-input>
         <CommonTable
           class='dimension-table'
-          data={this.tableData}
-          columns={dimensionsColumns}
-          checkable={false}
-          hasColnumSetting={false}
-          pagination={this.pagination}
-          onPageChange={this.handlePageChange}
-          onLimitChange={this.handleLimitChange}
           scopedSlots={{
             value: row =>
               row.values.length ? (
@@ -216,12 +210,19 @@ export default class DimensionTable extends tsc<IProps> {
                 ></TagList>
               ) : (
                 '--'
-              )
+              ),
           }}
+          checkable={false}
+          columns={dimensionsColumns}
+          data={this.tableData}
+          hasColnumSetting={false}
+          pagination={this.pagination}
+          onLimitChange={this.handleLimitChange}
+          onPageChange={this.handlePageChange}
         >
           <EmptyStatus
-            type={this.emptyStatusType}
             slot='empty'
+            type={this.emptyStatusType}
             onOperation={this.handleOperation}
           />
         </CommonTable>

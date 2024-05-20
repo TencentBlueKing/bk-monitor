@@ -45,6 +45,8 @@ export default {
   修改无数据告警: 'Edit No-Data Alarm',
   修改告警恢复通知: 'Edit Alarm-recovery Notification',
   修改告警风暴开关: 'Edit Alarm-storm',
+  修改通知升级: 'Edit Notification Upgrade',
+  修改算法: 'Modify Algorithm',
   批量删除策略: 'Delete Rules',
   批量修改状态: 'Edit State',
   批量替换成: 'Bulk Replace',
@@ -86,11 +88,15 @@ export default {
   'Span 详情': 'Span Detail',
   重置图表: 'Reset Chart',
   '高亮相似 Span': 'Highlight Similar Span',
+  '高亮相似 Node': 'Highlight Similar Node',
+  复制函数名称: 'Copy Function Name',
   内网IPv4: 'Intranet IPv4',
   外网IPv4: 'Extranet IPv4',
   内网IPv6: 'Intranet IPv6',
   外网IPv6: 'Extranet IPv6',
 
   日期选择: 'Date selection',
-  指定时间: 'Specify time'
+  指定时间: 'Specify time',
+  我申请的: 'My Application',
+  我的订阅: 'My Subscription',
 };

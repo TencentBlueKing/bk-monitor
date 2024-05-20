@@ -557,3 +557,26 @@ PLATFORM_METRIC_DIMENSION_FILED = [
 APM_TOPO_INSTANCE = "BKMONITOR_{}_{}_APM_TOPO_INSTANCE_HEARTBEAT_{}_{}"
 
 DEFAULT_TOPO_INSTANCE_EXPIRE = 7 * 24 * 60 * 60
+
+
+class ProfileApiType:
+    """Profile查询api_type参数枚举值"""
+
+    # service_name查询
+    SERVICE_NAME = "service_name"
+
+    # sampler查询
+    SAMPLE = "query_sample_by_json"
+
+    # type查询
+    COL_TYPE = "col_type"
+
+    # 复杂查询
+    AGGREGATE = "select_aggregate"
+
+
+class ProfileQueryType:
+    """Profile查询中api_params.type参数枚举值"""
+
+    # cpu查询
+    CPU = "cpu"

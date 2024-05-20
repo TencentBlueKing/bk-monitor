@@ -70,21 +70,13 @@ class Memory(CheckStep):
         p_list = []
         for node_name, mem_info in self.story.bulk_send_client("info", "memory").items():
             mem_info = mem_info or {}
-            targets = [
-                "used_memory",
-                "maxmemory",
-                "mem_fragmentation_ratio",
-                "total_system_memory",
-            ]
-            for t in targets:
-                if t not in mem_info:
-                    self.story.warning(f"[{node_name}]redis info memory did not return {t} metric")
-                    continue
 
+            max_memory = mem_info.get("maxmemory") or mem_info.get("total_system_memory")
+            if not max_memory:
+                self.story.warning(f"[{node_name}]can't get max mem. now used: {mem_info['used_memory_human']}")
+                continue
             # memory usage:
-            usage = round(
-                mem_info["used_memory"] * 100.0 / (mem_info["maxmemory"] or mem_info["total_system_memory"]), 2
-            )
+            usage = round(mem_info["used_memory"] * 100.0 / max_memory, 2)
             if usage > 95:
                 p = RedisMemoryProblem(f"[{node_name}]redis memory usage is too high: {usage}%", self.story)
                 p_list.append(p)
@@ -101,9 +93,9 @@ class Memory(CheckStep):
                 )
                 p_list.append(p)
                 continue
-            if mem_fragmentation_ratio > 1.5:
-                func = self.story.warning
-            func(f"[{node_name}]redis memory fragmentation ratio: {mem_fragmentation_ratio}")
+            # if mem_fragmentation_ratio > 1.5:
+            #     func = self.story.warning
+            # func(f"[{node_name}]redis memory fragmentation ratio: {mem_fragmentation_ratio}")
         return p_list
 
 

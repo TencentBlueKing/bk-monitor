@@ -36,7 +36,9 @@
     <div
       v-else
       class="text-chart-empty"
-    >--</div>
+    >
+      --
+    </div>
   </div>
 </template>
 <script lang="ts">
@@ -45,13 +47,13 @@ import { Component, Prop, Vue } from 'vue-property-decorator';
 import { ITextSeries } from '../options/type-interface';
 
 @Component({
-  name: 'TextChart'
+  name: 'TextChart',
 })
 export default class TextChart extends Vue {
   @Prop({
     default() {
       return {};
-    }
+    },
   })
   series: ITextSeries;
 }
@@ -64,24 +66,27 @@ export default class TextChart extends Vue {
   height: 30px;
   padding: 0 16px;
   margin: auto;
+
   &-value {
-    color: #3a84ff;
+    margin-right: 6px;
     font-size: 32px;
     font-weight: 500;
     line-height: 30px;
-    margin-right: 6px;
+    color: #3a84ff;
   }
+
   &-unit {
-    font-size: 12px;
-    color: #979ba5;
-    line-height: 20px;
     align-self: flex-end;
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
   }
+
   &-empty {
-    color: #dcdee5;
+    margin-left: -16px;
     font-size: 50px;
     line-height: 30px;
-    margin-left: -16px;
+    color: #dcdee5;
   }
 }
 </style>

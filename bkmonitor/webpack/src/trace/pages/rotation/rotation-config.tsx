@@ -26,19 +26,19 @@
 import { computed, defineComponent, onMounted, provide, reactive, readonly, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 import { Button, DatePicker, Input, Popover, Switcher, TagInput } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { createDutyRule, retrieveDutyRule, updateDutyRule } from 'monitor-api/modules/model';
+import { getReceiver } from 'monitor-api/modules/notice_group';
+import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 
-import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
-import { getReceiver } from '../../../monitor-api/modules/notice_group';
-import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import NavBar from '../../components/nav-bar/nav-bar';
-
 import {
   getAutoOrderList,
   getPreviewParams,
   noOrderDutyData,
-  setPreviewDataOfServer
+  setPreviewDataOfServer,
 } from './components/calendar-preview';
 import FixedRotationTab, { FixedDataModel } from './components/fixed-rotation-tab';
 import FormItem from './components/form-item';
@@ -50,7 +50,7 @@ import {
   fixedRotationTransform,
   replaceRotationTransform,
   validFixedRotationData,
-  validReplaceRotationData
+  validReplaceRotationData,
 } from './utils';
 
 import './rotation-config.scss';
@@ -77,8 +77,8 @@ export default defineComponent({
       enabled: true,
       effective: {
         startTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-        endTime: ''
-      }
+        endTime: '',
+      },
     });
     const previewData = ref([]);
     const loading = ref(false);
@@ -88,7 +88,7 @@ export default defineComponent({
     const errMsg = reactive({
       name: '',
       effective: '',
-      rotationType: ''
+      rotationType: '',
     });
 
     /* 关联告警组数量 */
@@ -96,7 +96,7 @@ export default defineComponent({
 
     const enabledDisabled = computed(() => !!id.value && formData.enabled && !!userGroupsCount.value);
 
-    function handleEffectiveChange(val: string, type: 'startTime' | 'endTime') {
+    function handleEffectiveChange(val: string, type: 'endTime' | 'startTime') {
       formData.effective[type] = val;
       errMsg.effective = validEffective().msg;
       getPreviewData();
@@ -127,7 +127,7 @@ export default defineComponent({
       value: createColorList(),
       setValue: (val: string[]) => {
         colorList.value = val;
-      }
+      },
     });
     provide('colorList', colorList);
 
@@ -140,14 +140,19 @@ export default defineComponent({
     const rotationTypeData = reactive<RotationTypeData>(createDefaultRotation());
     function handleRotationTypeDataChange<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
       rotationTypeData[type] = val;
+      resetEffectiveStartTime();
+      resetUsersColor();
+      getPreviewData();
+    }
+
+    /** 重置生效起始时间 */
+    function resetEffectiveStartTime() {
       if (id.value) {
         // 编辑状态下 且 生效结束时间大于此时此刻（永久）， 将生效起始时间修改为此时此刻
         if (!formData.effective.endTime || new Date(formData.effective.endTime).getTime() > new Date().getTime()) {
           formData.effective.startTime = dayjs().format('YYYY-MM-DD HH:mm:ss');
         }
       }
-      resetUsersColor();
-      getPreviewData();
     }
 
     /** 重置用户组所对应的颜色 */
@@ -192,11 +197,13 @@ export default defineComponent({
 
     function handleRotationTabChange(type: RotationTabTypeEnum) {
       rotationType.value = type;
+      resetEffectiveStartTime();
       resetUsersColor();
       getPreviewData();
     }
 
     function handleReplaceUserDrop() {
+      resetEffectiveStartTime();
       resetUsersColor();
       getPreviewData();
     }
@@ -209,7 +216,7 @@ export default defineComponent({
     function createDefaultRotation(): RotationTypeData {
       return {
         regular: [],
-        handoff: []
+        handoff: [],
       };
     }
 
@@ -218,7 +225,7 @@ export default defineComponent({
      * 表单校验
      * @returns 是否校验成功
      */
-    function validate(_type: 'submit' | 'preview' = 'submit') {
+    function validate(_type: 'preview' | 'submit' = 'submit') {
       let valid = true;
       // 清空错误信息
       Object.keys(errMsg).forEach(key => (errMsg[key] = ''));
@@ -245,6 +252,7 @@ export default defineComponent({
     }
 
     function validRotationRule() {
+      if (rotationTypeData[rotationType.value].length === 0) return { err: true, msg: t('最少添加一条轮值规则') };
       if (rotationType.value === RotationTabTypeEnum.REGULAR) {
         for (const item of rotationTypeData[RotationTabTypeEnum.REGULAR]) {
           const valid = validFixedRotationData(item);
@@ -297,7 +305,7 @@ export default defineComponent({
         enabled,
         duty_arranges: dutyArranges,
         effective_time: effective.startTime,
-        end_time: effective.endTime
+        end_time: effective.endTime,
       };
       return params;
     }
@@ -375,7 +383,7 @@ export default defineComponent({
         const params = {
           ...getPreviewParams(formData.effective.startTime),
           source_type: 'DB',
-          id: id.value
+          id: id.value,
         };
         const data = await previewDutyRulePlan(params).catch(() => []);
         const dutyParams = getParams();
@@ -390,7 +398,7 @@ export default defineComponent({
         const params = {
           ...getPreviewParams(formData.effective.startTime),
           source_type: 'API',
-          config: dutyParams
+          config: dutyParams,
         };
         const data = await previewDutyRulePlan(params, { needCancel: true }).catch(() => []);
         const autoOrders = getAutoOrderList(dutyParams);
@@ -409,7 +417,7 @@ export default defineComponent({
 
     function handleBack() {
       router.push({
-        name: 'rotation'
+        name: 'rotation',
       });
     }
 
@@ -440,23 +448,23 @@ export default defineComponent({
       handleSubmit,
       handleBack,
       handleBackPage,
-      disabledDateFn
+      disabledDateFn,
     };
   },
   render() {
     return (
       <div class='rotation-config-page'>
         <NavBar
-          routeList={this.navList}
-          needBack={true}
           callbackRouterBack={this.handleBackPage}
+          needBack={true}
+          routeList={this.navList}
         ></NavBar>
         <div class='rotation-config-page-content'>
           <FormItem
-            label={this.t('规则名称')}
-            require
             class='mt-24'
             errMsg={this.errMsg.name}
+            label={this.t('规则名称')}
+            require
           >
             <Input
               class='width-508'
@@ -466,8 +474,8 @@ export default defineComponent({
             ></Input>
           </FormItem>
           <FormItem
-            label={this.t('标签')}
             class='mt-24'
+            label={this.t('标签')}
           >
             <TagInput
               class='width-508'
@@ -476,35 +484,35 @@ export default defineComponent({
             ></TagInput>
           </FormItem>
           <FormItem
-            label={this.t('启/停')}
             class='mt-24'
+            label={this.t('启/停')}
           >
             <div class='enabled-switch'>
               <Popover
-                placement='top'
                 arrow={true}
-                trigger={'hover'}
-                popoverDelay={[300, 0]}
                 disabled={!this.enabledDisabled}
+                placement='top'
+                popoverDelay={[300, 0]}
+                trigger={'hover'}
               >
                 {{
                   default: () => (
                     <Switcher
-                      theme='primary'
                       v-model={this.formData.enabled}
                       disabled={this.enabledDisabled}
+                      theme='primary'
                     ></Switcher>
                   ),
-                  content: () => <span>{this.t('存在关联的告警组')}</span>
+                  content: () => <span>{this.t('存在关联的告警组')}</span>,
                 }}
               </Popover>
             </div>
           </FormItem>
           <FormItem
+            class='mt-24'
+            errMsg={this.errMsg.rotationType}
             label={this.t('轮值类型')}
             require
-            errMsg={this.errMsg.rotationType}
-            class='mt-24'
           >
             <div class='rotation-type-wrapper'>
               <div class='tab-list'>
@@ -541,36 +549,36 @@ export default defineComponent({
             </div>
           </FormItem>
           <FormItem
-            label={this.t('生效时间范围')}
-            require
             class='mt-24'
             errMsg={this.errMsg.effective}
+            label={this.t('生效时间范围')}
+            require
           >
             <DatePicker
-              modelValue={this.formData.effective.startTime}
-              type='datetime'
-              placeholder={`${this.t('如')}: 2019-01-30 12:12:21`}
               clearable={false}
               disabledDate={this.disabledDateFn}
+              modelValue={this.formData.effective.startTime}
+              placeholder={`${this.t('如')}: 2019-01-30 12:12:21`}
+              type='datetime'
               onChange={val => this.handleEffectiveChange(val, 'startTime')}
             ></DatePicker>
             <span class='split-line'>-</span>
             <DatePicker
               ref='effectiveEndRef'
               class='effective-end'
-              modelValue={this.formData.effective.endTime}
-              clearable
-              type='datetime'
-              placeholder={this.t('永久')}
               disabledDate={this.disabledDateFn}
-              onOpen-change={this.handleDatePickerOpen}
+              modelValue={this.formData.effective.endTime}
+              placeholder={this.t('永久')}
+              type='datetime'
+              clearable
               onChange={val => this.handleEffectiveChange(val, 'endTime')}
+              onOpen-change={this.handleDatePickerOpen}
             ></DatePicker>
           </FormItem>
           <FormItem
-            label={this.t('轮值预览')}
             class='mt-24'
             contentCls={'flex1'}
+            label={this.t('轮值预览')}
           >
             <RotationCalendarPreview
               class='min-width-974'
@@ -579,10 +587,10 @@ export default defineComponent({
           </FormItem>
           <FormItem class='mt-32'>
             <Button
-              theme='primary'
               class='mr-8 width-88'
-              onClick={this.handleSubmit}
               loading={this.loading}
+              theme='primary'
+              onClick={this.handleSubmit}
             >
               {this.t('提交')}
             </Button>
@@ -596,5 +604,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

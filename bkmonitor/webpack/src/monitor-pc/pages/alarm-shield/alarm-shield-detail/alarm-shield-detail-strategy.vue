@@ -32,10 +32,11 @@
       <div class="item-content">
         <div
           v-for="(item, index) in dimension.strategies"
-          :key="item.id"
           class="item-content-name"
+          :key="item.id"
         >
-          {{ item.name }}<i
+          {{ item.name
+          }}<i
             class="icon-monitor icon-mc-wailian"
             @click="handleToStrategy(item.id)"
           />
@@ -44,8 +45,8 @@
       </div>
     </div>
     <div
-      class="strategy-detail"
       v-if="isOneStrategy"
+      class="strategy-detail"
     >
       <div class="strategy-detail-label">
         {{ $t('策略内容') }}
@@ -55,8 +56,8 @@
     </div>
     <alarm-shield-detail-dimension :detail-data="detailData" />
     <div
-      class="scope-item"
       v-if="dimension.target"
+      class="scope-item"
     >
       <div class="item-label">
         {{ $t('屏蔽范围') }}
@@ -79,34 +80,34 @@
 </template>
 
 <script>
-import { transformDataKey } from '../../../../monitor-common/utils/utils';
+import { transformDataKey } from 'monitor-common/utils/utils';
+
 import { strategyMapMixin } from '../../../common/mixins';
 import StrategyDetailNew from '../alarm-shield-components/strategy-detail-new';
-
 import AlarmShieldDetailDimension from './alarm-shield-detail-dimension.tsx';
 
 export default {
   name: 'AlarmShieldDetailStrategy',
   components: {
     StrategyDetailNew,
-    AlarmShieldDetailDimension
+    AlarmShieldDetailDimension,
   },
   mixins: [strategyMapMixin],
   props: {
     dimension: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     detailData: {
       type: Object,
-      default: () => null
-    }
+      default: () => null,
+    },
   },
   data() {
     return {
       level: '',
       levelMap: ['', this.$t('致命'), this.$t('预警'), this.$t('提醒')],
-      target: ''
+      target: '',
     };
   },
   computed: {
@@ -119,11 +120,11 @@ export default {
           id: this.dimension.strategies[0].id,
           name: this.dimension.strategies[0].name,
           scenario: this.dimension.strategies[0].scenario,
-          items: [{ queryConfigs: this.dimension.strategies[0].itemList }]
+          items: [{ queryConfigs: this.dimension.strategies[0].itemList }],
         },
         true
       );
-    }
+    },
   },
   created() {
     this.handleStrategyDetail();
@@ -132,7 +133,7 @@ export default {
     handleStrategyDetail() {
       const arr = [];
       if (Array.isArray(this.dimension.level)) {
-        this.dimension.level.forEach((item) => {
+        this.dimension.level.forEach(item => {
           arr.push(this.levelMap[item]);
         });
       } else {
@@ -145,8 +146,8 @@ export default {
     },
     handleToStrategy(id) {
       this.$router.push({ name: 'strategy-config-detail', params: { id } });
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -162,16 +163,16 @@ export default {
 
     .item-label {
       min-width: 90px;
+      margin-right: 24px;
       color: #979ba5;
       text-align: right;
-      margin-right: 24px;
     }
 
     .item-content {
-      align-items: center;
       display: flex;
-      flex-wrap: wrap;
       flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
       min-height: 16px;
 
       &-name {
@@ -181,12 +182,12 @@ export default {
       }
 
       i {
-        font-size: 21px;
         display: flex;
-        color: #979ba5;
         align-items: center;
-        cursor: pointer;
         justify-content: center;
+        font-size: 21px;
+        color: #979ba5;
+        cursor: pointer;
 
         &:hover {
           color: #3a84ff;
@@ -195,8 +196,8 @@ export default {
 
       &-target {
         display: block;
-        word-break: break-all;
         max-width: calc(100vw - 306px);
+        word-break: break-all;
       }
     }
   }
@@ -217,34 +218,34 @@ export default {
 
     &-label {
       min-width: 90px;
-      margin-right: 24px;
-      text-align: right;
-      color: #979ba5;
       padding-top: 6px;
+      margin-right: 24px;
+      color: #979ba5;
+      text-align: right;
     }
 
     &-content {
-      padding: 11.5px 21px 6px 21px;
       display: flex;
       flex-direction: column;
+      width: calc(100vw - 306px);
+      padding: 11.5px 21px 6px 21px;
       background: #fafbfd;
       border: 1px solid #dcdee5;
       border-radius: 2px;
-      width: calc(100vw - 306px);
 
       .column-item {
-        min-height: 32px;
         display: flex;
         align-items: flex-start;
+        min-height: 32px;
         margin-bottom: 7px;
       }
 
       .item-label {
         min-width: 70px;
-        text-align: right;
         height: 32px;
-        line-height: 32px;
         margin-right: 6px;
+        line-height: 32px;
+        text-align: right;
       }
 
       .item-content {
@@ -253,21 +254,21 @@ export default {
       }
 
       .item-aggdimension {
-        background: #fff;
-        font-size: 12px;
-        text-align: center;
         height: 32px;
-        line-height: 16px;
-        border-radius: 2px;
-        border: 1px solid #dcdee5;
-        margin: 0 2px 2px 0;
         padding: 7px 12px 9px 12px;
+        margin: 0 2px 2px 0;
+        font-size: 12px;
+        line-height: 16px;
+        text-align: center;
+        background: #fff;
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
       }
 
       .item-aggcondition {
-        max-width: calc(100vw - 322px);
         display: flex;
         flex-wrap: wrap;
+        max-width: calc(100vw - 322px);
 
         .item-blue {
           color: #3a84ff;

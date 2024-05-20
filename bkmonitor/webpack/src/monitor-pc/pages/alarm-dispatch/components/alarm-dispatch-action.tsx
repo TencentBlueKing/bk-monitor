@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import './alarm-dispatch-action.scss';
-// import { getCookie } from '../../../../monitor-common/utils/utils';
+// import { getCookie } from 'monitor-common/utils/utils';
 
 const AlarmDispatchAction = ctx => {
   const {
@@ -34,8 +34,8 @@ const AlarmDispatchAction = ctx => {
       showAlarmGroup = () => {},
       showDetail = () => {},
       processPackage = [],
-      userType = ''
-    }
+      userType = '',
+    },
   } = ctx;
   const { i18n } = window;
 
@@ -46,7 +46,7 @@ const AlarmDispatchAction = ctx => {
 
   const userTypeMap = {
     main: i18n.t('负责人'),
-    follower: i18n.t('关注人')
+    follower: i18n.t('关注人'),
   };
 
   const getAlarmGroupNames = (id: number) => alarmGroupList.find(item => item.id === id)?.name || '';

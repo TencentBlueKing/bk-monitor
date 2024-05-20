@@ -44,8 +44,8 @@
     />
     <div>
       <div
-        class="collector-config-panel"
         v-if="filterTabList.length"
+        class="collector-config-panel"
       >
         <bk-tab
           class="panel-tab"
@@ -56,8 +56,8 @@
           <bk-tab-panel
             v-for="(item, index) in filterTabList"
             :key="index"
-            :name="index"
             :label="item.name"
+            :name="index"
           >
             <template slot="label">
               <div class="panel-tab-item">
@@ -78,15 +78,15 @@
           <li class="panel-tab-blank"></li>
         </ul> -->
         <ul
-          class="panel-content"
           v-if="activeTabItem.data"
+          class="panel-content"
         >
           <li
+            v-for="(num, key) in activeTabItem.data"
             class="panel-content-item"
             :class="{ 'active-num': key === panel.itemActive }"
-            v-for="(num, key) in activeTabItem.data"
-            @click="handleTabNumClick(key, num)"
             :key="key"
+            @click="handleTabNumClick(key, num)"
           >
             <span class="content-num">{{ num }}</span>
             <span class="content-desc">{{ tabItemMap[key] }}</span>
@@ -96,22 +96,22 @@
       <div class="collector-config-tool">
         <div class="tool-btn">
           <bk-button
+            style="margin-right: 8px"
+            class="mc-btn-add"
             v-authority="{ active: !authority.MANAGE_AUTH }"
             theme="primary"
             @click="authority.MANAGE_AUTH ? handleShowAdd('add') : handleShowAuthorityDetail()"
-            class="mc-btn-add"
-            style="margin-right: 8px"
           >
-            <span class="icon-monitor icon-plus-line mr-6"></span>
+            <span class="icon-monitor icon-plus-line mr-6" />
             {{ $t('新建') }}
           </bk-button>
           <!-- <bk-button theme="default" @click="handleToLogCollection"> {{ $t('日志采集') }} </bk-button> -->
         </div>
         <bk-input
-          :placeholder="$t('采集配置名称/ID')"
-          right-icon="bk-icon icon-search"
           class="tool-search"
           v-model="panel.keyword"
+          :placeholder="$t('采集配置名称/ID')"
+          right-icon="bk-icon icon-search"
           @change="handleSearch"
         />
       </div>
@@ -121,14 +121,14 @@
       >
         <div class="table-wrap">
           <bk-table
-            class="config-table"
             ref="table"
-            @row-mouse-enter="i => (table.hoverIndex = i)"
-            @row-mouse-leave="i => (table.hoverIndex = -1)"
             :row-style="handleStoppedRow"
-            @sort-change="handleSortChange"
+            class="config-table"
             :data="table.data"
             :size="table.size"
+            @row-mouse-enter="i => (table.hoverIndex = i)"
+            @row-mouse-leave="i => (table.hoverIndex = -1)"
+            @sort-change="handleSortChange"
           >
             <div slot="empty">
               <empty-status
@@ -140,11 +140,11 @@
               v-for="column of selectedColumns"
               :key="column.prop"
               :label="column.label"
+              :min-width="column.minWidth"
               :prop="column.prop"
+              :show-overflow-tooltip="column.tooltip"
               :sortable="column.sortable"
               :width="column.width"
-              :min-width="column.minWidth"
-              :show-overflow-tooltip="column.tooltip"
             >
               <template slot-scope="scope">
                 <template v-if="column.prop === 'id'">
@@ -153,10 +153,12 @@
                 <template v-else-if="column.prop === 'name'">
                   <div class="col-name">
                     <span
-                      class="col-name-desc"
                       v-if="scope.$index !== table.editIndex"
+                      class="col-name-desc"
                       @click.stop="handleShowDetail(scope.row)"
-                    >{{ scope.row.name }}</span>
+                    >
+                      {{ scope.row.name }}
+                    </span>
                     <span
                       v-if="scope.row.needUpdate && scope.$index !== table.editIndex && scope.row.status !== 'STOPPED'"
                       v-en-style="'flex: 0 0 50px'"
@@ -169,28 +171,30 @@
                 </template>
                 <template v-else-if="column.prop === 'status'">
                   <span
+                    :style="{ color: ['PREPARING', 'STOPPED'].includes(scope.row.status) ? '#C4C6CC' : '#63656E' }"
                     class="col-status"
                     :class="'status-' + scope.row.status"
-                    :style="{ color: ['PREPARING', 'STOPPED'].includes(scope.row.status) ? '#C4C6CC' : '#63656E' }"
                   >
                     <img
-                      src="../../static/images/svg/spinner.svg"
                       v-if="scope.row.doingStatus"
                       class="status-loading"
-                      alt=''
-                    >
+                      alt=""
+                      src="../../static/images/svg/spinner.svg"
+                    />
                     <div
                       v-if="['FAILED', 'WARNING', 'SUCCESS', 'STOPPED'].includes(scope.row.taskStatus)"
-                      class="col-status-circle"
                       :style="{
                         backgroundColor: startedBack[scope.row.taskStatus],
-                        borderColor: startedBorder[scope.row.taskStatus]
+                        borderColor: startedBorder[scope.row.taskStatus],
                       }"
+                      class="col-status-circle"
                     />
                     <span
                       :class="{ 'pointer-active': !['PREPARING', 'STOPPED'].includes(scope.row.status) }"
                       @click="!['PREPARING', 'STOPPED'].includes(scope.row.status) && handleCheckStatus(scope.row)"
-                    >{{ scope.row.statusName }}</span>
+                    >
+                      {{ scope.row.statusName }}
+                    </span>
                   </span>
                 </template>
                 <template v-else-if="column.prop === 'targetString'">
@@ -219,10 +223,10 @@
                 <div class="col-operator">
                   <span
                     v-if="scope.row.bizId === bizId"
-                    v-authority="{
-                      active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus)
-                    }"
                     class="col-operator-btn"
+                    v-authority="{
+                      active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
+                    }"
                     :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus }"
                     @click="
                       authority.MANAGE_AUTH || scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus
@@ -233,40 +237,42 @@
                     {{ $t('增删目标') }}
                   </span>
                   <span
-                    v-authority="{
-                      active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus)
-                    }"
                     class="col-operator-btn"
+                    v-authority="{
+                      active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
+                    }"
                     :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' }"
                     @click="scope.row.taskStatus !== 'STOPPED' && handleCheckView(scope.row)"
                   >
                     {{ $t('可视化') }}
                     <span
-                      style="min-width: 23px; color: #ea3636"
                       :style="!!scope.row.errorNum ? 'visibility: visible;' : 'visibility: hidden;'"
-                    >({{ scope.row.errorNum }})</span>
+                      style="min-width: 23px; color: #ea3636"
+                    >
+                      ({{ scope.row.errorNum }})
+                    </span>
                   </span>
                   <span
                     v-if="scope.row.bizId === bizId"
                     class="col-operator-btn"
                     v-authority="{
-                      active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus)
+                      active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
-                    @click="scope.row.taskStatus !== 'STOPPED' && handleShowAdd('edit', scope.row)"
                     :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' }"
+                    @click="scope.row.taskStatus !== 'STOPPED' && handleShowAdd('edit', scope.row)"
                   >
                     {{ $t('编辑') }}
                   </span>
                   <span
                     v-if="scope.row.bizId === bizId"
-                    v-authority="{ active: !authority.MANAGE_AUTH && !scope.row.doingStatus }"
                     class="col-operator-more"
-                    data-popover="true"
-                    :ref="'operator-' + scope.$index"
+                    v-authority="{ active: !authority.MANAGE_AUTH && !scope.row.doingStatus }"
                     :class="{
                       'operator-active': popover.hover === scope.$index,
-                      'btn-disabled': scope.row.doingStatus
+                      'btn-disabled': scope.row.doingStatus,
                     }"
+                    :ref="'operator-' + scope.$index"
+                    data-popover="true"
                     @click="
                       authority.MANAGE_AUTH || scope.row.doingStatus
                         ? !scope.row.doingStatus && handleOperatorOver(scope.row, $event, scope.$index)
@@ -274,8 +280,8 @@
                     "
                   >
                     <i
-                      data-popover="true"
                       class="bk-icon icon-more"
+                      data-popover="true"
                     />
                   </span>
                 </div>
@@ -294,16 +300,16 @@
           <bk-pagination
             v-if="isShowPagination"
             class="config-pagination"
+            :count="pagination.total"
+            :current="pagination.page"
+            :limit="pagination.pageSize"
+            :limit-list="tableInstance.pageList"
             align="right"
             size="small"
             pagination-able
-            :current="pagination.page"
-            :limit="pagination.pageSize"
-            :count="pagination.total"
-            :limit-list="tableInstance.pageList"
+            show-total-count
             @change="handlePageChange"
             @limit-change="handleLimitChange"
-            show-total-count
           />
         </div>
       </div>
@@ -311,21 +317,21 @@
     <collector-config-detail
       :side-data="side.data"
       :side-show="side.show"
-      @update-name="handleChangeCollectName"
-      @edit-plugin="handleEditPlugin"
       @edit="handleToEdit"
+      @edit-plugin="handleEditPlugin"
       @set-hide="handleSideHidden"
+      @update-name="handleChangeCollectName"
     />
     <bk-dialog
+      width="850"
       v-model="dialog.update.show"
       :show-footer="false"
-      width="850"
     >
       <collector-config-update
         v-if="dialog.update.params"
         :update-params="dialog.update.params"
-        @on-submit="handleOpenUpgradePage"
         @close-update="handleCloseUpdate"
+        @on-submit="handleOpenUpgradePage"
       />
     </bk-dialog>
     <bk-dialog
@@ -341,17 +347,17 @@
         </div>
         <div class="dialog-del-footer">
           <bk-button
-            theme="primary"
+            style="margin-right: 10px"
             class="footer-btn"
             :loading="dialog.delete.loading"
+            theme="primary"
             @click="handleSubmitDelete"
-            style="margin-right: 10px"
           >
             {{ $t('确定') }}
           </bk-button>
           <bk-button
-            @click="dialog.delete.show = false"
             class="footer-btn"
+            @click="dialog.delete.show = false"
           >
             {{ $t('取消') }}
           </bk-button>
@@ -360,8 +366,8 @@
     </bk-dialog>
     <div v-show="false">
       <div
-        class="operator-group"
         ref="operatorGroup"
+        class="operator-group"
       >
         <span
           class="operator-group-btn"
@@ -372,7 +378,9 @@
         <span
           class="operator-group-btn"
           @click="handleOpenOrClose"
-        >{{ popover.status === 'STOPPED' ? $t('启用') : $t('停用') }}</span>
+        >
+          {{ popover.status === 'STOPPED' ? $t('启用') : $t('停用') }}
+        </span>
         <span
           class="operator-group-btn"
           @click="handleCloneConfig"
@@ -387,18 +395,18 @@
     />
   </div>
 </template>
-<script>
-import { createNamespacedHelpers } from 'vuex';
+<script lang="js">
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-// import { isCancel } from 'axios'
-import { debounce } from 'throttle-debounce';
-
 import {
   collectConfigList,
   deleteCollectConfig,
   // cloneCollectConfig,
-  fetchCollectConfigStat
-} from '../../../monitor-api/modules/collecting';
+  fetchCollectConfigStat,
+} from 'monitor-api/modules/collecting';
+// import { isCancel } from 'axios'
+import { debounce } from 'throttle-debounce';
+import { createNamespacedHelpers } from 'vuex';
+
 import introduce from '../../common/introduce';
 import { commonPageSizeMixin } from '../../common/mixins';
 import EmptyStatus from '../../components/empty-status/empty-status.tsx';
@@ -406,11 +414,10 @@ import GuidePage from '../../components/guide-page/guide-page';
 import pageTips from '../../components/pageTips/pageTips';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_ADD_DATA, SET_ADD_MODE, SET_OBJECT_TYPE } from '../../store/modules/collector-config';
-
+import * as collectAuth from './authority-map';
 import CollectorConfigDetail from './collector-config-detail/collector-config-detail';
 import CollectorConfigUpdate from './collector-config-update/collector-config-update';
 import DeleteCollector from './collector-dialog-delete/collector-dialog-delete';
-import * as collectAuth from './authority-map';
 import TableStore from './store.ts';
 
 const { mapMutations } = createNamespacedHelpers('collector-config');
@@ -422,14 +429,57 @@ export default {
     DeleteCollector,
     pageTips,
     EmptyStatus,
-    GuidePage
+    GuidePage,
   },
   mixins: [commonPageSizeMixin, authorityMixinCreate(collectAuth)],
   provide() {
     return {
       authority: this.authority,
-      handleShowAuthorityDetail: this.handleShowAuthorityDetail
+      handleShowAuthorityDetail: this.handleShowAuthorityDetail,
     };
+  },
+  beforeRouteEnter(to, from, next) {
+    next(vm => {
+      if (vm.showGuidePage) {
+        vm.loading = false;
+        return;
+      }
+      if (
+        ![
+          'collect-config-view',
+          'collect-config-add',
+          'collect-config-edit',
+          'collect-config-node',
+          'collect-config-update',
+          'collect-config-operate-detail',
+        ].includes(from.name)
+      ) {
+        vm.panel.keyword = '';
+        vm.panel.active = 0;
+        vm.panel.itemActive = '';
+      }
+      if (to.query.id) {
+        vm.panel.keyword = `ID：${to.query.id}`;
+      }
+      if (vm.filterEnterRouter.includes(from.name)) {
+        if (to.params.serviceCategory) {
+          vm.panel.keyword = vm.$t('分类') + to.params.serviceCategory;
+        } else if (to.params.pluginId) {
+          vm.panel.keyword = vm.$t('插件ID:') + to.params.pluginId;
+        }
+        if (vm.tableInstance) {
+          vm.tableInstance.keyword = vm.panel.keword;
+        }
+      }
+      if (!vm.loading) {
+        vm.initPageData();
+      }
+    });
+  },
+  beforeRouteLeave(to, from, next) {
+    typeof this.cancelFetch === 'function' && this.cancelFetch();
+    this.side.show = false;
+    next();
   },
   data() {
     return {
@@ -439,10 +489,10 @@ export default {
         active: 0,
         itemActive: '',
         keyword: '',
-        handleSearch() {}
+        handleSearch() {},
       },
       topology: {
-        show: false
+        show: false,
       },
       table: {
         data: [],
@@ -458,50 +508,50 @@ export default {
           { label: this.$tc('运行状态'), prop: 'status', show: true, width: 140 },
           { label: this.$tc('对象'), prop: 'objectLabel', show: true, minWidth: 150 },
           { label: this.$tc('目标'), prop: 'targetString', show: true, minWidth: 180, tooltip: true },
-          { label: this.$tc('更新记录'), prop: 'updateUser', show: true, width: 180, tooltip: true }
+          { label: this.$tc('更新记录'), prop: 'updateUser', show: true, width: 180, tooltip: true },
         ],
-        size: 'small'
+        size: 'small',
       },
       popover: {
         instance: null,
         hover: -1,
         edit: false,
         status: '',
-        data: {}
+        data: {},
       },
       view: {
-        show: false
+        show: false,
       },
       addAndDel: {
-        show: false
+        show: false,
       },
       dialog: {
         delete: {
           show: false,
-          loading: false
+          loading: false,
         },
         update: {
           show: false,
           params: null,
-          data: null
-        }
+          data: null,
+        },
       },
       side: {
         pluginId: '',
         show: false,
-        data: null
+        data: null,
       },
       headTitle: null,
       headBack: null,
       add: {
         show: false,
         mode: 'add',
-        data: {}
+        data: {},
       },
       stopStart: {
         show: false,
         type: 'STOPPED',
-        upgradeParams: {}
+        upgradeParams: {},
       },
       lisenResize: null,
       timer: null,
@@ -509,13 +559,13 @@ export default {
         SUCCESS: '#94F5A4',
         WARNING: '#FFD695',
         FAILED: '#FD9C9C',
-        STOPPED: '#F0F1F5'
+        STOPPED: '#F0F1F5',
       },
       startedBorder: {
         SUCCESS: '#2DCB56',
         WARNING: '#FF9C01',
         FAILED: '#EA3636',
-        STOPPED: '#C4C6CC'
+        STOPPED: '#C4C6CC',
       },
       isLeave: false,
       filterEnterRouter: [
@@ -524,26 +574,26 @@ export default {
         'plugin-edit',
         'export-configuration',
         'custom-scenes',
-        'custom-scenes-view'
+        'custom-scenes-view',
       ],
       cancelFetch: null,
       delDialogShow: false,
       collectorTaskData: {
         status: 'STARTED',
-        id: ''
+        id: '',
       },
       // 表格分页数据
       pagination: {
         page: 1,
         pageSize: +localStorage.getItem('__common_page_size__') || 10,
-        total: 0
+        total: 0,
       },
       // 头部筛选卡片数据
       filterTabList: [],
       // 页面出现loading延时
       delayLoading: false,
       // 空状态
-      emptyType: 'empty'
+      emptyType: 'empty',
     };
   },
   computed: {
@@ -630,7 +680,7 @@ export default {
     // 是否显示引导页
     showGuidePage() {
       return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
-    }
+    },
   },
   watch: {
     delDialogShow(bool) {
@@ -640,7 +690,7 @@ export default {
     },
     loading(val) {
       setTimeout(() => (this.delayLoading = val ? this.loading : false), 200);
-    }
+    },
   },
   created() {
     this.handleSearch = debounce(300, this.handleKeywordChange);
@@ -656,49 +706,6 @@ export default {
     this.isLeave = true;
     this.timer && window.clearTimeout(this.timer);
     this.timer = 0;
-  },
-  beforeRouteEnter(to, from, next) {
-    next((vm) => {
-      if (vm.showGuidePage) {
-        vm.loading = false;
-        return;
-      }
-      if (
-        ![
-          'collect-config-view',
-          'collect-config-add',
-          'collect-config-edit',
-          'collect-config-node',
-          'collect-config-update',
-          'collect-config-operate-detail'
-        ].includes(from.name)
-      ) {
-        vm.panel.keyword = '';
-        vm.panel.active = 0;
-        vm.panel.itemActive = '';
-      }
-      if (to.query.id) {
-        vm.panel.keyword = `ID：${to.query.id}`;
-      }
-      if (vm.filterEnterRouter.includes(from.name)) {
-        if (to.params.serviceCategory) {
-          vm.panel.keyword = vm.$t('分类') + to.params.serviceCategory;
-        } else if (to.params.pluginId) {
-          vm.panel.keyword = vm.$t('插件ID:') + to.params.pluginId;
-        }
-        if (vm.tableInstance) {
-          vm.tableInstance.keyword = vm.panel.keword;
-        }
-      }
-      if (!vm.loading) {
-        vm.initPageData();
-      }
-    });
-  },
-  beforeRouteLeave(to, from, next) {
-    typeof this.cancelFetch === 'function' && this.cancelFetch();
-    this.side.show = false;
-    next();
   },
   mounted() {
     this.$refs.tableWrapper && addListener(this.$refs.tableWrapper, this.lisenResize);
@@ -724,7 +731,7 @@ export default {
         /** 统计数据 */
         this.fetchCollectConfigStat(),
         /** 当前分页数据 */
-        this.getCollectionConfigListProxy()
+        this.getCollectionConfigListProxy(),
       ];
       this.loading = true;
       Promise.all(promiseList).finally(() => {
@@ -752,7 +759,7 @@ export default {
      * @description: 获取采集列表头部过滤筛选操作栏的统计信息
      */
     fetchCollectConfigStat() {
-      return fetchCollectConfigStat().then((res) => {
+      return fetchCollectConfigStat().then(res => {
         this.filterTabList = [];
         this.filterTabList = this.getFilterTabList(res);
       });
@@ -768,7 +775,7 @@ export default {
       const params = {
         search: this.getSearchOfParams,
         page: this.pagination.page,
-        limit: this.pagination.pageSize
+        limit: this.pagination.pageSize,
       };
       this.emptyType = this.getSearchOfParams?.fuzzy ? 'search-empty' : 'empty';
       needLoading && (this.loading = true);
@@ -783,16 +790,16 @@ export default {
           bk_biz_id: this.bizId,
           refresh_status: status,
           order: '-create_time',
-          ...params
+          ...params,
         },
         {
           needRes: true,
           needMessage: false,
           needCancel: true,
-          cancelFn: c => (this.cancelFetch = c.bind(this, 'cancelFetch'))
+          cancelFn: c => (this.cancelFetch = c.bind(this, 'cancelFetch')),
         }
       )
-        .then((res) => {
+        .then(res => {
           const data = res.data || { config_list: [], total: 0, type_list: [] };
           this.pagination.total = data.total;
           this.tableInstance = new TableStore(data, this.$store.getters.bizList);
@@ -805,7 +812,7 @@ export default {
           }
           return data;
         })
-        .catch((err) => {
+        .catch(err => {
           console.error(err);
           this.emptyType = '500';
         })
@@ -822,20 +829,20 @@ export default {
             startedNum: 0,
             stoppedNum: 0,
             errTargetNum: 0,
-            needUpdateNum: 0
+            needUpdateNum: 0,
           },
           total: 0,
           key: 'All',
-          name: this.$t('全部')
-        }
+          name: this.$t('全部'),
+        },
       ];
       const itemOfAll = tabData.find(item => item.key === 'All');
-      typeList.forEach((item) => {
+      typeList.forEach(item => {
         const {
           STARTED: startedNum = 0, // 已启用
           STOPPED: stoppedNum = 0, // 已停用
           WARNING: errTargetNum = 0, // 异常
-          need_upgrade: needUpdateNum = 0 // 待升级
+          need_upgrade: needUpdateNum = 0, // 待升级
         } = item.nums;
         if (item.id !== 'log' && item.id !== 'Built-In') {
           const tabItem = {
@@ -843,11 +850,11 @@ export default {
               startedNum,
               stoppedNum,
               errTargetNum,
-              needUpdateNum
+              needUpdateNum,
             },
             total: startedNum + stoppedNum,
             key: item.id,
-            name: item.name
+            name: item.name,
           };
           itemOfAll.data.startedNum += startedNum;
           itemOfAll.data.stoppedNum += stoppedNum;
@@ -864,12 +871,11 @@ export default {
       const textMap = {
         TOPO: '{0}个拓扑节点',
         SERVICE_TEMPLATE: '{0}个服务模板',
-        SET_TEMPLATE: '{0}个集群模板'
+        SET_TEMPLATE: '{0}个集群模板',
       };
-      tableData.forEach((item) => {
+      tableData.forEach(item => {
         if (item.objectTypeEn === 'HOST') {
           if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO'].includes(item.nodeType)) {
-            // eslint-disable-next-line vue/max-len
             item.targetString = `${this.$t(textMap[item.nodeType], [item.targetNodesCount])} （${this.$t(
               '共{0}台主机',
               [item.totalInstanceCount]
@@ -879,7 +885,6 @@ export default {
           }
         } else if (item.objectTypeEn === 'SERVICE') {
           if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO'].includes(item.nodeType)) {
-            // eslint-disable-next-line vue/max-len
             item.targetString = `${this.$t(textMap[item.nodeType], [item.targetNodesCount])} （${this.$t(
               '共{0}个实例',
               [item.totalInstanceCount]
@@ -901,7 +906,7 @@ export default {
       this.pagination.page = 1;
       const tempIndex = this.panel.active;
       const tempPage = this.pagination.page;
-      this.getCollectionConfigList(false, true).catch((err) => {
+      this.getCollectionConfigList(false, true).catch(err => {
         this.panel.active = tempIndex;
         this.pagination.page = tempPage;
         console.log(err);
@@ -939,7 +944,7 @@ export default {
             this.popover.instance.destroy();
             this.popover.hover = -1;
             this.popover.instance = null;
-          }
+          },
         });
       } else {
         this.popover.instance.reference = e.target;
@@ -960,17 +965,17 @@ export default {
           'div',
           {
             class: {
-              'dialog-delete-content': true
+              'dialog-delete-content': true,
             },
             on: {
               click: () => {
                 this.handleConfigUpdate(data);
                 deleteInfoInstance.close();
-              }
-            }
+              },
+            },
           },
           this.$t('前去升级配置')
-        )
+        ),
       });
     },
     handleUpdateTarget(data) {
@@ -983,8 +988,8 @@ export default {
       this.$router.push({
         name: 'collect-config-node',
         params: {
-          id: data.id
-        }
+          id: data.id,
+        },
       });
     },
     handleCheckView(data) {
@@ -992,15 +997,15 @@ export default {
         name: 'collect-config-view',
         params: {
           id: data.id,
-          title: data.name
+          title: data.name,
         },
         query: {
           name: data.name,
           customQuery: JSON.stringify({
             pluginId: data.updateParams.pluginId,
-            bizId: data.bizId
-          })
-        }
+            bizId: data.bizId,
+          }),
+        },
       });
     },
     handleConfigUpdate(data) {
@@ -1010,7 +1015,7 @@ export default {
           message: this.$t('正在执行中的配置暂不能升级'),
           theme: 'warning',
           offsetY: 80,
-          position: 'bottom-left'
+          position: 'bottom-left',
         });
       } else {
         const { update } = this.dialog;
@@ -1025,8 +1030,8 @@ export default {
       this.$router.push({
         name: 'collect-config-detail',
         params: {
-          id
-        }
+          id,
+        },
       });
     },
     handleChangeCollectName(id, name) {
@@ -1054,7 +1059,7 @@ export default {
       }
       this.$router.push({
         name: mode === 'edit' ? 'collect-config-edit' : 'collect-config-add',
-        params
+        params,
       });
     },
     handleTargetChange() {
@@ -1067,7 +1072,7 @@ export default {
     handlePageChange(page) {
       const temp = this.pagination.page;
       this.pagination.page = page;
-      this.getCollectionConfigList(false, true).catch((err) => {
+      this.getCollectionConfigList(false, true).catch(err => {
         if (err.message !== 'cancelFetch') {
           this.pagination.page = temp;
         }
@@ -1099,7 +1104,7 @@ export default {
       this.pagination.page = 1;
       const tempIndex = this.panel.active;
       const tempPage = this.pagination.page;
-      this.getCollectionConfigList(false, true).catch((err) => {
+      this.getCollectionConfigList(false, true).catch(err => {
         this.panel.active = tempIndex;
         this.pagination.page = tempPage;
         console.log(err);
@@ -1168,15 +1173,15 @@ export default {
         name: 'collect-config-clone',
         params: {
           id: this.popover.data.id,
-          pluginId: this.popover.data.updateParams.pluginId
-        }
+          pluginId: this.popover.data.updateParams.pluginId,
+        },
       });
     },
     handleSubmitDelete() {
       const deleteData = this.dialog.delete;
       deleteData.loading = true;
       deleteCollectConfig({
-        id: this.popover.data.id
+        id: this.popover.data.id,
       })
         .then(() => {
           this.tableInstance.deleteDataById(this.popover.data.id);
@@ -1187,7 +1192,7 @@ export default {
           this.handleTableDataChange(this.table.data);
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('删除成功')
+            message: this.$t('删除成功'),
           });
         })
         .finally(() => {
@@ -1202,8 +1207,8 @@ export default {
         name: 'collect-config-update',
         params: {
           data,
-          stopStart: this.stopStart
-        }
+          stopStart: this.stopStart,
+        },
       });
     },
     handleOpenUpgradePage(params) {
@@ -1216,8 +1221,8 @@ export default {
         params: {
           data: this.dialog.update.data,
           stopStart: this.stopStart,
-          id: this.dialog.update.data.id
-        }
+          id: this.dialog.update.data.id,
+        },
       });
     },
     handleCheckStatus(row) {
@@ -1227,8 +1232,8 @@ export default {
           params: {
             id: row.id,
             title: row.name,
-            taskStatus: row.taskStatus
-          }
+            taskStatus: row.taskStatus,
+          },
         });
       }
     },
@@ -1236,13 +1241,13 @@ export default {
       if (row.taskStatus === 'STOPPED') {
         return {
           background: '#FAFBFD',
-          color: '#C4C6CC'
+          color: '#C4C6CC',
         };
       }
     },
     handleToEdit(id) {
       this.side.show = false;
-      this.table.data.forEach((item) => {
+      this.table.data.forEach(item => {
         if (item.id === id) {
           this.popover.data = item;
         }
@@ -1255,8 +1260,8 @@ export default {
         name: 'plugin-edit',
         params: {
           title: `${this.$t('编辑插件')} ${data.plugin_id}`,
-          pluginId: data.plugin_id
-        }
+          pluginId: data.plugin_id,
+        },
       });
     },
     handleToLogCollection() {
@@ -1291,17 +1296,14 @@ export default {
      */
     handleSettingChange({ fields, size }) {
       this.table.size = size;
-      this.table.columns.forEach((column) => {
+      this.table.columns.forEach(column => {
         column.show = fields.some(item => item.prop === column.prop);
       });
-    }
-  }
+    },
+  },
 };
 </script>
-<style
-  lang="scss"
-  scoped
->
+<style lang="scss" scoped>
 .mr-6 {
   margin-right: 6px;
 }
@@ -1523,7 +1525,7 @@ export default {
 
             span {
               *font-size: 10px;
-              transform: scale(.83, .83);
+              transform: scale(0.83, 0.83);
             }
           }
 

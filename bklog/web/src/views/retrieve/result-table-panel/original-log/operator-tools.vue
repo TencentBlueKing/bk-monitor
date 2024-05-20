@@ -21,99 +21,137 @@
   -->
 
 <template>
-  <div
-    :class="{ 'handle-content': true, 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }">
-    <span class="handle-card" v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }">
+  <div :class="{ 'handle-content': true, 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }">
+    <template v-if="!isUnionSearch">
       <span
-        :class="`icon log-icon icon-handle icon-time ${!isActiveLog && 'is-disable'}`"
-        @click.stop="handleCheckClick('realTimeLog', isActiveLog)">
+        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
+        class="handle-card"
+      >
+        <span
+          :class="`icon log-icon icon-handle icon-time ${!isActiveLog && 'is-disable'}`"
+          @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
+        >
+        </span>
       </span>
-    </span>
-    <span class="handle-card" v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }">
       <span
-        :class="`icon log-icon icon-handle icon-document ${!isActiveLog && 'is-disable'}`"
-        @click.stop="handleCheckClick('contextLog', isActiveLog)">
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
+        class="handle-card"
+      >
+        <span
+          :class="`icon log-icon icon-handle icon-document ${!isActiveLog && 'is-disable'}`"
+          @click.stop="handleCheckClick('contextLog', isActiveLog)"
+        >
+        </span>
       </span>
-    </span>
-    <span
-      v-if="isActiveWebConsole"
-      class="handle-card"
-      v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }">
       <span
-        :class="`icon icon-handle log-icon icon-teminal ${!isCanClickWebConsole && 'is-disable'}`"
-        @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"></span>
-    </span>
-    <div v-show="false">
-      <div id="realTimeLog-html">
-        <span>
-          <span v-if="!isActiveLog" class="bk-icon icon-exclamation-circle-shape"></span>
-          <span>{{toolMessage.realTimeLog}}</span>
-          <!-- <i18n path="请前往 {0}">
-            <span class="clean-str">{{$t('清洗')}}</span>
-          </i18n>
-          <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
-        </span>
+        v-if="isActiveWebConsole"
+        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
+        class="handle-card"
+      >
+        <span
+          :class="`icon icon-handle log-icon icon-teminal ${!isCanClickWebConsole && 'is-disable'}`"
+          @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
+        ></span>
+      </span>
+      <div v-show="false">
+        <div id="realTimeLog-html">
+          <span>
+            <span
+              v-if="!isActiveLog"
+              class="bk-icon icon-exclamation-circle-shape"
+            ></span>
+            <span>{{ toolMessage.realTimeLog }}</span>
+            <!-- <i18n path="请前往 {0}">
+                  <span class="clean-str">{{$t('清洗')}}</span>
+                </i18n>
+              <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
+          </span>
+        </div>
       </div>
-    </div>
-    <div v-show="false">
-      <div id="webConsole-html">
-        <span>
-          <span v-if="!isCanClickWebConsole" class="bk-icon icon-exclamation-circle-shape"></span>
-          <span>{{toolMessage.webConsole}}</span>
-          <!-- <i18n path="请前往 {0}">
-            <span class="clean-str">{{$t('清洗')}}</span>
-          </i18n>
-          <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
-        </span>
+      <div v-show="false">
+        <div id="webConsole-html">
+          <span>
+            <span
+              v-if="!isCanClickWebConsole"
+              class="bk-icon icon-exclamation-circle-shape"
+            ></span>
+            <span>{{ toolMessage.webConsole }}</span>
+            <!-- <i18n path="请前往 {0}">
+              <span class="clean-str">{{$t('清洗')}}</span>
+            </i18n>
+            <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
+          </span>
+        </div>
       </div>
-    </div>
-    <div v-show="false">
-      <div id="contextLog-html">
-        <span>
-          <span v-if="!isActiveLog" class="bk-icon icon-exclamation-circle-shape"></span>
-          <span>{{toolMessage.contextLog}}</span>
-        <!-- <i18n path="请前往 {0}">
-          <span class="clean-str">{{$t('清洗')}}</span>
-        </i18n>
-        <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
-        </span>
+      <div v-show="false">
+        <div id="contextLog-html">
+          <span>
+            <span
+              v-if="!isActiveLog"
+              class="bk-icon icon-exclamation-circle-shape"
+            ></span>
+            <span>{{ toolMessage.contextLog }}</span>
+            <!-- <i18n path="请前往 {0}">
+                <span class="clean-str">{{$t('清洗')}}</span>
+              </i18n>
+              <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
+          </span>
+        </div>
       </div>
-    </div>
+    </template>
+    <template v-else>
+      <span
+        v-bk-tooltips="
+          $t('{0}日志来源', {
+            0: !isShowSourceField ? $t('显示') : $t('隐藏')
+          })
+        "
+        class="handle-card union-icon"
+        @click.stop="handleClick('logSource')"
+      >
+        <i :class="['bk-icon icon-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
+      </span>
+    </template>
   </div>
 </template>
 
 <script>
+import { mapGetters } from 'vuex';
 export default {
   props: {
     index: {
       type: Number,
-      default: 0,
+      default: 0
     },
     rowData: {
       type: Object,
-      required: true,
+      required: true
     },
     operatorConfig: {
       type: Object,
-      required: true,
+      required: true
     },
     logType: {
       type: String,
-      default: 'table',
+      default: 'table'
     },
-    handleClick: Function,
+    handleClick: Function
   },
   data() {
     return {
-      showAllHandle: false, // hove操作区域显示全部icon
+      showAllHandle: false // hove操作区域显示全部icon
     };
   },
   computed: {
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch'
+    }),
     isActiveLog() {
-      return this.operatorConfig?.contextAndRealtime.is_active;
+      return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
     },
     isActiveWebConsole() {
-      return this.operatorConfig?.bcsWebConsole.is_active;
+      return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
     },
     /** 判断webConsole是否能点击 */
     isCanClickWebConsole() {
@@ -123,7 +161,7 @@ export default {
       if (cluster && containerID) {
         queryData = {
           cluster,
-          container_id: containerID,
+          container_id: containerID
         };
       } else {
         if (!__ext) return false;
@@ -131,11 +169,11 @@ export default {
         queryData = { container_id: __ext.container_id };
         if (__ext.io_tencent_bcs_cluster) {
           Object.assign(queryData, {
-            cluster: __ext.io_tencent_bcs_cluster,
+            cluster: __ext.io_tencent_bcs_cluster
           });
         } else if (__ext.bk_bcs_cluster_id) {
           Object.assign(queryData, {
-            cluster: __ext.bk_bcs_cluster_id,
+            cluster: __ext.bk_bcs_cluster_id
           });
         }
       }
@@ -143,54 +181,67 @@ export default {
       return true;
     },
     toolMessage() {
-      return this.operatorConfig.toolMessage;
+      return (
+        this.operatorConfig?.toolMessage ?? {
+          realTimeLog: '',
+          webConsole: '',
+          contextLog: ''
+        }
+      );
     },
+    isShowSourceField() {
+      return this.operatorConfig?.isShowSourceField;
+    }
   },
   methods: {
     handleCheckClick(clickType, isActive = false) {
       if (!isActive) return;
       return this.handleClick(clickType);
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .handle-content {
-    display: flex;
-    position: absolute;
-    right: 0;
-    width: 84px;
-    padding: 14px 10px;
-    align-items: flex-start;
-    top: 0;
-    overflow: hidden;
-    justify-content: flex-end;
-  }
+.handle-content {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  width: 84px;
+  padding: 14px 10px;
+  overflow: hidden;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
 
-  .fix-content {
-    width: auto;
-    background-color: #f5f7fa;
-  }
+.fix-content {
+  width: auto;
+  background-color: #f5f7fa;
+}
 
-  .icon-exclamation-circle-shape {
-    color: #d7473f;
-  }
+.icon-exclamation-circle-shape {
+  color: #d7473f;
+}
 
-  .icon-more {
-    transform: translateY(2px) translateX(4px);
-  }
+.icon-more {
+  transform: translateY(2px) translateX(4px);
+}
 
-  .is-disable {
-    /* stylelint-disable-next-line declaration-no-important */
-    color: #eceef2 !important;
+.is-disable {
+  /* stylelint-disable-next-line declaration-no-important */
+  color: #eceef2 !important;
 
-    /* stylelint-disable-next-line declaration-no-important */
-    cursor: no-drop !important;
-  }
+  /* stylelint-disable-next-line declaration-no-important */
+  cursor: no-drop !important;
+}
 
-  .clean-str {
-    color: #3a84ff;
-    cursor: pointer;
-  }
+.clean-str {
+  color: #3a84ff;
+  cursor: pointer;
+}
+
+.union-icon {
+  margin-right: 8px;
+}
 </style>

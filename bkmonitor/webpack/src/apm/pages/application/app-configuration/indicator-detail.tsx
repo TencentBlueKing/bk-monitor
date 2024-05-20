@@ -27,10 +27,10 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { dimensionData, modifyMetric } from '../../../../monitor-api/modules/apm_meta';
+import { dimensionData, modifyMetric } from 'monitor-api/modules/apm_meta';
+
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import * as authorityMap from '../../home/authority-map';
-
 import { IDimensionItem, IMetricData, IUnitItme } from './type';
 
 interface IndicatorDetailProps {
@@ -60,7 +60,7 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
     data_source_label: '', // 来源
     result_table_label_name: '', // 数据对象
     tag_list: [], // 维度信息
-    tags: [] // 标签
+    tags: [], // 标签
   };
   hoverRowIndex = -1; // 当前修改的指标维度索引
   dimensionList: IDimensionItem[] = []; // 指标维度列表
@@ -90,13 +90,13 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
       application_id: this.appId,
       table_id: row.table_id,
       metric_id: row.field_name,
-      dimension_fields: row.tag_list.map(tag => tag.field_name)
+      dimension_fields: row.tag_list.map(tag => tag.field_name),
     };
     const data = await dimensionData(this.appId, params).catch(() => {});
     this.dimensionList = row.tag_list.map(item => ({
       ...item,
       count: data?.count[item.field_name] || 0,
-      data: data?.data[item.field_name] || '--'
+      data: data?.data[item.field_name] || '--',
     }));
     this.tableLoading = false;
   }
@@ -110,7 +110,7 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
     // 处理更新参数格式
     const dimensions = this.dimensionList.map(item => ({
       field: item.field_name,
-      description: item.field_name === row.field_name ? val : item.description
+      description: item.field_name === row.field_name ? val : item.description,
     }));
     return this.handleUpdateValue(dimensions, field);
   }
@@ -128,12 +128,11 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
         this.detailInfo.unit = value;
         break;
       case 'dimensions':
-        // eslint-disable-next-line no-case-declarations
         const dimensionObj = {};
         value.map(val => (dimensionObj[val.field] = val.description));
         this.dimensionList = this.dimensionList.map(item => ({
           ...item,
-          description: dimensionObj[item.field_name]
+          description: dimensionObj[item.field_name],
         }));
         break;
       default:
@@ -150,14 +149,14 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
       const { field_name: fieldName, metric_display_name: metricDisplayName, unit } = this.detailInfo;
       const dimensions = this.dimensionList.map(item => ({
         field: item.field_name,
-        description: item.description
+        description: item.description,
       }));
       const params = {
         application_id: this.appId,
         metric_id: fieldName,
         metric_description: metricDisplayName,
         metric_unit: unit,
-        dimensions
+        dimensions,
       };
       params[field] = value;
       await modifyMetric(this.appId, params);
@@ -173,32 +172,30 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
     const aliasNameSlot = {
       default: props => [
         <EditableFormItem
-          value={props.row.description}
-          showEditable={props.$index === this.hoverRowIndex}
-          showLabel={false}
           authority={this.authority.MANAGE_AUTH}
           authorityName={authorityMap.MANAGE_AUTH}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
+          showEditable={props.$index === this.hoverRowIndex}
+          showLabel={false}
           updateValue={val => this.handleDimensionChange(val, 'dimensions', props.row)}
-        />
-      ]
+          value={props.row.description}
+        />,
+      ],
     };
 
     return (
       <div class='indicator-detail-wrap'>
         <EditableFormItem
           label={this.$t('指标名')}
-          value={this.detailInfo.field_name}
           showEditable={false}
+          value={this.detailInfo.field_name}
         />
         <EditableFormItem
-          label={this.$t('指标别名')}
-          value={this.detailInfo.metric_display_name}
-          formType='input'
           authority={this.authority.MANAGE_AUTH}
           authorityName={authorityMap.MANAGE_AUTH}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
+          formType='input'
+          label={this.$t('指标别名')}
           updateValue={val => this.handleUpdateValue(val, 'metric_description')}
+          value={this.detailInfo.metric_display_name}
         />
         {/* <EditableFormItem
         label={this.$t('数值类型')}
@@ -206,18 +203,17 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
         showEditable={false} /> */}
         <EditableFormItem
           label={this.$t('指标类型')}
-          value={this.detailInfo.type}
           showEditable={false}
+          value={this.detailInfo.type}
         />
         <EditableFormItem
-          label={this.$t('单位')}
-          value={this.detailInfo.unit}
-          formType='unit'
-          unitList={this.unitList}
           authority={this.authority.MANAGE_AUTH}
           authorityName={authorityMap.MANAGE_AUTH}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
+          formType='unit'
+          label={this.$t('单位')}
+          unitList={this.unitList}
           updateValue={val => this.handleUpdateValue(val, 'metric_unit')}
+          value={this.detailInfo.unit}
         />
         {/* <EditableFormItem
         label="数据步长"
@@ -231,42 +227,42 @@ export default class IndicatorDetail extends tsc<IndicatorDetailProps, Indicator
         <div class='divider'></div>
         <EditableFormItem
           label={this.$t('来源')}
-          value={this.detailInfo.data_source_label}
           showEditable={false}
+          value={this.detailInfo.data_source_label}
         />
         <EditableFormItem
           label={this.$t('数据对象')}
-          value={this.detailInfo.result_table_label_name}
           showEditable={false}
+          value={this.detailInfo.result_table_label_name}
         />
         <EditableFormItem
           class='tag-form-item'
-          label={this.$t('标签')}
-          value={this.detailInfo.tags}
           formType='tag'
+          label={this.$t('标签')}
           showEditable={false}
+          value={this.detailInfo.tags}
         />
         <div class='divider'></div>
         <bk-table
-          outer-border={false}
-          data={this.dimensionList}
           v-bkloading={{ isLoading: this.tableLoading }}
+          data={this.dimensionList}
+          outer-border={false}
           on-row-mouse-enter={index => (this.hoverRowIndex = index)}
           on-row-mouse-leave={() => (this.hoverRowIndex = -1)}
         >
           <bk-table-column
-            label={this.$t('维度名')}
             width='120'
+            label={this.$t('维度名')}
             scopedSlots={{ default: props => props.row.field_name }}
           ></bk-table-column>
           <bk-table-column
-            label={this.$t('维度别名')}
             width='240'
+            label={this.$t('维度别名')}
             scopedSlots={aliasNameSlot}
           ></bk-table-column>
           <bk-table-column
-            label={this.$t('数量')}
             width='60'
+            label={this.$t('数量')}
             scopedSlots={{ default: props => props.row.count }}
           ></bk-table-column>
           <bk-table-column

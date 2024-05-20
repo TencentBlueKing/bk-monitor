@@ -54,7 +54,7 @@ export interface ISpanClassifyItem {
   name: string;
   icon: string;
   count: number;
-  filter_value: string | number;
+  filter_value: number | string;
   filter_key: string;
   color: string;
   app_name?: string;
@@ -87,7 +87,7 @@ export interface ITopoNode {
   collapsed: boolean;
   spans: string[];
   bgColor: string;
-  diff_info?: Record<string, IDiffInfo>
+  diff_info?: Record<string, IDiffInfo>;
 }
 
 export interface IDiffInfo {
@@ -163,10 +163,10 @@ export interface ISpanListItem {
 }
 
 export enum EListItemType {
-  tags = 'Tags',
   events = 'Events',
+  process = 'Process',
   stageTime = 'StageTime',
-  process = 'Process'
+  tags = 'Tags',
 }
 
 export interface ITagContent {
@@ -196,10 +196,10 @@ export interface IEventsItem {
 }
 
 export interface IStageTimeItemContent {
-  type: 'useTime' | 'gapTime';
+  type: 'gapTime' | 'useTime';
   useTime?: {
     tags: string[];
-    gap: { type: 'toRight' | 'toLeft'; value: string };
+    gap: { type: 'toLeft' | 'toRight'; value: string };
   };
   gapTime?: string;
 }
@@ -319,7 +319,23 @@ export interface ISpanDetail {
       processID: string;
     }[];
     processes: {
-      [key: string]: Object;
+      [key: string]: object;
     };
   };
+}
+
+export interface IQueryParams {
+  bk_biz_id?: number;
+  app_name?: string;
+  start?: number;
+  end?: number;
+  data_type?: string;
+  profile_id?: string;
+  diff_profile_id?: string;
+  offset?: number;
+  diagram_types?: string[];
+  sort?: string;
+  filter_labels?: Record<string, string>;
+  diff_filter_labels?: any;
+  is_compared?: boolean;
 }

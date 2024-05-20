@@ -30,6 +30,8 @@ class BCSClusterInfo(models.Model):
 
     CLUSTER_STATUS_RUNNING = "running"
     CLUSTER_STATUS_DELETED = "deleted"
+    CLUSTER_RAW_STATUS_RUNNING = "RUNNING"
+    CLUSTER_RAW_STATUS_DELETED = "DELETED"
 
     DEFAULT_SERVICE_MONITOR_DIMENSION_TERM = ["bk_monitor_name", "bk_monitor_namespace/bk_monitor_name"]
 
@@ -67,7 +69,7 @@ class BCSClusterInfo(models.Model):
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
     bk_cloud_id = models.IntegerField("云区域ID", default=None, null=True)
     project_id = models.CharField("项目ID", max_length=128)
-    status = models.CharField("集群状态", default=CLUSTER_STATUS_RUNNING, max_length=50)
+    status = models.CharField("集群状态", default=CLUSTER_RAW_STATUS_RUNNING, max_length=50)
 
     # 集群链接信息
     domain_name = models.CharField("集群链接域名", max_length=512)

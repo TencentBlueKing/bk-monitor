@@ -23,24 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
-/* eslint-disable @typescript-eslint/no-misused-promises */
+
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
-import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
-import { getEventPaths } from '../../../monitor-pc/utils';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { getEventPaths } from 'monitor-pc/utils';
+
 import debounceDecorator from '../../common/debounce-decorator';
 import EventModuleStore from '../../store/modules/event';
-
 import { FilterInputStatus, ICommonItem, SearchType } from './typings/event';
 
 import './filter-input.scss';
 
-type PanelType = 'history' | 'field' | 'favorite';
-type PanelShowType = false | 'method' | 'field' | 'condition' | 'value';
+type PanelType = 'favorite' | 'field' | 'history';
+type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
 interface IFocusData {
   show?: PanelShowType;
   replaceStart?: number;
@@ -58,7 +57,7 @@ interface IFilterInputProps {
   searchType?: SearchType;
   inputStatus?: FilterInputStatus;
   valueMap?: Record<string, ICommonItem[]>;
-  isFillId?: Boolean;
+  isFillId?: boolean;
 }
 interface IFilterInputEvent {
   onBlur: string;
@@ -122,7 +121,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   @Prop({ default: 'success', type: String }) inputStatus: FilterInputStatus;
   // top n数据列表 用于构造
   @Prop({ default: () => ({}), type: Object }) valueMap: Record<string, ICommonItem[]>;
-  @Prop({ default: false, type: Boolean }) isFillId: Boolean; // 选择候选值时填id还是填name
+  @Prop({ default: false, type: Boolean }) isFillId: boolean; // 选择候选值时填id还是填name
   @Ref('filterPanel') filterPanelRef: HTMLDivElement;
   @Ref('filterSearch') filterSearchRef: HTMLDivElement;
   @Ref('menuPanel') menuPanelRef: HTMLDivElement;
@@ -143,18 +142,18 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   methodList: IListItem[] = [
     {
       id: ':',
-      name: ':'
-    }
+      name: ':',
+    },
   ];
   conditionList: IListItem[] = [
     {
       id: 'AND',
-      name: 'AND'
+      name: 'AND',
     },
     {
       id: 'OR',
-      name: 'OR'
-    }
+      name: 'OR',
+    },
   ];
   focusData: IFocusData = {};
   isManualInput = false; // 是否手动输入
@@ -205,182 +204,182 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     this.alertFieldList = [
       {
         id: 'id',
-        name: this.$t('告警ID')
+        name: this.$t('告警ID'),
       },
       {
         id: 'alert_name',
-        name: this.$t('告警名称')
+        name: this.$t('告警名称'),
       },
       {
         id: 'status',
-        name: this.$t('状态')
+        name: this.$t('状态'),
       },
       {
         id: 'description',
-        name: this.$t('告警内容')
+        name: this.$t('告警内容'),
       },
       {
         id: 'severity',
-        name: this.$t('级别')
+        name: this.$t('级别'),
       },
       {
         id: 'metric',
-        name: this.$t('指标ID')
+        name: this.$t('指标ID'),
       },
       {
         id: 'ip',
-        name: this.$t('目标IP')
+        name: this.$t('目标IP'),
       },
       {
         id: 'ipv6',
-        name: this.$t('目标IPv6')
+        name: this.$t('目标IPv6'),
       },
       {
         id: 'bk_host_id',
-        name: this.$t('主机ID')
+        name: this.$t('主机ID'),
       },
       {
         id: 'bk_cloud_id',
-        name: this.$t('目标云区域ID')
+        name: this.$t('目标云区域ID'),
       },
       {
         id: 'bk_service_instance_id',
-        name: this.$t('目标服务实例ID')
+        name: this.$t('目标服务实例ID'),
       },
       {
         id: 'appointee',
-        name: this.$t('负责人')
+        name: this.$t('负责人'),
       },
       {
         id: 'assignee',
-        name: this.$t('通知人')
+        name: this.$t('通知人'),
       },
       {
         id: 'follower',
-        name: this.$t('关注人')
+        name: this.$t('关注人'),
       },
       {
         id: 'strategy_name',
-        name: this.$t('策略名称')
+        name: this.$t('策略名称'),
       },
       {
         id: 'strategy_id',
-        name: this.$t('策略ID')
+        name: this.$t('策略ID'),
       },
       {
         id: 'labels',
-        name: this.$t('策略标签')
+        name: this.$t('策略标签'),
       },
       {
         id: 'tags',
         name: this.$t('维度'),
-        special: true
+        special: true,
       },
       {
         id: 'action_id',
-        name: `${this.$t('处理记录')}ID`
+        name: `${this.$t('处理记录')}ID`,
       },
       {
         id: 'plugin_id',
-        name: this.$t('告警源')
-      }
+        name: this.$t('告警来源'),
+      },
     ];
     // 事件建议字段列表
     this.eventFieldList = [
       {
         id: 'id',
-        name: this.$t('全局事件ID')
+        name: this.$t('全局事件ID'),
       },
       {
         id: 'event_id',
-        name: this.$t('事件ID')
+        name: this.$t('事件ID'),
       },
       {
         id: 'plugin_id',
-        name: this.$t('插件ID')
+        name: this.$t('插件ID'),
       },
       {
         id: 'alert_name',
-        name: this.$t('告警名称')
+        name: this.$t('告警名称'),
       },
       {
         id: 'status',
-        name: this.$t('状态')
+        name: this.$t('状态'),
       },
       {
         id: 'description',
-        name: this.$t('描述')
+        name: this.$t('描述'),
       },
       {
         id: 'severity',
-        name: this.$t('级别')
+        name: this.$t('级别'),
       },
       {
         id: 'metric',
-        name: this.$t('指标ID')
+        name: this.$t('指标ID'),
       },
       {
         id: 'assignee',
-        name: this.$t('负责人')
+        name: this.$t('负责人'),
       },
       {
         id: 'strategy_name',
-        name: this.$t('策略名称')
+        name: this.$t('策略名称'),
       },
       {
         id: 'strategy_id',
-        name: this.$t('策略ID')
+        name: this.$t('策略ID'),
       },
       {
         id: 'target_type',
-        name: this.$t('目标类型')
+        name: this.$t('目标类型'),
       },
       {
         id: 'target',
-        name: this.$t('目标')
+        name: this.$t('目标'),
       },
       {
         id: 'category',
-        name: this.$t('分类')
-      }
+        name: this.$t('分类'),
+      },
     ];
     // 处理记录建议字段列表
     this.actionFieldList = [
       {
         id: 'id',
-        name: this.$t('处理记录ID')
+        name: this.$t('处理记录ID'),
       },
       {
         id: 'action_name',
-        name: this.$t('套餐名称')
+        name: this.$t('套餐名称'),
       },
       {
         id: 'action_config_id',
-        name: this.$t('套餐ID')
+        name: this.$t('套餐ID'),
       },
       {
         id: 'strategy_name',
-        name: this.$t('策略名称')
+        name: this.$t('策略名称'),
       },
       {
         id: 'alerts',
-        name: this.$t('关联告警')
+        name: this.$t('关联告警'),
       },
       {
         id: 'status',
-        name: this.$t('状态')
+        name: this.$t('状态'),
       },
       {
         id: 'bk_biz_name',
-        name: this.$t('业务名')
+        name: this.$t('业务名'),
       },
       {
         id: 'bk_biz_id',
-        name: this.$t('业务ID')
+        name: this.$t('业务ID'),
       },
       {
         id: 'operate_target_string',
-        name: this.$t('执行对象')
+        name: this.$t('执行对象'),
       },
       // {
       //   id: 'bk_target_display',
@@ -396,20 +395,20 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       // },
       {
         id: 'action_plugin_type',
-        name: this.$t('套餐类型')
+        name: this.$t('套餐类型'),
       },
       {
         id: 'operator',
-        name: this.$t('负责人')
+        name: this.$t('负责人'),
       },
       {
         id: 'create_time',
-        name: this.$t('开始时间')
+        name: this.$t('开始时间'),
       },
       {
         id: 'end_time',
-        name: this.$t('结束时间')
-      }
+        name: this.$t('结束时间'),
+      },
     ];
     this.isManualInput = false;
   }
@@ -457,7 +456,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         name: item.name,
         queryString: item.params.query_string,
         edit: false,
-        fakeName: item.name
+        fakeName: item.name,
       }));
   }
   /**
@@ -470,12 +469,12 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       search_type: this.searchType,
       name: this.inputValue,
       params: {
-        query_string: this.inputValue
-      }
+        query_string: this.inputValue,
+      },
     });
     this.$bkMessage({
       message: data ? this.$t('收藏成功') : this.$t('收藏失败'),
-      theme: data ? 'success' : 'error'
+      theme: data ? 'success' : 'error',
     });
     if (data) {
       this.favoriteList.push({
@@ -483,7 +482,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         name: data.name,
         fakeName: data.name,
         queryString: data.params?.query_string || '',
-        edit: false
+        edit: false,
       });
     }
   }
@@ -555,7 +554,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
                     show: dataType as PanelShowType,
                     replaceStart: item.endOffset + 1,
                     nextText: '',
-                    filedId
+                    filedId,
                   });
                   break;
                 }
@@ -564,14 +563,14 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
               resolve({
                 show: textTypeList[index % 4] as PanelShowType,
                 replaceStart: item.endOffset + 1,
-                nextText: ''
+                nextText: '',
               });
             }
           } else {
             resolve({
               show: 'field',
               replaceStart: 0,
-              nextText: ''
+              nextText: '',
             });
           }
         } else {
@@ -587,7 +586,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
                   show: filterItem.dataType as PanelShowType,
                   replaceStart: filterItem.startOffset,
                   nextText: filterItem.text,
-                  filedId
+                  filedId,
                 });
                 break;
               }
@@ -601,14 +600,14 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
               resolve({
                 show: filterItem.dataType as PanelShowType,
                 replaceStart: filterItem.startOffset,
-                nextText: filterItem.text
+                nextText: filterItem.text,
               });
             } else if (filterItem.dataType === 'field' && filterItem.fieldKey) {
               if (offset >= filterItem.fieldKey.startOffset && offset <= filterItem.fieldKey.endOffset) {
                 resolve({
                   show: 'field',
                   replaceStart: filterItem.startOffset,
-                  nextText: filterItem.text
+                  nextText: filterItem.text,
                 });
               } else if (
                 filterItem.fieldValue &&
@@ -619,7 +618,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
                   show: 'value',
                   replaceStart: filterItem.fieldValue.startOffset,
                   nextText: filterItem.fieldValue.text,
-                  filedId: filterItem.fieldKey.text
+                  filedId: filterItem.fieldKey.text,
                 });
               }
             }
@@ -627,7 +626,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           resolve({
             show: false,
             replaceStart: -1,
-            nextText: ''
+            nextText: '',
           });
         }
       }, 20);
@@ -649,7 +648,6 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           tlist
             .filter(t => t.length)
             .forEach((t, i) => {
-              // eslint-disable-next-line no-nested-ternary
               const dataType = hasCondition ? (i === 0 ? 'field' : i === 1 ? 'method' : 'value') : 'value';
               if (t) {
                 if (dataType === 'value' && textList[textList.length - 1].dataType === 'value') {
@@ -732,7 +730,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     if (this.popoverInstance?.state?.isShown) {
       this.panelWidth = this.filterSearchRef.getBoundingClientRect().width - 64;
       this.popoverInstance.set({
-        content: this.filterPanelRef
+        content: this.filterPanelRef,
       });
       this.popoverInstance.popperInstance?.update?.();
       this.popoverInstance.show?.(100);
@@ -758,14 +756,14 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         interactive: true,
         onShown: () => {
           typeof onShown === 'function' && onShown();
-        }
+        },
       });
     } else {
       this.popoverInstance.set({
         content: this.filterPanelRef,
         onShown: () => {
           typeof onShown === 'function' && onShown();
-        }
+        },
       });
     }
     this.popoverInstance?.popperInstance?.update?.();
@@ -795,11 +793,11 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           theme: 'light common-monitor',
           hideOnClick: false,
           interactive: true,
-          offset: `${offsetX}, ${offsetY}`
+          offset: `${offsetX}, ${offsetY}`,
         });
       } else {
         this.popoverMenuInstance.set({
-          offset: `${offsetX}, ${offsetY}`
+          offset: `${offsetX}, ${offsetY}`,
         });
       }
       this.popoverMenuInstance?.popperInstance?.update?.();
@@ -897,7 +895,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           id: 'favorite',
           fakeName: '',
           queryString: '',
-          edit: true
+          edit: true,
         });
       this.favoriteList.forEach(item => {
         if (!!item.name) {
@@ -963,7 +961,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     if (/(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(item.fakeName)) {
       this.$bkMessage({
         message: this.$t('不能输入emoji表情'),
-        theme: 'error'
+        theme: 'error',
       });
       e.preventDefault();
       e.stopPropagation();
@@ -975,7 +973,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         if (this.favoriteList.some(f => f.name === item.fakeName)) {
           this.$bkMessage({
             message: this.$t('名称重复'),
-            theme: 'error'
+            theme: 'error',
           });
           e.preventDefault();
           e.stopPropagation();
@@ -985,12 +983,12 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           search_type: this.searchType,
           name: item.fakeName,
           params: {
-            query_string: this.inputValue
-          }
+            query_string: this.inputValue,
+          },
         });
         this.$bkMessage({
           message: data ? this.$t('收藏成功') : this.$t('收藏失败'),
-          theme: data ? 'success' : 'error'
+          theme: data ? 'success' : 'error',
         });
         if (data) {
           this.favoriteList.unshift({
@@ -998,7 +996,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             name: data.name,
             fakeName: data.name,
             queryString: data.params?.query_string || '',
-            edit: false
+            edit: false,
           });
         }
         item.edit = !data;
@@ -1006,12 +1004,12 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         const data = await EventModuleStore.updateSearchFavorite({
           id: item.id,
           params: {
-            name: item.fakeName
-          }
+            name: item.fakeName,
+          },
         });
         this.$bkMessage({
           message: data ? this.$t('更新成功') : this.$t('更新失败'),
-          theme: data ? 'success' : 'error'
+          theme: data ? 'success' : 'error',
         });
         item.name = data ? item.fakeName : item.name;
         item.edit = !data;
@@ -1025,7 +1023,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     const data = await EventModuleStore.destroySearchFavorite(item.id);
     this.$bkMessage({
       message: data ? this.$t('删除成功') : this.$t('删除失败'),
-      theme: data ? 'success' : 'error'
+      theme: data ? 'success' : 'error',
     });
     if (data) {
       this.favoriteList.splice(index, 1);
@@ -1049,17 +1047,17 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       <ul class='panel-list'>
         {list.map((item, index) => (
           <li
-            onMousedown={e => !item.edit && this.handleSelectPanelItem(e, id, item)}
+            key={item.id}
             class={[
               'panel-list-item',
               {
                 'item-active':
                   id === 'field' &&
                   this.focusData.show === 'field' &&
-                  (item.id === this.focusData.nextText || item.name === this.focusData.nextText)
-              }
+                  (item.id === this.focusData.nextText || item.name === this.focusData.nextText),
+              },
             ]}
-            key={item.id}
+            onMousedown={e => !item.edit && this.handleSelectPanelItem(e, id, item)}
           >
             {!item.edit && <span>{item.name}</span>}
             {id === 'field' && !item.edit && !this.isEn && <span class='item-id'>({item.id})</span>}
@@ -1072,56 +1070,56 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
                 <i
                   class='icon-monitor icon-mc-close close-icon'
                   onMousedown={e => this.handleDeleteFavorite(e, item, index)}
-                />
+                />,
               ]}
             {id === 'favorite' &&
               item.edit && [
                 <bk-input
                   ref={`favorite-input-${item.id}`}
                   class='favorite-input'
-                  type='text'
                   v-model={item.fakeName}
                   placeholder={this.$t('输入收藏名称')}
+                  type='text'
                   on-blur={e => this.handleFavoriteInputBlur(e, item)}
                 />,
                 <i
                   class={[
                     'icon-monitor icon-mc-check-small check-icon',
-                    { 'is-diabled': !item?.fakeName?.trim?.().length }
+                    { 'is-diabled': !item?.fakeName?.trim?.().length },
                   ]}
                   /*  */
                   onMousedown={e => this.handleUpdateFavorite(e, item)}
-                />
+                />,
               ]}
           </li>
         ))}
       </ul>
     );
   }
-  panelEmptyComponent(content?: string | TranslateResult) {
+  panelEmptyComponent(content?: TranslateResult | string) {
     return <div class='panel-empty'>{content || this.$t('暂无数据')}</div>;
   }
   render() {
     return (
       <div
-        class='filter-input-wrap'
         ref='filterSearch'
+        class='filter-input-wrap'
       >
         <div
-          class='filter-search'
           style={{ borderColor: this.inputStatus === 'error' ? '#ff5656' : '#c4c6cc' }}
+          class='filter-search'
         >
           <i class='icon-monitor icon-filter-fill filter-icon' />
           <input
             ref='input'
             class='search-input'
-            spellcheck={false}
-            placeholder={String(this.$t('输入搜索条件'))}
-            onMousedown={this.handleInputFocus}
-            onInput={this.handleInput}
-            onBlur={this.handleBlur}
-            onKeydown={this.handleKeydown}
             v-model={this.inputValue}
+            placeholder={String(this.$t('输入搜索条件'))}
+            spellcheck={false}
+            onBlur={this.handleBlur}
+            onInput={this.handleInput}
+            onKeydown={this.handleKeydown}
+            onMousedown={this.handleInputFocus}
           ></input>
           <span
             ref='preText'
@@ -1130,8 +1128,8 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             {this.inputValue.slice(0, this.focusData.replaceStart)}
           </span>
           <i
-            class='icon-monitor icon-mc-close-fill filter-clear'
             style={{ display: this.inputValue?.trim().length ? 'flex' : 'none' }}
+            class='icon-monitor icon-mc-close-fill filter-clear'
             v-bk-tooltips={this.$t('清空搜索条件')}
             onMousedown={this.handleClear}
           />
@@ -1146,9 +1144,9 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         </span>
         <div style='display: none;'>
           <div
-            class='filter-input-panel'
             ref='filterPanel'
             style={{ width: `${this.panelWidth}px` }}
+            class='filter-input-panel'
           >
             <div class='field-panel common-panel'>
               <div class='panel-title'>{this.$t('建议字段')}</div>
@@ -1170,8 +1168,8 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         </div>
         <div style='display: none;'>
           <ul
-            class='condition-list'
             ref='menuPanel'
+            class='condition-list'
           >
             {this.menuList.length
               ? this.menuList.map(item => (
@@ -1180,8 +1178,8 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
                     class={[
                       'condition-list-item',
                       {
-                        'item-active': item.id === this.focusData.nextText || item.name === this.focusData.nextText
-                      }
+                        'item-active': item.id === this.focusData.nextText || item.name === this.focusData.nextText,
+                      },
                     ]}
                     onMousedown={e => this.handleSelectMenuItem(e, item)}
                   >

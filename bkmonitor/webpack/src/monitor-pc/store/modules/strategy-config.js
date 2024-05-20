@@ -25,8 +25,8 @@
  */
 import Vue from 'vue';
 
-import { getVariableValue } from '../../../monitor-api/modules/grafana';
-import { noticeGroupList } from '../../../monitor-api/modules/notice_group';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { noticeGroupList } from 'monitor-api/modules/notice_group';
 import {
   getDimensionValues,
   getIndexSetList,
@@ -38,8 +38,8 @@ import {
   getUnitInfo,
   getUnitList,
   noticeVariableList,
-  strategyConfig
-} from '../../../monitor-api/modules/strategies';
+  strategyConfig,
+} from 'monitor-api/modules/strategies';
 
 export const SET_LOADING = 'SET_LOADING';
 export const SET_LOG_LOADING = 'SET_LOG_LOADING';
@@ -67,16 +67,16 @@ const state = {
     YearRoundAmplitude: '同比振幅',
     RingRatioAmplitude: '环比振幅',
     YearRoundRange: '同比区间',
-    IntelligentDetect: '智能异常检测'
+    IntelligentDetect: '智能异常检测',
   },
   uptimeCheckMap: {
     available: 'Threshold',
     task_duration: 'Threshold',
     message: 'PartialNodes',
-    response_code: 'PartialNodes'
+    response_code: 'PartialNodes',
   },
   /* 用于策略配置无数据告警的维度选择（promql模式） */
-  dimensionsOfSeries: []
+  dimensionsOfSeries: [],
 };
 const mutations = {
   SET_LOADING(state, v) {
@@ -102,7 +102,7 @@ const mutations = {
   },
   [SET_DIMENSIONS_OF_SERIES](state, v) {
     state.dimensionsOfSeries = v;
-  }
+  },
 };
 const actions = {
   async getNoticeGroupList({ commit }) {
@@ -110,7 +110,7 @@ const actions = {
       const groupData = data.map(item => ({
         id: item.id,
         name: item.name,
-        receiver: item.notice_receiver.map(rec => rec.display_name)
+        receiver: item.notice_receiver.map(rec => rec.display_name),
       }));
       commit(SET_GROUP_LIST, groupData);
     });
@@ -122,19 +122,18 @@ const actions = {
         if (tips?.length) {
           Vue.prototype.$bkMessage({
             theme: 'warning',
-            message: tips
+            message: tips,
           });
         }
         commit(SET_DIMENSION_VALUE_MAP, {
           id: params.field,
-          data: Array.isArray(data) ? data : []
+          data: Array.isArray(data) ? data : [],
         });
       })
       .catch(() => []);
   },
   async getVariableValueList({ commit, rootGetters }, params) {
     if (params.params.data_source_label === 'custom' && params.params.data_type_label === 'event') {
-      // eslint-disable-next-line max-len
       params.params.result_table_id = `${params.bk_biz_id || rootGetters.bizId}_bkmonitor_event_${
         params.params.result_table_id
       }`;
@@ -146,14 +145,14 @@ const actions = {
         if (tips?.length) {
           Vue.prototype.$bkMessage({
             theme: 'warning',
-            message: tips
+            message: tips,
           });
         }
         const result = Array.isArray(data) ? data.map(item => ({ name: item.label, id: item.value })) : [];
         const { field } = params.params;
         commit(SET_DIMENSION_VALUE_MAP, {
           id: field,
-          data: result
+          data: result,
         });
       })
       .catch(() => []);
@@ -172,7 +171,7 @@ const actions = {
     const data = await getLogFields(params)
       .catch(() => ({
         dimension: [],
-        condition: []
+        condition: [],
       }))
       .finally(() => {
         commit(SET_LOG_LOADING, false);
@@ -202,7 +201,7 @@ const actions = {
   async getUnitData({ rootGetters }, { unitId }) {
     const data = await getUnitInfo({
       unit_id: unitId,
-      bk_biz_id: rootGetters.bizId
+      bk_biz_id: rootGetters.bizId,
     }).catch(() => ({}));
     return data;
   },
@@ -213,7 +212,7 @@ const actions = {
   async getStrategyConfigDetail(store, params) {
     const [targetDetail, strategyDetail] = await Promise.all([
       getTargetDetail({ strategy_ids: [params.id] }).catch(() => ({})),
-      getStrategyV2(params).catch(() => ({}))
+      getStrategyV2(params).catch(() => ({})),
     ]);
     const strategyTarget = targetDetail?.[params.id] || {};
     const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
@@ -226,9 +225,9 @@ const actions = {
     targetList.length && (targetList[0].instances_count = strategyTarget.instance_count || 0);
     return {
       ...strategyDetail,
-      targetDetail: { ...strategyTarget, detail: strategyTarget.target_detail, target_detail: targetList }
+      targetDetail: { ...strategyTarget, detail: strategyTarget.target_detail, target_detail: targetList },
     };
-  }
+  },
 };
 const getters = {
   groupList(state) {
@@ -254,12 +253,12 @@ const getters = {
   },
   uptimeCheckMap(state) {
     return state.uptimeCheckMap;
-  }
+  },
 };
 export default {
   namespaced: true,
   state,
   mutations,
   getters,
-  actions
+  actions,
 };

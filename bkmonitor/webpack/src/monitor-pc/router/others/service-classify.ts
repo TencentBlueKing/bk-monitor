@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
+
 import { RouteConfig } from 'vue-router';
 
 import * as serviceClassifyAuth from '../../pages/service-classify/authority-map';
@@ -36,18 +36,18 @@ export default [
     path: '/service-classify',
     name: 'service-classify',
     components: {
-      noCache: ServiceClassify
+      noCache: ServiceClassify,
     },
     meta: {
       title: '服务分类',
       navId: 'service-classify',
       authority: {
         map: serviceClassifyAuth,
-        page: serviceClassifyAuth.VIEW_AUTH
+        page: serviceClassifyAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'home'
-      }
-    }
-  }
+        parent: 'home',
+      },
+    },
+  },
 ] as RouteConfig[];

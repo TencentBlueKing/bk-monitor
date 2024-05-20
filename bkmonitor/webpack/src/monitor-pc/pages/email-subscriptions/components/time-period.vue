@@ -156,7 +156,7 @@ export default class TimePeriod extends Vue {
     }),
     type: Object
   })
-  value: ITimePeriodValue;
+    value: ITimePeriodValue;
 
   // 时间数据
   typeValue: EType = 2;

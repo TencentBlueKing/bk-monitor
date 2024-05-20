@@ -32,8 +32,8 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import MonitorDateRange from '../../../monitor-pc/components/monitor-date-range/monitor-date-range.vue';
-import DropDownMenu from '../../../monitor-pc/components/monitor-dropdown/dropdown-menu.vue';
+import MonitorDateRange from 'monitor-pc/components/monitor-date-range/monitor-date-range.vue';
+import DropDownMenu from 'monitor-pc/components/monitor-dropdown/dropdown-menu.vue';
 
 import './header-tools.scss';
 
@@ -46,7 +46,7 @@ interface IRefleshItem {
   id: number | string;
 }
 interface IHeadToolProps {
-  timeRange: number | string[] | string;
+  timeRange: number | string | string[];
   refleshInterval: number;
 }
 
@@ -57,7 +57,7 @@ interface IHeadToolEvent {
 }
 @Component
 export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
-  @Prop({ default: 1 * 60 * 60 * 1000, type: [Number, Array, String] }) timeRange: number | string[] | string;
+  @Prop({ default: 1 * 60 * 60 * 1000, type: [Number, Array, String] }) timeRange: number | string | string[];
   @Prop({ default: -1 }) refleshInterval: number;
   timerangeList: ITimeRangeItem[] = [];
   refleshList: IRefleshItem[] = [];
@@ -76,99 +76,99 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
     this.timerangeList = [
       {
         name: `${this.$t('近{n}分钟', { n: 5 })}`,
-        value: 5 * 60 * 1000
+        value: 5 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}分钟', { n: 15 })}`,
-        value: 15 * 60 * 1000
+        value: 15 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}分钟', { n: 30 })}`,
-        value: 30 * 60 * 1000
+        value: 30 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 1 })}`,
-        value: 1 * 60 * 60 * 1000
+        value: 1 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 3 })}`,
-        value: 3 * 60 * 60 * 1000
+        value: 3 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 6 })}`,
-        value: 6 * 60 * 60 * 1000
+        value: 6 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 12 })}`,
-        value: 12 * 60 * 60 * 1000
+        value: 12 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近{n}小时', { n: 24 })}`,
-        value: 24 * 60 * 60 * 1000
+        value: 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近 {n} 天', { n: 2 })}`,
-        value: 2 * 24 * 60 * 60 * 1000
+        value: 2 * 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近 {n} 天', { n: 7 })}`,
-        value: 7 * 24 * 60 * 60 * 1000
+        value: 7 * 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('近 {n} 天', { n: 30 })}`,
-        value: 30 * 24 * 60 * 60 * 1000
+        value: 30 * 24 * 60 * 60 * 1000,
       },
       {
         name: `${this.$t('今天')}`,
-        value: 'today'
+        value: 'today',
       },
       {
         name: `${this.$t('昨天')}`,
-        value: 'yesterday'
+        value: 'yesterday',
       },
       {
         name: `${this.$t('前天')}`,
-        value: 'beforeYesterday'
+        value: 'beforeYesterday',
       },
       {
         name: `${this.$t('本周')}`,
-        value: 'thisWeek'
-      }
+        value: 'thisWeek',
+      },
     ];
     this.refleshList = [
       // 刷新间隔列表
       {
         name: 'off',
-        id: -1
+        id: -1,
       },
       {
         name: '1m',
-        id: 60 * 1000
+        id: 60 * 1000,
       },
       {
         name: '5m',
-        id: 5 * 60 * 1000
+        id: 5 * 60 * 1000,
       },
       {
         name: '15m',
-        id: 15 * 60 * 1000
+        id: 15 * 60 * 1000,
       },
       {
         name: '30m',
-        id: 30 * 60 * 1000
+        id: 30 * 60 * 1000,
       },
       {
         name: '1h',
-        id: 60 * 60 * 1000
+        id: 60 * 60 * 1000,
       },
       {
         name: '2h',
-        id: 60 * 2 * 60 * 1000
+        id: 60 * 2 * 60 * 1000,
       },
       {
         name: '1d',
-        id: 60 * 24 * 60 * 1000
-      }
+        id: 60 * 24 * 60 * 1000,
+      },
     ];
   }
   @Emit('timeRangeChange')
@@ -187,23 +187,23 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
       <div class='header-tools'>
         <MonitorDateRange
           class='header-date'
-          icon='icon-mc-time-shift'
-          on-add-option={this.handleAddOption}
-          dropdown-width={100}
           v-model={this.timeRangeValue}
-          on-change={this.handleTimeRangeChange}
+          dropdown-width={100}
+          icon='icon-mc-time-shift'
           options={this.timerangeList}
           z-index={2500}
+          on-add-option={this.handleAddOption}
+          on-change={this.handleTimeRangeChange}
         />
         <DropDownMenu
-          icon={'icon-zidongshuaxin'}
           class='time-interval'
           v-model={this.refleshIntervalValue}
-          text-active={this.refleshInterval !== -1}
-          on-on-icon-click={() => this.$emit('immediateReflesh')}
-          on-change={this.handleRefleshChange}
+          icon={'icon-zidongshuaxin'}
           is-reflesh-interval={true}
           list={this.refleshList}
+          text-active={this.refleshInterval !== -1}
+          on-change={this.handleRefleshChange}
+          on-on-icon-click={() => this.$emit('immediateReflesh')}
         ></DropDownMenu>
       </div>
     );

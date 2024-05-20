@@ -22,45 +22,72 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: basicLoading }"
     ref="detailRef"
+    v-bkloading="{ isLoading: basicLoading }"
     :style="`padding-right: ${introWidth + 20}px;`"
-    class="custom-report-detail-container access-manage-container">
-    <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
+    class="custom-report-detail-container access-manage-container"
+  >
+    <auth-container-page
+      v-if="authPageInfo"
+      :info="authPageInfo"
+    ></auth-container-page>
     <template v-if="!authPageInfo && !basicLoading && reportDetail">
-      <basic-tab :active.sync="activePanel" type="border-card">
-        <bk-tab-panel v-for="panel in panels" v-bind="panel" :key="panel.name"></bk-tab-panel>
-        <div class="go-search" slot="setting">
+      <basic-tab
+        :active.sync="activePanel"
+        type="border-card"
+      >
+        <bk-tab-panel
+          v-for="panel in panels"
+          v-bind="panel"
+          :key="panel.name"
+        ></bk-tab-panel>
+        <div
+          slot="setting"
+          class="go-search"
+        >
           <div class="search-text">
             <span class="bk-icon icon-info"></span>
             <i18n path="数据采集好了，去 {0}">
-              <span class="search-button" @click="handleGoSearch">{{$t('查看数据')}}</span>
+              <span
+                class="search-button"
+                @click="handleGoSearch"
+                >{{ $t('查看数据') }}</span
+              >
             </i18n>
           </div>
         </div>
       </basic-tab>
       <keep-alive>
         <component
+          :is="dynamicComponent"
           class="tab-content"
           :collector-data="reportDetail"
           :index-set-id="reportDetail.index_set_id || ''"
-          :is="dynamicComponent"
-          @update-active-panel="activePanel = $event"></component>
+          :edit-auth="editAuth"
+          :edit-auth-data="editAuthData"
+          @update-active-panel="activePanel = $event"
+        ></component>
       </keep-alive>
     </template>
 
     <div
-      :class="['intro-container',isDraging && 'draging-move']"
-      :style="`width: ${ introWidth }px`">
-      <div :class="`drag-item ${!introWidth && 'hidden-drag'}`" :style="`right: ${introWidth - 18}px`">
+      :class="['intro-container', isDraging && 'draging-move']"
+      :style="`width: ${introWidth}px`"
+    >
+      <div
+        :class="`drag-item ${!introWidth && 'hidden-drag'}`"
+        :style="`right: ${introWidth - 18}px`"
+      >
         <span
           class="bk-icon icon-more"
-          @mousedown.left="dragBegin"></span>
+          @mousedown.left="dragBegin"
+        ></span>
       </div>
       <intro-panel
         :data="reportDetail"
         :is-open-window="isOpenWindow"
-        @handleActiveDetails="handleActiveDetails" />
+        @handleActiveDetails="handleActiveDetails"
+      />
     </div>
   </div>
 </template>
@@ -87,7 +114,7 @@ export default {
     UsageDetails,
     IntroPanel,
     BasicTab,
-    FieldInfo,
+    FieldInfo
   },
   mixins: [dragMixin],
   data() {
@@ -97,13 +124,15 @@ export default {
       reportDetail: {},
       activePanel: this.$route.query.type || 'basicInfo',
       isOpenWindow: true,
+      editAuth: false,
+      editAuthData: null,
       panels: [
         { name: 'basicInfo', label: this.$t('配置信息') },
         { name: 'dataStorage', label: this.$t('数据存储') },
         { name: 'fieldInfo', label: this.$t('字段信息') },
         { name: 'dataStatus', label: this.$t('数据状态') },
-        { name: 'usageDetails', label: this.$t('使用详情') },
-      ],
+        { name: 'usageDetails', label: this.$t('使用详情') }
+      ]
     };
   },
   computed: {
@@ -113,13 +142,14 @@ export default {
         dataStorage: 'DataStorage',
         fieldInfo: 'FieldInfo',
         dataStatus: 'DataStatus',
-        usageDetails: 'UsageDetails',
+        usageDetails: 'UsageDetails'
       };
       return componentMaP[this.activePanel] || 'BasicInfo';
-    },
+    }
   },
   created() {
     this.initPage();
+    this.getEditAuth();
   },
   mounted() {
     this.$nextTick(() => {
@@ -132,10 +162,12 @@ export default {
       try {
         const paramData = {
           action_ids: [authorityMap.VIEW_COLLECTION_AUTH],
-          resources: [{
-            type: 'collection',
-            id: this.$route.params.collectorId,
-          }],
+          resources: [
+            {
+              type: 'collection',
+              id: this.$route.params.collectorId
+            }
+          ]
         };
         const res = await this.$store.dispatch('checkAndGetData', paramData);
         if (res.isAllowed === false) {
@@ -145,8 +177,8 @@ export default {
           // 正常显示页面
           const { data: reportDetail } = await this.$http.request('collect/details', {
             params: {
-              collector_config_id: this.$route.params.collectorId,
-            },
+              collector_config_id: this.$route.params.collectorId
+            }
           });
           this.reportDetail = reportDetail;
           this.$store.commit('collect/setCurCollect', reportDetail);
@@ -165,55 +197,73 @@ export default {
       const params = {
         indexId: this.reportDetail.index_set_id
           ? this.reportDetail.index_set_id
-          : this.reportDetail.bkdata_index_set_ids[0],
+          : this.reportDetail.bkdata_index_set_ids[0]
       };
       this.$router.push({
         name: 'retrieve',
         params,
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
     },
-  },
+    async getEditAuth() {
+      try {
+        const paramData = {
+          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: this.$route.params.collectorId
+            }
+          ]
+        };
+        const res = await this.$store.dispatch('checkAndGetData', paramData);
+        if (!res.isAllowed) this.editAuthData = res.data;
+        this.editAuth = res.isAllowed;
+      } catch (error) {
+        this.editAuth = false;
+      }
+    }
+  }
 };
 </script>
 
 <style lang="scss">
-  .intro-container {
-    position: fixed;
-    top: 99px;
-    right: 0;
-    z-index: 999;
-    height: calc(100vh - 99px);
-    overflow: hidden;
+.intro-container {
+  position: fixed;
+  top: 99px;
+  right: 0;
+  z-index: 999;
+  height: calc(100vh - 99px);
+  overflow: hidden;
 
-    .drag-item {
-      width: 20px;
-      height: 40px;
-      display: inline-block;
-      color: #c4c6cc;
-      position: absolute;
-      z-index: 100;
-      right: 304px;
-      top: 48%;
-      user-select: none;
-      cursor: col-resize;
+  .drag-item {
+    position: absolute;
+    top: 48%;
+    right: 304px;
+    z-index: 100;
+    display: inline-block;
+    width: 20px;
+    height: 40px;
+    color: #c4c6cc;
+    cursor: col-resize;
+    user-select: none;
 
-      &.hidden-drag {
-        display: none;
-      }
-
-      .icon-more::after {
-        content: '\e189';
-        position: absolute;
-        left: 0;
-        top: 12px;
-      }
+    &.hidden-drag {
+      display: none;
     }
 
-    &.draging-move {
-      border-left-color: #3a84ff;
+    .icon-more::after {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      content: '\e189';
     }
   }
+
+  &.draging-move {
+    border-left-color: #3a84ff;
+  }
+}
 </style>

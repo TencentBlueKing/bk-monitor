@@ -26,7 +26,8 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+
 import CustomSelect from '../../../components/custom-select/custom-select';
 import { IOption, IWhere } from '../typings';
 import { IFilterVarList } from '../typings/filters';
@@ -83,7 +84,7 @@ export default class FilterVar extends tsc<IFilterVarProps, IFilterVarEvents> {
         name: varOption.name,
         options: [],
         value: varOption.value || [],
-        where: varOption.where
+        where: varOption.where,
       };
     });
     this.localValue = temp;
@@ -117,15 +118,15 @@ export default class FilterVar extends tsc<IFilterVarProps, IFilterVarEvents> {
       metric_field: 'usage',
       result_table_id: 'system.cpu_summary',
       data_source_label: 'bk_monitor',
-      data_type_label: 'time_series'
+      data_type_label: 'time_series',
     };
     const params = {
       params: {
         ...metric,
         field: groupBy,
-        where
+        where,
       },
-      type: 'dimension'
+      type: 'dimension',
     };
     return getVariableValue(params).then(data => data.map(item => ({ id: item.value, name: item.label })));
   }
@@ -148,10 +149,10 @@ export default class FilterVar extends tsc<IFilterVarProps, IFilterVarEvents> {
             <span class='filter-var-item-label'>{item.name}</span>
             <bk-select
               class='filter-var-item-select'
-              behavior='simplicity'
-              multiple
-              popover-width={100}
               vModel={item.value}
+              behavior='simplicity'
+              popover-width={100}
+              multiple
               onClear={this.handleVarChange}
               onSelected={this.handleVarChange}
             >

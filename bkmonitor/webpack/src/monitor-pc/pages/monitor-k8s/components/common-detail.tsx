@@ -26,29 +26,31 @@
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
-import { CancelToken } from '../../../../monitor-api/index';
-import { copyText, Debounce, random } from '../../../../monitor-common/utils/utils';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
-import { isShadowEqual } from '../../../../monitor-ui/chart-plugins/utils';
-import { VariablesService } from '../../../../monitor-ui/chart-plugins/utils/variable';
+import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
+import { CancelToken } from 'monitor-api/index';
+import { copyText, Debounce, random } from 'monitor-common/utils/utils';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
+
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { resize } from '../../../components/ip-selector/common/observer-directive';
 import MonitorResizeLayout, {
   ASIDE_COLLAPSE_HEIGHT,
   ASIDE_DEFAULT_HEIGHT,
-  IUpdateHeight
+  IUpdateHeight,
 } from '../../../components/resize-layout/resize-layout';
+import { TimeRangeType } from '../../../components/time-range/time-range';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils/index';
 import IndexList, { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 import { ITableItem } from '../typings';
 import { IDetailItem } from '../typings/common-detail';
-
 import Aipanel from './ai-panel/ai-panel';
+import { type ShowModeType } from './common-page-new';
 import HostDetailView from './host-detail-view/host-detail-view';
 import ShowModeButton, { ShowModeButtonType } from './show-mode-button/show-mode-button';
-import { type ShowModeType } from './common-page-new';
 
 import './common-detail.scss';
 
@@ -109,8 +111,8 @@ interface IScopeSlots {
 
 @Component({
   directives: {
-    resize
-  }
+    resize,
+  },
 })
 export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailEvent, IScopeSlots> {
   @Prop({ default: '', type: String }) readonly title: string;
@@ -157,6 +159,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 是否只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @ProvideReactive('width') width = DEFAULT_WIDTH;
 
   data: IDetailItem[] = [];
@@ -171,7 +174,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   /** 内容区域的高度 */
   contentHeight = 0;
   indexListHeight = 500;
-  cancelToken: Function = null;
+  cancelToken = null;
   oldParams: Record<string, any> = null;
   /** 索引列表位置 */
   indexListPlacement = 'bottom';
@@ -200,7 +203,6 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   get maxWidthVal() {
     if (this.refleshMaxWidthKey) {
       if (!this.maxWidth) {
-        // eslint-disable-next-line no-nested-ternary
         return (
           window.innerWidth -
           (window.source_app === 'monitor' || window.__POWERED_BY_BK_WEWEB__ ? (this.toggleSet ? 260 : 60) : 0) -
@@ -291,10 +293,13 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     if (this.panel?.targets?.[0]) {
       this.loading = true;
       const [item] = this.panel.targets;
+      const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.viewOptions.filters,
-        ...this.viewOptions.variables
+        ...this.viewOptions.variables,
+        start_time,
+        end_time,
       });
       const params: any = variablesService.transformVariables(item.data);
       // magic code
@@ -313,7 +318,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
       this.oldParams = { ...params };
       const data = await (this as any).$api[item.apiModule]
         [item.apiFunc](params, {
-          cancelToken: new CancelToken((cb: Function) => (this.cancelToken = cb))
+          cancelToken: new CancelToken(cb => (this.cancelToken = cb)),
         })
         .catch(() => []);
       this.data =
@@ -351,7 +356,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     }
   }
   /** 拖拽改变组件宽度 */
-  handleDragChange(width: number, swipeRight: boolean, cancelFn: Function) {
+  handleDragChange(width: number, swipeRight: boolean, cancelFn) {
     if (this.specialDrag) {
       let showMode: ShowModeType = 'default';
       if (swipeRight && width < this.maxWidthVal - 3) {
@@ -418,9 +423,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   }
 
   /** 拖拽索引列表更新高度 */
-  @Debounce(300)
   handleResizeContentHeight(data: IUpdateHeight) {
-    // if (!this.expandIndexList) return;
     this.contentHeight = data.mainHeight - 48;
     this.indexListHeight = Math.max(data.asideHeight, INDEX_LIST_MIN_HEIGHT);
   }
@@ -442,11 +445,12 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   initIndexListHeight() {
     if (!!this.indexList.length && this.$el) {
       const data = this.storage.get(INDEX_LIST_DEFAULT_CONFIG_KEY);
-      this.indexListHeight = this.$el.clientHeight / 2;
       if (!!data) {
         this.indexListHeight = data.height;
         this.indexListPlacement = data.placement;
         this.expandIndexList = data.expand;
+      } else {
+        this.indexListHeight = this.$el.clientHeight / 2;
       }
       this.resizeLayoutRef.updateAside({ height: this.indexListHeight }, false);
     }
@@ -485,7 +489,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     this.storage.set(INDEX_LIST_DEFAULT_CONFIG_KEY, {
       height: asideHeight,
       placement: this.indexListPlacement,
-      expand: this.expandIndexList
+      expand: this.expandIndexList,
     });
   }
   /**
@@ -548,8 +552,8 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
           {this.needShrinkBtn ?? (
             <i
               class='bk-icon icon-minus detail-shrink'
-              onClick={() => this.handleClickShrink()}
               v-bk-tooltips={{ content: this.$t('收起'), delay: 200, boundary: 'window' }}
+              onClick={() => this.handleClickShrink()}
             ></i>
           )}
         </div>
@@ -558,15 +562,15 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
             this.$scopedSlots.default?.({ contentHeight: this.contentHeight, width: this.width })
           ) : (
             <HostDetailView
-              data={this.data}
               width={this.width}
+              data={this.data}
               onLinkToDetail={v => this.$emit('linkToDetail', v)}
             ></HostDetailView>
           )}
           {this.aiPanel && (
             <Aipanel
-              panel={this.aiPanel}
               allPanelId={this.allPanelId}
+              panel={this.aiPanel}
             />
           )}
         </div>
@@ -579,14 +583,14 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     }
     return (
       <div
+        style={{ width: this.isShow ? `${this.width}px` : 0, ...styles }}
         class={[
           'common-detail',
           {
             'with-animate': this.showAminate,
-            'hide-aside': this.showMode === 'list' || !this.indexList.length
-          }
+            'hide-aside': this.showMode === 'list' || !this.indexList.length,
+          },
         ]}
-        style={{ width: this.isShow ? `${this.width}px` : 0, ...styles }}
         v-bkloading={{ isLoading: this.isShow && this.loading }}
         v-resize={{ disabled: !this.enableResizeListener, handler: this.handleResize }}
       >
@@ -595,26 +599,26 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
             // && !!this.indexList.length
             <MonitorResizeLayout
               ref='resizeLayoutRef'
+              default={!!this.indexList.length ? this.indexListHeight || ASIDE_DEFAULT_HEIGHT : 0}
               disabled={!this.expandIndexList}
-              min={INDEX_LIST_MIN_HEIGHT}
               max={this.maxIndexListHeight}
-              default={!!this.indexList.length ? ASIDE_DEFAULT_HEIGHT : 0}
+              min={INDEX_LIST_MIN_HEIGHT}
               placement={this.indexListPlacement}
               toggleBefore={() => this.expandIndexList}
-              onUpdateHeight={this.handleResizeContentHeight}
               onResizing={this.hanldeResizing}
               onTogglePlacement={this.handleTogglePlacement}
               onTriggerMin={this.handleTriggerMinIndexList}
+              onUpdateHeight={this.handleResizeContentHeight}
             >
               <div
-                slot='main'
                 class='selector-list-slot'
+                slot='main'
               >
                 {mainTpl}
               </div>
               <div
-                slot='aside'
                 class='index-tree-wrap'
+                slot='aside'
               >
                 {/* 拉到顶 出现浅阴影 */}
                 {this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar'></div>}
@@ -630,37 +634,37 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                   >
                     {this.showIndexSearchInput ? (
                       <bk-input
+                        class='index-search-input'
                         v-model={this.indexSearchKeyword}
                         behavior='simplicity'
                         right-icon='bk-icon icon-search'
-                        class='index-search-input'
                         clearable
-                        onInput={this.handleInputSearch}
                         onBlur={this.handleBlurSearch}
+                        onInput={this.handleInputSearch}
                       />
                     ) : (
                       <i
-                        slot='prefix'
                         class='bk-icon icon-search'
+                        slot='prefix'
                         onClick={() => (this.showIndexSearchInput = true)}
                       ></i>
                     )}
                   </div>
                 </div>
                 <div
-                  class='index-tree-main'
                   style={{
-                    height: `${this.indexListHeight - 40}px`
+                    height: `${this.indexListHeight - 40}px`,
                   }}
+                  class='index-tree-main'
                 >
                   {this.indexList.length ? (
                     <IndexList
                       ref='indexListRef'
+                      emptyStatusType={this.indexListEmptyStatusType}
                       list={this.indexList}
                       type={this.indexListType}
-                      onSelect={this.handleScrollToIndex}
-                      emptyStatusType={this.indexListEmptyStatusType}
                       onEmptyStatusOperation={this.handleIndexListEmptyOperation}
+                      onSelect={this.handleScrollToIndex}
                       // height="100%"
                     />
                   ) : (
@@ -675,14 +679,14 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         </div>
         {!this.showAminate && (
           <MonitorDrag
-            theme={this.specialDrag ? 'line-round' : 'line'}
-            lineText={this.lineText}
             isShow={this.isShow}
-            minWidth={this.minWidth}
+            lineText={this.lineText}
             maxWidth={this.maxWidthVal}
-            toggleSet={this.toggleSet}
+            minWidth={this.minWidth}
             resetPosKey={this.resetDragPosKey}
             startPlacement={this.startPlacement}
+            theme={this.specialDrag ? 'line-round' : 'line'}
+            toggleSet={this.toggleSet}
             onMove={this.handleDragChange}
             onTrigger={() => this.handleClickShrink()}
           >

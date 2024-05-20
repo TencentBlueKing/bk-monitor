@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, PropType } from 'vue';
+
 import { RightShape } from 'bkui-vue/lib/icon';
 
 import { PanelModel } from '../../typings';
@@ -32,14 +33,14 @@ import './chart-row.scss';
 
 export default defineComponent({
   name: 'ChartRowMigrated',
-  emits: ['collapse'],
   props: {
     panel: {
       type: Object as PropType<PanelModel>,
       default: () => {},
-      required: true
-    }
+      required: true,
+    },
   },
+  emits: ['collapse'],
   setup(props, { emit }) {
     const handleCollapsed = () => {
       if (!props.panel.draging) {
@@ -56,7 +57,7 @@ export default defineComponent({
 
     return {
       handleCollapsed,
-      handleClickIcon
+      handleClickIcon,
     };
   },
   render() {
@@ -73,5 +74,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

@@ -30,10 +30,10 @@
   >
     <bk-dropdown-menu
       slot="title"
+      ref="dropdown"
       :class="['title-setting', { 'title-disable': !series.length && !setList.length }]"
       trigger="click"
       :disabled="!setList.length"
-      ref="dropdown"
     >
       <div
         slot="dropdown-trigger"
@@ -47,8 +47,8 @@
         <span class="tag-setting"> {{ $t('展示设置') }} </span>
       </div>
       <div
-        slot="dropdown-content"
         v-if="setList.length"
+        slot="dropdown-content"
         style="margin: -6px 0"
       >
         <ul
@@ -62,18 +62,18 @@
           >
             <label class="bk-form-checkbox bk-checkbox-small check-label-item char-checkbox">
               <input
+                v-model="checkedSets"
                 type="checkbox"
                 class="bk-checkbox"
                 :value="item.id"
-                v-model="checkedSets"
-              >
+              />
               <i class="bk-checkbox-text">{{ item.name }}</i>
             </label>
           </li>
         </ul>
         <div
-          class="title-setting-footer"
           slot="dropdown-content"
+          class="title-setting-footer"
         >
           <span @click="submitHandle"> {{ $t('确定') }} </span>
           <span @click="cancelHandle"> {{ $t('取消') }} </span>
@@ -99,45 +99,46 @@
         '#CAE1FF',
         '#CDCDB4',
         '#FE0000',
-        '#C3017C'
+        '#C3017C',
       ]"
     />
   </panel-card>
 </template>
 
 <script>
-import MonitorEchart from '../../../../monitor-ui/monitor-echarts/monitor-echarts';
+import MonitorEchart from 'monitor-ui/monitor-echarts/monitor-echarts';
+
 import PanelCard from '../components/panel-card/panel-card';
 
 export default {
   name: 'AvailableRateChart',
   components: {
     MonitorEchart,
-    PanelCard
+    PanelCard,
   },
   props: {
     setList: {
       type: Array,
-      required: true
+      required: true,
     },
     checkedList: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     series: {
       type: Array,
-      required: true
+      required: true,
     },
     utcoffset: {
       type: Number,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
-      checkedSets: []
+      checkedSets: [],
     };
   },
   computed: {
@@ -145,23 +146,23 @@ export default {
       return {
         yAxis: {
           axisLine: {
-            show: true
+            show: true,
           },
-          z: 6
+          z: 6,
         },
         xAxis: {
           splitLine: {
             show: true,
             lineStyle: {
               color: '#DCDEE5',
-              type: 'dashed'
-            }
+              type: 'dashed',
+            },
           },
           axisLine: {
-            show: true
+            show: true,
           },
-          z: 6
-        }
+          z: 6,
+        },
       };
     },
     newSeries() {
@@ -173,44 +174,44 @@ export default {
           borderWidth: 1,
           borderColor: 'rgba(255,246,242,.5)',
           shadowColor: 'rgba(255,246,242,.5)',
-          shadowBlur: 0
+          shadowBlur: 0,
         },
         data: [
           [
             {
               xAxis: 'min',
-              yAxis: 0
+              yAxis: 0,
             },
             {
               xAxis: 'max',
-              yAxis: 80 // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
-            }
-          ]
+              yAxis: 80, // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
+            },
+          ],
         ],
-        opacity: 0.1
+        opacity: 0.1,
       };
       return this.series?.length
         ? this.series.map(item => ({
-          ...item,
-          markArea
-        }))
+            ...item,
+            markArea,
+          }))
         : [
-          {
-            data: [
-              [null, 0],
-              [null, 100]
-            ],
-            markArea
-          }
-        ];
-    }
+            {
+              data: [
+                [null, 0],
+                [null, 100],
+              ],
+              markArea,
+            },
+          ];
+    },
   },
   watch: {
     checkedList: {
       handler(val) {
         this.checkedSets = val;
-      }
-    }
+      },
+    },
   },
   created() {
     this.checkedSets = this.checkedList;
@@ -226,8 +227,8 @@ export default {
     },
     triggerCheckedHandle() {
       // e.stopPropagation()
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -238,76 +239,90 @@ export default {
   .title {
     &-setting {
       float: right;
+      width: 250px;
       font-size: $fontSmSize;
       color: #3a84ff;
-      width: 250px;
       text-align: right;
+
       .chart-dropdown {
         display: flex;
         align-items: center;
         justify-content: flex-end;
       }
+
       .icon-setting {
-        vertical-align: middle;
         width: 16px;
         height: 16px;
-        color: #3a84ff;
         margin-right: 5px;
+        color: #3a84ff;
+        vertical-align: middle;
       }
+
       .tag-setting {
         @include hover();
       }
+
       &-dropdown {
-        text-align: left;
-        max-height: 250px;
         max-width: 250px;
+        max-height: 250px;
         overflow: auto;
+        text-align: left;
+
         li {
           padding: 0px 10px;
-          text-overflow: ellipsis;
           overflow: hidden;
+          text-overflow: ellipsis;
           white-space: nowrap;
+
           .check-label-item {
-            margin: 5px;
             min-width: 100%;
+            margin: 5px;
 
             @include hover();
+
             .bk-checkbox-text {
               font-style: normal;
             }
           }
+
           .bk-checkbox {
             cursor: pointer;
           }
+
           &:hover {
-            background: #eaf3ff;
             cursor: pointer;
+            background: #eaf3ff;
           }
         }
       }
+
       &-footer {
         display: flex;
-        justify-content: space-around;
         align-items: center;
+        justify-content: space-around;
         border-top: 1px solid $defaultBorderColor;
+
         :nth-child(2) {
-          border-left: 1px solid $defaultBorderColor;
           background: #fafbfd;
+          border-left: 1px solid $defaultBorderColor;
         }
+
         span {
           flex: 1;
-          text-align: center;
           height: 30px;
           line-height: 30px;
+          text-align: center;
 
           @include hover();
         }
       }
     }
+
     &-disable {
       color: #979ba5;
 
       @include hover(not-allowed);
+
       .tag-setting {
         @include hover(not-allowed);
       }

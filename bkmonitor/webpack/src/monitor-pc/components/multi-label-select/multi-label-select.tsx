@@ -32,10 +32,10 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { debounce } from 'throttle-debounce';
 
-import { strategyLabelList } from '../../../monitor-api/modules/strategies';
-import { deepClone, transformDataKey } from '../../../monitor-common/utils/utils';
+import { strategyLabelList } from 'monitor-api/modules/strategies';
+import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
+import { debounce } from 'throttle-debounce';
 
 import LabelTree from './label-tree/label-tree';
 import { IAddWrapSize, ITreeItem, TBehavior, TMode } from './types';
@@ -62,8 +62,8 @@ interface IEvent {
 @Component({
   name: 'MultiLabelSelect',
   components: {
-    LabelTree
-  }
+    LabelTree,
+  },
 })
 export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
   @Prop({ default: 'create', type: String }) private mode: TMode;
@@ -87,7 +87,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
     width: 470,
     height: 357,
     startClientX: 0,
-    startClientY: 0
+    startClientY: 0,
   };
 
   private dropDownInstance: any = null;
@@ -100,7 +100,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
   private handleOverflowDebounce: Function = null;
 
   private tippyOptions: any = {
-    onHidden: null
+    onHidden: null,
   };
 
   get filterSearchData() {
@@ -113,7 +113,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
             children: item.children.filter(key => {
               const isSame = key?.toUpperCase().indexOf(value.toUpperCase()) > -1;
               return isSame && !this.localCheckNode.includes(`/${key}/`);
-            })
+            }),
           };
           return obj;
         })
@@ -191,7 +191,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
       this.resizeObsever();
       this.dropDownInstance = this.selectDropdownRef?.instance;
       this.handleOverflow();
-      this.handleOverflowDebounce = debounce(300, false, this.handleOverflow);
+      this.handleOverflowDebounce = debounce(300, this.handleOverflow);
     }
   }
   beforeDestroy() {
@@ -202,7 +202,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
   getLabelListApi() {
     const params = {
       bk_biz_id: this.mode === 'select' ? this.$store.getters.bizId : 0,
-      strategy_id: 0
+      strategy_id: 0,
     };
     this.emitLoading(true);
     strategyLabelList(params)
@@ -212,25 +212,25 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
         const data = transformDataKey(res);
         const globalData = [
           ...data.global,
-          ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName }))
+          ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName })),
         ];
         // 标签选择模式
         if (this.mode === 'select') {
           customData = [
             ...data.custom,
-            ...data.customParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName }))
+            ...data.customParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName })),
           ];
           list = [
             {
               group: 'global',
               groupName: this.$t('全局标签'),
-              children: labelListToTreeData(globalData)
+              children: labelListToTreeData(globalData),
             },
             {
               group: 'custom',
               groupName: this.$t('自定义标签'),
-              children: labelListToTreeData(customData)
-            }
+              children: labelListToTreeData(customData),
+            },
           ];
         } else {
           // 标签创建模式列表
@@ -271,7 +271,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
     const res = list.map(item => ({
       group: item.group,
       groupName: item.groupName,
-      children: this.getSearchData(item.children)
+      children: this.getSearchData(item.children),
     }));
     this.localSearchData = res;
   }
@@ -337,7 +337,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
       key: '',
       name: '',
       parent: null,
-      isCreate: true
+      isCreate: true,
     });
     this.$nextTick(() => {
       this.createLabelTreeRef.inputFocus();
@@ -381,7 +381,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
     const listWidth = list.offsetWidth;
     let totalWidth = 0;
     await this.$nextTick();
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const i in childs) {
       const item = childs[i];
       if (!item.className || item.className.indexOf('key-node') === -1) continue;
@@ -446,7 +446,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
           const index = this.localCheckNode.length - 1;
           index >= 0 && this.handleRemoveTag(index);
         }
-      }
+      },
     };
     keyFn[key]?.();
   }
@@ -488,7 +488,7 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
       } else {
         this.$bkMessage({
           message: this.$t('注意: 名字冲突'),
-          theme: 'error'
+          theme: 'error',
         });
       }
     } else {
@@ -570,11 +570,11 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
   protected render(): VNode {
     return (
       <div
+        ref='wrapper'
         class={[
           'multi-label-select',
-          { 'simplicit-theme': this.behavior === 'simplicity', 'is-readonly': this.readonly }
+          { 'simplicit-theme': this.behavior === 'simplicity', 'is-readonly': this.readonly },
         ]}
-        ref='wrapper'
       >
         {/* 新增模式 */}
         {this.mode === 'create' ? (
@@ -587,18 +587,18 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
             </bk-button>
             {this.localTreeList.length ? (
               <div
+                style={`width: ${this.addWrapSize.width}px; height: ${this.addWrapSize.height}px;`}
                 class='label-tree-contain-wrap'
                 v-bkloading={{ isLoading: this.treeLoading }}
-                style={`width: ${this.addWrapSize.width}px; height: ${this.addWrapSize.height}px;`}
               >
                 <div class='label-tree-scroll-wrap'>
                   <label-tree
                     ref='createLabelTree'
-                    mode='create'
-                    onLoading={this.handleTreeLoading}
-                    onListChange={this.handleLocalTreeListChange}
                     checkedNode={this.localCheckNode}
+                    mode='create'
                     treeData={this.localTreeList}
+                    onListChange={this.handleLocalTreeListChange}
+                    onLoading={this.handleTreeLoading}
                   />
                 </div>
                 <i class='resize-icon-inner'></i>
@@ -617,16 +617,16 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
           // 选择模式
           <div>
             <bk-popover
-              class='multi-label-select-dropdown'
               ref='selectDropdown'
-              trigger='manual'
-              placement='bottom-start'
-              theme='light multi-label-list-wrapper'
+              class='multi-label-select-dropdown'
               animation='slide-toggle'
-              transfer={false}
               arrow={false}
               distance={12}
+              placement='bottom-start'
+              theme='light multi-label-list-wrapper'
               tippyOptions={this.tippyOptions}
+              transfer={false}
+              trigger='manual'
             >
               <div
                 class={['multi-label-input', { 'is-focus': this.isEdit }]}
@@ -638,13 +638,13 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                   ''
                 )}
                 <ul
-                  class='tag-list'
                   ref='tagList'
+                  class='tag-list'
                 >
                   {this.localCheckNode.map((item, index) => (
                     <li
-                      class='key-node'
                       key={index}
+                      class='key-node'
                     >
                       <div class='tag'>
                         <span class='text'>
@@ -669,13 +669,13 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                     >
                       <span class='input-value'>{this.inputValue}</span>
                       <input
-                        type='text'
-                        class='input'
                         ref='input'
+                        class='input'
+                        type='text'
                         value={this.inputValue}
-                        onInput={this.inputChange}
                         onBlur={this.inputBlur}
                         onClick={e => e.stopPropagation()}
+                        onInput={this.inputChange}
                         onKeydown={this.inputKeydown}
                       />
                     </li>
@@ -688,10 +688,10 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                 </span>
               </div>
               <div
-                slot='content'
-                class='menu-list-wrap'
                 ref='menuList'
                 style={`display: ${this.menuListDisplay}; width: ${this.popoverContentWidth}px`}
+                class='menu-list-wrap'
+                slot='content'
               >
                 {
                   // 搜索结果
@@ -726,8 +726,8 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                               <div class='title'>{`${item.groupName}( ${item.children.length} )`}</div>
                             </div>
                             <label-tree
-                              mode='select'
                               checkedNode={this.localCheckNode}
+                              mode='select'
                               treeData={item.children}
                               onCheckedChange={this.handleNodeChecked}
                             />

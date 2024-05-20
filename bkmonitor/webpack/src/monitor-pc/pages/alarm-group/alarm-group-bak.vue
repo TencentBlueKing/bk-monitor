@@ -30,15 +30,15 @@
 -->
 <template>
   <div
-    class="alarm-group"
     v-monitor-loading="{ isLoading: loading }"
+    class="alarm-group"
   >
     <!-- 列表页 -->
     <div class="alarm-group-tool">
       <bk-button
         v-authority="{ active: !authority.MANAGE_AUTH }"
-        class="tool-btn mc-btn-add"
         theme="primary"
+        class="tool-btn mc-btn-add"
         @click="authority.MANAGE_AUTH ? handleShowAddView('add') : handleShowAuthorityDetail()"
       >
         {{ $t('新建') }}
@@ -47,8 +47,8 @@
         class="tool-search"
         :placeholder="$t('ID / 告警组名称')"
         :value="keyword"
-        @change="handleSearch"
         right-icon="bk-icon icon-search"
+        @change="handleSearch"
       />
     </div>
     <div>
@@ -62,9 +62,7 @@
           prop="id"
           width="70"
         >
-          <template slot-scope="scope">
-            #{{ scope.row.id }}
-          </template>
+          <template slot-scope="scope"> #{{ scope.row.id }} </template>
         </bk-table-column>
         <bk-table-column
           :label="$t('名称')"
@@ -88,8 +86,8 @@
           <template slot-scope="scope">
             <div class="col-appstrategy">
               <span
-                class="strategy-num"
                 v-authority="{ active: scope.row.relatedStrategy > 0 && !authority.STRATEGY_VIEW_AUTH }"
+                class="strategy-num"
                 :class="{ 'btn-disabled': scope.row.relatedStrategy === 0 }"
                 @click="handleToAppStrategy(scope.row)"
               >
@@ -113,19 +111,19 @@
         >
           <template slot-scope="scope">
             <bk-button
+              v-authority="{ active: !authority.MANAGE_AUTH }"
               :text="true"
               :disabled="!scope.row.editAllowed"
               class="col-btn"
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               @click="authority.MANAGE_AUTH ? handleShowAddView('edit', scope.row.id) : handleShowAuthorityDetail()"
             >
               {{ $t('编辑') }}
             </bk-button>
             <bk-button
+              v-authority="{ active: !authority.MANAGE_AUTH }"
               :text="true"
               :disabled="!scope.row.deleteAllowed"
               class="col-btn"
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               @click="authority.MANAGE_AUTH ? handleDeleteRow(scope.row.id) : handleShowAuthorityDetail()"
             >
               {{ $t('删除') }}
@@ -145,9 +143,9 @@
             :limit="tableInstance.pageSize"
             :count="tableInstance.total"
             :limit-list="tableInstance.pageList"
+            show-total-count
             @change="handlePageChange"
             @limit-change="handleLimitChange"
-            show-total-count
           />
         </template>
       </div>
@@ -165,13 +163,12 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
+import { deleteNoticeGroup } from 'monitor-api/modules/notice_group';
 import { debounce } from 'throttle-debounce';
+import { mapActions } from 'vuex';
 
-import { deleteNoticeGroup } from '../../../monitor-api/modules/notice_group';
 import { commonPageSizeMixin } from '../../common/mixins';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
 import alarmGroupDetail from './alarm-group-detail/alarm-group-detail-bak.vue';
 import * as alarmGroupAuth from './authority-map';
 import TableStore from './store.ts';
@@ -179,15 +176,24 @@ import TableStore from './store.ts';
 export default {
   name: 'AlarmGroup',
   components: {
-    alarmGroupDetail
+    alarmGroupDetail,
   },
   mixins: [commonPageSizeMixin, authorityMixinCreate(alarmGroupAuth)],
   provide() {
     return {
       authority: this.authority,
       handleShowAuthorityDetail: this.handleShowAuthorityDetail,
-      alarmGroupAuth
+      alarmGroupAuth,
     };
+  },
+  beforeRouteEnter(to, from, next) {
+    next(vm => {
+      if (!['alarm-group-add', 'alarm-group-edit'].includes(from.name)) {
+        vm?.tableInstance?.setDefaultStore?.();
+        vm.keyword = '';
+      }
+      !vm.loading && vm.getNoticeGroupList();
+    });
   },
   data() {
     return {
@@ -195,15 +201,15 @@ export default {
       keyword: '',
       handleSearch() {},
       table: {
-        data: []
+        data: [],
       },
       tableInstance: null,
       detail: {
         show: false,
         id: 0,
-        title: ''
+        title: '',
       },
-      loading: false
+      loading: false,
     };
   },
   created() {
@@ -213,15 +219,6 @@ export default {
   },
   deactivated() {
     this.detail.show = false;
-  },
-  beforeRouteEnter(to, from, next) {
-    next((vm) => {
-      if (!['alarm-group-add', 'alarm-group-edit'].includes(from.name)) {
-        vm?.tableInstance?.setDefaultStore?.();
-        vm.keyword = '';
-      }
-      !vm.loading && vm.getNoticeGroupList();
-    });
   },
   methods: {
     ...mapActions('alarm-group', ['noticeGroupList']),
@@ -236,7 +233,7 @@ export default {
       if (mode === 'edit') {
         this.$router.push({
           name: 'alarm-group-edit',
-          params: { id }
+          params: { id },
         });
       } else {
         this.$router.push({ name: 'alarm-group-add' });
@@ -257,7 +254,7 @@ export default {
       }
       this.$router.push({
         name: 'strategy-config',
-        params: { noticeName: name }
+        params: { noticeName: name },
       });
     },
     // 删除事件
@@ -273,7 +270,7 @@ export default {
               this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
             })
             .catch(() => (this.loading = false));
-        }
+        },
       });
     },
     // 翻页切换事件
@@ -311,8 +308,8 @@ export default {
     // 详情页关闭
     handleDetailClose() {
       this.detail.id = 0;
-    }
-  }
+    },
+  },
 };
 </script>
 

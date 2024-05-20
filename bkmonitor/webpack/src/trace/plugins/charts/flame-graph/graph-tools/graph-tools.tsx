@@ -31,33 +31,33 @@ export default defineComponent({
   name: 'GraphTools',
   props: {
     scaleValue: {
-      default: 100
+      default: 100,
     },
     maxScale: {
-      default: 100
+      default: 100,
     },
     minScale: {
-      default: 1
+      default: 1,
     },
     scaleStep: {
-      default: 1
+      default: 1,
     },
     showThumbnail: {
       type: Boolean,
-      default: true
+      default: true,
     },
     thumbnailActive: {
       type: Boolean,
-      default: false
+      default: false,
     },
     legendActive: {
       type: Boolean,
-      default: false
+      default: false,
     },
     showLegend: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   emits: ['scaleChange', 'storeImg', 'showThumbnail', 'showLegend'],
   setup(props, { emit }) {
@@ -84,7 +84,7 @@ export default defineComponent({
       handleMinus,
       handleStoreImg,
       handleShowThumbnail,
-      handleShowLegend
+      handleShowLegend,
     };
   },
   render() {
@@ -123,5 +123,5 @@ export default defineComponent({
         }
       </div>
     );
-  }
+  },
 });

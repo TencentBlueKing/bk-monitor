@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len  */
+
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getStorageClusterDetail, listClusters } from '../../../monitor-api/modules/commons';
-import { random } from '../../../monitor-common/utils';
+import { getStorageClusterDetail, listClusters } from 'monitor-api/modules/commons';
+import { random } from 'monitor-common/utils';
 
 import ClusterConfig from './cluster-config';
 // import InfluxdbChild from './influxdb-child';
@@ -39,7 +39,7 @@ import './resource-register.scss';
 
 const mockData = {
   total: 0,
-  data: []
+  data: [],
 };
 
 const childColumns = [
@@ -48,7 +48,7 @@ const childColumns = [
   { id: 'version', name: window.i18n.tc('版本') },
   { id: 'topic_count', name: window.i18n.tc('topic数量'), sortable: true },
   { id: 'schema', name: window.i18n.tc('协议') },
-  { id: 'status', name: window.i18n.tc('状态') }
+  { id: 'status', name: window.i18n.tc('状态') },
 ];
 
 interface ITableData {
@@ -56,12 +56,12 @@ interface ITableData {
 }
 
 @Component
-export default class ResourceRegister extends tsc<{}> {
+export default class ResourceRegister extends tsc<object> {
   @Ref() clusterOperation: any;
   /* 控制侧栏展示 */
   show = false;
   /* 侧栏标题 */
-  sideSliderTitle: String = '';
+  sideSliderTitle = '';
   /* 是否全部展开/收起 */
   isExpandAll = false;
   /* 筛选 */
@@ -78,14 +78,14 @@ export default class ResourceRegister extends tsc<{}> {
       { id: ETableColumn.operator, name: window.i18n.tc('负责人'), disabled: false, checked: true },
       { id: ETableColumn.description, name: window.i18n.tc('描述'), disabled: false, checked: true, width: 298 },
       { id: ETableColumn.use, name: window.i18n.tc('用途'), disabled: false, checked: true, width: 100 },
-      { id: ETableColumn.operate, name: window.i18n.tc('操作'), disabled: true, checked: true }
+      { id: ETableColumn.operate, name: window.i18n.tc('操作'), disabled: true, checked: true },
     ],
     pagination: {
       current: 1,
       count: 100,
-      limit: 10
+      limit: 10,
     },
-    expandRowKeys: []
+    expandRowKeys: [],
   };
   tableSize = 'medium';
   updateTime = '';
@@ -108,7 +108,7 @@ export default class ResourceRegister extends tsc<{}> {
       page: this.tableData.pagination.current,
       page_size: this.tableData.pagination.limit,
       cluster_type: this.filterType,
-      cluster_name: this.searchValue
+      cluster_name: this.searchValue,
     }).catch(() => mockData);
     this.tableData.data = data.data.map(item => {
       const labelArr = item.label.split(',');
@@ -118,8 +118,8 @@ export default class ResourceRegister extends tsc<{}> {
         labelArr,
         childData: {
           columns: [],
-          data: []
-        }
+          data: [],
+        },
       };
     });
     if (this.tableData.data.length) {
@@ -146,7 +146,7 @@ export default class ResourceRegister extends tsc<{}> {
       };
       if (!this.childDataCache.has(id)) {
         getStorageClusterDetail({
-          cluster_id: id
+          cluster_id: id,
         })
           .then(res => {
             setColumns(res?.[0]?.topic_count);
@@ -246,7 +246,7 @@ export default class ResourceRegister extends tsc<{}> {
       this.setTableData();
     }
   }
-  handleDetailsToEdit(clusterId: string | number) {
+  handleDetailsToEdit(clusterId: number | string) {
     const data = this.tableData.data.find(item => item.cluster_id === clusterId);
     this.detailsShow = false;
     if (data) {
@@ -255,7 +255,7 @@ export default class ResourceRegister extends tsc<{}> {
   }
 
   /* 状态 */
-  statusContent(status: 'normal' | 'failure') {
+  statusContent(status: 'failure' | 'normal') {
     return (
       <div class='status-info'>
         <div class={['status-point', status]}>
@@ -274,7 +274,7 @@ export default class ResourceRegister extends tsc<{}> {
             <span
               class={[
                 'icon-monitor icon-mc-triangle-down',
-                { active: this.tableData.expandRowKeys.indexOf(row.key) > -1 }
+                { active: this.tableData.expandRowKeys.indexOf(row.key) > -1 },
               ]}
             ></span>
             <span class='name-wrap'>
@@ -340,8 +340,8 @@ export default class ResourceRegister extends tsc<{}> {
           <div class='header-wrap-01'>
             <bk-button
               class='mr8'
-              theme='primary'
               icon='plus'
+              theme='primary'
               onClick={() => this.handleOpenSideSlider({ operationType: 'add' })}
             >
               {this.$tc('新增')}
@@ -370,8 +370,8 @@ export default class ResourceRegister extends tsc<{}> {
             <div class='header-filter'>
               {FILTER_LIST.map(item => (
                 <div
-                  class={['header-filter-item', { active: item.id === this.filterType }]}
                   key={item.id}
+                  class={['header-filter-item', { active: item.id === this.filterType }]}
                   onClick={() => this.handleFilterChange(item.id)}
                 >
                   {!!item.icon && <span class={[`icon-monitor ${item.icon} item-icon`]}></span>}
@@ -381,10 +381,10 @@ export default class ResourceRegister extends tsc<{}> {
             </div>
             <div class='search-wrap'>
               <bk-input
-                value={this.searchValue}
                 right-icon='bk-icon icon-search'
-                onEnter={this.handleSearchChange}
+                value={this.searchValue}
                 onBlur={this.handleSearchChange}
+                onEnter={this.handleSearchChange}
               ></bk-input>
             </div>
           </div>
@@ -394,23 +394,22 @@ export default class ResourceRegister extends tsc<{}> {
           v-bkloading={{ isLoading: this.loading }}
         >
           <bk-table
-            outer-border={false}
             header-border={false}
+            outer-border={false}
             size={this.tableSize}
             {...{
               props: {
                 data: this.tableData.data,
                 expandRowKeys: this.tableData.expandRowKeys,
                 rowKey: row => row.key,
-                pagination: this.tableData.pagination
-              }
+                pagination: this.tableData.pagination,
+              },
             }}
-            on-row-click={this.handleRowClick}
             on-page-change={this.handlePageChange}
             on-page-limit-change={this.handlePageLimitChange}
+            on-row-click={this.handleRowClick}
           >
             <bk-table-column
-              type='expand'
               width={0}
               scopedSlots={{
                 default: ({ row }) => {
@@ -421,16 +420,16 @@ export default class ResourceRegister extends tsc<{}> {
                   }
                   return (
                     <div
-                      class='child-table'
                       key={`${row.key}_child`}
+                      class='child-table'
                     >
                       <bk-table
-                        outer-border={false}
                         header-border={false}
+                        outer-border={false}
                         {...{
                           props: {
-                            data: row.childData?.data || []
-                          }
+                            data: row.childData?.data || [],
+                          },
                         }}
                       >
                         {row.childData?.columns.map(column => {
@@ -438,10 +437,6 @@ export default class ResourceRegister extends tsc<{}> {
                           return (
                             <bk-table-column
                               key={key}
-                              prop={column.id}
-                              label={column.name}
-                              column-key={column.id}
-                              sortable={column.sortable}
                               formatter={(_row, _column, _cellValue, _index) => {
                                 if (column.id === 'ip') {
                                   return _row.host;
@@ -452,10 +447,10 @@ export default class ResourceRegister extends tsc<{}> {
                                 if (column.id === 'trend') {
                                   return (
                                     <span
-                                      v-bk-tooltips={{
-                                        content: this.$t('查看趋势')
-                                      }}
                                       class='icon-monitor icon-trend'
+                                      v-bk-tooltips={{
+                                        content: this.$t('查看趋势'),
+                                      }}
                                     ></span>
                                   );
                                 }
@@ -469,24 +464,29 @@ export default class ResourceRegister extends tsc<{}> {
                                   return '--';
                                 })();
                               }}
+                              column-key={column.id}
+                              label={column.name}
+                              prop={column.id}
+                              sortable={column.sortable}
                             ></bk-table-column>
                           );
                         })}
                       </bk-table>
                     </div>
                   );
-                }
+                },
               }}
+              type='expand'
             ></bk-table-column>
             <bk-table-column type='setting'>
               <bk-table-setting-content
                 key={'__settings'}
                 class='event-table-setting'
                 fields={this.tableData.columns}
-                value-key='id'
                 label-key='name'
-                size={this.tableSize}
                 selected={this.tableData.columns.filter(item => item.checked || item.disabled)}
+                size={this.tableSize}
+                value-key='id'
                 on-setting-change={this.handleSettingChange}
               />
             </bk-table-column>
@@ -497,13 +497,13 @@ export default class ResourceRegister extends tsc<{}> {
                 return (
                   <bk-table-column
                     key={key}
-                    prop={column.id}
-                    label={column.name}
-                    column-key={column.id}
                     width={column.width}
                     formatter={(row, _column, _cellValue, index) =>
                       this.handleSetFormatter(column.id as ETableColumn, row, index)
                     }
+                    column-key={column.id}
+                    label={column.name}
+                    prop={column.id}
                   ></bk-table-column>
                 );
               })}
@@ -511,15 +511,15 @@ export default class ResourceRegister extends tsc<{}> {
         </div>
         <ClusterConfig
           ref='clusterOperation'
-          show={this.show}
           row-config={this.rowConfig}
+          show={this.show}
           on-show-change={this.handleShowChange}
         ></ClusterConfig>
         <ClusterDetails
-          show={this.detailsShow}
           data={this.detailsData}
-          onShowChange={this.handleDetailShowChange}
+          show={this.detailsShow}
           onEdit={this.handleDetailsToEdit}
+          onShowChange={this.handleDetailShowChange}
         ></ClusterDetails>
       </div>
     );

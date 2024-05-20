@@ -26,13 +26,13 @@
 import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getSceneView } from '../../../../monitor-api/modules/scene_view';
-import { random } from '../../../../monitor-common/utils';
-import { type TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
-import { IQueryData } from '../../../../monitor-pc/pages/monitor-k8s/typings';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import { BookMarkModel, IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
+import { getSceneView } from 'monitor-api/modules/scene_view';
+import { random } from 'monitor-common/utils';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { BookMarkModel, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
 import { IDetail } from './type';
@@ -63,7 +63,7 @@ export default class LogInfo extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 当前业务id
-  @ProvideReactive('bkBizId') bkBizId: string | number = null;
+  @ProvideReactive('bkBizId') bkBizId: number | string = null;
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData: (queryData: IQueryData) => void;
 
   @Watch('show')
@@ -79,7 +79,7 @@ export default class LogInfo extends tsc<IProps> {
     this.bkBizId = this.detail.bk_biz_id;
     const variables: Record<string, any> = {
       bk_host_innerip: '0.0.0.0',
-      bk_cloud_id: '0'
+      bk_cloud_id: '0',
     };
     const hostMap = ['bk_host_id'];
     const ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
@@ -103,7 +103,7 @@ export default class LogInfo extends tsc<IProps> {
       ...variables,
       interval,
       group_by: [],
-      current_target: {}
+      current_target: {},
       // service_name: 'http:test_zj_1'
     });
     const data = await getSceneView({
@@ -111,7 +111,7 @@ export default class LogInfo extends tsc<IProps> {
       scene_id: 'alert',
       type: '',
       id: 'log',
-      ...variables
+      ...variables,
     }).catch(() => ({ id: '', panels: [], name: '' }));
     this.localPanels = data.overview_panels || [];
     // this.localPanels[0].gridPos.h
@@ -126,11 +126,11 @@ export default class LogInfo extends tsc<IProps> {
       >
         {this.localPanels.length ? (
           <DashboardPanel
-            panels={this.localPanels}
-            needOverviewBtn={false}
-            isSplitPanel={false}
-            isSingleChart={false}
             id={this.dashboardPanelId}
+            isSingleChart={false}
+            isSplitPanel={false}
+            needOverviewBtn={false}
+            panels={this.localPanels}
           ></DashboardPanel>
         ) : (
           ''

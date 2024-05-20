@@ -25,27 +25,27 @@
 -->
 <template>
   <div
-    class="group-task"
     v-show="!taskDetail.show && hasGroupList"
+    class="group-task"
   >
     <div class="group-task-header">
       <span class="header-name"> {{ $t('拨测任务组') }} </span>
     </div>
     <div
-      class="group-task-wrap"
       ref="cardWrap"
+      class="group-task-wrap"
       :style="{ height: wrapHeight + 'px' }"
     >
       <div
-        class="group-task-wrap-list"
         ref="cardWrapList"
+        class="group-task-wrap-list"
       >
         <div
-          class="group-task-wrap-list-item"
           v-for="(item, index) in group"
           v-show="item.name.includes(keyword)"
           :key="index"
           :ref="'task-item-' + index"
+          class="group-task-wrap-list-item"
           :class="{ 'drag-active': index === drag.active }"
           @click.stop="handleItemClick(item)"
           @dragover="handleDragOver(index, item, $event)"
@@ -61,26 +61,27 @@
               :style="{
                 'background-image': item.logo ? `url(${item.logo})` : 'none',
                 'background-color': item.logo ? '' : '#B6CAEC',
-                'border-radius': item.logo ? '0' : '100%'
+                'border-radius': item.logo ? '0' : '100%',
               }"
             >
               {{ !item.logo ? item.name.slice(0, 1).toLocaleUpperCase() : '' }}
             </span>
             <div class="desc-right">
               <div class="desc-right-title">
-                {{ item.name }}<span
-                  class="alarm-label"
+                {{ item.name
+                }}<span
                   v-if="item.alarm_num"
-                >{{ item.alarm_num }}</span>
+                  class="alarm-label"
+                  >{{ item.alarm_num }}</span
+                >
               </div>
               <div class="desc-right-label">
                 <span
-                  class="right-label"
                   v-for="(set, name) in item.protocol_num"
                   :key="name"
-                >{{
-                  `${set.name}(${set.val})`
-                }}</span>
+                  class="right-label"
+                  >{{ `${set.name}(${set.val})` }}</span
+                >
                 <span
                   v-if="!item.protocol_num || !item.protocol_num.length"
                   class="right-label"
@@ -89,10 +90,10 @@
                 </span>
               </div>
               <span
-                class="desc-right-icon"
-                v-authority="{ active: !authority.MANAGE_AUTH }"
                 v-if="hoverActive === index"
                 :ref="'popover-' + index"
+                v-authority="{ active: !authority.MANAGE_AUTH }"
+                class="desc-right-icon"
                 :class="{ 'hover-active': popover.hover }"
                 @click.stop="
                   authority.MANAGE_AUTH ? handlePopoverShow(item, index, $event) : handleShowAuthorityDetail()
@@ -105,8 +106,8 @@
             </div>
           </div>
           <div
-            class="item-list"
             v-if="item.top_three_tasks.length"
+            class="item-list"
           >
             <div
               v-for="(pro, i) in item.top_three_tasks"
@@ -140,30 +141,34 @@
       </div>
     </div>
     <div
-      class="more-btn-wrap"
       v-if="needExpand && !expand"
+      class="more-btn-wrap"
       @click="handleExpand"
     >
       <span class="more-btn">{{ $t('显示全部') }}<i class="icon-monitor icon-double-down" /></span>
     </div>
     <div v-show="false">
       <div
-        class="popover-desc"
         ref="popoverContent"
+        class="popover-desc"
       >
         <div
           class="popover-desc-btn"
           @click.stop="handleEditGroup"
-        >{{ $t('编辑') }}</div>
+        >
+          {{ $t('编辑') }}
+        </div>
         <div
           class="popover-desc-btn"
           @click.stop="handleDeleteGroup"
-        >{{ $t('解散任务组') }}</div>
+        >
+          {{ $t('解散任务组') }}
+        </div>
       </div>
     </div>
     <bk-dialog
-      class="bk-dialog-edit"
       v-model="dialog.edit.show"
+      class="bk-dialog-edit"
       :title="dialog.edit.add ? $t('新建拨测任务组') : $t('编辑拨测任务组')"
       header-position="left"
       width="480"
@@ -176,10 +181,10 @@
               {{ $t('任务组名称') }}
             </div>
             <bk-input
-              @blur="dialog.edit.validate = !dialog.edit.name.length"
+              v-model="dialog.edit.name"
               :class="{ 'dialog-edit-input': dialog.edit.validate }"
               :placeholder="$t('输入拨测任务组名称')"
-              v-model="dialog.edit.name"
+              @blur="dialog.edit.validate = !dialog.edit.name.length"
               @change="dialog.edit.validate = !dialog.edit.name.length"
             />
             <div
@@ -194,16 +199,16 @@
               {{ $t('所属') }}
             </div>
             <bk-select
+              v-model="dialog.edit.bizId"
               :placeholder="$t('选择所属空间')"
               :disabled="bizId !== 0"
-              v-model="dialog.edit.bizId"
             >
               <bk-option
-                class="dialog-edit-option"
                 v-for="item in bizList"
                 :id="item.id"
-                :name="item.text"
                 :key="item.id"
+                class="dialog-edit-option"
+                :name="item.text"
               />
             </bk-select>
           </div>
@@ -212,17 +217,17 @@
               {{ $t('选择拨测任务') }}
             </div>
             <bk-select
-              class="dialog-edit-select"
               v-model="dialog.edit.select"
+              class="dialog-edit-select"
               multiple
               :placeholder="$t('选择拨测任务')"
             >
               <bk-option
-                class="dialog-edit-option"
                 v-for="item in taskList"
                 :id="item.id"
-                :name="item.name"
                 :key="item.id"
+                class="dialog-edit-option"
+                :name="item.name"
               />
             </bk-select>
           </div>
@@ -230,9 +235,9 @@
         <div class="dialog-edit-upload">
           <div
             class="dialog-edit-logo"
+            :style="{ 'background-image': dialog.edit.logo ? `url(${dialog.edit.logo})` : 'none' }"
             @mouseover="dialog.edit.close = true"
             @mouseleave="dialog.edit.close = false"
-            :style="{ 'background-image': dialog.edit.logo ? `url(${dialog.edit.logo})` : 'none' }"
           >
             {{ !dialog.edit.logo ? 'LOGO' : '' }}
             <div
@@ -252,7 +257,7 @@
               title=""
               accept="image/png"
               @change="handleUploadChange"
-            >
+            />
           </div>
         </div>
       </div>
@@ -280,20 +285,20 @@ const { mapGetters } = createNamespacedHelpers('uptime-check-task');
 export default {
   name: 'GroupCards',
   mixins: [uptimeCheckMixin],
+  inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
     group: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     taskDetail: {
       type: Object,
-      required: true
+      required: true,
     },
-    itemWidth: Number
+    itemWidth: Number,
   },
-  inject: ['authority', 'handleShowAuthorityDetail'],
   data() {
     const defaultEdit = this.getDefaultEditDialog();
     return {
@@ -302,22 +307,22 @@ export default {
       wrapHeight: 240,
       hoverActive: -1,
       popoverOptions: {
-        appendTo: this.handleAppendTo
+        appendTo: this.handleAppendTo,
       },
       dialog: {
         edit: defaultEdit,
         delete: {
-          id: ''
-        }
+          id: '',
+        },
       },
       drag: {
-        active: -1
+        active: -1,
       },
       popover: {
         hover: false,
         instance: null,
-        active: -1
-      }
+        active: -1,
+      },
     };
   },
   computed: {
@@ -330,19 +335,19 @@ export default {
     },
     hasGroupList() {
       return !!(this.group.filter(item => item.name.includes(this.keyword)) || []).length;
-    }
+    },
   },
   watch: {
     expand(v) {
       this.wrapHeight = v && this.needExpand ? this.$refs.cardWrapList.getBoundingClientRect().height : 240;
     },
     itemWidth: {
-      handler: 'handleWindowResize'
+      handler: 'handleWindowResize',
     },
     group: {
       handler: 'handleGroupChange',
-      deep: true
-    }
+      deep: true,
+    },
   },
   mounted() {
     this.handleGroupChange();
@@ -361,7 +366,7 @@ export default {
       const e = eve;
       const file = e.target.files[0];
       const fileReader = new FileReader();
-      fileReader.onloadend = (event) => {
+      fileReader.onloadend = event => {
         this.dialog.edit.logo = event.target.result;
         e.target.value = '';
       };
@@ -412,7 +417,7 @@ export default {
         logo: '',
         close: false,
         message: '',
-        active: -1
+        active: -1,
       };
     },
     handleItemClick(item) {
@@ -421,7 +426,7 @@ export default {
           show: true,
           tasks: item.all_tasks.map(task => task.task_id),
           name: item.name,
-          id: item.id
+          id: item.id,
         });
       }
     },
@@ -446,7 +451,7 @@ export default {
         appendTo: () => this.$refs[`popover-${index}`][0],
         onHidden: () => {
           this.popover.hover = false;
-        }
+        },
       });
       // .instances[0]
       this.popover.active = index;
@@ -490,7 +495,7 @@ export default {
       this.$bkInfo({
         title: this.$t('确定解散任务组'),
         subTitle: this.$t('该操作仅删除任务组，不会影响组内拨测任务'),
-        confirmFn: () => this.handleSubmitDelete()
+        confirmFn: () => this.handleSubmitDelete(),
       });
     },
     handleSubmitDelete() {
@@ -515,10 +520,10 @@ export default {
         return;
       }
       if (
-        (edit.add && this.group.find(item => item.name.toLowerCase() === edit.name.toLowerCase()))
-        || (!edit.add
-          && edit.name.toLowerCase() !== edit.oriName.toLowerCase()
-          && this.group.find(set => set.name.toLowerCase() === edit.name.toLowerCase()))
+        (edit.add && this.group.find(item => item.name.toLowerCase() === edit.name.toLowerCase())) ||
+        (!edit.add &&
+          edit.name.toLowerCase() !== edit.oriName.toLowerCase() &&
+          this.group.find(set => set.name.toLowerCase() === edit.name.toLowerCase()))
       ) {
         edit.validate = true;
         edit.message = this.$t('注意: 名字冲突');
@@ -529,12 +534,12 @@ export default {
         logo = await this.handleImg2Base64(logo);
       }
       if (
-        edit.add
-        || !(
-          edit.name === item.name
-          && edit.logo === item.logo
-          && edit.select.sort().join(',')
-            === item.all_tasks
+        edit.add ||
+        !(
+          edit.name === item.name &&
+          edit.logo === item.logo &&
+          edit.select.sort().join(',') ===
+            item.all_tasks
               .map(i => i.task_id)
               .sort()
               .join(',')
@@ -546,7 +551,7 @@ export default {
           name: this.dialog.edit.name,
           logo,
           task_id_list: this.dialog.edit.select,
-          bk_biz_id: this.bizId
+          bk_biz_id: this.bizId,
         });
       }
       this.dialog.edit.show = false;
@@ -556,7 +561,7 @@ export default {
       this.dialog.edit.active = -1;
     },
     handleImg2Base64(logo) {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         try {
           const img = new Image();
           const canvas = document.createElement('canvas');
@@ -608,8 +613,8 @@ export default {
       const enLength = (str || '').length - cnLength;
       const res = cnLength * 2;
       return res + enLength > length;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -636,7 +641,7 @@ export default {
 
   &-wrap {
     overflow: hidden;
-    transition: all .4s cubic-bezier(.23, 1, .23, 1);
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.23, 1);
 
     &-list {
       display: flex;
@@ -658,7 +663,7 @@ export default {
 
         &:hover {
           cursor: pointer;
-          box-shadow: 0px 3px 6px 0px rgba(58, 132, 255, .1);
+          box-shadow: 0px 3px 6px 0px rgba(58, 132, 255, 0.1);
         }
 
         &.drag-active {
@@ -733,7 +738,7 @@ export default {
               font-size: 18px;
               color: #63656e;
               cursor: pointer;
-              transition: background-clor .2s ease-in-out;
+              transition: background-clor 0.2s ease-in-out;
 
               &.hover-active {
                 color: #3a84ff;
@@ -859,7 +864,7 @@ export default {
     font-size: 12;
     color: #0083ff;
     cursor: pointer;
-    transition: all .2s ease-in-out;
+    transition: all 0.2s ease-in-out;
 
     .icon-double-down {
       font-size: 16px;
@@ -965,7 +970,7 @@ export default {
       font-size: 14px;
       color: #fff;
       background: #000;
-      opacity: .5;
+      opacity: 0.5;
     }
   }
 

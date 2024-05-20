@@ -27,13 +27,13 @@
 import { Component, Emit, Inject, Prop, PropSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { indicesInfo, metaConfigInfo, setup, storageFieldInfo } from '../../../../monitor-api/modules/apm_meta';
-import { byteConvert } from '../../../../monitor-common/utils/utils';
+import { indicesInfo, metaConfigInfo, setup, storageFieldInfo } from 'monitor-api/modules/apm_meta';
+import { byteConvert } from 'monitor-common/utils/utils';
+
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
 import { ISetupData } from '../app-add/app-add';
-
 import { ClusterOption, IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem } from './type';
 
 interface IStorageStateProps {
@@ -55,7 +55,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
   fieldFilterList: IFieldFilterItem[] = []; // 字段信息过滤列表
   whetherFilters: IFieldFilterItem[] = [
     { text: window.i18n.tc('是'), value: 'true' },
-    { text: window.i18n.tc('否'), value: 'false' }
+    { text: window.i18n.tc('否'), value: 'false' },
   ];
   /** 集群信息 索引名 过期时间 副本数 */
   setupData: ISetupData = {
@@ -63,24 +63,23 @@ export default class StorageState extends tsc<IStorageStateProps> {
     es_retention_days: {
       default: 0,
       default_es_max: 0,
-      private_es_max: 0
+      private_es_max: 0,
     },
     es_number_of_replicas: {
       default: 0,
       default_es_max: 0,
-      private_es_max: 0
-    }
+      private_es_max: 0,
+    },
   };
   clusterOptions: ClusterOption[] = [];
   healthMaps = {
     green: this.$t('健康'),
     yellow: this.$t('部分异常'),
-    red: this.$t('异常')
+    red: this.$t('异常'),
   };
 
   /** 选中的集群 */
   get currentCluster() {
-    // eslint-disable-next-line max-len
     return this.clusterList.find(
       item => item.storage_cluster_id === this.appInfo.application_datasource_config.es_storage_cluster
     );
@@ -113,7 +112,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
   handleClusterListChange(list) {
     this.clusterOptions = list.map(item => ({
       id: item.storage_cluster_id,
-      name: item.storage_cluster_name
+      name: item.storage_cluster_name,
     }));
   }
 
@@ -154,7 +153,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
         setList.add(item.field_type);
         filterList.push({
           text: item.field_type,
-          value: item.field_type
+          value: item.field_type,
         });
       }
     });
@@ -215,7 +214,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
 
       const params = {
         application_id: this.appInfo.application_id,
-        datasource_option: datasourceConfig
+        datasource_option: datasourceConfig,
       };
       await setup(params);
       await this.handleBaseInfoChange();
@@ -239,20 +238,20 @@ export default class StorageState extends tsc<IStorageStateProps> {
         isExceed: es_retention > retention_days_max,
         maxVal: retention_days_max,
         id: 'retention',
-        name: this.$t('过期天数')
+        name: this.$t('过期天数'),
       },
       {
         isExceed: es_shards > es_shards_max,
         maxVal: es_shards_max,
         id: 'shards',
-        name: this.$t('分片数')
+        name: this.$t('分片数'),
       },
       {
         isExceed: es_number_of_replicas > number_of_replicas_max,
         maxVal: number_of_replicas_max,
         id: 'replicas',
-        name: this.$t('副本数')
-      }
+        name: this.$t('副本数'),
+      },
     ];
     const compareArr = compareMap.reduce((pre, cur) => (cur.isExceed && pre.push(cur), pre), []);
     if (compareArr.length) {
@@ -260,9 +259,9 @@ export default class StorageState extends tsc<IStorageStateProps> {
         // 当前设置的分片数超过/低于应用最大值/最小值xx-xx，请调整后再切换集群
         message: this.$t('当前设置的{name}超过最大值{max}, 请调整后再切换集群', {
           name: compareArr[0].name,
-          max: compareArr[0].maxVal
+          max: compareArr[0].maxVal,
         }),
-        theme: 'error'
+        theme: 'error',
       });
       return false;
     }
@@ -279,7 +278,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
         title: `${this.$t('修改集群历史数据会全部丢失，确认要更换么')}？`,
         width: 600,
         confirmFn: () => resolve(true),
-        cancelFn: () => resolve(false)
+        cancelFn: () => resolve(false),
       });
     });
   }
@@ -290,20 +289,20 @@ export default class StorageState extends tsc<IStorageStateProps> {
         <span class='status-wrap'>
           <span class={['status-icon', `status-${props.row.health}`]}></span>
           <span class='status-name'>{this.healthMaps[props.row.health]}</span>
-        </span>
-      ]
+        </span>,
+      ],
     };
     const sizeSlot = {
-      default: props => [<span>{byteConvert(props.row.store_size)}</span>]
+      default: props => [<span>{byteConvert(props.row.store_size)}</span>],
     };
     const analysisSlot = {
-      default: props => <span>{props.row.analysis_field ? this.$t('是') : this.$t('否')}</span>
+      default: props => <span>{props.row.analysis_field ? this.$t('是') : this.$t('否')}</span>,
     };
     const timeSlot = {
-      default: props => <span>{props.row.time_field ? this.$t('是') : this.$t('否')}</span>
+      default: props => <span>{props.row.time_field ? this.$t('是') : this.$t('否')}</span>,
     };
     const chFieldNameSlot = {
-      default: props => <span>{props.row.ch_field_name || '--'}</span>
+      default: props => <span>{props.row.ch_field_name || '--'}</span>,
     };
 
     return (
@@ -313,69 +312,64 @@ export default class StorageState extends tsc<IStorageStateProps> {
             <div class='form-content'>
               <div class='item-row'>
                 <EditableFormItem
+                  formType='input'
                   label={this.$t('存储索引名')}
-                  value={this.appInfo.es_storage_index_name}
-                  formType='input'
                   showEditable={false}
+                  value={this.appInfo.es_storage_index_name}
                 />
                 <EditableFormItem
-                  label={this.$t('存储集群')}
-                  value={this.appInfo.application_datasource_config?.es_storage_cluster}
-                  selectList={this.clusterOptions}
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
                   formType='select'
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
-                  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                  label={this.$t('存储集群')}
+                  selectList={this.clusterOptions}
                   updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
+                  value={this.appInfo.application_datasource_config?.es_storage_cluster}
                 />
               </div>
               <div class='item-row'>
                 <EditableFormItem
-                  label={this.$t('过期时间')}
-                  value={this.appInfo.application_datasource_config?.es_retention}
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
                   formType='expired'
-                  tooltips={this.$t('过期时间')}
+                  label={this.$t('过期时间')}
                   maxExpired={this.retentionDaysMax}
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
-                  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                  tooltips={this.$t('过期时间')}
                   updateValue={val => this.handleUpdateValue(val, 'es_retention')}
+                  value={this.appInfo.application_datasource_config?.es_retention}
                 />
                 <EditableFormItem
-                  label={this.$t('副本数')}
-                  value={this.appInfo.application_datasource_config?.es_number_of_replicas}
-                  formType='input'
-                  tooltips={this.$t('副本数')}
                   authority={this.authority.MANAGE_AUTH}
                   authorityName={authorityMap.MANAGE_AUTH}
-                  validator={val => this.initValidator(val, 'es_number_of_replicas')}
-                  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                  formType='input'
+                  label={this.$t('副本数')}
+                  tooltips={this.$t('副本数')}
                   updateValue={val => this.handleUpdateValue(val, 'es_number_of_replicas')}
+                  validator={val => this.initValidator(val, 'es_number_of_replicas')}
+                  value={this.appInfo.application_datasource_config?.es_number_of_replicas}
                 />
               </div>
               <div class='item-row'>
                 <EditableFormItem
-                  label={this.$t('分片数')}
-                  value={this.appInfo.application_datasource_config?.es_shards}
-                  formType='input'
-                  tooltips={this.$t('分片数')}
                   authority={this.authority.MANAGE_AUTH}
                   authorityName={authorityMap.MANAGE_AUTH}
-                  validator={val => this.initValidator(val, 'es_shards')}
-                  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                  formType='input'
+                  label={this.$t('分片数')}
+                  tooltips={this.$t('分片数')}
                   updateValue={val => this.handleUpdateValue(val, 'es_shards')}
+                  validator={val => this.initValidator(val, 'es_shards')}
+                  value={this.appInfo.application_datasource_config?.es_shards}
                 />
                 <EditableFormItem
-                  label={this.$t('索引切分大小')}
-                  value={this.appInfo.application_datasource_config?.es_slice_size}
-                  formType='input'
-                  unit='G'
-                  tooltips={this.$t('索引切分大小')}
                   authority={this.authority.MANAGE_AUTH}
                   authorityName={authorityMap.MANAGE_AUTH}
-                  validator={val => this.initValidator(val, 'es_slice_size')}
-                  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                  formType='input'
+                  label={this.$t('索引切分大小')}
+                  tooltips={this.$t('索引切分大小')}
+                  unit='G'
                   updateValue={val => this.handleUpdateValue(val, 'es_slice_size')}
+                  validator={val => this.initValidator(val, 'es_slice_size')}
+                  value={this.appInfo.application_datasource_config?.es_slice_size}
                 />
               </div>
             </div>
@@ -383,13 +377,13 @@ export default class StorageState extends tsc<IStorageStateProps> {
         </PanelItem>
         <PanelItem title={this.$t('物理索引')}>
           <bk-table
-            outer-border={false}
-            data={this.indicesList}
             v-bkloading={{ isLoading: this.indicesLoading }}
+            data={this.indicesList}
+            outer-border={false}
           >
             <bk-table-column
-              label={this.$t('索引')}
               width={280}
+              label={this.$t('索引')}
               prop={'index'}
             />
             <bk-table-column
@@ -421,9 +415,9 @@ export default class StorageState extends tsc<IStorageStateProps> {
         </PanelItem>
         <PanelItem title={this.$t('字段信息')}>
           <bk-table
-            outer-border={false}
-            data={this.fieldList}
             v-bkloading={{ isLoading: this.fieldLoading }}
+            data={this.fieldList}
+            outer-border={false}
           >
             <bk-table-column
               label={this.$t('字段名')}
@@ -434,28 +428,28 @@ export default class StorageState extends tsc<IStorageStateProps> {
               scopedSlots={chFieldNameSlot}
             />
             <bk-table-column
-              label={this.$t('数据类型')}
               width={180}
-              prop={'field_type'}
+              filter-method={this.fieldFilterMethod}
               filter-multiple={false}
               filters={this.fieldFilterList}
-              filter-method={this.fieldFilterMethod}
+              label={this.$t('数据类型')}
+              prop={'field_type'}
             />
             <bk-table-column
-              label={this.$t('分词')}
               width={100}
+              filter-method={this.whetherFilterMethod}
+              filters={this.whetherFilters}
+              label={this.$t('分词')}
               prop={'analysis_field'}
               scopedSlots={analysisSlot}
-              filters={this.whetherFilters}
-              filter-method={this.whetherFilterMethod}
             />
             <bk-table-column
-              label={this.$t('时间')}
               width={100}
+              filter-method={this.whetherFilterMethod}
+              filters={this.whetherFilters}
+              label={this.$t('时间')}
               prop={'time_field'}
               scopedSlots={timeSlot}
-              filters={this.whetherFilters}
-              filter-method={this.whetherFilterMethod}
             />
           </bk-table>
         </PanelItem>

@@ -30,7 +30,8 @@
         <span
           v-if="system === 'linux_aarch64'"
           class="item-icon icon-arm"
-        >ARM</span>
+          >ARM</span
+        >
         <span
           v-else
           :class="['item-icon', 'icon-monitor', `icon-${system}`]"
@@ -48,7 +49,9 @@
         <span
           v-if="!fileName"
           class="upload-btn"
-        > {{ $t('点击上传文件') }} </span>
+        >
+          {{ $t('点击上传文件') }}
+        </span>
         <div
           v-else
           class="file-name"
@@ -58,15 +61,17 @@
             <span
               v-show="progress === 100 || isEdit"
               v-bk-tooltips.top="toolTipsConf"
-              @click="handleClear"
               :class="['bk-icon', monitorIcon]"
+              @click="handleClear"
             />
             <span v-show="progress && progress !== 100">{{ `${progress}%` }} </span>
           </div>
           <div
             v-show="fileName"
             class="progress"
-          ><div :style="{ width: `${progress}%` }" /></div>
+          >
+            <div :style="{ width: `${progress}%` }" />
+          </div>
         </div>
       </div>
     </div>
@@ -76,12 +81,12 @@
       type="file"
       :accept="accept"
       @change="handleSelectFile"
-    >
+    />
   </div>
 </template>
 <script>
-import { uploadFileCollectorPlugin } from '../../../../../monitor-api/modules/model';
-import { dataDogPluginUpload } from '../../../../../monitor-api/modules/plugin';
+import { uploadFileCollectorPlugin } from 'monitor-api/modules/model';
+import { dataDogPluginUpload } from 'monitor-api/modules/plugin';
 
 export default {
   name: 'MoUpload',
@@ -93,8 +98,8 @@ export default {
     collector: Object,
     isEdit: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   data() {
     return {
@@ -104,8 +109,8 @@ export default {
       progress: 0,
       toolTipsConf: {
         content: '',
-        disable: true
-      }
+        disable: true,
+      },
     };
   },
   computed: {
@@ -124,15 +129,15 @@ export default {
         return 'icon-close-circle-shape clear-icon';
       }
       return '';
-    }
+    },
   },
   watch: {
     collector: {
       handler(v) {
         this.setFileData(v);
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   created() {
     this.setFileData(this.collector);
@@ -148,7 +153,6 @@ export default {
       }
     },
     setFileData(v) {
-      // eslint-disable-next-line camelcase
       if (v?.file_name) {
         this.fileDesc = v;
         this.fileName = v.file_name;
@@ -176,7 +180,7 @@ export default {
       const params = {
         file_data: file,
         file_name: file.name,
-        os: this.system
+        os: this.system,
       };
       if (this.isEdit) {
         params.plugin_id = this.pluginId;
@@ -191,11 +195,11 @@ export default {
       }
       this.handleProgress();
       ajax(params)
-        .then((data) => {
+        .then(data => {
           this.fileDesc = {
             file_name: data.actual_filename || data.file_name,
             file_id: data.file_id,
-            md5: data.file_md5 || data.md5
+            md5: data.file_md5 || data.md5,
           };
           if (isDataDog) {
             this.fileDesc.datadog_check_name = data.datadog_check_name;
@@ -207,56 +211,62 @@ export default {
             clearInterval(timer);
           }, 300);
         })
-        .catch((e) => {
+        .catch(e => {
           this.progress = 100;
           this.toolTipsConf.content = e.message || this.$t('网络错误');
           this.toolTipsConf.disable = false;
         });
       e.target.value = '';
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
 .upload-container {
   position: relative;
-  height: 32px;
   box-sizing: border-box;
+  height: 32px;
   border: 1px dashed #c4c6cc;
+
   input {
     position: absolute;
-    left: 0;
     top: 0;
-    height: 100%;
-    width: 100%;
+    left: 0;
     z-index: 10;
+    width: 100%;
+    height: 100%;
     cursor: pointer;
     opacity: 0;
   }
+
   .upload-view {
     display: flex;
-    height: 100%;
     width: 100%;
+    height: 100%;
+
     .file-icon {
       flex: 0 0 32px;
       height: 100%;
+
       .item-icon {
         position: relative;
         display: inline-block;
-        height: 100%;
         width: 100%;
-        text-align: center;
-        line-height: 32px;
-        font-size: 16px;
+        height: 100%;
         overflow: hidden;
+        font-size: 16px;
+        line-height: 32px;
+        text-align: center;
+
         .set-mark {
           position: absolute;
-          left: -14px;
           top: -14px;
+          left: -14px;
           width: 28px;
           height: 28px;
           background-color: #979ba5;
           transform: rotate(-45deg);
+
           .set-mark-font {
             position: absolute;
             top: 2px;
@@ -267,59 +277,69 @@ export default {
           }
         }
       }
+
       .icon-arm {
         font-size: 12px;
       }
     }
+
     .upload-operator {
       position: relative;
       width: calc(100% - 32px);
       font-size: 12px;
       line-height: 32px;
       border-left: 0;
+
       .upload-btn {
         color: #c4c6cc;
         cursor: pointer;
       }
+
       .file-name {
         position: relative;
         display: flex;
         align-items: center;
         height: 100%;
+
         .name {
           display: inline-block;
+          width: calc(100% - 35px);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-          width: calc(100% - 35px);
         }
       }
+
       .icon-wrapper {
         position: absolute;
         top: 8px;
         right: 8px;
         display: flex;
-        justify-content: center;
         align-items: center;
-        height: 16px;
+        justify-content: center;
         width: 16px;
+        height: 16px;
       }
+
       .icon-mc-check-fill {
-        color: #2dcb56;
         font-size: 16px;
+        color: #2dcb56;
       }
+
       .clear-icon {
+        z-index: 11;
+        font-size: 16px;
         color: #c4c6cc;
         cursor: pointer;
-        font-size: 16px;
-        z-index: 11;
       }
+
       .error-icon {
-        color: red;
-        font-weight: 600;
         font-size: 18px;
+        font-weight: 600;
+        color: red;
         cursor: pointer;
       }
+
       .progress {
         position: absolute;
         bottom: 4px;
@@ -327,6 +347,7 @@ export default {
         height: 2px;
         padding-right: 9px;
         background: #fff;
+
         div {
           width: 100%;
           height: 2px;

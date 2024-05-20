@@ -27,9 +27,9 @@ import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 // import { getPluginDetail } from './mock'
-import { getEventPluginInstance } from '../../../../monitor-api/modules/event_plugin';
-import { random } from '../../../../monitor-common/utils/utils';
-import Viewer from '../../../../monitor-ui/markdown-editor/viewer';
+import { getEventPluginInstance } from 'monitor-api/modules/event_plugin';
+import { random } from 'monitor-common/utils/utils';
+import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import Config from './config/config';
 import DataStatus from './data-status/data-status';
@@ -45,7 +45,7 @@ import {
   IPushConfigData,
   ITabListItem,
   StatusType,
-  textMap
+  textMap,
 } from './types';
 
 import './event-source-detail.scss';
@@ -62,7 +62,7 @@ interface IDetail {
 enum ETabKey {
   'desc' = 1,
   'config',
-  'dataStatus'
+  'dataStatus',
 }
 
 /**
@@ -97,7 +97,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
     pluginTypeDisplay: '',
     categoryDisplay: '',
     scenario: null,
-    isInstalled: false
+    isInstalled: false,
   };
   // 概述md文档
   descMd = '';
@@ -111,7 +111,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
     sourceFormat: '',
     ingesterHost: '',
     pluginId: '',
-    pushUrl: ''
+    pushUrl: '',
   };
   /* pull 类型下 配置表单 */
   paramsSchema = [];
@@ -128,7 +128,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
   tabList: ITabListItem[] = [
     { id: 1, name: i18n.tc('概述') },
     { id: 2, name: i18n.tc('配置') },
-    { id: 3, name: i18n.tc('数据状态'), warning: false }
+    { id: 3, name: i18n.tc('数据状态'), warning: false },
   ];
 
   configKey = random(8);
@@ -156,7 +156,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
       this.tabList = [
         { id: 1, name: i18n.tc('概述') },
         { id: 2, name: i18n.tc('配置') },
-        { id: 3, name: i18n.tc('数据状态'), warning: false }
+        { id: 3, name: i18n.tc('数据状态'), warning: false },
       ];
       this.getMinHeight();
       this.getPluginDetail();
@@ -202,7 +202,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
       scenario,
       params_schema: paramsSchema,
       is_installed: isInstalled,
-      instances
+      instances,
     } = data;
     // 插件状态及其基本信息
     this.statusKey = status as StatusType;
@@ -237,7 +237,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
     if (!isInstalled) {
       this.tabList = [
         { id: 1, name: i18n.tc('概述') },
-        { id: 2, name: i18n.tc('配置') }
+        { id: 2, name: i18n.tc('配置') },
       ];
     }
     this.configKey = random(8);
@@ -291,27 +291,27 @@ export default class EventSourceDetail extends tsc<IDetail> {
       version: this.version,
       pluginId: this.id,
       paramsSchema: this.paramsSchema,
-      pluginDisplayName: this.baseInfo.name
+      pluginDisplayName: this.baseInfo.name,
     };
   }
 
   protected render() {
     return (
       <bk-dialog
-        show-mask={true}
-        show-footer={false}
+        width={1000}
+        ext-cls='event-source-detail-wrap'
         mask-close={true}
         position={{ top: 24 }}
-        width={1000}
+        show-footer={false}
+        show-mask={true}
         transfer={true}
-        ext-cls='event-source-detail-wrap'
         value={this.value}
         {...{ on: { 'value-change': this.handleClose } }}
       >
         <div
-          v-bkloading={{ isLoading: this.isLoading }}
-          class={['event-source-main', this.curStatus]}
           style={`height: ${this.height}px;`}
+          class={['event-source-main', this.curStatus]}
+          v-bkloading={{ isLoading: this.isLoading }}
         >
           <span
             class='close-btn'
@@ -320,15 +320,15 @@ export default class EventSourceDetail extends tsc<IDetail> {
             <i class='icon-monitor icon-mc-close'></i>
           </span>
           <div
-            class='status-bar'
             style={this.statusKey && this.statusKey !== 'AVAILABLE' ? `background-color: ${this.curColor}` : ''}
+            class='status-bar'
           ></div>
           {/* 头部 */}
           <HeaderFunctional
-            data={this.baseInfo}
             curColor={this.curColor}
             curFontColor={this.curFontColor}
             curStatusText={this.curStatusText}
+            data={this.baseInfo}
             onInstall={() => this.handleInstall()}
             onViewEvent={this.viewEvent}
           ></HeaderFunctional>
@@ -352,8 +352,8 @@ export default class EventSourceDetail extends tsc<IDetail> {
               ))}
             </div>
             <div
-              class='event-source-content-main'
               style={`height: ${this.getContentMainHeight}px;`}
+              class='event-source-content-main'
             >
               {/* 概述 */}
               {this.tabActive === ETabKey.desc ? (
@@ -361,8 +361,8 @@ export default class EventSourceDetail extends tsc<IDetail> {
                   {this.descMd ? (
                     <Viewer
                       class='md-viewer'
-                      value={this.descMd}
                       flowchartStyle={true}
+                      value={this.descMd}
                     ></Viewer>
                   ) : (
                     <div style='padding: 20px 10px;'>{this.$t('暂无')}</div>
@@ -379,19 +379,19 @@ export default class EventSourceDetail extends tsc<IDetail> {
               {/* 配置 */}
               {
                 <Config
-                  v-show={this.tabActive === ETabKey.config}
                   id={this.id}
-                  isShow={this.value}
-                  type={this.baseInfo.pluginType}
-                  httpData={this.httpEditorData}
-                  normalizationTable={this.normalizationTable}
+                  key={this.configKey}
+                  v-show={this.tabActive === ETabKey.config}
                   alertConfigTable={this.alertConfigTable}
-                  pushConfigData={this.pushConfigData}
-                  tutorialMd={this.tutorialMd}
-                  paramsSchema={this.instanceParamsSchema}
+                  httpData={this.httpEditorData}
                   instanceId={this.instanceId}
                   isInstalled={this.isInstalled}
-                  key={this.configKey}
+                  isShow={this.value}
+                  normalizationTable={this.normalizationTable}
+                  paramsSchema={this.instanceParamsSchema}
+                  pushConfigData={this.pushConfigData}
+                  tutorialMd={this.tutorialMd}
+                  type={this.baseInfo.pluginType}
                 ></Config>
               }
             </div>

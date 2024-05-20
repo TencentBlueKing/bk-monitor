@@ -25,14 +25,14 @@
  */
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
-import { random } from '../../../../monitor-common/utils/utils';
-import { IDetectionConfig } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-import { transformSensitivityValue } from '../../../../monitor-pc/pages/strategy-config/util';
-import ChartWrapper from '../../../../monitor-ui/chart-plugins/components/chart-wrapper';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
-import { handleThreshold, parseMetricId } from '../../../../monitor-ui/chart-plugins/utils';
+import dayjs from 'dayjs';
+import { random } from 'monitor-common/utils/utils';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { transformSensitivityValue } from 'monitor-pc/pages/strategy-config/util';
+import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { handleThreshold, parseMetricId } from 'monitor-ui/chart-plugins/utils';
 
 import { IDetail } from './type';
 
@@ -41,7 +41,7 @@ import { IDetail } from './type';
  * 2、当发生时间一直往后延，起始时间变成 初次异常+5周期数据
  * 3、结束时间一直到事件结束后的五个周期，或最多不超过1440个周期
  */
-// eslint-disable-next-line max-len
+
 export const createAutoTimerange = (
   startTime: number,
   endTime: number,
@@ -63,7 +63,7 @@ export const createAutoTimerange = (
   newStartTime -= diff;
   const result = {
     startTime: dayjs.tz(newStartTime).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs.tz(newEndTime).format('YYYY-MM-DD HH:mm:ss')
+    endTime: dayjs.tz(newEndTime).format('YYYY-MM-DD HH:mm:ss'),
   };
   return result;
 };
@@ -114,12 +114,12 @@ export default class AiopsChartEvent extends tsc<IProps> {
           level: 1,
           type: 'Threshold',
           config: [[{ method: 'gte', threshold: val, name: this.$t('异常分值阈值') }]],
-          title: this.$t('异常分值阈值')
-        }
+          title: this.$t('异常分值阈值'),
+        },
       ],
       unit: '',
       unitList: [],
-      unitType: ''
+      unitType: '',
     };
   }
 
@@ -140,13 +140,13 @@ export default class AiopsChartEvent extends tsc<IProps> {
       type: 'graphs',
       options: {
         time_series_list: {
-          need_hover_style: false
-        }
+          need_hover_style: false,
+        },
       },
-      panels: await Promise.all(this.graphPanelTargets.map(async (item, index) => this.createPanel(item, index === 0)))
+      panels: await Promise.all(this.graphPanelTargets.map(async (item, index) => this.createPanel(item, index === 0))),
     };
     this.panel = new PanelModel(panelData as any);
-    // eslint-disable-next-line max-len
+
     const { startTime, endTime } = createAutoTimerange(
       this.detail.begin_time,
       this.detail.end_time,
@@ -168,12 +168,12 @@ export default class AiopsChartEvent extends tsc<IProps> {
         time_series: {
           // only_one_result: true,
           custom_timerange: true,
-          ...thresholdOptions
+          ...thresholdOptions,
         },
         legend: isMetric ? {} : { displayMode: 'hidden' },
         header: {
-          tips: this.$t('异常分值范围从0～1，越大越异常')
-        }
+          tips: this.$t('异常分值范围从0～1，越大越异常'),
+        },
       },
       targets: [
         {
@@ -189,21 +189,21 @@ export default class AiopsChartEvent extends tsc<IProps> {
                 dataSourceLabel: parseData.data_source_label ?? '',
                 resultTableId: parseData.result_table_id ?? '',
                 metricField: parseData.metric_field ?? '',
-                dataTypeLabel: parseData.data_type_label ?? ''
+                dataTypeLabel: parseData.data_type_label ?? '',
               };
               return {
                 ...item,
-                originMetricData
+                originMetricData,
               };
-            })
+            }),
           },
           alias: '',
           datasource: 'time_series',
           data_type: 'time_series',
-          api: 'alert.alertGraphQuery'
+          api: 'alert.alertGraphQuery',
           // api: 'grafana.graphUnifyQuery'
-        }
-      ]
+        },
+      ],
     };
     return new PanelModel(result as any);
   }

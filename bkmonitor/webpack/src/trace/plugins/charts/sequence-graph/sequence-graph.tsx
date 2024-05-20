@@ -24,18 +24,18 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 // import mermaid from '../../../../mermaid/packages/mermaid/dist/mermaid.core.mjs';
 import mermaid from 'fork-mermaid';
+import { traceDiagram } from 'monitor-api/modules/apm_trace.js';
+import { random } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 
-import { traceDiagram } from '../../../../monitor-api/modules/apm_trace.js';
-import { random } from '../../../../monitor-common/utils/utils';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
-
 import { defaultConfig } from './mermaid';
 
 // import mermaid  from './dist/mermaid.core.mjs';
@@ -51,16 +51,16 @@ export default defineComponent({
   props: {
     traceId: {
       type: String,
-      required: true
+      required: true,
     },
     appName: {
       type: String,
-      required: true
+      required: true,
     },
     filters: {
       type: Array,
-      required: false
-    }
+      required: false,
+    },
   },
   emits: ['update:loading', 'spanListChange', 'showSpanDetail'],
   setup(props, { emit }) {
@@ -84,7 +84,7 @@ export default defineComponent({
       width: 0,
       height: 0,
       left: 0,
-      top: 0
+      top: 0,
     });
     const graphScale = ref(100); // 缩放比例
     const rawSvgRect = ref({ width: 0, height: 0 }); // 原始svg尺寸
@@ -123,21 +123,21 @@ export default defineComponent({
         } else {
           if (!boxParticipantsMap[item.name]) {
             boxParticipantsMap[item.name] = {
-              [item.component_name]: true
+              [item.component_name]: true,
             };
             boxParticipants[item.component_name] = [
               ...(boxParticipants[item.component_name] || []),
-              `participant ${item.name} as ${item.display_name} is ${item.id}\n`
+              `participant ${item.name} as ${item.display_name} is ${item.id}\n`,
             ];
           } else {
             if (!boxParticipantsMap[item.name][item.component_name]) {
               boxParticipantsMap[item.name] = {
                 ...boxParticipantsMap[item.name],
-                [item.component_name]: `${item.name} as ${item.display_name} is ${item.id}`
+                [item.component_name]: `${item.name} as ${item.display_name} is ${item.id}`,
               };
               boxParticipants[item.component_name] = [
                 ...(boxParticipants[item.component_name] || []),
-                `participant ${boxParticipantsMap[item.name][item.component_name]}\n`
+                `participant ${boxParticipantsMap[item.name][item.component_name]}\n`,
               ];
             }
           }
@@ -257,10 +257,10 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
               diagram_type: 'sequence',
               with_original: true,
               show_attrs: 0,
-              displays: props.filters
+              displays: props.filters,
             },
             {
-              needCancel: true
+              needCancel: true,
             }
           ).catch(() => false);
           if (!data.diagram_data) {
@@ -287,7 +287,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
               svgDom.style.height = `${height * (graphScale.value / 100)}px`;
               rawSvgRect.value = {
                 width,
-                height
+                height,
               };
             }
             emit('update:loading', false);
@@ -467,7 +467,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
         mainDom.scrollTo({
           top: Math.floor(boundTop * yMultiple),
           left: Math.floor(boundLeft * xMultiple),
-          behavior: 'auto'
+          behavior: 'auto',
         });
       }
       function handleMouseUp() {
@@ -485,17 +485,17 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       showThumbnail.value = false;
       thumbnailSvgRect.value = {
         width: 0,
-        height: 0
+        height: 0,
       };
       thumbnailRect.value = {
         width: 0,
-        height: 0
+        height: 0,
       };
       thumbnailViewRect.value = {
         width: 0,
         height: 0,
         top: 0,
-        left: 0
+        left: 0,
       };
     }
     /**
@@ -513,9 +513,9 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       const xMultiple = mainDom.scrollWidth / mainWidth;
       const yMultiple = mainDom.scrollHeight / mainHeight;
       const useWidthScale = xMultiple > 1 || yMultiple > 1 ? xMultiple > yMultiple : mainWidth > mainHeight;
-      // eslint-disable-next-line max-len
+
       let thumbnailWidth = useWidthScale ? MaxImgWidth : mainDom.scrollWidth / (mainDom.scrollHeight / MaxImgHeight);
-      // eslint-disable-next-line max-len
+
       let thumbnailHeight = useWidthScale ? mainDom.scrollHeight / (mainDom.scrollWidth / MaxImgWidth) : MaxImgHeight;
       if (thumbnailWidth > MaxImgWidth) {
         thumbnailWidth = MaxImgWidth;
@@ -527,17 +527,17 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       const thumbnailSvgHeight = thumbnailHeight * (svgRect.height / mainDom.scrollHeight);
       thumbnailSvgRect.value = {
         width: +thumbnailSvgWidth,
-        height: +thumbnailSvgHeight
+        height: +thumbnailSvgHeight,
       };
       thumbnailRect.value = {
         width: +thumbnailWidth,
-        height: +thumbnailHeight
+        height: +thumbnailHeight,
       };
       thumbnailViewRect.value = {
         left: thumbnailViewRect.value.left,
         top: thumbnailViewRect.value.top,
         width: +thumbnailViewWidth,
-        height: +thumbnailViewHeight
+        height: +thumbnailViewHeight,
       };
       if (showThumbnail.value) {
         // hasDraw = false;
@@ -586,7 +586,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
         showThumbnail.value = false;
         thumbnailRect.value = {
           width: 120,
-          height: 300
+          height: 300,
         };
       }
     }
@@ -617,63 +617,63 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       downloadSvgAsImage,
       handleScaleChange,
       handleThumbnailViewMouseDown,
-      handleShowLegend
+      handleShowLegend,
     };
   },
   render() {
     if (this.showException)
       return (
         <Exception
-          type='empty'
           description={this.$t('暂无数据')}
+          type='empty'
         />
       );
     return (
       <div
-        class='sequence-graph-wrapper'
         ref='sequenceGraphWrapRef'
+        class='sequence-graph-wrapper'
       >
         <div
-          class='sequence-graph'
           ref='sequenceGraphRef'
+          class='sequence-graph'
         >
           <div id={this.graphId}></div>
           <div
-            class='sequence-graph-ref'
             ref='mermaidRef'
+            class='sequence-graph-ref'
             onClick={this.handleClickSvg}
           />
         </div>
         <div class='sequence-tools'>
           {
             <Popover
-              trigger='manual'
-              isShow={this.showThumbnail || this.showLegend}
-              theme='light'
-              placement='top-start'
-              allowHtml={false}
-              arrow={false}
-              zIndex={1001}
-              extCls='sequence-thumbnail-popover'
               width={this.thumbnailRect.width}
               height={this.thumbnailRect.height}
-              content={this.sequenceThumbnailRef}
+              extCls='sequence-thumbnail-popover'
+              allowHtml={false}
+              arrow={false}
               boundary={'parent'}
+              content={this.sequenceThumbnailRef}
+              isShow={this.showThumbnail || this.showLegend}
+              placement='top-start'
               renderType='auto'
+              theme='light'
+              trigger='manual'
+              zIndex={1001}
             >
               {{
                 default: () => (
                   <GraphTools
                     class='sequence-graph-tools'
-                    scaleStep={10}
+                    legendActive={this.showLegend}
                     minScale={10}
+                    scaleStep={10}
                     scaleValue={this.graphScale}
                     thumbnailActive={this.showThumbnail}
-                    legendActive={this.showLegend}
-                    onShowThumbnail={this.handleShowThumbnail}
-                    onStoreImg={this.downloadSvgAsImage}
                     onScaleChange={this.handleScaleChange}
                     onShowLegend={this.handleShowLegend}
+                    onShowThumbnail={this.handleShowThumbnail}
+                    onStoreImg={this.downloadSvgAsImage}
                   />
                 ),
                 content: () => [
@@ -690,29 +690,29 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                           left: `${this.thumbnailViewRect.left}px`,
                           top: `${this.thumbnailViewRect.top}px`,
                           width: `${this.thumbnailViewRect.width}px`,
-                          height: `${this.thumbnailViewRect.height}px`
+                          height: `${this.thumbnailViewRect.height}px`,
                         }}
-                        onMousedown={this.handleThumbnailViewMouseDown}
                         class='sequence-thumbnail-view'
+                        onMousedown={this.handleThumbnailViewMouseDown}
                       />
                       <canvas
-                        width={this.thumbnailRect.width * window.devicePixelRatio}
-                        height={this.thumbnailRect.height * window.devicePixelRatio}
-                        style={{
-                          transform: `scale(${1 / window.devicePixelRatio})`
-                        }}
                         id='thumbnail-canvas'
                         ref='thumbnailRef'
+                        style={{
+                          transform: `scale(${1 / window.devicePixelRatio})`,
+                        }}
+                        width={this.thumbnailRect.width * window.devicePixelRatio}
+                        height={this.thumbnailRect.height * window.devicePixelRatio}
                         class='sequence-thumbnail-canvas'
                       ></canvas>
                     </div>
-                  )
-                ]
+                  ),
+                ],
               }}
             </Popover>
           }
         </div>
       </div>
     );
-  }
+  },
 });

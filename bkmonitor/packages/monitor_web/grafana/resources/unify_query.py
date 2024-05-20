@@ -21,9 +21,6 @@ from django.conf import settings
 from django.db.models import Q
 from django.forms import model_to_dict
 from django.utils import timezone
-from monitor_web.grafana.utils import get_cookies_filter
-from monitor_web.statistics.v2.query import unify_query_count
-from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -41,6 +38,7 @@ from bkmonitor.data_source.unify_query.query import UnifyQuery
 from bkmonitor.models import MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import get_metric_id
+from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.time_tools import (
     hms_string,
     parse_time_compare_abbreviation,
@@ -57,6 +55,9 @@ from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
 from core.prometheus.metrics import safe_push_to_gateway
+from monitor_web.grafana.utils import get_cookies_filter, remove_all_conditions
+from monitor_web.statistics.v2.query import unify_query_count
+from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 
 logger = logging.getLogger(__name__)
 
@@ -516,6 +517,10 @@ class UnifyQueryRawResource(ApiAuthResource):
                 return attrs
 
         target = serializers.ListField(default=[], label="监控目标")
+        target_filter_type = serializers.ChoiceField(
+            label="监控目标过滤方法", default="auto", choices=["auto", "query", "post-query"]
+        )
+        post_query_filter_dict = serializers.DictField(label="后置查询过滤条件", default={})
         bk_biz_id = serializers.IntegerField(label="业务ID")
         query_configs = serializers.ListField(label="查询配置列表", allow_empty=False, child=QueryConfigSerializer())
         expression = serializers.CharField(label="查询表达式", allow_blank=True)
@@ -671,9 +676,14 @@ class UnifyQueryRawResource(ApiAuthResource):
         if not target_instances:
             return target_instances is not None
 
-        # 插入条件
-        for query_config in params["query_configs"]:
-            query_config["filter_dict"]["target"] = target_instances
+        # 如果主机过滤模式为query或模式为auto且目标实例数量小于100，则将目标实例作为查询条件
+        if params["target_filter_type"] == "query" or (
+            params["target_filter_type"] == "auto" and len(target_instances) < 100
+        ):
+            for query_config in params["query_configs"]:
+                query_config["filter_dict"]["target"] = target_instances
+        else:
+            params["post_query_filter_dict"]["target"] = target_instances
         return True
 
     def perform_request(self, params):
@@ -689,11 +699,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         # 指标信息查询
         metrics = self.get_metric_info(params)
 
-        # 查询目标实例
-        if not self.get_target_instance(params):
-            return {"series": [], "metrics": metrics}
-
-        # 数据查询
+        # 配置预处理
         for query_config in params["query_configs"]:
             query_config.pop("time_field", None)
 
@@ -718,6 +724,12 @@ class UnifyQueryRawResource(ApiAuthResource):
 
             if query_config["interval"] == "auto":
                 query_config["interval"] = get_auto_interval(60, params["start_time"], params["end_time"])
+            # 删除全选条件
+            query_config["where"] = remove_all_conditions(query_config["where"])
+
+        # 查询目标实例
+        if not self.get_target_instance(params):
+            return {"series": [], "metrics": metrics}
 
         # 维度top/bottom排序
         params = RankProcessor.process_params(params)
@@ -757,6 +769,11 @@ class UnifyQueryRawResource(ApiAuthResource):
             slimit=params["slimit"],
             down_sample_range=params["down_sample_range"],
         )
+
+        # 如果存在数据后过滤条件，则进行过滤
+        if params.get("post_query_filter_dict"):
+            condition_filter = load_agg_condition_instance(params["post_query_filter_dict"])
+            points = [point for point in points if condition_filter.is_match(point)]
 
         # 数据预处理
         points = TimeCompareProcessor.process_origin_data(params, points)
@@ -947,6 +964,9 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
     def perform_request(self, params):
         raw_query_result = super(GraphUnifyQueryResource, self).perform_request(params)
         points = raw_query_result["series"]
+        if not points:
+            return raw_query_result
+
         metrics = raw_query_result["metrics"]
 
         # 数据格式化
@@ -1057,6 +1077,9 @@ class GraphPromqlQueryResource(Resource):
     通过PromQL查询图表数据
     """
 
+    ALL_REPLACE_PATTERN = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*\s*(=|=~)\s*['\"]__BKMONITOR_ALL__['\"]\s*,?")
+    SURPLUS_COMMA_PATTERN = re.compile(r",\s*}$")
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         promql = serializers.CharField(label="PromQL", allow_blank=True)
@@ -1093,6 +1116,16 @@ class GraphPromqlQueryResource(Resource):
             result.append(series)
         return result
 
+    @classmethod
+    def remove_all_conditions(cls, promql: str) -> str:
+        """
+        去除promql中的全选条件
+        """
+        promql = promql.strip()
+        promql = cls.ALL_REPLACE_PATTERN.sub("", promql)
+        promql = cls.SURPLUS_COMMA_PATTERN.sub("}", promql)
+        return promql
+
     def perform_request(self, params):
         # cookies filter
         cookies_filter = PrometheusTimeSeriesDataSource.filter_dict_to_promql_match(get_cookies_filter())
@@ -1103,26 +1136,26 @@ class GraphPromqlQueryResource(Resource):
             params["start_time"] = params["end_time"] - 5 * interval
 
         if not params["promql"]:
-            series = []
-        else:
-            start_time = time_interval_align(params["start_time"], interval)
-            end_time = time_interval_align(params["end_time"], interval)
+            return {"metrics": [], "series": []}
 
-            request_params = dict(
-                promql=params["promql"],
-                match=cookies_filter,
-                start=start_time,
-                end=end_time,
-                step=params["step"],
-                bk_biz_ids=[params["bk_biz_id"]],
-                timezone=timezone.get_current_timezone_name(),
-            )
+        params["promql"] = self.remove_all_conditions(params["promql"])
+        start_time = time_interval_align(params["start_time"], interval)
+        end_time = time_interval_align(params["end_time"], interval)
+        request_params = dict(
+            promql=params["promql"],
+            match=cookies_filter,
+            start=start_time,
+            end=end_time,
+            step=params["step"],
+            bk_biz_ids=[params["bk_biz_id"]],
+            timezone=timezone.get_current_timezone_name(),
+        )
 
-            result = api.unify_query.query_data_by_promql(**request_params)["series"] or []
-            series = self.format_data(result)
-            series = HeatMapProcessor.process_formatted_data(params, series)
-            series = QueryTypeProcessor.process_formatted_data(params, series)
-            series = AddNullDataProcessor.process_formatted_data(params, series)
+        result = api.unify_query.query_data_by_promql(**request_params)["series"] or []
+        series = self.format_data(result)
+        series = HeatMapProcessor.process_formatted_data(params, series)
+        series = QueryTypeProcessor.process_formatted_data(params, series)
+        series = AddNullDataProcessor.process_formatted_data(params, series)
         return {"metrics": [], "series": series}
 
 
@@ -1293,6 +1326,7 @@ class DimensionUnifyQuery(Resource):
             limit=params["slimit"],
             start_time=params["start_time"] * 1000,
             end_time=params["end_time"] * 1000,
+            interval=600,
         )
 
         # 处理数据，支持多字段查找

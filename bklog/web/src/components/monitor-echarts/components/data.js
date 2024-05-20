@@ -25,16 +25,16 @@ const data = {
   datapoints: [
     {
       status: 1, // 端口状态 1 未启用 2 告警 3 健康
-      value: 2323, // 进程端口号
-    },
+      value: 2323 // 进程端口号
+    }
   ],
-  type: 'status',
+  type: 'status'
 };
 
 const textData = {
   datapoints: {
     unit: '小时', // 运行时长单位
-    value: 12123, // 运行时长
+    value: 12123 // 运行时长
   },
-  type: 'text',
+  type: 'text'
 };

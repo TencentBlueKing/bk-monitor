@@ -25,8 +25,8 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
+import dayjs from 'dayjs';
 import {
   createOrUpdateAuthorizer,
   deleteExternalPermission,
@@ -34,33 +34,33 @@ import {
   getAuthorizerByBiz,
   getAuthorizerList,
   getByAction,
-  getExternalPermissionList
-} from '../../../monitor-api/modules/iam';
-import { Debounce } from '../../../monitor-common/utils';
+  getExternalPermissionList,
+} from 'monitor-api/modules/iam';
+import { Debounce } from 'monitor-common/utils';
+
 import BizSelect from '../../components/biz-select/biz-select';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import { ISpaceItem } from '../../types';
 import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
-
 import AuthorizationDialog from './authorization-dialog';
 
 import './authorization-list.scss';
 
 const { i18n } = window;
 
-export type AngleType = 'user' | 'resource' | 'approval';
-type StatusType = 'all' | 'invalid' | 'available' | 'approval' | 'expired' | 'success' | 'failed';
+export type AngleType = 'approval' | 'resource' | 'user';
+type StatusType = 'all' | 'approval' | 'available' | 'expired' | 'failed' | 'invalid' | 'success';
 enum TableColumnEnum {
-  authorized_user = 'authorized_user',
   action_id = 'action_id',
-  resources = 'resources',
+  authorized_user = 'authorized_user',
+  authorized_users = 'authorized_users',
   authorizer = 'authorizer',
-  space_name = 'space_name',
   expire_time = 'expire_time',
-  status = 'status',
   resource_id = 'resource_id',
-  authorized_users = 'authorized_users'
+  resources = 'resources',
+  space_name = 'space_name',
+  status = 'status',
 }
 
 interface ColumnItem {
@@ -92,7 +92,7 @@ interface ResourceListItem {
 }
 
 export interface EditModel {
-  action_id: String;
+  action_id: string;
   authorized_users: string[];
   resources: number[];
   expire_time?: string;
@@ -105,17 +105,17 @@ export const STATUS_LIST = [
     name: i18n.tc('生效'),
     color1: '#3FC06D',
     color2: '#3FC06D29',
-    show: ['user', 'resource']
+    show: ['user', 'resource'],
   },
   { id: 'success', name: i18n.tc('审批成功'), color1: '#3FC06D', color2: '#3FC06D29', show: ['approval'] },
   { id: 'approval', name: i18n.tc('审批中'), color1: '#FF9C01', color2: '#FF9C0129', show: ['approval'] },
   { id: 'expired', name: i18n.tc('过期'), color1: '#979BA5', color2: '#979BA529', show: ['user', 'resource'] },
   { id: 'invalid', name: i18n.tc('失效'), color1: '#EA3636', color2: '#EA363629', show: ['user', 'resource'] },
-  { id: 'failed', name: i18n.tc('审批失败'), color1: '#EA3636', color2: '#EA363629', show: ['approval'] }
+  { id: 'failed', name: i18n.tc('审批失败'), color1: '#EA3636', color2: '#EA363629', show: ['approval'] },
 ];
 
 export const ACTION_MAP = {
-  view_grafana: '仪表盘查看'
+  view_grafana: '仪表盘查看',
 };
 @Component
 // export default class AuthorizationList extends Mixins(authorityMixinCreate(ruleAuth)) {
@@ -128,7 +128,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
   searchValue = ''; // 搜索关键字
   angleType: AngleType = 'user'; // 视角类型
   statusActive: StatusType = 'all'; // 状态类型
-  totalListData: (UserListItem | ResourceListItem)[] = []; // 总列表数据
+  totalListData: (ResourceListItem | UserListItem)[] = []; // 总列表数据
   // 列表Columns管理
   tableColumns: { [key in AngleType]: ColumnItem[] } = {
     user: [
@@ -136,131 +136,131 @@ export default class AuthorizationList extends tsc<{}, {}> {
         prop: TableColumnEnum.authorized_user,
         name: i18n.tc('被授权人'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.action_id,
         name: i18n.tc('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, width: 200, formatter: this.actionFormatter }
+        props: { filters: [], 'filter-method': this.filterMethod, width: 200, formatter: this.actionFormatter },
       },
       {
         prop: TableColumnEnum.resources,
         name: i18n.tc('操作实例'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.authorizer,
         name: i18n.tc('授权人'),
         authHidden: true,
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.space_name,
         name: i18n.tc('所属空间'),
         authHidden: true,
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.expire_time,
         name: i18n.tc('截止时间'),
         hidden: false,
-        props: { sortable: true, width: 200, formatter: this.timeFormatter }
+        props: { sortable: true, width: 200, formatter: this.timeFormatter },
       },
       {
         prop: TableColumnEnum.status,
         name: i18n.tc('状态'),
         hidden: false,
-        props: { width: 140, formatter: this.statusFormatter }
-      }
+        props: { width: 140, formatter: this.statusFormatter },
+      },
     ],
     resource: [
       {
         prop: TableColumnEnum.resource_id,
         name: i18n.tc('操作实例'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.action_id,
         name: i18n.tc('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, width: 200, formatter: this.actionFormatter }
+        props: { filters: [], 'filter-method': this.filterMethod, width: 200, formatter: this.actionFormatter },
       },
       {
         prop: TableColumnEnum.authorized_users,
         name: i18n.tc('被授权人'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.authorizer,
         name: i18n.tc('授权人'),
         authHidden: true,
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.space_name,
         name: i18n.tc('所属空间'),
         authHidden: true,
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.expire_time,
         name: i18n.tc('截止时间'),
         hidden: true,
-        props: { sortable: true, width: 200, formatter: this.timeFormatter }
+        props: { sortable: true, width: 200, formatter: this.timeFormatter },
       },
       {
         prop: TableColumnEnum.status,
         name: i18n.tc('状态'),
         hidden: false,
-        props: { width: 140, formatter: this.statusFormatter }
-      }
+        props: { width: 140, formatter: this.statusFormatter },
+      },
     ],
     approval: [
       {
         prop: TableColumnEnum.authorized_users,
         name: i18n.tc('被授权人'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.action_id,
         name: i18n.tc('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, width: 200, formatter: this.actionFormatter }
+        props: { filters: [], 'filter-method': this.filterMethod, width: 200, formatter: this.actionFormatter },
       },
       {
         prop: TableColumnEnum.resources,
         name: i18n.tc('操作实例'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod }
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.expire_time,
         name: i18n.tc('截止时间'),
         hidden: false,
-        props: { sortable: true, width: 200, formatter: this.timeFormatter }
+        props: { sortable: true, width: 200, formatter: this.timeFormatter },
       },
       {
         prop: TableColumnEnum.status,
         name: i18n.tc('状态'),
         hidden: false,
-        props: { width: 140, formatter: this.statusFormatter }
-      }
-    ]
+        props: { width: 140, formatter: this.statusFormatter },
+      },
+    ],
   };
   // 分页
   pagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   loading = false;
   resourcesLoading = true; // 操作实例loading
@@ -282,11 +282,11 @@ export default class AuthorizationList extends tsc<{}, {}> {
               bk_biz_id: 0,
               space_type_id: 'bkcc',
               space_uid: 'all',
-              is_hidden_tag: true
-            }
+              is_hidden_tag: true,
+            },
           ]
         : []),
-      ...bizList
+      ...bizList,
     ];
   }
 
@@ -389,7 +389,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
     if (!this.memberValue) {
       this.$bkMessage({
         message: this.$t('不能为空'),
-        theme: 'error'
+        theme: 'error',
       });
       return;
     }
@@ -459,7 +459,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
     try {
       const res = await getExternalPermissionList({
         bk_biz_id: this.bizId,
-        view_type: this.angleType
+        view_type: this.angleType,
       });
       return [true, res];
     } catch (error) {
@@ -471,7 +471,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
   async getApprovalListData(): Promise<[boolean, any]> {
     try {
       const res = await getApplyRecordList({
-        bk_biz_id: this.bizId
+        bk_biz_id: this.bizId,
       });
       return [true, res];
     } catch (error) {
@@ -522,12 +522,12 @@ export default class AuthorizationList extends tsc<{}, {}> {
         if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
           item.props.filters = Array.from(set).map(id => ({
             text: this.resourceList.find(item => item.uid === id)?.text,
-            value: id
+            value: id,
           }));
         } else if (prop === TableColumnEnum.action_id) {
           item.props.filters = Array.from(set).map((id: string) => ({
             text: ACTION_MAP[id],
-            value: id
+            value: id,
           }));
         } else {
           item.props.filters = Array.from(set).map(item => ({ text: item, value: item }));
@@ -557,14 +557,14 @@ export default class AuthorizationList extends tsc<{}, {}> {
           label={column.name}
           prop={column.prop}
           {...{
-            props: column.props
+            props: column.props,
           }}
           scopedSlots={{
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
                 {row.authorized_users?.map(item => <bk-tag>{item}</bk-tag>)}
               </div>
-            )
+            ),
           }}
         />
       );
@@ -576,7 +576,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
           label={column.name}
           prop={column.prop}
           {...{
-            props: column.props
+            props: column.props,
           }}
           scopedSlots={{
             default: ({ row }) => {
@@ -606,7 +606,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                   <div>{this.resourceList.find(item => item.uid === row.resource_id)?.text}</div>
                 </div>
               );
-            }
+            },
           }}
         />
       );
@@ -618,7 +618,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
         label={column.name}
         prop={column.prop}
         {...{
-          props: column.props
+          props: column.props,
         }}
       />
     );
@@ -637,12 +637,12 @@ export default class AuthorizationList extends tsc<{}, {}> {
   statusPoint(color1: string, color2) {
     return (
       <div
-        class='status-point'
         style={{ background: color2 }}
+        class='status-point'
       >
         <div
-          class='point'
           style={{ background: color1 }}
+          class='point'
         ></div>
       </div>
     );
@@ -674,7 +674,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
         action_id: row.action_id,
         authorized_users: row.authorized_users || [row.authorized_user],
         resources: row.resources || [row.resource_id],
-        view_type: this.angleType
+        view_type: this.angleType,
       });
       this.getListData();
     } catch (error) {}
@@ -685,7 +685,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
       action_id: row.action_id,
       authorized_users: row.authorized_users || [row.authorized_user],
       resources: row.resources || [row.resource_id],
-      expire_time: row.expire_time || ''
+      expire_time: row.expire_time || '',
     };
     this.visible = true;
   }
@@ -717,11 +717,11 @@ export default class AuthorizationList extends tsc<{}, {}> {
           >
             <p class='page-title'>{this.$t('route-外部授权列表')}</p>
             <BizSelect
-              value={+this.bizId}
               bizList={this.bizIdList}
-              theme='light'
               isShowCommon={false}
               minWidth={310}
+              theme='light'
+              value={+this.bizId}
               onChange={this.handleBizChange}
             />
           </div>
@@ -729,10 +729,10 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
         <div class='page-content'>
           <bk-alert
-            type='error'
             title={this.$t(
               '需遵循公司规范，禁止对外暴露用户或公司内部敏感信息（用户PII信息、账号密码、云AKSK、内部系统鉴权/Token、保密文档等），若因授权不当造成数据泄露须承担相应责任; '
             )}
+            type='error'
           />
 
           <div class='authorization-header'>
@@ -752,16 +752,16 @@ export default class AuthorizationList extends tsc<{}, {}> {
                 </bk-select>
                 <bk-button
                   class='member-btn'
-                  text
                   title='primary'
+                  text
                   onClick={this.createOrUpdateAuthUser}
                 >
                   {this.$t('确定')}
                 </bk-button>
                 <bk-button
                   class='member-btn'
-                  text
                   title='primary'
+                  text
                   onClick={() => (this.isEditMember = false)}
                 >
                   {this.$t('取消')}
@@ -775,7 +775,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                     class='icon-monitor icon-bianji'
                     v-bk-tooltips={{
                       content: this.$t('变更授权人'),
-                      placements: ['top']
+                      placements: ['top'],
                     }}
                     onClick={this.showMemberSelect}
                   />
@@ -796,10 +796,10 @@ export default class AuthorizationList extends tsc<{}, {}> {
                 {
                   <bk-button
                     class='auth-btn'
+                    disabled={!this.memberSelect}
+                    icon='plus'
                     theme='primary'
                     type='submit'
-                    icon='plus'
-                    disabled={!this.memberSelect}
                     onClick={() => this.showDialog()}
                   >
                     {this.$t('添加授权')}
@@ -831,15 +831,15 @@ export default class AuthorizationList extends tsc<{}, {}> {
                 <div class='status-list'>
                   {this.currentStatus.map((item, index) => (
                     <div
+                      key={item.id}
                       class={[
                         'status-list-item',
                         { active: this.statusActive === item.id },
                         {
                           'not-border':
-                            this.statusActive === item.id || this.currentStatus[index + 1]?.id === this.statusActive
-                        }
+                            this.statusActive === item.id || this.currentStatus[index + 1]?.id === this.statusActive,
+                        },
                       ]}
-                      key={item.id}
                       onClick={() => this.handleStatusChange(item.id)}
                     >
                       {index !== 0 && this.statusPoint(item.color1, item.color2)}
@@ -849,37 +849,36 @@ export default class AuthorizationList extends tsc<{}, {}> {
                 </div>
 
                 <bk-input
-                  value={this.searchValue}
-                  onInput={this.handleSearchBlur}
                   class='search-input'
                   right-icon='bk-icon icon-search'
+                  value={this.searchValue}
+                  onInput={this.handleSearchBlur}
                 ></bk-input>
               </div>
             </div>
 
             <div class='table-wrapper'>
               <bk-table
+                key={this.angleType}
                 v-bkloading={{ isLoading: this.loading }}
-                row-auto-height
                 data={this.listData}
                 pagination={this.pagination}
-                key={this.angleType}
+                size='large'
+                row-auto-height
                 on-page-change={this.handlePageChange}
                 on-page-limit-change={this.handlePageLimitChange}
-                size='large'
               >
                 <bk-table-column
-                  label='ID'
                   width={105}
                   scopedSlots={{
                     default: ({ $index }) => (
                       <div>{(this.pagination.current - 1) * this.pagination.limit + $index + 1}</div>
-                    )
+                    ),
                   }}
+                  label='ID'
                 />
                 {this.currentColumns.map(column => this.renderColumn(column))}
                 <bk-table-column
-                  label={this.$t('操作')}
                   width={140}
                   scopedSlots={{
                     default: ({ row }) => (
@@ -894,8 +893,8 @@ export default class AuthorizationList extends tsc<{}, {}> {
                         ) : (
                           [
                             <bk-button
-                              text
                               style='margin-right: 16px'
+                              text
                               onClick={() => this.showDialog(row)}
                             >
                               {this.$t('编辑')}
@@ -905,19 +904,20 @@ export default class AuthorizationList extends tsc<{}, {}> {
                               onClick={() => this.handleDelete(row)}
                             >
                               {this.$t('删除')}
-                            </bk-button>
+                            </bk-button>,
                           ]
                         )}
                       </div>
-                    )
+                    ),
                   }}
+                  label={this.$t('操作')}
                 />
                 <bk-table-column type='setting'>
                   <bk-table-setting-content
                     fields={this.tableColumns[this.angleType].filter(item => !item.authHidden)}
-                    value-key='prop'
                     label-key='name'
                     selected={this.currentColumns}
+                    value-key='prop'
                     on-setting-change={this.handleSettingChange}
                   ></bk-table-setting-content>
                 </bk-table-column>
@@ -934,10 +934,10 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
         <AuthorizationDialog
           v-model={this.visible}
-          rowData={this.rowData}
           authorizer={this.memberSelect}
-          viewType={this.angleType}
           bizId={this.bizId}
+          rowData={this.rowData}
+          viewType={this.angleType}
           onSuccess={this.handleSuccess}
         />
       </div>

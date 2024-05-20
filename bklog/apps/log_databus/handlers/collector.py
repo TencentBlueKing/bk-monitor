@@ -34,7 +34,7 @@ from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
-from apps.api import BcsCcApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
+from apps.api import BcsApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
 from apps.api.modules.bk_node import BKNodeApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -165,6 +165,8 @@ from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
+
+COLLECTOR_RE = re.compile(r'.*\d{6,8}$')
 
 
 class CollectorHandler(object):
@@ -1198,6 +1200,7 @@ class CollectorHandler(object):
             "topic": data_result["mq_config"]["storage_config"]["topic"],
             "username": data_result["mq_config"]["auth_info"]["username"],
             "password": data_result["mq_config"]["auth_info"]["password"],
+            "sasl_mechanism": data_result["mq_config"]["auth_info"].get("sasl_mechanisms"),
             "is_ssl_verify": cluster_config.get("is_ssl_verify", False),
             "ssl_insecure_skip_verify": cluster_config.get("ssl_insecure_skip_verify", True),
             "ssl_cafile": ssl_cafile,
@@ -2258,7 +2261,19 @@ class CollectorHandler(object):
         clean_stash = CleanStash.objects.filter(collector_config_id=self.collector_config_id).first()
         if not clean_stash:
             return None
-        return model_to_dict(CleanStash.objects.filter(collector_config_id=self.collector_config_id).first())
+        config = model_to_dict(CleanStash.objects.filter(collector_config_id=self.collector_config_id).first())
+        # 给未配置自定义分词符和大小写敏感的清洗配置添加默认值
+        etl_params = config.get("etl_params", {})
+        etl_params.setdefault("original_text_is_case_sensitive", False)
+        etl_params.setdefault("original_text_tokenize_on_chars", "")
+        config["etl_params"] = etl_params
+
+        etl_fields = config.get("etl_fields", [])
+        for etl_field in etl_fields:
+            etl_field.setdefault("is_case_sensitive", False)
+            etl_field.setdefault("tokenize_on_chars", "")
+        config["etl_fields"] = etl_fields
+        return config
 
     def create_clean_stash(self, params: dict):
         model_fields = {
@@ -2525,7 +2540,7 @@ class CollectorHandler(object):
         user_operation_record.delay(operation_record)
 
     def pre_check(self, params: dict):
-        data = {"allowed": False}
+        data = {"allowed": False, "message": _("该数据名已重复")}
         bk_biz_id = params.get("bk_biz_id")
         collector_config_name_en = params.get("collector_config_name_en")
 
@@ -2546,7 +2561,11 @@ class CollectorHandler(object):
         if result_table:
             return data
 
-        data["allowed"] = True
+        # 如果采集名不以6-8数字结尾, data.allowed返回True, 反之返回False
+        if COLLECTOR_RE.match(collector_config_name_en):
+            data.update({"allowed": False, "message": _("采集名不能以6-8位数字结尾")})
+        else:
+            data.update({"allowed": True, "message": ""})
         return data
 
     def _pre_check_bk_data_name(self, model_fields: dict, bk_data_name: str):
@@ -2972,18 +2991,29 @@ class CollectorHandler(object):
         result = []
         for rule_id, collector in rule_dict.items():
             collector_config_name_en = collector["path_collector_config"].collector_config_name_en
-            if collector_config_name_en.startswith("bcs_k8s_"):
+            collector_config_name = collector["path_collector_config"].collector_config_name
+            if not collector_config_name_en:
+                collector_config_name_en = collector["std_collector_config"].collector_config_name_en
+                collector_config_name = collector["std_collector_config"].collector_config_name
+            elif collector_config_name_en.startswith("bcs_k8s_"):
                 # 模式: bcs_k8s_12345_your_name_std
                 collector_config_name_en = collector_config_name_en.rsplit("_", 1)[0].split("_", 3)[3]
             else:
                 # 模式: bcs_your_name_std
                 collector_config_name_en = collector_config_name_en.rsplit("_", 1)[0].split("_", 1)[1]
 
+            # 解析采集中文名称，若不符合BCS默认格式，则传递原采集名
+            if collector_config_name:
+                try:
+                    collector_config_name = collector_config_name.rsplit("_", 1)[0].split("_", 1)[1]
+                except Exception:  # pylint: disable=broad-except
+                    collector_config_name = collector_config_name
+            else:
+                collector_config_name = ""
+
             rule = {
                 "rule_id": rule_id,
-                "collector_config_name": collector["path_collector_config"]
-                .collector_config_name.rsplit("_", 1)[0]
-                .split("_", 1)[1],
+                "collector_config_name": collector_config_name,
                 "bk_biz_id": collector["path_collector_config"].bk_biz_id,
                 "description": collector["path_collector_config"].description,
                 "collector_config_name_en": collector_config_name_en,
@@ -2995,6 +3025,8 @@ class CollectorHandler(object):
                 "rule_std_index_set_id": collector["std_collector_config"].index_set_id,
                 "file_index_set_id": bcs_path_index_set.index_set_id if bcs_path_index_set else None,
                 "std_index_set_id": bcs_std_index_set.index_set_id if bcs_std_index_set else None,
+                "is_std_deleted": False if collector["std_collector_config"].index_set_id else True,
+                "is_file_deleted": False if collector["path_collector_config"].index_set_id else True,
                 "container_config": [],
             }
 
@@ -3527,8 +3559,6 @@ class CollectorHandler(object):
             return {"rule_id": rule_id}
 
         collectors = CollectorConfig.objects.filter(rule_id=bcs_rule.id)
-        if len(collectors) != DEFAULT_COLLECTOR_LENGTH:
-            raise RuleCollectorException(RuleCollectorException.MESSAGE.format(rule_id=rule_id))
         for collector in collectors:
             self.deal_self_call(
                 collector_config_id=collector.collector_config_id, collector=collector, func=self.destroy
@@ -3760,8 +3790,8 @@ class CollectorHandler(object):
             return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
         elif space.space_type_id == SpaceTypeEnum.BKCC.value:
             # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
-            bcs_projects = BcsCcApi.list_project()
-            project_ids = {p["project_id"] for p in bcs_projects if str(p["cc_app_id"]) == str(bk_biz_id)}
+            bcs_projects = BcsApi.list_project({"businessID": bk_biz_id})
+            project_ids = {p["projectID"] for p in bcs_projects}
             project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
             namespaces = set()
             for project_id, ns_list in project_id_to_ns.items():
@@ -4220,6 +4250,7 @@ class CollectorHandler(object):
                     },
                     "params": {
                         "paths": config.get("path", []),
+                        "exclude_files": config.get("exclude_files", []),
                         "conditions": conditions,
                         "multiline_pattern": config.get("multiline", {}).get("pattern") or "",
                         "multiline_max_lines": config.get("multiline", {}).get("maxLines") or 10,
@@ -4428,6 +4459,7 @@ class CollectorHandler(object):
         filters, _ = deal_collector_scenario_param(container_config.params)
         raw_config = {
             "path": container_config.params["paths"],
+            "exclude_files": container_config.params.get("exclude_files", []),
             "encoding": container_config.data_encoding,
             "logConfigType": container_config.collector_type,
             "allContainer": container_config.all_container,

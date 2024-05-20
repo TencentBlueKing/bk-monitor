@@ -39,9 +39,16 @@ from apps.log_search.exceptions import (
     FavoriteGroupNotExistException,
     FavoriteNotAllowedAccessException,
     FavoriteNotExistException,
+    FavoriteUnionSearchAlreadyExistException,
+    FavoriteUnionSearchNotExistException,
     FavoriteVisibleTypeNotAllowedModifyException,
 )
-from apps.log_search.models import Favorite, FavoriteGroup, LogIndexSet
+from apps.log_search.models import (
+    Favorite,
+    FavoriteGroup,
+    FavoriteUnionSearch,
+    LogIndexSet,
+)
 from apps.models import model_to_dict
 from apps.utils.local import (
     get_request_app_code,
@@ -49,8 +56,8 @@ from apps.utils.local import (
     get_request_username,
 )
 from apps.utils.lucene import (
+    LuceneChecker,
     LuceneParser,
-    LuceneSyntaxResolver,
     LuceneTransformer,
     generate_query_string,
 )
@@ -107,17 +114,13 @@ class FavoriteHandler(object):
         result["updated_at"] = result["updated_at"]
         return result
 
-    def list_group_favorites(
-        self, order_type: str = FavoriteListOrderType.NAME_ASC.value, index_set_type: str = IndexSetType.SINGLE.value
-    ) -> list:
+    def list_group_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
         """收藏栏分组后且排序后的收藏列表"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         group_info = {i["id"]: i for i in groups}
         # 将收藏分组
-        favorites = Favorite.get_user_favorite(
-            space_uid=self.space_uid, username=self.username, order_type=order_type, index_set_type=index_set_type
-        )
+        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
         favorites_by_group = defaultdict(list)
         for favorite in favorites:
             favorites_by_group[favorite["group_id"]].append(favorite)
@@ -131,37 +134,43 @@ class FavoriteHandler(object):
             for group in groups
         ]
 
-    def list_favorites(
-        self, order_type: str = FavoriteListOrderType.NAME_ASC.value, index_set_type: str = IndexSetType.SINGLE.value
-    ) -> list:
+    def list_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
         """管理界面列出根据name A-Z排序的所有收藏"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         group_info = {i["id"]: i for i in groups}
-        favorites = Favorite.get_user_favorite(
-            space_uid=self.space_uid, username=self.username, order_type=order_type, index_set_type=index_set_type
-        )
-        return [
-            {
+        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+
+        ret = list()
+        for fi in favorites:
+            data = {
                 "id": fi["id"],
                 "name": fi["name"],
                 "group_id": fi["group_id"],
                 "group_name": group_info[fi["group_id"]]["name"],
-                "index_set_id": fi["index_set_id"],
-                "index_set_name": fi["index_set_name"],
+                "index_set_type": fi["index_set_type"],
                 "visible_type": fi["visible_type"],
                 "params": fi["params"],
                 "search_fields": fi["params"].get("search_fields", []),
                 "keyword": fi["params"].get("keyword", ""),
                 "is_enable_display_fields": fi["is_enable_display_fields"],
                 "display_fields": fi["display_fields"],
-                "is_active": fi["is_active"],
                 "created_by": fi["created_by"],
                 "updated_by": fi["updated_by"],
                 "updated_at": fi["updated_at"],
             }
-            for fi in favorites
-        ]
+            if fi["index_set_type"] == IndexSetType.SINGLE.value:
+                data["index_set_id"] = fi["index_set_id"]
+                data["index_set_name"] = fi["index_set_name"]
+                data["is_active"] = fi["is_active"]
+            else:
+                data["index_set_ids"] = fi["index_set_ids"]
+                data["index_set_names"] = fi["index_set_names"]
+                data["is_actives"] = fi["is_actives"]
+
+            ret.append(data)
+
+        return ret
 
     @atomic
     def create_or_update(
@@ -271,8 +280,8 @@ class FavoriteHandler(object):
         return LuceneTransformer().transform(keyword=keyword, params=params)
 
     @staticmethod
-    def inspect(keyword) -> dict:
-        return LuceneSyntaxResolver(keyword=keyword).resolve()
+    def inspect(keyword: str, fields: List[Dict[str, Any]] = None) -> dict:
+        return LuceneChecker(query_string=keyword, fields=fields).resolve()
 
 
 class FavoriteGroupHandler(object):
@@ -327,4 +336,67 @@ class FavoriteGroupHandler(object):
         # 将该组的收藏全部归到未分组
         unknown_group_id = FavoriteGroup.get_or_create_ungrouped_group(space_uid=self.data.space_uid)
         Favorite.objects.filter(group_id=self.group_id).update(group_id=unknown_group_id.id)
+        self.data.delete()
+
+
+class FavoriteUnionSearchHandler(object):
+    data: Optional[FavoriteUnionSearch] = None
+
+    def __init__(self, favorite_union_id: int = None, space_uid: str = None) -> None:
+        self.favorite_union_id = favorite_union_id
+        self.space_uid = space_uid
+        self.username = get_request_external_username() or get_request_username()
+        if favorite_union_id:
+            try:
+                self.data = FavoriteUnionSearch.objects.get(id=favorite_union_id)
+            except FavoriteUnionSearch.DoesNotExist:
+                raise FavoriteUnionSearchNotExistException()
+
+    def list(self) -> List[dict]:
+        """联合检索获取指定空间下用户搜索组合收藏列表"""
+        objs = FavoriteUnionSearch.objects.filter(space_uid=self.space_uid, username=self.username)
+        ret = [model_to_dict(obj) for obj in objs]
+        return ret
+
+    @atomic
+    def create_or_update(self, data: dict) -> dict:
+        """联合检索搜索组合收藏创建或者更新"""
+
+        params = {"username": self.username, "name": data["name"]}
+
+        if not self.data:
+            params.update({"space_uid": data["space_uid"]})
+            check_query_set = FavoriteUnionSearch.objects.filter(**params)
+        else:
+            params.update({"space_uid": self.data.space_uid})
+            check_query_set = FavoriteUnionSearch.objects.filter(**params).exclude(id=self.favorite_union_id)
+
+        if check_query_set.exists():
+            raise FavoriteUnionSearchAlreadyExistException(
+                FavoriteUnionSearchAlreadyExistException.MESSAGE.format(name=data["name"])
+            )
+
+        if not self.data:
+            params.update(
+                {
+                    "defaults": {
+                        "index_set_ids": data["index_set_ids"],
+                    }
+                }
+            )
+            obj, is_create = FavoriteUnionSearch.objects.update_or_create(**params)
+        else:
+            self.data.name = data["name"]
+            self.data.index_set_ids = data["index_set_ids"]
+            self.data.save()
+            obj = self.data
+
+        return model_to_dict(obj)
+
+    def retrieve(self) -> dict:
+        """联合检索搜索组合收藏详情"""
+        return model_to_dict(self.data)
+
+    def destroy(self):
+        """联合检索搜索组合收藏删除"""
         self.data.delete()

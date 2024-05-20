@@ -25,11 +25,12 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import { random } from '../../../../monitor-common/utils/utils';
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
+import dayjs from 'dayjs';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+
 import { PanelModel } from '../../typings';
 import { findComponentUpper } from '../../utils';
 import { VariablesService } from '../../utils/variable';
@@ -41,7 +42,6 @@ interface INumberChartProps {
   panel: PanelModel;
 }
 @Component
-// eslint-disable-next-line max-len
 class NumberChart extends CommonSimpleChart {
   /** 图表数据 */
   chartDataList: any[] = [];
@@ -62,24 +62,22 @@ class NumberChart extends CommonSimpleChart {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-      end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+      end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
     };
     const variablesService = new VariablesService({
-      ...this.viewOptions
+      ...this.viewOptions,
     });
-    const promiseList = this.panel.targets.map(
-      item =>
-        // eslint-disable-next-line max-len
-        (this as any).$api[item.apiModule]
-          ?.[item.apiFunc]?.({ ...params, ...variablesService.transformVariables(item.data) }, { needMessage: false })
-          .then(data => {
-            this.clearErrorMsg();
-            return data;
-          })
-          .catch(error => {
-            this.handleErrorMsgChange(error.msg || error.message);
-            return null;
-          })
+    const promiseList = this.panel.targets.map(item =>
+      (this as any).$api[item.apiModule]
+        ?.[item.apiFunc]?.({ ...params, ...variablesService.transformVariables(item.data) }, { needMessage: false })
+        .then(data => {
+          this.clearErrorMsg();
+          return data;
+        })
+        .catch(error => {
+          this.handleErrorMsgChange(error.msg || error.message);
+          return null;
+        })
     );
     const data = await Promise.all(promiseList);
     data?.filter(Boolean)?.length && this.updateChartData(data);
@@ -101,7 +99,7 @@ class NumberChart extends CommonSimpleChart {
     if (!!item.link) {
       if (item.link.target === 'self') {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.link.url}`.replace(/\/\//g, '/')
+          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.link.url}`.replace(/\/\//g, '/'),
         });
         return;
       }
@@ -126,15 +124,15 @@ class NumberChart extends CommonSimpleChart {
                 <span>{item.value}</span>
                 {!!this.panel.instant && (
                   <img
-                    alt=''
                     class='instant-icon'
-                    // eslint-disable-next-line @typescript-eslint/no-require-imports
-                    src={require(`../../../../fta-solutions/static/img/home/icon_mttr.svg`)}
                     v-bk-tooltips={{
                       content: 'lgnores selected time',
                       boundary: 'window',
-                      placements: ['top']
+                      placements: ['top'],
                     }}
+                    alt=''
+                    // eslint-disable-next-line @typescript-eslint/no-require-imports
+                    src={require(`../../../../fta-solutions/static/img/home/icon_mttr.svg`)}
                   />
                 )}
               </div>

@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { frontendReportEvent } from 'monitor-api/modules/commons';
+import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
-import { frontendReportEvent } from '../../../monitor-api/modules/commons';
-import debounceDecorator from '../../../monitor-common/utils/debounce-decorator';
 import { getRouteConfigById } from '../../router/router-config';
 import store from '../store';
 
@@ -51,12 +51,12 @@ class ReportLogStore extends VuexModule {
           space_id: space?.space_uid || window.cc_biz_id,
           space_name: space?.space_name || window.cc_biz_id,
           user_name: window.user_name || window.username,
-          nav_name: (!space ? '临时 ' : '') + (params.nav_name || routeConfig?.name)
-        }
+          nav_name: (!space ? '临时 ' : '') + (params.nav_name || routeConfig?.name),
+        },
       },
       {
         needMessage: false,
-        needTraceId: false
+        needTraceId: false,
       }
     ).catch(() => false);
   }

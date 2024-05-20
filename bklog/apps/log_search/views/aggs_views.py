@@ -19,16 +19,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.utils.drf import detail_route, list_route
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import InstanceActionPermission
+from apps.iam.handlers.drf import BatchIAMPermission, InstanceActionPermission
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
-from apps.log_trace.serializers import AggsTermsSerializer, DateHistogramSerializer, UnionSearchDateHistogramSerializer
+from apps.log_trace.serializers import (
+    AggsTermsSerializer,
+    DateHistogramSerializer,
+    UnionSearchAggsTermsSerializer,
+    UnionSearchDateHistogramSerializer,
+)
+from apps.utils.drf import detail_route, list_route
 
 
 class AggsViewSet(APIViewSet):
@@ -36,6 +40,8 @@ class AggsViewSet(APIViewSet):
     lookup_field = "index_set_id"
 
     def get_permissions(self):
+        if self.action in ["union_search_date_histogram", "union_search_terms"]:
+            return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
         return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
     @detail_route(methods=["POST"], url_path="aggs/terms")
@@ -248,3 +254,53 @@ class AggsViewSet(APIViewSet):
         """
         data = self.params_valid(UnionSearchDateHistogramSerializer)
         return Response(AggsViewAdapter().union_search_date_histogram(data))
+
+    @list_route(methods=["POST"], url_path="aggs/union_search/terms")
+    def union_search_terms(self, request, *args, **kwargs):
+        """
+        @api {post} /search/index_set/aggs/union_search/terms/ 02_Trace-terms聚合doc_count
+        @apiName agg_all_trace_log
+        @apiDescription 生成选项卡
+        @apiGroup 17_Trace
+        @apiParam {String} start_time 开始时间
+        @apiParam {String} end_time 结束时间
+        @apiParam {Int} time_dimension 时间维度（默认最近1天，-1代表全量）
+        @apiParam {Int} size 聚集大小 默认100
+        @apiParam {String} time_range 时间标识符符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]
+        @apiParam {String} keyword 搜索关键字
+        @apiParam {Dict} order 排序 {"_count": "aes"} {"_count": "desc" }
+        @apiParam {List} fields 需要聚合字段,需要请求的聚合字段doc_count,["tag.scenario", "tag.service", "operationname"]
+        @apiParamExample {Json} 请求参数
+        {
+            "start_time": "2020-03-25 09:14:38",
+            "end_time": "2020-03-26 09:14:38",
+            "keyword": "*",
+            "fields": ["tag.scenario", "tag.service"]
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {
+                "aggs": {
+                    "tag.scenario": [
+                        ["a", 1],
+                        ["b", 2],
+                        ["d", 4]
+                    ],
+                    "tag.service": [
+                        ["a", 1],
+                        ["b", 2],
+                        ["c", 4]
+                    ]
+                }
+                "aggs_items": {
+                    "tag.scenario" : ["a", "b", "d"],
+                    "tag.service": ["a", "b", "c"]
+                }
+            },
+            "result": true
+        }
+        """
+        data = self.params_valid(UnionSearchAggsTermsSerializer)
+        return Response(AggsViewAdapter().union_search_terms(data))

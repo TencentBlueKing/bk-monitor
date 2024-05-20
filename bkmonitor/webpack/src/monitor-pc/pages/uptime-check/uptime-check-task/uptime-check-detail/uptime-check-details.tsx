@@ -39,7 +39,7 @@ import './uptime-check-detail.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
-export default class UptimeCheckDetail extends tsc<{}> {
+export default class UptimeCheckDetail extends tsc<object> {
   @Prop({ type: String, default: '' }) taskId: string;
   @Prop({ type: String, default: '' }) groupId: string;
 
@@ -58,8 +58,8 @@ export default class UptimeCheckDetail extends tsc<{}> {
     {
       id: 'task-edit',
       name: window.i18n.tc('数据源管理'),
-      show: true
-    }
+      show: true,
+    },
   ];
 
   // route navbar title change
@@ -87,14 +87,14 @@ export default class UptimeCheckDetail extends tsc<{}> {
         // },
         {
           id: '',
-          name: list[0]
-        }
+          name: list[0],
+        },
       ];
       vm.viewOptions = {
         filters: {
           task_id: vm.taskId,
-          group_id: groupId
-        }
+          group_id: groupId,
+        },
       };
     });
   }
@@ -109,8 +109,8 @@ export default class UptimeCheckDetail extends tsc<{}> {
     this.$router.push({
       name: 'uptime-check-task-add',
       query: {
-        taskId: this.$route.query['filter-task_id']
-      }
+        taskId: this.$route.query['filter-task_id'],
+      },
     });
   }
 
@@ -119,8 +119,8 @@ export default class UptimeCheckDetail extends tsc<{}> {
       this.$router.push({
         name: 'uptime-check-task-edit',
         params: {
-          id: param.taskId
-        }
+          id: param.taskId,
+        },
       });
     }
   }
@@ -130,28 +130,28 @@ export default class UptimeCheckDetail extends tsc<{}> {
     return (
       <div class='uptime-check-detail'>
         <CommonPage
+          defaultViewOptions={this.viewOptions}
+          menuList={this.menuList}
           sceneId={'uptime_check'}
           sceneType={'detail'}
-          menuList={this.menuList}
           onMenuSelect={this.handleMenuSelect}
-          defaultViewOptions={this.viewOptions}
           onTitleChange={this.headerTitleChange}
         >
           <CommonNavBar
             slot='nav'
-            routeList={this.routeList}
-            needShadow={true}
-            needCopyLink
             needBack={true}
+            needShadow={true}
+            routeList={this.routeList}
+            needCopyLink
           />
           {!this.readonly && (
             <span slot='dashboardTools'>
               <bk-button
                 class='ml15'
-                size='small'
-                icon='plus'
-                theme='primary'
                 v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                icon='plus'
+                size='small'
+                theme='primary'
                 onClick={() =>
                   this.authority.MANAGE_AUTH
                     ? this.handleToCreateDialTest()

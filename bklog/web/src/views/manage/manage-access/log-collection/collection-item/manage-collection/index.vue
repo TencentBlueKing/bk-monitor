@@ -21,27 +21,51 @@
   -->
 
 <template>
-  <div class="access-manage-container" v-bkloading="{ isLoading: basicLoading }">
-    <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
+  <div
+    v-bkloading="{ isLoading: basicLoading }"
+    class="access-manage-container"
+  >
+    <auth-container-page
+      v-if="authPageInfo"
+      :info="authPageInfo"
+    ></auth-container-page>
     <template v-if="!authPageInfo && !basicLoading && collectorData">
-      <basic-tab :active.sync="activePanel" type="border-card">
-        <bk-tab-panel v-for="panel in panels" v-bind="panel" :key="panel.name"></bk-tab-panel>
-        <div class="go-search" slot="setting">
+      <basic-tab
+        :active.sync="activePanel"
+        type="border-card"
+      >
+        <bk-tab-panel
+          v-for="panel in panels"
+          v-bind="panel"
+          :key="panel.name"
+        ></bk-tab-panel>
+        <div
+          slot="setting"
+          class="go-search"
+        >
           <div class="search-text">
             <span class="bk-icon icon-info"></span>
             <i18n path="数据采集好了，去 {0}">
-              <span class="search-button" @click="handleGoSearch">{{$t('查看数据')}}</span>
+              <span
+                class="search-button"
+                @click="handleGoSearch"
+                >{{ $t('查看数据') }}</span
+              >
             </i18n>
           </div>
         </div>
       </basic-tab>
       <keep-alive>
         <component
+          :is="dynamicComponent"
           class="tab-content"
+          :is-show-edit-btn="true"
           :collector-data="collectorData"
           :index-set-id="collectorData.index_set_id"
-          :is="dynamicComponent"
-          @update-active-panel="activePanel = $event"></component>
+          :edit-auth="editAuth"
+          :edit-auth-data="editAuthData"
+          @update-active-panel="activePanel = $event"
+        ></component>
       </keep-alive>
     </template>
   </div>
@@ -68,7 +92,7 @@ export default {
     DataStatus,
     UsageDetails,
     BasicTab,
-    FieldInfo,
+    FieldInfo
   },
   data() {
     return {
@@ -76,14 +100,18 @@ export default {
       authPageInfo: null,
       collectorData: null,
       activePanel: this.$route.query.type || 'basicInfo',
+      /** 是否有编辑权限 */
+      editAuth: false,
+      /** 编辑无权限时的弹窗数据 */
+      editAuthData: null,
       panels: [
         { name: 'basicInfo', label: this.$t('配置信息') },
         { name: 'collectionStatus', label: this.$t('采集状态') },
         { name: 'fieldInfo', label: this.$t('字段信息') },
         { name: 'dataStorage', label: this.$t('数据存储') },
         { name: 'dataStatus', label: this.$t('数据状态') },
-        { name: 'usageDetails', label: this.$t('使用详情') },
-      ],
+        { name: 'usageDetails', label: this.$t('使用详情') }
+      ]
     };
   },
   computed: {
@@ -94,13 +122,14 @@ export default {
         fieldInfo: 'FieldInfo',
         dataStorage: 'DataStorage',
         dataStatus: 'DataStatus',
-        usageDetails: 'UsageDetails',
+        usageDetails: 'UsageDetails'
       };
       return componentMaP[this.activePanel] || 'BasicInfo';
-    },
+    }
   },
   created() {
     this.initPage();
+    this.getEditAuth();
   },
   methods: {
     async initPage() {
@@ -108,10 +137,12 @@ export default {
       try {
         const paramData = {
           action_ids: [authorityMap.VIEW_COLLECTION_AUTH],
-          resources: [{
-            type: 'collection',
-            id: this.$route.params.collectorId,
-          }],
+          resources: [
+            {
+              type: 'collection',
+              id: this.$route.params.collectorId
+            }
+          ]
         };
         const res = await this.$store.dispatch('checkAndGetData', paramData);
         if (res.isAllowed === false) {
@@ -121,8 +152,8 @@ export default {
           // 正常显示页面
           const { data: collectorData } = await this.$http.request('collect/details', {
             params: {
-              collector_config_id: this.$route.params.collectorId,
-            },
+              collector_config_id: this.$route.params.collectorId
+            }
           });
           this.collectorData = collectorData;
           this.$store.commit('collect/setCurCollect', collectorData);
@@ -137,16 +168,34 @@ export default {
       const params = {
         indexId: this.collectorData.index_set_id
           ? this.collectorData.index_set_id
-          : this.collectorData.bkdata_index_set_ids[0],
+          : this.collectorData.bkdata_index_set_ids[0]
       };
       this.$router.push({
         name: 'retrieve',
         params,
         query: {
-          spaceUid: this.$store.state.spaceUid,
-        },
+          spaceUid: this.$store.state.spaceUid
+        }
       });
     },
-  },
+    async getEditAuth() {
+      try {
+        const paramData = {
+          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: this.$route.params.collectorId
+            }
+          ]
+        };
+        const res = await this.$store.dispatch('checkAndGetData', paramData);
+        if (!res.isAllowed) this.editAuthData = res.data;
+        this.editAuth = res.isAllowed;
+      } catch (error) {
+        this.editAuth = false;
+      }
+    }
+  }
 };
 </script>

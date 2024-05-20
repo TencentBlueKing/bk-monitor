@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { onBeforeUnmount, onMounted, Ref } from 'vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 export function useChartResize(
@@ -47,6 +48,6 @@ export function useChartResize(
     removeListener(el.value!, handleResize);
   });
   return {
-    handleResize
+    handleResize,
   };
 }

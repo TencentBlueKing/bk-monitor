@@ -25,23 +25,23 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
-import { actionDetail, searchAlert } from '../../../../monitor-api/modules/alert';
-import { isZh } from '../../../../monitor-pc/common/constant';
+import dayjs from 'dayjs';
+import { actionDetail, searchAlert } from 'monitor-api/modules/alert';
+import { isZh } from 'monitor-pc/common/constant';
 
 import { getStatusInfo } from './type';
 
 import './action-detail.scss';
 
-const queryString = (type: 'trigger' | 'defense', id) => {
+const queryString = (type: 'defense' | 'trigger', id) => {
   if (type === 'trigger') {
     return isZh() ? `处理记录ID: ${id}` : `action_id: ${id}`;
   }
   return isZh() ? `收敛记录ID: ${id}` : `converge_id: ${id}`;
 };
 export const handleToAlertList = (
-  type: 'trigger' | 'defense',
+  type: 'defense' | 'trigger',
   detailInfo: { create_time: number; end_time: number; id: string; converge_id?: number },
   bizId
 ) => {
@@ -76,6 +76,7 @@ interface ITableData {
 }
 interface IActiveDetail {
   id?: string;
+  bizId?: number;
 }
 interface IDetailInfo {
   id?: string;
@@ -99,15 +100,16 @@ interface IDetailInfo {
 }
 
 @Component({
-  name: 'ActiveDetail'
+  name: 'ActiveDetail',
 })
 export default class ActiveDetail extends tsc<IActiveDetail> {
   @Prop({ type: String, default: '' }) id: string;
+  @Prop({ type: [Number, String], default: +window.bk_biz_id }) bizId: number;
 
   detailInfo: IDetailInfo = {};
   tableData: { trigger: ITableData[]; defense: ITableData[] } = {
     trigger: [],
-    defense: []
+    defense: [],
   };
   loading = false;
   popoperInstance: any = null;
@@ -119,7 +121,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
 
   async created() {
     this.loading = true;
-    this.detailInfo = await actionDetail({ id: this.id }).catch(() => ({}));
+    this.detailInfo = await actionDetail({ id: this.id, bk_biz_id: this.bizId }).catch(() => ({}));
     const oneDay = 60 * 24 * 60;
     const params = {
       conditions: [],
@@ -130,21 +132,22 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
       record_history: false,
       show_aggs: false,
       show_overview: false,
-      start_time: this.detailInfo.create_time - oneDay
+      start_time: this.detailInfo.create_time - oneDay,
+      bk_biz_ids: [Number(this.bizId) || this.bizId],
     };
     const triggerData = await searchAlert({
       ...params,
-      query_string: this.queryString('trigger')
+      query_string: this.queryString('trigger'),
     }).catch(() => []);
     const defense = await searchAlert({
       ...params,
-      query_string: this.queryString('defense')
+      query_string: this.queryString('defense'),
     }).catch(() => []);
     this.tableData.trigger = triggerData.alerts;
     this.tableData.defense = defense.alerts;
     this.loading = false;
   }
-  queryString(type: 'trigger' | 'defense') {
+  queryString(type: 'defense' | 'trigger') {
     const { id } = this.detailInfo;
     return `${queryString(type, id)}`;
   }
@@ -153,7 +156,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
    * @param {*} type
    * @return {*}
    */
-  handleToAlertList(type: 'trigger' | 'defense') {
+  handleToAlertList(type: 'defense' | 'trigger') {
     const { create_time: createTime, end_time: endTime, id, converge_id: convergeId } = this.detailInfo;
     handleToAlertList(
       type,
@@ -165,7 +168,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
     this.popoperInstance = this.$bkPopover(e.target, {
       content,
       maxWidth: 320,
-      arrow: true
+      arrow: true,
     });
     this.popoperInstance?.show?.(100);
   }
@@ -189,7 +192,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
           dimensions?.map?.(item => `${item.display_key || item.key}(${item.display_value || item.value})`).join('-') ||
           '--'
         }</div>`,
-        `<div class="description-desc">${this.$t('告警内容')}：${description || '--'}</div>`
+        `<div class="description-desc">${this.$t('告警内容')}：${description || '--'}</div>`,
       ]
         .filter(Boolean)
         .join('')
@@ -200,15 +203,15 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
     const level = {
       1: { color: '#eb3635', label: this.$t('致命') },
       2: { color: '#ff9c00', label: this.$t('预警') },
-      3: { color: '#3a84ff', label: this.$t('提醒') }
+      3: { color: '#3a84ff', label: this.$t('提醒') },
     };
     const severity = severity => (
       <span
-        class='severity'
         style={{
           borderLeft: `4px solid ${level[severity].color}`,
-          color: level[severity].color
+          color: level[severity].color,
         }}
+        class='severity'
       >
         {level[severity].label}
       </span>
@@ -232,18 +235,18 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
     return (
       <bk-table data={tableData}>
         <bk-table-column
-          label={this.$t('告警ID')}
           width='150'
+          label={this.$t('告警ID')}
           scopedSlots={{ default: props => props.row.id }}
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('告警名称')}
           width='200'
+          label={this.$t('告警名称')}
           scopedSlots={{ default: props => props.row.alert_name }}
         ></bk-table-column>
         <bk-table-column
-          label={this.$t('告警级别')}
           width='100'
+          label={this.$t('告警级别')}
           scopedSlots={{ default: props => severity(props.row.severity) }}
         ></bk-table-column>
         <bk-table-column
@@ -267,7 +270,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
       signal_display: signalDisplay,
       operate_target_string: operateTargetString,
       failure_type: failureType,
-      action_plugin_type: actionPluginType
+      action_plugin_type: actionPluginType,
     } = this.detailInfo;
     const statusInfo = getStatusInfo(status, failureType);
     const arrContent = content?.text?.split('$');
@@ -289,25 +292,25 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
               )}
             </span>
           ),
-          extCls: true
+          extCls: true,
         },
-        { title: this.$t('告警目标'), content: bkTargetDisplay }
+        { title: this.$t('告警目标'), content: bkTargetDisplay },
       ],
       [
         { title: this.$t('套餐类型'), content: actionPlugin?.name, extCls: true },
-        { title: this.$t('处理时长'), content: duration }
+        { title: this.$t('处理时长'), content: duration },
       ],
       [
         { title: this.$t('负责人'), content: operator?.join(';') || '--' },
-        { title: this.$t('执行对象'), content: operateTargetString || '--' }
+        { title: this.$t('执行对象'), content: operateTargetString || '--' },
       ],
       [
         { title: this.$t('开始时间'), content: dayjs.tz(createTime * 1000).format('YYYY-MM-DD HH:mm:ss') },
-        { title: this.$t('执行状态'), content: <div class={statusInfo.status}>{statusInfo.text}</div>, extCls: true }
+        { title: this.$t('执行状态'), content: <div class={statusInfo.status}>{statusInfo.text}</div>, extCls: true },
       ],
       [
         { title: this.$t('结束时间'), content: dayjs.tz(updateTime * 1000).format('YYYY-MM-DD HH:mm:ss') },
-        { title: this.$t('触发信号'), content: signalDisplay, extCls: true }
+        { title: this.$t('触发信号'), content: signalDisplay, extCls: true },
       ],
       [
         {
@@ -327,9 +330,9 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
               {arrContent?.[2] || ''}
             </div>
           ),
-          extCls: true
-        }
-      ]
+          extCls: true,
+        },
+      ],
     ];
     return (
       <div
@@ -359,8 +362,8 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                 <div class='table-title first'>
                   {this.$t('触发的告警')}
                   <i18n
-                    path='仅展示最近10条，更多详情请{0}'
                     class='msg'
+                    path='仅展示最近10条，更多详情请{0}'
                   >
                     <span
                       class='table-title-link'
@@ -371,7 +374,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                     </span>
                   </i18n>
                 </div>,
-                <div class='table-content'>{this.getTableComponent(this.tableData.trigger)}</div>
+                <div class='table-content'>{this.getTableComponent(this.tableData.trigger)}</div>,
               ]
             : undefined}
           {this.tableData.defense?.length
@@ -379,8 +382,8 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                 <div class='table-title'>
                   {this.$t('防御的告警')}
                   <i18n
-                    path='仅展示最近10条，更多详情请{0}'
                     class='msg'
+                    path='仅展示最近10条，更多详情请{0}'
                   >
                     <span
                       class='table-title-link'
@@ -391,7 +394,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                     </span>
                   </i18n>
                 </div>,
-                <div class='table-content'>{this.getTableComponent(this.tableData.defense)}</div>
+                <div class='table-content'>{this.getTableComponent(this.tableData.defense)}</div>,
               ]
             : undefined}
         </div>

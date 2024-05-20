@@ -23,19 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
-import { bkTooltips } from 'bkui-vue';
+import { computed, defineComponent, PropType, ref } from 'vue';
 
-import { IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-// @ts-ignore
-import loadingIcon from '../../../monitor-ui/chart-plugins/icons/spinner.svg';
-import { PanelModel } from '../../../monitor-ui/chart-plugins/typings';
-import watermarkMaker from '../../../monitor-ui/monitor-echarts/utils/watermarkMaker';
+import { bkTooltips } from 'bkui-vue';
+import { type IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
 import RelatedLogChart from '../charts/related-log-chart/related-log-chart';
 import TimeSeries from '../charts/time-series/time-series';
 import { useReadonlyInject } from '../hooks';
+
 import type * as PanelModelTraceVersion from '../typings';
 
 import './chart-wrapper.scss';
@@ -43,14 +43,14 @@ import './chart-wrapper.scss';
 export default defineComponent({
   name: 'ChartWrapperMigrated',
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: {
     panel: { required: true, type: Object as PropType<PanelModel> },
     /** 检测算法 */
     detectionConfig: { default: () => {}, type: Object as PropType<IDetectionConfig> },
     /* 是否可选中图表 */
-    needCheck: { type: Boolean, default: false }
+    needCheck: { type: Boolean, default: false },
   },
   emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries'],
   setup(props, { emit }) {
@@ -74,13 +74,6 @@ export default defineComponent({
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { time_series_forecast, time_series_list } = props.panel?.options || {};
       return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
-    });
-
-    onMounted(() => {
-      // @ts-ignore
-      if (window.graph_watermark) {
-        waterMaskImg.value = watermarkMaker(window.user_name || window.username);
-      }
     });
 
     /**
@@ -127,8 +120,8 @@ export default defineComponent({
         case 'row':
           return (
             <ChartRow
-              panel={props.panel}
               clearErrorMsg={handleClearErrorMsg}
+              panel={props.panel}
               onCollapse={handleCollapsed}
               onErrorMsg={handleErrorMsgChange}
             />
@@ -138,19 +131,19 @@ export default defineComponent({
         case 'related-log-chart':
           return (
             <RelatedLogChart
-              panel={props.panel}
-              onLoading={handleChangeLoading}
-              onErrorMsg={handleErrorMsgChange}
               clearErrorMsg={handleClearErrorMsg}
+              panel={props.panel}
+              onErrorMsg={handleErrorMsgChange}
+              onLoading={handleChangeLoading}
             />
           );
         default:
           return (
             <TimeSeries
-              onLoading={handleChangeLoading}
               // 还不清楚该用新的还是旧的类型，这里先照旧
               panel={props.panel as PanelModelTraceVersion.PanelModel}
               showHeaderMoreTool={showHeaderMoreTool.value}
+              onLoading={handleChangeLoading}
             />
           );
       }
@@ -167,21 +160,21 @@ export default defineComponent({
       viewQueryConfig,
       handleCloseViewDetail,
       waterMaskImg,
-      errorMsg
+      errorMsg,
     };
   },
   render() {
     return (
       <div
+        style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
         class={{
           'chart-wrapper': true,
           'grafana-check': this.panel.canSetGrafana,
           'is-checked': this.panel.checked,
           'is-collapsed': this.panel.collapsed,
           'hover-style': this.needCheck && this.needHoverStryle,
-          'row-chart': this.panel.type === 'row'
+          'row-chart': this.panel.type === 'row',
         }}
-        style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
         onMouseenter={() => (this.showHeaderMoreTool = true)}
         onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
@@ -189,8 +182,8 @@ export default defineComponent({
         {this.loading ? (
           <img
             class='loading-icon'
-            src={loadingIcon}
             alt=''
+            src={loadingIcon}
           ></img>
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
@@ -199,10 +192,12 @@ export default defineComponent({
             onClick={this.handleChartCheck}
           />
         )}
-        {!!this.waterMaskImg && (
+        {!!window.graph_watermark && (
           <div
             class='wm'
-            style={{ backgroundImage: `url('${this.waterMaskImg}')` }}
+            v-watermark={{
+              text: window.user_name || window.username,
+            }}
           ></div>
         )}
         {!!this.errorMsg && (
@@ -211,11 +206,11 @@ export default defineComponent({
             v-bk-tooltips={{
               content: <div>{this.errorMsg}</div>,
               extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start'
+              placement: 'top-start',
             }}
           ></span>
         )}
       </div>
     );
-  }
+  },
 });

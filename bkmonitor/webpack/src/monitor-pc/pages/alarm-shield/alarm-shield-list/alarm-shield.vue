@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="strategy-list-wrapper"
     v-monitor-loading="{ isLoading: loading }"
+    class="strategy-list-wrapper"
   >
     <div class="top-container">
       <bk-button
@@ -39,9 +39,9 @@
       </bk-button>
       <div class="right">
         <bk-date-picker
+          v-model="right.dateRange"
           :placeholder="$t('选择屏蔽时间范围')"
           format="yyyy-MM-dd HH:mm:ss"
-          v-model="right.dateRange"
           type="datetimerange"
           @clear="handleClearDate"
           @open-change="handleHideDatePicker"
@@ -54,25 +54,25 @@
           @change="handleSearch"
         >
         </bk-input> -->
-        <bk-search-select
-          class="right-search"
-          v-model="searchValues"
-          :data="searchData"
-          :show-condition="false"
-          filter
-          :placeholder="$t('输入屏蔽内容、ID')"
-          @change="handleSearchCondition"
-        />
+        <div class="right-search">
+          <search-select
+            :model-value="searchValues"
+            :data="searchData"
+            :clearable="false"
+            :placeholder="$t('输入屏蔽内容、ID')"
+            @change="handleSearchCondition"
+          />
+        </div>
       </div>
     </div>
     <div class="content-wrapper">
       <ul class="tab-list">
         <li
-          class="tab-list-item"
           v-for="(item, index) in tab.list"
-          @click="handleTabChange(index)"
           :key="item.name"
+          class="tab-list-item"
           :class="{ 'tab-active': index === tab.active }"
+          @click="handleTabChange(index)"
         >
           <span class="tab-name">{{ item.name }}</span>
         </li>
@@ -93,16 +93,18 @@
             />
           </div>
           <bk-table-column
+            v-slot="scope"
             width="100"
             sortable="custom"
             label="ID"
             prop="id"
-            v-slot="scope"
           >
             <span
               class="shield-id"
               @click="handleToDetail(scope.row.id)"
-            >#{{ scope.row.id }}</span>
+            >
+              #{{ scope.row.id }}
+            </span>
           </bk-table-column>
           <bk-table-column
             width="150"
@@ -112,10 +114,10 @@
             prop="shieldTypeName"
           />
           <bk-table-column
+            v-slot="scope"
             min-width="250"
             class-name="shield-content"
             :label="$t('屏蔽内容')"
-            v-slot="scope"
           >
             <!-- <span v-if="scope.row.shieldType === 'strategy'" class="link">{{scope.row.shieldContent}}<i class="icon-monitor icon-mc-wailian" @click="handleToOtherPages(scope.row)"></i></span> -->
             <span class="content">{{ scope.row.shieldContent }}</span>
@@ -135,23 +137,23 @@
             prop="cycleDuration"
           />
           <bk-table-column
+            v-slot="scope"
             min-width="230"
             :label="$t('屏蔽原因')"
             prop="description"
-            v-slot="scope"
           >
             <span class="content">{{ scope.row.description || '--' }}</span>
           </bk-table-column>
           <bk-table-column
+            v-slot="scope"
             width="150"
             :label="$t('操作')"
-            v-slot="scope"
           >
             <bk-button
+              v-authority="{ active: !authority.MANAGE_AUTH }"
               :text="true"
               theme="primary"
               class="clone-btn"
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               @click="
                 authority.MANAGE_AUTH
                   ? handleCloneShield(scope.row.id, scope.row.shieldType)
@@ -161,10 +163,10 @@
               {{ $t('克隆') }}
             </bk-button>
             <bk-button
+              v-authority="{ active: !authority.MANAGE_AUTH }"
               class="edit-btn"
               :text="true"
               theme="primary"
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               @click="
                 authority.MANAGE_AUTH
                   ? handleEditShield(scope.row.id, scope.row.shieldType)
@@ -197,16 +199,18 @@
             />
           </div>
           <bk-table-column
+            v-slot="scope"
             width="100"
             sortable="custom"
             label="ID"
             prop="id"
-            v-slot="scope"
           >
             <span
               class="shield-id"
               @click="handleToDetail(scope.row.id)"
-            >#{{ scope.row.id }}</span>
+            >
+              #{{ scope.row.id }}
+            </span>
           </bk-table-column>
           <bk-table-column
             width="150"
@@ -215,10 +219,10 @@
             prop="shieldTypeName"
           />
           <bk-table-column
+            v-slot="scope"
             min-width="250"
             class-name="shield-content"
             :label="$t('屏蔽内容')"
-            v-slot="scope"
           >
             <!-- <span v-if="scope.row.shieldType === 'strategy'" class="link">{{scope.row.shieldContent}}<i class="icon-monitor icon-mc-wailian" @click="handleToOtherPages(scope.row)"></i></span> -->
             <span class="content">{{ scope.row.shieldContent }}</span>
@@ -236,17 +240,17 @@
             sortable="custom"
           />
           <bk-table-column
+            v-slot="scope"
             min-width="230"
             :label="$t('屏蔽原因')"
             prop="description"
-            v-slot="scope"
           >
             <span class="content">{{ scope.row.description || '--' }}</span>
           </bk-table-column>
           <bk-table-column
+            v-slot="scope"
             width="120"
             :label="$t('状态')"
-            v-slot="scope"
           >
             <span :class="statusMap[scope.row.status].className">{{ statusMap[scope.row.status].des }}</span>
           </bk-table-column>
@@ -256,10 +260,10 @@
             :label="$t('操作')"
           >
             <bk-button
+              v-authority="{ active: !authority.MANAGE_AUTH }"
               :text="true"
               theme="primary"
               class="clone-btn"
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               @click="
                 authority.MANAGE_AUTH
                   ? handleCloneShield(scope.row.id, scope.row.shieldType)
@@ -282,22 +286,22 @@
           :limit="tableInstance.pageSize"
           :count="tableInstance.count"
           :limit-list="tableInstance.pageList"
+          show-total-count
           @change="handlePageChange"
           @limit-change="handleLimitChange"
-          show-total-count
         />
       </template>
     </div>
     <div v-show="false">
       <div
-        class="label-menu-wrapper"
         ref="labelMenu"
+        class="label-menu-wrapper"
       >
         <ul class="label-menu-list">
           <li
-            class="item"
             v-for="(item, index) in shieldType.list"
             :key="index"
+            class="item"
             @click="handleSelectType(item)"
           >
             <bk-checkbox
@@ -329,26 +333,30 @@
   </div>
 </template>
 <script>
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
+import { disableShield, frontendShieldList } from 'monitor-api/modules/shield.js';
 import { debounce } from 'throttle-debounce';
 
-import { disableShield, frontendShieldList } from '../../../../monitor-api/modules/shield.js';
 import { commonPageSizeMixin } from '../../../common/mixins';
 import EmptyStatus from '../../../components/empty-status/empty-status.tsx';
 import TableStore from '../store.ts';
 
+import '@blueking/search-select-v3/vue2/vue2.css';
+
 export default {
   name: 'AlarmShield',
   components: {
-    EmptyStatus
+    EmptyStatus,
+    SearchSelect,
   },
   mixins: [commonPageSizeMixin],
   inject: ['authority', 'handleShowAuthorityDetail', 'authorityMap'],
   props: {
     fromRouteName: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   data() {
     return {
@@ -358,8 +366,8 @@ export default {
         active: 0,
         list: [
           { name: this.$t('屏蔽中'), id: 0, type: 'effct' },
-          { name: this.$t('屏蔽失效'), id: 1, type: 'overdue' }
-        ]
+          { name: this.$t('屏蔽失效'), id: 1, type: 'overdue' },
+        ],
       },
       shieldType: {
         list: [
@@ -368,53 +376,53 @@ export default {
             id: 'alert',
             checked: 'alert',
             value: '',
-            cancel: ''
+            cancel: '',
           },
           {
             name: this.$t('范围屏蔽'),
             id: 'scope',
             checked: 'scope',
             value: '',
-            cancel: ''
+            cancel: '',
           },
           {
             name: this.$t('策略屏蔽'),
             id: 'strategy',
             checked: 'strategy',
             value: '',
-            cancel: ''
+            cancel: '',
           },
           {
             name: this.$t('维度屏蔽'),
             id: 'dimension',
             checked: 'dimension',
             value: '',
-            cancel: ''
-          }
+            cancel: '',
+          },
         ],
         instance: null,
         effct: new Set(),
         overdue: new Set(),
-        selectedLabels: []
+        selectedLabels: [],
       },
       right: {
         dateRange: [],
-        keyword: ''
+        keyword: '',
       },
       table: {
         loading: false,
         data: [],
         effct: {
-          isFilter: false
+          isFilter: false,
         },
         overdue: {
-          isFilter: false
-        }
+          isFilter: false,
+        },
       },
       cache: {
         dateRange: [],
         overdueData: [],
-        effectiveData: []
+        effectiveData: [],
       },
       cacheDate: [],
       order: {
@@ -423,33 +431,33 @@ export default {
           isIdSort: false,
           id: 'id',
           effct: 'begin_time',
-          overdue: 'failure_time'
+          overdue: 'failure_time',
         },
         overdue: {
           isTimeSort: false,
           isIdSort: false,
           id: 'id',
           effct: 'begin_time',
-          overdue: 'failure_time'
-        }
+          overdue: 'failure_time',
+        },
       },
       tableInstance: null,
       statusMap: {
         1: {
           des: this.$t('屏蔽中'),
           className: 'shield',
-          code: 1
+          code: 1,
         },
         2: {
           des: this.$t('已过期'),
           className: 'overdue',
-          code: 2
+          code: 2,
         },
         3: {
           des: this.$t('被解除'),
           className: 'release',
-          code: 3
-        }
+          code: 3,
+        },
       },
       /* 搜索内容 */
       searchValues: [],
@@ -459,7 +467,7 @@ export default {
       /* 此数据传入到后端 */
       searchCondition: [],
       handleSearch() {},
-      emptyType: 'empty'
+      emptyType: 'empty',
     };
   },
   computed: {
@@ -477,7 +485,7 @@ export default {
     },
     curTable() {
       return this.table[this.tabName];
-    }
+    },
   },
   created() {
     this.handleSearch = debounce(300, () => this.handleGetShiledList());
@@ -524,7 +532,7 @@ export default {
       } else {
         const propMap = {
           beginTime: 'begin_time',
-          failureTime: 'failure_time'
+          failureTime: 'failure_time',
         };
         this.curOrder.overdue = sort.order === 'descending' ? `-${propMap[sort.prop]}` : propMap[sort.prop];
       }
@@ -553,7 +561,7 @@ export default {
     handleCloneShield(id, type) {
       this.$router.push({
         name: 'alarm-shield-clone',
-        params: { id, type }
+        params: { id, type },
       });
     },
 
@@ -561,7 +569,7 @@ export default {
     handleEditShield(id, type) {
       this.$router.push({
         name: 'alarm-shield-edit',
-        params: { id, type }
+        params: { id, type },
       });
     },
 
@@ -576,13 +584,13 @@ export default {
               this.handleGetShiledList(true);
               this.$bkMessage({
                 theme: 'success',
-                message: this.$t('解除屏蔽成功')
+                message: this.$t('解除屏蔽成功'),
               });
             })
             .catch(() => {
               this.loading = false;
             });
-        }
+        },
       });
     },
     // tab栏切换事件
@@ -614,7 +622,7 @@ export default {
           : ['alert', 'scope', 'strategy', 'dimension'],
         search: this.right.keyword,
         conditions: this.searchCondition,
-        is_active: this.tab.active === 0
+        is_active: this.tab.active === 0,
       };
       if (this.curOrder.isTimeSort) {
         params.order = this.tab.active === 0 ? this.curOrder.effct : this.curOrder.overdue;
@@ -623,15 +631,16 @@ export default {
         params.order = this.curOrder.id;
       }
       if (this.right.dateRange.join('').length) {
-        params.time_range =          `${dayjs.tz(this.right.dateRange[0]).format('YYYY-MM-DD HH:mm:ss')}`
-          + '--'
-          + `${dayjs.tz(this.right.dateRange[1]).format('YYYY-MM-DD HH:mm:ss')} `;
+        params.time_range =
+          `${dayjs.tz(this.right.dateRange[0]).format('YYYY-MM-DD HH:mm:ss')}` +
+          '--' +
+          `${dayjs.tz(this.right.dateRange[1]).format('YYYY-MM-DD HH:mm:ss')} `;
       }
       const data = await frontendShieldList(params).catch(() => {
         this.emptyType = '500';
         return {
           shield_list: [],
-          count: 0
+          count: 0,
         };
       });
       if (!this.tableInstance) {
@@ -665,7 +674,7 @@ export default {
     },
     handleResetSelected() {
       this.shieldType.instance.hide(100);
-      this.shieldType.list.forEach((item) => {
+      this.shieldType.list.forEach(item => {
         item.value = '';
       });
       this.shieldType.selectedLabels = [];
@@ -678,7 +687,7 @@ export default {
     handleUpdateFilterVal() {
       const labelSet = this.shieldType[this.tabName];
       this.shieldType.selectedLabels = [];
-      this.shieldType.list.forEach((item) => {
+      this.shieldType.list.forEach(item => {
         if (labelSet.has(item.id)) {
           item.value = item.id;
           this.shieldType.selectedLabels.push(item.value);
@@ -704,10 +713,10 @@ export default {
             this.shieldType.instance.destroy();
             this.shieldType.instance = null;
             this.shieldType[this.tabName] = new Set(this.shieldType.selectedLabels);
-            this.shieldType.list.forEach((item) => {
+            this.shieldType.list.forEach(item => {
               item.value = this.shieldType.selectedLabels.includes(item.id) ? item.id : '';
             });
-          }
+          },
         });
       }
       this.shieldType?.instance?.show?.(100);
@@ -724,23 +733,24 @@ export default {
     },
     renderHeader(h) {
       return h(
-        'span', {
+        'span',
+        {
           class: {
             'dropdown-trigger': true,
             ' plugin-label': true,
-            selected: this.shieldTypeStr
+            selected: this.shieldTypeStr,
           },
           on: {
-            click: this.handleShow
-          }
+            click: this.handleShow,
+          },
         },
         [
           this.$t('分类'),
           h('i', {
             class: {
-              'icon-monitor icon-filter-fill': true
-            }
-          })
+              'icon-monitor icon-filter-fill': true,
+            },
+          }),
         ]
       );
     },
@@ -748,12 +758,12 @@ export default {
       if (row.shieldType === 'strategy') {
         this.$router.push({
           name: 'strategy-config-detail',
-          params: { id: row.dimensionConfig.id }
+          params: { id: row.dimensionConfig.id },
         });
       } else if (row.shieldType === 'event') {
         this.$router.push({
           name: 'event-center-detail',
-          params: { id: row.dimensionConfig.id }
+          params: { id: row.dimensionConfig.id },
         });
       }
     },
@@ -769,24 +779,25 @@ export default {
         id: {
           name: `${this.$t('屏蔽')}ID`,
           value: [],
-          id: 'id'
-        }
+          id: 'id',
+        },
       };
       const res = [];
       const map = this.backDisplayMap;
-      Object.keys(map).forEach((key) => {
+      Object.keys(map).forEach(key => {
         const { name, id, list } = map[key];
         res.push({
           name,
           id,
-          multiable: true,
-          children: list ? list : []
+          multiple: true,
+          children: list ? list : [],
         });
       });
       this.searchData = res;
       this.getRouterParams();
     },
-    handleSearchCondition() {
+    handleSearchCondition(v) {
+      this.searchValues = v;
       this.searchCondition = this.routerParamsReplace();
       this.emptyType = this.searchCondition.length ? 'search-empty' : 'empty';
       this.handleGetShiledList();
@@ -795,7 +806,7 @@ export default {
     routerParamsReplace() {
       const query = [];
       const ids = Object.keys(this.backDisplayMap);
-      this.searchValues.forEach((item) => {
+      this.searchValues.forEach(item => {
         if (ids.includes(item.id)) {
           if (item.values?.length) query.push({ key: item.id, value: item.values.map(v => v.id) });
         } else {
@@ -803,12 +814,14 @@ export default {
         }
       });
       const queryStr = JSON.stringify(query);
-      this.$router.replace({
-        ...this.$route,
-        query: {
-          queryString: query?.length ? queryStr : undefined
-        }
-      }).catch(() => {});
+      this.$router
+        .replace({
+          ...this.$route,
+          query: {
+            queryString: query?.length ? queryStr : undefined,
+          },
+        })
+        .catch(() => {});
       return query;
     },
     /* 获取路由参数 */
@@ -820,22 +833,25 @@ export default {
         try {
           queryStringObj = JSON.parse(queryString);
         } catch (err) {
-          this.$router.replace({
-            ...this.$route,
-            query: { queryString: undefined }
-          }).catch(() => {});
-        };
+          this.$router
+            .replace({
+              ...this.$route,
+              query: { queryString: undefined },
+            })
+            .catch(() => {});
+        }
         if (queryStringObj) {
           const ids = Object.keys(this.backDisplayMap);
           const searchValues = [];
-          queryStringObj?.forEach((item) => {
+          queryStringObj?.forEach(item => {
             if (ids.includes(item.key)) {
-              if (item.value?.length) searchValues.push({
-                id: item.key,
-                multiable: true,
-                name: this.backDisplayMap[item.key].name,
-                values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value]
-              });
+              if (item.value?.length)
+                searchValues.push({
+                  id: item.key,
+                  multiple: true,
+                  name: this.backDisplayMap[item.key].name,
+                  values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value],
+                });
             } else {
               if (item.key) searchValues.push({ id: item.key, name: item.key });
             }
@@ -859,8 +875,8 @@ export default {
         this.handleGetShiledList();
         return;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scope>
@@ -894,7 +910,7 @@ export default {
       }
 
       .right-search {
-        min-width: 400px;
+        width: 400px;
         background: #fff;
       }
     }

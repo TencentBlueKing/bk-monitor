@@ -152,9 +152,12 @@ class ConvergeManager(object):
 
     def is_biz_converge_existed(self, matched_count):
         client = FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.client
-        biz_converge_lock_key = FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.get_key(
-            **self.dimension_handler.get_sub_converge_label_info()
-        )
+
+        # 去除策略ID避免存储被路由到不同的redis
+        key_params = self.dimension_handler.get_sub_converge_label_info()
+        key_params.pop("strategy_id", None)
+
+        biz_converge_lock_key = FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.get_key(**key_params)
         if client.incr(biz_converge_lock_key) > matched_count:
             # 如果当前的计数器大于并发数，直接返回异常
             logger.info(
@@ -203,7 +206,6 @@ class ConvergeManager(object):
         return matched_related_ids
 
     def create_converge_instance(self, start_time=None):
-
         self.insert_converge_instance()
         if start_time and self.converge_instance.create_time < start_time:
             logger.info(

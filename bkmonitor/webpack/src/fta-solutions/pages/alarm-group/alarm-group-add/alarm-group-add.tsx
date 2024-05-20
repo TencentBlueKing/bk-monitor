@@ -28,7 +28,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AlarmGroupAdd from '../../../../monitor-pc/pages/alarm-group/alarm-group-add/alarm-group-add-common/alarm-group-add';
+import AlarmGroupAdd from 'monitor-pc/pages/alarm-group/alarm-group-add/alarm-group-add-common/alarm-group-add';
 
 interface IAlarmGroupAdd {
   id?: number | string;
@@ -40,7 +40,7 @@ export default class AlarmGroupAddFta extends tsc<IAlarmGroupAdd> {
   @Prop({ default: null, type: [Number, String] }) id: number | string;
 
   fromRoute = '';
-  beforeRouteEnter(to: Route, from: Route, next: Function) {
+  beforeRouteEnter(to: Route, from: Route, next: (a: (vm: AlarmGroupAddFta) => void) => void) {
     next((vm: AlarmGroupAddFta) => {
       vm.fromRoute = from.name;
     });
@@ -49,8 +49,8 @@ export default class AlarmGroupAddFta extends tsc<IAlarmGroupAdd> {
     return (
       <AlarmGroupAdd
         style='padding: 40px 159px 0px 48px; height: 100%;'
-        groupId={+this.id}
         fromRoute={this.fromRoute}
+        groupId={+this.id}
         type='fta'
       ></AlarmGroupAdd>
     );

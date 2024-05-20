@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, PropType, ref, toRefs, watch } from 'vue';
+
 import { Dropdown } from 'bkui-vue';
 
 export interface ISelectMenuOption {
-  id: string | number;
+  id: number | string;
   name: string;
 }
 /**
@@ -36,18 +37,18 @@ export interface ISelectMenuOption {
 const IProps = {
   value: {
     type: [Number, String],
-    default: ''
+    default: '',
   },
   list: {
     type: Array as PropType<ISelectMenuOption[]>,
-    default: () => []
+    default: () => [],
   },
   onSelect: {
-    type: Function as PropType<(item: ISelectMenuOption) => void>
+    type: Function as PropType<(item: ISelectMenuOption) => void>,
   },
   onShowChange: {
-    type: Function as PropType<(val: boolean) => void>
-  }
+    type: Function as PropType<(val: boolean) => void>,
+  },
 };
 export default defineComponent({
   name: 'SelectMenu',
@@ -89,16 +90,13 @@ export default defineComponent({
       localValue,
       currentItem,
       showChange,
-      handleSelect
+      handleSelect,
     };
   },
   render() {
     return (
       <span>
         <Dropdown
-          trigger='click'
-          onShow={() => this.showChange(true)}
-          onHide={() => this.showChange(false)}
           v-slots={{
             content: () => (
               <Dropdown.DropdownMenu>
@@ -106,12 +104,18 @@ export default defineComponent({
                   <Dropdown.DropdownItem onClick={() => this.handleSelect(opt)}>{opt.name}</Dropdown.DropdownItem>
                 ))}
               </Dropdown.DropdownMenu>
-            )
+            ),
           }}
+          popoverOptions={{
+            zIndex: 8003,
+          }}
+          trigger='click'
+          onHide={() => this.showChange(false)}
+          onShow={() => this.showChange(true)}
         >
           {this.$slots.default?.(this.currentItem)}
         </Dropdown>
       </span>
     );
-  }
+  },
 });

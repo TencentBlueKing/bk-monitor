@@ -22,9 +22,10 @@
 
 <template>
   <div
-    class="extract-auth-manage"
     v-bkloading="{ isLoading }"
-    data-test-id="extractAuthManage_div_extractAuthManageBox">
+    class="extract-auth-manage"
+    data-test-id="extractAuthManage_div_extractAuthManageBox"
+  >
     <div>
       <bk-button
         v-cursor="{ active: isAllowedManage === false }"
@@ -32,58 +33,118 @@
         :loading="isButtonLoading"
         class="king-button"
         theme="primary"
-        style="margin: 20px 0;width: 120px;"
+        style="width: 120px; margin: 20px 0"
         data-test-id="extractAuthManageBox_button_addNewExtractAuthManage"
-        @click="handleCreateStrategy">
-        {{$t('新增')}}
+        @click="handleCreateStrategy"
+      >
+        {{ $t('新增') }}
       </bk-button>
     </div>
-    <bk-table class="king-table" :data="strategyList" row-key="strategy_id">
-      <bk-table-column :label="$t('名称')" :render-header="$renderHeader" min-width="100">
-        <div class="table-ceil-container" slot-scope="{ row }">
-          <span v-bk-overflow-tips>{{row.strategy_name}}</span>
+    <bk-table
+      class="king-table"
+      :data="strategyList"
+      row-key="strategy_id"
+    >
+      <bk-table-column
+        :label="$t('名称')"
+        :render-header="$renderHeader"
+        min-width="100"
+      >
+        <div
+          slot-scope="{ row }"
+          class="table-ceil-container"
+        >
+          <span v-bk-overflow-tips>{{ row.strategy_name }}</span>
         </div>
       </bk-table-column>
-      <bk-table-column :label="$t('授权目标')" :render-header="$renderHeader" min-width="100">
-        <div class="table-ceil-container" slot-scope="{ row }">
-          <span v-bk-overflow-tips>{{row.modules.map(item => item.bk_inst_name).join('; ')}}</span>
+      <bk-table-column
+        :label="$t('授权目标')"
+        :render-header="$renderHeader"
+        min-width="100"
+      >
+        <div
+          slot-scope="{ row }"
+          class="table-ceil-container"
+        >
+          <span v-bk-overflow-tips>{{ row.modules.map(item => item.bk_inst_name).join('; ') }}</span>
         </div>
       </bk-table-column>
-      <bk-table-column :label="$t('文件目录')" :render-header="$renderHeader" min-width="100">
-        <div class="table-ceil-container" slot-scope="{ row }">
-          <span v-bk-overflow-tips>{{row.visible_dir.join('; ')}}</span>
+      <bk-table-column
+        :label="$t('文件目录')"
+        :render-header="$renderHeader"
+        min-width="100"
+      >
+        <div
+          slot-scope="{ row }"
+          class="table-ceil-container"
+        >
+          <span v-bk-overflow-tips>{{ row.visible_dir.join('; ') }}</span>
         </div>
       </bk-table-column>
-      <bk-table-column :label="$t('文件后缀')" :render-header="$renderHeader" min-width="100">
-        <div class="table-ceil-container" slot-scope="{ row }">
-          <span v-bk-overflow-tips>{{row.file_type.join('; ')}}</span>
+      <bk-table-column
+        :label="$t('文件后缀')"
+        :render-header="$renderHeader"
+        min-width="100"
+      >
+        <div
+          slot-scope="{ row }"
+          class="table-ceil-container"
+        >
+          <span v-bk-overflow-tips>{{ row.file_type.join('; ') }}</span>
         </div>
       </bk-table-column>
-      <bk-table-column :label="$t('执行人')" :render-header="$renderHeader" min-width="100">
-        <div class="table-ceil-container" slot-scope="{ row }">
-          <span v-bk-overflow-tips>{{row.operator || '--'}}</span>
+      <bk-table-column
+        :label="$t('执行人')"
+        :render-header="$renderHeader"
+        min-width="100"
+      >
+        <div
+          slot-scope="{ row }"
+          class="table-ceil-container"
+        >
+          <span v-bk-overflow-tips>{{ row.operator || '--' }}</span>
         </div>
       </bk-table-column>
       <bk-table-column
         :label="$t('创建时间')"
         :render-header="$renderHeader"
         prop="created_at"
-        min-width="100">
+        min-width="100"
+      >
       </bk-table-column>
       <bk-table-column
         :label="$t('创建人')"
         :render-header="$renderHeader"
         prop="created_by"
-        min-width="80">
+        min-width="80"
+      >
       </bk-table-column>
-      <bk-table-column :label="$t('操作')" min-width="80" :render-header="$renderHeader">
-        <div slot-scope="{ row }" class="task-operation-container">
-          <span class="task-operation" @click="handleEditStrategy(row)">{{$t('编辑')}}</span>
-          <span class="task-operation" @click="handleDeleteStrategy(row)">{{$t('删除')}}</span>
+      <bk-table-column
+        :label="$t('操作')"
+        min-width="80"
+        :render-header="$renderHeader"
+      >
+        <div
+          slot-scope="{ row }"
+          class="task-operation-container"
+        >
+          <span
+            class="task-operation"
+            @click="handleEditStrategy(row)"
+            >{{ $t('编辑') }}</span
+          >
+          <span
+            class="task-operation"
+            @click="handleDeleteStrategy(row)"
+            >{{ $t('删除') }}</span
+          >
         </div>
       </bk-table-column>
       <div slot="empty">
-        <empty-status :empty-type="emptyType" @operation="handleOperation" />
+        <empty-status
+          :empty-type="emptyType"
+          @operation="handleOperation"
+        />
       </div>
     </bk-table>
 
@@ -93,15 +154,17 @@
       :width="520"
       :quick-close="true"
       :before-close="handleCloseSidebar"
-      :title="type === 'create' ? $t('新增') : $t('编辑')">
+      :title="type === 'create' ? $t('新增') : $t('编辑')"
+    >
       <directory-manage
-        v-bkloading="{ isLoading: isSliderLoading }"
         slot="content"
         ref="directoryRef"
+        v-bkloading="{ isLoading: isSliderLoading }"
         :user-api="userApi"
         :allow-create="allowCreate"
         :strategy-data="strategyData"
-        @confirm="confirmCreateOrEdit" />
+        @confirm="confirmCreateOrEdit"
+      />
     </bk-sideslider>
   </div>
 </template>
@@ -117,7 +180,7 @@ export default {
   name: 'ManageExtract',
   components: {
     DirectoryManage,
-    EmptyStatus,
+    EmptyStatus
   },
   mixins: [SidebarDiffMixin],
   data() {
@@ -133,11 +196,11 @@ export default {
       type: '', // 新增或编辑策略
       strategyData: {}, // 新增或编辑策略时传递的数据
       userApi: '',
-      emptyType: 'empty',
+      emptyType: 'empty'
     };
   },
   computed: {
-    ...mapGetters(['spaceUid']),
+    ...mapGetters(['spaceUid'])
   },
   created() {
     this.checkManageAuth();
@@ -147,10 +210,12 @@ export default {
       try {
         const res = await this.$store.dispatch('checkAllowed', {
           action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
-          resources: [{
-            type: 'space',
-            id: this.spaceUid,
-          }],
+          resources: [
+            {
+              type: 'space',
+              id: this.spaceUid
+            }
+          ]
         });
         this.isAllowedManage = res.isAllowed;
         if (res.isAllowed) {
@@ -170,7 +235,7 @@ export default {
       try {
         this.isLoading = true;
         const res = await this.$http.request('extractManage/getStrategyList', {
-          query: { bk_biz_id: this.$store.state.bkBizId },
+          query: { bk_biz_id: this.$store.state.bkBizId }
         });
         this.strategyList = res.data;
       } catch (e) {
@@ -186,10 +251,12 @@ export default {
           this.isButtonLoading = true;
           const res = await this.$store.dispatch('getApplyData', {
             action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
-            resources: [{
-              type: 'space',
-              id: this.spaceUid,
-            }],
+            resources: [
+              {
+                type: 'space',
+                id: this.spaceUid
+              }
+            ]
           });
           this.$store.commit('updateAuthDialogData', res.data);
         } catch (err) {
@@ -209,7 +276,7 @@ export default {
         file_type: [''],
         operator: this.$store.state.userMeta.operator,
         select_type: 'topo',
-        modules: [],
+        modules: []
       };
     },
     handleEditStrategy(row) {
@@ -221,7 +288,7 @@ export default {
       this.$bkInfo({
         title: `${this.$t('确定要删除')}【${row.strategy_name}】？`,
         closeIcon: false,
-        confirmFn: this.syncConfirmFn.bind(this, row.strategy_id),
+        confirmFn: this.syncConfirmFn.bind(this, row.strategy_id)
       });
     },
     // 这里使用同步是为了点击确认后立即关闭info
@@ -233,8 +300,8 @@ export default {
         this.isLoading = true;
         await this.$http.request('extractManage/deleteStrategy', {
           params: {
-            strategy_id: id,
-          },
+            strategy_id: id
+          }
         });
         this.messageSuccess(this.$t('删除成功'));
         await this.initStrategyList();
@@ -251,13 +318,13 @@ export default {
 
       this.isSliderLoading = true;
       const data = Object.assign(strategyData, {
-        bk_biz_id: this.$store.state.bkBizId,
+        bk_biz_id: this.$store.state.bkBizId
       });
 
       if (this.type === 'create') {
         try {
           await this.$http.request('extractManage/createStrategy', {
-            data,
+            data
           });
           this.showManageDialog = false;
           this.messageSuccess(this.$t('创建成功'));
@@ -271,9 +338,9 @@ export default {
         try {
           await this.$http.request('extractManage/updateStrategy', {
             params: {
-              strategy_id: data.strategy_id,
+              strategy_id: data.strategy_id
             },
-            data,
+            data
           });
           this.messageSuccess(this.$t('修改成功'));
           this.showManageDialog = false;
@@ -294,27 +361,27 @@ export default {
     },
     async handleCloseSidebar() {
       return await this.$refs.directoryRef.handleCloseSidebar();
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style lang="scss" scoped>
-  .extract-auth-manage {
-    padding: 0 24px 20px;
+.extract-auth-manage {
+  padding: 0 24px 20px;
 
-    /*表格内容样式*/
-    :deep(.king-table) {
-      .task-operation-container {
-        display: flex;
-        align-items: center;
+  /*表格内容样式*/
+  :deep(.king-table) {
+    .task-operation-container {
+      display: flex;
+      align-items: center;
 
-        .task-operation {
-          margin-right: 12px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
+      .task-operation {
+        margin-right: 12px;
+        color: #3a84ff;
+        cursor: pointer;
       }
     }
   }
+}
 </style>

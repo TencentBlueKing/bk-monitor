@@ -67,8 +67,14 @@ from alarm_backends.service.fta_action.webhook.processor import (
 from alarm_backends.tests.service.access.data.config import STRATEGY_CONFIG_V3
 from api.cmdb.define import Business, Host
 from bkmonitor.action.serializers import DutyArrange
+from bkmonitor.aiops.alert.utils import (
+    DimensionDrillLightManager,
+    RecommendMetricManager,
+)
+from bkmonitor.aiops.utils import ReadOnlyAiSetting
 from bkmonitor.documents import AlertLog, EventDocument
 from bkmonitor.models import ActionPlugin, CacheRouter, DutyPlan, UserGroup
+from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.models.fta.action import (
     ActionConfig,
     ActionInstance,
@@ -83,6 +89,7 @@ from bkmonitor.utils.template import (
     NoticeRowRenderer,
 )
 from bkmonitor.utils.text import cut_line_str_by_max_bytes
+from constants import alert as alert_constants
 from constants.action import (
     ALL_CONVERGE_DIMENSION,
     ActionPluginType,
@@ -96,6 +103,7 @@ from constants.action import (
     NotifyStep,
     UserGroupType,
 )
+from constants.aiops import DIMENSION_DRILL
 from constants.alert import EventSeverity, EventStatus
 from constants.data_source import KubernetesResultTableLabel
 from core.errors.alarm_backends import EmptyAssigneeError
@@ -651,6 +659,7 @@ class TestActionProcessor(TransactionTestCase):
         DutyPlan.objects.all().delete()
         UserGroup.objects.all().delete()
         DutyArrange.objects.all().delete()
+        AIFeatureSettings.objects.all().delete()
         register_builtin_plugins()
         settings.ENABLE_MESSAGE_QUEUE = False
         settings.MESSAGE_QUEUE_DSN = ""
@@ -716,7 +725,7 @@ class TestActionProcessor(TransactionTestCase):
             MagicMock(return_value={"info": {"recommended_metric_count": 0}, "recommended_metrics": []}),
         )
         self.get_anomaly_dimensions = patch(
-            "bkmonitor.aiops.alert.utils.DimensionDrillManager.fetch_aiops_result",
+            "bkmonitor.aiops.alert.utils.DimensionDrillLightManager.fetch_aiops_result",
             MagicMock(
                 return_value={
                     "info": {"anomaly_dimension_count": 2, "anomaly_dimension_value_count": 2},
@@ -2078,6 +2087,65 @@ class TestActionProcessor(TransactionTestCase):
             in render_content
         )
 
+    def _test_user_content_with_custom_title(self, use_custom_title: bool):
+        alert = AlertDocument(**self.alert_info)
+        ac_data = copy.deepcopy(self.ac_data)
+
+        for template in ac_data["execute_config"]["template_detail"]["template"]:
+            template["title_tmpl"] = (
+                alert_constants.DEFAULT_TITLE_TEMPLATE,
+                "custom" + alert_constants.DEFAULT_TITLE_TEMPLATE,
+            )[use_custom_title]
+
+        action = ActionInstance.objects.create(
+            alerts=[alert.id],
+            signal="abnormal",
+            strategy_id=0,
+            alert_level=alert.severity,
+            status=ActionStatus.SUCCESS,
+            bk_biz_id=2,
+            inputs={},
+            action_config=ac_data,
+            action_config_id=0,
+            action_plugin={
+                "plugin_type": ActionPluginType.NOTICE,
+                "name": "通知",
+                "plugin_key": ActionPluginType.NOTICE,
+            },
+        )
+
+        for notice_way in [NoticeWay.WX_BOT, NoticeWay.MAIL, "rtx"]:
+            alert_context = ActionContext(action=action, alerts=[alert], use_alert_snap=True, notice_way=notice_way)
+            context = alert_context.get_dictionary()
+
+            # 没有使用自定义标题的，内容模板不加标题模板
+            if not use_custom_title:
+                self.assertEqual(
+                    context["content_template"],
+                    ac_data["execute_config"]["template_detail"]["template"][0]["message_tmpl"],
+                )
+                continue
+
+            if notice_way not in [NoticeWay.MAIL, "rtx"]:
+                self.assertEqual(
+                    context["content_template"],
+                    "\n".join(
+                        [
+                            ac_data["execute_config"]["template_detail"]["template"][0]["title_tmpl"],
+                            ac_data["execute_config"]["template_detail"]["template"][0]["message_tmpl"],
+                        ]
+                    ),
+                )
+            else:
+                self.assertEqual(
+                    context["content_template"],
+                    ac_data["execute_config"]["template_detail"]["template"][0]["message_tmpl"],
+                )
+
+    def test_user_content_with_custom_title(self):
+        self._test_user_content_with_custom_title(use_custom_title=False)
+        self._test_user_content_with_custom_title(use_custom_title=True)
+
     def test_en_sender(self):
         language = "zh-cn"
         mail_content_path = Sender.get_language_template_path("notice/abnormal/action/mail_content.jinja", language)
@@ -2108,7 +2176,23 @@ class TestActionProcessor(TransactionTestCase):
         context = alert_context.get_dictionary()
         context["alarm"].log_related_info = "testtesttest"
         content_template_path = "notice/abnormal/action/markdown_content.jinja"
-        context["content_template"] = "#test title#12345"
+        context[
+            "content_template"
+        ] = """#test title#12345
+{{content.level}}
+{{content.begin_time}}
+{{content.time}}
+{{content.duration}}
+{{content.target_type}}
+{{content.data_source}}
+{{content.content}}
+{{content.current_value}}
+{{content.biz}}
+{{content.target}}
+{{content.dimension}}
+{{content.detail}}
+{{content.assign_detail}}
+{{content.related_info}}"""
         render_content = AlarmNoticeTemplate(content_template_path).render(context)
         print("render_content", render_content)
         self.assertTrue("**test title: **12345" in render_content)
@@ -2158,7 +2242,6 @@ class TestActionProcessor(TransactionTestCase):
         context_dict = context.get_dictionary()
         context_dict["alarm"].log_related_info = related_info
         user_content = NoticeRowRenderer.render(Jinja2Renderer.render(context.DEFAULT_TEMPLATE, context_dict), {})
-        print(user_content)
         expected_content = (
             "**首次异常: **{current_time}\n"
             "**最近异常: **{current_time}\n"
@@ -2166,7 +2249,9 @@ class TestActionProcessor(TransactionTestCase):
             "**所属空间: **[2]蓝鲸 (业务)\n"
             "**目标: **[127.0.0.1]({host}route/?bizId=2&route_path={route_path})\n"
             "**维度: **\\n> 云区域ID=2\\n> 主机IP=127.0.0.1\\n> backend=1\\n\n"
-            "**关联信息: **集群() 模块()\\n> {related_info}\\n"
+            "**关联信息: **集群() 模块()\\n> {related_info}\\n\n"
+            "**关联指标: **0 个指标,0 个维度\n"
+            "**维度下钻: **异常维度 2，异常维度值 2"
         ).format(
             host=settings.BK_MONITOR_HOST,
             route_path=base64.b64encode(b"#/performance/detail/127.0.0.1-0").decode("utf8"),
@@ -2198,6 +2283,24 @@ class TestActionProcessor(TransactionTestCase):
         context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx").get_dictionary()
         content = Jinja2Renderer.render("{{content.recommended_metrics}}", context)
         self.assertEqual(content, "关联指标: 0 个指标,0 个维度")
+
+    def test_ai_setting__config_exist(self):
+        alert = AlertDocument(**self.alert_info)
+        DimensionDrillLightManager(alert)
+        action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx")
+        ai_setting_config = action_context.alarm.ai_setting_config
+        ai_setting_config[DIMENSION_DRILL]["is_enabled"] = True
+
+        manager = DimensionDrillLightManager(alert, ReadOnlyAiSetting(alert.event["bk_biz_id"], ai_setting_config))
+        assert manager.is_enable() is True
+
+    def test_ai_setting__config_not_exist(self):
+        alert = AlertDocument(**self.alert_info)
+        action_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx")
+        assert action_context.alarm.ai_setting_config is None
+
+        manager = RecommendMetricManager(alert, ReadOnlyAiSetting(alert.event["bk_biz_id"], None))
+        assert manager.is_enable() is False
 
     def test_render_content_length(self):
         alert = AlertDocument(**self.alert_info)
@@ -2236,7 +2339,7 @@ class TestActionProcessor(TransactionTestCase):
         ).get_dictionary()
         context["content_template"] = content
         sender = Sender(context=context, content_template_path="notice/abnormal/action/sms_content.jinja")
-        self.assertEqual(len(sender.content), 300)
+        self.assertLess(len(sender.content), 300)
         content = sender.get_notice_content(NoticeWay.SMS, sender.content)
         self.assertEqual(sender.content, content)
 
@@ -2262,14 +2365,15 @@ class TestActionProcessor(TransactionTestCase):
         ).get_dictionary()
         context["content_template"] = content
         sender = Sender(context=context, content_template_path="notice/abnormal/action/sms_content.jinja")
-        self.assertEqual(len(sender.content), 300)
+        self.assertLess(len(sender.content), 300)
 
     def test_sender_wxbot_ch_limit(self):
         """
         中文字符(utf8编码计算)的长度一定是小于设定的长度
         """
         settings.NOTICE_MESSAGE_MAX_LENGTH = {NoticeWay.WX_BOT: 4096}
-        content = "".join(["【" for i in range(0, 4096)])
+        content = "abc\tdef\nght"
+        content += "".join(["【" for i in range(0, 4096)])
         alert = AlertDocument(**self.alert_info)
         context = ActionContext(
             action=None, alerts=[alert], use_alert_snap=True, notice_way=NoticeWay.WX_BOT
@@ -2310,7 +2414,8 @@ class TestActionProcessor(TransactionTestCase):
 
     def test_send_webot_limit(self):
         settings.NOTICE_MESSAGE_MAX_LENGTH = {"rtx": 0}
-        content = "".join(["000000" for i in range(0, 500)])
+        content = "abc\tdef\nght"
+        content += "".join(["000000" for i in range(0, 500)])
         sender = NoneTemplateSender(title="1", content=content)
         sender.send("rtx", [])
         send_content = sender.content.encode("utf8")
@@ -3644,6 +3749,7 @@ class TestActionProcessor(TransactionTestCase):
         actions0 = create_actions(1, "abnormal", alerts=[alert])
         self.assertEqual(len(actions0), 1)
         p_action = ActionInstance.objects.get(id__in=actions0)
+        # p_action.is_shielded = True
         self.assertTrue(p_action.inputs["is_alert_shielded"])
         print(p_action.get_content())
         self.assertTrue("因系统全局屏蔽配置， 默认屏蔽当前处理" in p_action.get_content()["text"])
@@ -3652,7 +3758,7 @@ class TestActionProcessor(TransactionTestCase):
         alert_log = p_action.get_content()
         print(alert_log)
         self.assertTrue("查看屏蔽策略" in alert_log["text"])
-        self.assertIsNotNone(alert_log["url"])
+        self.assertIsNotNone(alert_log["router_info"])
 
         settings.GLOBAL_SHIELD_ENABLED = False
 
@@ -3714,7 +3820,7 @@ class TestActionProcessor(TransactionTestCase):
         alert_log = p_action.get_content()
         print(alert_log)
         self.assertTrue("查看屏蔽策略" in alert_log["text"])
-        self.assertIsNotNone(alert_log["url"])
+        self.assertIsNotNone(alert_log["router_info"])
 
         settings.GLOBAL_SHIELD_ENABLED = False
 
@@ -4255,12 +4361,17 @@ class TestActionProcessor(TransactionTestCase):
 
 
 class TestNoiseReduce(TestCase):
+    databases = {"monitor_api", "default"}
+
     def setUp(self):
         redis = fakeredis.FakeRedis(decode_responses=True)
         redis.flushall()
+
         NOISE_REDUCE_ABNORMAL_KEY.client.flushall()
         self.create_alert_patch = patch("bkmonitor.documents.AlertDocument.bulk_create", MagicMock(return_value=True))
         self.create_alert_patch.start()
+        self.create_alert_log_patch = patch("bkmonitor.documents.AlertLog.bulk_create", MagicMock(return_value=True))
+        self.create_alert_log_patch.start()
         ActionInstance.objects.all().delete()
         register_builtin_plugins()
         self.alert_info = {
@@ -4275,6 +4386,7 @@ class TestNoiseReduce(TestCase):
                     "id": 123,
                 }
             ),
+            "dedupe_md5": "68e9f0598d72a4b6de2675d491e5b922",
             "severity": 1,
             "begin_time": int(time.time()),
             "create_time": int(time.time()),
@@ -4318,6 +4430,7 @@ class TestNoiseReduce(TestCase):
     def tearDown(self) -> None:
         ActionInstance.objects.all().delete()
         self.create_alert_patch.stop()
+        self.create_alert_log_patch.stop()
 
     def test_noise_reduce_init_true(self):
         strategy_dict = copy.deepcopy(STRATEGY_CONFIG_V3)

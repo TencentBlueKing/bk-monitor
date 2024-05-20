@@ -25,7 +25,8 @@
  */
 import { Component, Vue } from 'vue-property-decorator';
 
-import { xssFilter } from '../../monitor-common/utils/xss';
+import { xssFilter } from 'monitor-common/utils/xss';
+
 import { MetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
 
 @Component
@@ -47,7 +48,7 @@ export default class metricTipsContentMixin extends Vue {
     const options = [
       // 公共展示项
       { val: data.metric_field, label: this.$t('指标名') },
-      { val: data.metric_field_name, label: this.$t('指标别名') }
+      { val: data.metric_field_name, label: this.$t('指标别名') },
     ];
     const elList = {
       bk_monitor_time_series: [
@@ -59,7 +60,7 @@ export default class metricTipsContentMixin extends Vue {
         { val: data.result_table_name, label: this.$t('分类名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
         { val: data?.unit, label: this.$t('单位') },
-        { val: data.description, label: this.$t('含义') }
+        { val: data.description, label: this.$t('含义') },
       ],
       log_time_series: [
         // 日志平台指标
@@ -69,7 +70,7 @@ export default class metricTipsContentMixin extends Vue {
         { val: data?.extend_fields?.scenario_name, label: this.$t('数据源类别') },
         { val: data?.extend_fields?.storage_cluster_name, label: this.$t('数据源名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
-        { val: data?.unit, label: this.$t('单位') }
+        { val: data?.unit, label: this.$t('单位') },
       ],
       bk_log_search_log: [
         // 日志平台指标
@@ -77,14 +78,14 @@ export default class metricTipsContentMixin extends Vue {
         { val: data.related_name, label: this.$t('索引集') },
         { val: data.result_table_id, label: this.$t('索引') },
         { val: data?.extend_fields?.scenario_name, label: this.$t('数据源类别') },
-        { val: data?.extend_fields?.storage_cluster_name, label: this.$t('数据源名') }
+        { val: data?.extend_fields?.storage_cluster_name, label: this.$t('数据源名') },
       ],
       bk_data_time_series: [
         // 计算平台指标
         ...options,
         { val: data.result_table_id, label: this.$t('表名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
-        { val: data?.unit, label: this.$t('单位') }
+        { val: data?.unit, label: this.$t('单位') },
       ],
       custom_time_series: [
         // 自定义指标
@@ -92,7 +93,7 @@ export default class metricTipsContentMixin extends Vue {
         { val: data?.extend_fields?.bk_data_id, label: this.$t('数据ID') },
         { val: data.result_table_name, label: this.$t('数据名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
-        { val: data?.unit, label: this.$t('单位') }
+        { val: data?.unit, label: this.$t('单位') },
       ],
       bk_apm_time_series: [
         // 应用监控trace指标
@@ -103,32 +104,32 @@ export default class metricTipsContentMixin extends Vue {
         { val: data.result_table_name, label: this.$t('分类名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
         { val: data?.unit, label: this.$t('单位') },
-        { val: data.description, label: this.$t('含义') }
+        { val: data.description, label: this.$t('含义') },
       ],
       custom_event: [
         // 自定义事件
-        ...options
+        ...options,
       ],
       bk_monitor_event: [
         // 系统事件
-        ...options
+        ...options,
       ],
       bk_monitor_alert: [
         // 告警策略
-        { val: data.metric_field_name, label: this.$t('策略名称') }
+        { val: data.metric_field_name, label: this.$t('策略名称') },
       ],
       bk_fta_alert: [
         // 第三方告警
-        { val: data.metric_field_name, label: this.$t('告警名称') }
+        { val: data.metric_field_name, label: this.$t('告警名称') },
       ],
       bk_fta_event: [
         // fta事件第三方告警
-        { val: data.metric_field_name, label: this.$t('告警名称') }
+        { val: data.metric_field_name, label: this.$t('告警名称') },
       ],
       bk_apm_log: [
         { val: data.metric_field_name, label: this.$t('应用名称') },
-        { val: data.result_table_id, label: this.$t('结果表') }
-      ]
+        { val: data.result_table_id, label: this.$t('结果表') },
+      ],
     };
     // 拨测指标融合后不需要显示插件id插件名
     const resultTableLabel = data.result_table_label;

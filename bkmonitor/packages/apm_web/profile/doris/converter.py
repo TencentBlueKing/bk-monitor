@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 from dataclasses import dataclass
-from typing import ClassVar, Optional
+from typing import Optional
 
 from apm_web.profile.constants import InputType
 from apm_web.profile.converter import Converter, register_converter
@@ -28,31 +28,27 @@ from apm_web.profile.models import (
 class DorisConverter(Converter):
     """Convert data in doris(pprof json) to Profile object"""
 
-    DESCRIBING_SAMPLE_UNIT: ClassVar[str] = "count"
-
     def convert(self, raw: dict) -> Optional[Profile]:
         """parse single raw json data to Profile object"""
         samples_info = raw["list"]
         if not samples_info:
             return
+        self.raw_data = samples_info
 
         first_sample = samples_info[0]
         period_type, period_unit = first_sample["period_type"].split("/")
         self.profile.period_type = ValueType(self.add_string(period_type), self.add_string(period_unit))
         self.profile.period = first_sample["period"]
 
-        default_sample_type = []
         for sample_info in samples_info:
             # according to profile.proto:
             # "By convention, the first value on all profiles is the number of samples collected at this call stack,
             # with unit `count`."
             # samples_info contains lots of samples, including `sample/counts` and target values
             # `sample/counts` mainly for `describing`, ignoring it and adding after all samples added
-            if sample_info["sample_type"].split("/")[1] == self.DESCRIBING_SAMPLE_UNIT:
-                continue
-
-            if not default_sample_type:
-                default_sample_type = sample_info["sample_type"].split("/")
+            # [UPDATE]: Now the query has been filtered based on sample_type, so here is no need to filter
+            # if sample_info["sample_type"] == CPU_DESCRIBING_SAMPLE_TYPE:
+            #     continue
 
             labels = json.loads(sample_info.get("labels", "{}"))
             sample = Sample(value=[int(sample_info["value"])], label=labels)
@@ -62,7 +58,7 @@ class DorisConverter(Converter):
 
             self.profile.sample.append(sample)
 
-        sample_type, sample_unit = default_sample_type
+        sample_type, sample_unit = first_sample["sample_type"].split("/")
         self.profile.sample_type = [ValueType(self.add_string(sample_type), self.add_string(sample_unit))]
         self.profile.default_sample_type = 0
 
@@ -118,6 +114,9 @@ class DorisConverter(Converter):
                 location.line.append(Line(function_id=function.id, line=line_info["line"]))
 
         return location
+
+    def __len__(self):
+        return len(self.raw_data)
 
 
 register_converter(InputType.DORIS.value, DorisConverter)

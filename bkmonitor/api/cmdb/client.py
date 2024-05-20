@@ -70,7 +70,10 @@ class CMDBBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         # 非cmdb空间兼容，无关联资源捕获异常返回空数据
         try:
             return super(CMDBBaseResource, self).perform_request(validated_request_data)
-        except NoRelatedResourceError:
+        except NoRelatedResourceError as err:
+            self.report_api_failure_metric(
+                error_code=getattr(err, 'code', 0), exception_type=NoRelatedResourceError.__name__
+            )
             return self.return_type()
 
 
@@ -166,6 +169,10 @@ class SearchBusiness(CMDBBaseResource):
     method = "POST"
 
 
+def return_info_with_list(*args):
+    return {"info": []}
+
+
 class ListServiceCategory(CMDBBaseResource):
     """
     查询服务分类列表
@@ -174,6 +181,8 @@ class ListServiceCategory(CMDBBaseResource):
     cache_type = CacheType.CC_CACHE_ALWAYS
     action = "list_service_category"
     method = "POST"
+
+    return_type = return_info_with_list
 
 
 class ListBizHostsTopo(CMDBBaseResource):

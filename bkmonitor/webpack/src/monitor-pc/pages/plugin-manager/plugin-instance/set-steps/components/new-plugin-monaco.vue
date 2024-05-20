@@ -230,7 +230,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
 
   otherPluginType: string[] = ['JMX', 'DataDog'];
   otherLanguage: { JMX: ILanguage; DataDog: ILanguage } = { JMX: null, DataDog: null };
-  handleInput = debounce(300, false, (text: string) => this.scriptChange(text));
+  handleInput = debounce(300, (text: string) => this.scriptChange(text));
   // 传进来的系统列表
   @Prop(Array)
     systems: string[];

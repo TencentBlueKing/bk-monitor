@@ -27,7 +27,8 @@ import { VNode } from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from '../../../monitor-common/utils/utils';
+import { Debounce } from 'monitor-common/utils/utils';
+
 import { resize } from '../../components/ip-selector/common/observer-directive';
 
 import './collapse.scss';
@@ -49,8 +50,8 @@ export interface ICollapseEvents {
  */
 @Component({
   directives: {
-    resize
-  }
+    resize,
+  },
 })
 export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
   /** 展开状态 */
@@ -134,7 +135,7 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
   updateHeight(val: boolean) {
     this.loacalMaxHeight = this.maxHeight;
     const contentHeight = this.collapseContentRef?.scrollHeight;
-    // eslint-disable-next-line no-nested-ternary
+
     this.height = val ? contentHeight : contentHeight < this.defaultHeight ? contentHeight : this.defaultHeight;
     !!this.loacalMaxHeight && val && this.height > this.loacalMaxHeight && (this.height = this.loacalMaxHeight);
   }
@@ -189,13 +190,13 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
   render() {
     return (
       <div
-        class={['monitor-collapse-wrap', { 'is-overflow': this.isOverflow, animation: this.openAnimation }]}
         style={{ height: `${this.height}px` }}
+        class={['monitor-collapse-wrap', { 'is-overflow': this.isOverflow, animation: this.openAnimation }]}
         v-resize={this.handleResize}
       >
         <div
-          class='monitor-collapse-content'
           ref='collapseContentRef'
+          class='monitor-collapse-content'
         >
           {this.handleRenderContent()}
         </div>

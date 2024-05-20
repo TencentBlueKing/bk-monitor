@@ -26,7 +26,8 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from '../../../../../monitor-common/utils/utils';
+import { Debounce } from 'monitor-common/utils/utils';
+
 import { resize } from '../../../../components/ip-selector/common/observer-directive';
 import { DASHBOARD_PANEL_COLUMN_KEY } from '../../typings';
 import { COMPARE_LIST, PANEL_LAYOUT_LIST, PanelToolsType } from '../../typings/panel-tools';
@@ -38,8 +39,8 @@ import './panel-tools.scss';
  */
 @Component({
   directives: {
-    resize
-  }
+    resize,
+  },
 })
 export default class PanelsTools extends tsc<PanelToolsType.IProps, PanelToolsType.IEvents> {
   /** 图表布局方式 0: 一栏 1: 二栏 2: 三栏 */
@@ -114,14 +115,14 @@ export default class PanelsTools extends tsc<PanelToolsType.IProps, PanelToolsTy
           {this.needLayout && (
             <bk-dropdown-menu
               ref='layoutDropdown'
+              style='height: inhiert'
               class='right-item'
               disabled={this.disabledLayout}
-              style='height: inhiert'
             >
               <span
                 class='panels-tools-layout right-item'
-                v-en-style='width: 120px'
                 slot='dropdown-trigger'
+                v-en-style='width: 120px'
               >
                 <i
                   class='icon-monitor icon-mc-two-column'
@@ -130,20 +131,20 @@ export default class PanelsTools extends tsc<PanelToolsType.IProps, PanelToolsTy
                     delay: 200,
                     disabled: !!this.showLayoutName,
                     appendTo: 'parent',
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 ></i>
                 {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}
               </span>
               <ul
-                slot='dropdown-content'
                 class='layout-list'
+                slot='dropdown-content'
               >
                 {this.panelLayoutList.map(item => (
                   <li
+                    key={item.id}
                     class={`layout-list-item ${item.id === this.layoutActive + 1 ? 'item-active' : ''}`}
                     onClick={() => this.handleChangeLayout(item.id)}
-                    key={item.id}
                   >
                     {item.name}
                   </li>
@@ -156,9 +157,9 @@ export default class PanelsTools extends tsc<PanelToolsType.IProps, PanelToolsTy
               <span class='panels-tools-split-label'>{this.$t('合并视图')}</span>
               {/* 是否分割视图 true 分割 false 合并视图 */}
               <bk-switcher
-                value={!this.split}
                 size='small'
                 theme='primary'
+                value={!this.split}
                 onChange={this.handleSplitChange}
               />
             </span>

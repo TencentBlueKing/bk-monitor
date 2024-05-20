@@ -25,11 +25,11 @@
  */
 import { Component, Prop, Provide } from 'vue-property-decorator';
 
-import StrategyConfig from '../../../monitor-pc/pages/strategy-config/strategy-config-common/strategy-config';
-import authorityMixinCreate from '../../../monitor-ui/mixins/authorityMixin';
+import StrategyConfig from 'monitor-pc/pages/strategy-config/strategy-config-common/strategy-config';
+import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
-import { strategyType } from './typings/strategy';
 import * as authorityMap from './authority-map';
+import { strategyType } from './typings/strategy';
 
 import './strategy-config.scss';
 
@@ -51,8 +51,8 @@ export default class FtaStrategyConfig extends authorityMixinCreate(authorityMap
     return (
       <StrategyConfig
         class='strategy-config'
-        isFta={true}
         fromRouteName={this.fromRouteName}
+        isFta={true}
         {...{ props: { ...this.$route.params, ...this.$route.query } }}
       />
     );

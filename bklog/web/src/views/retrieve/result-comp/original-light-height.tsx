@@ -23,13 +23,14 @@
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Emit } from 'vue-property-decorator';
 import { getFlatObjValues } from '@/common/util';
-import TextSegmentation from './text-segmentation.vue';
+import TextSegmentation from './text-segmentation';
 import './original-light-height.scss';
 
 interface IProps {
   originJson: object;
   visibleFields: Array<any>;
   isWrap: boolean;
+  operatorConfig: object;
 }
 @Component
 export default class QueryStatement extends tsc<IProps> {
@@ -37,8 +38,7 @@ export default class QueryStatement extends tsc<IProps> {
   @Prop({ type: Object, required: true }) originJson;
   @Prop({ type: Array<any>, required: true }) visibleFields;
   @Prop({ type: Boolean, required: true }) isWrap;
-
-  segmentReg = /<mark>(.*?)<\/mark>/g;
+  @Prop({ type: Object, required: true }) operatorConfig;
 
   get visibleFieldsNameList() {
     return this.visibleFields.map(item => item.field_name);
@@ -48,17 +48,27 @@ export default class QueryStatement extends tsc<IProps> {
     return JSON.stringify(this.fieldMapDataObj);
   }
 
+  get unionIndexItemList() {
+    return this.$store.getters.unionIndexItemList;
+  }
+
   // 扁平化对象所有数据
   get fieldMapDataObj() {
     const { newObject } = getFlatObjValues(this.originJson || {});
     const visibleObject = {};
-    Object.keys(newObject).forEach((el) => {
+    Object.keys(newObject).forEach(el => {
       if (this.visibleFieldsNameList.includes(el)) {
         visibleObject[el] = newObject[el];
       }
     });
-    const sortObject = this.visibleFieldsNameList.reduce((pre, cur) => {
-      pre[cur] = visibleObject[cur] ?? '';
+    const sortObject = this.visibleFields.reduce((pre, cur) => {
+      let fieldValue = visibleObject[cur.field_name];
+      if (this.operatorConfig?.isShowSourceField && cur?.tag === 'union-source') {
+        fieldValue =
+          this.unionIndexItemList.find(item => item.index_set_id === String(this.originJson.__index_set_id__))
+            ?.index_set_name ?? '';
+      }
+      pre[cur.field_name] = fieldValue ?? '';
       return pre;
     }, {});
     return sortObject;
@@ -71,22 +81,24 @@ export default class QueryStatement extends tsc<IProps> {
     return newMenuObj;
   }
 
-  getFieldType(fieldName: string) {
-    return this.visibleFields.find(item => item.field_name === fieldName)?.field_type;
+  getField(fieldName: string) {
+    return this.visibleFields.find(item => item.field_name === fieldName);
   }
-
 
   render() {
     return (
-      <span class="origin-content" title={this.isWrap ? '' : this.strOriginJson}>
+      <span
+        class='origin-content'
+        title={this.isWrap ? '' : this.strOriginJson}
+      >
         {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
             <span>
-              <span class="black-mark">&nbsp;{key}:&nbsp;</span>
-              <span class="origin-value">
+              <span class='black-mark'>&nbsp;{key}:&nbsp;</span>
+              <span class='origin-value'>
                 <TextSegmentation
                   content={value}
-                  field-type={this.getFieldType(key)}
+                  field={this.getField(key)}
                   menu-click={(type, content, isLink) => this.handleEmitMenuClick(type, content, key, isLink)}
                 />
               </span>

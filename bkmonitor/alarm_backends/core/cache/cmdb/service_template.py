@@ -8,7 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 from collections import defaultdict
+
+from django.conf import settings
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from core.drf_resource import api
@@ -18,6 +21,7 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
     """
     CMDB 服务模板缓存
     """
+
     type = "service_template"
     CACHE_KEY = "{prefix}.cmdb.service_template".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
 
@@ -37,6 +41,13 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
         return super(ServiceTemplateManager, cls).get(service_template_id)
 
     @classmethod
+    def deserialize(cls, string):
+        """
+        反序列化数据
+        """
+        return json.loads(string) if string else []
+
+    @classmethod
     def refresh_by_biz(cls, bk_biz_id):
         """
         按业务ID刷新缓存
@@ -51,4 +62,6 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
 
 
 def main():
+    if "service_template" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
+        return
     ServiceTemplateManager.refresh()

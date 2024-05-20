@@ -33,9 +33,10 @@ import {
   getCollectLogDetail,
   isTaskReady,
   retryTargetNodes,
-  revokeTargetNodes
-} from '../../../../monitor-api/modules/collecting';
-import { copyText } from '../../../../monitor-common/utils/utils.js';
+  revokeTargetNodes,
+} from 'monitor-api/modules/collecting';
+import { copyText } from 'monitor-common/utils/utils.js';
+
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
 import { transformJobUrl } from '../../../utils/index';
 import {
@@ -45,20 +46,19 @@ import {
   IContentsItem,
   labelMap,
   STATUS_LIST,
-  statusMap
+  statusMap,
 } from '../collector-host-detail/utils';
-
 import AlertHistogram from './components/alert-histogram';
 
 import './collector-status-details.scss';
 
 enum EColumn {
+  alert = 'alert',
+  detail = 'detail',
   name = 'name',
+  operate = 'operate',
   status = 'status',
   version = 'version',
-  detail = 'detail',
-  operate = 'operate',
-  alert = 'alert'
 }
 
 interface IProps {
@@ -88,14 +88,14 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     { id: EColumn.status, name: window.i18n.t('状态'), width: 165 },
     { id: EColumn.version, name: window.i18n.t('版本'), width: 228 },
     { id: EColumn.detail, name: window.i18n.t('详情') },
-    { id: EColumn.operate, name: '', width: 200 }
+    { id: EColumn.operate, name: '', width: 200 },
   ];
   /* 详情侧栏 */
   side = {
     show: false,
     title: '',
     detail: '',
-    loading: false
+    loading: false,
   };
 
   config = null;
@@ -110,11 +110,14 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       successNum: 0,
       failedNum: 0,
       pendingNum: 0,
-      total: 0
-    }
+      total: 0,
+    },
   };
 
   disBatch = false;
+
+  /* 判断当前可否复制ip或者服务实例 */
+  targetNodeType = '';
 
   get haveDeploying() {
     const resArr = [];
@@ -134,15 +137,16 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       const sumData = {
         pending: {},
         success: {},
-        failed: {}
+        failed: {},
       };
       this.config = this.data.config_info;
+      this.targetNodeType = this.data.config_info?.target_node_type || '';
       this.contents = this.data.contents.map(item => {
         const table = [];
         const nums = {
           failedNum: 0,
           pendingNum: 0,
-          successNum: 0
+          successNum: 0,
         };
         let showAlertHistogram = true;
         item.child.forEach(set => {
@@ -157,7 +161,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           ) {
             table.push({
               ...set,
-              alertHistogram
+              alertHistogram,
             });
           }
           // 数量及状态
@@ -177,7 +181,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           ...nums,
           table,
           showAlertHistogram,
-          isExpan: true
+          isExpan: true,
         };
       });
       const headerData: any = {};
@@ -193,7 +197,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.$bkMessage({
       theme,
       message,
-      ellipsisLine: 0
+      ellipsisLine: 0,
     });
   }
 
@@ -211,7 +215,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         {
           instance_id: data.instance_id,
           task_id: data.task_id,
-          id: this.config.id
+          id: this.config.id,
         },
         { needMessage: false }
       )
@@ -243,7 +247,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           showAlertHistogram = !!set?.alert_histogram;
           table.push({
             ...set,
-            alertHistogram
+            alertHistogram,
           });
         }
       });
@@ -280,7 +284,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.handlePolling(false);
     retryTargetNodes({
       id: this.config.id,
-      instance_id: data.instance_id
+      instance_id: data.instance_id,
     })
       .then(async () => {
         const isReady = await this.taskReadyStatus(this.config.id).catch(() => false);
@@ -307,7 +311,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   handleRevoke(data, table) {
     revokeTargetNodes({
       id: this.config.id,
-      instance_ids: [data.instance_id]
+      instance_ids: [data.instance_id],
     }).finally(() => {
       data.status = 'FAILED';
       table.pendingNum -= 1;
@@ -328,7 +332,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   async taskReadyStatus(id) {
     let timer = null;
     clearTimeout(timer);
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     return new Promise(async resolve => {
       const isShow = await isTaskReady({ collect_config_id: id }).catch(() => false);
       if (isShow) {
@@ -408,21 +412,25 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   /**
    * @description 复制目标
    */
-  handleCopyTargets() {
+  handleCopyTargets(type?: 'instance' | 'ip') {
     let copyStr = '';
     this.contents.forEach(ct => {
-      ct.table.forEach(item => (copyStr += `${item.instance_name}\n`));
+      if (type === 'ip' || this.targetNodeType === 'HOST') {
+        ct.table.forEach(item => (copyStr += `${item.ip}\n`));
+      } else {
+        ct.table.forEach(item => (copyStr += `${item.instance_name}\n`));
+      }
     });
     copyText(copyStr, msg => {
       this.$bkMessage({
         theme: 'error',
-        message: msg
+        message: msg,
       });
       return;
     });
     this.$bkMessage({
-      theme: EStatus.SUCCESS,
-      message: this.$t('复制成功')
+      theme: 'success',
+      message: this.$t('复制成功'),
     });
   }
 
@@ -433,20 +441,20 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           <div class='header-filter'>
             {FILTER_TYPE_LIST.map(item => (
               <div
-                class={['header-filter-item', { active: item.id === this.header.status }]}
                 key={item.id}
+                class={['header-filter-item', { active: item.id === this.header.status }]}
                 onClick={() => this.handleFilterChange(item.id)}
               >
                 {(() => {
                   if (!!item.color) {
                     return (
                       <span
-                        class='point mr-3'
                         style={{ background: item.color[0] }}
+                        class='point mr-3'
                       >
                         <span
-                          class='s-point'
                           style={{ background: item.color[1] }}
+                          class='s-point'
                         ></span>
                       </span>
                     );
@@ -454,8 +462,8 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                   if (item.id === EStatus.RUNNING) {
                     return (
                       <bk-spin
-                        size='mini'
                         class='mr-3'
+                        size='mini'
                       ></bk-spin>
                     );
                   }
@@ -489,238 +497,259 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             <bk-button
               class='mr-10'
               v-authority={{ active: !this.authority.MANAGE_AUTH }}
-              icon={this.disBatch ? 'loading' : ''}
               disabled={!this.haveDeploying || this.disBatch}
               hover-theme='primary'
+              icon={this.disBatch ? 'loading' : ''}
               onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchStop() : this.handleShowAuthorityDetail())}
             >
               {this.$t('批量终止')}
             </bk-button>
-            <bk-button
-              hover-theme='primary'
-              onClick={() => this.handleCopyTargets()}
-            >
-              {this.$t('复制目标')}
-            </bk-button>
+            {this.targetNodeType === 'INSTANCE' ? (
+              <bk-dropdown-menu>
+                <div slot='dropdown-trigger'>
+                  <span class='copy-target-btn'>{this.$t('复制目标')}</span>
+                </div>
+                <ul
+                  class='bk-dropdown-list'
+                  slot='dropdown-content'
+                >
+                  <li>
+                    <a onClick={() => this.handleCopyTargets('ip')}>{this.$t('复制主机IP')}</a>
+                  </li>
+                  <li>
+                    <a onClick={() => this.handleCopyTargets('instance')}>{this.$t('复制服务实例')}</a>
+                  </li>
+                </ul>
+              </bk-dropdown-menu>
+            ) : (
+              <bk-button
+                hover-theme='primary'
+                onClick={() => this.handleCopyTargets()}
+              >
+                {this.$t('复制目标')}
+              </bk-button>
+            )}
           </div>
         </div>
         <div class='table-content'>
-          {this.contents.map(content => (
-            <ExpandWrapper
-              class='mt-20'
-              value={content.isExpan}
-              onChange={v => (content.isExpan = v)}
-            >
-              {!!content.is_label && (
-                <span slot='pre-header'>
-                  <span
-                    class='pre-panel-name fix-same-code'
-                    style={{
-                      backgroundColor: labelMap[content.label_name].color
+          {this.contents
+            .filter(content => !!content.table?.length)
+            .map(content => (
+              <ExpandWrapper
+                class='mt-20'
+                value={content.isExpan}
+                onChange={v => (content.isExpan = v)}
+              >
+                {!!content.is_label && (
+                  <span slot='pre-header'>
+                    <span
+                      style={{
+                        backgroundColor: labelMap[content.label_name].color,
+                      }}
+                      class='pre-panel-name fix-same-code'
+                    >
+                      {labelMap[content.label_name].name}
+                    </span>
+                    <span
+                      style={{
+                        borderColor: labelMap[content.label_name].color,
+                      }}
+                      class='pre-panel-mark fix-same-code'
+                    ></span>
+                  </span>
+                )}
+                <span slot='header'>
+                  {(() => {
+                    if (this.isRunning) {
+                      const temp = [];
+                      if (content.successNum && this.header.status !== EStatus.FAILED) {
+                        temp.push(
+                          <span class='num fix-same-code'>
+                            <i18n path='{0}个成功'>
+                              <span style={{ color: '#2dcb56' }}>{content.successNum}</span>
+                            </i18n>
+                            {(content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) ||
+                            content.pendingNum
+                              ? ','
+                              : undefined}
+                          </span>
+                        );
+                      }
+                      if (content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) {
+                        temp.push(
+                          <span class='num fix-same-code'>
+                            <i18n path='{0}个失败'>
+                              <span style={{ color: '#ea3636' }}>{content.failedNum}</span>
+                            </i18n>
+                            {content.pendingNum ? ',' : undefined}
+                          </span>
+                        );
+                      }
+                      if (content.pendingNum) {
+                        temp.push(
+                          <span class='num fix-same-code'>
+                            <i18n path='{0}个执行中'>
+                              <span style={{ color: '#3a84ff' }}>{content.failedNum}</span>
+                            </i18n>
+                          </span>
+                        );
+                      }
+                      if (!content.child.length) {
+                        return (
+                          <span class='num'>
+                            {this.config?.target_object_type ? (
+                              <i18n path='共{0}台主机'>
+                                <span style='color: #63656e;'>0</span>
+                              </i18n>
+                            ) : (
+                              <i18n path='共{0}个实例'>
+                                <span style='color: #63656e;'>0</span>
+                              </i18n>
+                            )}
+                          </span>
+                        );
+                      }
+                      return temp;
+                    }
+                    return (
+                      <span class='num fix-same-code'>
+                        <i18n
+                          path={`共{0}${
+                            this.config?.target_object_type === 'HOST' ? this.$t('台主机') : this.$t('个实例')
+                          }`}
+                        >
+                          {content.successNum + content.failedNum + content.pendingNum}
+                        </i18n>
+                      </span>
+                    );
+                  })()}
+                </span>
+                <div
+                  class='table-content-wrap'
+                  slot='content'
+                >
+                  <bk-table
+                    {...{
+                      props: {
+                        data: content.table,
+                      },
                     }}
                   >
-                    {labelMap[content.label_name].name}
-                  </span>
-                  <span
-                    class='pre-panel-mark fix-same-code'
-                    style={{
-                      borderColor: labelMap[content.label_name].color
-                    }}
-                  ></span>
-                </span>
-              )}
-              <span slot='header'>
-                {(() => {
-                  if (this.isRunning) {
-                    const temp = [];
-                    if (content.successNum && this.header.status !== EStatus.FAILED) {
-                      temp.push(
-                        <span class='num fix-same-code'>
-                          <i18n path='{0}个成功'>
-                            <span style={{ color: '#2dcb56' }}>{content.successNum}</span>
-                          </i18n>
-                          {(content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) ||
-                          content.pendingNum
-                            ? ','
-                            : undefined}
-                        </span>
-                      );
-                    }
-                    if (content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) {
-                      temp.push(
-                        <span class='num fix-same-code'>
-                          <i18n path='{0}个失败'>
-                            <span style={{ color: '#ea3636' }}>{content.failedNum}</span>
-                          </i18n>
-                          {content.pendingNum ? ',' : undefined}
-                        </span>
-                      );
-                    }
-                    if (content.pendingNum) {
-                      temp.push(
-                        <span class='num fix-same-code'>
-                          <i18n path='{0}个执行中'>
-                            <span style={{ color: '#3a84ff' }}>{content.failedNum}</span>
-                          </i18n>
-                        </span>
-                      );
-                    }
-                    if (!content.child.length) {
-                      return (
-                        <span class='num'>
-                          {this.config?.target_object_type ? (
-                            <i18n path='共{0}台主机'>
-                              <span style='color: #63656e;'>0</span>
-                            </i18n>
-                          ) : (
-                            <i18n path='共{0}个实例'>
-                              <span style='color: #63656e;'>0</span>
-                            </i18n>
-                          )}
-                        </span>
-                      );
-                    }
-                    return temp;
-                  }
-                  return (
-                    <span class='num fix-same-code'>
-                      <i18n
-                        path={`共{0}${
-                          this.config?.target_object_type === 'HOST' ? this.$t('台主机') : this.$t('个实例')
-                        }`}
-                      >
-                        {content.successNum + content.failedNum + content.pendingNum}
-                      </i18n>
-                    </span>
-                  );
-                })()}
-              </span>
-              <div
-                slot='content'
-                class='table-content-wrap'
-              >
-                <bk-table
-                  {...{
-                    props: {
-                      data: content.table
-                    }
-                  }}
-                >
-                  {this.tableColumns
-                    .filter(column => (column.id === EColumn.alert ? !!content?.showAlertHistogram : true))
-                    .map(column => {
-                      const key = `column_${column.id}`;
-                      return (
-                        <bk-table-column
-                          key={key}
-                          prop={column.id}
-                          label={column.name}
-                          width={column.width}
-                          minWidth={column?.minWidth}
-                          formatter={(row: any) => {
-                            switch (column.id) {
-                              case EColumn.name: {
-                                return <span>{row.instance_name}</span>;
-                              }
-                              case EColumn.alert: {
-                                return <AlertHistogram value={row.alertHistogram}></AlertHistogram>;
-                              }
-                              case EColumn.status: {
-                                return (
-                                  <span class='col-status'>
-                                    {[
-                                      this.isRunning && STATUS_LIST.includes(row.status) ? (
-                                        <bk-spin
-                                          size='mini'
-                                          class='mr-3'
-                                        ></bk-spin>
-                                      ) : undefined,
-                                      this.isRunning &&
-                                      [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
-                                        row.status
-                                      ) ? (
-                                        <span
-                                          class='point mr-3'
-                                          style={{ background: colorMap[row.status][0] }}
-                                        >
+                    {this.tableColumns
+                      .filter(column => (column.id === EColumn.alert ? !!content?.showAlertHistogram : true))
+                      .map(column => {
+                        const key = `column_${column.id}`;
+                        return (
+                          <bk-table-column
+                            key={key}
+                            width={column.width}
+                            formatter={(row: any) => {
+                              switch (column.id) {
+                                case EColumn.name: {
+                                  return <span>{row.instance_name}</span>;
+                                }
+                                case EColumn.alert: {
+                                  return <AlertHistogram value={row.alertHistogram}></AlertHistogram>;
+                                }
+                                case EColumn.status: {
+                                  return (
+                                    <span class='col-status'>
+                                      {[
+                                        this.isRunning && STATUS_LIST.includes(row.status) ? (
+                                          <bk-spin
+                                            class='mr-3'
+                                            size='mini'
+                                          ></bk-spin>
+                                        ) : undefined,
+                                        this.isRunning &&
+                                        [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
+                                          row.status
+                                        ) ? (
                                           <span
-                                            class='s-point'
-                                            style={{ background: colorMap[row.status][1] }}
-                                          ></span>
+                                            style={{ background: colorMap[row.status][0] }}
+                                            class='point mr-3'
+                                          >
+                                            <span
+                                              style={{ background: colorMap[row.status][1] }}
+                                              class='s-point'
+                                            ></span>
+                                          </span>
+                                        ) : undefined,
+                                        this.isRunning ? (
+                                          <span class='content-panel-span'>{statusMap[row.status].name}</span>
+                                        ) : (
+                                          <span>--</span>
+                                        ),
+                                      ]}
+                                    </span>
+                                  );
+                                }
+                                case EColumn.version: {
+                                  return <span>{row.plugin_version}</span>;
+                                }
+                                case EColumn.detail: {
+                                  return (
+                                    <span class='col-detail'>
+                                      <span class='col-detail-data'>{row.log || '--'}</span>
+                                      {this.isRunning && row.status === EStatus.FAILED && (
+                                        <span
+                                          class='col-detail-more fix-same-code'
+                                          onClick={() => this.handleGetMoreDetail(row)}
+                                        >
+                                          {this.$t('详情')}
                                         </span>
-                                      ) : undefined,
-                                      this.isRunning ? (
-                                        <span class='content-panel-span'>{statusMap[row.status].name}</span>
-                                      ) : (
-                                        <span>--</span>
-                                      )
-                                    ]}
-                                  </span>
-                                );
-                              }
-                              case EColumn.version: {
-                                return <span>{row.plugin_version}</span>;
-                              }
-                              case EColumn.detail: {
-                                return (
-                                  <span class='col-detail'>
-                                    <span class='col-detail-data'>{row.log || '--'}</span>
-                                    {this.isRunning && row.status === EStatus.FAILED && (
-                                      <span
-                                        class='col-detail-more fix-same-code'
-                                        onClick={() => this.handleGetMoreDetail(row)}
+                                      )}
+                                    </span>
+                                  );
+                                }
+                                case EColumn.operate: {
+                                  return [
+                                    this.isRunning && row.status === EStatus.FAILED ? (
+                                      <div
+                                        class='col-retry'
+                                        onClick={() =>
+                                          this.authority.MANAGE_AUTH
+                                            ? this.handleRetry(row, content)
+                                            : this.handleShowAuthorityDetail()
+                                        }
                                       >
-                                        {this.$t('详情')}
-                                      </span>
-                                    )}
-                                  </span>
-                                );
+                                        {this.$t('重试')}
+                                      </div>
+                                    ) : undefined,
+                                    this.isRunning && ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
+                                      <div
+                                        class='col-retry fix-same-code'
+                                        onClick={() =>
+                                          ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) &&
+                                          this.handleRevoke(row, content)
+                                        }
+                                      >
+                                        {this.$t('终止')}
+                                      </div>
+                                    ) : undefined,
+                                  ];
+                                }
+                                default: {
+                                  return <span>--</span>;
+                                }
                               }
-                              case EColumn.operate: {
-                                return [
-                                  this.isRunning && row.status === EStatus.FAILED ? (
-                                    <div
-                                      class='col-retry'
-                                      onClick={() =>
-                                        this.authority.MANAGE_AUTH
-                                          ? this.handleRetry(row, content)
-                                          : this.handleShowAuthorityDetail()
-                                      }
-                                    >
-                                      {this.$t('重试')}
-                                    </div>
-                                  ) : undefined,
-                                  this.isRunning && ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
-                                    <div
-                                      class='col-retry fix-same-code'
-                                      onClick={() =>
-                                        ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) &&
-                                        this.handleRevoke(row, content)
-                                      }
-                                    >
-                                      {this.$t('终止')}
-                                    </div>
-                                  ) : undefined
-                                ];
-                              }
-                              default: {
-                                return <span>--</span>;
-                              }
-                            }
-                          }}
-                        ></bk-table-column>
-                      );
-                    })}
-                </bk-table>
-              </div>
-            </ExpandWrapper>
-          ))}
+                            }}
+                            label={column.name}
+                            minWidth={column?.minWidth}
+                            prop={column.id}
+                          ></bk-table-column>
+                        );
+                      })}
+                  </bk-table>
+                </div>
+              </ExpandWrapper>
+            ))}
         </div>
         <bk-sideslider
+          width={900}
           class='fix-same-code'
           is-show={this.side.show}
           quick-close={true}
-          width={900}
           title={this.side.title}
           {...{ on: { 'update:isShow': v => (this.side.show = v) } }}
         >
@@ -732,7 +761,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             <pre
               class='side-detail-code fix-same-code'
               domProps={{
-                innerHTML: transformJobUrl(this.side.detail)
+                innerHTML: transformJobUrl(this.side.detail),
               }}
             ></pre>
           </div>

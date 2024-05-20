@@ -26,8 +26,9 @@
 import { Component, InjectReactive } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
+import bus from 'monitor-common/utils/event-bus';
+import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
+
 import { PanelModel } from '../../typings';
 import { TableChart } from '../table-chart/table-chart';
 
@@ -54,8 +55,8 @@ class ListChart extends TableChart {
           <span class='title'>{this.panel.title || window.i18n.t('列表')}</span>
           <span
             class='view-more'
-            onClick={this.handleDashboardModeChange}
             v-bk-overflow-tips
+            onClick={this.handleDashboardModeChange}
           >
             {window.i18n.t('完整查看')}
           </span>
@@ -64,16 +65,16 @@ class ListChart extends TableChart {
           {this.tableData?.length ? (
             <CommonTable
               checkable={false}
-              hasColnumSetting={false}
-              data={this.tableData}
               columns={this.columns}
+              data={this.tableData}
               defaultSize='small'
+              hasColnumSetting={false}
+              pagination={this.pagination}
               paginationType='simple'
               showLimit={false}
-              pagination={this.pagination}
-              onSortChange={this.handleSortChange}
               onLimitChange={this.handleLimitChange}
               onPageChange={this.handlePageChange}
+              onSortChange={this.handleSortChange}
             />
           ) : (
             <div class='empty-text'>{this.emptyText}</div>

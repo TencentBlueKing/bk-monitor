@@ -27,32 +27,32 @@
 import VueJsonPretty from 'vue-json-pretty';
 import { Component, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
+import dayjs from 'dayjs';
 import {
   dataSampling,
   dataViewConfig,
   noDataStrategyDisable,
   noDataStrategyEnable,
-  noDataStrategyInfo
-} from '../../../../monitor-api/modules/apm_meta';
-import { copyText } from '../../../../monitor-common/utils/utils';
-import TimeRange, { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { getDefautTimezone, updateTimezone } from '../../../../monitor-pc/i18n/dayjs';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import { ApdexChart } from '../../../../monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
-import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
-import PanelItem from '../../../components/panel-item/panel-item';
+  noDataStrategyInfo,
+} from 'monitor-api/modules/apm_meta';
+import { copyText } from 'monitor-common/utils/utils';
+import TimeRange, { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { getDefautTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { ApdexChart } from 'monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
+import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
+import PanelItem from '../../../components/panel-item/panel-item';
 import { IStrategyData } from './type';
 
 import 'vue-json-pretty/lib/styles.css';
 
 @Component
-export default class DataStatus extends tsc<{}> {
+export default class DataStatus extends tsc<object> {
   pickerTimeRange: string[] = [
     dayjs(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
-    dayjs(new Date()).format('YYYY-MM-DD')
+    dayjs(new Date()).format('YYYY-MM-DD'),
   ];
   strategyLoading = false;
   tableLoading = false;
@@ -66,7 +66,7 @@ export default class DataStatus extends tsc<{}> {
     alert_status: 0, // 告警状态
     alert_graph: null,
     is_enabled: true, // 启停
-    notice_group: [] // 告警组
+    notice_group: [], // 告警组
   };
   expandIndex = -1; // 采样数据展开项索引
   dashboardPanels = []; // 数据量趋势面板配置
@@ -108,7 +108,7 @@ export default class DataStatus extends tsc<{}> {
     const params = {
       application_id: this.appId,
       start_time: Date.parse(this.pickerTimeRange[0]) / 1000,
-      end_time: Date.parse(this.pickerTimeRange[1]) / 1000
+      end_time: Date.parse(this.pickerTimeRange[1]) / 1000,
     };
     const data = await noDataStrategyInfo(params).catch(() => {});
     Object.assign(this.strategyInfo, data);
@@ -129,7 +129,7 @@ export default class DataStatus extends tsc<{}> {
     const params = {
       application_id: this.appId,
       size: 10,
-      log_type: 'trace'
+      log_type: 'trace',
     };
     const data = await dataSampling(this.appId, params).catch(() => []);
     this.collapseRowIndexs = [];
@@ -137,7 +137,7 @@ export default class DataStatus extends tsc<{}> {
       const date = dayjs.tz(dayjs(item.sampling_time));
       return {
         ...item,
-        sampling_time: date.isValid() ? date.format('YYYY-MM-DD HH:mm:ssZ') : '--'
+        sampling_time: date.isValid() ? date.format('YYYY-MM-DD HH:mm:ssZ') : '--',
       };
     });
     this.tableLoading = false;
@@ -188,13 +188,13 @@ export default class DataStatus extends tsc<{}> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
   /**
@@ -204,7 +204,7 @@ export default class DataStatus extends tsc<{}> {
   handleViewDetail(log: object) {
     this.sideslider = {
       show: true,
-      log
+      log,
     };
   }
   /**
@@ -217,7 +217,7 @@ export default class DataStatus extends tsc<{}> {
       this.$bkInfo({
         title: value ? this.$t('你确认要关闭？') : this.$t('你确认要开启？'),
         confirmLoading: true,
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         confirmFn: async () => {
           const api = value ? noDataStrategyDisable : noDataStrategyEnable;
           const isPass = await api({ application_id: applicationId })
@@ -230,7 +230,7 @@ export default class DataStatus extends tsc<{}> {
         },
         cancelFn: () => {
           reject();
-        }
+        },
       });
     });
   }
@@ -263,8 +263,8 @@ export default class DataStatus extends tsc<{}> {
           >
             {this.collapseRowIndexs.includes(props.$index) ? this.$t('收起') : this.$t('展开全部')}
           </span>
-        </div>
-      ]
+        </div>,
+      ],
     };
     const operatorSlot = {
       default: props => [
@@ -283,8 +283,8 @@ export default class DataStatus extends tsc<{}> {
           onClick={() => this.handleViewDetail(props.row.raw_log)}
         >
           {this.$t('查看上报数据')}
-        </bk-button>
-      ]
+        </bk-button>,
+      ],
     };
 
     return (
@@ -292,10 +292,10 @@ export default class DataStatus extends tsc<{}> {
         <PanelItem title={this.$t('告警策略')}>
           <TimeRange
             slot='headerTool'
-            value={this.timeRange}
             timezone={this.timezone}
-            onTimezoneChange={this.handleTimezoneChange}
+            value={this.timeRange}
             onChange={this.handleTimeRangeChange}
+            onTimezoneChange={this.handleTimezoneChange}
           />
           <div
             class='form-content'
@@ -310,10 +310,10 @@ export default class DataStatus extends tsc<{}> {
                   {this.$t('无数据告警')}
                 </span>
                 <bk-switcher
+                  pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
                   size='small'
                   theme='primary'
                   value={this.strategyInfo.is_enabled}
-                  pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
                 />
               </div>
               <div class='msg-item'>
@@ -332,9 +332,9 @@ export default class DataStatus extends tsc<{}> {
                 <div class='apdex-chart-box'>
                   {this.apdexChartPanel && (
                     <ApdexChart
+                      panel={this.apdexChartPanel}
                       showChartHeader={false}
                       split-number={2}
-                      panel={this.apdexChartPanel}
                     />
                   )}
                 </div>
@@ -376,28 +376,28 @@ export default class DataStatus extends tsc<{}> {
           </span>
           <bk-table
             class={'sampling-table'}
+            v-bkloading={{ isLoading: this.tableLoading }}
+            data={this.samplingList}
             outer-border={false}
             row-auto-height={true}
-            data={this.samplingList}
-            v-bkloading={{ isLoading: this.tableLoading }}
           >
             <bk-table-column
+              width='80'
               label={this.$t('序号')}
               type='index'
-              width='80'
             />
             <bk-table-column
               label={this.$t('原始数据')}
               scopedSlots={logSlots}
             />
             <bk-table-column
-              label={this.$t('采样时间')}
               width='200'
+              label={this.$t('采样时间')}
               scopedSlots={{ default: props => props.row.sampling_time }}
             />
             <bk-table-column
-              label={this.$t('查看')}
               width='180'
+              label={this.$t('查看')}
               scopedSlots={operatorSlot}
             />
           </bk-table>
@@ -405,15 +405,15 @@ export default class DataStatus extends tsc<{}> {
 
         <bk-sideslider
           ext-cls='origin-log-sideslider'
-          transfer={true}
           isShow={this.sideslider.show}
+          transfer={true}
           {...{ on: { 'update:isShow': v => (this.sideslider.show = v) } }}
-          quick-close={true}
           width={596}
+          quick-close={true}
         >
           <div
-            slot='header'
             class='title-wrap'
+            slot='header'
           >
             <span>{this.$t('上报日志详情')}</span>
             <bk-button
@@ -428,10 +428,10 @@ export default class DataStatus extends tsc<{}> {
             slot='content'
           >
             <VueJsonPretty
+              data={this.sideslider.log}
+              deep={5}
               virtual={true}
               virtualLines={80}
-              deep={5}
-              data={this.sideslider.log}
             />
           </div>
         </bk-sideslider>

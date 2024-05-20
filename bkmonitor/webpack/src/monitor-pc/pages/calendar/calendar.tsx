@@ -31,19 +31,19 @@ import {
   editCalendar,
   getParentItemList,
   getTimeZone,
-  listCalendar
-} from '../../../monitor-api/modules/calendar';
-import CustomSelect from '../../components/custom-select/custom-select';
+  listCalendar,
+} from 'monitor-api/modules/calendar';
 
-import CalendarInfo from './components/calendar-info/calendar-info';
+import CustomSelect from '../../components/custom-select/custom-select';
 import CalendarAddInput from './calendar-add-input';
 import CalendarList from './calendar-list';
+import CalendarInfo from './components/calendar-info/calendar-info';
 import { ICalendarListItem, ICalendarTypeListItem, IOptionsItem, Z_INDEX } from './types';
 
 import './calendar.scss';
 
 /** 预览 preview / 事项列表 list */
-type ItabId = 'preview' | 'list';
+type ItabId = 'list' | 'preview';
 interface ITabListItem {
   id: ItabId;
   name: string;
@@ -52,7 +52,7 @@ interface ITabListItem {
  * 日历服务
  */
 @Component
-export default class Calendar extends tsc<{}> {
+export default class Calendar extends tsc<object> {
   @Ref() calendarListRef: CalendarList;
   @Ref() calendarAddInputRef: CalendarAddInput;
   loading = false;
@@ -61,24 +61,24 @@ export default class Calendar extends tsc<{}> {
   tabList: ITabListItem[] = [
     {
       id: 'preview',
-      name: window.i18n.t('预览').toString()
+      name: window.i18n.t('预览').toString(),
     },
     {
       id: 'list',
-      name: window.i18n.t('事项列表').toString()
-    }
+      name: window.i18n.t('事项列表').toString(),
+    },
   ];
 
   /** 策兰日历列表渲染数据 */
   calendarList: ICalendarTypeListItem[] = [
     {
       title: window.i18n.t('日历列表').toString(),
-      list: []
+      list: [],
     },
     {
       title: window.i18n.t('内置日历').toString(),
-      list: []
-    }
+      list: [],
+    },
   ];
 
   /** 时区可选项数据 */
@@ -99,7 +99,7 @@ export default class Calendar extends tsc<{}> {
     show: false,
     id: null /** 日历id */,
     scheduleCount: 0 /** 日程数 */,
-    selectedId: null /** 选中的日历 */
+    selectedId: null /** 选中的日历 */,
   };
 
   /** 是否需要合并日历 */
@@ -145,7 +145,7 @@ export default class Calendar extends tsc<{}> {
     const data = await getTimeZone().catch(() => []);
     this.timeZoneOptions = data.map(item => ({
       id: item.time_zone,
-      name: item.name
+      name: item.name,
     }));
     return data;
   }
@@ -156,7 +156,7 @@ export default class Calendar extends tsc<{}> {
   async getCalendarList() {
     const params = {
       page: 1,
-      page_size: 1000
+      page_size: 1000,
     };
     const data = await listCalendar(params).catch(() => null);
     if (data) {
@@ -168,14 +168,14 @@ export default class Calendar extends tsc<{}> {
             id: item.id,
             name: item.name,
             checked: true,
-            color: item.deep_color
+            color: item.deep_color,
           });
         } else {
           defaultList.push({
             id: item.id,
             name: item.name,
             checked: true,
-            color: item.deep_color
+            color: item.deep_color,
           });
         }
       });
@@ -183,7 +183,7 @@ export default class Calendar extends tsc<{}> {
       this.calendarList[1].list = defaultList;
       this.calendarListTotal = [...customList].map(item => ({
         id: item.id,
-        name: item.name
+        name: item.name,
       }));
     }
   }
@@ -306,18 +306,18 @@ export default class Calendar extends tsc<{}> {
                     <span>{item.title}</span>
                     {!index && (
                       <bk-popover
-                        z-index={Z_INDEX}
                         ref={key}
-                        theme='light'
-                        trigger='click'
                         offset='-30,0'
                         placement='bottom-start'
+                        theme='light'
+                        trigger='click'
+                        z-index={Z_INDEX}
                         onShow={this.handleShowAdd}
                       >
                         <i class='icon-monitor icon-mc-add'></i>
                         <div
-                          slot='content'
                           class='calendar-add-popover-content'
+                          slot='content'
                         >
                           <div class='add-title'>{this.$t('新建日历')}</div>
                           <CalendarAddInput
@@ -334,17 +334,17 @@ export default class Calendar extends tsc<{}> {
                       <div class='calendar-list-item'>
                         <span class='calendar-list-item-left'>
                           <bk-checkbox
-                            v-model={set.checked}
-                            class={['calendar-checkedbox', !!set.color ? 'color-theme' : '']}
                             style={{ '--color': set.color }}
+                            class={['calendar-checkedbox', !!set.color ? 'color-theme' : '']}
+                            v-model={set.checked}
                             onChange={this.handleCheckedCalendar}
                           ></bk-checkbox>
                           <span class='calendar-name'>
                             {this.editId === set.id ? (
                               <input
+                                ref={`input-key-${set.id}`}
                                 class='calendar-name-input'
                                 v-model={this.editName}
-                                ref={`input-key-${set.id}`}
                                 onBlur={() => this.handleEditSubmit(set)}
                                 onKeydown={modifiers.enter(() => this.handleEditSubmit(set))}
                               ></input>
@@ -398,10 +398,10 @@ export default class Calendar extends tsc<{}> {
                 this.activeTab === 'list' && (
                   <CalendarList
                     ref='calendarListRef'
-                    defaultCalendarIds={this.defaultCalendarIds}
                     calendarList={this.calendarListTotal}
-                    timeZoneList={this.timeZoneOptions}
                     checkedCalendarIds={this.checkedCalendarIds}
+                    defaultCalendarIds={this.defaultCalendarIds}
+                    timeZoneList={this.timeZoneOptions}
                     onUpdateCalendarList={this.getCalendarList}
                   />
                 )
@@ -424,8 +424,8 @@ export default class Calendar extends tsc<{}> {
             <span slot='infoDesc'>{this.$t('当前日历没有相关日程')}</span>
           )}
           <div
-            slot='buttonGroup'
             class='calendar-info-btn-groups'
+            slot='buttonGroup'
           >
             <bk-button
               theme='primary'
@@ -436,21 +436,21 @@ export default class Calendar extends tsc<{}> {
             {false && this.mergeable && (
               <CustomSelect
                 v-model={this.curCalendarInfo.selectedId}
-                searchable={false}
                 popover-min-width={10}
+                searchable={false}
                 onSelected={this.handleMergeCalendar}
               >
                 <bk-button
-                  slot='target'
                   class='merge-btn'
+                  slot='target'
                 >
                   {this.$tc('合并到日历')}
                   <i class='icon-monitor icon-arrow-down'></i>
                 </bk-button>
                 {this.mergeableCalendarList.map(opt => (
                   <bk-option
-                    name={opt.name}
                     id={opt.id}
+                    name={opt.name}
                   ></bk-option>
                 ))}
               </CustomSelect>

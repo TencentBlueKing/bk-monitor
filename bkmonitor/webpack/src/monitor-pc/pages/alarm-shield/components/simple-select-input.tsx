@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,7 +26,7 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from '../../../../monitor-common/utils/utils';
+import { Debounce } from 'monitor-common/utils/utils';
 
 import './simple-select-input.scss';
 
@@ -90,7 +89,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
           setTimeout(() => {
             this.isSelected = true;
           }, 50);
-        }
+        },
       });
     }
     this.isShowPop = true;
@@ -118,19 +117,19 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
     return (
       <span class='simple-select-input-component'>
         <span
-          onClick={event => this.handleShowPopover(event)}
           ref='inputWrap'
+          onClick={event => this.handleShowPopover(event)}
         >
           <bk-input
-            class='input-wrap'
-            value={this.value}
             ref='input'
+            class='input-wrap'
             placeholder={this.placeholder}
+            value={this.value}
+            onBlur={this.handleBlur}
             onInput={value => {
               this.handleChange(value);
               this.isSelected = false;
             }}
-            onBlur={this.handleBlur}
           />
         </span>
         <div style={{ display: 'none' }}>
@@ -149,7 +148,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
                       zIndex: 9999,
                       boundary: document.body,
                       appendTo: document.body,
-                      allowHTML: false
+                      allowHTML: false,
                     }}
                     onClick={() => this.handleCommit(item)}
                   >

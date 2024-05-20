@@ -38,13 +38,19 @@ from common.log import logger
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
 from monitor_web.iam.resources import CallbackResource
+from packages.monitor_web.new_report.resources import ReportCallbackResource
 
 
 def user_exit(request):
+    def add_logout_slug():
+        return {"is_from_logout": "1"}
+
+    # 退出登录
     logout(request)
     # 验证不通过，需要跳转至统一登录平台
     request.path = request.path.replace("logout", "")
     handler = ResponseHandler(ConfFixture, settings)
+    handler._build_extra_args = add_logout_slug
     return handler.build_401_response(request)
 
 
@@ -97,7 +103,7 @@ def external(request):
     external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
     biz_id_list = (
         ExternalPermission.objects.filter(authorized_user=external_user, expire_time__gt=timezone.now())
-        .values_list("bk_biz_id", flat=1)
+        .values_list("bk_biz_id", flat=True)
         .distinct()
     )
     # 新增space_uid的支持
@@ -192,7 +198,7 @@ def dispatch_external_proxy(request):
         if not bk_biz_id:
             biz_id_list = (
                 ExternalPermission.objects.filter(authorized_user=external_user, expire_time__gt=timezone.now())
-                .values_list("bk_biz_id", flat=1)
+                .values_list("bk_biz_id", flat=True)
                 .distinct()
             )
             if biz_id_list:
@@ -256,5 +262,19 @@ def external_callback(request):
         "[{}]: dispatch_grafana with header({}) and params({})".format("external_callback", request.META, params)
     )
     result = CallbackResource().perform_request(params)
+    if result["result"]:
+        return JsonResponse(result, status=200)
+
+
+@login_exempt
+@method_decorator(csrf_exempt)
+@require_POST
+def report_callback(request):
+    try:
+        params = json.loads(request.body)
+    except Exception:  # pylint: disable=broad-except
+        return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
+
+    result = ReportCallbackResource().perform_request(params)
     if result["result"]:
         return JsonResponse(result, status=200)

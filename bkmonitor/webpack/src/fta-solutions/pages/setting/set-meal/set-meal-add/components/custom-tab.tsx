@@ -26,13 +26,14 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { deepClone } from '../../../../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import { defaultAddTimeRange } from '../meal-content/meal-content-data';
 
 import './custom-tab.scss';
 
 export interface IPanels {
-  key?: string | number;
+  key?: number | string;
   name?: string;
   label?: string;
   timeValue?: string[];
@@ -40,7 +41,7 @@ export interface IPanels {
 
 interface ICustomTabProps {
   panels?: IPanels[];
-  active?: string | number;
+  active?: number | string;
   type?: 'period' | 'text';
   newKey?: string;
   timeStyleType?: number;
@@ -55,7 +56,7 @@ interface ICustomTabEvent {
 }
 
 @Component({
-  name: 'CustomTab'
+  name: 'CustomTab',
 })
 export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
   @Prop({ type: Array, default: () => [] }) panels: IPanels[];
@@ -147,7 +148,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
           }
         }
         this.handleDel(key);
-      }
+      },
     });
   }
   // time弹出
@@ -166,7 +167,7 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
         class={[
           timeClass[this.timeStyleType],
           this.curActive === key ? 'active' : 'noactive',
-          { 'border-active': item.key === this.newKey && this.newItemActive }
+          { 'border-active': item.key === this.newKey && this.newItemActive },
         ]}
       >
         {this.curPanels.length > 1 ? (
@@ -180,16 +181,16 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
         ) : undefined}
         <div class='time-title'>{this.$tc('生效时段')}</div>
         <bk-time-picker
-          style={{ 'pointer-events': this.curActive !== key ? 'none' : 'auto' }}
-          v-model={item.timeValue}
-          format={this.minIsMinute ? 'HH:mm' : 'HH:mm:ss'}
-          behavior='simplicity'
-          class='time-input'
-          type='timerange'
           ref={`timeinputRef${key}`}
-          clearable={false}
-          transfer={true}
+          style={{ 'pointer-events': this.curActive !== key ? 'none' : 'auto' }}
+          class='time-input'
+          v-model={item.timeValue}
           allowCrossDay={true}
+          behavior='simplicity'
+          clearable={false}
+          format={this.minIsMinute ? 'HH:mm' : 'HH:mm:ss'}
+          transfer={true}
+          type='timerange'
           on-open-change={state => this.handleOpenChange(state, item)}
         ></bk-time-picker>
       </div>
@@ -204,22 +205,22 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
           <bk-tab
             ref='time-tab'
             active={this.curActive}
-            labelHeight={timeHeight[this.timeStyleType]}
             addable={true}
+            labelHeight={timeHeight[this.timeStyleType]}
             on-add-panel={() => this.handleAddPanel()}
             on-tab-change={this.handleChange}
           >
             {this.timeStyleType === 1 ? (
               <div
-                slot='add'
                 class={['custom-add', { disabled: !this.isCanAdd }]}
+                slot='add'
                 onClick={() => this.handleAddPanel()}
               >
                 <div class='jia'>+</div>
                 <span
                   v-bk-tooltips={{
                     content: this.$t('已配置全天24小时生效时段，无需额外添加生效时段'),
-                    disabled: this.isCanAdd
+                    disabled: this.isCanAdd,
                   }}
                 >
                   {this.$t('生效时段')}
@@ -246,8 +247,8 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
           {this.curPanels.map(item => (
             <bk-tab-panel
               key={item.key}
-              name={item.key}
               label={item.label}
+              name={item.key}
             ></bk-tab-panel>
           ))}
         </bk-tab>
@@ -258,8 +259,8 @@ export default class CustomTab extends tsc<ICustomTabProps, ICustomTabEvent> {
   render() {
     return (
       <div
-        class='custom-tab-component'
         ref='customTabRef'
+        class='custom-tab-component'
       >
         {this.getTabs()}
       </div>

@@ -148,6 +148,27 @@ class SpanStandardField:
     COMMON_STANDARD_FIELDS = [
         StandardField(
             OtlpKey.ATTRIBUTES,
+            SpanAttributes.HTTP_HOST,
+            _("HTTP Host"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.HTTP,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
+            SpanAttributes.HTTP_URL,
+            _("HTTP URL"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.HTTP,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
+            "server.address",
+            _("服务地址"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.HTTP,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
             SpanAttributes.HTTP_SCHEME,
             _("HTTP协议"),
             StandardFieldDisplayLevel.ADVANCES,
@@ -220,6 +241,20 @@ class SpanStandardField:
             OtlpKey.ATTRIBUTES,
             SpanAttributes.DB_SYSTEM,
             _("数据库类型"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.DB,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
+            SpanAttributes.DB_STATEMENT,
+            _("数据库语句"),
+            StandardFieldDisplayLevel.ADVANCES,
+            StandardFieldCategory.DB,
+        ),
+        StandardField(
+            OtlpKey.ATTRIBUTES,
+            "db.instance",
+            _("数据库实例ID"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.DB,
         ),
@@ -322,7 +357,14 @@ class SpanStandardField:
             StandardFieldCategory.BASE,
         ),
         StandardField(
-            OtlpKey.RESOURCE, "net.host.ip", _("主机IP"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
+            OtlpKey.RESOURCE,
+            "net.host.ip",
+            _("主机IP(net.host.ip)"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+        ),
+        StandardField(
+            OtlpKey.RESOURCE, "host.ip", _("主机IP(host.ip)"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
         ),
         StandardField(
             OtlpKey.RESOURCE, "net.host.port", _("主机端口"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
@@ -562,4 +604,33 @@ class DataSamplingLogTypeChoices:
         return [
             (cls.TRACE, cls.TRACE),
             (cls.METRIC, cls.METRIC),
+        ]
+
+
+class ApmMetrics:
+    """
+    APM内置指标
+    格式: (指标名，描述，单位)
+    """
+
+    BK_APM_DURATION = "bk_apm_duration", _("trace请求耗时"), "ns"
+    BK_APM_COUNT = "bk_apm_count", _("trace分钟请求数"), ""
+    BK_APM_TOTAL = "bk_apm_total", _("trace总请求数"), ""
+    BK_APM_DURATION_MAX = "bk_apm_duration_max", _("trace分钟请求最大耗时"), "ns"
+    BK_APM_DURATION_MIN = "bk_apm_duration_min", _("trace分钟请求最小耗时"), "ns"
+    BK_APM_DURATION_SUM = "bk_apm_duration_sum", _("trace总请求耗时"), "ns"
+    BK_APM_DURATION_DELTA = "bk_apm_duration_delta", _("trace分钟总请求耗时"), "ns"
+    BK_APM_DURATION_BUCKET = "bk_apm_duration_bucket", _("trace总请求耗时bucket"), "ns"
+
+    @classmethod
+    def all(cls):
+        return [
+            cls.BK_APM_DURATION,
+            cls.BK_APM_COUNT,
+            cls.BK_APM_TOTAL,
+            cls.BK_APM_DURATION_MAX,
+            cls.BK_APM_DURATION_MIN,
+            cls.BK_APM_DURATION_SUM,
+            cls.BK_APM_DURATION_DELTA,
+            cls.BK_APM_DURATION_BUCKET,
         ]

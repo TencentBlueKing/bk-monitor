@@ -18,13 +18,13 @@ class ChangeCode {
     chunk = chunk
       .replace(
         'height = (height <= 0 ? -1 : 1) * barMinHeight;',
-        'height = height ? (height < 0 ? -1 : 1) * barMinHeight : -1 * barMinHeight;'
+        'height = height ? (height < 0 ? -1 : 1) * barMinHeight : -1 * barMinHeight;',
       )
       .replace(
         'width = (width < 0 ? -1 : 1) * barMinHeight;',
-        'width = width ? (width < 0 ? -1 : 1) * barMinHeight : -1 * barMinHeight;'
+        'width = width ? (width < 0 ? -1 : 1) * barMinHeight : -1 * barMinHeight;',
       );
-    await writeFile(codeUrl, chunk, 'utf-8').catch((e) => {
+    await writeFile(codeUrl, chunk, 'utf-8').catch(e => {
       console.error(e.message || 'change echarts code error');
       process.exit(0);
     });

@@ -27,10 +27,10 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
 
-import { metricInfo } from '../../../../monitor-api/modules/apm_meta';
-import { getUnitList } from '../../../../monitor-api/modules/strategies';
-import PanelItem from '../../../components/panel-item/panel-item';
+import { metricInfo } from 'monitor-api/modules/apm_meta';
+import { getUnitList } from 'monitor-api/modules/strategies';
 
+import PanelItem from '../../../components/panel-item/panel-item';
 import IndicatorDetail from './indicator-detail';
 
 interface IPagination {
@@ -40,7 +40,7 @@ interface IPagination {
 }
 
 @Component
-export default class IndicatorDimension extends tsc<{}> {
+export default class IndicatorDimension extends tsc<object> {
   localTimeValue = '1h'; // 时间对比值
   showCustomTime = false; // 自定义时间输入框展示
   loading = false;
@@ -51,7 +51,7 @@ export default class IndicatorDimension extends tsc<{}> {
   pagination: IPagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   metricList = []; // 全量指标数据
   tableData = []; // 当前页表格数据
@@ -61,19 +61,19 @@ export default class IndicatorDimension extends tsc<{}> {
     { id: '1h', name: this.$t('1 小时前') },
     { id: '1d', name: this.$t('昨天') },
     { id: '1w', name: this.$t('上周') },
-    { id: '1M', name: this.$t('一月前') }
+    { id: '1M', name: this.$t('一月前') },
   ];
   compareTimeCustomList = []; // 自定义添加的时间可选列表
   sideslider = {
     id: 0, // 指标id
     title: '', // 指标名
     data: {}, // 指标详情
-    isShow: false
+    isShow: false,
   };
   /** 启停筛选 */
   statusFilter = [
     { text: '启', value: 'active' },
-    { text: '停', value: 'stop' }
+    { text: '停', value: 'stop' },
   ];
 
   /** 时间可选项的下拉数据 */
@@ -87,7 +87,7 @@ export default class IndicatorDimension extends tsc<{}> {
     if (!allListMap.has(value))
       allList.push({
         id: value,
-        name: value
+        name: value,
       });
     return allList;
   }
@@ -108,7 +108,7 @@ export default class IndicatorDimension extends tsc<{}> {
     this.loading = true;
     const params = {
       keyword: this.keyword,
-      before_time: this.localTimeValue
+      before_time: this.localTimeValue,
     };
     const list = await metricInfo(this.appId, params).catch(() => []);
     this.metricList = list;
@@ -174,7 +174,7 @@ export default class IndicatorDimension extends tsc<{}> {
       isShow: true,
       title: row.field_name,
       data: row,
-      id: row.table_id
+      id: row.table_id,
     };
   }
   /**
@@ -215,7 +215,7 @@ export default class IndicatorDimension extends tsc<{}> {
       this.$bkMessage({
         theme: 'warning',
         message: this.$t('按照提示输入'),
-        offsetY: 40
+        offsetY: 40,
       });
     }
   }
@@ -227,7 +227,7 @@ export default class IndicatorDimension extends tsc<{}> {
     if (this.compareTimeList.every(item => item.id !== str)) {
       this.compareTimeCustomList.push({
         id: str,
-        name: str
+        name: str,
       });
     }
     this.showCustomTime = false;
@@ -257,8 +257,8 @@ export default class IndicatorDimension extends tsc<{}> {
           onClick={() => this.showIndicatirDeatil(props.row)}
         >
           {props.row.field_name}
-        </span>
-      ]
+        </span>,
+      ],
     };
     const operatorSlot = {
       default: props => [
@@ -269,29 +269,29 @@ export default class IndicatorDimension extends tsc<{}> {
           onClick={() => this.handleRetrieve(props.row)}
         >
           {this.$t('检索')}
-        </bk-button>
-      ]
+        </bk-button>,
+      ],
     };
 
     return (
       <div class='conf-content indicator-dimension-wrap'>
         <PanelItem title={this.$t('指标列表')}>
           <div
-            slot='headerTool'
             class='indicator-filter'
+            slot='headerTool'
           >
             <bk-select
               class='filter-select'
-              clearable={false}
               v-model={this.localTimeValue}
-              onToggle={this.handleSelectToggle}
-              onSelected={list => this.handleTimeChange(list)}
+              clearable={false}
               onClear={() => this.handleTimeChange('')}
+              onSelected={list => this.handleTimeChange(list)}
+              onToggle={this.handleSelectToggle}
             >
               {this.compareTimeList.map(item => (
                 <bk-option
-                  key={item.id}
                   id={item.id}
+                  key={item.id}
                   name={item.name}
                 />
               ))}
@@ -299,13 +299,13 @@ export default class IndicatorDimension extends tsc<{}> {
                 {this.showCustomTime ? (
                   <span class='time-input-wrap'>
                     <bk-input
-                      size='small'
                       v-model={this.customTimeVal}
+                      size='small'
                       onKeydown={(_, evt) => this.handleModifiers(evt, this.handleAddCustomTime)}
                     />
                     <span
-                      v-bk-tooltips={this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')}
                       class='help-icon icon-monitor icon-mc-help-fill'
+                      v-bk-tooltips={this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')}
                     />
                   </span>
                 ) : (
@@ -321,19 +321,19 @@ export default class IndicatorDimension extends tsc<{}> {
             <bk-input
               class='filter-input'
               v-model={this.keyword}
-              clearable
               right-icon={'bk-icon icon-search'}
-              onEnter={this.getmetricLst}
+              clearable
               onClear={this.getmetricLst}
+              onEnter={this.getmetricLst}
             />
           </div>
           <bk-table
-            outer-border={false}
+            v-bkloading={{ isLoading: this.loading }}
             data={this.metricList}
+            outer-border={false}
             pagination={this.pagination}
             on-page-change={this.handlePageChange}
             on-page-limit-change={this.handleLimitChange}
-            v-bkloading={{ isLoading: this.loading }}
           >
             <bk-table-column
               label={this.$t('指标名')}
@@ -344,13 +344,13 @@ export default class IndicatorDimension extends tsc<{}> {
               scopedSlots={{ default: props => props.row.metric_display_name || '--' }}
             ></bk-table-column>
             <bk-table-column
-              label={this.$t('指标类型')}
               width='100'
+              label={this.$t('指标类型')}
               scopedSlots={{ default: props => props.row.type }}
             ></bk-table-column>
             <bk-table-column
-              label={this.$t('单位')}
               width='160'
+              label={this.$t('单位')}
               scopedSlots={{ default: props => this.getUnitText(props.row.unit) }}
             ></bk-table-column>
             {/* <bk-table-column
@@ -360,26 +360,26 @@ export default class IndicatorDimension extends tsc<{}> {
             scopedSlots={{ default: props => props.row.status }}>
           </bk-table-column> */}
             <bk-table-column
-              label={this.$t('操作')}
-              width='120'
-              scopedSlots={operatorSlot}
               key='operator'
+              width='120'
+              label={this.$t('操作')}
+              scopedSlots={operatorSlot}
             ></bk-table-column>
           </bk-table>
         </PanelItem>
 
         <bk-sideslider
           ext-cls='indicator-detail-sideslider'
-          transfer={true}
           isShow={this.sideslider.isShow}
+          transfer={true}
           {...{ on: { 'update:isShow': v => (this.sideslider.isShow = v) } }}
-          quick-close={true}
           width={640}
+          quick-close={true}
           on-hidden={this.handleSliderHidden}
         >
           <div
-            slot='header'
             class='title-wrap'
+            slot='header'
           >
             <span>{`${this.sideslider.title}${this.$t('指标详情')}`}</span>
             <span

@@ -50,9 +50,9 @@ export default {
     // 需要渲览预览通知模板
     renderList: {
       type: Array,
-      required: true
-    }
-  }
+      required: true,
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

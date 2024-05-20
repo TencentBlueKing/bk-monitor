@@ -25,8 +25,7 @@
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 
-import authorityMixinCreate from '../../../monitor-pc/mixins/authorityMixin';
-
+import authorityMixinCreate from '../../mixins/authorityMixin';
 import AlarmDispatchConfig from './alarm-dispatch-config';
 import * as authorityMap from './authority-map';
 
@@ -72,7 +71,7 @@ export default class AlarmDispatchConfigPage extends Mixins(authorityMixinCreate
         },
         cancelFn: () => {
           resolve(false);
-        }
+        },
       });
     });
   }

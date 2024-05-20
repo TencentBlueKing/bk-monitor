@@ -11,46 +11,84 @@ import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
+import curlify
 import requests
 from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
+from opentelemetry import trace
+from requests import RequestException
 
 from api.bkdata.default import QueryDataResource
+from apm_web.models import Application
+from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
+
+tracer = trace.get_tracer(__name__)
 
 
 class APIType(Enum):
     LABELS = "labels"
     LABEL_VALUES = "label_values"
+    # bkdata legacy type, may be removed in the future
     QUERY_SAMPLE = "query_sample"
+    QUERY_SAMPLE_BY_JSON = "query_sample_by_json"
+    COL_TYPE = "col_type"
+    SERVICE_NAME = "service_name"
+    SELECT_COUNT = "select_aggregate"
 
 
 @dataclass
 class APIParams:
     biz_id: str
     app: str
-    type: str
-    start: int
-    end: int
 
+    service_name: Optional[str] = None
+    start: int = None
+    end: int = None
+    type: Optional[str] = None
     label_key: Optional[str] = None
     label_filter: Optional[dict] = None
+    limit: dict = None
+    order: dict = None
+    # dimension_fields: 仅在 select_count / query_sample_by_json 接口生效
+    dimension_fields: str = None
+    # general_filters:  仅在 select_count / query_sample_by_json 接口生效
+    general_filters: Optional[dict] = None
+    # metric_fields:  仅在 select_count / query_sample_by_json 接口生效
+    metric_fields: str = None
 
     def to_dict(self):
         r = {
             "biz_id": self.biz_id,
             "app": self.app,
-            "type": self.type,
             "start": self.start,
             "end": self.end,
         }
+        if self.type:
+            r["type"] = self.type
         if self.label_key:
             r["label_key"] = self.label_key
         if self.label_filter:
             r["label_filter"] = self.label_filter
-
+        if self.limit:
+            r["limit"] = self.limit
+        if self.order:
+            r["order"] = self.order
+        if self.service_name:
+            r["service_name"] = self.service_name
+        if self.start:
+            r["start"] = self.start
+        if self.end:
+            r["end"] = self.end
+        if self.dimension_fields:
+            r["dimension_fields"] = self.dimension_fields
+        if self.general_filters:
+            r["general_filters"] = self.general_filters
+        if self.metric_fields:
+            r["metric_fields"] = self.metric_fields
         return r
 
 
@@ -68,31 +106,262 @@ class Query:
         }
         return r
 
-    def execute(self) -> Optional[dict]:
-        # bkData need a raw string with double quotes
-        sql = json.dumps(self.to_dict())
-        logger.debug("[ProfileDatasource] query_data params: %s", sql)
+    def execute(self, retry_if_empty_handler=None) -> Optional[dict]:
+        res = self._execute()
 
-        # TODO: api.bkdata.query_data is not working on making sql valid, fix it.
-        try:
-            res = requests.post(
-                url=f"{QueryDataResource.base_url}{QueryDataResource.action}",
-                json={
+        if (not res or not res.get("list")) and retry_if_empty_handler:
+            retry_if_empty_handler(self.api_params)
+            res = self._execute()
+
+        return res
+
+    def _execute(self):
+        # bkData need a raw string with double quotes
+        with tracer.start_as_current_span("query_profile") as span:
+            sql = json.dumps(self.to_dict())
+            logger.info("[ProfileDatasource] query_data params: %s", sql)
+
+            try:
+                url = f"{QueryDataResource.base_url}{QueryDataResource.action}"
+                params = {
                     "sql": sql,
                     "bk_app_code": settings.APP_CODE,
                     "bk_app_secret": settings.SECRET_KEY,
                     "prefer_storage": "doris",
                     "bk_username": settings.COMMON_USERNAME,
                     "bkdata_authentication_method": "user",
-                },
-                headers={"Content-Type": "application/json"},
-            ).json()
+                }
+                span.set_attribute("profile.query.url", url)
+                span.set_attribute("profile.query.params", json.dumps(params))
+                response = requests.post(url=url, json=params, headers={"Content-Type": "application/json"})
+                span.set_attribute("profile.query.curl", curlify.to_curl(response.request))
+                res = response.json()
+            except RequestException as e:
+                logger.exception(f"query bkdata doris failed, error: {e}")
+                span.record_exception(e)
+                return None
+
+            if not res["result"]:
+                err_msg = "query bkdata doris failed: %s", res["message"]
+                logger.error(err_msg)
+                span.record_exception(ValueError(err_msg))
+                return None
+
+            return res["data"]
+
+
+class QueryTemplate:
+    def __init__(self, bk_biz_id, app_name):
+        try:
+            application_id = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id).pk
         except Exception:  # pylint: disable=broad-except
-            logger.exception("query bkdata doris failed")
+            raise ValueError(_("应用({}) 不存在").format(app_name))
+
+        try:
+            application_info = api.apm_api.detail_application({"application_id": application_id})
+        except Exception:  # pylint: disable=broad-except
+            raise ValueError(_("应用({}.{}) 不存在").format(bk_biz_id, app_name))
+
+        if "profiling_config" not in application_info:
+            raise ValueError(_("应用({}.{}) 未开启性能分析").format(bk_biz_id, app_name))
+
+        self.result_table_id = application_info["profiling_config"]["result_table_id"]
+        self.bk_biz_id = bk_biz_id
+        self.app_name = app_name
+
+    def get_sample_info(
+        self, start: int, end: int, sample_types: List[str], service_name: str, label_filter: dict = None
+    ):
+        """查询样本基本信息"""
+        label_filter = label_filter or {}
+
+        res = {}
+        for sample_type in sample_types:
+            if not sample_type:
+                continue
+
+            info = Query(
+                api_type=APIType.QUERY_SAMPLE_BY_JSON,
+                api_params=APIParams(
+                    biz_id=self.bk_biz_id,
+                    app=self.app_name,
+                    general_filters={"sample_type": f"op_eq|{sample_type}"},
+                    start=start,
+                    end=end,
+                    service_name=service_name,
+                    limit={"offset": 0, "rows": 1},
+                    order={"expr": "dtEventTimeStamp", "sort": "desc"},
+                    label_filter=label_filter,
+                    dimension_fields="dtEventTimeStamp",
+                ),
+                result_table_id=self.result_table_id,
+            ).execute()
+
+            if not info or not info.get("list", []):
+                continue
+
+            ts = info["list"][0].get("dtEventTimeStamp")
+            if not ts:
+                continue
+
+            res[sample_type] = {"last_report_time": ts}
+
+        return res
+
+    def exist_data(self, start: int, end: int) -> bool:
+        """查询 Profile 是否有数据上报"""
+        res = Query(
+            api_type=APIType.SELECT_COUNT,
+            api_params=APIParams(
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                start=start,
+                end=end,
+                limit={"offset": 0, "rows": 1},
+                metric_fields="count(*)",
+                dimension_fields="app",
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+        if not res or not res.get("list", []):
+            return False
+        count = next((i["count(*)"] for i in res["list"] if i.get("app") == self.app_name), None)
+        return bool(count)
+
+    def list_services_request_info(self, start: int, end: int):
+        """
+        获取此应用下各个服务的数据上报信息
+        eg.
+        {
+            "serviceA": {
+                "profiling_data_count": 888,
+            },
+        }
+        """
+
+        # Step1: 获取已发现的所有 Services
+        profile_services = api.apm_api.query_profile_services_detail(
+            **{"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
+        )
+
+        services = list({i["name"] for i in profile_services})
+        if not services:
+            return {}
+        res = {}
+        count_mapping = self.get_service_request_count_mapping(start, end)
+        for svr in services:
+            res.update({svr: {"profiling_data_count": count_mapping[svr]}} if svr in count_mapping else {})
+
+        return res
+
+    def get_service_request_count_mapping(self, start: int, end: int):
+        """
+        获取 service 的请求信息
+        信息包含:
+        1. profiling_data_count 上报数据量
+        """
+        res = Query(
+            api_type=APIType.SELECT_COUNT,
+            api_params=APIParams(
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                start=start,
+                end=end,
+                dimension_fields="service_name",
+                metric_fields="count(*)",
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+
+        if not res:
+            return {}
+
+        # 计算平台 select_count 时, 固定的列名称为 count(1) . 所以这里这样写
+        return {i["service_name"]: i["count(*)"] for i in res["list"]}
+
+    def get_service_count(self, start_time, end_time, service_name):
+        """获取单个 service 数据量"""
+
+        res = Query(
+            api_type=APIType.SELECT_COUNT,
+            api_params=APIParams(
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                start=start_time,
+                end=end_time,
+                service_name=service_name,
+                dimension_fields="service_name",
+                metric_fields="count(*)",
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+
+        if not res or not res.get("list"):
             return None
 
-        if not res["result"]:
-            logger.error("query bkdata doris failed: %s", res["message"])
+        return next(i["count(*)"] for i in res["list"])
+
+    def get_count(
+        self, start_time: int, end_time: int, sample_type: str, service_name: str = None, label_filter: dict = None
+    ):
+        """根据查询条件获取数据条数"""
+        label_filter = label_filter or {}
+        res = Query(
+            api_type=APIType.SELECT_COUNT,
+            api_params=APIParams(
+                start=start_time,
+                end=end_time,
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                label_filter=label_filter,
+                service_name=service_name,
+                metric_fields="count(*)",
+                dimension_fields="FLOOR((dtEventTimeStamp / 1000) / 60) * 60000 AS time",
+                general_filters={"sample_type": f"op_eq|{sample_type}"},
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+        if not res or not res.get("list", []):
+            return None
+        return [[i["count(*)"], int(i["time"])] for i in res["list"] if "time" in i]
+
+    def list_labels(
+        self,
+        start_time: int,
+        end_time: int,
+        sample_type: str,
+        service_name: str = None,
+        label_filter: dict = None,
+        limit: int = None,
+    ):
+        """根据查询条件获取 labels 列表"""
+
+        # todo 待 bkbase 支持 distinct 查询
+        label_filter = label_filter or {}
+        res = Query(
+            api_type=APIType.LABELS,
+            api_params=APIParams(
+                start=start_time,
+                end=end_time,
+                biz_id=self.bk_biz_id,
+                app=self.app_name,
+                general_filters={"sample_type": f"op_eq|{sample_type}"},
+                label_filter=label_filter,
+                service_name=service_name,
+                limit={"rows": limit} if limit else None,
+            ),
+            result_table_id=self.result_table_id,
+        ).execute()
+
+        if not res or not res.get("list", []):
             return None
 
-        return res["data"]
+        return res["list"]
+
+    def parse_labels(self, *args, **kwargs):
+        """获取 labels 后，进行解析并返回"""
+        labels = self.list_labels(*args, **kwargs)
+        if not labels:
+            return []
+
+        return [{"time": i["dtEventTimeStamp"], "labels": json.loads(i["labels"])} for i in labels]

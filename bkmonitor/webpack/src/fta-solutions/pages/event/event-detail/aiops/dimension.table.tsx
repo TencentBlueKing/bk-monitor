@@ -26,9 +26,9 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from '../../../../../monitor-common/utils/utils';
-import { xssFilter } from '../../../../../monitor-common/utils/xss';
-import DimensionLine from '../../../../../monitor-ui/chart-plugins/plugins/aiops-dimension-point/aiops-dimension-point';
+import { Debounce } from 'monitor-common/utils/utils';
+import { xssFilter } from 'monitor-common/utils/xss';
+import DimensionLine from 'monitor-ui/chart-plugins/plugins/aiops-dimension-point/aiops-dimension-point';
 
 import { EventReportType, IAnomalyDimensions } from './types';
 
@@ -41,7 +41,7 @@ const setTooltips = (content: string, placement = 'left', disabled = false) => (
   content: `${content}`,
   delay: 0,
   zIndex: 9000,
-  disabled
+  disabled,
 });
 
 interface IProps {
@@ -54,7 +54,7 @@ export default class DimensionTable extends tsc<IProps> {
   @Prop({ type: String, default: '' }) dimensionDrillDownErr: string;
 
   @Prop({ type: Array, default: () => [] }) tableData: IAnomalyDimensions[];
-  @Inject('reportEventLog') reportEventLog: Function;
+  @Inject('reportEventLog') reportEventLog: (eventType: string) => void;
   /** tips实例 */
   popperInstance: any = null;
 
@@ -64,7 +64,7 @@ export default class DimensionTable extends tsc<IProps> {
 
   @Watch('tableData')
   handleTableDataChange() {
-    !this.isSelectedInit && this.$refs?.dimensionTable?.toggleAllSelection();
+    !this.isSelectedInit && (this.$refs?.dimensionTable as any)?.toggleAllSelection();
     this.isSelectedInit = true;
     this.selection = this.tableData;
   }
@@ -79,7 +79,7 @@ export default class DimensionTable extends tsc<IProps> {
           allowHTML: false,
           onShown: () => {
             this.reportEventLog?.(EventReportType.Tips);
-          }
+          },
         }}
       >
         {this.$t(title)}
@@ -133,7 +133,7 @@ export default class DimensionTable extends tsc<IProps> {
             },
             onHide: () => {
               this.popperInstance = null;
-            }
+            },
           }}
         >
           {row.dimension_anomaly_value_count} / {row.dimension_value_total_count}
@@ -163,7 +163,7 @@ export default class DimensionTable extends tsc<IProps> {
     this.popperInstance?.hide?.();
   }
   /** tips 单个数据点点击回调 */
-  handleTooltipItem(is_anomaly: Boolean, id: string) {
+  handleTooltipItem(is_anomaly: boolean, id: string) {
     is_anomaly && this.handleDimensionClick(is_anomaly, id);
   }
   /** 异常分布绘制 */
@@ -174,8 +174,8 @@ export default class DimensionTable extends tsc<IProps> {
         info={info}
         {...{
           on: {
-            tipsClick: this.handleDimensionClick
-          }
+            tipsClick: this.handleDimensionClick,
+          },
         }}
       ></DimensionLine>
     );
@@ -204,63 +204,63 @@ export default class DimensionTable extends tsc<IProps> {
   renderTable() {
     return (
       <bk-table
-        default-sort={{ order: 'descending', prop: 'dim_surprise' }}
-        class={this.selection.length === 1 ? 'disabled-select' : ''}
         ref='dimensionTable'
-        outer-border={true}
+        class={this.selection.length === 1 ? 'disabled-select' : ''}
         col-border={true}
         data={this.tableData}
+        default-sort={{ order: 'descending', prop: 'dim_surprise' }}
+        outer-border={true}
         {...{
           on: {
             'sort-change': this.handleSortChange,
-            'selection-change': this.handleSelectionChange
-          }
+            'selection-change': this.handleSelectionChange,
+          },
         }}
         header-border={true}
       >
         <bk-table-column
-          type='selection'
           width={32}
-          before-select-change={this.handleBeforeSelectChange}
           before-select-all-change={this.handleBeforeSelectAllChange}
+          before-select-change={this.handleBeforeSelectChange}
+          type='selection'
         ></bk-table-column>
         <bk-table-column
           label={this.$t('异常维度')}
-          show-overflow-tooltip={true}
           scopedSlots={{ default: props => props.row.anomaly_dimension_alias }}
+          show-overflow-tooltip={true}
         ></bk-table-column>
         <bk-table-column
-          min-width={120}
           label={this.$t('异常维度值个数/维度值总数')}
+          min-width={120}
           scopedSlots={{ default: props => this.renderDimensionColumn(props.row) }}
         ></bk-table-column>
         <bk-table-column
-          show-overflow-tooltip={true}
           label={this.$t('异常维度值占比')}
           scopedSlots={{ default: props => this.percentageText(props.row.dimension_value_percent) }}
+          show-overflow-tooltip={true}
         ></bk-table-column>
         <bk-table-column
           width={340}
-          label={this.$t('异常分值分布')}
           render-header={this.renderHeader.bind(
             this,
             '异常分值分布',
             '异常分值范围从0到1，分值越大，说明该维度值的指标异常程度越高。'
           )}
+          label={this.$t('异常分值分布')}
           scopedSlots={{ default: props => this.renderDistributed(props.row.anomaly_score_distribution) }}
         ></bk-table-column>
         <bk-table-column
-          sortable
-          sort-orders={['ascending', 'descending']}
-          label={this.$t('JS散度')}
-          prop='dim_surprise'
-          show-overflow-tooltip={true}
           render-header={this.renderHeader.bind(
             this,
             'JS散度',
             'JS散度越大，说明该维度内各维度值的异常分值越离散，越值得排查'
           )}
+          label={this.$t('JS散度')}
+          prop='dim_surprise'
           scopedSlots={{ default: props => props.row.dim_surprise }}
+          show-overflow-tooltip={true}
+          sort-orders={['ascending', 'descending']}
+          sortable
         ></bk-table-column>
       </bk-table>
     );
@@ -272,9 +272,9 @@ export default class DimensionTable extends tsc<IProps> {
           this.renderTable()
         ) : (
           <bk-exception
-            type={this.dimensionDrillDownErr ? '500' : 'empty'}
-            scene='part'
             slot='empty'
+            scene='part'
+            type={this.dimensionDrillDownErr ? '500' : 'empty'}
           >
             <span>{this.dimensionDrillDownErr ? this.dimensionDrillDownErr : this.$t('暂无数据')}</span>
           </bk-exception>

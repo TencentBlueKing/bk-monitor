@@ -100,9 +100,14 @@ else:
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
     INSTALLED_APPS += ("version_log",)
 
+# 设置pyinstrument的profiler开关
+PYINSTRUMENT_URL_ARGUMENT = "bk-log-profile"
+
 # 这里是默认的中间件，大部分情况下，不需要改动
 # 如果你已经了解每个默认 MIDDLEWARE 的作用，确实需要去掉某些 MIDDLEWARE，或者改动先后顺序，请去掉下面的注释，然后修改
 MIDDLEWARE = (
+    # 性能分析
+    "apps.middleware.pyinstrument.ProfilerMiddleware",
     # http -> https 转换中间件
     "apps.middlewares.HttpsMiddleware",
     "django.middleware.gzip.GZipMiddleware",
@@ -398,7 +403,7 @@ def redirect_func(request):
     return HttpResponseRedirect(next_url)
 
 
-BLUEAPPS_PAGE_401_RESPONSE_FUNC = redirect_func
+# BLUEAPPS_PAGE_401_RESPONSE_FUNC = redirect_func
 
 # bulk_request limit
 BULK_REQUEST_LIMIT = int(os.environ.get("BKAPP_BULK_REQUEST_LIMIT", 500))
@@ -769,6 +774,14 @@ MENUS = [
                 "children": [{"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}],
             },
             {
+                "id": "report",
+                "name": _("订阅"),
+                "feature": "on",
+                "icon": "",
+                "keyword": _("订阅"),
+                "children": [{"id": "report_manage", "name": _("订阅管理"), "feature": "on", "icon": "email-shape"}],
+            },
+            {
                 "id": "manage_data_link",
                 "name": _("设置"),
                 "feature": os.environ.get("BKAPP_FEATURE_DATA_LINK", "on"),
@@ -871,9 +884,7 @@ COLLECTOR_GUIDE_URL = os.environ.get("BKAPP_COLLECTOR_GUIDE_URL", "")
 COLLECTOR_ITSM_SERVICE_ID = int(os.environ.get("BKAPP_COLLECTOR_ITSM_SERVICE_ID", 0))
 ITSM_LOG_DISPLAY_ROLE = "LOG_SEARCH"
 BLUEKING_BK_BIZ_ID = int(os.environ.get("BKAPP_BLUEKING_BK_BIZ_ID", 2))
-BKMONITOR_CUSTOM_PROXY_IP = os.environ.get(
-    "BKAPP_BKMONITOR_CUSTOM_PROXY_IP", "http://report.bkmonitorv3.service.consul:10205"
-)
+BKMONITOR_CUSTOM_PROXY_IP = os.environ.get("BKAPP_BKMONITOR_CUSTOM_PROXY_IP", "")
 # 蓝鲸监控平台的业务ID
 BKMONITOR_BK_BIZ_ID = os.environ.get("BKAPP_BKMONITOR_BK_BIZ_ID", BLUEKING_BK_BIZ_ID)
 TABLE_TRANSFER = os.environ.get("BKAPP_TABLE_TRANSFER", "pushgateway_transfer_metircs.base")
@@ -918,6 +929,7 @@ ESQUERY_WHITE_LIST = [
     "klc_saas",
     "paasv3cli",
     "bk_paas3",
+    "kingeye-web_saas",
 ] + ESQUERY_EXTRA_WHITE_LIST
 
 # BK repo conf
@@ -1027,7 +1039,6 @@ else:
 # 日志检索组件配置
 # ===============
 BKM_SEARCH_MODULE_BKAPI_CLASS = "apps.utils.search_module.BkApi"
-
 
 # 国际化切换语言设置
 BK_DOMAIN = os.getenv("BK_DOMAIN", "")
@@ -1178,7 +1189,6 @@ BK_NOTICE = {
     # 添加默认值防止本地调试无法启动
     "BK_API_URL_TMPL": os.environ.get("BK_API_URL_TMPL", "")
 }
-
 
 """
 以下为框架代码 请勿修改

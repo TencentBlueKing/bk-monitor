@@ -28,6 +28,10 @@ class ModifyDataIDViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDataSource)]
 
 
+class StopOrEnableDatasourceViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.StopOrEnableDatasource)]
+
+
 class ResultTableViewSet(MetaViewSet):
     resource_routes = [
         ResourceRoute("POST", resource.CreateResultTableResource),
@@ -393,3 +397,20 @@ class QueryBizByBkBaseViewSet(MetaViewSet):
 
 class QueryResultTableStorageDetailViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryResultTableStorageDetailResource)]
+
+
+class CreateVmClusterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateVmCluster)]
+
+
+class QueryVmDatalinkViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryVmDatalink)]
+
+
+class QueryBcsClusterVmTableIdsViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryBcsClusterVmTableIds)]
+
+
+class SwitchKafkaClusterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.SwitchKafkaCluster)]
+

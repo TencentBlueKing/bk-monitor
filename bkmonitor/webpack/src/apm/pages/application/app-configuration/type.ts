@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
 
-import { INodeType, TargetObjectType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
-import { IPanelModel } from '../../../../monitor-ui/chart-plugins/typings';
+import { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 export interface IApdexConfig {
   apdex_default: number;
@@ -101,9 +100,12 @@ export interface IAppInfo {
   app_name: string;
   app_alias: string;
   description: string;
+  enable_profiling: boolean;
+  enable_tracing: boolean;
   application_apdex_config: IApdexConfig;
   owner: string;
   is_enabled: boolean;
+  is_enabled_profiling: boolean;
   es_storage_index_name: string;
   application_datasource_config: IDatasourceConfig;
   create_user: string;
@@ -115,7 +117,7 @@ export interface IAppInfo {
   application_instance_name_config: IApplicationInstanceNameConfig;
   application_db_config: {
     db_system: string;
-    trace_mode: 'origin' | 'no_parameters' | 'closed';
+    trace_mode: 'closed' | 'no_parameters' | 'origin';
     length: number;
     threshold: number;
     enabled_slow_sql: boolean;
@@ -194,7 +196,7 @@ export interface IUnitItme {
 
 export interface IFieldFilterItem {
   text: string;
-  value: string | boolean | number;
+  value: boolean | number | string;
 }
 
 export interface IMatchCount {

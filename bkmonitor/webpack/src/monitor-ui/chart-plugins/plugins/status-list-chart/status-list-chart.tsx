@@ -26,9 +26,10 @@
 
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
-import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
+import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+
 import ChartHeader from '../../components/chart-title/chart-title';
 import { IExtendMetricData, IStatusItemData, IStatusListData, PanelModel } from '../../typings';
 import { VariablesService } from '../../utils/variable';
@@ -58,31 +59,30 @@ class StatusListChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
-      const promiseList = this.panel.targets.map(
-        item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc](
-              {
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions
-                }
+      const promiseList = this.panel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc](
+            {
+              ...variablesService.transformVariables(item.data),
+              ...params,
+              view_options: {
+                ...this.viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              this.clearErrorMsg();
-              return res;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
+            },
+            { needMessage: false }
+          )
+          .then(res => {
+            this.clearErrorMsg();
+            return res;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          })
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item.length)) {
@@ -118,13 +118,13 @@ class StatusListChart extends CommonSimpleChart {
             <div class='item-val-box'>
               {item.items.map(v => (
                 <div
-                  class='item-val'
                   style={{ cursor: v.link ? 'pointer' : '' }}
+                  class='item-val'
                   onClick={() => this.handleJump(v)}
                 >
                   <div
-                    class='dot'
                     style={{ 'background-color': v.color }}
+                    class='dot'
                   ></div>
                   <span>{v.value}</span>
                 </div>
@@ -141,8 +141,8 @@ class StatusListChart extends CommonSimpleChart {
       <div class='status-list-chart'>
         <ChartHeader
           class='draggable-handle'
-          title={this.panel.title}
           metrics={this.metrics}
+          title={this.panel.title}
         />
         {!this.empty ? this.chartContent() : <span class='empty-chart'>{this.emptyText}</span>}
       </div>

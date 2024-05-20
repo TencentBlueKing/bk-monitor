@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { DateRange } from '@blueking/date-picker';
-import { type DateValue } from '@blueking/date-picker/dist/utils';
+import { type DateValue } from '@blueking/date-picker/vue3';
 import { type Dayjs } from 'dayjs';
 
 export type TimeRangeType = string[];
@@ -41,15 +41,15 @@ export class TimeRange {
     this.init(times);
   }
 
+  /** 格式化时间范围 */
+  format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
+    return this.value.map(item => item?.format?.(str) || null) as TimeRangeType;
+  }
+
   /** 初始化时间对象 */
   init(times: TimeRangeType) {
     const dateRange = new DateRange(times as DateValue, 'YYYY-MM-DD HH:mm:ss', window.timezone);
     this.value = [dateRange.startDate, dateRange.endDate];
-  }
-
-  /** 格式化时间范围 */
-  format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
-    return this.value.map(item => item?.format?.(str) || null) as TimeRangeType;
   }
   /** 格式化成秒 */
   unix(): TimestampsType {
@@ -58,7 +58,7 @@ export class TimeRange {
 }
 
 /** 字符串的时间戳(毫秒)转为数字类型 */
-export const intTimestampStr = (str): number | null => {
+export const intTimestampStr = (str): null | number => {
   const isTimestamp = /^\d{1}$|^([1-9]\d{1,12})$/.test(str);
   return isTimestamp ? parseInt(str, 10) : str;
 };
@@ -70,7 +70,7 @@ export const handleTransformTime = (value: TimeRangeType): TimeRangeType => {
 };
 
 /** 转换成秒 */
-// eslint-disable-next-line max-len
+
 export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType => {
   const timeRange = new TimeRange(value);
   return timeRange.unix();
@@ -80,64 +80,64 @@ export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType
 export const shortcuts = [
   {
     text: window.i18n.t('近{n}分钟', { n: 5 }),
-    value: ['now-5m', 'now']
+    value: ['now-5m', 'now'],
   },
   {
     text: window.i18n.t('近{n}分钟', { n: 15 }),
-    value: ['now-15m', 'now']
+    value: ['now-15m', 'now'],
   },
   {
     text: window.i18n.t('近{n}分钟', { n: 30 }),
-    value: ['now-30m', 'now']
+    value: ['now-30m', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 1 }),
-    value: ['now-1h', 'now']
+    value: ['now-1h', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 3 }),
-    value: ['now-3h', 'now']
+    value: ['now-3h', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 6 }),
-    value: ['now-6h', 'now']
+    value: ['now-6h', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 12 }),
-    value: ['now-12h', 'now']
+    value: ['now-12h', 'now'],
   },
   {
     text: window.i18n.t('近{n}小时', { n: 24 }),
-    value: ['now-24h', 'now']
+    value: ['now-24h', 'now'],
   },
   {
     text: window.i18n.t('近 {n} 天', { n: 2 }),
-    value: ['now-2d', 'now']
+    value: ['now-2d', 'now'],
   },
   {
     text: window.i18n.t('近 {n} 天', { n: 7 }),
-    value: ['now-7d', 'now']
+    value: ['now-7d', 'now'],
   },
   {
     text: window.i18n.t('近 {n} 天', { n: 30 }),
-    value: ['now-30d', 'now']
+    value: ['now-30d', 'now'],
   },
   {
     text: window.i18n.t('今天'),
-    value: ['now/d', 'now/d']
+    value: ['now/d', 'now/d'],
   },
   {
     text: window.i18n.t('昨天'),
-    value: ['now-1d/d', 'now-1d/d']
+    value: ['now-1d/d', 'now-1d/d'],
   },
   {
     text: window.i18n.t('前天'),
-    value: ['now-2d/d', 'now-2d/d']
+    value: ['now-2d/d', 'now-2d/d'],
   },
   {
     text: window.i18n.t('本周'),
-    value: ['now/w', 'now/w']
-  }
+    value: ['now/w', 'now/w'],
+  },
 ];
 
 export const shortcutsMap = shortcuts.reduce((map, cur) => {

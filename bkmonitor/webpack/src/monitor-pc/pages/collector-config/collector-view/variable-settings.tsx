@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
@@ -28,17 +27,15 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { saveScenePanelConfig } from '../../../../monitor-api/modules/data_explorer';
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
-import { deepClone } from '../../../../monitor-common/utils/utils';
-import { Debounce } from '../../../components/ip-selector/common/util';
+import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { deepClone } from 'monitor-common/utils/utils';
 
+import { Debounce } from '../../../components/ip-selector/common/util';
 import { metric, orderList, variable } from './type';
 import { getCollectVariable, setCollectVariable } from './variable-set';
 
 import './variable-settings.scss';
-
-/* eslint-disable camelcase */
 
 interface IVariableSettings {
   metricDimension: {
@@ -70,7 +67,7 @@ interface Icache {
 }
 export const selectAllItemKey = 'selecteAllItemKey';
 @Component({
-  name: 'VariableSettings'
+  name: 'VariableSettings',
 })
 export default class VariableSettings extends tsc<IVariableSettings, IVariableSettingsProps> {
   @Prop({ default: () => ({}), type: Object }) metricDimension: IVariableSettings['metricDimension'];
@@ -118,7 +115,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
     const promiseList = [];
     this.cache.push({
       sceneName: this.sceneName,
-      previews: {}
+      previews: {},
     });
     if (
       sceneItem.variables.length &&
@@ -144,9 +141,9 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
           ...this.metricDimension.variableParams,
           metric_field: metricObj.metrics[0].englishName,
           result_table_id: metricObj.result_table_id,
-          field: dimension.englishName
+          field: dimension.englishName,
         },
-        type: 'dimension'
+        type: 'dimension',
       };
       promiseList.push(this.getVariableValue(params, dimension, sceneVariables));
     });
@@ -156,7 +153,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       key: item.dimension,
       value: item.value,
       name: item.aliaName,
-      groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension)?.groupId
+      groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension)?.groupId,
     }));
     this.resultChange(result);
     this.isLoading = false;
@@ -176,19 +173,19 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
         getCollectVariable(`${this.id}`, this.sceneName, 'variables', this.routeType)?.[dimension.englishName] || [],
       dimension: dimension.englishName,
       dimensionList: [...this.metricDimension.dimensionList],
-      aliaName: sceneVariables[dimension.englishName] || `${dimension.aliaName || dimension.englishName}`
+      aliaName: sceneVariables[dimension.englishName] || `${dimension.aliaName || dimension.englishName}`,
     };
     if (cacheItem.previews[params.params.field]) {
       this.variableList.push({
         ...obj,
-        preview: this.canSelectedAllItem(cacheItem.previews[params.params.field])
+        preview: this.canSelectedAllItem(cacheItem.previews[params.params.field]),
       });
     } else {
       const data = await getVariableValue(params).catch(() => []);
       cacheItem.previews[params.params.field] = data;
       this.variableList.push({
         ...obj,
-        preview: this.canSelectedAllItem(data)
+        preview: this.canSelectedAllItem(data),
       });
     }
   }
@@ -230,15 +227,15 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       sceneName: this.sceneName,
       variables: this.variableList
         .filter(item => item.dimension !== '')
-        .map(item => ({ id: item.dimension, name: item.aliaName }))
+        .map(item => ({ id: item.dimension, name: item.aliaName })),
     };
     const params = {
       id,
       config: {
         name: result.sceneName,
         variables: result.variables,
-        order: this.orderList
-      }
+        order: this.orderList,
+      },
     };
     await saveScenePanelConfig(params)
       .catch(() => ({}))
@@ -272,7 +269,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       dimension: '',
       dimensionList: this.metricDimension.dimensionList,
       aliaName: '',
-      preview: []
+      preview: [],
     });
   }
   /**
@@ -287,7 +284,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
         aliaName: '',
         dimension: '',
         preview: [],
-        value: []
+        value: [],
       });
       return;
     }
@@ -313,9 +310,9 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
           ...this.metricDimension.variableParams,
           metric_field: metricObj.metrics[0].englishName,
           result_table_id: metricObj.result_table_id,
-          field: val
+          field: val,
         },
-        type: 'dimension'
+        type: 'dimension',
       })
         .catch(() => [])
         .finally(() => {
@@ -345,7 +342,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
           value: item.value,
           name: item.aliaName,
           groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension)
-            .groupId
+            .groupId,
         }));
         this.resultChange(result);
       }
@@ -369,7 +366,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
       key: item.dimension,
       value: item.value,
       name: item.aliaName,
-      groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension).groupId
+      groupId: this.metricDimension.dimensionList.find(dimension => dimension.englishName === item.dimension).groupId,
     }));
     this.resultChange(result);
     setCollectVariable(
@@ -464,16 +461,16 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                   <div class='item-value'>
                     <bk-tag-input
                       ext-cls='item-value-select'
-                      placeholder={`${this.$t('输入')}`}
-                      clearable
-                      allow-create
-                      value={item.value}
                       list={item.preview.map(p => ({ id: p.value, name: p.label }))}
-                      trigger={'focus'}
-                      on-change={tags => this.handleTagChange(tags, index)}
-                      on-blur={this.handleTagsBlur}
-                      on-removeAll={() => this.handleClear(index)}
                       paste-fn={v => this.handlePaste(v, item, index)}
+                      placeholder={`${this.$t('输入')}`}
+                      trigger={'focus'}
+                      value={item.value}
+                      allow-create
+                      clearable
+                      on-blur={this.handleTagsBlur}
+                      on-change={tags => this.handleTagChange(tags, index)}
+                      on-removeAll={() => this.handleClear(index)}
                     ></bk-tag-input>
                   </div>
                 </div>
@@ -490,7 +487,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
               onClick={this.variableEditChange}
             >
               <span class='icon-monitor icon-bianji'></span>
-            </div>
+            </div>,
           ]
         ) : (
           <div class='variable-edit-items'>
@@ -512,17 +509,17 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                     <div class='dimension-select'>
                       <bk-select
                         ext-cls='item-edit-select'
-                        clearable={false}
                         v-model={item.dimension}
+                        clearable={false}
                         searchable
                         on-change={val => this.dimensionChange(val, item, index)}
                       >
                         {item.dimensionList.map(dimension => (
                           <bk-option
                             id={dimension.englishName}
-                            name={dimension.aliaName || dimension.englishName}
                             key={dimension.englishName}
                             disabled={this.checkedDimensions.includes(dimension.englishName)}
+                            name={dimension.aliaName || dimension.englishName}
                           ></bk-option>
                         ))}
                       </bk-select>
@@ -531,13 +528,13 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                   <td>
                     <div class='display-name'>
                       <bk-input
-                        on-focus={() => (this.verify = false)}
-                        v-model={item.aliaName}
-                        disabled
                         v-bk-tooltips={{
                           placements: ['top'],
-                          content: `${this.$t('到指标维度设置')}`
+                          content: `${this.$t('到指标维度设置')}`,
                         }}
+                        v-model={item.aliaName}
+                        disabled
+                        on-focus={() => (this.verify = false)}
                       ></bk-input>
                     </div>
                   </td>
@@ -555,7 +552,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                         v-bk-tooltips={{
                           content: `${this.$t('没有维度了')}`,
                           placements: ['top'],
-                          disabled: !(this.checkedDimensions.length === this.metricDimension.dimensionList.length)
+                          disabled: !(this.checkedDimensions.length === this.metricDimension.dimensionList.length),
                         }}
                         on-click={() => this.addVariable(index)}
                       ></span>
@@ -571,8 +568,8 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
             {this.errMsg !== '' && <div class='err-red'>{this.errMsg}</div>}
             <div class='save-cancel'>
               <bk-button
-                theme='primary'
                 class='mr10'
+                theme='primary'
                 on-click={this.saveChange}
               >
                 {this.$t('保存')}

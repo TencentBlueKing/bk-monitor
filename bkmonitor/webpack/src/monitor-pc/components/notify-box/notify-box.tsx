@@ -30,7 +30,7 @@ import './notify-box.scss';
 
 interface IStepBoxProps {
   placement: string;
-  hasBorder: Boolean;
+  hasBorder: boolean;
   tipStyles: Record<string, string>;
 }
 
@@ -51,8 +51,8 @@ export default class NotifyBox extends tsc<IStepBoxProps> {
   render() {
     return (
       <div
-        class={`notify-box ${this.className}`}
         style={this.tipStyles}
+        class={`notify-box ${this.className}`}
       >
         <div class='notify-title'>{this.$slots.title}</div>
         <div class='notify-content'>{this.$slots.content}</div>

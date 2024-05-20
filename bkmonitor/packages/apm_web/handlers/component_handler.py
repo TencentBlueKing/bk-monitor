@@ -53,12 +53,14 @@ class ComponentHandler:
         )
 
     @classmethod
-    def get_component_belong_service(cls, name, predicate_value):
+    def get_component_belong_service(cls, name: str, predicate_value: str) -> str:
         """
         获取组件归属的服务名称
         如：{service_name}-mysql -> {service_name}
         """
-        return name.replace(f"-{predicate_value}", "")
+        if not predicate_value:
+            return name
+        return name.replace(f"-{predicate_value}", "", 1)
 
     @classmethod
     def build_component_instance_filter_params(
@@ -217,7 +219,7 @@ class ComponentHandler:
             filter_params.remove(has_service_condition)
 
     @classmethod
-    def get_service_component_metrics(cls, app, start_time, end_time, metric_clz=None):
+    def get_service_component_metrics(cls, app, start_time, end_time, metric_clz=None, metric_handler_cls: list = None):
         """
         获取service服务下属的组件指标值
         """
@@ -225,7 +227,12 @@ class ComponentHandler:
         if not metric_clz:
             metric_clz = COMPONENT_LIST
 
-        metric_info = metric_clz(app, start_time=start_time, end_time=end_time)
+        if metric_handler_cls:
+            metric_info = metric_clz(
+                app, start_time=start_time, end_time=end_time, metric_handler_cls=metric_handler_cls
+            )
+        else:
+            metric_info = metric_clz(app, start_time=start_time, end_time=end_time)
 
         res = {}
         for key, info in metric_info.items():

@@ -27,10 +27,12 @@ import Vue from 'vue';
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { APP_NAV_COLORS } from '../../monitor-common/utils';
-import { getUrlParam } from '../../monitor-common/utils/utils';
-import CommonNavBar from '../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import AuthorityModal from '../../monitor-ui/authority-modal';
+import { getLinkMapping } from 'monitor-api/modules/commons';
+import { APP_NAV_COLORS } from 'monitor-common/utils';
+import { getUrlParam } from 'monitor-common/utils/utils';
+import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
+import AuthorityModal from 'monitor-ui/authority-modal';
+
 import debounce from '../common/debounce-decorator';
 import { createRouteConfig } from '../router/router-config';
 import appStoreModule from '../store/modules/app';
@@ -40,7 +42,7 @@ import { ISpaceItem } from '../typings';
 import './app.scss';
 
 @Component
-export default class App extends tsc<{}> {
+export default class App extends tsc<object> {
   @Ref('menuSearchInput') menuSearchInputRef;
   private routeList = createRouteConfig();
   private menuToggle = false;
@@ -60,7 +62,7 @@ export default class App extends tsc<{}> {
   get navActive() {
     let routeId = this.routeId || 'home';
     const {
-      options: { routes }
+      options: { routes },
     } = this.$router;
     const parentId = routes.find(item => routeId === item.name)?.meta?.route?.parent;
     routeId = parentId || routeId;
@@ -91,6 +93,12 @@ export default class App extends tsc<{}> {
     this.bizId = this.$store.getters.bizId;
     this.menuToggle = localStorage.getItem('navigationToogle') === 'true';
     Vue.prototype.$authorityStore = authorityStore;
+    this.getDocsLinkMapping();
+  }
+  /** 获取文档链接 */
+  async getDocsLinkMapping() {
+    const data = await getLinkMapping().catch(() => {});
+    window.docUrlMap = data;
   }
   // 设置是否需要menu
   handleSetNeedMenu() {
@@ -104,7 +112,7 @@ export default class App extends tsc<{}> {
   handleSowNav() {
     const routeList = [];
     const {
-      options: { routes }
+      options: { routes },
     } = this.$router;
     const { meta, name } = this.$route;
     this.showNav = !meta.noNavBar && !!name;
@@ -143,7 +151,7 @@ export default class App extends tsc<{}> {
       await this.$nextTick();
       if (!this.$router.history.pending) {
         this.$router.push({
-          name: id
+          name: id,
         });
       }
     }
@@ -156,7 +164,7 @@ export default class App extends tsc<{}> {
     ) {
       if (newId !== oldId) {
         this.$router.push({
-          name: newId
+          name: newId,
         });
       }
       return false;
@@ -210,14 +218,14 @@ export default class App extends tsc<{}> {
     return (
       <div class='menu-select'>
         <span
-          tabindex={0}
           class='menu-select-name'
+          tabindex={0}
           on-mousedown={this.handleClickBizSelect}
         >
           {this.bizName}
           <i
-            class='bk-select-angle bk-icon icon-angle-down select-icon'
             style={{ transform: `rotate(${!this.showBizList ? '0deg' : '-180deg'})` }}
+            class='bk-select-angle bk-icon icon-angle-down select-icon'
           />
         </span>
         <ul
@@ -228,18 +236,18 @@ export default class App extends tsc<{}> {
             ref='menuSearchInput'
             class='menu-select-search'
             clearable={false}
-            right-icon='bk-icon icon-search'
             placeholder={this.$t('搜索')}
+            right-icon='bk-icon icon-search'
             value={this.keyword}
-            on-clear={() => this.handleBizSearch('')}
-            on-change={this.handleBizSearch}
             on-blur={() => (this.showBizList = false)}
+            on-change={this.handleBizSearch}
+            on-clear={() => this.handleBizSearch('')}
           />
           {this.bizList.length ? (
             this.bizList.map((item: ISpaceItem) => (
               <li
-                class={['list-item', { 'is-select': item.id === this.bizId }]}
                 key={item.id}
+                class={['list-item', { 'is-select': item.id === this.bizId }]}
                 onMousedown={() => this.handleBizChange(item.id)}
               >
                 {item.text}
@@ -256,12 +264,12 @@ export default class App extends tsc<{}> {
     return (
       <div class={{ 'apm-wrap': true, 'is-micro-app': !this.needMenu }}>
         <bk-navigation
-          navigation-type='top-bottom'
-          on-toggle={this.handleToggle}
-          themeColor='#2c354d'
-          side-title={'APM'}
-          need-menu={!!this.menuList && this.needMenu}
           default-open={this.menuToggle}
+          navigation-type='top-bottom'
+          need-menu={!!this.menuList && this.needMenu}
+          side-title={'APM'}
+          themeColor='#2c354d'
+          on-toggle={this.handleToggle}
           on-toggle-click={this.handleToggleClick}
         >
           {this.needMenu && (
@@ -283,13 +291,13 @@ export default class App extends tsc<{}> {
             </div>
           )}
           <span
-            slot='side-icon'
             class='app-logo'
+            slot='side-icon'
           ></span>
           {this.menuList?.length ? (
             <div
-              class='fta-menu'
               key='menu'
+              class='fta-menu'
               slot='menu'
             >
               <div class='fta-menu-select'>
@@ -300,9 +308,9 @@ export default class App extends tsc<{}> {
                 )}
               </div>
               <bk-navigation-menu
-                toggle-active={this.menuToggle}
-                default-active={this.routeId}
                 before-nav-change={this.handleBeforeNavChange}
+                default-active={this.routeId}
+                toggle-active={this.menuToggle}
                 {...{ props: APP_NAV_COLORS }}
               >
                 {this.menuList.map(item =>
@@ -313,9 +321,9 @@ export default class App extends tsc<{}> {
                     >
                       {item.children.map(child => (
                         <bk-navigation-menu-item
-                          onClick={() => this.handleMenuItemClick(child.id)}
                           key={child.id}
                           href={child.href}
+                          onClick={() => this.handleMenuItemClick(child.id)}
                           {...{ props: child }}
                         >
                           <span>{this.$t(child.name)}</span>
@@ -331,9 +339,9 @@ export default class App extends tsc<{}> {
           {this.showNav && (
             <CommonNavBar
               class='common-nav-bar-single'
-              routeList={this.navRouteList}
-              needCopyLink={this.needCopyLink}
               needBack={this.needBack}
+              needCopyLink={this.needCopyLink}
+              routeList={this.navRouteList}
             ></CommonNavBar>
           )}
           <div
@@ -341,16 +349,16 @@ export default class App extends tsc<{}> {
               'page-container',
               {
                 'page-padding': this.$route?.meta?.needPadding,
-                'has-nav': !this.$route?.meta?.noNavBar
-              }
+                'has-nav': !this.$route?.meta?.noNavBar,
+              },
             ]}
           >
             <keep-alive>
               <router-view class='page-wrapper'></router-view>
             </keep-alive>
             <router-view
-              class='page-wrapper'
               key='noCache'
+              class='page-wrapper'
               name='noCache'
             ></router-view>
             <AuthorityModal></AuthorityModal>

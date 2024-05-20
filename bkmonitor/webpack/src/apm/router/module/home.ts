@@ -25,14 +25,14 @@
  */
 import { RouteConfig } from 'vue-router';
 // import * as HomeAuth from '../../pages/home/authority-map';
-const AppList = () => import(/* webpackChunkName: "AppList" */ '../../pages/home/app-list');
+const AppList = () => import(/* webpackChunkName: "AppList" */ '../../pages/home/app-list-new');
 export default [
   {
     path: '/home',
     name: 'home',
     props: true,
     components: {
-      noCache: AppList
+      noCache: AppList,
     },
     meta: {
       title: '首页',
@@ -41,7 +41,7 @@ export default [
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

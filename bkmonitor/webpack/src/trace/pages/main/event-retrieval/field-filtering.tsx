@@ -25,16 +25,15 @@
  */
 import { defineComponent, PropType, reactive, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Exception } from 'bkui-vue';
+import { deepClone } from 'monitor-common/utils/utils';
+import { type FieldListType, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
-import { deepClone } from '../../../../monitor-common/utils/utils';
-import { FieldListType, IFilterCondition } from '../../../../monitor-pc/pages/data-retrieval/typings';
 import { useTraceStore } from '../../../store/modules/trace';
-
 import FieldList, { IDimissionItem, TraceFieldValue } from './field-list';
 
 import './field-filtering.scss';
-
 /**
  * @description: 查询结果统计组件
  */
@@ -44,18 +43,18 @@ const FIELD_VALUE_BASE_INFO = {
   dimensions: [], // 值
   checked: true, // 是否选中
   total: 0,
-  showMore: false // 是否展开更多的条件
+  showMore: false, // 是否展开更多的条件
 };
 
 const IProps = {
   value: {
     type: Array as PropType<TraceFieldValue[]>,
-    default: () => []
+    default: () => [],
   },
   total: {
     type: Number,
-    default: 0
-  }
+    default: 0,
+  },
 };
 
 export default defineComponent({
@@ -72,7 +71,7 @@ export default defineComponent({
       // field: 'status.code',
       field: 'root_service_status_code',
       fieldName: t('状态码'),
-      list_key: 'root_service_status_code'
+      list_key: 'root_service_status_code',
     });
     const rootService = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
@@ -80,7 +79,7 @@ export default defineComponent({
       // field: 'resource.service.name',
       field: 'root_service',
       fieldName: t('入口服务'),
-      list_key: 'root_service'
+      list_key: 'root_service',
     });
     const rootEndpoint = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
@@ -88,7 +87,7 @@ export default defineComponent({
       // field: 'span_name',
       field: 'root_span_name',
       fieldName: t('入口接口'),
-      list_key: 'root_span_name'
+      list_key: 'root_span_name',
     });
     const category = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
@@ -96,7 +95,7 @@ export default defineComponent({
       // field: 'kind',
       field: 'root_service_category',
       fieldName: t('调用类型'),
-      list_key: 'root_service_category'
+      list_key: 'root_service_category',
     });
 
     const spanServiceName = reactive<TraceFieldValue>({
@@ -104,28 +103,28 @@ export default defineComponent({
       key: 'service.name',
       field: 'resource.service.name',
       fieldName: t('所属服务'),
-      list_key: 'service.name'
+      list_key: 'service.name',
     });
     const spanName = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'span_name',
       field: 'span_name',
       fieldName: t('Span 名称'),
-      list_key: 'span_name'
+      list_key: 'span_name',
     });
     const statusCode = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'status',
       field: 'status.code',
       fieldName: t('状态码'),
-      list_key: 'status'
+      list_key: 'status',
     });
     const kind = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'kind',
       field: 'kind',
       fieldName: t('调用类型'),
-      list_key: 'kind'
+      list_key: 'kind',
     });
 
     const interfaceType = reactive<TraceFieldValue>({
@@ -133,21 +132,21 @@ export default defineComponent({
       key: 'kind',
       field: 'kind',
       fieldName: t('接口类型'),
-      list_key: 'kind'
+      list_key: 'kind',
     });
     const interfaceName = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'span_name',
       field: 'span_name',
       fieldName: t('接口名'),
-      list_key: 'span_name'
+      list_key: 'span_name',
     });
     const interfaceServiceName = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'service_name',
       field: 'resource.service.name',
       fieldName: t('所属Service'),
-      list_key: 'service_name'
+      list_key: 'service_name',
     });
 
     const serviceNameInServiceStatistic = reactive<TraceFieldValue>({
@@ -155,21 +154,21 @@ export default defineComponent({
       key: 'service_name',
       field: 'resource.service.name',
       fieldName: 'Service',
-      list_key: 'service_name'
+      list_key: 'service_name',
     });
     const serviceTypeInServiceStatistic = reactive<TraceFieldValue>({
       ...FIELD_VALUE_BASE_INFO,
       key: 'kind',
       field: 'kind',
       fieldName: t('服务类型'),
-      list_key: 'kind'
+      list_key: 'kind',
     });
 
     const localValueMapping = {
       trace: [rootService, rootEndpoint, statusCodes, category],
       span: [spanServiceName, spanName, statusCode, kind],
       interfaceStatistics: [interfaceType, interfaceName, interfaceServiceName],
-      serviceStatistics: [serviceNameInServiceStatistic, serviceTypeInServiceStatistic]
+      serviceStatistics: [serviceNameInServiceStatistic, serviceTypeInServiceStatistic],
     };
 
     localValue.value = localValueMapping[store.listType] || [];
@@ -276,7 +275,7 @@ export default defineComponent({
         trace: store.traceList.length,
         span: store.spanList.length,
         interfaceStatistics: store.interfaceStatisticsList.length,
-        serviceStatistics: store.serviceStatisticsList.length
+        serviceStatistics: store.serviceStatisticsList.length,
       };
       const len = lenMapping[store.listType] || 0;
       const dimensions: IDimissionItem[] = [];
@@ -285,7 +284,7 @@ export default defineComponent({
           id: key,
           percent: Math.round(((fieldObj[key] * 100) / len) * 100) / 100,
           // 调用类型比较特殊，不能直接显示值，要显示他的别名。
-          alias: root_service_categoryMapping?.[key] || ''
+          alias: root_service_categoryMapping?.[key] || '',
         });
       });
       dimensions.sort((a, b) => b.percent - a.percent);
@@ -319,15 +318,15 @@ export default defineComponent({
         <div class='field-list-wrap'>
           {localValue.value.length ? (
             <FieldList
-              value={localValue.value}
               total={total.value}
+              value={localValue.value}
               onAddCondition={handleAddCondition}
               onShowMoreChange={handleShowMoreChange}
             />
           ) : (
             <Exception
-              type='empty'
               scene='part'
+              type='empty'
             ></Exception>
           )}
         </div>
@@ -338,11 +337,11 @@ export default defineComponent({
       total,
       handleAddCondition,
       handleValueChange,
-      localValue
+      localValue,
     };
   },
 
   render() {
     return this.renderDom();
-  }
+  },
 });

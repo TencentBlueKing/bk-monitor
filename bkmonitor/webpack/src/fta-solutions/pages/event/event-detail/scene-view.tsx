@@ -26,12 +26,12 @@
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
-import { random } from '../../../../monitor-common/utils/utils';
-import { type TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
-import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
-import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
+import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
+import { random } from 'monitor-common/utils/utils';
+import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
 import { IDetail, setBizIdToPanel } from './type';
@@ -66,7 +66,7 @@ export default class SceneView extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 当前业务id
-  @ProvideReactive('bkBizId') bkBizId: string | number = null;
+  @ProvideReactive('bkBizId') bkBizId: number | string = null;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   @Watch('show')
@@ -86,12 +86,12 @@ export default class SceneView extends tsc<IProps> {
       method: this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_method || 'AVG',
       variables: {},
       interval,
-      group_by: []
+      group_by: [],
     };
     const viewList = await getSceneViewList({
       bk_biz_id: this.detail.bk_biz_id,
       scene_id: this.sceneId,
-      type: 'detail'
+      type: 'detail',
     }).catch(() => []);
     if (!viewList.length) {
       this.loading = false;
@@ -102,7 +102,7 @@ export default class SceneView extends tsc<IProps> {
       scene_id: this.sceneId,
       type: 'detail',
       id: dashboardId,
-      bk_biz_id: this.detail.bk_biz_id
+      bk_biz_id: this.detail.bk_biz_id,
     }).catch(() => ({ id: '', panels: [], name: '' }));
     const sceneData = new BookMarkModel(data || { id: '', panels: [], name: '' });
     this.isSingleChart =
@@ -150,12 +150,12 @@ export default class SceneView extends tsc<IProps> {
       >
         {!!this.localPanels.length && (
           <DashboardPanel
-            panels={this.localPanels}
-            needOverviewBtn={false}
-            isSplitPanel={false}
-            isSingleChart={this.isSingleChart}
-            column={3}
             id={this.dashboardPanelId}
+            column={3}
+            isSingleChart={this.isSingleChart}
+            isSplitPanel={false}
+            needOverviewBtn={false}
+            panels={this.localPanels}
           ></DashboardPanel>
         )}
         {!this.readonly && !!this.localPanels.length && (

@@ -31,7 +31,7 @@ import { IBookMark, SettingsTabType } from '../../typings';
 import './tab-form.scss';
 
 interface ITabFormProps {
-  canAddTab: Boolean;
+  canAddTab: boolean;
   formData: SettingsTabType.ITabForm;
   bookMarkData: IBookMark[];
 }
@@ -50,16 +50,12 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
   @Prop({ default: false, type: Boolean }) canAddTab: boolean;
   @Ref('tabForm') refForm;
 
-  get checkNewTab() {
-    return this.bookMarkData.some(item => item.id.toString() === this.localForm.id.toString());
-  }
-
   /** 表单数据 */
   localForm: SettingsTabType.ITabForm = {
     id: '',
     name: '',
     // link: '',
-    show_panel_count: true
+    show_panel_count: true,
   };
 
   formRules = {};
@@ -72,7 +68,7 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
         {
           required: true,
           message: this.$t('输入页签名称'),
-          trigger: 'blur'
+          trigger: 'blur',
         },
         {
           validator: () => {
@@ -90,9 +86,9 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
             return false;
           },
           message: this.$t('注意: 名字冲突'),
-          trigger: 'blur'
-        }
-      ]
+          trigger: 'blur',
+        },
+      ],
     };
   }
 
@@ -136,8 +132,8 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
           {...{
             props: {
               model: this.localForm,
-              rules: this.formRules
-            }
+              rules: this.formRules,
+            },
           }}
         >
           <bk-form-item
@@ -162,9 +158,9 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
             property='link'
           >
             <bk-switcher
+              v-model={this.localForm.show_panel_count}
               size='large'
               theme='primary'
-              v-model={this.localForm.show_panel_count}
               onChange={this.handleValueChange}
             ></bk-switcher>
           </bk-form-item>
@@ -178,7 +174,7 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
                 {this.$t('保存')}
               </bk-button>
               {/* <bk-button class="handle-btn" onClick={this.handleReset}>{ this.$t('重置') }</bk-button> */}
-              {this.canAddTab && this.checkNewTab && (
+              {this.canAddTab && (
                 <bk-button
                   class='handle-btn'
                   onClick={this.handleDelete}

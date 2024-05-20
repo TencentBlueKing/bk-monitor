@@ -26,7 +26,7 @@
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { checkDuplicateName } from '../../../monitor-api/modules/apm_meta';
+import { checkDuplicateName } from 'monitor-api/modules/apm_meta';
 
 import { ICreateAppFormData } from './app-list';
 import { IAppSelectOptItem } from './app-select';
@@ -47,23 +47,23 @@ export default class AppAddForm extends tsc<IProps> {
     name: '',
     enName: '',
     desc: '',
-    pluginId: ''
+    pluginId: '',
   };
   rules = {
     name: [
       {
         required: true,
         message: window.i18n.tc('输入应用名,1-50个字符'),
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     enName: [
       {
         validator: val => /^[_|a-zA-Z][a-zA-Z0-9_]*$/.test(val) && val.length >= 5,
         message: window.i18n.t('输入5-50字符的字母开头、数字、下划线'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
   /** 英文名是否重名 */
   existedName = false;
@@ -88,7 +88,7 @@ export default class AppAddForm extends tsc<IProps> {
     this.rules.enName.push({
       message: window.i18n.tc('注意: 名字冲突'),
       trigger: 'none',
-      validator: val => !this.existedName && !!val
+      validator: val => !this.existedName && !!val,
     });
   }
 
@@ -99,7 +99,7 @@ export default class AppAddForm extends tsc<IProps> {
       name: '',
       enName: '',
       desc: '',
-      pluginId: ''
+      pluginId: '',
     };
     this.handleShowChange(false);
   }
@@ -115,8 +115,8 @@ export default class AppAddForm extends tsc<IProps> {
         this.$router.push({
           name: 'application-add',
           params: {
-            appInfo: JSON.stringify({ ...this.formData, ...{ pluginId: this.pluginId } })
-          }
+            appInfo: JSON.stringify({ ...this.formData, ...{ pluginId: this.pluginId } }),
+          },
         });
       }
     }
@@ -128,7 +128,7 @@ export default class AppAddForm extends tsc<IProps> {
       if (!this.formData.enName) return resolve(true);
       if (!/^[_|a-zA-Z][a-zA-Z0-9_]*$/.test(this.formData.enName) || this.formData.enName.length < 5)
         return reject(false);
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       setTimeout(async () => {
         if (this.clickSubmit && !isSubmit) {
           resolve(true);
@@ -153,7 +153,7 @@ export default class AppAddForm extends tsc<IProps> {
   handleConfig(id) {
     this.$router.push({
       name: 'application-config',
-      params: { id }
+      params: { id },
     });
   }
 
@@ -161,14 +161,14 @@ export default class AppAddForm extends tsc<IProps> {
     return (
       <div class='app-add-form-wrap'>
         <bk-dialog
-          value={this.value}
-          title={this.$t('新建应用')}
-          header-position='left'
-          ext-cls='app-add-dialog'
           width={640}
-          onValueChange={this.handleShowChange}
+          ext-cls='app-add-dialog'
           confirm-fn={this.handleConfirm}
+          header-position='left'
+          title={this.$t('新建应用')}
+          value={this.value}
           onCancel={this.handleCancel}
+          onValueChange={this.handleShowChange}
         >
           <div class='app-add-dialog-main'>
             <div class='app-add-desc'>
@@ -184,17 +184,17 @@ export default class AppAddForm extends tsc<IProps> {
               {...{
                 props: {
                   model: this.formData,
-                  rules: this.rules
-                }
+                  rules: this.rules,
+                },
               }}
-              label-width={84}
               ref='addForm'
+              label-width={84}
             >
               <bk-form-item
-                label={this.$t('应用名称')}
-                required
-                property='name'
                 error-display-type='normal'
+                label={this.$t('应用名称')}
+                property='name'
+                required
               >
                 <bk-input
                   v-model={this.formData.name}
@@ -203,10 +203,10 @@ export default class AppAddForm extends tsc<IProps> {
                 />
               </bk-form-item>
               <bk-form-item
-                label={this.$t('英文名')}
-                required
-                property='enName'
                 error-display-type='normal'
+                label={this.$t('英文名')}
+                property='enName'
+                required
               >
                 <bk-input
                   v-model={this.formData.enName}
@@ -217,8 +217,8 @@ export default class AppAddForm extends tsc<IProps> {
               </bk-form-item>
               <bk-form-item label={this.$t('描述')}>
                 <bk-input
-                  type='textarea'
                   v-model={this.formData.desc}
+                  type='textarea'
                 ></bk-input>
               </bk-form-item>
             </bk-form>

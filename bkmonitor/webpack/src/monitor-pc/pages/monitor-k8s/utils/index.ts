@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { deepClone } from '../../../../monitor-common/utils/utils';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import { IBkSeachSelectValue, IQueryDataSearch, IWhere } from '../typings';
 
 /** 视图的设置页面的弹层层级 */
@@ -106,7 +107,7 @@ export const handleCheckVarWhere = (sourceData: VarWhereMap): boolean => {
  * @param {IWhere} where 条件
  * @param {Map} dataMap 变量替换的映射表
  */
-export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, string[] | string>) => {
+export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, string | string[]>) => {
   const result = where
     .filter(item => !!item.value.length)
     .map(item => {
@@ -129,7 +130,7 @@ export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, stri
             total.push(val);
           }
           return total;
-        }, [])
+        }, []),
       };
     });
   return result;
@@ -152,7 +153,7 @@ export const handleGetReferenceKeyList = (srcStr: string): string[] => {
  * @description: 替换变量请求参数中的引用变量
  * @param {Record} srcData
  */
-// eslint-disable-next-line max-len
+
 export const handleReplaceVarData = (data: Record<string, any>, map: Map<string, any>): Record<string, any> => {
   const srcData = deepClone(data);
   /** 特殊处理where条件，where的value格式是数组 */
@@ -175,13 +176,13 @@ export const handleReplaceVarData = (data: Record<string, any>, map: Map<string,
  * @param condition search-select组件值
  * @returns 接口参数
  */
-// eslint-disable-next-line max-len
+
 export const transformConditionValueParams = (condition: IBkSeachSelectValue[]): IQueryDataSearch =>
   condition.map(item => {
     const key = item.values ? item.id : 'keyword';
-    const vlaue = item.values ? (item.multiable ? item.values.map(val => val.id) : item.values[0]?.id) : item.id;
+    const value = item.values ? (item.multiple ? item.values.map(val => val.id) : item.values[0]?.id) : item.id;
     return {
-      [key]: vlaue
+      [key]: value,
     };
   });
 /**
@@ -189,7 +190,7 @@ export const transformConditionValueParams = (condition: IBkSeachSelectValue[]):
  * @param search 搜索条件
  * @returns search-select组件值
  */
-// eslint-disable-next-line max-len
+
 export const transformQueryDataSearch = (search: IQueryDataSearch): IBkSeachSelectValue[] =>
   search.map((item): IBkSeachSelectValue => {
     const key = Object.keys(item)?.[0];
@@ -197,20 +198,20 @@ export const transformQueryDataSearch = (search: IQueryDataSearch): IBkSeachSele
     if (key === 'keyword') {
       return {
         id: value as string,
-        name: value as string
+        name: value as string,
       };
     }
     return {
       id: key,
       name: key,
-      multiable: Array.isArray(value) && key !== 'keyword',
+      multiple: Array.isArray(value) && key !== 'keyword',
       values:
         typeof value === 'string'
           ? [{ id: value, name: value }]
           : value.map(set => ({
               id: set,
-              name: set
-            }))
+              name: set,
+            })),
     };
   }) as IBkSeachSelectValue[];
 
@@ -222,7 +223,7 @@ export const transformQueryDataSearch = (search: IQueryDataSearch): IBkSeachSele
  * @param excludesKeyword 不需要过滤的keyword自定义输入的条件 needFilter = true 生效
  * @returns IBkSeachSelectValue
  */
-// eslint-disable-next-line max-len
+
 export const updateBkSearchSelectName = (
   conditionList: IBkSeachSelectValue[],
   searchList: IBkSeachSelectValue[],
@@ -233,7 +234,7 @@ export const updateBkSearchSelectName = (
   const res = localSearchList.reduce((total: IBkSeachSelectValue[], item) => {
     const target = conditionList.find(tar => tar.id === item.id);
     if (target) {
-      const childList = target.chidlren || [];
+      const childList = target.children || [];
       item.name = target.name;
       item.values = item.values.map(val => {
         const childTarget = childList.find(child => child.id === val.id);
@@ -252,6 +253,20 @@ export const updateBkSearchSelectName = (
 };
 
 /**
+ * 转换成search-select的数据结构
+ * @param conditionList 需要转换的数据
+ * @returns search-select组件的数据结构
+ */
+export const transformConditionSearchList = conditionList => {
+  return conditionList.map(item => {
+    if (item.children?.length) {
+      item.children = transformConditionSearchList(item.children);
+    }
+    return { ...item, multiple: item.multiable === undefined ? item.multiple : item.multiable };
+  });
+};
+
+/**
  * 处理视图部分左侧栏搜索组件bk-search-select 过滤已选得条件
  * @param conditionList 可选项
  * @param searchList 已选中的值
@@ -263,7 +278,6 @@ export const filterSelectorPanelSearchList = (conditionList, searchList) =>
     if (item.children.length === 1) {
       isShow = !searchList.find(set => set.id === item.id && !!set.values);
     } else if (item.children.length > 1) {
-      // eslint-disable-next-line max-len
       item.children = item.children.filter(
         child => !searchList.some(set => set.values?.some?.(val => val.id === child.id) ?? true)
       );

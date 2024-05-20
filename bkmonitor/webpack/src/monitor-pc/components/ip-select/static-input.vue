@@ -26,19 +26,21 @@
 <template>
   <div class="static-input">
     <bk-input
+      v-model="text"
       class="static-input-text"
       :placeholder="$t('多个IP以回车为分隔符')"
-      v-model="text"
-      @keydown.native="handleInputKeydown"
-      @change="handleSearch"
       :type="'textarea'"
       :rows="10"
+      @keydown.native="handleInputKeydown"
+      @change="handleSearch"
     />
     <slot />
     <div
       class="static-input-btn"
       @click="handleChecked"
-    >{{ $t('添加至列表') }}</div>
+    >
+      {{ $t('添加至列表') }}
+    </div>
   </div>
 </template>
 <script>
@@ -48,13 +50,13 @@ export default {
   name: 'StaticInput',
   props: {
     defaultText: String,
-    type: String
+    type: String,
   },
   data() {
     return {
       ipMatch: /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])(\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])){3}$/,
       text: '',
-      handleSearch() {}
+      handleSearch() {},
     };
   },
   watch: {
@@ -62,8 +64,8 @@ export default {
       handler(v) {
         this.text = `${v}`.trim().replace(/(\r|\n){2,}/gm, '\n');
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   created() {
     this.handleSearch = debounce(300, this.handleKeywordChange);
@@ -85,7 +87,7 @@ export default {
         const ipList = this.text.split(/[\r\n]+/gm);
         const errList = new Set();
         const goodList = new Set();
-        ipList.forEach((i) => {
+        ipList.forEach(i => {
           const ip = i.trim();
           if (ip.match(this.ipMatch)) {
             goodList.add(ip);
@@ -104,8 +106,8 @@ export default {
     },
     handleKeywordChange(v) {
       this.$emit('change-input', v);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

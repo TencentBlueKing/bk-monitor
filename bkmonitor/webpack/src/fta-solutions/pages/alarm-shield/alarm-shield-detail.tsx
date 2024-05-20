@@ -26,15 +26,14 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AlarmShieldDetail from '../../../monitor-pc/pages/alarm-shield/alarm-shield-detail/alarm-shield-detail.vue';
+import AlarmShieldDetail from 'monitor-pc/pages/alarm-shield/alarm-shield-detail/alarm-shield-detail.vue';
 
 Component.registerHooks(['beforeRouteEnter']);
 @Component
-export default class FtaAlarmShieldDetail extends tsc<{}> {
+export default class FtaAlarmShieldDetail extends tsc<object> {
   fromRouteName = '';
   beforeRouteEnter(to, from, next) {
     next((vm: FtaAlarmShieldDetail) => {
-      // eslint-disable-next-line no-param-reassign
       vm.fromRouteName = from.name;
     });
   }

@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { traceChats } from 'monitor-api/modules/apm_trace';
 import { defineStore } from 'pinia';
 
-import { traceChats } from '../../../monitor-api/modules/apm_trace';
 import { IPanelModel, PanelModel } from '../../plugins/typings';
 
 export interface ISearchState {
@@ -37,7 +37,7 @@ export interface ISearchState {
 export const useSearchStore = defineStore('search', {
   state: (): ISearchState => ({
     chartPanelList: [],
-    chartLoading: false
+    chartLoading: false,
   }),
   actions: {
     /**
@@ -48,10 +48,10 @@ export const useSearchStore = defineStore('search', {
     async getPanelList(appName: string) {
       this.chartLoading = true;
       const panelList = await traceChats({
-        app_name: appName
+        app_name: appName,
       }).catch(() => []);
       this.chartPanelList = panelList.map((panel: IPanelModel) => new PanelModel(panel));
       this.chartLoading = false;
-    }
-  }
+    },
+  },
 });

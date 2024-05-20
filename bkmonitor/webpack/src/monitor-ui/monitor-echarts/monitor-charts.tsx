@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { ofType } from 'vue-tsx-support';
-import Echarts, { EChartOption } from 'echarts';
 
-import { ChartType, IStatusChartOption, IStatusSeries, ITextChartOption, ITextSeries } from './options/type-interface';
 import MonitorCharts from './monitor-echarts-new.vue';
+import { ChartType, IStatusChartOption, IStatusSeries, ITextChartOption, ITextSeries } from './options/type-interface';
+import { type MonitorEchartOptions, type MonitorEchartSeries } from './types/monitor-echarts';
 
 interface IAlarmStatus {
   status: number;
@@ -35,7 +35,7 @@ interface IAlarmStatus {
   strategy_number: number;
 }
 interface IMonitorEchartsProps {
-  options: Echarts.EChartOption | IStatusChartOption | ITextChartOption;
+  options: IStatusChartOption | ITextChartOption | MonitorEchartOptions;
   watchOptionsDeep: boolean;
   autoresize: boolean;
   // 是否需要设置全屏
@@ -52,9 +52,9 @@ interface IMonitorEchartsProps {
   title: string;
   subtitle: string;
   // 图表系列数据
-  series: EChartOption.SeriesLine | EChartOption.SeriesBar | IStatusSeries | ITextSeries;
+  series: IStatusSeries | ITextSeries | MonitorEchartSeries;
   // 背景图
-  backgroundUrl: String;
+  backgroundUrl: string;
   // 获取图标数据
   getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;
   // 获取指标告警状态信息

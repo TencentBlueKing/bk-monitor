@@ -26,8 +26,8 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import WhereDisplay from '../../../../fta-solutions/pages/event/event-detail/where-display';
-import { random } from '../../../../monitor-common/utils/utils';
+import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
+import { random } from 'monitor-common/utils/utils';
 
 import './alarm-shield-detail-dimension.scss';
 
@@ -62,10 +62,10 @@ export default class AlarmShieldDetailDimension extends tsc<IProps> {
           <div class='item-content'>
             {this.conditionList.length ? (
               <WhereDisplay
-                value={this.conditionList as any}
-                readonly={true}
-                allNames={this.allNames}
                 key={this.conditionKey}
+                allNames={this.allNames}
+                readonly={true}
+                value={this.conditionList as any}
               ></WhereDisplay>
             ) : (
               '--'

@@ -19,6 +19,7 @@ import shutil
 import tarfile
 import uuid
 from uuid import uuid4
+import re
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -62,6 +63,7 @@ from bkmonitor.utils.text import convert_filename
 from bkmonitor.utils.time_tools import now
 from bkmonitor.views import serializers
 from constants.strategy import TargetFieldType
+from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.tasks import step
 from core.errors.export_import import (
@@ -327,6 +329,7 @@ class ExportPackageResource(Resource):
                         self.associated_collect_config_list.append(condition["value"].split("(")[0])
 
         self.associated_collect_config_list = list(set(self.associated_collect_config_list))
+        self.associated_collect_config_list = [i for i in self.associated_collect_config_list if i]
 
         all_collect_ids = list(set(self.collect_config_ids + self.associated_collect_config_list))
         self.associated_plugin_list = list(
@@ -469,6 +472,18 @@ class ExportPackageResource(Resource):
                         query_config["agg_dimension"] = extend_msg["agg_dimension"]
                         query_config["extend_fields"] = {}
                         query_config["agg_dimension"].extend(target_type_to_dimensions[target_type])
+
+                    # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID替换为 data_label
+                    data_label = query_config.get("data_label", None)
+                    if settings.ENABLE_DATA_LABEL_EXPORT and data_label and \
+                            (query_config.get("data_source_label", None)
+                             in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]):
+                        query_config["metric_id"] = re.sub(
+                            rf"\b{query_config['result_table_id']}\b",
+                            data_label,
+                            query_config["metric_id"]
+                        )
+                        query_config["result_table_id"] = data_label
 
             with open(
                 os.path.join(

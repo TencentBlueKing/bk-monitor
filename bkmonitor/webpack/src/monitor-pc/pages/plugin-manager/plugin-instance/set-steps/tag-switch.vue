@@ -27,7 +27,7 @@
 <template>
   <div
     class="tag-switch-wrapper"
-    :style="{ paddingBottom: (showValidate && message) ? '18px' : 0 }"
+    :style="{ paddingBottom: showValidate && message ? '18px' : 0 }"
   >
     <bk-tag v-show="isTag">
       <span @click="switchStatus(false)">{{ `${tagLabel}:${value}` }}</span>
@@ -47,46 +47,42 @@
         @keydown.enter.native="switchStatus(true)"
       />
     </verify-input>
-
   </div>
 </template>
 
-
 <script>
-
-
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 
 export default {
   name: 'TagSwitch',
   components: {
-    VerifyInput
+    VerifyInput,
   },
   props: {
     tagLabel: {
       type: String,
-      default: ''
+      default: '',
     },
     value: {
       type: String,
-      required: true
+      required: true,
     },
     showValidate: {
       type: Boolean,
-      default: false
+      default: false,
     },
     message: {
       type: String,
-      default: ''
+      default: '',
     },
     position: {
       type: String,
-      default: 'bottom'
-    }
+      default: 'bottom',
+    },
   },
   data() {
     return {
-      isTag: true
+      isTag: true,
     };
   },
   methods: {
@@ -101,8 +97,8 @@ export default {
     },
     handleInput(val) {
       this.$emit('input', val);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

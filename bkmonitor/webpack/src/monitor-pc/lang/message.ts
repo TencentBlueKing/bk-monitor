@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -44,6 +43,7 @@ export default {
   克隆屏蔽成功: 'Clone mute successful',
   删除插件成功: 'Delete plugin successful',
   文件上传成功: 'File upload successful',
+  上传成功: 'Upload Successful',
   样例复制成功: 'Example copied successful',
   解散任务组成功: 'Dissolve task group successful',
   创建拨测任务成功: 'Create probe task successful',
@@ -91,6 +91,8 @@ export default {
   批量修改生效时间段成功: 'Bulk modify effective time period successful',
   批量修改告警恢复通知成功: 'Bulk modify alarm recovery notification successful',
   批量修改告警风暴开关成功: 'Bulk modify alarm storm switch successful',
+  批量修改通知升级成功: 'Batch modification notification upgrade successful',
+  批量修改算法成功: 'Batch modification algorithm successful',
   更新成功: 'Update successful',
   成功: 'Success',
   成功时: 'Success',
@@ -216,6 +218,7 @@ export default {
   '升级过程中，请勿关闭页面。': 'Please do not close the page during the upgrade process.',
   '采集任务正在停用中…': 'Collection Task is Being Disabled...',
   已加载全部数据: 'All data loaded',
+  文件解析中: 'Parsing file...',
 
   // - Empty Text：空数据文本，用于描述数据为空的情况，例如“暂无数据”等。
   无告警事件: 'No alarms',
@@ -436,5 +439,11 @@ export default {
   确定回收当前分享链接: 'Recycle the sharing link ?',
   '是否还原默认配置？': 'Do you want to restore the default configuration?',
   发送测试邮件成功: 'Sent test Email successful',
-  索引集非COUNT汇聚方法需要选择一个指标: 'The index set non-COUNT aggregation method needs to select a metric'
+  索引集非COUNT汇聚方法需要选择一个指标: 'The index set non-COUNT aggregation method needs to select a metric',
+  '是否克隆 {0} ?': 'Do you want to clone {0}?',
+  '是否删除 {0} ?': 'Do you want to delete {0}?',
+  '是否取消 {0} 的订阅?': 'Do you want to unsubscribe {0}?',
+  '是否重新订阅 {0} ?': 'Do you want to re-subscribe {0}?',
+  取消订阅成功: 'Unsubscribe successful',
+  重新订阅成功: 'Re-subscribe successful',
 };

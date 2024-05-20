@@ -33,53 +33,55 @@ import { messageError } from '@/common/bkmagic';
 import CachedPromise from './cached-promise';
 import RequestQueue from './request-queue';
 import HttpRequst from './_httpRequest';
-import mockList from '@/mock/index.js';
 import serviceList from '@/services/index.js';
 import { context, trace } from '@opentelemetry/api';
 import { makeMessage } from '@/common/util';
 import i18n from '@/language/i18n';
+import { showLoginModal } from '@blueking/login-modal';
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
 // axios 实例
-const axiosInstance = axios.create({
+export const axiosInstance = axios.create({
   headers: { 'X-Requested-With': 'XMLHttpRequest' },
   xsrfCookieName: 'bklog_csrftoken',
   xsrfHeaderName: 'X-CSRFToken',
   withCredentials: true,
-  baseURL,
+  baseURL
 });
 
 /**
  * request interceptor
  */
-axiosInstance.interceptors.request.use((config) => {
-  // 绝对路径不走 mock
-  if (!/^(https|http)?:\/\//.test(config.url)) {
-    // const prefix = config.url.indexOf('?') === -1 ? '?' : '&';
-    config.url = config.url;
-  }
-  // 外部版后端需要读取header里的 spaceUid
-  if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
-    config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
-  }
-  return config;
-}, error => Promise.reject(error));
+axiosInstance.interceptors.request.use(
+  config => {
+    if (!/^(https|http)?:\/\//.test(config.url)) {
+      // const prefix = config.url.indexOf('?') === -1 ? '?' : '&';
+      config.url = config.url;
+    }
+    // 外部版后端需要读取header里的 spaceUid
+    if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
+      config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
+    }
+    return config;
+  },
+  error => Promise.reject(error)
+);
 
 /**
  * response interceptor
  */
 axiosInstance.interceptors.response.use(
   response => response.data,
-  error => Promise.reject(error),
+  error => Promise.reject(error)
 );
 
 const http = {
-  $request: new HttpRequst(axiosInstance, { mockList, serviceList }),
+  $request: new HttpRequst(axiosInstance, { serviceList }),
   queue: new RequestQueue(),
   cache: new CachedPromise(),
   cancelRequest: requestId => http.queue.cancel(requestId),
   cancelCache: requestId => http.cache.delete(requestId),
-  cancel: requestId => Promise.all([http.cancelRequest(requestId), http.cancelCache(requestId)]),
+  cancel: requestId => Promise.all([http.cancelRequest(requestId), http.cancelCache(requestId)])
 };
 
 // const methodsWithoutData = ['delete', 'get', 'head', 'options']
@@ -89,7 +91,7 @@ const http = {
 Object.defineProperty(http, 'request', {
   get() {
     return getRequest('request');
-  },
+  }
 });
 
 /**
@@ -162,7 +164,8 @@ async function getPromise(method, url, data, userConfig = {}) {
         reject(error);
       }
     });
-  }).catch(error => handleReject(error, config))
+  })
+    .catch(error => handleReject(error, config))
     .finally(() => {
       // console.log('finally', config)
     });
@@ -189,7 +192,7 @@ function handleResponse({ config, response, resolve, reject }) {
     reject({ message: response.message, code, data: response.data || {} });
     store.commit('updateAuthDialogData', {
       apply_url: response.data.apply_url,
-      apply_data: response.permission,
+      apply_data: response.permission
     });
   } else if (code !== 0 && config.globalError) {
     reject({ message: response.message, code, data: response.data || {} });
@@ -232,8 +235,8 @@ function handleReject(error, config) {
       const loginData = error.response.data;
       if (loginData.has_plain) {
         try {
-          window.LoginModal.$props.loginUrl = loginData.login_url;
-          window.LoginModal.show();
+          const { login_url: loginUrl } = loginData;
+          showLoginModal({ loginUrl });
         } catch (_) {
           handleLoginExpire();
         }
@@ -310,7 +313,7 @@ function initConfig(method, url, userConfig) {
     cancelPrevious: true,
     // 接口报错是否弹bkMessage弹窗
     catchIsShowMessage: true,
-    span: trace.getTracer('bk-log').startSpan('api'),
+    span: trace.getTracer('bk-log').startSpan('api')
   };
   return Object.assign(defaultConfig, userConfig);
 }
@@ -322,12 +325,12 @@ function initConfig(method, url, userConfig) {
  */
 function getCancelToken() {
   let cancelExcutor;
-  const cancelToken = new axios.CancelToken((excutor) => {
+  const cancelToken = new axios.CancelToken(excutor => {
     cancelExcutor = excutor;
   });
   return {
     cancelToken,
-    cancelExcutor,
+    cancelExcutor
   };
 }
 

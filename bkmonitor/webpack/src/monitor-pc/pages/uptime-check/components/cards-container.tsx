@@ -25,9 +25,9 @@
  */
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
-import { Debounce } from '../../../../monitor-common/utils/utils';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { Debounce } from 'monitor-common/utils/utils';
 
 import './cards-container.scss';
 
@@ -37,7 +37,7 @@ interface ICardsContainerProps {
 }
 
 @Component({
-  name: 'CardsContainer'
+  name: 'CardsContainer',
 })
 export default class CardsContainer extends tsc<ICardsContainerProps> {
   @Prop({ type: String, default: '' }) title: string;
@@ -86,9 +86,9 @@ export default class CardsContainer extends tsc<ICardsContainerProps> {
           </div>
           {this.showSeeAll && !this.seeAllDisable ? (
             <bk-button
-              text
-              title='primary'
               class='right-btn'
+              title='primary'
+              text
               on-click={this.handleClickSeeAll}
             >
               {this.isSeeAll ? this.$t('收起') : this.$t('显示全部')}
@@ -96,8 +96,8 @@ export default class CardsContainer extends tsc<ICardsContainerProps> {
           ) : undefined}
         </div>
         <div
-          class={['content', { 'pack-up': !this.isSeeAll && this.showSeeAll }]}
           ref='content'
+          class={['content', { 'pack-up': !this.isSeeAll && this.showSeeAll }]}
         >
           {this.$slots.default}
         </div>

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -27,11 +26,12 @@
 import { computed, defineComponent, Ref, ref, VNode } from 'vue';
 import { TranslateResult, useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+
 import { bkTooltips, Button, Dialog, InfoBox, Message, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-api/modules/share';
+import { copyText } from 'monitor-common/utils/utils';
 
-import { createShareToken, deleteShareToken, updateShareToken } from '../../../monitor-api/modules/share';
-import { copyText } from '../../../monitor-common/utils/utils';
 import { useAppStore } from '../../store/modules/app';
 import TimeRangeComp from '../time-range/time-range';
 import { TimeRange, TimeRangeType } from '../time-range/utils';
@@ -41,10 +41,10 @@ import './temporary-share.scss';
 const MomentFormater = 'YYYY-MM-DD HH:mm:ss';
 export default defineComponent({
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: {
-    onlyCopy: Boolean
+    onlyCopy: Boolean,
   },
   setup(props) {
     const route = useRoute();
@@ -80,7 +80,7 @@ export default defineComponent({
       copyText(typeof url === 'string' ? url : shareUrl.value, (errMsg: string) => {
         Message({
           message: errMsg,
-          theme: 'error'
+          theme: 'error',
         });
         hasErr = !!errMsg;
       });
@@ -111,15 +111,15 @@ export default defineComponent({
             isLockSearch.value
               ? {
                   from: dayjs.tz(timeRange.value[0]).format(MomentFormater),
-                  to: dayjs.tz(timeRange.value[1]).format(MomentFormater)
+                  to: dayjs.tz(timeRange.value[1]).format(MomentFormater),
                 }
               : {}
           ),
           name: route.name,
           params: route.params,
           path: route.path,
-          weWebData
-        }
+          weWebData,
+        },
       };
     }
     // 隐藏弹窗
@@ -130,7 +130,7 @@ export default defineComponent({
     async function updateShareTokenFunc() {
       const data = await updateShareToken({
         ...getShareTokenParams(),
-        token: token.value
+        token: token.value,
       }).catch(() => ({ token: token.value }));
       token.value = data.token || token.value;
     }
@@ -148,24 +148,24 @@ export default defineComponent({
         subTitle: t('所有的历史分享链接都将失效'),
         onConfirm: async () =>
           deleteShareToken({
-            type: getShareTokenParams().type
+            type: getShareTokenParams().type,
           })
             .then(() => {
               Message({
                 theme: 'success',
-                message: t('回收成功')
+                message: t('回收成功'),
               });
               show.value = false;
               return true;
             })
-            .catch(() => false)
+            .catch(() => false),
       } as any);
     }
     function commonItem(title: TranslateResult, child: VNode, style?: Record<string, any>) {
       return (
         <div
-          class='share-item'
           style={style}
+          class='share-item'
         >
           <span class='share-item-title'>{title}</span>
           <div class='share-item-content'>{child}</div>
@@ -200,8 +200,8 @@ export default defineComponent({
       return (
         <div class='lock-timerange'>
           <Switcher
-            value={isLockSearch.value}
             theme='primary'
+            value={isLockSearch.value}
             onChange={handleLockSearchChange}
           ></Switcher>
         </div>
@@ -244,36 +244,36 @@ export default defineComponent({
       shareTimeRange,
       lockTimeRange,
       handleDeleteAuth,
-      shareDeadline
+      shareDeadline,
     };
   },
   render() {
     const tipsOpts = {
       content: !this.onlyCopy ? this.$t('临时分享') : this.$t('复制链接'),
       delay: 200,
-      placement: 'right'
+      placement: 'right',
     };
     return (
       <div class='temporary-share'>
         <span
-          v-bk-tooltips={tipsOpts}
-          class={['icon-monitor', this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share']}
           style='font-size: 16px;'
+          class={['icon-monitor', this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share']}
+          v-bk-tooltips={tipsOpts}
           onClick={this.handleShowDialog}
         ></span>
         {!this.onlyCopy && (
           <Dialog
-            isShow={this.show}
-            dialogType='show'
             width={700}
-            title={this.$t('临时分享').toString()}
-            appendToBody={true}
             class='temporary-share'
+            appendToBody={true}
+            dialogType='show'
+            isShow={this.show}
+            title={this.$t('临时分享').toString()}
             onClosed={this.handleHideDialog}
           >
             <div
-              class='share-wrap'
               style='margin-top: 18px'
+              class='share-wrap'
             >
               {this.commonItem(this.$t('分享链接'), this.shareLink())}
             </div>
@@ -286,5 +286,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

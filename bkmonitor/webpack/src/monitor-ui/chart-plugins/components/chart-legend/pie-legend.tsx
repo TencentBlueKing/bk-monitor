@@ -26,7 +26,6 @@
 import { Component, Emit } from 'vue-property-decorator';
 
 import { ILegendItem, LegendActionType } from '../../typings';
-
 import CommonLegend from './common-legend';
 
 import './pie-legend.scss';
@@ -49,19 +48,19 @@ export default class TableLegend extends CommonLegend {
           if (legend.hidden) return undefined;
           return (
             <div
-              class='pie-legend-item'
               key={index}
+              class='pie-legend-item'
               onClick={e => this.handleLegendEvent(e, 'click', legend)}
               onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
               onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}
             >
               <span
-                class='legend-icon'
                 style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
+                class='legend-icon'
               ></span>
               <div
-                class='legend-name'
                 style={{ color: legend.show ? '#63656e' : '#ccc' }}
+                class='legend-name'
               >
                 {legend.name}
               </div>

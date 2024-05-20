@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import json
 from typing import Any, Dict, List, Tuple
 
+from dateutil import tz
+
 from apps.log_esquery.esquery.builder.query_filter_builder import QueryFilterBuilder
 from apps.log_esquery.esquery.builder.query_index_optimizer import QueryIndexOptimizer
 from apps.log_esquery.esquery.builder.query_sort_builder import QuerySortBuilder
@@ -41,15 +43,22 @@ from apps.log_search.exceptions import (
 )
 from apps.log_search.models import Scenario, Space, SpaceApi
 from apps.utils.log import logger
+from apps.utils.lucene import EnhanceLuceneAdapter
 from apps.utils.time_handler import generate_time_range
 from bkm_space.utils import bk_biz_id_to_space_uid
-from dateutil import tz
 
 
 class EsQuery(object):
     def __init__(self, search_dict: type_search_dict):
         self.search_dict: Dict[str, Any] = search_dict
+        self._enhance()
         self.include_nested_fields: bool = search_dict.get("include_nested_fields", True)
+
+    def _enhance(self):
+        if self.search_dict.get("query_string", ""):
+            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.search_dict["query_string"])
+            self.search_dict["query_string"] = enhance_lucene_adapter.enhance()
+            self.search_dict["origin_query_string"] = enhance_lucene_adapter.origin_query_string
 
     def _init_common_args(self):
         # 初始刷查询场景类型 bkdata log 或者 es, 以及连接信息ID
@@ -222,6 +231,8 @@ class EsQuery(object):
     # 调用客户端执行dsl
     def dsl(self):
         dsl: dict = self.search_dict.get("body", {})
+        # 当开启scroll的时候，需要传递scroll参数
+        scroll = self.search_dict.get("scroll", None)
         scenario_id, index_set_string, storage_cluster_id = self._init_common_args()
         bkdata_authentication_method, bkdata_data_token = self._init_bkdata_args()
         # 获取client
@@ -236,7 +247,7 @@ class EsQuery(object):
 
         logger.info(f"[esquery_dsl] index => [{index}], dsl => [{dsl}]")
 
-        result: Dict = client.query(index, dsl)
+        result: Dict = client.query(index, dsl, scroll=scroll)
         result = self.compatibility_result(result)
         result.update({"dsl": json.dumps(dsl)})
         return result
@@ -259,6 +270,7 @@ class EsQuery(object):
         index_set_string = self._optimizer_mapping_time_range(
             index_set_string, scenario_id, start_time, end_time, time_zone
         )
+        add_settings_details: bool = self.search_dict.get("add_settings_details", False)
         client = QueryClient(
             scenario_id,
             storage_cluster_id=storage_cluster_id,
@@ -266,7 +278,7 @@ class EsQuery(object):
             bkdata_data_token=bkdata_data_token,
         ).get_instance()
 
-        result: Dict = client.mapping(index_set_string)
+        result: Dict = client.mapping(index=index_set_string, add_settings_details=add_settings_details)
 
         result_key_list: list = list(result)
         sorted_result_key_list: list = sorted(result_key_list, key=lambda x: x, reverse=True)

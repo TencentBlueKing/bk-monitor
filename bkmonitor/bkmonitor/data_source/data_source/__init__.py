@@ -590,6 +590,12 @@ class TimeSeriesDataSource(DataSource):
 
     DEFAULT_TIME_FIELD = "time"
 
+    def rollback_query(self):
+        pass
+
+    def switch_unify_query(self, bk_biz_id):
+        raise NotImplementedError("Not implemented yet")
+
     @classmethod
     def init_by_query_config(cls, query_config: Dict, *args, bk_biz_id=0, name="", **kwargs):
         """
@@ -748,7 +754,11 @@ class TimeSeriesDataSource(DataSource):
         # 聚合方法参数
         query_list = []
         for metric in self.metrics:
-            table = self.table.lower()
+            if self.data_source_label == DataSourceLabel.BK_DATA:
+                # 计算平台表名大小写敏感
+                table = self.table
+            else:
+                table = self.table.lower()
 
             # 如果接入了数据平台，且是cmdb level表的查询，则需要去除后缀
             if settings.IS_ACCESS_BK_DATA and self.is_cmdb_level_query(
@@ -1017,11 +1027,58 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
 
     DEFAULT_TIME_FIELD = "dtEventTimeStamp"
 
+    def switch_unify_query(self, bk_biz_id):
+        def _check(bk_biz_id):
+            # __init__ 之前的会有该判定被调用， 此时属性还未被赋值
+            # 1. 如果使用了查询函数，会走统一查询模块
+            if getattr(self, "functions", []):
+                return True
+            # 2. 不支持一次查询多个指标，使用 bksql
+            # 当 metrics 有多个时，表示特殊逻辑
+            if len(getattr(self, "metrics", [])) > 1:
+                return False
+            # 3. 灰度状态： 灰度业务列表不包含0业务表示灰度中
+            grayscale = 0 not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
+            if grayscale:
+                # 3.1 灰度数据源基于业务进行灰度
+                return bk_biz_id in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
+            # 4. 不灰度就是全量(灰度列表包含 0 业务)
+            return True
+
+        self._using_unify_query = _check(bk_biz_id)
+        if self._using_unify_query:
+            if getattr(self, "_advance_where", []):
+                # 使用unify-query，不处理高级条件
+                self.ADVANCE_CONDITION_METHOD = []
+                self.where = self._advance_where
+                self._advance_where = []
+        else:
+            if hasattr(self, "_advance_where"):
+                # 实例初始化完成后的判定，需要重新处理高级条件
+                self.rollback_query()
+
+        return self._using_unify_query
+
+    def rollback_query(self):
+        # 回退 bksql, 高级过滤转换。
+        self.ADVANCE_CONDITION_METHOD = AdvanceConditionMethod
+        if self._advance_where:
+            # 已经处理过高级条件，不重复处理
+            return
+        self._update_params_by_advance_method()
+
     def __init__(self, *args, **kwargs):
+        # datasource初始化部分基于 init_by_query_config， 部分是直接初始化
+        # 风险： 初始化参数中可能不存在业务id信息
+        bk_biz_id = kwargs.get("bk_biz_id")
+        if bk_biz_id and self.switch_unify_query(bk_biz_id):
+            # 当计算平台查询走unify-query的时候，不额外处理高级过滤方法
+            # 影响函数： _update_params_by_advance_method
+            self.ADVANCE_CONDITION_METHOD = []
         super(BkdataTimeSeriesDataSource, self).__init__(*args, **kwargs)
 
         # 对用户的请求进行鉴权
-        if "bk_biz_id" in kwargs:
+        if bk_biz_id:
             bk_biz_id = str(kwargs["bk_biz_id"])
             table_prefix = re.match(r"^(\d*)", self.table).groups()[0]
             if not table_prefix or table_prefix == str(settings.BK_DATA_BK_BIZ_ID):
@@ -1030,6 +1087,13 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
             if table_prefix != bk_biz_id:
                 logger.error(f"用户请求bkdata数据源无权限(result_table_id:{self.table}, 业务id: {bk_biz_id})")
                 raise PermissionDeniedError(action_name=bk_biz_id)
+
+    def to_unify_query_config(self) -> List[Dict]:
+        # unify 定义 bkdata 查询配置制定data_source字段
+        query_list = super().to_unify_query_config()
+        for query in query_list:
+            query["data_source"] = "bkdata"
+        return query_list
 
     @classmethod
     def _get_queryset(cls, *, metrics: List[Dict] = None, **kwargs):
@@ -1076,9 +1140,6 @@ class CustomTimeSeriesDataSource(TimeSeriesDataSource):
 
     def __init__(self, *args, **kwargs):
         super(CustomTimeSeriesDataSource, self).__init__(*args, **kwargs)
-
-        if judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table):
-            self.filter_dict["bk_biz_id"] = str(kwargs["bk_biz_id"])
 
 
 class LogSearchTimeSeriesDataSource(TimeSeriesDataSource):

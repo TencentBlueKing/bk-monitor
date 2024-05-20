@@ -26,8 +26,8 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { copyText } from '../../../../monitor-common/utils/utils';
-import TemporaryShare from '../../../../monitor-pc/components/temporary-share/temporary-share';
+import { copyText } from 'monitor-common/utils/utils';
+import TemporaryShare from 'monitor-pc/components/temporary-share/temporary-share';
 
 import ActionDetail from './action-detail';
 import EventDetail from './event-detail';
@@ -75,7 +75,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   }
 
   // 复制事件详情连接
-  handleToEventDetail(type: 'detail' | 'action-detail', isNewPage = false) {
+  handleToEventDetail(type: 'action-detail' | 'detail', isNewPage = false) {
     let url = location.href.replace(location.hash, `#/event-center/${type}/${this.eventId}`);
     const { bizId } = this.$store.getters;
     url = url.replace(location.search, `?bizId=${this.bizId || bizId}`);
@@ -86,18 +86,18 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
     copyText(url, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
   // 作为新页面打开
-  newPageBtn(type: 'detail' | 'action-detail') {
+  newPageBtn(type: 'action-detail' | 'detail') {
     return (
       <span
         class='new-page-btn'
@@ -127,8 +127,8 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
             ></i>
           ) : (
             <TemporaryShare
-              navMode={'share'}
               customData={{ eventId: this.eventId }}
+              navMode={'share'}
               pageInfo={{ alertName: this.alertName }}
             />
           )}
@@ -144,7 +144,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           ></i>
           {this.newPageBtn('action-detail')}
         </div>
-      )
+      ),
     };
     return tplMap[this.type]();
   }
@@ -154,15 +154,20 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
     const tplMap = {
       eventDetail: () => (
         <EventDetail
-          class='event-detail-content'
           id={this.eventId}
-          bizId={this.bizId}
+          class='event-detail-content'
           activeTab={this.activeTab}
+          bizId={this.bizId}
           onCloseSlider={() => this.emitIsShow(false)}
           onInfo={this.handleInfo}
         ></EventDetail>
       ),
-      handleDetail: () => <ActionDetail id={this.eventId}></ActionDetail>
+      handleDetail: () => (
+        <ActionDetail
+          id={this.eventId}
+          bizId={this.bizId}
+        ></ActionDetail>
+      ),
     };
     return tplMap[this.type]();
   }
@@ -174,13 +179,13 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         // transfer={true}
         isShow={this.isShow}
         {...{ on: { 'update:isShow': this.emitIsShow } }}
-        quick-close={true}
         width={this.width}
+        quick-close={true}
         onHidden={this.handleHiddenSlider}
       >
         <div
-          slot='header'
           class='sideslider-title'
+          slot='header'
         >
           {this.tplTitle()}
         </div>

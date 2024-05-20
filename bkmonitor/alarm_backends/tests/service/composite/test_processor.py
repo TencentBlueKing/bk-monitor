@@ -24,8 +24,9 @@ from alarm_backends.core.cache.key import (
     COMPOSITE_QOS_COUNTER,
 )
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.composite.processor import CompositeProcessor
-from bkmonitor.models import CacheNode, CacheRouter
+from bkmonitor.models import CacheNode
 from constants.action import ActionSignal
 from constants.alert import EventStatus
 
@@ -142,7 +143,7 @@ STRATEGY = {
 
 class TestProcessor(TestCase):
     def setUp(self) -> None:
-        CacheRouter.get_node_by_strategy_id(0)
+        get_node_by_strategy_id(0)
         CacheNode.refresh_from_settings()
         COMPOSITE_DIMENSION_KEY_LOCK.client.flushall()
         self.kafka_mock = mock.patch("alarm_backends.core.alert.adapter.MonitorEventAdapter.push_to_kafka")
@@ -698,7 +699,7 @@ class TestProcessor(TestCase):
         cache_key = ALERT_DETECT_RESULT.get_key(alert_id=alert.id)
         ALERT_DETECT_RESULT.client.set(cache_key, alert.severity, ALERT_DETECT_RESULT.ttl)
         processor = CompositeProcessor(alert=alert)
-        action=processor.process_single_strategy()
+        action = processor.process_single_strategy()
         self.assertEqual(action["strategy_id"], event.strategy_id)
         self.assertEqual(8, int(action["strategy_id"]))
         self.assertEqual(ActionSignal.ABNORMAL, action["signal"])
@@ -763,7 +764,7 @@ class TestProcessor(TestCase):
     def test_qos(self):
         success = failed = 0
         processor = CompositeProcessor(
-            Alert({"alert_name": "test", "severity": 2, "strategy_id": 1, "id": f"alert_id"}), "ABNORMAL"
+            Alert({"alert_name": "test", "severity": 2, "strategy_id": 1, "id": "alert_id"}), "ABNORMAL"
         )
         for i in range(settings.QOS_DROP_ACTION_THRESHOLD):
             processor.alert = Alert({"alert_name": "test", "severity": 2, "strategy_id": 1, "id": f"alert_id{i}"})

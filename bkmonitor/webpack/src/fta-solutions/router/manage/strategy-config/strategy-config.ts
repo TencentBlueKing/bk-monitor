@@ -25,7 +25,7 @@
  */
 import { RouteConfig } from 'vue-router';
 
-import * as ruleAuth from '../../../../monitor-pc/pages/strategy-config/authority-map';
+import * as ruleAuth from 'monitor-pc/pages/strategy-config/authority-map';
 
 const StrategyConfig = () =>
   import(/* webpackChunkName: "StrategyConfig" */ '../../../pages/strategy-config/strategy-config');
@@ -45,13 +45,13 @@ export default [
       navId: 'strategy-config',
       noNavBar: true,
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       authority: {
         map: ruleAuth,
-        page: ruleAuth.VIEW_AUTH
-      }
-    }
+        page: ruleAuth.VIEW_AUTH,
+      },
+    },
   },
   {
     path: '/strategy-config/edit/:id',
@@ -62,36 +62,36 @@ export default [
       title: '编辑策略配置',
       navId: 'strategy-config',
       route: {
-        parent: 'strategy-config'
+        parent: 'strategy-config',
       },
       authority: {
         map: ruleAuth,
-        page: ruleAuth.MANAGE_AUTH
+        page: ruleAuth.MANAGE_AUTH,
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/strategy-config/detail/:id',
     name: 'strategy-config-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: StrategyConfigDetail
+      noCache: StrategyConfigDetail,
     },
     meta: {
       title: '策略配置详情',
       navId: 'strategy-config',
       route: {
-        parent: 'strategy-config'
+        parent: 'strategy-config',
       },
       authority: {
         map: ruleAuth,
-        page: ruleAuth.VIEW_AUTH
+        page: ruleAuth.VIEW_AUTH,
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/strategy-config/add',
@@ -101,14 +101,14 @@ export default [
       title: '新建策略配置',
       navId: 'strategy-config',
       route: {
-        parent: 'strategy-config'
+        parent: 'strategy-config',
       },
       noNavBar: true,
       authority: {
         map: ruleAuth,
-        page: ruleAuth.MANAGE_AUTH
-      }
-    }
+        page: ruleAuth.MANAGE_AUTH,
+      },
+    },
   },
   {
     path: '/strategy-config/clone/:id',
@@ -119,13 +119,13 @@ export default [
       title: '新建策略配置',
       navId: 'strategy-config',
       route: {
-        parent: 'strategy-config'
+        parent: 'strategy-config',
       },
       noNavBar: true,
       authority: {
         map: ruleAuth,
-        page: ruleAuth.MANAGE_AUTH
-      }
-    }
-  }
+        page: ruleAuth.MANAGE_AUTH,
+      },
+    },
+  },
 ] as RouteConfig[];

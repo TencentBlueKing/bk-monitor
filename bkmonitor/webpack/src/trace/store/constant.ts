@@ -44,8 +44,8 @@ export const DEFAULT_TRACE_DATA: ITraceData = {
     hierarchy_count: 0,
     min_duration: 0,
     max_duration: 0,
-    time_error: false
-  }
+    time_error: false,
+  },
 };
 
 export const SPAN_KIND_MAPS: ISpanKindMaps = {
@@ -55,13 +55,13 @@ export const SPAN_KIND_MAPS: ISpanKindMaps = {
   3: window.i18n.t('同步主调'),
   4: window.i18n.t('异步主调'),
   5: window.i18n.t('异步被调'),
-  6: window.i18n.t('推断')
+  6: window.i18n.t('推断'),
 };
 
 export const SPAN_STATUS_CODE = {
   0: window.i18n.t('未设置'),
   1: window.i18n.t('正常'),
-  2: window.i18n.t('异常')
+  2: window.i18n.t('异常'),
 };
 
 export const TRACE_INFO_TOOL_FILTERS = [
@@ -73,17 +73,17 @@ export const TRACE_INFO_TOOL_FILTERS = [
     label: 'eBPF',
     show: window.apm_ebpf_enabled ?? false,
     effect: ['timeline', 'topo', 'sequence', 'flame'],
-    desc: window.i18n.t('安装了eBPF的采集服务就可以展示eBPF相关的数据')
+    desc: window.i18n.t('安装了eBPF的采集服务就可以展示eBPF相关的数据'),
   },
   {
     id: 'virtual_span',
     label: window.i18n.t('推断'),
     show: true,
     effect: ['timeline', 'topo', 'sequence', 'flame'],
-    desc: window.i18n.t('通过Span信息推断出DB、中间件、第三方等服务')
+    desc: window.i18n.t('通过Span信息推断出DB、中间件、第三方等服务'),
   },
   { id: 'endpoint', label: window.i18n.t('接口'), show: true, effect: ['statistics'] },
   { id: 'service', label: window.i18n.t('服务'), show: true, effect: ['statistics'] },
   { id: 'source', label: window.i18n.t('数据来源'), show: true, effect: ['statistics'] },
-  { id: 'spanKind', label: window.i18n.t('Span类型'), show: true, effect: ['statistics'] }
+  { id: 'spanKind', label: window.i18n.t('Span类型'), show: true, effect: ['statistics'] },
 ];

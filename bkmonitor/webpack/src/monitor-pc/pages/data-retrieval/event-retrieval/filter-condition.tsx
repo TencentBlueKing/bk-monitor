@@ -26,8 +26,9 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
-import { deepClone } from '../../../../monitor-common/utils/utils';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { deepClone } from 'monitor-common/utils/utils';
+
 import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../constant/constant';
 import { IFilterCondition, IOption } from '../typings';
 
@@ -55,7 +56,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
     key: '',
     method: '',
     value: [],
-    condition: 'and'
+    condition: 'and',
   };
   /** 当前编辑的索引 */
   currentIndex = 0;
@@ -77,7 +78,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
     const type = this.curGroupByType;
     const methodMap = {
       number: NUMBER_CONDITION_METHOD_LIST,
-      string: STRING_CONDITION_METHOD_LIST
+      string: STRING_CONDITION_METHOD_LIST,
     };
     this.conditionOption = methodMap[type] ?? [];
   }
@@ -103,8 +104,8 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
         ...this.varParams,
         field: this.currentValue.key as string,
         where: [],
-        query_string: undefined
-      }
+        query_string: undefined,
+      },
     };
   }
 
@@ -145,7 +146,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
       zIndex: 1000,
       animation: 'slide-toggle',
       followCursor: false,
-      onHidden: () => (this.curTarget = null)
+      onHidden: () => (this.curTarget = null),
     });
     this.curTarget = target;
   }
@@ -198,7 +199,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
       key: this.groupBy[0]?.id,
       method: this.conditionOption[0]?.id as string,
       value: [],
-      condition: 'and'
+      condition: 'and',
     };
   }
 
@@ -263,7 +264,7 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
           this.valueOption =
             res?.map(item => ({
               id: item.value,
-              name: item.label
+              name: item.label,
             })) || [];
           this.varListCache.set(key, this.valueOption);
         })
@@ -316,8 +317,8 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
         </ul>
         <div style='display: none;'>
           <div
-            class='filter-condition-content'
             ref='filter-condition-content'
+            class='filter-condition-content'
             v-bkloading={{ isLoading: this.loading }}
           >
             <div class='filter-condition-main'>
@@ -326,9 +327,9 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                 <span class='filter-select filter-select-label'>
                   <div class='select-label'>{this.$t('字段')}</div>
                   <bk-select
-                    clearable={false}
-                    vModel={this.currentValue.key}
                     key={JSON.stringify(this.groupBy)}
+                    vModel={this.currentValue.key}
+                    clearable={false}
                     onSelected={this.handleGetVarList}
                   >
                     {this.groupBy.map(item => (
@@ -342,8 +343,8 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                 <span class='filter-select filter-select-condition'>
                   <div class='select-label'>{this.$t('操作')}</div>
                   <bk-select
-                    clearable={false}
                     vModel={this.currentValue.method}
+                    clearable={false}
                   >
                     {this.conditionOption.map(item => (
                       <bk-option
@@ -358,11 +359,11 @@ export default class FilterCondition extends tsc<IFilterCondition.IProps, IFilte
                     <div class='select-label'>{this.$t('值')}</div>
                     <bk-tag-input
                       vModel={this.currentValue.value}
+                      list={this.valueOption}
                       placeholder={this.valuePlaceholder}
                       trigger='focus'
                       allow-auto-match
                       allow-create
-                      list={this.valueOption}
                     />
                   </span>
                 ) : undefined}

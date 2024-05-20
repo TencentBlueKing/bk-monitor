@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,10 +26,12 @@
 import JsonViewer from 'vue-json-viewer';
 import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
-import bus from '../../../../monitor-common/utils/event-bus';
-import { random } from '../../../../monitor-common/utils/utils';
+import dayjs from 'dayjs';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
+
+import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
 import {
   ColumnSort,
@@ -41,9 +42,8 @@ import {
   ITablePagination,
   TablePaginationType,
   TableRow,
-  TableSizeType
+  TableSizeType,
 } from '../typings';
-
 import CommonStatus from './common-status/common-status';
 import CommonTagList from './common-tag-list/common-tag-list';
 import MoreOperate from './more-operate/more-operate';
@@ -55,6 +55,7 @@ const HEADER_PRE_ICON_NAME = 'header_pre_icon';
 export interface ICommonTableProps {
   // 表格loading
   loading?: boolean;
+  scrollLoading?: boolean;
   // 设置表头字段 存储到本地localstorage key值 默认不设置
   storeKey?: string;
   // 是否可选择行
@@ -86,7 +87,9 @@ export interface ICommonTableProps {
   // 是否为斑马纹
   stripe?: boolean;
   // 表格高度 默认为自动高度  height为Number类型，单位px height为String类型，则高度会设置为 Table 的 style.height
-  height?: string | number;
+  height?: number | string;
+  // 表格最大高度
+  maxHeight?: number | string;
   // 是否显示表头
   showHeader?: boolean;
   // 是否高亮当前行
@@ -120,12 +123,14 @@ interface ICommonTableEvent {
 export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEvent> {
   @Inject({
     from: 'handleShowAuthorityDetail',
-    default: null
+    default: null,
   })
   handleShowAuthorityDetail;
   @Ref('table') tableRef: any;
   // table loading
   @Prop({ default: false }) loading: boolean;
+  // scroll Loading
+  @Prop({ default: false }) scrollLoading: boolean;
   // 是否显示表格列设置
   @Prop({ default: true }) hasColnumSetting: boolean;
   // 设置的表格固定列保存在localstorage的key值
@@ -144,8 +149,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       current: 1,
       count: 100,
       limit: 10,
-      showTotalCount: true
-    })
+      showTotalCount: true,
+    }),
   })
   pagination: ITablePagination | null;
   // 表格尺寸设置 small medium large
@@ -165,7 +170,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   // 是否为斑马纹
   @Prop({ type: Boolean, default: false }) stripe: boolean;
   // 表格高度
-  @Prop({ type: [String, Number] }) height: string | number;
+  @Prop({ type: [String, Number] }) height: number | string;
+  // 表格最大高度
+  @Prop({ type: [String, Number] }) maxHeight: number | string;
   // 是否显示表头
   @Prop({ type: Boolean, default: true }) showHeader: boolean;
   // 是否高亮当前行
@@ -199,7 +206,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             ? columnKeysCaches.includes(item.id)
             : item.checked
           : true,
-      disabled: !!item.disabled
+      disabled: !!item.disabled,
     }));
   }
   /** 表格类名 */
@@ -257,12 +264,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     }, 300);
     return (
       <div
-        class='list-type-wrap'
         id={key}
+        class='list-type-wrap'
         v-bk-overflow-tips={{
           content: element,
           allowHTML: true,
-          theme: 'light common-table'
+          theme: 'light common-table',
         }}
       >
         {val.map((item, index) => (
@@ -294,12 +301,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     }, 300);
     return (
       <div
-        class='tag-column'
         id={key}
+        class='tag-column'
         v-bk-overflow-tips={{
           content: element,
           allowHTML: true,
-          theme: 'light common-table'
+          theme: 'light common-table',
         }}
       >
         {val?.length
@@ -309,15 +316,15 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                 class='tag-item set-item'
               >
                 <span
-                  class='tag-item-key'
                   key={`key__${index}`}
+                  class='tag-item-key'
                 >
                   {item.key}
                 </span>
                 &nbsp;:&nbsp;
                 <span
-                  class='tag-item-val'
                   key={`val__${index}`}
+                  class='tag-item-val'
                 >
                   {item.value}
                 </span>
@@ -329,7 +336,6 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   }
   // link格式化
   linkFormatter(column: ITableColumn, val: ITableItem<'link'>, row: TableRow) {
-    // eslint-disable-next-line no-nested-ternary
     if (typeof val !== 'number' && !val) return '--';
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
@@ -343,8 +349,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         {val.icon ? (
           val.icon.length > 30 ? (
             <img
-              src={val.icon}
               alt=''
+              src={val.icon}
             />
           ) : (
             <i class={['icon-monitor', 'link-icon', val.icon]} />
@@ -358,7 +364,6 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   }
   // link格式化
   statckLinkFormatter(column: ITableColumn, val: ITableItem<'stack_link'>, row: TableRow) {
-    // eslint-disable-next-line no-nested-ternary
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
       <div class='stack-link-col'>
@@ -373,8 +378,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             {val.icon ? (
               val.icon.length > 30 ? (
                 <img
-                  src={val.icon}
                   alt=''
+                  src={val.icon}
                 />
               ) : (
                 <i class={['icon-monitor', 'link-icon', val.icon]} />
@@ -405,8 +410,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           >
             {item.icon ? (
               <img
-                src={item.icon}
                 alt=''
+                src={item.icon}
               />
             ) : (
               ''
@@ -442,19 +447,19 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (item.syncTime) {
       urlStr += urlStr.indexOf('?') === -1 ? '?' : '&';
       const { from, to } = this.$route.query;
-      urlStr += `from=${from}&to${to}`;
+      urlStr += `from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     }
 
     if (item.target === 'self') {
       if (this.isSplitPanel) {
         const route = this.$router.resolve({
-          path: urlStr
+          path: urlStr,
         });
         const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + route.href;
         window.open(url);
       } else {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/')
+          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/'),
         });
       }
       return;
@@ -469,9 +474,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   statusFormatter(val: ITableItem<'status'>) {
     return val ? (
       <CommonStatus
-        type={val.type}
         text={val.text}
         tips={val.tips}
+        type={val.type}
       />
     ) : (
       '--'
@@ -484,9 +489,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         <div class='table-progress-text'>{val.label || '--'}</div>
         <bk-progress
           class={['common-progress-color', `color-${val.status}`]}
-          size='small'
-          showText={false}
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
+          showText={false}
+          size='small'
         ></bk-progress>
       </div>
     ) : (
@@ -675,8 +680,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       return (
         <JsonViewer
           class='json-viewer-wrap'
-          value={!!this.jsonViewerDataKey ? data.row[this.jsonViewerDataKey] : data.row}
           preview-mode={true}
+          value={!!this.jsonViewerDataKey ? data.row[this.jsonViewerDataKey] : data.row}
         ></JsonViewer>
       );
     };
@@ -693,11 +698,6 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         return (
           <bk-table-column
             key={`column_${column.id}`}
-            label={column.name}
-            prop={column.id}
-            show-overflow-tooltip={showOverflowTooltip}
-            formatter={(row: TableRow) => this.handleSetFormatter(column.id, row)}
-            // eslint-disable-next-line max-len
             render-header={
               (this.hasOverviewData || !!headerPreIcon) && column.checked
                 ? () => this.renderColumnsHeader(column)
@@ -705,6 +705,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   ? () => column.renderHeader()
                   : undefined
             }
+            formatter={(row: TableRow) => this.handleSetFormatter(column.id, row)}
+            label={column.name}
+            prop={column.id}
+            show-overflow-tooltip={showOverflowTooltip}
             {...{
               props: {
                 ...column.props,
@@ -716,9 +720,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   resizable: typeof column.resizable === 'boolean' ? column.resizable : true,
                   width: column.max_width ? this.calcColumnWidth(column.max_width) : column.width,
                   minWidth: column.min_width,
-                  columnKey: column.id
-                }
-              }
+                  columnKey: column.id,
+                },
+              },
             }}
           />
         );
@@ -726,10 +730,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     if (this.checkable) {
       columList.unshift(
         <bk-table-column
-          type='selection'
           width='50'
-          minWidth='50'
           fixed='left'
+          minWidth='50'
+          type='selection'
         />
       );
     }
@@ -756,34 +760,42 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     return (
       <div class='common-table'>
         <bk-table
-          class={this.tableClass}
-          data={this.data}
-          size={this.tableSize}
           key={`${this.tableKey}__table`}
-          outer-border={this.outerBorder}
-          stripe={this.stripe}
-          header-border={false}
-          pagination={{ ...this.pagination }}
           ref='table'
           height={this.height}
-          showHeader={this.showHeader}
-          highlightCurrentRow={this.highlightCurrentRow}
-          header-cell-class-name={headerCellname}
-          cell-class-name={cellName}
+          class={this.tableClass}
           v-bkloading={{ isLoading: this.loading, zIndex: 1000 }}
-          on-sort-change={this.handleSortChange}
+          scroll-loading={{
+            isLoading: this.scrollLoading,
+            size: 'mini',
+            theme: 'info',
+            icon: 'circle-2-1',
+            placement: 'right',
+          }}
+          cell-class-name={cellName}
+          data={this.data}
+          header-border={false}
+          header-cell-class-name={headerCellname}
+          highlightCurrentRow={this.highlightCurrentRow}
+          max-height={this.maxHeight}
+          outer-border={this.outerBorder}
+          pagination={{ ...this.pagination }}
+          showHeader={this.showHeader}
+          size={this.tableSize}
+          stripe={this.stripe}
+          on-filter-change={this.handleFilterChange}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
-          on-selection-change={this.handleSelectChange}
           on-row-click={this.handleRowClick}
-          on-filter-change={this.handleFilterChange}
           on-scroll-end={this.handleScrollEnd}
+          on-selection-change={this.handleSelectChange}
+          on-sort-change={this.handleSortChange}
         >
           {this.$slots.empty && <div slot='empty'>{this.$slots.empty}</div>}
           {this.checkable && this.selectedCount ? (
             <div
-              slot='prepend'
               class='table-prepend'
+              slot='prepend'
             >
               {this.$slots.prepend || [
                 <i class='icon-monitor icon-hint prepend-icon'></i>,
@@ -792,29 +804,29 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   tag='span'
                 >
                   <span
-                    slot='count'
                     class='table-prepend-count'
+                    slot='count'
                   >
                     {this.selectedCount}
                   </span>
                 </i18n>,
                 <slot name='select-content'></slot>,
                 <bk-button
+                  class='table-prepend-clear'
                   slot='count'
                   text={true}
                   theme='primary'
-                  class='table-prepend-clear'
                   onClick={this.handleClearSelected}
                 >
                   {this.$t('取消')}
-                </bk-button>
+                </bk-button>,
               ]}
             </div>
           ) : undefined}
           {this.showExpand && (
             <bk-table-column
-              type='expand'
               scopedSlots={{ default: this.renderRowExpand() }}
+              type='expand'
             ></bk-table-column>
           )}
           {this.transformColumns()}
@@ -824,10 +836,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                 key={`${this.tableKey}__settings`}
                 class='event-table-setting'
                 fields={this.tableColumns}
-                value-key='id'
                 label-key='name'
-                size={this.tableSize}
                 selected={this.tableColumns.filter(item => item.checked || item.disabled)}
+                size={this.tableSize}
+                value-key='id'
                 on-setting-change={this.handleSettingChange}
               />
             </bk-table-column>

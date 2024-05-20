@@ -32,12 +32,12 @@
     >
       <van-collapse-item
         v-for="item in header.list"
-        :key="item.id"
         class="header-item"
-        :title="item.title"
-        :is-link="item.id === 'message'"
         :border="item.id !== 'message'"
+        :is-link="item.id === 'message'"
+        :key="item.id"
         :name="item.id"
+        :title="item.title"
       >
         <template
           v-if="item.id !== 'message'"
@@ -46,19 +46,18 @@
           {{ item.value }}
         </template>
         <template v-else-if="item.value">
-          <!-- eslint-disable-next-line vue/singleline-html-element-content-newline -->
           <div class="header-item-pre">{{ item.value }}</div>
         </template>
       </van-collapse-item>
     </van-collapse>
     <div class="list-title">
-      {{ `${$t('事件列表')}(${eventList.length})` }}
+      {{ `${$t('事件列表')}(${eventList?.length})` }}
     </div>
     <van-list class="card-list">
       <div
         v-for="(item, index) in eventList"
-        :key="index"
         class="card-list-item"
+        :key="index"
         @click="handleGotoDetail(item)"
       >
         <div class="card-title">
@@ -118,18 +117,18 @@
           >
             <monitor-mobile-echarts
               height="70"
-              :options="chartOption"
-              :get-series-data="() => handleGetChartData(item)"
-              @click="handleGotoTendency(item)"
               class="card-chart"
+              :get-series-data="() => handleGetChartData(item)"
+              :options="chartOption"
+              @click="handleGotoTendency(item)"
             />
           </div>
         </div>
         <van-button
           class="card-button"
-          plain
-          type="info"
           :disabled="item.isShielded"
+          type="info"
+          plain
           @click.stop="!item.isShielded && handleGotoShield(item.id)"
         >
           {{ $t('快捷屏蔽') }}
@@ -147,11 +146,12 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
+import { getUrlParam } from 'monitor-common/utils/utils';
 import { Button, Cell, Collapse, CollapseItem, Dialog, List, PullRefresh } from 'vant';
 
 import { ackEvent } from '../../../monitor-api/modules/mobile_event';
-import { getUrlParam } from '../../../monitor-common/utils/utils';
 import MonitorMobileEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-echarts.vue';
 import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
@@ -167,8 +167,8 @@ import { IEventItem, IHeader, IStatusMap } from '../../types/alarm-info';
     [Cell.name]: Cell,
     [Button.name]: Button,
     FooterButton,
-    MonitorMobileEcharts
-  }
+    MonitorMobileEcharts,
+  },
 })
 export default class AlarmDetail extends Vue {
   public header: IHeader = { list: [], active: [] };
@@ -185,7 +185,7 @@ export default class AlarmDetail extends Vue {
     return {
       color: ['#a0b0cb'],
       legend: {
-        show: false
+        show: false,
       },
       grid: {
         show: true,
@@ -194,20 +194,20 @@ export default class AlarmDetail extends Vue {
         right: 0,
         bottom: 2,
         backgroundColor: '#fafbfd',
-        borderColor: '#fafbfd'
+        borderColor: '#fafbfd',
       },
       tooltip: {
-        show: false
+        show: false,
       },
       toolbox: {
-        show: false
+        show: false,
       },
       xAxis: {
-        show: false
+        show: false,
       },
       yAxis: {
-        show: false
-      }
+        show: false,
+      },
     };
   }
   @Watch('routeKey')
@@ -220,7 +220,7 @@ export default class AlarmDetail extends Vue {
       ABNORMAL: this.$t('未恢复'),
       SHIELD_ABNORMAL: this.$t('已屏蔽未恢复'),
       CLOSED: this.$t('已关闭'),
-      RECOVERED: this.$t('已恢复')
+      RECOVERED: this.$t('已恢复'),
     };
   }
 
@@ -231,26 +231,26 @@ export default class AlarmDetail extends Vue {
   async handleGetAlarmInfo() {
     const data = await AlarmModule.getAlarmInfo();
     this.$store.commit('app/SET_APP_DATA', {
-      bkBizName: data.bkBizName
+      bkBizName: data.bkBizName,
     });
     this.header.list = [
       {
         id: 'bkBizName',
         value: data.bkBizName || '--',
-        title: this.$t('业务名')
+        title: this.$t('业务名'),
       },
       {
         id: 'alarmDate',
         value: data.collectTime ? data.collectTime.slice(0, 19) : '',
-        title: this.$t('告警时间')
+        title: this.$t('告警时间'),
       },
       {
         id: 'message',
         value: data.message,
-        title: this.$t('信息摘要')
-      }
+        title: this.$t('信息摘要'),
+      },
     ];
-    this.eventList = data.events;
+    this.eventList = data?.events || [];
     this.handleBatchAction();
   }
 
@@ -275,21 +275,18 @@ export default class AlarmDetail extends Vue {
   async handleGetChartData(item: IEventItem) {
     const data = await AlarmModule.getChartData({
       event_id: item.id,
-      start_time: dayjs().add(-1, 'h')
-        .unix(),
-      end_time: dayjs().unix()
+      start_time: dayjs().add(-1, 'h').unix(),
+      end_time: dayjs().unix(),
     });
     let series = data.filter(item => item?.metric?.metric_field === 'value');
     series = series.length ? series : data;
     return {
-      series: (series || [])
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        .map(({ markPoints, thresholds, markTimeRange, ...item }) => ({
-          ...item,
-          areaStyle: {
-            color: '#e8ebf3'
-          }
-        }))
+      series: (series || []).map(({ markPoints, thresholds, markTimeRange, ...item }) => ({
+        ...item,
+        areaStyle: {
+          color: '#e8ebf3',
+        },
+      })),
     };
   }
 
@@ -303,7 +300,9 @@ export default class AlarmDetail extends Vue {
     const params = { alert_collect_id: this.$store.state.app.collectId };
     Dialog.confirm({
       title: this.$tc('告警确认'),
-      message: String(this.$t('告警确认后，异常事件持续未恢复的情况将不会再发起通知；注意！请及时处理故障，以免影响业务正常运行。')),
+      message: String(
+        this.$t('告警确认后，异常事件持续未恢复的情况将不会再发起通知；注意！请及时处理故障，以免影响业务正常运行。')
+      ),
       beforeClose: (action, done) => {
         if (action === 'confirm') {
           ackEvent(params)
@@ -317,7 +316,7 @@ export default class AlarmDetail extends Vue {
           done();
           this.closeBatchAction();
         }
-      }
+      },
     });
   }
 
@@ -327,8 +326,8 @@ export default class AlarmDetail extends Vue {
       name: 'alarm-detail',
       params: {
         title,
-        id
-      }
+        id,
+      },
     });
   }
 
@@ -338,8 +337,8 @@ export default class AlarmDetail extends Vue {
     this.$router.push({
       name: 'quick-alarm-shield',
       params: {
-        eventId
-      }
+        eventId,
+      },
     });
   }
 
@@ -348,8 +347,8 @@ export default class AlarmDetail extends Vue {
     this.$router.push({
       name: 'tendency-chart',
       params: {
-        id
-      }
+        id,
+      },
     });
   }
 }
@@ -365,7 +364,7 @@ $statusList: 'abnormal' 'shield_abnormal' 'closed' 'recovered';
   font-size: 14px;
 
   &-header {
-    box-shadow: 0 1px 0 0 rgba(99, 101, 110, .05);
+    box-shadow: 0 1px 0 0 rgba(99, 101, 110, 0.05);
 
     &.van-hairline {
       &--top-bottom::after {
@@ -440,7 +439,7 @@ $statusList: 'abnormal' 'shield_abnormal' 'closed' 'recovered';
       margin: 0 16px 8px 16px;
       background-color: #fff;
       border-radius: 4px;
-      box-shadow: 0 1px 0 0 rgba(99, 101, 110, .05);
+      box-shadow: 0 1px 0 0 rgba(99, 101, 110, 0.05);
 
       .card-title {
         display: flex;

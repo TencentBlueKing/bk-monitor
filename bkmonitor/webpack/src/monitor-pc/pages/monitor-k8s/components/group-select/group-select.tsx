@@ -26,8 +26,9 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IPanelModel, IViewOptions } from '../../../../../monitor-ui/chart-plugins/typings';
-import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
+import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
+
 import CustomSelect from '../../../../components/custom-select/custom-select';
 import { IOption } from '../../typings';
 
@@ -75,13 +76,13 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
             scene_id: this.scencId,
             type: this.sceneType,
             id: this.pageId,
-            bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId
+            bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId,
           },
           field: {
-            id: VALUE_KEY
-          }
-        }
-      ]
+            id: VALUE_KEY,
+          },
+        },
+      ],
     };
   }
 
@@ -104,7 +105,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
     const target = this.currentPanel?.targets[0];
     const api = target?.api;
     const variablesService = new VariablesService({
-      ...this.viewOptions.filters
+      ...this.viewOptions.filters,
     });
     const params: Record<string, any> = variablesService.transformVariables(target.data);
     this.handleGetApi(api)?.(params).then(data => {
@@ -142,7 +143,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
                 content: item,
                 zIndex: 9999,
                 boundary: document.body,
-                allowHTML: false
+                allowHTML: false,
               }}
             >
               {this.handleDisplayName(item)}
@@ -154,9 +155,9 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
           ))}
           <CustomSelect
             class='group-add-btn'
+            options={this.options}
             value={this.localValue}
             multiple
-            options={this.options}
             onSelected={this.handleAddGroups}
           >
             {this.options.map(opt => (
@@ -170,7 +171,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
                     placement: 'right',
                     zIndex: 9999,
                     boundary: document.body,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   {opt.name}

@@ -31,7 +31,7 @@ import './operate-options.scss';
 
 export interface IOperateOption {
   id: string;
-  name?: string | TranslateResult;
+  name?: TranslateResult | string;
   authority?: boolean;
   disable?: boolean;
   authorityDetail?: string;
@@ -51,7 +51,7 @@ interface IOperateOptionsEvents {
 }
 
 @Component({
-  name: 'OperateOptions'
+  name: 'OperateOptions',
 })
 export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOptionsEvents> {
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -68,6 +68,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
   }
 
   handleShowPopover(e: Event) {
+    e.stopPropagation();
     if (!this.popoverInstance) {
       this.popoverInstance = this.$bkPopover(e.target, {
         content: this.moreItemsRef,
@@ -81,7 +82,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           document.querySelector('#directive-ele')?.remove();
           this.popoverInstance.destroy();
           this.popoverInstance = null;
-        }
+        },
       });
     }
     this.popoverInstance?.show(100);
@@ -97,15 +98,15 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
               placement: 'top',
               boundary: 'window',
               disabled: !Boolean(item?.tip),
-              allowHTML: false
+              allowHTML: false,
             }}
           >
             <bk-button
-              text
-              theme='primary'
               class='options-item'
               v-authority={{ active: !item.authority }}
               disabled={Boolean(item.disable)}
+              theme='primary'
+              text
               on-click={() =>
                 item.authority ? this.handleOptionClick(item.id) : this.handleShowAuthorityDetail(item.authorityDetail)
               }
@@ -115,17 +116,18 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           </span>
         ))}
         {this.options?.popover?.length ? (
-          <div
-            class='option-more'
-            onClick={this.handleShowPopover}
-          >
-            <span class='bk-icon icon-more'></span>
+          <div onClick={this.handleShowPopover}>
+            {this.$slots?.trigger || (
+              <div class='option-more'>
+                <span class='bk-icon icon-more'></span>
+              </div>
+            )}
           </div>
         ) : undefined}
         <div style={{ display: 'none' }}>
           <div
-            class='table-operate-options-component-more-items'
             ref='moreItems'
+            class='table-operate-options-component-more-items'
           >
             {this.options?.popover?.map(item => (
               <span

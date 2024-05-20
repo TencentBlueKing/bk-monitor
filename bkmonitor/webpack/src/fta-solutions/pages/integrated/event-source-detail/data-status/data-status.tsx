@@ -25,12 +25,12 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-// import { copyText } from '../../../../../monitor-common/utils/utils'
-import dayjs from 'dayjs';
 
-import { tailEventPluginData } from '../../../../../monitor-api/modules/event_plugin';
-import { copyText } from '../../../../../monitor-common/utils/utils';
-import MonacoEditor from '../../../../../monitor-pc/components/editors/monaco-editor.vue';
+// import { copyText } from 'monitor-common/utils/utils'
+import dayjs from 'dayjs';
+import { tailEventPluginData } from 'monitor-api/modules/event_plugin';
+import { copyText } from 'monitor-common/utils/utils';
+import MonacoEditor from 'monitor-pc/components/editors/monaco-editor.vue';
 
 import './data-status.scss';
 
@@ -52,13 +52,13 @@ export default class RulesViewer extends tsc<IDataStatus> {
   sideslider = {
     isShow: false,
     data: '',
-    title: ''
+    title: '',
   };
 
   data = [
     { name: i18n.t('丢弃率'), count: 9.7, unit: '%' },
     { name: i18n.t('丢弃率'), count: 9.7, unit: '%' },
-    { name: i18n.t('丢弃率'), count: 9.7, unit: '%' }
+    { name: i18n.t('丢弃率'), count: 9.7, unit: '%' },
   ];
 
   // 数据采集表格数据
@@ -67,7 +67,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
     { label: i18n.tc('序号'), prop: 'number', key: 'number', width: 60 },
     { label: i18n.tc('原始事件'), prop: 'data', key: 'data' },
     { label: i18n.tc('采集时间'), prop: 'bkIngestTime', key: 'time', width: 150 },
-    { label: i18n.tc('操作'), prop: 'handle', key: 'handle', width: 150 }
+    { label: i18n.tc('操作'), prop: 'handle', key: 'handle', width: 150 },
   ];
 
   @Watch('pluginId', { immediate: true })
@@ -92,13 +92,13 @@ export default class RulesViewer extends tsc<IDataStatus> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -141,8 +141,8 @@ export default class RulesViewer extends tsc<IDataStatus> {
           if (!row.data?.length) return '--';
           return (
             <div
-              class='data-item-list'
               style='min-height: 42px;'
+              class='data-item-list'
             >
               {row.data.map(item => (
                 <div class='data-item'>{JSON.stringify(item)}</div>
@@ -151,7 +151,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
           );
         }
         return row[column.property];
-      }
+      },
     };
     return (
       <div class='data-status-wrap'>
@@ -186,9 +186,9 @@ export default class RulesViewer extends tsc<IDataStatus> {
             {this.sourceDataTableColumn.map((item, i) => (
               <bk-table-column
                 key={i}
+                width={item.width}
                 label={item.label}
                 prop={item.prop}
-                width={item.width}
                 resizable={false}
                 {...{ scopedSlots }}
               ></bk-table-column>
@@ -204,27 +204,27 @@ export default class RulesViewer extends tsc<IDataStatus> {
         </MonacoEditor> */}
         <bk-sideslider
           ext-cls='data-status-sideslider'
-          transfer={true}
           isShow={this.sideslider.isShow}
+          transfer={true}
           {...{ on: { 'update:isShow': v => (this.sideslider.isShow = v) } }}
-          quick-close={true}
           width={656}
+          quick-close={true}
           onHidden={this.handleHiddenSlider}
         >
           <div
-            slot='header'
             class='sideslider-title'
+            slot='header'
           >
             <span>{this.sideslider.title + this.$t('上报日志详情')}</span>
             <bk-button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</bk-button>
           </div>
           <div slot='content'>
             <MonacoEditor
+              style='height: calc(100vh - 60px)'
               class='code-viewer'
               language='json'
-              value={this.sideslider.data}
               options={{ readOnly: true }}
-              style='height: calc(100vh - 60px)'
+              value={this.sideslider.data}
             ></MonacoEditor>
           </div>
         </bk-sideslider>

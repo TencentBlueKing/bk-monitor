@@ -25,20 +25,20 @@
  */
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 
-import { random } from '../../../monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
+
 import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
+import * as ruleAuth from './authority-map';
 import StrategyConfigSet from './strategy-config-set-new/strategy-config-set';
 import { strategyType } from './strategy-config-set-new/typings';
-import * as ruleAuth from './authority-map';
 
 import './strategy-config-set.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreate(ruleAuth)) {
-  @Prop({ type: [String, Number] }) readonly id: string | number;
+  @Prop({ type: [String, Number] }) readonly id: number | string;
   needCheck = true;
   fromRouteName = '';
 
@@ -76,7 +76,7 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
           needBack && this.$router.back();
           resolve(true);
         },
-        cancelFn: () => resolve(false)
+        cancelFn: () => resolve(false),
       });
     });
   }

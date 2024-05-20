@@ -26,13 +26,13 @@
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
-import { PanelToolsType } from '../../../monitor-pc/pages/monitor-k8s/typings';
-import { IQueryOption } from '../../../monitor-pc/pages/performance/performance-type';
-import { IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
-// import ViewDetail from '../../../monitor-pc/pages/view-detail/view-detail.vue';
-import ViewDetail from '../../../monitor-pc/pages/view-detail/view-detail-new';
-import watermarkMaker from '../../monitor-echarts/utils/watermarkMaker';
+import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+import { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
+import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+// import ViewDetail from 'monitor-pc/pages/view-detail/view-detail.vue';
+import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
+
 import loadingIcon from '../icons/spinner.svg';
 import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
@@ -51,6 +51,7 @@ import PercentageBarChart from '../plugins/percentage-bar/percentage-bar';
 import PerformanceChart from '../plugins/performance-chart/performance-chart';
 import PieEcharts from '../plugins/pie-echart/pie-echart';
 import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
+import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
 import RelationGraph from '../plugins/relation-graph/relation-graph';
@@ -70,6 +71,8 @@ import './chart-wrapper.scss';
 
 interface IChartWrapperProps {
   panel: PanelModel;
+  chartChecked?: boolean;
+  collapse?: boolean;
   detectionConfig?: IDetectionConfig;
   needHoverStryle?: boolean;
   needCheck?: boolean;
@@ -94,6 +97,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Prop({ type: Object }) detectionConfig: IDetectionConfig;
   /* 是否可选中图表 */
   @Prop({ type: Boolean, default: true }) needCheck: boolean;
+  @Prop({ type: Boolean, default: undefined }) collapse: boolean;
+  @Prop({ type: Boolean, default: undefined }) chartChecked: boolean;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -124,13 +129,13 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
     return {
       compare: {
         type: this.compareType !== 'time' ? 'none' : this.compareType,
-        value: this.compareType === 'time' ? this.timeOffset : ''
+        value: this.compareType === 'time' ? this.timeOffset : '',
       },
       tools: {
         timeRange: this.timeRange,
         refleshInterval: this.refleshInterval,
-        searchValue: []
-      }
+        searchValue: [],
+      },
     };
   }
 
@@ -140,11 +145,14 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
     return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
   }
 
-  mounted() {
-    if (window.graph_watermark) {
-      this.waterMaskImg = watermarkMaker(window.user_name || window.username);
-    }
+  get isChecked() {
+    return this.chartChecked === undefined ? this.panel.checked : this.chartChecked;
   }
+
+  get isCollapsed() {
+    return this.collapse === undefined ? this.panel.collapsed : this.collapse;
+  }
+
   /**
    * @description: 供子组件更新loading的状态
    * @param {boolean} loading
@@ -174,7 +182,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   handleFullScreen(config: PanelModel, compareValue?: typeof this.compareValue) {
     this.viewQueryConfig = {
       config: JSON.parse(JSON.stringify(config)),
-      compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue }))
+      compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue })),
     };
     this.showViewDetail = true;
   }
@@ -193,11 +201,11 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   }
   @Emit('chartCheck')
   handleChartCheck() {
-    return !this.panel.checked;
+    return !this.isChecked;
   }
   @Emit('collapse')
   handleCollapsed() {
-    return !this.panel.collapsed;
+    return !this.isCollapsed;
   }
   @Emit('changeHeight')
   handleChangeHeight(height: number) {
@@ -215,69 +223,69 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'line-bar':
         return (
           <LineBarEchart
-            onLoading={this.handleChangeLoading}
             panel={this.panel}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'status-map':
         return (
           <ChinaMap
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'pie-echart':
         return (
           <PieEcharts
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'ratio-ring':
         return (
           <RatioRingChart
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'apdex-chart':
         return (
           <ApdexChart
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'percentage-bar':
         return (
           <PercentageBarChart
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'bar-echart':
         return (
           <BarEchart
-            onLoading={this.handleChangeLoading}
             panel={this.panel}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'number-chart':
         return (
           <NumberChart
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'tag-chart':
@@ -285,11 +293,11 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'table-chart':
         return (
           <TableChart
-            panel={this.panel}
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
             onChangeHeight={this.handleChangeHeight}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'table-bar-chart':
@@ -302,10 +310,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'icon-chart':
         return (
           <IconChart
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'row':
@@ -318,10 +326,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'list-chart':
         return (
           <ListChart
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'text':
@@ -344,23 +352,23 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'time-series-forecast':
         return (
           <TimeSeriesForecast
+            clearErrorMsg={this.handleClearErrorMsg}
+            customMenuList={['screenshot', 'explore', 'set', 'area']}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
-            customMenuList={['screenshot', 'explore', 'set', 'area']}
-            onLoading={this.handleChangeLoading}
             onErrorMsg={this.handleErrorMsgChange}
-            clearErrorMsg={this.handleClearErrorMsg}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'time-series-outlier':
         return (
           <TimeSeriesOutlier
+            clearErrorMsg={this.handleClearErrorMsg}
+            customMenuList={['screenshot', 'explore', 'set', 'area']}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
-            customMenuList={['screenshot', 'explore', 'set', 'area']}
-            onLoading={this.handleChangeLoading}
             onErrorMsg={this.handleErrorMsgChange}
-            clearErrorMsg={this.handleClearErrorMsg}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'aiops-dimension-lint':
@@ -368,109 +376,118 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           <AiopsDimensionLint
             panel={this.panel}
             {...{
-              props: this.$attrs
+              props: this.$attrs,
             }}
+            clearErrorMsg={this.handleClearErrorMsg}
             showHeaderMoreTool={this.showHeaderMoreTool}
-            onFullScreen={this.handleFullScreen}
             onCollectChart={this.handleCollectChart}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
-            onLoading={this.handleChangeLoading}
             onErrorMsg={this.handleErrorMsgChange}
-            clearErrorMsg={this.handleClearErrorMsg}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
           ></AiopsDimensionLint>
         );
       case 'graphs':
         return (
           <AiopsChart
+            clearErrorMsg={this.handleClearErrorMsg}
             panels={this.panel.panels}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onErrorMsg={this.handleErrorMsgChange}
-            clearErrorMsg={this.handleClearErrorMsg}
           ></AiopsChart>
         );
       case 'event-log':
         return (
           <EventLogChart
-            panel={this.panel}
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
             onChangeHeight={this.handleChangeHeight}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           ></EventLogChart>
         );
       case 'relation-graph':
         return (
           <RelationGraph
-            panel={this.panel}
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'api_message':
         return (
           <MessageChart
-            panel={this.panel}
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
+          />
+        );
+      case 'profiling':
+        return (
+          <ProfilinGraph
+            clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'related-log-chart':
         return (
           <RelatedLogChart
-            panel={this.panel}
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
           />
         );
       case 'exception-guide':
         return (
           <ExceptionGuide
+            clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             onErrorMsg={this.handleErrorMsgChange}
-            clearErrorMsg={this.handleClearErrorMsg}
           />
         );
       case 'resource':
         return (
           <ResourceChart
+            clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
             onCollectChart={this.handleCollectChart}
-            onFullScreen={this.handleFullScreen}
             onErrorMsg={this.handleErrorMsgChange}
-            clearErrorMsg={this.handleClearErrorMsg}
+            onFullScreen={this.handleFullScreen}
           />
         );
       case 'status-list':
         return (
           <StatusListChart
+            clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             onErrorMsg={this.handleErrorMsgChange}
-            clearErrorMsg={this.handleClearErrorMsg}
           />
         );
       case 'column-bar':
         return (
           <ColumnBarEchart
+            clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             onErrorMsg={this.handleErrorMsgChange}
-            clearErrorMsg={this.handleClearErrorMsg}
           />
         );
       case 'performance-chart':
         return (
           <PerformanceChart
-            onLoading={this.handleChangeLoading}
-            onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
-            onFullScreen={this.handleFullScreen}
             onCollectChart={this.handleCollectChart}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
+            onErrorMsg={this.handleErrorMsgChange}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
           />
         );
       // 不需要报错显示
@@ -478,15 +495,15 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       default:
         return (
           <LineEcharts
-            onLoading={this.handleChangeLoading}
+            clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
-            onFullScreen={this.handleFullScreen}
             onCollectChart={this.handleCollectChart}
+            onDblClick={this.handleDblClick}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onErrorMsg={this.handleErrorMsgChange}
-            clearErrorMsg={this.handleClearErrorMsg}
-            onDblClick={this.handleDblClick}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
           />
         );
     }
@@ -494,24 +511,32 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   render() {
     return (
       <div
+        style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
         class={{
           'chart-wrapper': true,
           'grafana-check': this.panel.canSetGrafana,
-          'is-checked': this.panel.checked,
-          'is-collapsed': this.panel.collapsed,
+          'is-checked': this.isChecked,
+          'is-collapsed': this.isCollapsed,
           'hover-style': this.needCheck && this.needHoverStryle,
-          'row-chart': this.panel.type === 'row'
+          'row-chart': this.panel.type === 'row',
         }}
-        style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
         onMouseenter={() => (this.showHeaderMoreTool = true)}
         onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
+        {!!window.graph_watermark && (
+          <div
+            class='wm'
+            v-watermark={{
+              text: window.user_name || window.username,
+            }}
+          ></div>
+        )}
         {this.handlePanel2Chart()}
         {this.loading ? (
           <img
             class='loading-icon'
-            src={loadingIcon}
             alt=''
+            src={loadingIcon}
           ></img>
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
@@ -528,12 +553,6 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             on-close-modal={this.handleCloseViewDetail}
           />
         )}
-        {!!this.waterMaskImg && (
-          <div
-            class='wm'
-            style={{ backgroundImage: `url('${this.waterMaskImg}')` }}
-          ></div>
-        )}
         {!!this.errorMsg && (
           <span
             class='is-error'
@@ -541,7 +560,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
               content: this.errorMsg,
               extCls: 'chart-wrapper-error-tooltip',
               placement: 'top-start',
-              allowHTML: false
+              allowHTML: false,
             }}
           ></span>
         )}

@@ -27,14 +27,14 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getVariableValue } from '../../../../monitor-api/modules/grafana';
-import { random } from '../../../../monitor-common/utils/utils';
-import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../monitor-pc/constant/constant';
+import { getVariableValue } from 'monitor-api/modules/grafana';
+import { random } from 'monitor-common/utils/utils';
+import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from 'monitor-pc/constant/constant';
 import {
   ICommonItem,
   IWhereItem,
-  MetricDetail
-} from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+  MetricDetail,
+} from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './where-display.scss';
 
@@ -68,7 +68,7 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
   @Prop({ default: () => ({}), type: Object }) allNames: any;
 
   /** 维度名 */
-  whereNameMap: Map<string | number, string | TranslateResult> = new Map();
+  whereNameMap: Map<number | string, TranslateResult | string> = new Map();
 
   /** 方法名 */
   methodNameMap: Map<string, string> = new Map();
@@ -104,9 +104,9 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
           data_type_label,
           metric_field,
           result_table_id,
-          where: []
+          where: [],
         },
-        type: 'dimension'
+        type: 'dimension',
       };
       if (this.allWhereValueMap.get(item.key)) {
         this.whereValueMap.set(item.key, this.allWhereValueMap.get(item.key));
@@ -156,8 +156,8 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
             <span class='where-field'>{` ${this.getFieldName(item)} `}</span>
             <span class='where-method'>{` ${this.methodNameMap.get(item.method) || item.method} `}</span>
             <span
-              class='where-content'
               key={this.valueKey}
+              class='where-content'
             >
               {this.handleValue(item.value, item.key)}
             </span>

@@ -8,22 +8,10 @@
     "lint": "eslint --fix --ext .js,.ts,tsx  ./",
     "fix": "npm run prettier && npm run lint"
   },
-  "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.20.0",
-    "@typescript-eslint/parser": "^5.20.0",
-    "eslint": "^8.47.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-config-tencent": "^1.0.4",
-    "eslint-plugin-codecc": "^0.3.0",
-    "eslint-plugin-prettier": "^5.0.0",
-    "eslint-plugin-simple-import-sort": "^10.0.0",
-    "minimist": "^1.2.6",
-    "prettier": "^3.0.2",
-    "typescript": "^4.6.3"
-  },
+  "devDependencies": {},
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "vue": "2.7.14"
+    "vue": "v2-latest"
   }
 }

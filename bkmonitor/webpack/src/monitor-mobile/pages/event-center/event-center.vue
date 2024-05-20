@@ -25,49 +25,68 @@
 -->
 <template>
   <div class="event-center">
-    <event-tab v-model="curTab" class="tab-list" :tab-list="tabList" @change="changeTab"> </event-tab>
+    <event-tab
+      class="tab-list"
+      v-model="curTab"
+      :tab-list="tabList"
+      @change="changeTab"
+    />
     <van-list
       ref="vanList"
-      v-model="loading"
       class="card-list"
-      :offset="10"
+      v-model="loading"
       :finished="finished"
-      :immediate-check="false"
       :finished-text="noDataText"
+      :immediate-check="false"
+      :offset="10"
       @load="getData"
     >
       <div class="event-center-content">
-        <van-row v-show="curTab !== 'target'" gutter="11">
-          <van-col v-for="(item, index) in typeList" :key="index" span="8">
+        <van-row
+          v-show="curTab !== 'target'"
+          gutter="11"
+        >
+          <van-col
+            v-for="(item, index) in typeList"
+            :key="index"
+            span="8"
+          >
             <select-button
-              :text="item.text"
-              :icon="item.icon"
               :active="curType.includes(item.type)"
+              :icon="item.icon"
+              :text="item.text"
               @click="changeType(item.type)"
-            >
-            </select-button>
+            />
           </van-col>
         </van-row>
-        <div v-if="listData.length" :class="['event-center-list', { 'event-center-not-pt': curTab === 'target' }]">
-          <event-list-item v-for="(item, index) in listData" :key="item.strategyId + '-' + index" :item-data="item">
-          </event-list-item>
+        <div
+          v-if="listData.length"
+          :class="['event-center-list', { 'event-center-not-pt': curTab === 'target' }]"
+        >
+          <event-list-item
+            v-for="(item, index) in listData"
+            :item-data="item"
+            :key="item.strategyId + '-' + index"
+          />
         </div>
       </div>
     </van-list>
   </div>
 </template>
 <script lang="ts">
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
-import EventTab from './event-tab.vue';
+import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+
+import { Col, List, Row } from 'vant';
+
 import SelectButton from '../../components/select-button/select-button.vue';
-import EventListItem from './event-list-item.vue';
-import { List, Col, Row } from 'vant';
 import EventCenterModule from '../../store/modules/event-center';
+import EventListItem from './event-list-item.vue';
+import EventTab from './event-tab.vue';
 
 export interface ITabItem {
   title: string;
   shortTitle?: string;
-  value: string | number;
+  value: number | string;
   count: number;
 }
 export interface IListItem {
@@ -103,8 +122,8 @@ interface IEventCenterData {
     EventListItem,
     [List.name]: List,
     [Col.name]: Col,
-    [Row.name]: Row
-  }
+    [Row.name]: Row,
+  },
 })
 export default class EventCenter extends Vue implements IEventCenterData {
   // loading
@@ -127,40 +146,40 @@ export default class EventCenter extends Vue implements IEventCenterData {
         title: this.$tc('未恢复事件'),
         shortTitle: this.$tc('未恢复'),
         value: 'strategy',
-        count: 0
+        count: 0,
       },
       {
         title: this.$tc('异常目标'),
         shortTitle: this.$tc('异常目标'),
         value: 'target',
-        count: 0
+        count: 0,
       },
       {
         title: this.$tc('已屏蔽事件'),
         shortTitle: this.$tc('已屏蔽'),
         value: 'shield',
-        count: 0
-      }
+        count: 0,
+      },
     ];
     this.typeList = [
       {
         type: '1',
         text: this.$tc('致命'),
         icon: 'icon-danger',
-        value: 1
+        value: 1,
       },
       {
         type: '2',
         text: this.$tc('预警'),
         icon: 'icon-mind-fill',
-        value: 2
+        value: 2,
       },
       {
         type: '3',
         text: this.$tc('提醒'),
         icon: 'icon-tips',
-        value: 3
-      }
+        value: 3,
+      },
       // {
       //     type: 'me',
       //     text: this.$tc('我的'),
@@ -203,7 +222,7 @@ export default class EventCenter extends Vue implements IEventCenterData {
     EventCenterModule.setListData({
       viewList: [],
       finished: false,
-      page: 1
+      page: 1,
     });
     EventCenterModule.addPage();
   }
@@ -211,12 +230,12 @@ export default class EventCenter extends Vue implements IEventCenterData {
   // 获取数据
   async getList() {
     await EventCenterModule.getAllList({ type: this.curTab });
-    this.tabList.forEach((item) => {
+    this.tabList.forEach(item => {
       item.count = this.count[item.value];
     });
     EventCenterModule.setListData({
       page: 1,
-      finished: false
+      finished: false,
     });
     EventCenterModule.addPage();
   }
@@ -229,7 +248,7 @@ export default class EventCenter extends Vue implements IEventCenterData {
       filterList: [],
       page: 1,
       viewList: [],
-      finished: false
+      finished: false,
     });
     this.loading = false;
     this.curType = '';
@@ -241,7 +260,7 @@ export default class EventCenter extends Vue implements IEventCenterData {
     if (!this.listData.length) return (this.loading = false);
     this.loading = true;
     EventCenterModule.setListData({
-      page: EventCenterModule.page + 1
+      page: EventCenterModule.page + 1,
     });
     EventCenterModule.addPage();
     this.loading = false;
@@ -252,20 +271,20 @@ export default class EventCenter extends Vue implements IEventCenterData {
 @import '../../static/scss/variate.scss';
 
 .event-center {
+  box-sizing: border-box;
   height: 100vh;
   padding-top: 48px;
   padding-bottom: 53px;
+  overflow: auto;
   background-color: #efefef;
   -webkit-overflow-scrolling: touch;
-  overflow: auto;
-  box-sizing: border-box;
 
   .tab-list {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
     z-index: 1;
+    width: 100%;
   }
 
   &-content {

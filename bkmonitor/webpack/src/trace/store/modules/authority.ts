@@ -24,15 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineStore } from 'pinia';
-
 import {
   checkAllowedByActionIds,
   getAuthorityApplyInfo,
   getAuthorityDetail,
-  getAuthorityMeta
-} from '../../../monitor-api/modules/iam';
-import { transformDataKey } from '../../../monitor-common/utils/utils';
+  getAuthorityMeta,
+} from 'monitor-api/modules/iam';
+import { transformDataKey } from 'monitor-common/utils/utils';
+import { defineStore } from 'pinia';
 
 export interface IAuthorityState {
   authorityMeta: any[];
@@ -51,7 +50,7 @@ export async function getAuthorityMap(authorityMap: { [key: string]: string }) {
   const authority = {};
   const data = await checkAllowedByActionIds({
     action_ids: Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
-    bk_biz_id: window.cc_biz_id
+    bk_biz_id: window.cc_biz_id,
   }).catch(() => []);
   Object.entries(authorityMap).forEach(entry => {
     const [key, value] = entry;
@@ -77,13 +76,13 @@ export const useAuthorityStore = defineStore('authority', {
     showAuthortyDialog: false,
     dialogLoading: false,
     authApplyUrl: '',
-    authDetail: {}
+    authDetail: {},
   }),
   getters: {
     showDialog: state => state.showAuthortyDialog,
     loading: state => state.dialogLoading,
     applyUrl: state => state.authApplyUrl,
-    authorityDetail: state => state.authDetail
+    authorityDetail: state => state.authDetail,
   },
   actions: {
     setAuthorityMeta(data: any) {
@@ -118,7 +117,7 @@ export const useAuthorityStore = defineStore('authority', {
     },
     async handleGetAuthDetail(actionId: string | string[]) {
       const res = await getAuthorityDetail({
-        action_ids: Array.isArray(actionId) ? actionId : [actionId]
+        action_ids: Array.isArray(actionId) ? actionId : [actionId],
       }).catch(() => ({ applyUrl: '', authorityList: {} }));
       return res;
     },
@@ -136,7 +135,7 @@ export const useAuthorityStore = defineStore('authority', {
       const res = await getAuthorityApplyInfo({
         action_ids: Array.isArray(actionId) ? actionId : [actionId],
         resources,
-        bk_biz_id: bizId || window.cc_biz_id
+        bk_biz_id: bizId || window.cc_biz_id,
       }).catch(() => ({ applyUrl: '', authorityList: {} }));
       return res;
     },
@@ -152,9 +151,9 @@ export const useAuthorityStore = defineStore('authority', {
     async checkAllowedByActionIds(params: any) {
       const data = await checkAllowedByActionIds({
         ...params,
-        bk_biz_id: window.cc_biz_id
+        bk_biz_id: window.cc_biz_id,
       }).catch(() => []);
       return transformDataKey(data);
-    }
-  }
+    },
+  },
 });

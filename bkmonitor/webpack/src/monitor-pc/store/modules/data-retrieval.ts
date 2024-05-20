@@ -24,26 +24,73 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
+import { getLabel, getMainlineObjectTopo } from 'monitor-api/modules/commons';
+import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
+import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
+import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
-import { getLabel, getMainlineObjectTopo } from '../../../monitor-api/modules/commons';
-import { getGraphQueryConfig } from '../../../monitor-api/modules/data_explorer';
-import { createQueryHistory, destroyQueryHistory, listQueryHistory } from '../../../monitor-api/modules/model';
-import { deepClone, random, transformDataKey } from '../../../monitor-common/utils/utils';
 import {
   IAggMethodList,
   IGetQueryConfigParams,
   IHistoryListItem,
-  IQueryConfigsItem
+  IQueryConfigsItem,
 } from '../../pages/data-retrieval/index';
 import { handleTimeRange } from '../../utils/index';
 import store from '../store';
 
-// eslint-disable-next-line new-cap
 @Module({ name: 'data-retrieval', dynamic: true, namespaced: true, store })
 class DataRetrieval extends VuexModule {
+  // curTab
+  public curTab = 'data-query-conditions';
+  // 监控指标默认计算公式
+  public defaultMethodList: IAggMethodList[] = [
+    {
+      id: 'SUM',
+      name: 'SUM',
+    },
+    {
+      id: 'AVG',
+      name: 'AVG',
+    },
+    {
+      id: 'MAX',
+      name: 'MAX',
+    },
+    {
+      id: 'MIN',
+      name: 'MIN',
+    },
+    {
+      id: 'COUNT',
+      name: 'COUNT',
+    },
+  ];
+  // 历史数据
+  public historyList: IHistoryListItem[] = [];
+
+  // 缓存上一次操作的监控对象
+  public labelCache = 'service_module';
+
+  // 监控对象列表
+  public labelList: any = [];
+
   // 页面loading
   public loading = false;
+
+  // 监控目标名字数据
+  public mainlineObjectTopo: any = [];
+
+  // 全屏loading promise list
+  public promiseListFullPage: Promise<any>[] = [];
+
+  // 校验promise list
+  public promiseListValidator: Promise<any>[] = [];
+
+  // 配置查询结果
+  public queryConfigsResult: any = {};
+
   // 查询所需的数据
   public queryData: IGetQueryConfigParams = {
     bkBizId: store.getters.bizId,
@@ -53,83 +100,28 @@ class DataRetrieval extends VuexModule {
     targetType: 'INSTANCE',
     tools: {
       timeRange: 1 * 60 * 60 * 1000,
-      refleshInterval: -1
+      refleshInterval: -1,
     },
     startTime: 0,
-    endTime: 0
+    endTime: 0,
   };
-  // 指标数据选项
-  public timeSeriesMetricMap: any = {};
-
-  // 历史数据
-  public historyList: IHistoryListItem[] = [];
-
-  // 监控对象列表
-  public labelList: any = [];
-
-  // 缓存上一次操作的监控对象
-  public labelCache = 'service_module';
-
-  // 监控目标名字数据
-  public mainlineObjectTopo: any = [];
-
-  // 配置查询结果
-  public queryConfigsResult: any = {};
-
-  // 监控指标默认计算公式
-  public defaultMethodList: IAggMethodList[] = [
-    {
-      id: 'SUM',
-      name: 'SUM'
-    },
-    {
-      id: 'AVG',
-      name: 'AVG'
-    },
-    {
-      id: 'MAX',
-      name: 'MAX'
-    },
-    {
-      id: 'MIN',
-      name: 'MIN'
-    },
-    {
-      id: 'COUNT',
-      name: 'COUNT'
-    }
-  ];
 
   // 查询耗时
   queryTime = 0;
 
-  // curTab
-  public curTab = 'data-query-conditions';
-
-  // 全屏loading promise list
-  public promiseListFullPage: Promise<any>[] = [];
-
-  // 校验promise list
-  public promiseListValidator: Promise<any>[] = [];
-
-  public get defaultMethodListGetter() {
-    return this.defaultMethodList;
-  }
+  // 指标数据选项
+  public timeSeriesMetricMap: any = {};
 
   public get curTabGetter() {
     return this.curTab;
   }
 
+  public get defaultMethodListGetter() {
+    return this.defaultMethodList;
+  }
+
   public get historyListData() {
     return this.historyList;
-  }
-
-  public get queryDataGetter() {
-    return this.queryData;
-  }
-
-  public get timeSeriesMetric() {
-    return this.timeSeriesMetricMap;
   }
 
   public get labelListGetter() {
@@ -144,33 +136,115 @@ class DataRetrieval extends VuexModule {
     return this.queryConfigsResult;
   }
 
-  public get refleshInterval() {
-    return this.queryData.tools.refleshInterval;
-  }
-
-  public get validatorPromiseList() {
-    return this.promiseListValidator;
+  public get queryDataGetter() {
+    return this.queryData;
   }
 
   public get queryTimeGetter() {
     return this.queryTime;
   }
 
-  /**
-   * 修改state值
-   * @param expr 表达式
-   * @param value 值
-   * @param context 上下文 默认为this
-   */
+  public get refleshInterval() {
+    return this.queryData.tools.refleshInterval;
+  }
+
+  public get timeSeriesMetric() {
+    return this.timeSeriesMetricMap;
+  }
+
+  public get validatorPromiseList() {
+    return this.promiseListValidator;
+  }
+
+  // 将promise添加进promiseListFullPage队列
   @Mutation
-  public setData({ expr, value, context = this }: { expr: string; value: any; context?: any }) {
-    expr.split('.').reduce((data, curKey, index, arr) => {
-      if (index === arr.length - 1) {
-        // 给表达式最后一个赋值
-        return (data[curKey] = value);
-      }
-      return data[curKey];
-    }, context);
+  public addPromiseListFullPage(p: Promise<any>) {
+    this.promiseListFullPage.push(p);
+  }
+
+  // 查询队列校验队列
+  @Mutation
+  public addPromiseListValidator(p: Promise<any>) {
+    this.promiseListValidator.push(p);
+  }
+
+  // 保存查询按钮
+  @Mutation
+  public addQueryHistory() {
+    this.historyList.unshift({
+      bkBizId: store.getters.bizId,
+      name: '',
+      config: deepClone(this.queryData),
+    });
+    this.curTab = 'data-query-history';
+  }
+
+  // 清理promise list
+  @Mutation
+  public clearPromiseListFullPage() {
+    this.promiseListFullPage = [];
+    // this.loading = false
+  }
+
+  // 清理promise list
+  @Mutation
+  public clearPromiseListValidator() {
+    this.promiseListValidator = [];
+  }
+
+  // 清理历史缓存
+  @Mutation
+  public clearQueryHistoryCache() {
+    this.historyList = this.historyList.filter(item => item.name);
+  }
+
+  // 清空指标信息
+  @Mutation
+  public clearQueryItem(index) {
+    const item = this.queryData.queryConfigs[index];
+    item.label = this.labelCache;
+    item.metricField = '';
+    item.method = 'AVG';
+    item.interval = 60;
+    item.resultTableId = '';
+    item.dataSourceLabel = '';
+    item.dataTypeLabel = '';
+    item.groupBy = null;
+    item.where = null;
+  }
+
+  // 删除查询历史
+  @Action
+  public async deleteQueryHistory(index: number) {
+    const { id } = this.historyList[index];
+    const data = await destroyQueryHistory(id).catch(() => []);
+    const value = deepClone(this.historyList);
+    value.splice(index, 1);
+    this.setData({ expr: 'historyList', value });
+    return data;
+  }
+
+  // 监控对象列表
+  @Action
+  public async getLabelList() {
+    const value = await getLabel().catch(() => []);
+    this.setData({ expr: 'labelList', value });
+  }
+
+  // 查询历史列表
+  @Action
+  public async getListQueryHistory() {
+    const value = await listQueryHistory({}).catch(() => []);
+    this.setData({ expr: 'historyList', value });
+    return value;
+  }
+
+  // 获取监控目标名字数据
+  @Action
+  public async getMainlineObjectTopo() {
+    const value = await getMainlineObjectTopo().catch(() => []);
+    this.setData({ expr: 'mainlineObjectTopo', value });
+    return value;
   }
 
   // 新增一条查询条件
@@ -187,33 +261,8 @@ class DataRetrieval extends VuexModule {
       dataSourceLabel: data.dataSourceLabel || '',
       dataTypeLabel: data.dataTypeLabel || '',
       groupBy: data.groupBy || null,
-      where: data.where || null
+      where: data.where || null,
     });
-  }
-
-  // 初始化检索数据
-  @Mutation
-  public initStoreData() {
-    this.queryData = {
-      bkBizId: store.getters.bizId,
-      queryConfigs: [],
-      compareConfig: { type: 'none', split: true },
-      target: [],
-      targetType: 'INSTANCE',
-      tools: {
-        timeRange: 1 * 60 * 60 * 1000,
-        refleshInterval: -1
-      },
-      startTime: 0,
-      endTime: 0
-    };
-    this.queryConfigsResult = {};
-    this.labelCache = 'service_module';
-  }
-
-  @Mutation
-  public setCompareConfig(payload: { type: string; timeOffset: string }) {
-    this.queryData.compareConfig = { type: payload.type, split: true, timeOffset: payload.timeOffset };
   }
 
   // 克隆一条查询条件
@@ -236,94 +285,6 @@ class DataRetrieval extends VuexModule {
     temp.hidden = !temp.hidden;
   }
 
-  // 清理历史缓存
-  @Mutation
-  public clearQueryHistoryCache() {
-    this.historyList = this.historyList.filter(item => item.name);
-  }
-
-  // 将promise添加进promiseListFullPage队列
-  @Mutation
-  public addPromiseListFullPage(p: Promise<any>) {
-    this.promiseListFullPage.push(p);
-  }
-
-  // 查询队列校验队列
-  @Mutation
-  public addPromiseListValidator(p: Promise<any>) {
-    this.promiseListValidator.push(p);
-  }
-
-  // 清理promise list
-  @Mutation
-  public clearPromiseListFullPage() {
-    this.promiseListFullPage = [];
-    // this.loading = false
-  }
-
-  // 清理promise list
-  @Mutation
-  public clearPromiseListValidator() {
-    this.promiseListValidator = [];
-  }
-
-  // 处理时间范围
-  @Mutation
-  public updateStartEndTime(timeRange: number | string | string[]) {
-    const { startTime, endTime } = handleTimeRange(timeRange);
-    this.queryData.endTime = endTime;
-    this.queryData.startTime = startTime;
-  }
-
-  // 保存查询按钮
-  @Mutation
-  public addQueryHistory() {
-    this.historyList.unshift({
-      bkBizId: store.getters.bizId,
-      name: '',
-      config: deepClone(this.queryData)
-    });
-    this.curTab = 'data-query-history';
-  }
-
-  // 清空指标信息
-  @Mutation
-  public clearQueryItem(index) {
-    const item = this.queryData.queryConfigs[index];
-    item.label = this.labelCache;
-    item.metricField = '';
-    item.method = 'AVG';
-    item.interval = 60;
-    item.resultTableId = '';
-    item.dataSourceLabel = '';
-    item.dataTypeLabel = '';
-    item.groupBy = null;
-    item.where = null;
-  }
-
-  // 更新查询条件数据
-  @Action
-  public async setQueryConfigItem({ index, expr, value }: { index: number; expr: string; value: any }) {
-    const tempItem = this.queryData.queryConfigs[index];
-    this.setData({ expr, value, context: tempItem });
-  }
-
-  // 批量赋值state操作
-  @Action
-  public async setDataList(list: { expr: string; value: any }[]) {
-    list.forEach(item => {
-      const { expr, value } = item;
-      this.setData({ expr, value });
-    });
-  }
-
-  // 监控对象列表
-  @Action
-  public async getLabelList() {
-    const value = await getLabel().catch(() => []);
-    this.setData({ expr: 'labelList', value });
-  }
-
   // 查询操作
   @Action
   public async handleQuery() {
@@ -338,18 +299,18 @@ class DataRetrieval extends VuexModule {
       INSTANCE: 'ip',
       TOPO: 'host_topo_node',
       SERVICE_TEMPLATE: 'host_template_node',
-      SET_TEMPLATE: 'host_template_node'
+      SET_TEMPLATE: 'host_template_node',
     };
     const value =
       this.queryData.targetType === 'INSTANCE'
         ? temp.target.map((item: any) => ({
             ip: item.ip,
             bk_cloud_id: item.bk_cloud_id,
-            bk_supplier_id: item.bk_supplier_id
+            bk_supplier_id: item.bk_supplier_id,
           }))
         : temp.target.map((item: any) => ({
             bk_inst_id: item.bk_inst_id,
-            bk_obj_id: item.bk_obj_id
+            bk_obj_id: item.bk_obj_id,
           }));
     // 监控目标格式转换
     temp.target = [
@@ -357,9 +318,9 @@ class DataRetrieval extends VuexModule {
         {
           field: targetFieldMap[this.queryData.targetType],
           method: 'eq',
-          value
-        }
-      ]
+          value,
+        },
+      ],
     ];
     if (!temp.queryConfigs.length) {
       this.setData({ expr: 'queryConfigsResult', value: {} });
@@ -381,10 +342,30 @@ class DataRetrieval extends VuexModule {
     if (tips?.length) {
       Vue.prototype.$bkMessage({
         theme: 'warning',
-        message: tips
+        message: tips,
       });
     }
     return data;
+  }
+
+  // 初始化检索数据
+  @Mutation
+  public initStoreData() {
+    this.queryData = {
+      bkBizId: store.getters.bizId,
+      queryConfigs: [],
+      compareConfig: { type: 'none', split: true },
+      target: [],
+      targetType: 'INSTANCE',
+      tools: {
+        timeRange: 1 * 60 * 60 * 1000,
+        refleshInterval: -1,
+      },
+      startTime: 0,
+      endTime: 0,
+    };
+    this.queryConfigsResult = {};
+    this.labelCache = 'service_module';
   }
 
   // 再次查询
@@ -393,7 +374,7 @@ class DataRetrieval extends VuexModule {
     const mapList = [
       { expr: 'queryData', value: deepClone(this.historyList[index].config) },
       { expr: 'curTab', value: 'data-query-conditions' },
-      { expr: 'queryConfigsResult', value: {} }
+      { expr: 'queryConfigsResult', value: {} },
     ];
     this.setDataList(mapList);
     await Vue.nextTick();
@@ -406,7 +387,7 @@ class DataRetrieval extends VuexModule {
     const params = {
       name,
       bk_biz_id: store.getters.bizId,
-      config: this.historyList[0].config
+      config: this.historyList[0].config,
     };
     const data = await createQueryHistory(params).catch(() => {});
     this.setData({ expr: 'historyList.0.name', value: name });
@@ -414,31 +395,50 @@ class DataRetrieval extends VuexModule {
     return data;
   }
 
-  // 查询历史列表
-  @Action
-  public async getListQueryHistory() {
-    const value = await listQueryHistory({}).catch(() => []);
-    this.setData({ expr: 'historyList', value });
-    return value;
+  @Mutation
+  public setCompareConfig(payload: { type: string; timeOffset: string }) {
+    this.queryData.compareConfig = { type: payload.type, split: true, timeOffset: payload.timeOffset };
   }
 
-  // 删除查询历史
-  @Action
-  public async deleteQueryHistory(index: number) {
-    const { id } = this.historyList[index];
-    const data = await destroyQueryHistory(id).catch(() => []);
-    const value = deepClone(this.historyList);
-    value.splice(index, 1);
-    this.setData({ expr: 'historyList', value });
-    return data;
+  /**
+   * 修改state值
+   * @param expr 表达式
+   * @param value 值
+   * @param context 上下文 默认为this
+   */
+  @Mutation
+  public setData({ expr, value, context = this }: { expr: string; value: any; context?: any }) {
+    expr.split('.').reduce((data, curKey, index, arr) => {
+      if (index === arr.length - 1) {
+        // 给表达式最后一个赋值
+        return (data[curKey] = value);
+      }
+      return data[curKey];
+    }, context);
   }
 
-  // 获取监控目标名字数据
+  // 批量赋值state操作
   @Action
-  public async getMainlineObjectTopo() {
-    const value = await getMainlineObjectTopo().catch(() => []);
-    this.setData({ expr: 'mainlineObjectTopo', value });
-    return value;
+  public async setDataList(list: { expr: string; value: any }[]) {
+    list.forEach(item => {
+      const { expr, value } = item;
+      this.setData({ expr, value });
+    });
+  }
+
+  // 更新查询条件数据
+  @Action
+  public async setQueryConfigItem({ index, expr, value }: { index: number; expr: string; value: any }) {
+    const tempItem = this.queryData.queryConfigs[index];
+    this.setData({ expr, value, context: tempItem });
+  }
+
+  // 处理时间范围
+  @Mutation
+  public updateStartEndTime(timeRange: number | string | string[]) {
+    const { startTime, endTime } = handleTimeRange(timeRange);
+    this.queryData.endTime = endTime;
+    this.queryData.startTime = startTime;
   }
 }
 
