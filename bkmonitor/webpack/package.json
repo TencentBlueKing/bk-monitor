@@ -2,7 +2,7 @@
   "name": "blueking-monitor",
   "description": "blueking-monitor",
   "private": "true",
-  "version": "1.0.0",
+  "version": "3.9.x",
   "author": "bkfe",
   "license": "MIT",
   "scripts": {
