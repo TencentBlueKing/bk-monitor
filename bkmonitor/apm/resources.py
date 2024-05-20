@@ -99,7 +99,6 @@ class CreateApplicationResource(Resource):
         app_alias = serializers.CharField(label="应用别名", max_length=255)
         # enable profiling as default for debugging
         enabled_profiling = serializers.BooleanField(label="是否开启性能分析", required=False, default=False)
-        enabled_create_virtual_metric = serializers.BooleanField(label="是否创建虚拟指标", required=False, default=False)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         es_storage_config = DatasourceConfigRequestSerializer(label="数据库配置")
 
@@ -115,10 +114,7 @@ class CreateApplicationResource(Resource):
             app_alias=validated_request_data["app_alias"],
             description=validated_request_data["description"],
             es_storage_config=validated_request_data["es_storage_config"],
-            options={
-                "enabled_profiling": validated_request_data.get("enabled_profiling", False),
-                "enabled_create_virtual_metric": validated_request_data.get("enabled_create_virtual_metric", False),
-            },
+            options={"enabled_profiling": validated_request_data.get("enabled_profiling", False)},
         )
 
 

@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Optional
 
+from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
@@ -120,7 +121,7 @@ class ApmApplication(AbstractRecordModel):
         datasource_info = cls.apply_datasource(bk_biz_id, app_name, es_storage_config, options)
 
         # step3: 创建虚拟指标
-        if options.get("enabled_create_virtual_metric"):
+        if bk_biz_id in settings.APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID:
             from apm.task.tasks import create_virtual_metric
 
             create_virtual_metric.delay(bk_biz_id, app_name)
