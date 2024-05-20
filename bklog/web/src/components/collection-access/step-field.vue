@@ -1265,8 +1265,15 @@ export default {
     async fieldCollectionRequest(atLastFormData, callback) {
       const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields } = atLastFormData;
       // 检索设置 直接入库
-      const { table_id, storage_cluster_id, retention, storage_replies, allocation_min_days, view_roles } =
-        this.curCollect;
+      const {
+        table_id,
+        storage_cluster_id,
+        retention,
+        storage_replies,
+        allocation_min_days,
+        view_roles,
+        storage_shards_nums: storageShardsNums
+      } = this.curCollect;
       const storageList = await this.getStorage();
       const isOpenHotWarm = storageList.find(item => item.storage_cluster_id === storage_cluster_id)?.enable_hot_warm;
       const data = {
@@ -1274,6 +1281,7 @@ export default {
         storage_cluster_id,
         retention,
         storage_replies,
+        es_shards: storageShardsNums,
         allocation_min_days: isOpenHotWarm ? Number(allocation_min_days) : 0,
         view_roles,
         etl_config: etlConfig,
