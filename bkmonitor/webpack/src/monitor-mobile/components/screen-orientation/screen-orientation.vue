@@ -24,8 +24,15 @@
 * IN THE SOFTWARE.
 -->
 <template>
-  <div class="label-wrapper" :class="orientation" @click="handleClick">
-    <i class="icon-monitor" :class="`icon-${orientation}`" />
+  <div
+    class="label-wrapper"
+    :class="orientation"
+    @click="handleClick"
+  >
+    <i
+      class="icon-monitor"
+      :class="`icon-${orientation}`"
+    />
   </div>
 </template>
 <script lang="ts">
@@ -33,7 +40,7 @@ import { Vue, Component, Emit, Model } from 'vue-property-decorator';
 
 export enum Screen {
   LANDSCAPE = 'landscape', // 横屏
-  PORTRAIT = 'portrait' // 竖屏
+  PORTRAIT = 'portrait', // 竖屏
 }
 
 @Component

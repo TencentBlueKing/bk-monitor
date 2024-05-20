@@ -16,7 +16,7 @@
     "@blueking/date-picker": "^2.0.0-beta.14",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/functional-dependency": "0.0.1-beta.10",
-    "@blueking/ip-selector": "0.2.0-beta",
+    "@blueking/ip-selector": "0.3.0-beta.21",
     "@blueking/login-modal": "^1.0.1",
     "@blueking/notice-component-vue2": "^2.0.3",
     "@blueking/search-select-v3": "0.0.1-beta.8",

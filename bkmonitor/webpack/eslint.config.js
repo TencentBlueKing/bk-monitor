@@ -67,19 +67,42 @@ const jsVueFiles = [
   'src/monitor-pc/pages/strategy-config/**/*.vue',
   'src/monitor-pc/pages/uptime-check/**/*.vue',
 ];
-// vue中容易冲突的规则
-const vueCommonRules = {
-  'vue/html-self-closing': [
-    'error',
-    {
-      html: {
-        component: 'always',
-        normal: 'always',
-        void: 'always',
-      },
-      math: 'always',
-      svg: 'always',
-    },
+const jsxOrVueSortGroups = {
+  'custom-groups': {
+    DEFINITION: '*(is|vIs|v-is)',
+    LIST_RENDERING: '*(v-for|vFor)',
+    CONDITIONALS: '*(v-if|v-else-if|v-else|vIf|vElseIf|vElse)',
+    RENDER_MODIFIERS: '*(v-pre|v-once|vPre|vOnce)',
+    GLOBAL: 'id',
+    UNIQUE: '*(ref|key)',
+    WIDTH: 'width',
+    HEIGHT: 'height',
+    STYLE: '*style',
+    CLASS: '*(class|ext-cls|extCls)',
+    TWO_WAY_BINDING: '*(v-model|vModel)',
+    SLOT: '*(v-slot|slot|vSlot)',
+    OTHER_DIRECTIVES: 'v-*',
+    EVENTS: '*(on*|v-on|vOn|@*)',
+    CONTENT: '*(v-html|v-text|vHtml|vText)',
+  },
+  groups: [
+    'DEFINITION',
+    'LIST_RENDERING',
+    'CONDITIONALS',
+    'RENDER_MODIFIERS',
+    'GLOBAL',
+    'UNIQUE',
+    'STYLE',
+    'WIDTH',
+    'HEIGHT',
+    'CLASS',
+    'TWO_WAY_BINDING',
+    'SLOT',
+    'OTHER_DIRECTIVES',
+    'multiline',
+    'unknown',
+    'shorthand',
+    'EVENTS',
   ],
 };
 module.exports = [
@@ -175,35 +198,7 @@ module.exports = [
       'perfectionist/sort-jsx-props': [
         'error',
         {
-          'custom-groups': {
-            CLASS: '*(class|ext-cls|extCls)',
-            DEFINITION: 'is',
-            DIRECTIVE: 'v-*',
-            EVENTS: '*(on*|v-on)',
-            GLOBAL: 'id',
-            SLOT: '*(v-slot|slot)',
-            STYLE: '*style',
-            TWO_WAY_BINDING: '*(v-model|vModel)',
-            UNIQUE: '*(ref|key)',
-            WIDTH: 'width',
-            HEIGHT: 'height',
-          },
-          groups: [
-            'DEFINITION',
-            'GLOBAL',
-            'UNIQUE',
-            'STYLE',
-            'WIDTH',
-            'HEIGHT',
-            'CLASS',
-            'TWO_WAY_BINDING',
-            'SLOT',
-            'DIRECTIVE',
-            'multiline',
-            'unknown',
-            'shorthand',
-            'EVENTS',
-          ],
+          ...jsxOrVueSortGroups,
           order: 'asc',
           type: 'natural',
         },
@@ -261,6 +256,14 @@ module.exports = [
         {
           order: 'asc',
           type: 'natural',
+        },
+      ],
+      'perfectionist/sort-vue-attributes': [
+        'error',
+        {
+          ...jsxOrVueSortGroups,
+          type: 'natural',
+          order: 'asc',
         },
       ],
     },
@@ -354,14 +357,17 @@ module.exports = [
       '@typescript-eslint/explicit-member-accessibility': 'off',
       'comma-dangle': ['error', 'always-multiline'],
       ...deprecateRules,
-      ...vueCommonRules,
     },
   },
   {
     ...recommendedVue2Config,
     files: jsVueFiles,
+  },
+  {
     rules: {
-      ...vueCommonRules,
+      'vue/html-self-closing': 'off',
+      'vue/require-default-prop': 'off',
+      'vue/attributes-order': 'off',
     },
   },
   eslintConfigPrettier,

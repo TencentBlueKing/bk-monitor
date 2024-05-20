@@ -661,8 +661,7 @@ export default {
       });
     },
     prevHandler() {
-      const step = this.curStep - 1;
-      this.$emit('stepChange', step);
+      this.$emit('stepChange', this.curStep - 1);
     },
     // 获取详情
     getDetail() {

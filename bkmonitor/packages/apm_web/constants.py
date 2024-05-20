@@ -22,6 +22,8 @@ DEFAULT_NO_DATA_PERIOD = 10  # minute
 DEFAULT_DIMENSION_DATA_PERIOD = 5  # minute
 NODATA_ERROR_STRATEGY_CONFIG_KEY = "nodata_error_strategy_id"
 
+DEFAULT_APM_APP_QPS = 500
+
 APDEX_VIEW_ITEM_LEN = 24
 OTLP_JAEGER_SPAN_KIND = {2: "server", 3: "client", 4: "producer", 5: "consumer", 1: "internal", 0: "unset"}
 IDENTIFY_KEYS = ["db.system", "http.target", "messaging.system", "rpc.system"]
@@ -239,10 +241,16 @@ class DataStatus:
     NORMAL = "normal"
     NO_DATA = "no_data"
     STOP = "stop"
+    DISABLED = "disabled"
 
     @classmethod
     def get_label_by_key(cls, key: str):
-        return {cls.NORMAL: _("正常"), cls.NO_DATA: _("无数据"), cls.STOP: _("已停止")}.get(key, key)
+        return {
+            cls.NORMAL: _("正常"),
+            cls.NO_DATA: _("无数据"),
+            cls.STOP: _("已停止"),
+            cls.DISABLED: _("未开启"),
+        }.get(key, key)
 
     @classmethod
     def get_status_by_key(cls, key: str):

@@ -165,6 +165,8 @@ class SpaceTableIDRedis:
             detail["bk_data_id"] = table_id_data_id.get(table_id, 0)
             _table_id_detail[table_id] = json.dumps(detail)
 
+        # 追加预计算结果表详情
+        _table_id_detail.update(self._compose_record_rule_table_id_detail())
         # 追加 es 结果表
         if include_es_table_ids:
             _table_id_detail.update(self._compose_es_table_id_detail(table_id_list))
@@ -175,6 +177,37 @@ class SpaceTableIDRedis:
             if is_publish:
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
         logger.info("push redis result_table_detail")
+
+    def _compose_record_rule_table_id_detail(self) -> Dict:
+        """组装预计算结果表的详情"""
+        from metadata.models.record_rule.rules import RecordRule
+
+        record_rule_objs = RecordRule.objects.values("table_id", "vm_cluster_id", "dst_vm_table_id", "rule_metrics")
+        vm_cluster_id_name = {
+            cluster["cluster_id"]: cluster["cluster_name"]
+            for cluster in models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values(
+                "cluster_id", "cluster_name"
+            )
+        }
+        _table_id_detail = {}
+        for obj in record_rule_objs:
+            _table_id_detail[obj["table_id"]] = json.dumps(
+                {
+                    "vm_rt": obj["dst_vm_table_id"],
+                    "storage_id": obj["vm_cluster_id"],
+                    "cluster_name": "",
+                    "storage_name": vm_cluster_id_name.get(obj["vm_cluster_id"], ""),
+                    "db": "",
+                    "measurement": "",
+                    "tags_key": [],
+                    "fields": list(obj["rule_metrics"].values()),
+                    "measurement_type": "bk_split_measurement",
+                    "bcs_cluster_id": "",
+                    "data_label": "",
+                    "bk_data_id": None,
+                }
+            )
+        return _table_id_detail
 
     def push_es_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: bool = False):
         """推送 es 结果表的详细信息"""
@@ -230,6 +263,8 @@ class SpaceTableIDRedis:
         """推送 bkcc 类型空间数据"""
         logger.info("start to push bkcc space table_id, space_type: %s, space_id: %s", space_type, space_id)
         _values = self._compose_data(space_type, space_id, from_authorization=from_authorization)
+        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
+        # 追加预计算结果表
         # 推送数据
         if _values:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
@@ -255,6 +290,7 @@ class SpaceTableIDRedis:
         _values.update(self._compose_bkci_cross_table_ids(space_type, space_id))
         # 追加特殊的允许全空间使用的数据源
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
+        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         # 推送数据
         if _values:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
@@ -278,6 +314,7 @@ class SpaceTableIDRedis:
         _values.update(self._compose_bksaas_other_table_ids(space_type, space_id, table_id_list))
         # 追加特殊的允许全空间使用的数据源
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
+        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         if _values:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
@@ -607,6 +644,13 @@ class SpaceTableIDRedis:
                 _values[tid] = {"filters": filters}
 
         return _values
+
+    def _compose_record_rule_table_ids(self, space_type: str, space_id: str):
+        """组装预计算的结果表"""
+        from metadata.models.record_rule.rules import RecordRule
+
+        objs = RecordRule.objects.filter(space_type=space_type, space_id=space_id)
+        return {obj.table_id: {"filters": []} for obj in objs}
 
     def _is_need_filter_for_bkcc(
         self,

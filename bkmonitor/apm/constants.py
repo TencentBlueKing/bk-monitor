@@ -571,8 +571,8 @@ class ProfileApiType:
     # type查询
     COL_TYPE = "col_type"
 
-    # 数量查询
-    COUNT = "select_aggregate"
+    # 复杂查询
+    AGGREGATE = "select_aggregate"
 
 
 class ProfileQueryType:

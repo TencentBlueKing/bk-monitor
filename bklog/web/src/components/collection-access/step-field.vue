@@ -1185,11 +1185,17 @@ export default {
         this.fieldCollectionRequest(data);
         return;
       } else if (isCollect) {
-        // 缓存采集项清洗配置
-        urlParams.collector_config_id = this.curCollect.collector_config_id;
-        data.bk_biz_id = this.bkBizId;
-        delete data.visible_type;
-        requestUrl = 'clean/updateCleanStash';
+        // 除 新建采集项 步骤字段清洗设置外 其余情况下保存直接入库 不需提交暂存
+        if (this.isFinishCreateStep || this.isCleanField) {
+          this.fieldCollectionRequest(data, callback);
+          return;
+        } else {
+          // 缓存采集项清洗配置
+          urlParams.collector_config_id = this.curCollect.collector_config_id;
+          data.bk_biz_id = this.bkBizId;
+          delete data.visible_type;
+          requestUrl = 'clean/updateCleanStash';
+        }
       } else {
         // 新建/编辑清洗模板
         data.name = this.saveTempName;
@@ -1410,7 +1416,7 @@ export default {
       });
     },
     prevHandler() {
-      this.$emit('stepChange', 1);
+      this.$emit('stepChange', this.curStep - 1);
     },
     // 即将前往高级清洗
     advanceHandler() {
@@ -1854,9 +1860,10 @@ export default {
               this.originParticipleState = 'custom';
               this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
             }
-            if (this.isFinishCreateStep) {
-              this.editComparedData.comparedVal = this.getSubmitParams();
-            }
+          }
+          // 暂存信息可能为空 对比项仍需赋值
+          if (this.isFinishCreateStep) {
+            this.editComparedData.comparedVal = this.getSubmitParams();
           }
         })
         .finally(() => {

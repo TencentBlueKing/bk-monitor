@@ -12,6 +12,7 @@ import logging
 import time
 
 from alarm_backends.core.alert import Alert
+from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
 from alarm_backends.service.fta_action.tasks import create_actions
 from alarm_backends.service.fta_action.tasks.alert_assign import (
@@ -40,6 +41,7 @@ class UpgradeChecker(BaseChecker):
                 except Exception as e:
                     logger.exception("alert(%s) run checker(%s) failed: %s", alert.id, self.__class__.__name__, e)
                     failed += 1
+        AssignCacheManager.clear()
         logger.info("AlertChecker(%s) run finished, success(%s), failed(%s)", self.__class__.__name__, success, failed)
 
     @classmethod

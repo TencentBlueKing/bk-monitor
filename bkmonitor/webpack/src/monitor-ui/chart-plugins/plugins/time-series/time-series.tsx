@@ -321,7 +321,7 @@ export class LineChart
       this.registerObserver(start_time, end_time);
       return;
     }
-    this.handleLoadingChange(true);
+    if (this.inited) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     if (!this.enableSelectionRestoreAll) {
       this.showRestore = !!start_time;

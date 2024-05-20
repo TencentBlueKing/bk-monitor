@@ -18,6 +18,7 @@ from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.constants import (
     APM_IS_SLOW_ATTR_KEY,
+    DEFAULT_APM_APP_QPS,
     DEFAULT_DB_CONFIG,
     DEFAULT_DB_CONFIG_CUT_KEY,
     DEFAULT_DB_CONFIG_IS_SLOW_QUERY_THRESHOLD,
@@ -65,6 +66,7 @@ class Application(AbstractRecordModel):
     INSTANCE_NAME_CONFIG_KEY = "application_instance_name_config"
     DIMENSION_CONFIG_KEY = "application_dimension_config"
     DB_CONFIG_KEY = "application_db_config"
+    QPS_CONFIG_KEY = "application_qps_config"
 
     class ApdexConfig:
         """Apdex配置项"""
@@ -259,6 +261,13 @@ class Application(AbstractRecordModel):
         return config.config_value
 
     @cached_property
+    def qps_config(self):
+        config = self.get_config_by_key(self.QPS_CONFIG_KEY)
+        if not config:
+            return DEFAULT_APM_APP_QPS
+        return config.config_value
+
+    @cached_property
     def dimension_config(self):
         config = self.get_config_by_key(self.DIMENSION_CONFIG_KEY)
         if not config:
@@ -407,6 +416,8 @@ class Application(AbstractRecordModel):
         application.set_init_sampler_config()
         application.set_init_instance_name_config()
         application.set_init_db_config()
+        application.set_init_qps_config()
+
         # todo 暂时不做维度配置
         # obj.set_init_dimensions_config()
         application.authorization()
@@ -505,6 +516,11 @@ class Application(AbstractRecordModel):
         db_value = [DEFAULT_DB_CONFIG]
 
         ApmMetaConfig.application_config_setup(self.application_id, self.DB_CONFIG_KEY, db_value)
+
+    def set_init_qps_config(self):
+        qps_value = DEFAULT_APM_APP_QPS
+
+        ApmMetaConfig.application_config_setup(self.application_id, self.QPS_CONFIG_KEY, qps_value)
 
     def set_init_sampler_config(self):
         sampler_value = {
@@ -643,6 +659,9 @@ class Application(AbstractRecordModel):
         from apm_web.serializers import CustomServiceSerializer
 
         res["custom_service_config"] = CustomServiceSerializer(instance=query, many=True).data
+
+        # 补充 QPS 配置
+        res["qps"] = self.qps_config
 
         return res
 
