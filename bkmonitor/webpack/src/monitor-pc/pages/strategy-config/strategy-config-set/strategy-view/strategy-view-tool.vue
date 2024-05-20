@@ -30,7 +30,7 @@
       ref="panelWrap"
     >
       <div class="panel-wrap-left">
-        {{ $t('预览') }}
+        {{ $t('数据预览') }}
       </div>
       <div class="panel-wrap-center">
         <slot name="content">
@@ -200,7 +200,7 @@ export default class ToolPanel extends Vue {
   height: 42px;
   // box-shadow: 0px 1px 2px 0px rgba(0,0,0,.1);
   background: #fff;
-  border-bottom: 1px solid #f0f1f5;
+  // border-bottom: 1px solid #f0f1f5;
 
   :deep(.bk-dropdown-menu) {
     width: 100%;
@@ -216,7 +216,9 @@ export default class ToolPanel extends Vue {
       width: 124px;
       padding-left: 15px;
       line-height: 42px;
-      color: #4e4e4e;
+      font-weight: 700;
+      font-size: 14px;
+      color: #313238;
     }
 
     &-center {
@@ -238,7 +240,7 @@ export default class ToolPanel extends Vue {
         padding: 0 12px;
         // min-width: 100px;
         // margin-left: auto;
-        border-left: 1px solid #f0f1f5;
+        // border-left: 1px solid #f0f1f5;
 
         &-select {
           width: 100%;
@@ -256,8 +258,19 @@ export default class ToolPanel extends Vue {
       .time-interval {
         /* stylelint-disable-next-line declaration-no-important */
         height: 22px!important;
-        padding-right: 8px;
-        border-left: 1px solid #f0f1f5;
+        padding: 0 8px;
+        // border-left: 1px solid #f0f1f5;
+        position: relative;
+        &:before {
+          content: '';
+          width: 1px;
+          background: #DCDEE5;
+          height: 14px;
+          position: absolute;
+          top: 50%;
+          left: 0px;
+          transform: translateY(-50%);
+        }
       }
     }
   }

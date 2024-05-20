@@ -27,4 +27,8 @@
       margin-left: -1px;
     }
   }
+  .bk-select.is-default-trigger.is-unselected:before,
+  .bk-select-small .bk-select-angle {
+    z-index: 1;
+  }
 }
