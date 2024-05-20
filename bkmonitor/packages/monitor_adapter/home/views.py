@@ -42,7 +42,7 @@ from packages.monitor_web.new_report.resources import ReportCallbackResource
 
 
 def user_exit(request):
-    def add_logout_slug(self):
+    def add_logout_slug():
         return {"is_from_logout": "1"}
 
     # 退出登录
