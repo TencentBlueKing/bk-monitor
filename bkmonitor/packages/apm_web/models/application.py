@@ -386,7 +386,6 @@ class Application(AbstractRecordModel):
 
         if enabled_profiling:
             create_params["enabled_profiling"] = True
-
         application_info = api.apm_api.create_application(create_params)
 
         application = cls.objects.create(
