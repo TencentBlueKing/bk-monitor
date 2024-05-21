@@ -41,10 +41,10 @@ const targetResult = {
   subMessageCount: 0,
 };
 interface NotificationProps {
-  isEdit: boolean;
+  isEdit?: boolean;
   hostInfo?: HostInfo;
-  onChange?: void;
-  onShowTargetDetail?: void;
+  onChange?: () => void;
+  onShowTargetDetail?: () => void;
 }
 @Component
 export default class Notification extends tsc<NotificationProps> {
@@ -157,7 +157,7 @@ export default class Notification extends tsc<NotificationProps> {
             {subMessageCount > 0 ? <span>({this.renderHostInfo(subMessageCount, subMessage)})</span> : null}
             {this.isEdit && (
               <i
-                class='icon-monitor icon-mc-edit mc-edit'
+                class='icon-monitor icon-bianji'
                 onClick={this.handleShowSelect}
               />
             )}
@@ -167,7 +167,7 @@ export default class Notification extends tsc<NotificationProps> {
             class='add-tag'
             onClick={this.handleShowSelect}
           >
-            <span class='icon-monitor icon-mc-add'></span>
+            <span class='icon-monitor icon-mc-plus-fill'></span>
             <span class='add-tag-text'>{this.$t('关闭对象')}</span>
           </span>
         ) : (
@@ -181,6 +181,7 @@ export default class Notification extends tsc<NotificationProps> {
           class='ai-settings-notification-component-dialog'
           confirm-fn={this.handleConfirm}
           header-position='left'
+          position={{ top: (document.body.clientHeight - 821) / 2 }}
           render-directive='if'
           show-footer={this.isEdit}
           value={this.showTopoSelector}
