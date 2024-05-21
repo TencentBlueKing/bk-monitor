@@ -57,6 +57,7 @@ from apps.log_search.models import (
     Scenario,
     UserIndexSetFieldsConfig,
 )
+from apps.log_unifyquery.handler import UnifyQueryHandler
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.codecs import unicode_str_encode
 from apps.utils.local import (
@@ -237,10 +238,24 @@ class MappingHandlers(object):
         fields_list = self._combine_description_field(fields_list)
         fields_list = self._combine_fields(fields_list)
 
+        result_table_ids = list(
+            LogIndexSetData.objects.filter(index_set_id=self.index_set_id).values_list(
+                "result_table_id", flat=1
+            ))
         for field in fields_list:
             # 判断是否为内置字段
             field_name = field.get("field_name", "").lower()
             field["is_built_in"] = field_name in built_in_fields or field_name.startswith("__ext.")
+
+            # 增加field_count字段计数
+            if field.get("field_name", ""):
+                search_params = {
+                    "result_table_ids": result_table_ids,
+                    "start_time": self.start_time,
+                    "end_time": self.end_time,
+                    "agg_field": field["field_name"]
+                }
+                field["field_count"] = UnifyQueryHandler(search_params).get_field_count()
 
         return fields_list
 
