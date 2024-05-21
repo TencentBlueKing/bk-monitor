@@ -173,7 +173,7 @@ export default class AiSettingsSet extends tsc<object> {
     if (!this.settingsData[0].data.default_plan_id) {
       this.settingsData[0].errorsMsg.default_plan_id = window.i18n.t('请选择默认方案');
     }
-    if (!this.settingsData[1].data[0].data.default_plan_id) {
+    if (this.settingsData[1].data[0].data.is_enabled && !this.settingsData[1].data[0].data.default_plan_id) {
       this.settingsData[1].data[0].errorsMsg.default_plan_id = window.i18n.t('请选择默认方案');
     }
     return (
