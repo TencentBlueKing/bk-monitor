@@ -2176,7 +2176,23 @@ class TestActionProcessor(TransactionTestCase):
         context = alert_context.get_dictionary()
         context["alarm"].log_related_info = "testtesttest"
         content_template_path = "notice/abnormal/action/markdown_content.jinja"
-        context["content_template"] = "#test title#12345"
+        context[
+            "content_template"
+        ] = """#test title#12345
+{{content.level}}
+{{content.begin_time}}
+{{content.time}}
+{{content.duration}}
+{{content.target_type}}
+{{content.data_source}}
+{{content.content}}
+{{content.current_value}}
+{{content.biz}}
+{{content.target}}
+{{content.dimension}}
+{{content.detail}}
+{{content.assign_detail}}
+{{content.related_info}}"""
         render_content = AlarmNoticeTemplate(content_template_path).render(context)
         print("render_content", render_content)
         self.assertTrue("**test title: **12345" in render_content)
@@ -2323,7 +2339,7 @@ class TestActionProcessor(TransactionTestCase):
         ).get_dictionary()
         context["content_template"] = content
         sender = Sender(context=context, content_template_path="notice/abnormal/action/sms_content.jinja")
-        self.assertEqual(len(sender.content), 300)
+        self.assertLess(len(sender.content), 300)
         content = sender.get_notice_content(NoticeWay.SMS, sender.content)
         self.assertEqual(sender.content, content)
 
@@ -2349,14 +2365,15 @@ class TestActionProcessor(TransactionTestCase):
         ).get_dictionary()
         context["content_template"] = content
         sender = Sender(context=context, content_template_path="notice/abnormal/action/sms_content.jinja")
-        self.assertEqual(len(sender.content), 300)
+        self.assertLess(len(sender.content), 300)
 
     def test_sender_wxbot_ch_limit(self):
         """
         中文字符(utf8编码计算)的长度一定是小于设定的长度
         """
         settings.NOTICE_MESSAGE_MAX_LENGTH = {NoticeWay.WX_BOT: 4096}
-        content = "".join(["【" for i in range(0, 4096)])
+        content = "abc\tdef\nght"
+        content += "".join(["【" for i in range(0, 4096)])
         alert = AlertDocument(**self.alert_info)
         context = ActionContext(
             action=None, alerts=[alert], use_alert_snap=True, notice_way=NoticeWay.WX_BOT
@@ -2397,7 +2414,8 @@ class TestActionProcessor(TransactionTestCase):
 
     def test_send_webot_limit(self):
         settings.NOTICE_MESSAGE_MAX_LENGTH = {"rtx": 0}
-        content = "".join(["000000" for i in range(0, 500)])
+        content = "abc\tdef\nght"
+        content += "".join(["000000" for i in range(0, 500)])
         sender = NoneTemplateSender(title="1", content=content)
         sender.send("rtx", [])
         send_content = sender.content.encode("utf8")

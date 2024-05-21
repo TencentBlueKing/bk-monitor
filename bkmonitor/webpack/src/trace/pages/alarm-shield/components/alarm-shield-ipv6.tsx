@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, PropType, ref, watch } from 'vue';
+import { defineAsyncComponent, defineComponent, nextTick, PropType, ref, watch } from 'vue';
 
-import MonitorIpSelector from '../../../components/monitor-ip-selector/monitor-ip-selector';
 import { IIpV6Value } from '../../../components/monitor-ip-selector/typing';
 import { Ipv6FieldMap } from '../typing';
-
+const MonitorIpSelector = defineAsyncComponent(
+  () => import('../../../components/monitor-ip-selector/monitor-ip-selector')
+);
 export default defineComponent({
   name: 'AlarmShieldIpv6',
   props: {
@@ -50,11 +51,14 @@ export default defineComponent({
         panelList.value = [];
         inited.value = false;
         nextTick(() => {
-          ipCheckValue.value = {
-            [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]],
-          };
+          ipCheckValue.value = Ipv6FieldMap[props.shieldDimension]
+            ? {
+                [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]] || [],
+              }
+            : undefined;
           panelList.value = getPanelListByDimension(v);
-          setTimeout(() => (inited.value = true), 100);
+          // magic code  bk-dialog animate time
+          setTimeout(() => (inited.value = true), 400);
         });
       },
       { immediate: true }
@@ -62,9 +66,11 @@ export default defineComponent({
     watch(
       () => props.checkedValue,
       () => {
-        ipCheckValue.value = {
-          [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]],
-        };
+        ipCheckValue.value = !Ipv6FieldMap[props.shieldDimension]
+          ? undefined
+          : {
+              [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]] || [],
+            };
       },
       { immediate: true }
     );
@@ -90,33 +96,23 @@ export default defineComponent({
     function closeDialog(v: boolean) {
       props.onCloseDialog(v);
     }
-    function renderFn() {
-      return (
-        <div class='alarm-shield-ipv6-component'>
-          {!!panelList.value.length && (
-            <MonitorIpSelector
-              mode={'dialog'}
-              originalValue={props.originCheckedValue}
-              panelList={panelList.value}
-              showDialog={inited.value && props.showDialog}
-              showView={true}
-              showViewDiff={props.showViewDiff}
-              value={ipCheckValue.value}
-              onChange={handleIpChange}
-              onCloseDialog={closeDialog}
-            ></MonitorIpSelector>
-          )}
-        </div>
-      );
-    }
-    return {
-      renderFn,
-      inited,
-      panelList,
-      ipCheckValue,
-    };
-  },
-  render() {
-    return this.renderFn();
+    return () => (
+      <div class='alarm-shield-ipv6-component'>
+        {!!panelList.value.length && (
+          <MonitorIpSelector
+            class='alarm-shield-bk-ip-selector-box'
+            mode={'dialog'}
+            originalValue={props.originCheckedValue}
+            panelList={panelList.value}
+            showDialog={inited.value && props.showDialog}
+            showView={true}
+            showViewDiff={props.showViewDiff}
+            value={ipCheckValue.value}
+            onChange={handleIpChange}
+            onCloseDialog={closeDialog}
+          />
+        )}
+      </div>
+    );
   },
 });

@@ -23,6 +23,39 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-declare module '*.vue';
-declare module '*.svg';
-declare module '*.png';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import './expan-card.scss';
+
+interface IProps {
+  title: string;
+  expand: boolean;
+}
+
+@Component
+export default class ExpanCard extends tsc<IProps> {
+  @Prop({ type: String, default: '' }) title: string;
+  @Prop({ type: Boolean, default: false }) expand: boolean;
+
+  localExpand = false;
+
+  created() {
+    this.localExpand = this.expand;
+  }
+
+  render() {
+    return (
+      <div class='ai-setting-expan-card'>
+        <div
+          class='card-header'
+          onClick={() => (this.localExpand = !this.localExpand)}
+        >
+          <span class={['icon-monitor icon-arrow-down', { expand: this.localExpand }]}></span>
+          <span class='card-header-title'>{this.title}</span>
+        </div>
+        <div class={['card-content', { displaynone: !this.localExpand }]}>{this.$slots.default}</div>
+      </div>
+    );
+  }
+}

@@ -248,6 +248,7 @@ ALERT_MANAGE_TIME = Histogram(
     name="bkmonitor_alert_manage_time",
     documentation="alert(manager) 模块处理耗时",
     labelnames=("status", "exception"),
+    buckets=(0.1, 1, 5, 10, 15, 20, 30, INF),
 )
 
 ALERT_MANAGE_COUNT = Counter(
@@ -462,7 +463,9 @@ CELERY_TASK_EXECUTE_TIME = Histogram(
 
 
 ALARM_CONTEXT_GET_FIELD_TIME = Histogram(
-    name="bkmonitor_alarm_context_get_field_time", documentation="处理套餐上下文字段获取耗时", labelnames=("field", "exception")
+    name="bkmonitor_alarm_context_get_field_time",
+    documentation="处理套餐上下文字段获取耗时",
+    labelnames=("field", "exception"),
 )
 
 API_FAILED_REQUESTS_TOTAL = Counter(

@@ -12,6 +12,7 @@
   "dependencies": {
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/login-modal": "^1.0.1",
+    "@blueking/search-select-v3": "0.0.1-beta.8",
     "async-validator": "^3.5.2",
     "bk-magic-vue": "2.5.8",
     "dayjs": "^1.11.10",

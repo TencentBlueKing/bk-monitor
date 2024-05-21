@@ -48,6 +48,7 @@ from .influxdb_cluster import (
     InfluxDBTagInfo,
 )
 from .ping_server import PingServerSubscriptionConfig
+from .record_rule import RecordRule, ResultTableFlow
 from .result_table import (
     CMDBLevelRecord,
     ResultTable,
@@ -138,4 +139,7 @@ __all__ = [
     "DataPipelineDataSource",
     "AccessVMRecord",
     "SpaceVMInfo",
+    # record rule
+    "RecordRule",
+    "ResultTableFlow",
 ]

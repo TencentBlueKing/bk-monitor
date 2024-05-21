@@ -17,7 +17,6 @@ from typing import Any, Callable, Dict, List, Optional, Set, Type
 
 from celery.task import task
 from django.conf import settings
-from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -77,10 +76,6 @@ def bulk_save_resources(
     if datetime_fields:
         datetime_fields = set(datetime_fields)
 
-    # 远程资源
-    new_data_dict = {getattr(model, sync_unique_field): model for model in resource_models}
-    new_unique_hash_set = {getattr(model, sync_unique_field) for model in resource_models}
-
     # 本地资源
     if not sync_filter:
         history_models = resource.objects.all()
@@ -89,15 +84,54 @@ def bulk_save_resources(
     old_unique_hash_set = {getattr(model, sync_unique_field) for model in history_models}
     old_data_dict = {getattr(model, sync_unique_field): model for model in history_models}
 
-    # 新增记录
-    insert_unique_hash_set = new_unique_hash_set - old_unique_hash_set
-    if insert_unique_hash_set:
-        insert_resource_models = []
-        for unique_hash in insert_unique_hash_set:
-            resource_model = new_data_dict[unique_hash]
+    # 远程资源
+    new_unique_hash_set = set()
+    insert_resource_models = []
+    labels = []
+    for resource_model in resource_models:
+        # 生成唯一标识并加入新的集合
+        unique_hash = getattr(resource_model, sync_unique_field)
+
+        # 新增记录
+        if unique_hash not in old_unique_hash_set:
             insert_resource_models.append(resource_model)
+            if len(insert_resource_models) >= 100:
+                try:
+                    resource.objects.bulk_create(insert_resource_models)
+                except Exception as exc_info:
+                    logger.error(exc_info)
+                insert_resource_models = []
+        else:
+            new_unique_hash_set.add(unique_hash)
+            old_resource_model = old_data_dict[unique_hash]
+            try:
+                old_compare_data = [
+                    get_model_value(old_resource_model, field, datetime_fields) for field in sync_fields
+                ]
+                new_compare_data = [get_model_value(resource_model, field, datetime_fields) for field in sync_fields]
+            except (ValueError, OSError) as exc_info:
+                # 日期格式不正确，忽略更新
+                logger.exception(exc_info)
+                continue
+
+            # 补齐ID
+            resource_model.id = old_data_dict[unique_hash].id
+            if old_compare_data != new_compare_data:
+                # 更新指定字段，防止其他的同步进程覆盖同一个字段
+                resource_model.save(update_fields=sync_fields)
+
+        labels.append(
+            {
+                "id": resource_model.id,
+                "bcs_cluster_id": resource_model.bcs_cluster_id,
+                "api_labels": getattr(resource_model, "api_labels", {}),
+            }
+        )
+
+    # 新增收尾
+    if insert_resource_models:
         try:
-            resource.objects.bulk_create(insert_resource_models, 30)
+            resource.objects.bulk_create(insert_resource_models)
         except Exception as exc_info:
             logger.error(exc_info)
 
@@ -108,30 +142,7 @@ def bulk_save_resources(
         for ids in chunks(delete_ids, 5000):
             resource.objects.filter(id__in=ids).delete()
 
-    # 更新记录
-    update_unique_hash_list = list(new_unique_hash_set & old_unique_hash_set)
-    for update_unique_hash_chunk in chunks(update_unique_hash_list, 100):
-        # 批量更新在一次事务中提交
-        with transaction.atomic(settings.BACKEND_DATABASE_NAME):
-            for unique_hash in update_unique_hash_chunk:
-                old_resource_model = old_data_dict[unique_hash]
-                new_resource_model = new_data_dict[unique_hash]
-                try:
-                    old_compare_data = [
-                        get_model_value(old_resource_model, field, datetime_fields) for field in sync_fields
-                    ]
-                    new_compare_data = [
-                        get_model_value(new_resource_model, field, datetime_fields) for field in sync_fields
-                    ]
-                except (ValueError, OSError) as exc_info:
-                    # 日志格式不正确，忽略更新
-                    logger.exception(exc_info)
-                    continue
-                # 补齐ID
-                new_resource_model.id = old_data_dict[unique_hash].id
-                if old_compare_data != new_compare_data:
-                    # 更新指定字段，防止其他的同步进程覆盖同一个字段
-                    new_resource_model.save(update_fields=sync_fields)
+    return labels
 
 
 @share_lock(identify="sync_bcs_cluster_to_db")
@@ -395,46 +406,33 @@ def sync_bcs_pod(bcs_cluster_id):
     ]
     datetime_fields = ["created_at"]
 
-    if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values("bk_biz_id", "bcs_cluster_id")
-    else:
-        clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
-    if not clusters:
-        return None
-    pod_models = None
-    container_models = None
+    try:
+        bk_biz_id = BCSCluster.objects.get(bcs_cluster_id=bcs_cluster_id).bk_biz_id
+    except BCSCluster.DoesNotExist:
+        return
 
-    for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {cluster["bcs_cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
-        try:
-            pod_models, container_models = BCSPod.load_list_from_api(params, with_container=True)
-        except Exception as exc_info:
-            logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
-            continue
+    try:
+        pod_models = BCSPod.load_list_from_api({"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id})
+    except Exception as exc_info:
+        logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
+        return
 
-        # 同步pod
-        bcs_cluster_id_list = list({model.bcs_cluster_id for model in pod_models})
-        if bcs_cluster_id_list:
-            sync_filter = {
-                "bcs_cluster_id__in": bcs_cluster_id_list,
-            }
-            bulk_save_resources(BCSPod, pod_models, sync_unique_field, pod_sync_fields, sync_filter, datetime_fields)
-            patch_exists_resource_id(pod_models)
-            BCSPod.bulk_save_labels(pod_models)
+    # 同步pod
+    sync_filter = {"bcs_cluster_id": bcs_cluster_id}
+    labels = bulk_save_resources(BCSPod, pod_models, sync_unique_field, pod_sync_fields, sync_filter, datetime_fields)
+    BCSPod.bulk_save_labels(labels)
 
-        # 同步container
-        bcs_cluster_id_list = list({model.bcs_cluster_id for model in container_models})
-        if bcs_cluster_id_list:
-            sync_filter = {
-                "bcs_cluster_id__in": bcs_cluster_id_list,
-            }
-            bulk_save_resources(
-                BCSContainer, container_models, sync_unique_field, container_sync_fields, sync_filter, datetime_fields
-            )
-            patch_exists_resource_id(container_models)
-            BCSContainer.bulk_save_labels(container_models)
+    try:
+        container_models = BCSContainer.load_list_from_api({"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id})
+    except Exception as exc_info:
+        logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
+        return
 
-    return pod_models, container_models
+    # 同步container
+    labels = bulk_save_resources(
+        BCSContainer, container_models, sync_unique_field, container_sync_fields, sync_filter, datetime_fields
+    )
+    BCSContainer.bulk_save_labels(labels)
 
 
 @share_lock(identify="sync_bcs_node_to_db")

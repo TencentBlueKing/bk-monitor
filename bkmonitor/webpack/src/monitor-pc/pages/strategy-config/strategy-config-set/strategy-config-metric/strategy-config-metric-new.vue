@@ -30,7 +30,6 @@
     :title="$t('指标选择器')"
     width="1080"
     @change="handleShowChange"
-    @after-leave="handleAfterLeave"
   >
     <div
       class="metric-set"
@@ -63,25 +62,24 @@
             <span
               class="left-item-num"
               :class="{ 'num-active': item.sourceType === leftActive }"
-            >{{
-              item.count
-            }}</span>
+            >
+              {{ item.count }}
+            </span>
           </li>
         </ul>
         <div class="set-content-right">
           <!-- right 功能栏 -->
           <div class="right-header">
             <!-- 搜索栏 支持 键值对搜索 和 任意内容搜索 和 三段式 -->
-            <bk-search-select
-              ref="searchSelect"
-              class="metric-search"
-              v-model="searchObj.keyWord"
-              :show-popover-tag-change="false"
-              :popover-zindex="2600"
-              :data="searchObj.data"
-              :placeholder="$t('关键字搜索')"
-              @change="handleSearch"
-            />
+            <div class="metric-search">
+              <search-select
+                :value="searchObj.keyWord"
+                :data="searchObj.data"
+                :placeholder="$t('关键字搜索')"
+                :clearable="false"
+                @change="handleSearch"
+              />
+            </div>
             <!-- 选定时间范围 -->
             <!-- <bk-select v-model="timeSelect.value" class="metric-select" :clearable="false" ext-popover-cls="select-class">
               <bk-option v-for="option in timeSelect.list"
@@ -191,7 +189,8 @@
   </monitor-dialog>
 </template>
 <script lang="ts">
-import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricList } from 'monitor-api/modules/strategies';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce, throttle } from 'throttle-debounce';
@@ -207,17 +206,19 @@ import {
   ISearchOption,
   IStaticParams,
   ITag,
-  ITimeSelect } from '../../../../types/strategy-config/strategy-metric';
+  ITimeSelect
+} from '../../../../types/strategy-config/strategy-metric';
+
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 @Component({
   name: 'strategy-config-metric-new',
   components: {
-    MonitorDialog
+    MonitorDialog,
+    SearchSelect
   }
 } as any)
 export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<MonitorVue> {
-  @Ref() readonly searchSelect!: any;
-
   @Prop() // 是否显示dialog
   readonly isShow: boolean;
   @Prop({ default: 0 }) //
@@ -567,7 +568,8 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
   }
 
   //  搜索事件
-  filterMetric() {
+  filterMetric(v) {
+    this.searchObj.keyWord = v;
     this.dataSource[this.leftActive].list = [];
     this.checkedMetric.length = [];
     this.page[this.leftActive] = 1;
@@ -754,18 +756,6 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
     if (this.page[this.leftActive]) {
       this.page[this.leftActive] = 1;
     }
-  }
-
-  handleAfterLeave() {
-    if (this.searchSelect?.popperMenuInstance) {
-      this.searchSelect.popperMenuInstance.destroy(true);
-    }
-    this.resetCurrentTypePage();
-    // dialog bug需手动销毁popperMenuInstance
-    if (this.searchSelect.popperMenuInstance) {
-      this.searchSelect.popperMenuInstance = null;
-    }
-    this.$emit('hide-dialog', false);
   }
 
   handleShowChange(v) {
@@ -1053,7 +1043,6 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
     }
   }
 }
-
 
 .footer-btn {
   margin-right: 10px;

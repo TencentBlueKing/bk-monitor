@@ -35,7 +35,7 @@ import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { IFilterDict, ITableColumn, ITableFilterItem, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
-import { transformConditionValueParams } from 'monitor-pc/pages/monitor-k8s/utils';
+import { transformConditionSearchList, transformConditionValueParams } from 'monitor-pc/pages/monitor-k8s/utils';
 
 import RatioLegend from '../../components/chart-legend/relation-legend';
 import RelationChartTitle from '../../components/relation-chart-title/relation-chart-title';
@@ -395,7 +395,7 @@ export class RelationGraph extends CommonSimpleChart {
                   ...item,
                   checked: this.checkedColumns.length ? this.checkedColumns.includes(item.id) : item.checked,
                 }));
-                this.conditionOptions = condition_list || [];
+                this.conditionOptions = transformConditionSearchList(condition_list || []);
                 this.pagination.count = total || 0;
                 this.clearErrorMsg();
                 return true;

@@ -252,7 +252,7 @@ export default defineComponent({
         res.push({
           name,
           id,
-          multiable: true,
+          multiple: true,
           children: list || [],
         });
       });
@@ -286,7 +286,7 @@ export default defineComponent({
               if (item.value?.length)
                 searchValues_.push({
                   id: item.key,
-                  multiable: true,
+                  multiple: true,
                   name: backDisplayMap.value[item.key].name,
                   values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value],
                 });

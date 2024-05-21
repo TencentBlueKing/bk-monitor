@@ -28,7 +28,7 @@ from typing import Any, Dict, List, Union
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db import models
+from django.db import connection, models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.html import format_html
@@ -373,6 +373,8 @@ class LogIndexSet(SoftDeleteModel):
     target_fields = models.JSONField(_("定位字段"), null=True, default=list)
     sort_fields = models.JSONField(_("排序字段"), null=True, default=list)
 
+    result_window = models.IntegerField(default=10000, verbose_name=_("单次导出的日志条数"))
+
     def get_name(self):
         return self.index_set_name
 
@@ -514,7 +516,12 @@ class LogIndexSet(SoftDeleteModel):
 
         tags_data_dic = IndexSetTag.batch_get_tags(set(tag_id_list))
 
-        no_data_check_time_list = [cls.no_data_check_time(str(index_set_id)) for index_set_id in index_set_ids]
+        no_data_check_time = None
+        for index_set_id in index_set_ids:
+            no_data_check_time = cls.no_data_check_time(str(index_set_id))
+            if no_data_check_time:
+                # 这里只要近似值，只要取到其中一个即可，没有必要将全部索引的时间都查出来
+                break
 
         mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, get_request_username()))
 
@@ -530,7 +537,7 @@ class LogIndexSet(SoftDeleteModel):
         )
 
         result = []
-        for index_set, no_data_check_time in zip(index_sets, no_data_check_time_list):
+        for index_set in index_sets:
             if show_indices:
                 index_set["indices"] = index_set_data.get(index_set["index_set_id"], [])
                 if not index_set["indices"]:
@@ -1204,6 +1211,28 @@ class Space(SoftDeleteModel):
     class Meta:
         verbose_name = _("空间信息")
         verbose_name_plural = _("空间信息")
+
+    @classmethod
+    def get_all_spaces(cls):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id,
+                       space_type_id,
+                       space_type_name,
+                       space_id,
+                       space_name,
+                       space_uid,
+                       space_code,
+                       bk_biz_id,
+                       JSON_EXTRACT(properties, '$.time_zone') AS time_zone
+                FROM log_search_space
+            """
+            )
+            columns = [col[0] for col in cursor.description]
+            spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return spaces
 
 
 class SpaceApi(AbstractSpaceApi):

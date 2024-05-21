@@ -233,4 +233,10 @@ export default {
   '有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。':
     'Within the validity period, the subscription task will be sent normally; beyond the validity period, the task will become invalid and the sending will stop.',
   当前日志查询时间范围不支持静态区间: 'The current log query time range does not support static intervals.',
+  '开启中，请耐心等待...': 'Opening, please wait patiently...',
+  '该服务所在 APM 应用未开启 Profiling 功能':
+    'The APM application where this service is located does not have the profiling function enabled.',
+  '已开启 Profiling 功能，请参考接入指引进行数据上报':
+    'The Profiling has been turned on, please refer to the access guide for data reporting.',
+  显示完整信息: 'Show full information',
 };

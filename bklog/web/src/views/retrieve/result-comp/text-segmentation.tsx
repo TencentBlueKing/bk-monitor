@@ -267,7 +267,7 @@ export default class QueryStatement extends tsc<IProps> {
                 v-bk-tooltips={this.$t('新开标签页')}
                 onClick={e => {
                   e.stopPropagation();
-                  this.handleMenuClick('new-page', true);
+                  this.handleMenuClick('not', true);
                 }}
               >
                 <i class='log-icon icon-jump'></i>

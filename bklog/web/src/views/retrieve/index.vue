@@ -454,6 +454,13 @@ export default {
       timezone: dayjs.tz.guess(),
       /** 数据指纹是否请求布尔值 */
       fingerSearchState: false,
+      /** 是否需要初始化过滤条件回显所需的参数 */
+      isFilterInitPage: true,
+      /** 首次初始化回显时需要的参数 */
+      initFilterParams: {
+        queryParams: {},
+        initAddition: {}
+      },
       logSourceField: {
         description: null,
         es_doc_values: false,
@@ -601,14 +608,18 @@ export default {
     },
     /** 索引集更变时的数据初始化 */
     initIndexSetChangeFn(val, isUnionSearch = false) {
-      this.isSearchAllowed = isUnionSearch
-        ? val?.every(
-            item =>
-              this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
-                authorityMap.SEARCH_LOG_AUTH
-              ]
-          )
-        : !!this.indexSetList.find(item => item.index_set_id === val)?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      if (!isUnionSearch) {
+        const aloneSetItem = this.indexSetList.find(item => item.index_set_id === val);
+        this.indexSetItem = aloneSetItem ?? { index_set_name: '', indexName: '', scenario_name: '', scenario_id: '' };
+        this.isSearchAllowed = !!aloneSetItem?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      } else {
+        this.isSearchAllowed = val?.every(
+          item =>
+            this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
+              authorityMap.SEARCH_LOG_AUTH
+            ]
+        );
+      }
       if (this.isSearchAllowed) this.authPageInfo = null;
       this.resetRetrieveCondition();
       this.resetFavoriteValue();
@@ -1008,7 +1019,11 @@ export default {
     batchAddCondition(additionList, isLink) {
       if (isLink) {
         const notExistAddition = additionList.filter(item => !this.additionIsExist(item));
-        this.additionLinkOpen(notExistAddition, { activeTableTab: 'origin', clusterRouteParams: '{}' });
+        const changeOperatorAddition = notExistAddition.map(item => ({
+          ...item,
+          operator: this.getAdditionMappingOperator(item)
+        }));
+        this.additionLinkOpen(changeOperatorAddition, { activeTableTab: 'origin', clusterRouteParams: '{}' });
       } else {
         additionList.forEach(item => {
           const { field, operator, value } = item;
@@ -1389,12 +1404,18 @@ export default {
         this.resetResult();
         // 表格loading处理
         this.$refs.resultMainRef.reset();
+        // 字段过滤初始化所需的参数
+        if (this.isFilterInitPage) {
+          this.initFilterParams.queryParams = queryParams;
+          this.initFilterParams.initAddition = !!queryParamsStr?.addition
+            ? JSON.parse(queryParamsStr.addition)
+            : undefined;
+        }
         if (!this.totalFields.length || this.shouldUpdateFields) {
           window.bus.$emit('openChartLoading');
           this.isThollteField = false;
           this.getFieldsCancelFn();
-          await this.requestFields();
-          this.shouldUpdateFields = false;
+          this.requestFields();
         }
         // 指纹请求监听放在这里是要等字段更新完后才会去请求数据指纹
         this.fingerSearchState = !this.fingerSearchState;
@@ -1412,11 +1433,6 @@ export default {
           Object.entries(clusteringParams).forEach(([key, val]) => {
             this[key] = val;
           });
-          await this.$nextTick();
-          // 初始化 回填添加条件
-          const addition = !!queryParamsStr.addition ? JSON.parse(queryParamsStr?.addition) : undefined;
-          const chooserSwitch = Boolean(queryParams.ip_chooser);
-          this.$refs.searchCompRef.initConditionList(addition, this.catchIpChooser, chooserSwitch); // 初始化 更新当前添加条件列表
           this.isInitPage = false;
         }
 
@@ -1459,6 +1475,7 @@ export default {
         this.isFavoriteSearch = false;
         this.isAfterRequestFavoriteList = false;
         this.basicLoading = false;
+        this.shouldUpdateFields = false;
       }
     },
     // 更新路由参数
@@ -1572,7 +1589,17 @@ export default {
         this.isThollteField = false;
         this.$store.commit('retrieve/updateFiledSettingConfigID', config_id); // 当前配置ID
         this.$nextTick(() => {
-          this.$refs.searchCompRef?.initAdditionDefault();
+          if (this.isFilterInitPage) {
+            const { queryParams, initAddition } = this.initFilterParams;
+            // 初始化 回填添加条件
+            const chooserSwitch = Boolean(queryParams.ip_chooser);
+            // 初始化 更新当前添加条件列表
+            this.$refs.searchCompRef.initConditionList(initAddition, this.catchIpChooser, chooserSwitch);
+            this.initFilterParams = null;
+            this.isFilterInitPage = false;
+          } else {
+            this.$refs.searchCompRef?.initAdditionDefault();
+          }
           // 字段设置下拉列表更新
           this.configWatchBool = !this.configWatchBool;
         });
@@ -1606,7 +1633,7 @@ export default {
       this.showShowUnionSource(true);
       this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
       // 初始化的时候不进行设置自适应宽度 当前dom还没挂在在页面 导致在第一次检索时isSetDefaultTableColumn参数为true 无法更新自适应宽度
-      if (this.isSetDefaultTableColumn) {
+      if (this.isSetDefaultTableColumn && !this.shouldUpdateFields) {
         this.setDefaultTableColumn();
       }
     },
@@ -1716,7 +1743,7 @@ export default {
         this.retrievedKeyword = this.retrieveParams.keyword;
         this.tookTime = this.tookTime + Number(res.data?.took) || 0;
         this.tableData = { ...(res.data || {}), finishPolling: this.finishPolling };
-        if (!this.isSetDefaultTableColumn) {
+        if (!this.isSetDefaultTableColumn || this.shouldUpdateFields) {
           this.setDefaultTableColumn();
         }
         this.logList = this.logList.concat(parseBigNumberList(res.data?.list ?? []));
@@ -1735,12 +1762,10 @@ export default {
     // 首次加载设置表格默认宽度自适应
     setDefaultTableColumn() {
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-      const {
-        params: { indexId },
-        query: { bizId }
-      } = this.$route;
-      const catchFieldsWidthObj = columnObj?.[bizId]?.fields[indexId];
+      const storageKey = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
+      const columnWidth = JSON.parse(localStorage.getItem(storageKey));
+      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : this.indexId;
+      const catchFieldsWidthObj = columnWidth?.[this.bkBizId]?.fields[indexKey];
       const tableList = this.tableData?.list ?? [];
       this.isSetDefaultTableColumn = setDefaultTableWidth(this.visibleFields, tableList, catchFieldsWidthObj);
     },
@@ -1836,7 +1861,6 @@ export default {
     async retrieveWhenChartChange() {
       this.$refs.resultHeader && this.$refs.resultHeader.pauseRefresh();
       this.$refs.resultMainRef.reset();
-      this.isSetDefaultTableColumn = false;
     },
 
     // 重置搜索结果

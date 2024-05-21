@@ -38,6 +38,9 @@
     @page-change="handlePageChange"
     @page-limit-change="handlePageLimitChange"
   >
+    <div slot='empty' v-if="!!tableKeyword">
+      <EmptyStatus type="search-empty" @operation="handleOperation"></EmptyStatus>
+    </div>
     <bk-table-column
       :render-header="renderHeader"
       width="50"
@@ -85,8 +88,13 @@ import { random } from 'monitor-common/utils/utils';
 
 import SelectionColumn from '../components/selection-column.vue';
 import { CheckType, CheckValue, IPagination, ITableConfig } from '../types/selector-type';
+import EmptyStatus from '../../empty-status/empty-status';
+import { EmptyStatusOperationType } from '../../empty-status/types';
 
-@Component({ name: 'ip-selector-table' })
+@Component({
+  name: 'ip-selector-table',
+  components: { EmptyStatus }
+})
 export default class IpSelectorTable extends Vue {
   @Prop({ default: () => [], type: Array }) private readonly data!: any[];
   @Prop({ default: () => [], type: Array }) private readonly config!: ITableConfig[];
@@ -95,6 +103,7 @@ export default class IpSelectorTable extends Vue {
   @Prop({ default: () => [], type: Array }) private readonly defaultSelections!: any[];
   @Prop({ default: true, type: Boolean }) private readonly showSelectionColumn!: boolean;
   @Prop({ default: '', type: String }) private readonly emptyText!: string;
+  @Prop({ default: '', type: String }) private readonly tableKeyword!: string;
 
   private selections: any[] = this.defaultSelections;
   private excludeData: any[] = [];
@@ -239,6 +248,13 @@ export default class IpSelectorTable extends Vue {
   @Emit('page-limit-change')
   private handlePageLimitChange(limit: number) {
     return limit;
+  }
+
+  handleOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.$emit('clear-filter');
+      return;
+    }
   }
 }
 </script>

@@ -1213,7 +1213,7 @@ export default defineComponent({
             </div>
           ),
         }}
-        transfer={document.querySelector('.trace-list-wrapper') ?? true}
+        transfer={(document.querySelector('.trace-list-wrapper') as HTMLDivElement) ?? true}
         quick-close
         show-mask
         onHidden={handleHiddenChange}

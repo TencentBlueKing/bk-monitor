@@ -238,7 +238,10 @@ class NavTools extends DocumentLinkMixin {
     );
     if (window.bk_component_api_url) {
       useJSONP(
-        `${window.bk_component_api_url}/api/c/compapi/v2/usermanage/fe_update_user_language`.replace(/\/\//, '/'),
+        `${window.bk_component_api_url.replace(/^http:/, location.protocol)}/api/c/compapi/v2/usermanage/fe_update_user_language`.replace(
+          /\/\//,
+          '/'
+        ),
         {
           data: {
             language: item.id,

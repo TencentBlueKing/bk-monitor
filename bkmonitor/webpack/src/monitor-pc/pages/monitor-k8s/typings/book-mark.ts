@@ -294,7 +294,7 @@ export class BookMarkModel implements IBookMark {
         {
           id: '__UN_GROUP__',
           name: window.i18n.tc('未分组视图'),
-          multiable: true,
+          multiple: true,
           children: list,
         },
       ];
@@ -303,7 +303,7 @@ export class BookMarkModel implements IBookMark {
       return this.panels.map(item => ({
         id: item.id.toString(),
         name: item.title.toString(),
-        multiable: true,
+        multiple: true,
         children:
           item.panels?.map(set => ({
             id: set.id.toString(),
