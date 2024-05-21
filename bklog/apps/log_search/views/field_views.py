@@ -111,4 +111,10 @@ class FieldViewSet(APIViewSet):
         """
         params = self.params_valid(FetchStatisticsGraphSerializer)
         query_handler = UnifyQueryHandler(params)
-        return Response(query_handler.get_topk_ts_data(5))
+        if FieldTypeMap[params["field_type"]] == "int":
+            if params["distinct_count"] < 10:
+                return Response(query_handler.get_topk_list())
+            else:
+                return Response(query_handler.get_bucket_count(params["min"], params["max"]))
+        else:
+            return Response(query_handler.get_topk_ts_data(5))

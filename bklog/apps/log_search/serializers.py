@@ -825,6 +825,9 @@ class QueryFieldBaseSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
     index_set_ids = serializers.ListField(label=_("索引集列表"), required=True, child=serializers.IntegerField())
+    result_table_ids = serializers.ListField(
+        label=_("结果表ID列表"), required=False, child=serializers.CharField(), default=[]
+    )
     agg_field = serializers.CharField(label=_("字段名"), required=True)
 
     # filter条件，span选择器等
@@ -842,6 +845,7 @@ class QueryFieldBaseSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        attrs["result_table_ids"] = []
         result_table_ids = list(
             LogIndexSetData.objects.filter(index_set_id__in=attrs["index_set_ids"]).values_list(
                 "result_table_id", flat=1

@@ -37,7 +37,7 @@ class UnifyQueryHandler(object):
                 "conditions": {"field_list": [], "condition_list": []},
                 "function": [],
             }
-            for index, result_table_id in enumerate(self.search_params["result_table_ids"])
+            for index, result_table_id in enumerate(self.search_params.get("result_table_ids", []))
         ]
 
         return {
@@ -63,8 +63,10 @@ class UnifyQueryHandler(object):
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
         data = UnifyQueryApi.query_ts_reference(search_dict)
-        series = data["series"][0]
-        return series["values"][0][1]
+        if data.get("series", []):
+            series = data["series"][0]
+            return series["values"][0][1]
+        return None
 
     def get_field_count(self):
         search_dict = copy.deepcopy(self.base_dict)
@@ -75,8 +77,26 @@ class UnifyQueryHandler(object):
             }
             query["function"] = [{"method": "count"}]
         data = UnifyQueryApi.query_ts_reference(search_dict)
-        series = data["series"][0]
-        return series["values"][0][1]
+        if data.get("series", []):
+            series = data["series"][0]
+            return series["values"][0][1]
+        return None
+
+    def get_bucket_count(self, start, end):
+        search_dict = copy.deepcopy(self.base_dict)
+        search_dict.update({"metric_merge": "a"})
+        for query in search_dict["query_list"]:
+            query["conditions"] = {
+                "field_list": [{"field_name": self.search_params["agg_field"], "value": [str(start)], "op": "gte"}],
+                #                {"field_name": self.search_params["agg_field"], "value": [str(end)], "op": "lte"}
+                # "condition_list": ["and", "and"]
+            }
+            query["function"] = [{"method": "count"}]
+        data = UnifyQueryApi.query_ts_reference(search_dict)
+        if data.get("series", []):
+            series = data["series"][0]
+            return series["values"][0][1]
+        return 0
 
     def get_distinct_count(self):
         search_dict = copy.deepcopy(self.base_dict)
@@ -84,8 +104,10 @@ class UnifyQueryHandler(object):
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "cardinality"}]
         data = UnifyQueryApi.query_ts_reference(search_dict)
-        series = data["series"][0]
-        return series["values"][0][1]
+        if data.get("series", []):
+            series = data["series"][0]
+            return series["values"][0][1]
+        return None
 
     def get_topk_ts_data(self, vargs=5):
         search_dict = copy.deepcopy(self.base_dict)
@@ -108,8 +130,10 @@ class UnifyQueryHandler(object):
             else:
                 query["function"] = [{"method": agg_method}]
         data = UnifyQueryApi.query_ts_reference(search_dict)
-        series = data["series"][0]
-        return round(series["values"][0][1], 2)
+        if data.get("series", []):
+            series = data["series"][0]
+            return round(series["values"][0][1], 2)
+        return None
 
     def get_topk_list(self):
         search_dict = copy.deepcopy(self.base_dict)
@@ -120,3 +144,12 @@ class UnifyQueryHandler(object):
         data = UnifyQueryApi.query_ts_reference(search_dict)
         series = data["series"]
         return [[s["group_values"][0], s["values"][0][1]] for s in series]
+
+    def get_bucket_data(self):
+        step = round((self.search_params["max"] - self.search_params["min"]) / 10)
+        bucket_data = []
+        for index in range(10):
+            start = self.search_params["min"] + index * step
+            bucket_count = self.get_bucket_count(start, start + step)
+            bucket_data.append([start, bucket_count])
+        return bucket_data
