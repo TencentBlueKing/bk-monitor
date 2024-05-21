@@ -20,6 +20,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
+import { SPACE_TYPE_MAP } from '@/store/constant';
+
 export default {
   data() {
     return {
@@ -50,14 +52,20 @@ export default {
           }
         },
         [
-          h('div', {}, [
-            this.isUseMark &&
-              h('span', { class: `identify-icon ${this.isUseMark && item.is_use ? 'is-use' : 'not-use'}` }),
-            h('span', { class: 'code-name' }, [
-              item.space_full_code_name,
-              this.isUseMark && item.is_use ? `（${this.$t('正在使用')}）` : ''
-            ])
-          ]),
+          h(
+            'div',
+            {
+              class: 'list-item-left'
+            },
+            [
+              this.isUseMark &&
+                h('span', { class: `identify-icon ${this.isUseMark && item.is_use ? 'is-use' : 'not-use'}` }),
+              h('span', { class: 'code-name' }, [
+                item.space_full_code_name,
+                this.isUseMark && item.is_use ? `（${this.$t('正在使用')}）` : ''
+              ])
+            ]
+          ),
           h(
             'div',
             {
@@ -65,10 +73,17 @@ export default {
             },
             [
               item.space_type_name &&
-                h(
-                  'span',
-                  { class: `list-item-tag light-theme ${item.space_type_id || 'other-type'}` },
-                  item.space_type_name
+                item.tags.map(tag =>
+                  h(
+                    'span',
+                    {
+                      class: 'list-item-tag light-theme',
+                      style: {
+                        ...SPACE_TYPE_MAP[tag.id].light
+                      }
+                    },
+                    tag.name
+                  )
                 ),
               this.spaceMultiple &&
                 h('span', {
