@@ -36,3 +36,18 @@ def balanced_biscuit(input_list, num_splits):
         current_index += current_split_size
 
     return result
+
+
+def group_by(iterators, get_key):
+    res = {}
+    for item in iterators:
+        key = get_key(item)
+        if not key:
+            continue
+
+        if key in res:
+            res[key].append(item)
+        else:
+            res[key] = [item]
+
+    return res

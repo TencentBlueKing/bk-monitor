@@ -29,11 +29,11 @@
     class="drag-label"
     @click="e => $emit('click', e)"
     @mousedown="handleMouseDown"
-    @touchstart="handleMouseDown"
     @mousemove="handleMouseMove"
-    @touchmove.prevent="handleMouseMove"
     @mouseup="handleMouseUp"
     @touchend="handleMouseUp"
+    @touchmove.prevent="handleMouseMove"
+    @touchstart="handleMouseDown"
   >
     <slot>
       <i class="icon-monitor icon-menu-event" />
@@ -121,7 +121,7 @@ export default class DragLabel extends Vue {
         () => {
           event.stopPropagation(); // jq 阻止冒泡事件
         },
-        false,
+        false
       );
     }
   }

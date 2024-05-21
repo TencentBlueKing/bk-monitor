@@ -207,4 +207,6 @@ export default {
   已通过: 'Passed',
   未通过: 'Not passed',
   未审批: 'Not approved',
+  请先在左侧选择应用: 'Please select an application on the left side first',
+  '应用加载中，请耐心等候…': 'Application is loading, please wait patiently...',
 };

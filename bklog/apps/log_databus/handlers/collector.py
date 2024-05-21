@@ -166,6 +166,8 @@ from apps.utils.time_handler import format_user_time_zone
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
 
+COLLECTOR_RE = re.compile(r'.*\d{6,8}$')
+
 
 class CollectorHandler(object):
     data: CollectorConfig
@@ -1198,6 +1200,7 @@ class CollectorHandler(object):
             "topic": data_result["mq_config"]["storage_config"]["topic"],
             "username": data_result["mq_config"]["auth_info"]["username"],
             "password": data_result["mq_config"]["auth_info"]["password"],
+            "sasl_mechanism": data_result["mq_config"]["auth_info"].get("sasl_mechanisms"),
             "is_ssl_verify": cluster_config.get("is_ssl_verify", False),
             "ssl_insecure_skip_verify": cluster_config.get("ssl_insecure_skip_verify", True),
             "ssl_cafile": ssl_cafile,
@@ -2537,7 +2540,7 @@ class CollectorHandler(object):
         user_operation_record.delay(operation_record)
 
     def pre_check(self, params: dict):
-        data = {"allowed": False}
+        data = {"allowed": False, "message": _("该数据名已重复")}
         bk_biz_id = params.get("bk_biz_id")
         collector_config_name_en = params.get("collector_config_name_en")
 
@@ -2558,7 +2561,11 @@ class CollectorHandler(object):
         if result_table:
             return data
 
-        data["allowed"] = True
+        # 如果采集名不以6-8数字结尾, data.allowed返回True, 反之返回False
+        if COLLECTOR_RE.match(collector_config_name_en):
+            data.update({"allowed": False, "message": _("采集名不能以6-8位数字结尾")})
+        else:
+            data.update({"allowed": True, "message": ""})
         return data
 
     def _pre_check_bk_data_name(self, model_fields: dict, bk_data_name: str):

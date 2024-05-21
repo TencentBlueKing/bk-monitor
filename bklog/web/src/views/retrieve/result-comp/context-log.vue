@@ -368,10 +368,10 @@ export default {
         Object.assign(data, {
           sort_list: configRes.data.sort_list,
           name: configRes.data.name,
-          config_id: this.currentConfigID
+          config_id: this.currentConfigID,
+          index_set_id: this.$route.params.indexId
         });
         await this.$http.request('retrieve/updateFieldsConfig', {
-          params: { index_set_id: this.$route.params.indexId },
           data
         });
         const res = await this.requestFields();

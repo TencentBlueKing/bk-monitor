@@ -652,8 +652,9 @@ export default {
       try {
         const res = await this.$http.request('retrieve/getFieldsListConfig', {
           data: {
-            index_set_id: this.$route.params.indexId,
-            index_set_ids: this.unionIndexList,
+            ...(this.isUnionSearch
+              ? { index_set_ids: this.unionIndexList }
+              : { index_set_id: this.$route.params.indexId }),
             scope: 'default',
             index_set_type: this.isUnionSearch ? 'union' : 'single'
           }

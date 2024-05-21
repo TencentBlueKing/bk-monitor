@@ -32,6 +32,7 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
@@ -40,6 +41,7 @@ import { strategyType } from '../typings/index';
 import StrategyMetricTableEvent from './strategy-metric-table-event';
 
 import './strategy-metric-wrap.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
 interface IStrategyMetricWrap {
@@ -256,7 +258,8 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
     this.clearLocalChecked();
   }
 
-  handleSearch() {
+  handleSearch(v) {
+    this.searchData.keyWord = v;
     this.pagination.page = 1;
     this.getMetricList();
   }
@@ -459,16 +462,15 @@ export default class StrategyMetricWrap extends tsc<IStrategyMetricWrap, IEventF
         <div v-bkloading={{ isLoading: this.isLoading }}>
           <div class='metric-wrap-common'>
             <div class='metric-handle-row'>
-              <bk-search-select
-                class='search-select'
-                v-model={this.searchData.keyWord}
-                data={this.searchKeyList}
-                placeholder={this.$t('关键字搜索')}
-                popoverZindex={2600}
-                show-condition={false}
-                showPopoverTagChange={false}
-                onChange={this.handleSearch}
-              ></bk-search-select>
+              <div class='search-select'>
+                <SearchSelect
+                  clearable={false}
+                  data={this.searchKeyList}
+                  modelValue={this.searchData.keyWord}
+                  placeholder={this.$t('关键字搜索')}
+                  onChange={this.handleSearch}
+                ></SearchSelect>
+              </div>
               <bk-button
                 class='btn-refresh'
                 icon='icon-refresh'

@@ -470,7 +470,7 @@ export default defineComponent({
         registerObserver(start_time, end_time);
         return;
       }
-      emit('loading', true);
+      if (inited.value) emit('loading', true);
       emptyText.value = t('加载中...');
       try {
         unregisterOberver();

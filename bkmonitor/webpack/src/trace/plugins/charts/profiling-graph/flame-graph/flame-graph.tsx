@@ -31,6 +31,7 @@ import { HierarchyNode } from 'd3-hierarchy';
 import { query } from 'monitor-api/modules/apm_profile';
 import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
+import { parseProfileDataTypeValue, ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import {
   BaseDataType,
   CommonMenuList,
@@ -114,6 +115,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    unit: {
+      type: String as () => ProfileDataUnit,
+      default: 'nanoseconds',
+    },
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
   setup(props, { emit, expose }) {
@@ -192,6 +197,7 @@ export default defineComponent({
                 minHeight: wrapperRef.value?.getBoundingClientRect().height - 40,
                 direction: props.textDirection,
                 keywords: props.filterKeywords,
+                unit: props.unit,
                 getFillColor: (d: BaseDataType) => {
                   if (d.id === RootId) return 'rgb(223,133,32)';
                   return props.isCompared && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
@@ -201,12 +207,23 @@ export default defineComponent({
                     tipDetail.value = {};
                     return;
                   }
-                  const { text, suffix } = usFormat(d.data.value / 1000);
-                  let diffDuration = '';
+                  let detailsData, dataText;
+                  const { value: dataValue, text: profileText } = parseProfileDataTypeValue(
+                    d.data.value,
+                    props.unit,
+                    true
+                  );
+                  detailsData = dataValue;
+                  dataText = profileText;
+
+                  let diffData;
                   let diffValue = 0;
                   if (props.isCompared && d.data?.diff_info) {
-                    const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison / 1000);
-                    diffDuration = diffText + diffSuffix;
+                    const { value: diffProfileValue } = parseProfileDataTypeValue(
+                      d.data.diff_info.comparison,
+                      props.unit
+                    );
+                    diffData = diffProfileValue;
                     diffValue =
                       d.data.diff_info.comparison === 0 || d.data.diff_info.mark === 'unchanged'
                         ? 0
@@ -234,8 +251,9 @@ export default defineComponent({
                     id: d.data.id,
                     title: d.data.name,
                     proportion: ((d.data.value * 100) / c.rootValue).toFixed(4).replace(/[0]+$/g, ''),
-                    duration: text + suffix,
-                    diffDuration,
+                    data: detailsData,
+                    dataText,
+                    diffData,
                     diffValue,
                     mark: d.data.diff_info?.mark,
                   };
@@ -565,11 +583,11 @@ export default defineComponent({
                           </tr>
                         )}
                         <tr>
-                          <td>{window.i18n.t('耗时')}</td>
-                          <td>{this.tipDetail.duration}</td>
+                          <td>{this.tipDetail.dataText}</td>
+                          <td>{this.tipDetail.data}</td>
                           {this.localIsCompared &&
                             this.tipDetail.id !== RootId && [
-                              <td>{this.tipDetail.diffDuration ?? '--'}</td>,
+                              <td>{this.tipDetail.diffData ?? '--'}</td>,
                               <td>
                                 {this.tipDetail.mark === 'added' ? (
                                   <span class='tips-added'>{this.tipDetail.mark}</span>

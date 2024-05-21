@@ -201,7 +201,7 @@ class StructToPromqlResource(UnifyQueryAPIResource):
         metric_merge = serializers.CharField(allow_blank=True, required=False)
         order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
         step = serializers.CharField(allow_blank=True, required=False, allow_null=True)
-        space_uid = serializers.CharField()
+        space_uid = serializers.CharField(allow_blank=True, required=False, allow_null=True)
 
 
 class GetDimensionDataResource(UnifyQueryAPIResource):

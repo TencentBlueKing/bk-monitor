@@ -50,7 +50,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, nextTick, PropType, ref } from 'vue';
+import { computed, defineComponent, inject, nextTick, onMounted, onUnmounted, PropType, ref } from 'vue';
 
 import * as authorityMap from 'apm/pages/home/authority-map';
 import _isEqual from 'lodash/isEqual';
@@ -194,6 +194,18 @@ export default defineComponent({
         ? generateRowStates(spans.value, childrenHiddenStore?.childrenHiddenIds.value, detailStates)
         : [];
     });
+
+    onMounted(() => {
+      document.addEventListener('keydown', handleEscKeydown);
+    });
+
+    onUnmounted(() => {
+      document.removeEventListener('keydown', handleEscKeydown);
+    });
+
+    function handleEscKeydown(evt) {
+      if (evt.code === 'Escape') showSpanDetails.value = false;
+    }
 
     /** 点击span事件 */
     const handleSpanClick = (span: Span) => {

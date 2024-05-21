@@ -336,6 +336,7 @@ export declare namespace IEventRetrieval {
     onAutoQueryChange?: (v: boolean) => void;
     onClearDrillKeywords: void;
     onEmptyStatusChange: (val: EmptyStatusType) => void;
+    onChange?: (value: ILocalValue) => void;
   }
   interface IProps {
     where: IFilterCondition.localValue[];

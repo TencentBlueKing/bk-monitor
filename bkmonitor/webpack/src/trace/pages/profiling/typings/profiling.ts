@@ -91,6 +91,8 @@ export interface FileDetail {
   query_end_time: number;
   /** 错误信息 */
   content: string;
+  /** 数据上报时间 */
+  data_time: string;
 }
 
 export enum DetailType {

@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from django.utils.translation import ugettext as _
@@ -156,52 +157,59 @@ def update_time_series_metrics(time_series_metrics):
 
 @app.task(ignore_result=True, queue="celery_report_cron")
 def manage_es_storage(es_storages):
+    """并发管理 ES 存储。"""
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        executor.map(_manage_es_storage, es_storages)
+
+
+def _manage_es_storage(es_storage):
     """
     NOTE: 针对结果表校验使用的es集群状态，不要统一校验
     """
     # 遍历所有的ES存储并创建index, 并执行完整的es生命周期操作
-    for es_storage in es_storages:
-        if es_storage.is_red():
-            logger.error(
-                "es cluster health is red, skip index lifecycle; name: %s, id: %s, domain: %s",
-                es_storage.storage_cluster.cluster_name,
-                es_storage.storage_cluster.cluster_id,
-                es_storage.storage_cluster.domain_name,
-            )
-            continue
-        try:
-            # 先预创建各个时间段的index，
-            # 1. 同时判断各个预创建好的index是否字段与数据库的一致
-            # 2. 也判断各个创建的index是否有大小需要切片的需要
 
-            if not es_storage.index_exist():
-                #   如果该table_id的index在es中不存在，说明要走初始化流程
-                logger.info("table_id->[%s] found no index in es,will create new one", es_storage.table_id)
-                es_storage.create_index_and_aliases(es_storage.slice_gap)
-            else:
-                # 否则走更新流程
-                es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
+    #     if es_storage.is_red():
+    #         logger.error(
+    #             "es cluster health is red, skip index lifecycle; name: %s, id: %s, domain: %s",
+    #             es_storage.storage_cluster.cluster_name,
+    #             es_storage.storage_cluster.cluster_id,
+    #             es_storage.storage_cluster.domain_name,
+    #         )
+    #         return
 
-            # 创建快照
-            es_storage.create_snapshot()
-            # 清理过期的index
-            es_storage.clean_index_v2()
-            # 清理过期快照
-            es_storage.clean_snapshot()
-            # 重新分配索引数据
-            es_storage.reallocate_index()
+    try:
+        # 先预创建各个时间段的index，
+        # 1. 同时判断各个预创建好的index是否字段与数据库的一致
+        # 2. 也判断各个创建的index是否有大小需要切片的需要
 
-            logger.debug("es_storage->[{}] cron task success.".format(es_storage.table_id))
-        except Exception as e:
-            # 记录异常集群的信息
-            logger.error(
-                "es_storage: %s index lifecycle failed, name: %s, id: %s, domain: %s, error: %s",
-                es_storage.table_id,
-                es_storage.storage_cluster.cluster_name,
-                es_storage.storage_cluster.cluster_id,
-                es_storage.storage_cluster.domain_name,
-                e,
-            )
+        if not es_storage.index_exist():
+            #   如果该table_id的index在es中不存在，说明要走初始化流程
+            logger.info("table_id->[%s] found no index in es,will create new one", es_storage.table_id)
+            es_storage.create_index_and_aliases(es_storage.slice_gap)
+        else:
+            # 否则走更新流程
+            es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
+
+        # 创建快照
+        es_storage.create_snapshot()
+        # 清理过期的index
+        es_storage.clean_index_v2()
+        # 清理过期快照
+        es_storage.clean_snapshot()
+        # 重新分配索引数据
+        es_storage.reallocate_index()
+
+        logger.debug("es_storage->[{}] cron task success.".format(es_storage.table_id))
+    except Exception as e:
+        # 记录异常集群的信息
+        logger.error(
+            "es_storage: %s index lifecycle failed, name: %s, id: %s, domain: %s, error: %s",
+            es_storage.table_id,
+            es_storage.storage_cluster.cluster_name,
+            es_storage.storage_cluster.cluster_id,
+            es_storage.storage_cluster.domain_name,
+            e,
+        )
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")

@@ -64,36 +64,18 @@
           error-display-type="normal"
         >
           <bk-select
+            ref="selectRef"
             v-model="formData.bk_biz_id"
             data-test-id="linkConfigForm_select_selectPermitted"
             searchable
             :clearable="false"
             style="width: 380px"
+            display-key="space_full_code_name"
+            id-key="bk_biz_id"
+            enable-virtual-scroll
+            :list="projectList"
+            :virtual-scroll-render="virtualscrollSpaceList"
           >
-            <template>
-              <bk-option
-                v-for="item in projectList"
-                :id="item.bk_biz_id"
-                :key="item.bk_biz_id"
-                :name="item.space_full_code_name"
-              >
-                <div class="space-code-option">
-                  <span
-                    class="code-name"
-                    :title="item.space_full_code_name"
-                    >{{ item.space_full_code_name }}</span
-                  >
-                  <div
-                    v-if="item.space_type_id"
-                    class="list-item-right"
-                  >
-                    <span :class="['list-item-tag', 'light-theme', item.space_type_id || 'other-type']">
-                      {{ item.space_type_name }}
-                    </span>
-                  </div>
-                </div>
-              </bk-option>
-            </template>
           </bk-select>
         </bk-form-item>
         <bk-form-item
@@ -197,7 +179,10 @@
 </template>
 
 <script>
+import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
+
 export default {
+  mixins: [SpaceSelectorMixin],
   props: {
     visible: {
       type: Boolean,
@@ -263,7 +248,9 @@ export default {
             trigger: 'blur'
           }
         ]
-      }
+      },
+      spaceMultiple: false,
+      isUseMark: false
     };
   },
   watch: {
@@ -276,6 +263,10 @@ export default {
     }
   },
   methods: {
+    handleSelectSpaceChange(bkBiz) {
+      this.formData.bk_biz_id = bkBiz;
+      this.$refs.selectRef?.close();
+    },
     async handleConfirm() {
       try {
         this.confirmLoading = true;
@@ -317,8 +308,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import '@/scss/space-tag-option';
-
 .link-config-form {
   :deep(.bk-form-content) {
     position: relative;
@@ -330,4 +319,8 @@ export default {
     }
   }
 }
+</style>
+
+<style lang="scss">
+@import '@/scss/space-tag-option';
 </style>

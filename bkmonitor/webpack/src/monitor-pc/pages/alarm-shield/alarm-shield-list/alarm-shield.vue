@@ -54,15 +54,15 @@
           @change="handleSearch"
         >
         </bk-input> -->
-        <bk-search-select
-          v-model="searchValues"
-          class="right-search"
-          :data="searchData"
-          :show-condition="false"
-          filter
-          :placeholder="$t('输入屏蔽内容、ID')"
-          @change="handleSearchCondition"
-        />
+        <div class="right-search">
+          <search-select
+            :model-value="searchValues"
+            :data="searchData"
+            :clearable="false"
+            :placeholder="$t('输入屏蔽内容、ID')"
+            @change="handleSearchCondition"
+          />
+        </div>
       </div>
     </div>
     <div class="content-wrapper">
@@ -102,8 +102,9 @@
             <span
               class="shield-id"
               @click="handleToDetail(scope.row.id)"
-              >#{{ scope.row.id }}</span
             >
+              #{{ scope.row.id }}
+            </span>
           </bk-table-column>
           <bk-table-column
             width="150"
@@ -207,8 +208,9 @@
             <span
               class="shield-id"
               @click="handleToDetail(scope.row.id)"
-              >#{{ scope.row.id }}</span
             >
+              #{{ scope.row.id }}
+            </span>
           </bk-table-column>
           <bk-table-column
             width="150"
@@ -331,6 +333,7 @@
   </div>
 </template>
 <script>
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield.js';
 import { debounce } from 'throttle-debounce';
@@ -339,10 +342,13 @@ import { commonPageSizeMixin } from '../../../common/mixins';
 import EmptyStatus from '../../../components/empty-status/empty-status.tsx';
 import TableStore from '../store.ts';
 
+import '@blueking/search-select-v3/vue2/vue2.css';
+
 export default {
   name: 'AlarmShield',
   components: {
     EmptyStatus,
+    SearchSelect,
   },
   mixins: [commonPageSizeMixin],
   inject: ['authority', 'handleShowAuthorityDetail', 'authorityMap'],
@@ -783,14 +789,15 @@ export default {
         res.push({
           name,
           id,
-          multiable: true,
+          multiple: true,
           children: list ? list : [],
         });
       });
       this.searchData = res;
       this.getRouterParams();
     },
-    handleSearchCondition() {
+    handleSearchCondition(v) {
+      this.searchValues = v;
       this.searchCondition = this.routerParamsReplace();
       this.emptyType = this.searchCondition.length ? 'search-empty' : 'empty';
       this.handleGetShiledList();
@@ -841,7 +848,7 @@ export default {
               if (item.value?.length)
                 searchValues.push({
                   id: item.key,
-                  multiable: true,
+                  multiple: true,
                   name: this.backDisplayMap[item.key].name,
                   values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value],
                 });
@@ -903,7 +910,7 @@ export default {
       }
 
       .right-search {
-        min-width: 400px;
+        width: 400px;
         background: #fff;
       }
     }

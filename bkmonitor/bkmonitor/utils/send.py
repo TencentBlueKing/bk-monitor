@@ -102,15 +102,22 @@ class BaseSender(object):
 
     def handle_content_length(self, content_template, context_dict):
         content_limit = self.get_content_limit(self.notice_way)
+        # 渲染后的总提长度: self.content（这里做了特殊字符的replace, 一个特殊字符占1个长度)
         content_length = get_content_length(self.content, self.encoding)
         if not content_limit or content_limit >= content_length:
             # 不需要限制长度
             return
+        # 计算扣除 user_content 后剩余模板内容的长度（这里user_content的特殊字符 占2个长度）
         template_content_length = content_length - get_content_length(
             context_dict.get("user_content", ""), self.encoding
         )
         self.context["limit"] = True
-        self.context["user_content_length"] = content_limit - template_content_length
+        # content_length 基于self.content 计算（经过了\\n, \\t的转换， 因此实际长度比context_dict["user_content"]中的原始长度小
+        # template_content_length 这里长度计算少了
+        # 重新渲染的长度，要减去特殊字符的个数。
+        self.context["user_content_length"] = (
+            content_limit - template_content_length - 1 - self.content.count("\n") - self.content.count("\t")
+        )
         self.content = content_template.render(self.get_context_dict())
 
     @staticmethod
