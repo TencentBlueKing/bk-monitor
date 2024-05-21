@@ -425,7 +425,7 @@ export default class AiSettingsSet extends tsc<object> {
                         true
                       ),
                       this.formItemRender(
-                        <span class='item-label required'>{this.$t('敏感度')}</span>,
+                        <span class='item-label required'>{this.$t('默认敏感度')}</span>,
                         <div class='mt-6'>
                           <bk-slider
                             v-model={child.data.default_sensitivity}
