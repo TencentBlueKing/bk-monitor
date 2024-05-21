@@ -272,7 +272,8 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         except Exception as error:
             logger.exception("[query_debug] Parsing data error：%s；The last 50 char:%s", error, data[-50:])
             raise ParsingDataError()
-        if message_detail["dataid"] == HEARTBEAT_MESSAGE_ID:
+        if message_detail["dataid"] == HEARTBEAT_MESSAGE_ID or message_detail["type"] == "status":
+            # 心跳数据，不需要
             return True, data
         return False, message_detail
 
