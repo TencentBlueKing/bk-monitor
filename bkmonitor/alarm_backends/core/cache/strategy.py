@@ -743,6 +743,7 @@ class StrategyCacheManager(CacheManager):
                 no_data_config = item.get("no_data_config")
                 if no_data_config and no_data_config.get("is_enabled"):
                     nodata_strategy_ids.append(strategy["id"])
+                    continue
 
         cls.cache.set(cls.NO_DATA_CACHE_KEY, json.dumps(nodata_strategy_ids), cls.CACHE_TIMEOUT)
 
@@ -1061,11 +1062,32 @@ class StrategyCacheManager(CacheManager):
                 _strategies, old_groups=[ids[1] for ids in to_be_deleted_strategy_ids if ids[1]]
             )
 
+        def refresh_nodata_strategy_ids(_strategies):
+            #
+            nodata_strategy_ids, without_nodata_strategy_ids = set(), set()
+            for s in strategies:
+                for i in s["items"]:
+                    no_data_config = i.get("no_data_config")
+                    if no_data_config and no_data_config.get("is_enabled"):
+                        nodata_strategy_ids.add(s["id"])
+                        break
+                else:
+                    without_nodata_strategy_ids.add(s["id"])
+
+            # 增量更新
+            old_nodata_strategy_ids = set(cls.get_nodata_strategy_ids())
+            old_nodata_strategy_ids.update(nodata_strategy_ids)
+            old_nodata_strategy_ids -= without_nodata_strategy_ids
+            old_nodata_strategy_ids -= {ids[0] for ids in to_be_deleted_strategy_ids}
+
+            cls.cache.set(cls.NO_DATA_CACHE_KEY, json.dumps(list(old_nodata_strategy_ids)), cls.CACHE_TIMEOUT)
+
         processors: List[Callable[[List[Dict]], None]] = [
             cls.add_target_shield_condition,
             cls.add_enabled_cluster_condition,
             refresh_strategy_ids,
             refresh_bk_biz_ids,
+            refresh_nodata_strategy_ids,
             refresh_strategy,
         ]
 
