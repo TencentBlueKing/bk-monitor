@@ -53,6 +53,7 @@ class AIOPSManager(abc.ABC):
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.ALERT),
         (DataSourceLabel.BK_FTA, DataTypeLabel.ALERT),
         (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT),
     )
 
     def __init__(self, alert: AlertDocument, ai_settings: Optional[ReadOnlyAiSetting] = None):
@@ -157,11 +158,40 @@ class AIOPSManager(abc.ABC):
             "function": compare_function,
         }
 
-        if (
-            query_config["data_source_label"],
-            query_config["data_type_label"],
-        ) in cls.AVAILABLE_DATA_LABEL:
+        data_source = (query_config["data_source_label"], query_config["data_type_label"])
+        if data_source in cls.AVAILABLE_DATA_LABEL:
             for query_config in item["query_configs"]:
+                # 系统事件需要特殊处理
+                if data_source == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT):
+                    event_name_mapping = {
+                        "corefile-gse": "CoreFile",
+                        "disk-full-gse": "DiskFull",
+                        "disk-readonly-gse": "DiskReadonly",
+                        "oom-gse": "OOM",
+                        "agent-gse": "AgentLost",
+                    }
+                    if query_config.get("metric_field") not in event_name_mapping:
+                        return
+
+                    unify_query_params["query_configs"].append(
+                        {
+                            "data_source_label": DataSourceLabel.CUSTOM,
+                            "data_type_label": DataTypeLabel.EVENT,
+                            "table": "gse_system_event",
+                            "metrics": [{"field": "_index", "method": "SUM", "alias": "a"}],
+                            "filter_dict": {
+                                "event_name": event_name_mapping[query_config["metric_field"]],
+                                "ip": alert.dimensions.get("ip", ""),
+                                "bk_cloud_id": alert.dimensions.get("bk_cloud_id", 0),
+                            },
+                            "time_field": "time",
+                            "interval": 60,
+                            "where": [],
+                            "group_by": [],
+                        }
+                    )
+                    continue
+
                 if use_raw_query_config:
                     raw_query_config = query_config.get("raw_query_config", {})
                     query_config.update(raw_query_config)
@@ -559,7 +589,7 @@ class DimensionDrillManager(AIOPSManager):
                 ],
                 "normal_data": [                     # 异常分值不超过阈值的维度组合
                     [
-                        ("127.0.0.2"),
+                        ("127.0.0.1"),
                         "0.0",
                         "0.06"
                     ]
@@ -574,8 +604,8 @@ class DimensionDrillManager(AIOPSManager):
                     "is_anomaly": true
                 },
                 {
-                    "id": "bk_target_ip=127.0.0.2",
-                    "dimension_value": "127.0.0.2",
+                    "id": "bk_target_ip=127.0.0.1",
+                    "dimension_value": "127.0.0.1",
                     "anomaly_score": 0.06,
                     "is_anomaly": false
                 }
@@ -613,7 +643,7 @@ class DimensionDrillManager(AIOPSManager):
                 ],
                 "normal_data": [                     # 异常分值不超过阈值的维度组合
                     [
-                        ["127.0.0.2"],
+                        ["127.0.0.1"],
                         "0.0",
                         "0.06"
                     ]
