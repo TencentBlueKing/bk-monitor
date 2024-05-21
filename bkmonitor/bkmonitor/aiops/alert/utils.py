@@ -184,6 +184,10 @@ class AIOPSManager(abc.ABC):
                                 "ip": alert.dimensions.get("ip", ""),
                                 "bk_cloud_id": alert.dimensions.get("bk_cloud_id", 0),
                             },
+                            "time_field": "time",
+                            "interval": 60,
+                            "where": [],
+                            "group_by": [],
                         }
                     )
                     continue
