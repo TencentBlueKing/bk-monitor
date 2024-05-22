@@ -27,6 +27,8 @@ class UnifyQueryHandler(object):
         self.include_nested_fields: bool = params.get("include_nested_fields", True)
 
     def init_base_dict(self):
+        if "." in self.search_params["agg_field"]:
+            self.search_params["agg_field"] = self.search_params["agg_field"].replace(".", "___")
         query_list = [
             {
                 "data_source": "bklog",
@@ -154,7 +156,7 @@ class UnifyQueryHandler(object):
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
         data = self.query_ts_reference(search_dict)
         series = data["series"]
-        return [[s["group_values"][0], s["values"][0][1]] for s in series]
+        return sorted([[s["group_values"][0], s["values"][0][1]] for s in series], key=lambda x: x[1], reverse=True)
 
     def get_bucket_data(self):
         step = round((self.search_params["max"] - self.search_params["min"]) / 10)
