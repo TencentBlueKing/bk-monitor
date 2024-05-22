@@ -217,7 +217,12 @@
                 v-model="visibleBkBiz"
                 searchable
                 multiple
+                display-key="space_full_code_name"
+                id-key="bk_biz_id"
                 display-tag
+                enable-virtual-scroll
+                :list="mySpaceList"
+                :virtual-scroll-render="virtualscrollSpaceList"
                 @toggle="handleToggleVisible"
               >
                 <template #trigger>
@@ -242,28 +247,6 @@
                     <span :class="['bk-icon', 'icon-angle-down', !visibleIsToggle ? '' : 'icon-rotate']"></span>
                   </div>
                 </template>
-                <bk-option
-                  v-for="item in mySpaceList"
-                  :id="item.bk_biz_id"
-                  :key="item.bk_biz_id"
-                  :name="item.space_full_code_name"
-                >
-                  <div class="space-code-option">
-                    <div>
-                      <span :class="['identify-icon', item.is_use ? 'is-use' : 'not-use']"></span>
-                      <span class="code-name">
-                        {{ item.space_full_code_name }}
-                        {{ item.is_use ? `（${$t('正在使用')}）` : '' }}
-                      </span>
-                    </div>
-                    <div class="list-item-right">
-                      <span :class="['list-item-tag', 'light-theme', item.space_type_id || 'other-type']">
-                        {{ item.space_type_name }}
-                      </span>
-                      <span :class="visibleBkBiz.includes(item.bk_biz_id) && 'bk-icon icon-check-1'"></span>
-                    </div>
-                  </div>
-                </bk-option>
               </bk-select>
               <bk-search-select
                 v-show="isBizAttr"
@@ -606,13 +589,14 @@ import EsDialog from './es-dialog';
 import { mapState, mapGetters } from 'vuex';
 import BkUserSelector from '@blueking/user-selector';
 import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
+import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
 
 export default {
   components: {
     EsDialog,
     BkUserSelector
   },
-  mixins: [SidebarDiffMixin],
+  mixins: [SidebarDiffMixin, SpaceSelectorMixin],
   props: {
     showSlider: {
       type: Boolean,
@@ -908,6 +892,7 @@ export default {
     handleToggleVisible(data) {
       this.visibleIsToggle = data;
       if (!data) {
+        this.visibleList.splice(0, this.visibleList.length);
         this.visibleBkBiz.forEach(val => {
           if (!this.visibleList.some(item => String(item.id) === val)) {
             const target = this.mySpaceList.find(project => project.bk_biz_id === val);
@@ -1321,7 +1306,6 @@ export default {
 
 <style lang="scss" scoped>
 @import '@/scss/mixins/flex.scss';
-@import '@/scss/space-tag-option';
 @import '@/scss/mixins/scroller.scss';
 
 .king-slider-content {
@@ -1590,4 +1574,8 @@ export default {
     @include flex-center;
   }
 }
+</style>
+
+<style lang="scss">
+@import '@/scss/space-tag-option';
 </style>

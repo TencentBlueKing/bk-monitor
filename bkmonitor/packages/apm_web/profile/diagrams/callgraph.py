@@ -91,7 +91,7 @@ def dot_color(score: float, is_back_ground: bool = False) -> str:
     return "#{:02x}{:02x}{:02x}".format(int(r * 255.0), int(g * 255.0), int(b * 255.0))
 
 
-def generate_svg_data(tree: FunctionTree, data: dict):
+def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
     """
     生成 svg 图片数据
     :param tree 功能树调用树
@@ -106,7 +106,7 @@ def generate_svg_data(tree: FunctionTree, data: dict):
         ratio_str = f"{ratio:.2%}"
         title = f"""
         {node["name"]}
-        {display_time(node["value"])} of {display_time(data["call_graph_all"])} ({ratio_str})
+        {display(node["value"], unit)} of {display(data["call_graph_all"], unit)} ({ratio_str})
         """
         node_color = dot_color(score=ratio)
 
@@ -133,7 +133,7 @@ def generate_svg_data(tree: FunctionTree, data: dict):
         dot.edge(
             str(edge["source_id"]),
             str(edge["target_id"]),
-            label=f'{display_time(edge["value"])}',
+            label=f'{display(edge["value"], unit)}',
             tooltip=tooltip,
         )
 
@@ -159,21 +159,42 @@ def calculate_node_size(percentage):
     return node_size, CallGraph.BASE_SIZE
 
 
-def display_time(timestamp_microseconds):
-    """将纳秒时间戳转为可读形式"""
-    time_in_seconds = timestamp_microseconds / 1000000000
+def display(value, unit):
+    """将不同数据类型单位转换可读格式"""
 
-    hours = time_in_seconds // 3600
+    if unit == "nanoseconds":
+        return convert_seconds(value / 1000000000)
+    elif unit == "seconds":
+        return convert_seconds(value)
+    elif unit == "bytes":
+        units = ["Bytes", "KB", "MB", "GB", "TB"]
+        step = 1024
+        if value == 0:
+            return "0Bytes"
+
+        i = 0
+        while value >= step and i < len(units) - 1:
+            value /= step
+            i += 1
+
+        size = round(value, 2)
+        return f"{size}{units[i]}"
+
+    return str(value)
+
+
+def convert_seconds(seconds):
+    hours = seconds // 3600
     if hours >= 1:
-        remaining_minutes = (time_in_seconds % 3600) // 60
+        remaining_minutes = (seconds % 3600) // 60
         return f"{int(hours)}h{int(remaining_minutes)}m"
 
-    minutes = time_in_seconds // 60
+    minutes = seconds // 60
     if minutes >= 1:
-        remaining_seconds = time_in_seconds % 60
+        remaining_seconds = seconds % 60
         return f"{int(minutes)}m{remaining_seconds:.2f}s"
 
-    milliseconds = time_in_seconds * 1000
+    milliseconds = seconds * 1000
     if milliseconds < 1000:
         return f"{milliseconds:.0f}ms"
 
@@ -181,7 +202,11 @@ def display_time(timestamp_microseconds):
     if microseconds < 1000:
         return f"{microseconds:.0f}μs"
 
-    return f"{time_in_seconds:.2f}s"
+    nanoseconds = microseconds * 1000
+    if nanoseconds < 1000:
+        return f"{nanoseconds}ns"
+
+    return f"{seconds:.2f}s"
 
 
 @dataclass
@@ -202,8 +227,9 @@ class CallGraphDiagrammer:
         }
         if options.get("data_mode") and options.get("data_mode") == CallGraphResponseDataMode.IMAGE_DATA_MODE:
             # 补充 sample_type 信息
-            data.update(c.get_sample_type())
-            return generate_svg_data(tree, data)
+            sample_type_info = c.get_sample_type()
+            data.update(sample_type_info)
+            return generate_svg_data(tree, data, unit=sample_type_info["unit"])
         return data
 
     def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:

@@ -694,51 +694,6 @@ class KubernetesPodJsonParser(KubernetesV1ObjectJsonParser):
 
         return reason
 
-    def get_workloads(self, replica_set_list, job_list):
-        # 获取垃圾回收配置
-        owner_references = self.metadata.get("ownerReferences", [])
-        if not owner_references:
-            owner_references = []
-        workload_type = ""
-        workload_name = ""
-        if owner_references:
-            workload_name = owner_references[0].get("name", "")
-            workload_type = owner_references[0].get("kind", "")
-            if "ReplicaSet" == workload_type:
-                for replica_set in replica_set_list:
-                    replica_set_owner_references = replica_set.get("metadata", {}).get("ownerReferences", [])
-                    if not replica_set_owner_references:
-                        continue
-
-                    rs_workload_name = replica_set_owner_references[0].get("name", "")
-                    rs_workload_type = replica_set_owner_references[0].get("kind", "")
-                    rs_name = replica_set.get("metadata", {}).get("name")
-                    if replica_set_owner_references and rs_name in workload_name:
-                        owner_references += replica_set_owner_references
-                        self.metadata["ownerReferences"] = owner_references
-                        workload_name = rs_workload_name
-                        workload_type = rs_workload_type
-            elif "Job" == workload_type:
-                for job in job_list:
-                    parent_owner_references = job.get("metadata", {}).get("ownerReferences", [])
-                    if not parent_owner_references:
-                        continue
-
-                    rs_workload_name = parent_owner_references[0].get("name", "")
-                    rs_workload_type = parent_owner_references[0].get("kind", "")
-                    job_name = job.get("metadata", {}).get("name")
-                    if parent_owner_references and job_name in workload_name:
-                        owner_references += parent_owner_references
-                        self.metadata["ownerReferences"] = owner_references
-                        workload_name = rs_workload_name
-                        workload_type = rs_workload_type
-
-        return {
-            "owner_references": owner_references,
-            "workload_name": workload_name,
-            "workload_type": workload_type,
-        }
-
     @cached_property
     def containers(self) -> List:
         return self.spec.get("containers", [])

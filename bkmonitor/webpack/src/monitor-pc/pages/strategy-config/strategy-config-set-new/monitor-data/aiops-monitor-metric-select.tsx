@@ -58,6 +58,8 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
 
   observer = null;
 
+  countInstance = null;
+
   created() {
     this.selectTargetId = `aiops-monitor-metric-select-component-id-${random(8)}`;
     this.observer = new ResizeObserver(entries => {
@@ -162,6 +164,15 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
       const countEl = document.createElement('span');
       countEl.className = countClassName;
       countEl.innerHTML = `+${overflowCount}`;
+      this.countInstance?.hide?.();
+      this.countInstance?.destroy?.();
+      setTimeout(() => {
+        this.countInstance = this.$bkPopover(countEl, {
+          content: this.$t('显示完整信息'),
+          arrow: true,
+          delay: [300, 0],
+        });
+      }, 50);
       tagsWrap.insertBefore(countEl, tagsWrap.children[insertIndex]);
     }
   }
@@ -196,6 +207,7 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
   handleChange() {
     this.localValue = this.tags.map(item => item.metric_id);
     this.$emit('change', this.localValue);
+    this.dispatch('bk-form-item', 'form-change');
   }
 
   /**
@@ -210,10 +222,27 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
       fIndex >= 0 && this.localValue.splice(fIndex, 1);
     }
     this.$emit('change', this.localValue);
+    this.dispatch('bk-form-item', 'form-change');
     this.handleGetMetricTag();
     this.$nextTick(() => {
       this.getOverflowHideCount();
     });
+  }
+
+  dispatch(componentName: string, eventName: string) {
+    let parent = this.$parent || this.$root;
+    let name = parent.$options.name;
+
+    while (parent && (!name || name !== componentName)) {
+      parent = parent.$parent;
+
+      if (parent) {
+        name = parent.$options.name;
+      }
+    }
+    if (parent) {
+      parent.$emit.apply(parent, [eventName]);
+    }
   }
 
   /**

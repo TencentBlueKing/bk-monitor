@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, reactive, ref, shallowRef } from 'vue';
+import { defineComponent, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -77,7 +77,7 @@ export default defineComponent({
     const store = useAppStore();
     const router = useRouter();
     const route = useRoute();
-    const bizList = computed(() => store.bizList);
+    const bizList = shallowRef(store.bizList.filter(item => +item.bk_biz_id === +store.bizId));
     const scopeRef = ref<InstanceType<typeof AlarmShieldConfigScope>>(null);
     const strategyRef = ref<InstanceType<typeof AlarmShieldConfigStrategy>>(null);
     const dimensionRef = ref<InstanceType<typeof AlarmShieldConfigDimension>>(null);
@@ -196,6 +196,7 @@ export default defineComponent({
           : transformMonitorToValue(targetList, ShieldDimension2NodeType[data.scope_type]);
       };
       formData.bizId = data.bk_biz_id;
+      bizList.value = store.bizList.filter(item => +item.bk_biz_id === +data.bk_biz_id);
       /* 范围屏蔽（目标范围） */
       if (data.category === 'scope') {
         tabData.active = EShieldType.Scope;

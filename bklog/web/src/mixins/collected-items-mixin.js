@@ -37,6 +37,8 @@ export default {
   methods: {
     async operateHandler(row, operateType) {
       // type: [view, status , search, edit, field, start, stop, delete]
+      const isCanClick = this.getOperatorCanClick(row, operateType);
+      if (!isCanClick) return;
       if (operateType === 'add') {
         // 新建权限控制
         if (!this.isAllowedCreate) {
@@ -180,13 +182,28 @@ export default {
         this.isAllowedCreate = false;
       }
     },
-    getDisabledTipsMessage(item, operateType) {
+    getDisabledTipsMessage(row, operateType) {
       if (operateType === 'delete') return this.disabledTips.delete;
-      if (!this.disabledTips[item.status]) return '--';
-      if (this.disabledTips[item.status].operateType?.includes(operateType)) {
-        return this.disabledTips[item.status].tips;
+      if (!this.disabledTips[row.status]) return '--';
+      if (this.disabledTips[row.status].operateType?.includes(operateType)) {
+        return this.disabledTips[row.status].tips;
       }
       return '--';
+    },
+    getOperatorCanClick(row, operateType) {
+      if (operateType === 'search') {
+        return !(!row.is_active || (!row.index_set_id && !row.bkdata_index_set_ids.length));
+      }
+      if (['clean', 'storage', 'clone'].includes(operateType)) {
+        return !row.status || row.table_id;
+      }
+      if (['stop', 'start'].includes(operateType)) {
+        return !(!row.status || row.status === 'running' || row.status === 'prepare' || !this.collectProject);
+      }
+      if (operateType === 'delete') {
+        return !(!row.status || row.status === 'running' || row.is_active || !this.collectProject);
+      }
+      return true;
     }
   }
 };

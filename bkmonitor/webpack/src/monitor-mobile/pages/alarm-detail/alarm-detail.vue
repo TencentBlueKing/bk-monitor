@@ -28,25 +28,25 @@
     <!-- 趋势图 -->
     <monitor-echarts
       v-if="eventDetail.dataTypeLabel === 'time_series'"
-      :height="210"
       :style="{ backgroundColor: '#f0f1f5' }"
       class="alarm-detail-chart"
-      :series="series"
+      :height="210"
       :options="options"
+      :series="series"
       @click="handleGoChart"
     />
     <!-- tag -->
     <van-row
-      gutter="3"
-      type="flex"
-      justify="space-around"
       class="alarm-detail-tag"
+      gutter="3"
+      justify="space-around"
+      type="flex"
     >
       <van-col span="8">
         <span class="tag-label">
           <icon
-            type="level"
             :status="eventDetail.level"
+            type="level"
           />
           {{ levelNameMap[eventDetail.level] }}
         </span>
@@ -54,8 +54,8 @@
       <van-col span="8">
         <span class="tag-label">
           <icon
-            type="notice"
             :status="eventDetail.noticeStatus"
+            type="notice"
           />
           {{ eventDetail.noticeStatus === 'SUCCESS' ? $t('已告警') : $t('未告警') }}
         </span>
@@ -63,8 +63,8 @@
       <van-col span="8">
         <span class="tag-label">
           <icon
-            type="status"
             :status="eventDetail.status"
+            type="status"
           />
           {{ statusMap[eventDetail.status] }}
         </span>
@@ -72,17 +72,17 @@
     </van-row>
     <!-- 事件详情 -->
     <van-collapse
-      v-model="active"
       class="alarm-detail-group"
+      v-model="active"
     >
       <van-collapse-item
         v-for="(val, key) in detailFieldMap"
+        :border="!expand.includes(key)"
+        :disabled="!expand.includes(key)"
+        :is-link="expand.includes(key)"
         :key="key"
         :name="key"
         :title="val"
-        :is-link="expand.includes(key)"
-        :border="!expand.includes(key)"
-        :disabled="!expand.includes(key)"
       >
         <template
           v-if="!expand.includes(key)"

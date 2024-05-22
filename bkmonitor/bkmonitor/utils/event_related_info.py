@@ -62,10 +62,11 @@ def get_event_relation_info(event: Event):
         }
     )
 
-    return get_data_source_log(data_source, query_config, int(event.latest_anomaly_record.source_time.timestamp()))
+    content = get_data_source_log(data_source, query_config, int(event.latest_anomaly_record.source_time.timestamp()))
+    return content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
 
 
-def get_alert_relation_info(alert: AlertDocument):
+def get_alert_relation_info(alert: AlertDocument, length_limit=True):
     """
     获取事件最近的日志
     1. 自定义事件：查询事件关联的最近一条事件信息
@@ -74,6 +75,7 @@ def get_alert_relation_info(alert: AlertDocument):
     if not alert.strategy:
         return ""
 
+    content = ""
     query_config = (
         QueryConfigModel.objects.filter(strategy_id=alert.strategy["id"])
         .values("data_source_label", "data_type_label", "config")
@@ -87,20 +89,25 @@ def get_alert_relation_info(alert: AlertDocument):
         (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
         (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
     ):
-        return get_alert_relation_info_for_log(alert)
+        content = get_alert_relation_info_for_log(alert)
 
-    # 日志聚类告警需要提供更详细的信息
-    for label in alert.strategy.get("labels") or []:
-        # 日志聚类新类告警具有特定标签，格式 "LogClustering/NewClass/{index_set_id}"
-        # 根据前缀可识别出来
-        if label.startswith("LogClustering/NewClass/"):
-            return get_alert_info_for_log_clustering_new_class(alert, label.split("/")[-1])
-        # 日志聚类数量告警具有特定标签，格式 "LogClustering/Count/{index_set_id}"
-        # 根据前缀可识别出来
-        elif label.startswith("LogClustering/Count/"):
-            return get_alert_info_for_log_clustering_count(alert, label.split("/")[-1])
+    else:
+        # 日志聚类告警需要提供更详细的信息
+        for label in alert.strategy.get("labels") or []:
+            # 日志聚类新类告警具有特定标签，格式 "LogClustering/NewClass/{index_set_id}"
+            # 根据前缀可识别出来
+            if label.startswith("LogClustering/NewClass/"):
+                content = get_alert_info_for_log_clustering_new_class(alert, label.split("/")[-1])
+                break
+            # 日志聚类数量告警具有特定标签，格式 "LogClustering/Count/{index_set_id}"
+            # 根据前缀可识别出来
+            elif label.startswith("LogClustering/Count/"):
+                content = get_alert_info_for_log_clustering_count(alert, label.split("/")[-1])
+                break
 
-    return ""
+    if length_limit:
+        content = content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
+    return content
 
 
 def get_alert_info_for_log_clustering_count(alert: AlertDocument, index_set_id: str):
@@ -140,6 +147,9 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
             signatures = [dimensions["signature"]]
         # 新类敏感度默认取最低档，即最少告警
         sensitivity = dimensions.get("sensitivity", "__dist_09")
+        if not sensitivity.startswith("__"):
+            # 补充双下划线前缀
+            sensitivity = "__" + sensitivity
     except Exception as e:
         logger.exception("[get_alert_info_for_log_clustering_new_class] get dimension error: %s", e)
         sensitivity = "__dist_09"
@@ -242,8 +252,6 @@ def get_clustering_log(
             logger.exception(f"get alert[{alert.id}] signature[{log_signature}] log clustering new pattern error: {e}")
 
     content = json.dumps(record, ensure_ascii=False)
-    # 截断
-    content = content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
     return content
 
 
@@ -279,7 +287,6 @@ def get_data_source_log(data_source, query_config, source_time):
     :param data_source:
     :param query_config:
     :param source_time:
-    :param end_time:
     :return:
     """
     # 查询时间为事件开始到5个周期后
@@ -295,4 +302,4 @@ def get_data_source_log(data_source, query_config, source_time):
         content = record["event"]["content"]
     else:
         content = json.dumps(record, ensure_ascii=False)
-    return content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
+    return content

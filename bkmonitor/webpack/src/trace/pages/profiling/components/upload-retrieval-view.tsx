@@ -29,6 +29,8 @@ import { useI18n } from 'vue-i18n';
 import { Button, Exception, Select } from 'bkui-vue';
 import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { docCookies } from 'monitor-common/utils/utils';
 
 import { IQueryParams } from '../../../typings/trace';
 import { ConditionType, DataTypeItem, RetrievalFormData } from '../typings';
@@ -85,6 +87,8 @@ export default defineComponent({
     });
 
     const selectToggle = ref(false);
+
+    const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 
     init();
 
@@ -149,7 +153,7 @@ export default defineComponent({
     function statusRender(status: EFileStatus, needName = true) {
       if ([EFileStatus.uploaded, EFileStatus.parsingSucceed, EFileStatus.storeSucceed].includes(status)) {
         return (
-          <div class='status'>
+          <div class={['status', { en: isEn }]}>
             <div class='success circle'></div>
             {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>
@@ -157,7 +161,7 @@ export default defineComponent({
       }
       if ([EFileStatus.parsingFailed, EFileStatus.storeFailed].includes(status)) {
         return (
-          <div class='status'>
+          <div class={['status', { en: isEn }]}>
             <div class='error circle'></div>
             {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>

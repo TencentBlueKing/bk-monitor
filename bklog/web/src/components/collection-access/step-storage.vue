@@ -297,26 +297,39 @@
         </bk-select>
       </bk-form-item> -->
       <bk-form-item class="operate-container">
-        <bk-button
-          theme="default"
-          class="mr10"
-          data-test-id="storageBox_button_previousPage"
-          :title="$t('上一步')"
-          :disabled="isLoading"
-          @click="prevHandler"
-        >
-          {{ $t('上一步') }}
-        </bk-button>
-        <bk-button
-          theme="primary"
-          class="mr10"
-          data-test-id="storageBox_button_nextPage"
-          :loading="isLoading"
-          :disabled="!collectProject"
-          @click.stop.prevent="finish"
-        >
-          {{ $t('下一步') }}
-        </bk-button>
+        <template v-if="!isFinishCreateStep">
+          <bk-button
+            theme="default"
+            class="mr10"
+            data-test-id="storageBox_button_previousPage"
+            :title="$t('上一步')"
+            :disabled="isLoading"
+            @click="prevHandler"
+          >
+            {{ $t('上一步') }}
+          </bk-button>
+          <bk-button
+            theme="primary"
+            class="mr10"
+            data-test-id="storageBox_button_nextPage"
+            :loading="isLoading"
+            :disabled="!collectProject"
+            @click.stop.prevent="finish()"
+          >
+            {{ $t('下一步') }}
+          </bk-button>
+        </template>
+        <template v-else>
+          <bk-button
+            theme="primary"
+            class="mr10"
+            :loading="isLoading"
+            :disabled="!collectProject"
+            @click.stop.prevent="finish()"
+          >
+            {{ $t('保存') }}
+          </bk-button>
+        </template>
         <bk-button
           theme="default"
           @click="cancel"
@@ -330,7 +343,7 @@
 
 <script>
 import { mapGetters } from 'vuex';
-import { projectManages } from '@/common/util';
+import { projectManages, deepEqual } from '@/common/util';
 import storageMixin from '@/mixins/storage-mixin';
 import ClusterTable from './components/cluster-table';
 
@@ -346,7 +359,11 @@ export default {
       default: 1
     },
     collectorId: String,
-    isCleanField: Boolean
+    /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
+    isFinishCreateStep: {
+      type: Boolean,
+      require: true
+    }
   },
   data() {
     return {
@@ -493,7 +510,8 @@ export default {
       replicasMax: 7,
       shardsMax: 7,
       isForcedFillAssessment: false, // 是否必须容量评估
-      editStorageClusterID: null // 存储页进入时判断是否有选择过存储集群
+      editStorageClusterID: null, // 存储页进入时判断是否有选择过存储集群
+      editComparedData: {}
     };
   },
   computed: {
@@ -554,66 +572,8 @@ export default {
         });
     },
     // 存储入库
-    fieldCollection() {
-      const {
-        etl_config,
-        table_id,
-        storage_cluster_id,
-        retention,
-        storage_replies,
-        es_shards,
-        allocation_min_days: allMinDays,
-        view_roles,
-        fields,
-        etl_params: etlParams,
-        assessment_config: assessmentConfig
-      } = this.formData;
-      const isNeedAssessment = this.getNeedAssessmentStatus();
-      this.isLoading = true;
-      const isOpenHotWarm = this.selectedStorageCluster.enable_hot_warm;
-      const data = {
-        etl_config,
-        table_id,
-        storage_cluster_id,
-        retention: Number(retention),
-        storage_replies: Number(storage_replies),
-        es_shards: Number(es_shards),
-        allocation_min_days: isOpenHotWarm ? Number(allMinDays) : 0,
-        view_roles,
-        etl_params: {
-          retain_original_text: etlParams.retain_original_text,
-          retain_extra_json: etlParams.retain_extra_json ?? false,
-          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
-          separator_regexp: etlParams.separator_regexp,
-          separator: etlParams.separator
-        },
-        fields,
-        assessment_config: {
-          log_assessment: `${assessmentConfig.log_assessment}G`,
-          need_approval: assessmentConfig.need_approval,
-          approvals: assessmentConfig.approvals
-        },
-        need_assessment: isNeedAssessment
-      };
-      !isNeedAssessment && delete data.assessment_config;
-      /* eslint-disable */
-      if (etl_config !== 'bk_log_text') {
-        const payload = {
-          retain_original_text: etlParams.retain_original_text,
-          retain_extra_json: etlParams.retain_extra_json ?? false,
-          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? ''
-        };
-        if (etl_config === 'bk_log_delimiter') {
-          payload.separator = etlParams.separator;
-        }
-        if (etl_config === 'bk_log_regexp') {
-          payload.separator_regexp = etlParams.separator_regexp;
-        }
-        data.etl_params = payload;
-        // data.fields = this.$refs.fieldTable.getData()
-      }
+    fieldCollection(callback) {
+      const data = this.getSubmitData();
       /* eslint-enable */
       this.isLoading = true;
       this.$http
@@ -627,42 +587,54 @@ export default {
           if (res.code === 0) {
             // this.storageList = res.data
             // this.formData.storage_cluster_id = this.storageList[0].storage_cluster_id
-            this.isLoading = false;
             if (res.data) {
               this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
               this.$emit('changeIndexSetId', res.data.index_set_id || '');
             }
-            if (this.isCleanField) {
+            if (data.need_assessment && data.assessment_config.need_approval) {
+              this.$emit('setAssessmentItem', {
+                iframe_ticket_url: res.data.ticket_url,
+                itsm_ticket_status: 'applying'
+              });
+            } else {
+              this.$emit('setAssessmentItem', {});
+            }
+            if (this.isFinishCreateStep) {
               this.messageSuccess(this.$t('保存成功'));
+              if (callback) {
+                this.$emit('resetCurCollectVal');
+                callback(true);
+                return;
+              }
               this.$emit('changeSubmit', true);
               this.$emit('stepChange', 'back');
-            } else {
-              if (data.need_assessment && data.assessment_config.need_approval) {
-                this.$emit('setAssessmentItem', {
-                  iframe_ticket_url: res.data.ticket_url,
-                  itsm_ticket_status: 'applying'
-                });
-              } else {
-                this.$emit('setAssessmentItem', {});
-              }
-              // 只有在不展示日志脱敏的情况下才改变保存状态
-              if (!this.isShowMaskingTemplate) this.$emit('changeSubmit', true);
-              this.$emit('stepChange');
+              return;
             }
+            // 只有在不展示日志脱敏的情况下才改变保存状态
+            if (!this.isShowMaskingTemplate) this.$emit('changeSubmit', true);
+            this.$emit('stepChange');
           }
         })
+        .catch(() => callback?.(false))
         .finally(() => {
           this.isLoading = false;
         });
     },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.finish(callback);
+    },
     // 完成按钮
-    finish() {
+    finish(callback) {
       const isCanSubmit = this.getSubmitAuthority();
-      if (!isCanSubmit) return;
+      if (!isCanSubmit) {
+        callback(false);
+        return;
+      }
       const promises = [this.checkStore()];
       Promise.all(promises).then(
         () => {
-          this.fieldCollection();
+          this.fieldCollection(callback);
         },
         validator => {
           console.warn('保存失败', validator);
@@ -689,8 +661,7 @@ export default {
       });
     },
     prevHandler() {
-      const step = this.isCleanField ? 1 : this.curStep - 1;
-      this.$emit('stepChange', step);
+      this.$emit('stepChange', this.curStep - 1);
     },
     // 获取详情
     getDetail() {
@@ -781,13 +752,26 @@ export default {
       this.editStorageClusterID = storage_cluster_id;
       this.formData.storage_cluster_id =
         this.formData.storage_cluster_id === null ? tsStorageId : this.formData.storage_cluster_id;
-
       this.basicLoading = false;
+      this.$nextTick(() => {
+        this.editComparedData = this.getSubmitData();
+      });
     },
     cancel() {
+      if (this.isFinishCreateStep) {
+        this.$emit('changeSubmit', true);
+      }
+      let routeName;
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
+      } else {
+        routeName = 'collection-item';
+      }
       this.$router.push({
-        name: 'collection-item',
+        name: routeName,
         query: {
+          ...reset,
           spaceUid: this.$store.state.spaceUid
         }
       });
@@ -849,6 +833,73 @@ export default {
         assessment_config: { log_assessment: logAssessment, need_approval: needApproval }
       } = this.formData;
       return this.isCanUseAssessment && (logAssessment !== '' || needApproval);
+    },
+    /** 判断提交信息是否有更改过值 */
+    getIsUpdateSubmitValue() {
+      // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
+      if (this.basicLoading) return false;
+      const params = this.getSubmitData();
+      return !deepEqual(this.editComparedData, params);
+    },
+    getSubmitData() {
+      const {
+        etl_config,
+        table_id,
+        storage_cluster_id,
+        retention,
+        storage_replies,
+        es_shards,
+        allocation_min_days: allMinDays,
+        view_roles,
+        fields,
+        etl_params: etlParams,
+        assessment_config: assessmentConfig
+      } = this.formData;
+      const isNeedAssessment = this.getNeedAssessmentStatus();
+      const isOpenHotWarm = this.selectedStorageCluster.enable_hot_warm;
+      const data = {
+        etl_config,
+        table_id,
+        storage_cluster_id,
+        retention: Number(retention),
+        storage_replies: Number(storage_replies),
+        es_shards: Number(es_shards),
+        allocation_min_days: isOpenHotWarm ? Number(allMinDays) : 0,
+        view_roles,
+        etl_params: {
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
+          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+          separator_regexp: etlParams.separator_regexp,
+          separator: etlParams.separator
+        },
+        fields,
+        assessment_config: {
+          log_assessment: `${assessmentConfig.log_assessment}G`,
+          need_approval: assessmentConfig.need_approval,
+          approvals: assessmentConfig.approvals
+        },
+        need_assessment: isNeedAssessment
+      };
+      !isNeedAssessment && delete data.assessment_config;
+      /* eslint-disable */
+      if (etl_config !== 'bk_log_text') {
+        const payload = {
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
+          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? ''
+        };
+        if (etl_config === 'bk_log_delimiter') {
+          payload.separator = etlParams.separator;
+        }
+        if (etl_config === 'bk_log_regexp') {
+          payload.separator_regexp = etlParams.separator_regexp;
+        }
+        data.etl_params = payload;
+      }
+      return data;
     },
     checkStorageReplies() {
       return this.formData.storage_replies <= this.replicasMax;

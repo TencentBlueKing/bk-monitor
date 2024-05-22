@@ -76,7 +76,7 @@ export default {
         spaceList.forEach(item => {
           item.bk_biz_id = `${item.bk_biz_id}`;
           item.space_uid = `${item.space_uid}`;
-          item.space_full_code_name = `${item.space_name}(#${item.space_code})`;
+          item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
         });
         const { bizId, spaceUid } = queryObj;
         const demoId = String(window.DEMO_BIZ_ID);

@@ -32,8 +32,8 @@
       <div class="item-content">
         <div
           v-for="(item, index) in dimension.strategies"
-          :key="item.id"
           class="item-content-name"
+          :key="item.id"
         >
           {{ item.name
           }}<i

@@ -38,7 +38,6 @@ export default options => {
       const rootRef = ref();
 
       let app = new Vue2(Component);
-
       const syncProps = () => {
         Object.keys(props).forEach(propName => {
           const newValue = props[propName];
@@ -46,7 +45,7 @@ export default options => {
             const v = Object.keys(newValue).reduce(
               (result, item) => ({
                 ...result,
-                [item]: newValue[item],
+                [item]: Array.isArray(newValue[item]) ? [...newValue[item]] : newValue[item],
               }),
               {}
             );

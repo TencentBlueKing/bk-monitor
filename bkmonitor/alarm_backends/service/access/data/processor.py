@@ -8,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+import base64
+import gzip
 import json
 import logging
 import queue
@@ -21,6 +22,7 @@ from typing import Dict, List
 
 import arrow
 import pytz
+import redis
 from django.conf import settings
 from django.utils.functional import cached_property
 from kafka import KafkaConsumer
@@ -296,31 +298,21 @@ class AccessDataProcess(BaseAccessDataProcess):
         if not self.items:
             return
 
-        if self.sub_task_id:
-            client = key.ACCESS_BATCH_DATA_KEY.client
-            cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
-                strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
-            )
+        now_timestamp = arrow.utcnow().timestamp
 
-            raw_points: List[str] = client.lrange(cache_key, 0, -1)
-            client.delete(cache_key)
-            points: List[Dict] = [json.loads(point) for point in raw_points]
-        else:
-            now_timestamp = arrow.utcnow().timestamp
+        # 设置查询时间范围
+        self.get_query_time_range(now_timestamp)
 
-            # 设置查询时间范围
-            self.get_query_time_range(now_timestamp)
+        # 如果策略更新导致查询时间错位，则跳过本次查询
+        if self.from_timestamp > self.until_timestamp:
+            return
 
-            # 如果策略更新导致查询时间错位，则跳过本次查询
-            if self.from_timestamp > self.until_timestamp:
-                return
+        # 数据查询
+        points = self.query_data(now_timestamp)
 
-            # 数据查询
-            points = self.query_data(now_timestamp)
-
-            # 当点数大于阈值时，将数据拆分为多个批量任务
-            if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
-                points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
+        # 当点数大于阈值时，将数据拆分为多个批量任务
+        if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
+            points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
 
         # 过滤重复数据并实例化
         self.filter_duplicates(points)
@@ -337,7 +329,11 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 计算平台指标查询localTime
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            first_item.data_sources[0].metrics.append({"field": "localTime", "method": "MAX", "alias": "_localTime"})
+            if len(first_item.expression.strip()) <= 1:
+                # 未配置多指标表达式， 则基于 bksql 查询，判断 localtime
+                first_item.data_sources[0].metrics.append(
+                    {"field": "localTime", "method": "MAX", "alias": "_localTime"}
+                )
 
         try:
             points = first_item.query_record(self.from_timestamp, self.until_timestamp)
@@ -351,7 +347,6 @@ class AccessDataProcess(BaseAccessDataProcess):
                 )
             )
             points = []
-        #  todo 分片处理
 
         # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
@@ -421,9 +416,9 @@ class AccessDataProcess(BaseAccessDataProcess):
         """
         发送分批处理任务，并返回第一批数据
         """
-        self.batch_timestamp = int(time.time())
-
         from alarm_backends.service.access.tasks import run_access_batch_data
+
+        self.batch_timestamp = int(time.time())
 
         client = key.ACCESS_BATCH_DATA_KEY.client
         first_batch_points = []
@@ -452,13 +447,12 @@ class AccessDataProcess(BaseAccessDataProcess):
             else:
                 # 将分批数据写入redis
                 sub_task_id = f"{self.batch_timestamp}.{batch_count}"
-                client.lpush(
-                    key.ACCESS_BATCH_DATA_KEY.get_key(
-                        strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
-                    ),
-                    *[json.dumps(point) for point in batch_points],
+                data_key = key.ACCESS_BATCH_DATA_KEY.get_key(
+                    strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
                 )
-                key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
+                data_key.strategy_id = self.items[0].strategy.id
+                compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_points).encode("utf-8")))
+                client.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
 
                 # 发起异步任务
                 run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
@@ -606,7 +600,8 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "process_counts": self.process_counts,
             }
         ]
-        while len(batch_results) < self.batch_count and time.time() - start_time < 5 * constants.CONST_MINUTES:
+        wait_start_time = time.time()
+        while len(batch_results) < self.batch_count and time.time() - wait_start_time < 5 * constants.CONST_MINUTES:
             batch_result = client.brpop(result_key, timeout=1)
             if batch_result:
                 batch_results.append(json.loads(batch_result[1]))
@@ -760,10 +755,19 @@ class AccessBatchDataProcess(AccessDataProcess):
         cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
             strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
         )
+        cache_key.strategy_id = self.items[0].strategy.id
 
-        points: List[str] = client.lrange(cache_key, 0, -1)
+        try:
+            raw_points: List[str] = client.lrange(cache_key, 0, -1)
+            points: List[Dict] = [json.loads(point) for point in raw_points]
+        except redis.ResponseError:
+            data = client.get(cache_key)
+            if data:
+                points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
+            else:
+                points = []
+
         client.delete(cache_key)
-        points: List[Dict] = [json.loads(point) for point in points]
 
         self.filter_duplicates(points)
 

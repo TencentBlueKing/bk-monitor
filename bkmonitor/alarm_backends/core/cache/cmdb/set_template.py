@@ -8,8 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-
+import json
 from collections import defaultdict
 
 from django.conf import settings
@@ -41,6 +40,13 @@ class SetTemplateManager(RefreshByBizMixin, CMDBCacheManager):
         :param set_template_id: 集群模板ID
         """
         return super(SetTemplateManager, cls).get(set_template_id)
+
+    @classmethod
+    def deserialize(cls, string):
+        """
+        反序列化数据
+        """
+        return json.loads(string) if string else []
 
     @classmethod
     def refresh_by_biz(cls, bk_biz_id):

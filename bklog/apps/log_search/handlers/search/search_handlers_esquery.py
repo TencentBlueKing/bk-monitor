@@ -1028,10 +1028,15 @@ class SearchHandler(object):
 
         if not index_set_id_all:
             return []
+        from apps.log_search.handlers.index_set import IndexSetHandler
 
-        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid)
+        # 获取当前空间关联空间的索引集
+        space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid__in=space_uids).values(
+            "index_set_id", "index_set_name"
+        )
 
-        effect_index_set_mapping = {obj.index_set_id: obj.index_set_name for obj in index_set_objs}
+        effect_index_set_mapping = {obj["index_set_id"]: obj["index_set_name"] for obj in index_set_objs}
 
         if not effect_index_set_mapping:
             return []

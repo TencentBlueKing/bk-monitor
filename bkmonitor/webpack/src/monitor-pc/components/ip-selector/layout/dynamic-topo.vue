@@ -145,7 +145,7 @@ export default class DynamicTopo extends Vue {
 
   private isLoading = false;
   private treeKeyword = '';
-  private emptyText: TranslateResult = '';
+  private emptyText: TranslateResult = window.i18n.t('暂无数据');
 
   // 数据相关属性
   private nodes: ITreeNode[] = [];
@@ -161,11 +161,11 @@ export default class DynamicTopo extends Vue {
 
   @Watch('selections')
   private handleSelectionChange() {
-    this.emptyText = !!this.selections.length ? this.$t('查无数据') : this.$t('选择');
+    // this.emptyText = !!this.selections.length ? this.$t('查无数据') : this.$t('选择');
   }
 
   private created() {
-    this.emptyText = this.$t('选择');
+    // this.emptyText = this.$t('选择');
     this.handleGetDefaultData();
   }
 

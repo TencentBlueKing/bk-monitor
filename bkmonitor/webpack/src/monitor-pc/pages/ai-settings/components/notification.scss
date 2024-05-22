@@ -1,25 +1,15 @@
 .ai-settings-notification-component {
+  line-height: 20px;
+
   .add-tag {
-    position: relative;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    min-width: 90px;
-    height: 20px;
-    border-radius: 2px;
     color: #3a84ff;
     cursor: pointer;
-    overflow: hidden;
   
-    .add-tag-text {
-      line-height: 20px;
-    }
-  
-    .icon-mc-add {
-      margin-left: -8px;
-      font-size: 20px;
-      line-height: 20px;
+    .icon-mc-plus-fill {
+      margin-right: 6px;
+      font-size: 16px;
     }
   }
   
@@ -31,13 +21,17 @@
     padding-right: 6px;
   }
   
-  .mc-edit {
+  .icon-bianji {
     padding-left: 8px;
+    font-size: 24px;
     color: #3a84ff;
-    font-size: 18px;
+    cursor: pointer;
   }
 
   .target-overview {
+    display: flex;
+    align-items: center;
+
     .icon-mc-edit {
       cursor: pointer;
     }
@@ -47,22 +41,22 @@
     }
 
     &.no-target {
-      cursor: default;
       color: #979ba5;
+      cursor: default;
     }
   }
 }
 
 .ai-settings-notification-component-dialog {
   .icon-tishi {
-    margin-left: 12px;
     margin-right: 4px;
-    color: #979ba5;
+    margin-left: 12px;
     font-size: 16px;
+    color: #979ba5;
   }
 
   .sub-title-text {
-    color: #979ba5;
     font-size: 14px;
+    color: #979ba5;
   }
 }
