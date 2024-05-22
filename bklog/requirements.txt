@@ -37,6 +37,7 @@ dataclasses==0.7
 typing_extensions==3.7.4.3
 Markdown==3.3
 wrapt==1.15.0
+pyinstrument==3.4.2
 
 # for原生es
 elasticsearch==7.0.0

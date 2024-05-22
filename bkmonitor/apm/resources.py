@@ -63,7 +63,6 @@ from apm.serializer import (
 from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
-from apm_web.profile.constants import DataType
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -399,7 +398,7 @@ class ReleaseAppConfigResource(Resource):
 
         db_slow_command_config = DbSlowCommandConfigSerializer(label="慢命令配置", default={})
 
-        qps = serializers.IntegerField(label="qps", min_value=1, required=False)
+        qps = serializers.IntegerField(label="qps", min_value=1, required=False, default=settings.APM_APP_QPS)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -1635,6 +1634,7 @@ class QueryProfileServiceDetailResource(Resource):
         app_name = serializers.CharField(required=False)
         service_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
         data_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        sample_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class ResponseSerializer(serializers.ModelSerializer):
         last_check_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
@@ -1656,9 +1656,10 @@ class QueryProfileServiceDetailResource(Resource):
             params["name"] = validated_data["service_name"]
         if validated_data.get("data_type"):
             params["data_type"] = validated_data["data_type"]
+        if validated_data.get("sample_type"):
+            params["sample_type"] = validated_data["sample_type"]
 
-        # TODO 一期暂时过滤除 CPU 外的数据类型
-        return ProfileService.objects.filter(**params).exclude(~Q(data_type=DataType.CPU.value)).order_by("created_at")
+        return ProfileService.objects.filter(**params).order_by("created_at")
 
 
 class CreateApplicationHubResource(Resource):

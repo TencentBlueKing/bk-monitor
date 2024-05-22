@@ -301,9 +301,6 @@ def multi_push_space_table_ids(space_list: List[Dict]):
     logger.info("multi push space table ids successfully")
 
 
-logger.info("multi push space table ids successfully")
-
-
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def access_bkdata_vm(
     bk_biz_id: int, table_id: str, data_id: int, space_type: Optional[str] = None, space_id: Optional[str] = None

@@ -429,30 +429,15 @@
                 <bk-select
                   v-show="scopeValueType"
                   v-model="visibleBkBiz"
+                  display-key="space_full_code_name"
+                  id-key="bk_biz_id"
+                  enable-virtual-scroll
+                  :list="mySpaceList"
+                  :virtual-scroll-render="virtualscrollSpaceList"
                   searchable
                   multiple
                   display-tag
                 >
-                  <bk-option
-                    v-for="item in mySpaceList"
-                    :id="item.bk_biz_id"
-                    :key="item.space_uid"
-                    :name="item.space_full_code_name"
-                  >
-                    <div class="space-code-option">
-                      <span
-                        class="code-name"
-                        :title="item.space_full_code_name"
-                        >{{ item.space_full_code_name }}</span
-                      >
-                      <div class="list-item-right">
-                        <span :class="['list-item-tag', 'light-theme', item.space_type_id || 'other-type']">
-                          {{ item.space_type_name }}
-                        </span>
-                        <span :class="`${visibleBkBiz.includes(item.bk_biz_id) && 'bk-icon icon-check-1'}`"></span>
-                      </div>
-                    </div>
-                  </bk-option>
                 </bk-select>
               </div>
             </template>
@@ -689,12 +674,14 @@ import AuthContainerPage from '@/components/common/auth-container-page';
 import { projectManages } from '@/common/util';
 import * as authorityMap from '../../common/authority-map';
 import { deepClone, deepEqual } from '../../common/util';
+import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
 
 export default {
   components: {
     fieldTable,
     AuthContainerPage
   },
+  mixins: [SpaceSelectorMixin],
   props: {
     operateType: String,
     curStep: {
@@ -862,7 +849,8 @@ export default {
       editComparedData: {
         isLogOriginLast: false,
         comparedVal: {}
-      }
+      },
+      isUseMark: false
     };
   },
   computed: {
@@ -1185,11 +1173,17 @@ export default {
         this.fieldCollectionRequest(data);
         return;
       } else if (isCollect) {
-        // 缓存采集项清洗配置
-        urlParams.collector_config_id = this.curCollect.collector_config_id;
-        data.bk_biz_id = this.bkBizId;
-        delete data.visible_type;
-        requestUrl = 'clean/updateCleanStash';
+        // 除 新建采集项 步骤字段清洗设置外 其余情况下保存直接入库 不需提交暂存
+        if (this.isFinishCreateStep || this.isCleanField) {
+          this.fieldCollectionRequest(data, callback);
+          return;
+        } else {
+          // 缓存采集项清洗配置
+          urlParams.collector_config_id = this.curCollect.collector_config_id;
+          data.bk_biz_id = this.bkBizId;
+          delete data.visible_type;
+          requestUrl = 'clean/updateCleanStash';
+        }
       } else {
         // 新建/编辑清洗模板
         data.name = this.saveTempName;
@@ -1259,8 +1253,15 @@ export default {
     async fieldCollectionRequest(atLastFormData, callback) {
       const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields } = atLastFormData;
       // 检索设置 直接入库
-      const { table_id, storage_cluster_id, retention, storage_replies, allocation_min_days, view_roles } =
-        this.curCollect;
+      const {
+        table_id,
+        storage_cluster_id,
+        retention,
+        storage_replies,
+        allocation_min_days,
+        view_roles,
+        storage_shards_nums: storageShardsNums
+      } = this.curCollect;
       const storageList = await this.getStorage();
       const isOpenHotWarm = storageList.find(item => item.storage_cluster_id === storage_cluster_id)?.enable_hot_warm;
       const data = {
@@ -1268,6 +1269,7 @@ export default {
         storage_cluster_id,
         retention,
         storage_replies,
+        es_shards: storageShardsNums,
         allocation_min_days: isOpenHotWarm ? Number(allocation_min_days) : 0,
         view_roles,
         etl_config: etlConfig,
@@ -1410,7 +1412,7 @@ export default {
       });
     },
     prevHandler() {
-      this.$emit('stepChange', 1);
+      this.$emit('stepChange', this.curStep - 1);
     },
     // 即将前往高级清洗
     advanceHandler() {
@@ -1854,9 +1856,10 @@ export default {
               this.originParticipleState = 'custom';
               this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
             }
-            if (this.isFinishCreateStep) {
-              this.editComparedData.comparedVal = this.getSubmitParams();
-            }
+          }
+          // 暂存信息可能为空 对比项仍需赋值
+          if (this.isFinishCreateStep) {
+            this.editComparedData.comparedVal = this.getSubmitParams();
           }
         })
         .finally(() => {

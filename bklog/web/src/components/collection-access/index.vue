@@ -47,10 +47,7 @@
             :before-change="stepChangeBeforeFn"
           >
           </bk-steps>
-          <div
-            class="step-arrow"
-            :style="{ top: `${getCurStepArrowTopNum}px` }"
-          ></div>
+          <div class="step-arrow"></div>
         </div>
       </section>
       <section
@@ -67,6 +64,7 @@
           :is-switch="isSwitch"
           :index-set-id="indexSetId"
           :apply-data="applyData"
+          :cur-step="curStep"
           :is-container-step="isContainerStep"
           :is-finish-create-step="isFinishCreateStep"
           :container-loading.sync="containerLoading"
@@ -98,7 +96,6 @@ import stepResult from './step-result';
 import stepMasking from './step-masking.tsx';
 import advanceCleanLand from '@/components/collection-access/advance-clean-land';
 import * as authorityMap from '../../common/authority-map';
-import { deepClone } from '../../common/util';
 /** 左侧侧边栏一个步骤元素的高度 */
 const ONE_STEP_HEIGHT = 76;
 
@@ -170,12 +167,9 @@ export default {
     isSwitch() {
       return ['start', 'stop'].some(item => item === this.operateType);
     },
-    isItsmAndApplying() {
-      return this.isItsm && this.applyData?.itsm_ticket_status === 'applying';
-    },
     /** 左侧展示的步骤 */
     showStepsConf() {
-      let finishShowConf = deepClone(this.stepsConf);
+      let finishShowConf = this.stepsConf;
       // 启停情况下只有采集下发和完成两个步骤
       if (this.isSwitch) {
         finishShowConf = finishShowConf.filter(item => ['stepIssued', 'stepResult'].includes(item.stepStr));
@@ -192,10 +186,6 @@ export default {
       if (this.isFinishCreateStep && !this.isSwitch) {
         finishShowConf = finishShowConf.filter(item => !['stepIssued', 'stepResult'].includes(item.stepStr));
       }
-      // itsm打开并且容量正在申请中则只展示完成步骤，且显示容量评估中
-      if (this.isItsmAndApplying) {
-        finishShowConf = this.stepsConf.filter(item => item.stepStr === 'stepResult');
-      }
       return finishShowConf;
     },
     /** 左侧展示的步骤更新icon的number */
@@ -208,10 +198,6 @@ export default {
     /** 左侧展示的步骤总高度 */
     getShowStepsConfHeightNum() {
       return this.getShowStepsConf.length * ONE_STEP_HEIGHT;
-    },
-    /** 箭头样式的top */
-    getCurStepArrowTopNum() {
-      return this.curStep * ONE_STEP_HEIGHT - 38;
     },
     /** 当前展示的组件 */
     getCurrentComponent() {
@@ -327,10 +313,7 @@ export default {
               default:
                 break;
             }
-            const jumpPage = this.getShowStepsConf.find(item => item.stepStr === jumpComponentStr).icon;
-            const finishPag = this.getShowStepsConf.slice(-1).icon;
-            // 审批通过后编辑直接进入第三步字段提取，否则进入第二步容量评估
-            this.curStep = this.isItsmAndApplying ? finishPag : jumpPage;
+            this.curStep = this.getShowStepsConf.find(item => item.stepStr === jumpComponentStr).icon;
           }
         } catch (e) {
           console.warn(e);
@@ -373,12 +356,6 @@ export default {
               if (collect.collector_scenario_id !== 'wineventlog' && this.isPhysics && collect?.params.paths) {
                 collect.params.paths = collect.params.paths.map(item => ({ value: item }));
               }
-              // 如果当前页面采集流程未完成 则展示流程服务页面
-              const applyDataItem = {
-                iframe_ticket_url: collect.ticket_url,
-                itsm_ticket_status: collect.itsm_ticket_status
-              };
-              this.applyData = collect.itsm_ticket_status === 'applying' ? applyDataItem : {};
               this.itsmTicketIsApplying = false;
               this.$store.commit('collect/setCurCollect', collect);
               resolve(res.data);
@@ -576,7 +553,8 @@ export default {
 
   .step-arrow {
     position: absolute;
-    right: 1px;
+    top: 38px;
+    right: -1px;
     width: 10px;
     height: 10px;
     background: #fff;

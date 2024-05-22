@@ -16,7 +16,6 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
 from apm_web.models import Application
-from apm_web.profile.constants import DataType
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.utils import get_interval, split_by_interval
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -27,6 +26,8 @@ logger = logging.getLogger("apm")
 
 class QueryServicesDetailResource(Resource):
     """查询Profile服务详情信息"""
+
+    COUNT_ALLOW_SAMPLE_TYPES = ["goroutine/count", "syscall/count", "allocations/count"]
 
     class RequestSerializer(serializers.Serializer):
         view_mode_choices = (
@@ -63,13 +64,15 @@ class QueryServicesDetailResource(Resource):
             raise ValueError(f"Profile 服务: {validated_data['service_name']} 不存在，请确认数据是否上报或稍后再试")
 
         # 实时查询最近上报时间等信息
-        data_type_info_mapping = QueryTemplate(validated_data["bk_biz_id"], validated_data["app_name"]).get_sample_info(
+        sample_type_info_mapping = QueryTemplate(
+            validated_data["bk_biz_id"], validated_data["app_name"]
+        ).get_sample_info(
             validated_data["start_time"] * 1000,
             validated_data["end_time"] * 1000,
-            data_types=[i["data_type"] for i in services],
+            sample_types=[i["sample_type"] for i in services],
             service_name=validated_data["service_name"],
         )
-        last_report_time = sorted([i["last_report_time"] for i in data_type_info_mapping.values()], reverse=True)
+        last_report_time = sorted([i["last_report_time"] for i in sample_type_info_mapping.values()], reverse=True)
 
         res = {
             "bk_biz_id": validated_data["bk_biz_id"],
@@ -80,13 +83,36 @@ class QueryServicesDetailResource(Resource):
                 sorted([self.str_to_time(i["last_check_time"]) for i in services], reverse=True)[0]
             ),
             "last_report_time": self.timestamp_to_time(last_report_time[0]) if last_report_time else None,
-            "data_types": [{"key": i["data_type"], "name": DataType.get_name(i["data_type"])} for i in services],
+            "data_types": self.to_data_types(services),
         }
 
         if validated_data["view_mode"] == "default":
             return res
 
         return self.convert_to_sidebar(res)
+
+    @classmethod
+    def to_data_types(cls, services):
+        """
+        将 service 转换为数据类型
+        对于 count 类型 只允许以下:
+        goroutine/syscall/allocations
+        """
+        res = []
+        for svr in services:
+            if not svr["sample_type"]:
+                continue
+
+            sample_type_parts = svr["sample_type"].split("/")
+            key = svr["sample_type"]
+            name = sample_type_parts[0].upper()
+
+            if sample_type_parts[-1] == "count" and key not in cls.COUNT_ALLOW_SAMPLE_TYPES:
+                continue
+
+            res.append({"key": key, "name": name})
+
+        return res
 
     @classmethod
     def str_to_time(cls, time_str):
@@ -196,14 +222,17 @@ class QueryProfileBarGraphResource(Resource):
         end_time = serializers.IntegerField(label="结束时间", help_text="请使用 Second")
         filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
 
-    def _query_profile_id_by_timerange(self, trace_data, query_template, query_params, filter_labels):
+    def _query_profile_id_by_timerange(self, timestamp, trace_data, query_template, query_params, filter_labels):
+        start_time, end_time = self.timestamp_to_interval(timestamp)
+        query_params.update({"start_time": start_time, "end_time": end_time})
+
         labels = query_template.parse_labels(
             **query_params,
             label_filter={"profile_id": "op_is_not_null", **filter_labels},
             limit=self.POINT_LABEL_LIMIT,
         )
         if labels:
-            trace_data[int(query_params["start_time"])] = [
+            trace_data[timestamp] = [
                 {
                     "time": datetime.datetime.fromtimestamp(i["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S"),
                     "span_id": i.get("labels", {}).get("profile_id", "unknown"),
@@ -213,7 +242,7 @@ class QueryProfileBarGraphResource(Resource):
 
     def perform_request(self, validate_data):
         interval = get_interval(validate_data["start_time"], validate_data["end_time"])
-        datapoints, start_time, end_time = split_by_interval(
+        _, start_time, end_time = split_by_interval(
             validate_data["start_time"],
             validate_data["end_time"],
             interval,
@@ -223,32 +252,28 @@ class QueryProfileBarGraphResource(Resource):
         count_points = query_template.get_count(
             start_time=start_time * 1000,
             end_time=end_time * 1000,
-            data_type=validate_data["data_type"],
+            sample_type=validate_data["data_type"],
             service_name=validate_data["service_name"],
             label_filter={"profile_id": "op_is_not_null", **validate_data["filter_labels"]},
         )
 
         trace_data = {}
-        if not datapoints:
-            # 时间查询范围过小的时候，用参数的范围
-            datapoints = [[validate_data["start_time"], validate_data["end_time"]]]
 
         pool = ThreadPool()
         pool.map_ignore_exception(
             self._query_profile_id_by_timerange,
             [
                 (
+                    i[-1],
                     trace_data,
                     query_template,
                     {
-                        "start_time": start_time * 1000,
-                        "end_time": end_time * 1000,
-                        "data_type": validate_data["data_type"],
+                        "sample_type": validate_data["data_type"],
                         "service_name": validate_data["service_name"],
                     },
                     validate_data["filter_labels"],
                 )
-                for start_time, end_time in datapoints
+                for i in count_points
             ],
         )
 
@@ -265,3 +290,17 @@ class QueryProfileBarGraphResource(Resource):
                 }
             ]
         }
+
+    @classmethod
+    def timestamp_to_interval(cls, timestamp):
+        # 为了减少查询次数 根据上一步的查询来确定接下来查询的时间范围
+
+        base_datetime = datetime.datetime.fromtimestamp(timestamp / 1000.0)
+
+        start_datetime = base_datetime
+        end_datetime = base_datetime + datetime.timedelta(minutes=1)
+
+        start_timestamp = int(start_datetime.timestamp() * 1000)
+        end_timestamp = int(end_datetime.timestamp() * 1000)
+
+        return start_timestamp, end_timestamp

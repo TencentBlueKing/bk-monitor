@@ -27,9 +27,9 @@
   <div class="alarm-footer">
     <van-button
       class="alarm-footer-btn"
-      :type="type"
       :disabled="disabled"
       :loading="loading"
+      :type="type"
       @click="handleAlarmCheck"
     >
       <slot />
@@ -38,6 +38,7 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+
 import { Button } from 'vant';
 @Component({
   name: 'footer-button',

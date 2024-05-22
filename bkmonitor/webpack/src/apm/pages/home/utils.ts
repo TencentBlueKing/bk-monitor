@@ -45,6 +45,13 @@ export const STATUS_MAP = {
       color: '#63656E',
     },
   },
+  disabled: {
+    name: window.i18n.tc('未开启'),
+    style: {
+      background: '#F0F1F5',
+      color: '#63656E',
+    },
+  },
 };
 
 export const SEARCH_STATUS_LIST = [
@@ -59,6 +66,10 @@ export const SEARCH_STATUS_LIST = [
   {
     id: 'stop',
     name: STATUS_MAP.stop.name,
+  },
+  {
+    id: 'disabled',
+    name: STATUS_MAP.disabled.name,
   },
 ];
 

@@ -812,7 +812,9 @@ class ListApplicationResource(PageListResource):
         def to_representation(self, instance):
             data = super(ListApplicationResource.ApplicationSerializer, self).to_representation(instance)
             if not data["is_enabled"]:
-                data["data_status"] = DataStatus.STOP
+                data["data_status"] = DataStatus.DISABLED
+            if not data["is_enabled_profiling"]:
+                data["profiling_data_status"] = DataStatus.DISABLED
             return data
 
     def get_filter_fields(self):

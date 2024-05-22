@@ -1829,6 +1829,7 @@ export default {
   文件md5: 'File md5',
   上传人: 'Uploader',
   上传时间: 'Upload time',
+  pprof文件时间: 'Pprof file time',
   错误信息: 'Error message',
   最大展示: 'Maximum display',
   展示同比: 'Display ratio',
@@ -1842,4 +1843,8 @@ export default {
   内容配置: 'Content configuration',
   邮件配置: 'Email configuration',
   只展示新类: 'Only show new classes',
+  关闭检测的对象: 'Disable detection object',
+  方案: 'Plan',
+  关闭通知的对象: 'Object for closing notifications',
+  默认敏感度: 'Default sensitivity',
 };

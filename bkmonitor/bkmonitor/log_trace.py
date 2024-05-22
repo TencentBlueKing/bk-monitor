@@ -85,6 +85,14 @@ def django_request_hook(span: Span, request):
 
 
 def django_response_hook(span, request, response):
+    # Set user information as an attribute on the span
+    user = getattr(request, "user", None)
+    if user:
+        username = getattr(user, "username", "unknown")
+    else:
+        username = "unknown"
+    span.set_attribute("user.username", username)
+
     if hasattr(response, "data"):
         result = response.data
     else:

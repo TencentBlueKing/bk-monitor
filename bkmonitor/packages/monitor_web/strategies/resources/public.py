@@ -425,12 +425,11 @@ class MultivariateAnomalyScenesResource(Resource):
     @classmethod
     def parse_ai_setting(cls, bk_biz_id: int):
         # 获取业务的AI配置
-        ai_setting = AiSetting(bk_biz_id=bk_biz_id).to_dict()
-        if (
-            "host" in ai_setting["multivariate_anomaly_detection"]
-            and ai_setting["multivariate_anomaly_detection"]["host"]["is_enabled"]
-        ):
+        ai_setting = AiSetting(bk_biz_id=bk_biz_id)
+        host_scene = ai_setting.multivariate_anomaly_detection.host
+        if host_scene.is_access_aiops():
             # AI配置有打开时，才返回配置
+            ai_setting = ai_setting.to_dict()
             intelligent_detect = ai_setting["multivariate_anomaly_detection"]["host"]["intelligent_detect"]
             metrics_config = parse_scene_metrics(ai_setting["multivariate_anomaly_detection"]["host"]["plan_args"])
             return True, intelligent_detect, metrics_config

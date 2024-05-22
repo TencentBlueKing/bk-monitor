@@ -47,9 +47,11 @@
       :default-selections="defaultSelections"
       :show-selection-column="showSelectionColumn"
       :empty-text="emptyText"
+      :table-keyword="tableKeyword"
       @page-change="handlePageChange"
       @check-change="handleCheckChange"
       @page-limit-change="handleLimitChange"
+      @clear-filter="handleClearFilter"
     />
   </div>
 </template>
@@ -199,6 +201,10 @@ export default class IpList extends Vue {
       excludeData: tmpExcludeData,
       checkType
     };
+  }
+  handleClearFilter() {
+    this.tableKeyword = '';
+    this.handleKeywordChange();
   }
 }
 </script>
