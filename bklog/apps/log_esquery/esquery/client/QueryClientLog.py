@@ -34,12 +34,12 @@ from apps.log_esquery.constants import DEFAULT_SCHEMA
 from apps.log_esquery.esquery.client.QueryClientTemplate import QueryClientTemplate
 from apps.log_esquery.exceptions import (
     BaseSearchFieldsException,
+    BaseSearchIndexSettingsException,
     EsClientConnectInfoException,
     EsClientMetaInfoException,
     EsClientScrollException,
     EsClientSearchException,
     EsException,
-    BaseSearchIndexSettingsException,
 )
 from apps.log_esquery.type_constants import type_mapping_dict
 from apps.log_esquery.utils.es_client import es_socket_ping, get_es_client
@@ -101,21 +101,39 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             index_settings = _settings[index_name]["settings"]["index"]
             analyzers = index_settings.get("analysis", {}).get("analyzer", {})
             tokenizers = index_settings.get("analysis", {}).get("tokenizer", {})
-            # 遍历映射中的字段
-            for field, properties in _mappings[index_name]["mappings"]["properties"].items():
-                analyzer_name = properties.get("analyzer")
-                if not analyzer_name:
-                    continue
-                # 从索引设置中获取分析器详细信息
-                analyzer_details = analyzers.get(analyzer_name)
-                if not analyzer_details:
-                    continue
-                # 将分析器详细信息添加到字段配置中
-                properties["analyzer_details"] = analyzer_details
-                if properties["analyzer_details"].get("tokenizer"):
-                    properties["analyzer_details"]["tokenizer_details"] = tokenizers.get(
-                        properties["analyzer_details"]["tokenizer"]
-                    )
+            if _mappings[index_name]["mappings"].get("properties"):
+                # 遍历映射中的字段
+                for field, properties in _mappings[index_name]["mappings"]["properties"].items():
+                    analyzer_name = properties.get("analyzer")
+                    if not analyzer_name:
+                        continue
+                    # 从索引设置中获取分析器详细信息
+                    analyzer_details = analyzers.get(analyzer_name)
+                    if not analyzer_details:
+                        continue
+                    # 将分析器详细信息添加到字段配置中
+                    properties["analyzer_details"] = analyzer_details
+                    if properties["analyzer_details"].get("tokenizer"):
+                        properties["analyzer_details"]["tokenizer_details"] = tokenizers.get(
+                            properties["analyzer_details"]["tokenizer"]
+                        )
+            else:
+                # properties不在mappings下时,寻找下一级
+                for index_type in _mappings[index_name]["mappings"].values():
+                    for field, properties in index_type["properties"].items():
+                        analyzer_name = properties.get("analyzer")
+                        if not analyzer_name:
+                            continue
+                        # 从索引设置中获取分析器详细信息
+                        analyzer_details = analyzers.get(analyzer_name)
+                        if not analyzer_details:
+                            continue
+                        # 将分析器详细信息添加到字段配置中
+                        properties["analyzer_details"] = analyzer_details
+                        if properties["analyzer_details"].get("tokenizer"):
+                            properties["analyzer_details"]["tokenizer_details"] = tokenizers.get(
+                                properties["analyzer_details"]["tokenizer"]
+                            )
 
         return _mappings
 
@@ -237,10 +255,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             )
 
         data: dict = transfer_api_response.get(index)
-        return self._get_cluster_config(
-            cluster_config=data.get("cluster_config"),
-            auth_info=data.get("auth_info")
-        )
+        return self._get_cluster_config(cluster_config=data.get("cluster_config"), auth_info=data.get("auth_info"))
 
     @cache_five_minute("_connect_info_{storage_cluster_id}", need_md5=True)
     def _connect_info_by_storage_cluster_id(self, storage_cluster_id: int) -> tuple:
@@ -251,8 +266,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
 
         cluster_config: dict = transfer_api_response[0].get("cluster_config")
         return self._get_cluster_config(
-            cluster_config=cluster_config,
-            auth_info=transfer_api_response[0].get("auth_info")
+            cluster_config=cluster_config, auth_info=transfer_api_response[0].get("auth_info")
         )
 
     @staticmethod

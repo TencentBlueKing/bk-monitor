@@ -109,7 +109,23 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
                         properties["analyzer_details"]["tokenizer_details"] = tokenizers.get(
                             properties["analyzer_details"]["tokenizer"]
                         )
-
+            else:
+                # properties不在mappings下时,寻找下一级
+                for index_type in _mappings[index_name]["mappings"].values():
+                    for field, properties in index_type["properties"].items():
+                        analyzer_name = properties.get("analyzer")
+                        if not analyzer_name:
+                            continue
+                        # 从索引设置中获取分析器详细信息
+                        analyzer_details = analyzers.get(analyzer_name)
+                        if not analyzer_details:
+                            continue
+                        # 将分析器详细信息添加到字段配置中
+                        properties["analyzer_details"] = analyzer_details
+                        if properties["analyzer_details"].get("tokenizer"):
+                            properties["analyzer_details"]["tokenizer_details"] = tokenizers.get(
+                                properties["analyzer_details"]["tokenizer"]
+                            )
         return _mappings
 
     def scroll(self, index: str, scroll_id: str, scroll: str) -> Dict:
