@@ -16,7 +16,10 @@ from operator import methodcaller
 
 from django.conf import settings
 from django.db import models
+from rest_framework.exceptions import ValidationError
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
@@ -80,7 +83,6 @@ class CustomReportSubscription(models.Model):
 
     @classmethod
     def create_subscription(cls, bk_biz_id, items, bk_host_ids, plugin_name, op_type="add"):
-
         available_host_ids = get_proxy_host_ids(bk_host_ids) if plugin_name == "bkmonitorproxy" else bk_host_ids
 
         if op_type != "remove" and not available_host_ids:
@@ -317,6 +319,30 @@ class CustomReportSubscription(models.Model):
         all_biz_ids = [b.bk_biz_id for b in api.cmdb.get_business()]
         custom_event_config = cls.get_custom_event_config(bk_biz_id, plugin_name)
         custom_time_series_config = cls.get_custom_time_series_config(bk_biz_id, plugin_name)
+
+        # 将非业务空间的配置下发到对应的业务空间下
+        for configs in [custom_event_config, custom_time_series_config]:
+            not_biz_space_id = [biz_id for biz_id in configs.keys() if biz_id < 0]
+            for biz_id in not_biz_space_id:
+                data_ids = configs.pop(biz_id)
+
+                # 获取关联的业务空间
+                space_detail = SpaceApi.get_space_detail(bk_biz_id=biz_id)
+                try:
+                    related_space = SpaceApi.get_related_space(
+                        space_uid=space_detail.space_uid, related_space_type=SpaceTypeEnum.BKCC.value
+                    )
+                except (ValueError, ValidationError):
+                    related_space = None
+                if not related_space:
+                    continue
+
+                # 将配置下发到关联的业务空间
+                related_biz_id = int(related_space.space_id)
+                if related_biz_id in configs:
+                    configs[related_biz_id].extend(data_ids)
+                else:
+                    configs[related_biz_id] = data_ids
 
         biz_id_to_data_id_config = defaultdict(list)
 
