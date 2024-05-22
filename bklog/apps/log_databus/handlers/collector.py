@@ -25,6 +25,7 @@ import os
 import re
 import tempfile
 from collections import defaultdict
+from multiprocessing.pool import ThreadPool
 from typing import Any, Dict, List, Union
 
 import arrow
@@ -1989,9 +1990,20 @@ class CollectorHandler(object):
                     }
                 ]
             }
-        param = {"subscription_id_list": [self.data.subscription_id]}
-        status_result, *__ = NodeApi.get_subscription_instance_status(param)
-        instance_status = self.format_subscription_instance_status(status_result)
+        instance_data = self.batch_request(
+            func=NodeApi.get_subscription_task_status,
+            params={"subscription_id": self.data.subscription_id},
+        )
+
+        bk_host_ids = []
+        for item in instance_data:
+            bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
+
+        plugin_data = self.batch_request(
+            func=NodeApi.plugin_search,
+            params={"conditions": [], "bk_host_id": bk_host_ids},
+        )
+        instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
 
         # 如果采集目标是HOST-INSTANCE
         if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
@@ -2046,17 +2058,64 @@ class CollectorHandler(object):
         return {"contents": content_data}
 
     @staticmethod
-    def format_subscription_instance_status(instance_data):
+    def batch_request(func, params, get_data=lambda x: x["list"], get_count=lambda x: x["total"], limit=500):
+        """
+        并发请求接口
+        :param func: 请求方法
+        :param params: 请求参数
+        :param get_data: 获取数据函数
+        :param get_count: 获取总数函数
+        :param limit: 一次请求数量
+        :return: 请求结果
+        """
+        first_param = copy.deepcopy(params)
+        first_param.update({"page": 1, "pagesize": 1})
+        # 请求第一次获取总数
+        result = func(params=first_param)
+
+        count = get_count(result)
+        data = []
+        start = 1
+
+        # 根据请求总数并发请求
+        pool = ThreadPool()
+        params_and_future_list = []
+        while start < count:
+            request_params = {"page": start, "pagesize": limit}
+            request_params.update(params)
+            params_and_future_list.append(pool.apply_async(func, kwds={"params": request_params}))
+
+            start += limit
+
+        pool.close()
+        pool.join()
+
+        # 取值
+        for params_and_future in params_and_future_list:
+            result = params_and_future.get()
+
+            data.extend(get_data(result))
+
+        return data
+
+    @staticmethod
+    def format_subscription_instance_status(instance_data, plugin_data):
         """
         对订阅状态数据按照实例运行状态进行归类
         :param [dict] instance_data:
+        :param [dict] plugin_data:
         :return: [dict]
         """
+        plugin_status_mapping = {}
+        for plugin_obj in plugin_data:
+            plugin_status_mapping[plugin_obj["bk_host_id"]] = plugin_obj["plugin_status"]
+
         instance_list = list()
-        for instance_obj in instance_data.get("instances", []):
+        for instance_obj in instance_data:
             # 日志采集暂时只支持本地采集
-            host_statuses = (instance_obj.get("host_statuses") or [{}])[0]
-            host_status = host_statuses.get("status", CollectStatus.FAILED)
+            bk_host_id = instance_obj["instance_info"]["host"]["bk_host_id"]
+            plugin_statuses = (plugin_status_mapping[bk_host_id] or [{}])[0]
+            plugin_status = plugin_statuses.get("status", CollectStatus.FAILED)
 
             status = CollectStatus.FAILED
             status_name = RunStatus.FAILED
@@ -2067,13 +2126,13 @@ class CollectorHandler(object):
                 status = CollectStatus.FAILED
                 status_name = RunStatus.FAILED
             else:
-                if host_status == CollectStatus.RUNNING:
+                if plugin_status == CollectStatus.RUNNING:
                     status = CollectStatus.SUCCESS
                     status_name = RunStatus.SUCCESS
-                elif host_status == CollectStatus.UNKNOWN:
+                elif plugin_status == CollectStatus.UNKNOWN:
                     status = CollectStatus.FAILED
                     status_name = RunStatus.FAILED
-                elif host_status == CollectStatus.TERMINATED:
+                elif plugin_status == CollectStatus.TERMINATED:
                     status = CollectStatus.TERMINATED
                     status_name = RunStatus.TERMINATED
 
@@ -2084,15 +2143,15 @@ class CollectorHandler(object):
             status_obj = {
                 "status": status,
                 "status_name": status_name,
-                "host_id": instance_obj["instance_info"]["host"]["bk_host_id"],
+                "host_id": bk_host_id,
                 "ip": instance_obj["instance_info"]["host"]["bk_host_innerip"],
                 "ipv6": instance_obj["instance_info"]["host"].get("bk_host_innerip_v6", ""),
                 "cloud_id": bk_cloud_id,
                 "host_name": instance_obj["instance_info"]["host"]["bk_host_name"],
                 "instance_id": instance_obj["instance_id"],
                 "instance_name": instance_obj["instance_info"]["host"]["bk_host_innerip"],
-                "plugin_name": host_statuses.get("name"),
-                "plugin_version": host_statuses.get("version"),
+                "plugin_name": plugin_statuses.get("name"),
+                "plugin_version": plugin_statuses.get("version"),
                 "bk_supplier_id": instance_obj["instance_info"]["host"].get("bk_supplier_account"),
                 "create_time": instance_obj["create_time"],
             }
