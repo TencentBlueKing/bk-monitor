@@ -14,6 +14,7 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
+from apps.log_search.constants import FieldTypeMap
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     FetchStatisticsGraphSerializer,
@@ -22,17 +23,6 @@ from apps.log_search.serializers import (
 )
 from apps.log_unifyquery.handler import UnifyQueryHandler
 from apps.utils.drf import list_route
-
-value_list = [[100, 12], [50, 11], [14, 5], [67, 1], [0, 10], [20, 9], [15, 7], [99, 3]]
-FieldTypeMap = {
-    "keyword": "string",
-    "text": "string",
-    "integer": "int",
-    "long": "int",
-    "double": "int",
-    "bool": "string",
-    "conflict": "string",
-}
 
 
 class FieldViewSet(APIViewSet):
@@ -62,7 +52,8 @@ class FieldViewSet(APIViewSet):
         query_handler = UnifyQueryHandler(params)
         total_count = query_handler.get_total_count()
         field_count = query_handler.get_field_count()
-        topk_list = query_handler.get_topk_list()
+        distinct_count = query_handler.get_distinct_count()
+        topk_list = query_handler.get_topk_list(params["limit"])
         return Response(
             {
                 "name": params["agg_field"],
@@ -71,6 +62,7 @@ class FieldViewSet(APIViewSet):
                 "limit": params["limit"],
                 "total_count": total_count,
                 "field_count": field_count,
+                "distinct_count": distinct_count,
                 "values": topk_list,
             }
         )
@@ -87,7 +79,11 @@ class FieldViewSet(APIViewSet):
         total_count = query_handler.get_total_count()
         field_count = query_handler.get_field_count()
         distinct_count = query_handler.get_distinct_count()
-        field_percent = round(field_count / total_count, 2)
+        if total_count and field_count:
+            field_percent = round(field_count / total_count, 2)
+        else:
+            field_percent = 0
+
         data = {
             "total_count": total_count,
             "field_count": field_count,
@@ -113,7 +109,7 @@ class FieldViewSet(APIViewSet):
         query_handler = UnifyQueryHandler(params)
         if FieldTypeMap[params["field_type"]] == "int":
             if params["distinct_count"] < 10:
-                return Response(query_handler.get_topk_list())
+                return Response(query_handler.get_topk_list(10))
             else:
                 return Response(query_handler.get_bucket_data())
         else:

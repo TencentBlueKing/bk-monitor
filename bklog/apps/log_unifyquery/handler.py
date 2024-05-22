@@ -15,6 +15,7 @@ from django.conf import settings
 
 from apps.api import UnifyQueryApi
 from apps.utils.local import get_local_param
+from apps.utils.log import logger
 
 reference_names = "abcdefghijklmnopqrstuvwx"
 
@@ -51,22 +52,30 @@ class UnifyQueryHandler(object):
             "timezone": get_local_param("time_zone", settings.TIME_ZONE),
         }
 
-    def query_ts(self):
-        return UnifyQueryApi.query_ts(self.search_params)
+    @staticmethod
+    def query_ts(search_dict):
+        try:
+            return UnifyQueryApi.query_ts(search_dict)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("query ts error: %s, search params: %s", e, search_dict)
 
-    def query_ts_reference(self):
-        return UnifyQueryApi.query_ts_reference(self.search_params)
+    @staticmethod
+    def query_ts_reference(search_dict):
+        try:
+            return UnifyQueryApi.query_ts_reference(search_dict)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("query ts refrence error: %s, search params: %s", e, search_dict)
 
     def get_total_count(self):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
-        data = UnifyQueryApi.query_ts_reference(search_dict)
+        data = self.query_ts_reference(search_dict)
         if data.get("series", []):
             series = data["series"][0]
             return series["values"][0][1]
-        return None
+        return 0
 
     def get_field_count(self):
         search_dict = copy.deepcopy(self.base_dict)
@@ -76,23 +85,25 @@ class UnifyQueryHandler(object):
                 "field_list": [{"field_name": self.search_params["agg_field"], "value": [""], "op": "ncontains"}]
             }
             query["function"] = [{"method": "count"}]
-        data = UnifyQueryApi.query_ts_reference(search_dict)
+        data = self.query_ts_reference(search_dict)
         if data.get("series", []):
             series = data["series"][0]
             return series["values"][0][1]
-        return None
+        return 0
 
     def get_bucket_count(self, start, end):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
             query["conditions"] = {
-                "field_list": [{"field_name": self.search_params["agg_field"], "value": [str(start)], "op": "gte"},
-                               {"field_name": self.search_params["agg_field"], "value": [str(end)], "op": "lte"}],
-                "condition_list": ["and"]
+                "field_list": [
+                    {"field_name": self.search_params["agg_field"], "value": [str(start)], "op": "gte"},
+                    {"field_name": self.search_params["agg_field"], "value": [str(end)], "op": "lte"},
+                ],
+                "condition_list": ["and"],
             }
             query["function"] = [{"method": "count"}]
-        data = UnifyQueryApi.query_ts_reference(search_dict)
+        data = self.query_ts_reference(search_dict)
         if data.get("series", []):
             series = data["series"][0]
             return series["values"][0][1]
@@ -103,11 +114,11 @@ class UnifyQueryHandler(object):
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "cardinality"}]
-        data = UnifyQueryApi.query_ts_reference(search_dict)
+        data = self.query_ts_reference(search_dict)
         if data.get("series", []):
             series = data["series"][0]
             return series["values"][0][1]
-        return None
+        return 0
 
     def get_topk_ts_data(self, vargs=5):
         search_dict = copy.deepcopy(self.base_dict)
@@ -118,7 +129,7 @@ class UnifyQueryHandler(object):
                 {"method": "sum", "dimensions": [self.search_params["agg_field"]]},
                 {"method": "topk", "vargs_list": [vargs]},
             ]
-        data = UnifyQueryApi.query_ts(search_dict)
+        data = self.query_ts(search_dict)
         return data
 
     def get_agg_value(self, agg_method):
@@ -129,19 +140,19 @@ class UnifyQueryHandler(object):
                 query["function"] = [{"method": "percentiles", "vargs_list": [50]}]
             else:
                 query["function"] = [{"method": agg_method}]
-        data = UnifyQueryApi.query_ts_reference(search_dict)
+        data = self.query_ts_reference(search_dict)
         if data.get("series", []):
             series = data["series"][0]
             return round(series["values"][0][1], 2)
-        return None
+        return 0
 
-    def get_topk_list(self):
+    def get_topk_list(self, limit=5):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"order_by": ["-_value"], "metric_merge": "a"})
         for query in search_dict["query_list"]:
-            query["limit"] = self.search_params["limit"]
+            query["limit"] = limit
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
-        data = UnifyQueryApi.query_ts_reference(search_dict)
+        data = self.query_ts_reference(search_dict)
         series = data["series"]
         return [[s["group_values"][0], s["values"][0][1]] for s in series]
 
