@@ -67,9 +67,12 @@ export default defineComponent({
     const scrollLoading = ref(false);
     const valueList = ref<string[]>([]);
 
+    const getLabelValuesDebounce = debounce(getLabelValues, 100);
+
     watch(
       () => props.data,
       newVal => {
+        if (newVal.key !== localValue.key) getLabelValuesDebounce();
         newVal && Object.assign(localValue, newVal);
       },
       {
@@ -83,8 +86,6 @@ export default defineComponent({
         valueList.value = [];
       }
     );
-
-    const getLabelValuesDebounce = debounce(getLabelValues, 100);
 
     /** 获取过滤项值列表 */
     async function getLabelValues() {
@@ -107,7 +108,6 @@ export default defineComponent({
     function handleKeyChange() {
       localValue.value = '';
       valueList.value = [];
-      getLabelValuesDebounce();
       handleEmitData();
     }
 
