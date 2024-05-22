@@ -115,6 +115,6 @@ class FieldViewSet(APIViewSet):
             if params["distinct_count"] < 10:
                 return Response(query_handler.get_topk_list())
             else:
-                return Response(query_handler.get_bucket_count(params["min"], params["max"]))
+                return Response(query_handler.get_bucket_data())
         else:
             return Response(query_handler.get_topk_ts_data(5))

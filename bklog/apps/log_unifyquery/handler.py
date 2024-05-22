@@ -87,9 +87,9 @@ class UnifyQueryHandler(object):
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
             query["conditions"] = {
-                "field_list": [{"field_name": self.search_params["agg_field"], "value": [str(start)], "op": "gte"}],
-                #                {"field_name": self.search_params["agg_field"], "value": [str(end)], "op": "lte"}
-                # "condition_list": ["and", "and"]
+                "field_list": [{"field_name": self.search_params["agg_field"], "value": [str(start)], "op": "gte"},
+                               {"field_name": self.search_params["agg_field"], "value": [str(end)], "op": "lte"}],
+                "condition_list": ["and"]
             }
             query["function"] = [{"method": "count"}]
         data = UnifyQueryApi.query_ts_reference(search_dict)
