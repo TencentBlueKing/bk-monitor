@@ -66,6 +66,7 @@ from apps.utils.local import (
     get_request_external_username,
     get_request_username,
 )
+from apps.utils.log import logger
 from apps.utils.time_handler import generate_time_range
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]
@@ -255,7 +256,10 @@ class MappingHandlers(object):
                     "end_time": self.end_time,
                     "agg_field": field["field_name"]
                 }
-                field["field_count"] = UnifyQueryHandler(search_params).get_field_count()
+                try:
+                    field["field_count"] = UnifyQueryHandler(search_params).get_field_count()
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.exception("get_field_count error: %s, search params: %s", e, search_params)
 
         return fields_list
 
