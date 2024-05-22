@@ -96,6 +96,10 @@ class BCSClusterInfo(models.Model):
     CustomEventDataID = models.IntegerField("自定义事件data_id", default=0)
     SystemLogDataID = models.IntegerField("系统日志data_id", default=0)
     CustomLogDataID = models.IntegerField("应用或自定义日志data_id", default=0)
+    DefaultAppMetricDataId = models.IntegerField("collector 默认应用 Metric DataId (APM提供)", default=0)
+    DefaultAppTraceDataId = models.IntegerField("collector 默认应用 Trace DataId (APM提供)", default=0)
+    DefaultAppProfileDataId = models.IntegerField("collector 默认应用 Profile DataId (APM提供)", default=0)
+    DefaultAppLogDataId = models.IntegerField("collector 默认应用 Log DataId (自定义上报提供)", default=0)
     bk_env = models.CharField("配置来源标签", max_length=32, default="", null=True, blank=True)
 
     # 创建及变更信息

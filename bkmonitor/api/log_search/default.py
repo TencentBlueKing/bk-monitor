@@ -326,3 +326,12 @@ class SearchPatternResource(LogSearchAPIGWResource):
         """
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
+class CreateCustomReportResource(LogSearchAPIGWResource):
+    """
+    创建自定义上报
+    """
+
+    action = "/databus_custom_create/"
+    method = "POST"

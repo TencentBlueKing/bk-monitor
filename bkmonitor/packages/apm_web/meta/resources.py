@@ -137,6 +137,11 @@ from monitor_web.strategies.user_groups import get_or_create_ops_notice_group
 
 
 class CreateApplicationResource(Resource):
+    """
+    创建 APM 应用
+    此接口还在 api 侧的 CreateApplicationHubResource/CreateApplicationSimpleResource 被调用
+    """
+
     class RequestSerializer(serializers.Serializer):
         class DatasourceOptionSerializer(serializers.Serializer):
             es_storage_cluster = serializers.IntegerField(label="es存储集群")
@@ -1983,7 +1988,7 @@ class QueryEndpointStatisticsResource(PageListResource):
             "start_time": int(params["start_time"]) * 1000,
             "end_time": int(params["end_time"]) * 1000,
             "bk_biz_id": params["bk_biz_id"],
-            "app_name": params["app_name"]
+            "app_name": params["app_name"],
         }
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
