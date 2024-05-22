@@ -1,0 +1,82 @@
+.field-filter-container {
+  font-size: 12px;
+  line-height: 20px;
+  color: #63656e;
+
+  .is-selected {
+    border-bottom: 1px solid #e1ecff;
+  }
+
+  .form-container {
+    display: flex;
+    height: 32px;
+    margin-top: 15px;
+    align-items: center;
+
+    .king-input {
+      width: 100%;
+    }
+
+    .gap {
+      width: 1px;
+      height: 100%;
+      margin: 0 16px;
+      background-color: #f0f1f5;
+      flex-shrink: 0;
+    }
+
+    :deep(.bk-tooltip) {
+      flex-shrink: 0;
+    }
+
+    .filter-popover-trigger {
+      display: flex;
+      height: 32px;
+      margin-left: 16px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #3a84ff;
+      cursor: pointer;
+      align-items: center;
+
+      &:active {
+        color: #2761dd;
+      }
+
+      &:hover {
+        color: #699df4;
+      }
+
+      .text {
+        min-width: 50px;
+        margin: 0 4px 0 2px;
+      }
+
+      .count {
+        height: 18px;
+        min-width: 18px;
+        text-align: center;
+        background-color: #e1ecff;
+        border-radius: 50%;
+      }
+    }
+  }
+
+  .fields-container {
+    margin-top: 20px;
+
+    .all-field-item {
+      display: inline-block;
+      height: 26px;
+      margin: 0 0 7px 20px;
+      line-height: 26px;
+      color: #63656e;
+    }
+
+    .expand-all {
+      margin-left: 22px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}
