@@ -1879,6 +1879,16 @@
   method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/create_application_hub/
+  is_hidden: true
+  label: 创建监控应用接口
+  label_en: create application hub
+  name: create_application_hub
+  path: /v2/monitor_v3/apm/create_application_hub/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
   dest_path: /apm_api/v1/topo/query_topo_node/
   is_hidden: true
