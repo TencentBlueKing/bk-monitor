@@ -131,6 +131,21 @@ const getAggsTerms = {
   url: '/search/index_set/:index_set_id/aggs/terms/',
   method: 'post'
 };
+/** 获取字段top列表信息 */
+const fieldFetchTopList = {
+  url: '/field/index_set/fetch_topk_list/',
+  method: 'post'
+};
+/** 获取字段分析信息 */
+const fieldStatisticsInfo = {
+  url: '/field/index_set/statistics/info/',
+  method: 'post'
+};
+/** 获取字段分析图表 */
+const fieldStatisticsGraph = {
+  url: '/field/index_set/statistics/graph/',
+  method: 'post'
+};
 
 export {
   getIndexSetList,
@@ -159,5 +174,8 @@ export {
   updateFieldsConfig,
   deleteFieldsConfig,
   getFieldsConfigByContextLog,
-  getAggsTerms
+  getAggsTerms,
+  fieldFetchTopList,
+  fieldStatisticsInfo,
+  fieldStatisticsGraph
 };

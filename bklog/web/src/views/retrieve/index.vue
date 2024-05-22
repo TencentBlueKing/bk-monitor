@@ -147,10 +147,7 @@
                 data-test-id="retrieve_div_fieldFilterBox"
               >
                 <!-- 字段过滤 -->
-                <div
-                  class="tab-item-title field-filter-title"
-                  style="color: #313238"
-                >
+                <div class="tab-item-title field-filter-title">
                   {{ $t('查询结果统计') }}
                 </div>
                 <field-filter
@@ -286,7 +283,7 @@ import { mapGetters, mapState } from 'vuex';
 import SelectIndexSet from './condition-comp/select-index-set.tsx';
 import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
 // import IpSelectorDialog from '@/components/collection-access/ip-selector-dialog';
-import FieldFilter from './condition-comp/field-filter';
+import FieldFilter from './field-filter-comp';
 import ResultHeader from './result-comp/result-header';
 import NoIndexSet from './result-comp/no-index-set';
 import ResultMain from './result-comp/result-main';
@@ -2246,10 +2243,6 @@ export default {
           line-height: 20px;
           color: #63656e;
           align-items: center;
-
-          &.ip-quick-title {
-            margin-top: 13px;
-          }
 
           &:first-child {
             margin-top: 0;

@@ -1,0 +1,80 @@
+@import '@/scss/mixins/flex.scss';
+
+.field-analysis-container {
+  width: 324px;
+  padding: 4px;
+  font-size: 12px;
+  color: #63656E;
+  %num-box-extend {
+    width: 48%;
+    background: #F5F7FA;
+    border-radius: 2px;
+
+    @include flex-center();
+  }
+
+  .total-num-container {
+    margin-top: 12px;
+
+    .total-num {
+      margin-right: 32px;
+    }
+  }
+
+  .log-num-container {
+    margin-top: 8px;
+
+    @include flex-justify(space-between);
+
+    .num-box {
+      height: 80px;
+      flex-direction: column;
+
+      @extend %num-box-extend;
+
+      .log-num, log-unit {
+        color: #313238;
+      }
+
+      .log-num {
+        margin-right: 2px;
+        font-size: 24px;
+      }
+    }
+
+    .log-str {
+      margin-top: 4px;
+    }
+  }
+
+  .number-num-container {
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+
+    @include flex-justify(space-between);
+
+    .num-box {
+      height: 32px;
+      margin-top: 8px;
+
+      @extend %num-box-extend;
+
+      .num-key {
+        margin-right: 8px;
+      }
+
+      .num-val {
+        min-width: 30px;
+        color: #313238;
+
+        @include flex-center();
+      }
+    }
+  }
+
+  .chart-title {
+    margin: 12px 0;
+    font-size: 12px;
+    color: #313238;
+  }
+}
