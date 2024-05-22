@@ -745,9 +745,21 @@ export default {
   生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time',
   生效起始时间必填: 'Effective start time is required',
   如: 'Example',
-  '您可以随时切换所选集群。切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。': 'You can switch selected clusters at any time. There will be no data loss after switching clusters. The original data will be automatically cleared after the new cluster storage period.',
+  '您可以随时切换所选集群。切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。':
+    'You can switch selected clusters at any time. There will be no data loss after switching clusters. The original data will be automatically cleared after the new cluster storage period.',
   '最大自定义分片数为: {n}': 'The maximum number of custom shards is: {n}',
   '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
   '是否保存本次操作？': 'Do you want to save this operation?',
-  '容量审核中，请等待': 'Capacity review is in progress, please wait.'
+  '容量审核中，请等待': 'Capacity review is in progress, please wait.',
+  总行数: 'Total number of lines',
+  出现行数: 'Number of occurrences',
+  日志条数: 'Number of log entries',
+  次: 'Times',
+  去重日志条数: 'Number of unique log entries',
+  最大值: 'Maximum value',
+  最小值: 'Minimum value',
+  平均值: 'Average value',
+  中位数: 'Median value',
+  'TOP 5 时序图': 'TOP 5 Related Pictures',
+  数值分布直方图: 'Numeric Distribution Histogram'
 };
