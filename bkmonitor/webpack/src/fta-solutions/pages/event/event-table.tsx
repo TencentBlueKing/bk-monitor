@@ -38,6 +38,7 @@ import { handleToAlertList } from './event-detail/action-detail';
 import { TType as TSliderType } from './event-detail/event-detail-slider';
 import { getStatusInfo } from './event-detail/type';
 import { eventPanelType, IEventItem, IPagination, SearchType } from './typings/event';
+import { addHoverScroll } from './utils';
 
 import './event-table.scss';
 
@@ -665,6 +666,17 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
       });
     }
   }
+
+  @Watch('tableKey', { immediate: true })
+  handleTableDataWatch() {
+    if (this.tableData.length) {
+      setTimeout(() => {
+        const el = this.$el.querySelector('.bk-table-body-wrapper');
+        addHoverScroll(el as any);
+      }, 50);
+    }
+  }
+
   beforeDestroy() {
     this.handlePopoverHide();
   }

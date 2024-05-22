@@ -279,6 +279,16 @@ $statusColors: #ea3635 #ff9c00 #699df4;
     color: #3a84ff;
     cursor: pointer;
   }
+
+  .bk-table-body-wrapper {
+    scrollbar-width: none;
+
+    .hover-scroll {
+      &::-webkit-scrollbar {
+        height: 12px;
+      }
+    }
+  }
 }
 
 .event-table-setting {
