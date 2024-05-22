@@ -23,40 +23,39 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-const AiSettingsSet = () => import(/* webpackChunkName: 'ai-settigns-set' */ '../../pages/ai-settings/ai-settings-set');
-const AiSettings = () => import(/* webpackChunkName: 'ai-settigns' */ '../../pages/ai-settings/ai-settings');
-export default [
-  {
-    name: 'ai-settings',
-    path: '/ai-settings',
-    components: {
-      noCache: AiSettings,
-    },
-    meta: {
-      title: window.i18n.t('route-AI设置'),
-      noNavBar: false,
-      navId: 'ai-settings',
-      route: {
-        parent: 'manager',
-      },
-    },
-  },
-  {
-    name: 'ai-settings-set',
-    path: '/ai-settings-set',
-    components: {
-      noCache: AiSettingsSet,
-    },
-    meta: {
-      title: window.i18n.t('route-AI设置'),
-      noNavBar: false,
-      needBack: true,
-      navId: 'ai-settings',
-      route: {
-        parent: 'manager',
-      },
-    },
-  },
-].filter(Boolean) as RouteConfig[];
+import './expan-card.scss';
+
+interface IProps {
+  title: string;
+  expand: boolean;
+}
+
+@Component
+export default class ExpanCard extends tsc<IProps> {
+  @Prop({ type: String, default: '' }) title: string;
+  @Prop({ type: Boolean, default: false }) expand: boolean;
+
+  localExpand = false;
+
+  created() {
+    this.localExpand = this.expand;
+  }
+
+  render() {
+    return (
+      <div class='ai-setting-expan-card'>
+        <div
+          class='card-header'
+          onClick={() => (this.localExpand = !this.localExpand)}
+        >
+          <span class={['icon-monitor icon-arrow-down', { expand: this.localExpand }]}></span>
+          <span class='card-header-title'>{this.title}</span>
+        </div>
+        <div class={['card-content', { displaynone: !this.localExpand }]}>{this.$slots.default}</div>
+      </div>
+    );
+  }
+}

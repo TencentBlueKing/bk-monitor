@@ -58,6 +58,8 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
 
   observer = null;
 
+  countInstance = null;
+
   created() {
     this.selectTargetId = `aiops-monitor-metric-select-component-id-${random(8)}`;
     this.observer = new ResizeObserver(entries => {
@@ -162,6 +164,15 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
       const countEl = document.createElement('span');
       countEl.className = countClassName;
       countEl.innerHTML = `+${overflowCount}`;
+      this.countInstance?.hide?.();
+      this.countInstance?.destroy?.();
+      setTimeout(() => {
+        this.countInstance = this.$bkPopover(countEl, {
+          content: this.$t('显示完整信息'),
+          arrow: true,
+          delay: [300, 0],
+        });
+      }, 50);
       tagsWrap.insertBefore(countEl, tagsWrap.children[insertIndex]);
     }
   }

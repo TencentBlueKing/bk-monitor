@@ -40,7 +40,7 @@ class TendencyDiagrammer:
                     "datapoints": [
                         [
                             i.get(self.value_key, i.get(self.value_key1)),
-                            int(i.get("time")) * 1000,
+                            int(i.get("time")),
                         ]
                         for i in c.get("list", [])
                         if "time" in i
@@ -77,7 +77,7 @@ class TendencyDiagrammer:
                     "datapoints": [
                         [
                             i.get(self.value_key, i.get(self.value_key1)),
-                            int(i.get("time")) * 1000,
+                            int(i.get("time")),
                         ]
                         for i in base_doris_converter.get("list", [])
                         if "time" in i
@@ -93,7 +93,7 @@ class TendencyDiagrammer:
                     "datapoints": [
                         [
                             i.get(self.value_key, i.get(self.value_key1)),
-                            int(i.get("time")) * 1000,
+                            int(i.get("time")),
                         ]
                         for i in diff_doris_converter.get("list", [])
                         if "time" in i

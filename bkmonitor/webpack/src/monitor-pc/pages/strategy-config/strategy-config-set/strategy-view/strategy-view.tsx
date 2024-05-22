@@ -1004,8 +1004,12 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   ]
                 ) : (
                   <div class='chart-empty'>
-                    <i class='icon-chart icon-monitor icon-mc-line'></i>
-                    <span class='text'>{this.$t('查无数据')}</span>
+                    <bk-exception
+                      scene='part'
+                      type='empty'
+                    >
+                      {this.$t('暂无数据')}
+                    </bk-exception>
                   </div>
                 )}
                 {/* <!-- 自定义事件和日志显示日志详情 --> */}
@@ -1031,7 +1035,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   <div class='desc-content'>
                     {this.aiopsModelMdList.map((model, index) => (
                       <GroupPanel
-                        defaultExpand={false}
+                        defaultExpand={true}
                         expand={index === this.activeModelMd}
                         show-expand={true}
                         title={`[${this.$tc('算法说明')}]${model.name}`}

@@ -810,7 +810,6 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.getGroupList();
   }
   handleSearchChange(v) {
-    debugger;
     if (JSON.stringify(v || []) === JSON.stringify(this.header.keywordObj || [])) return;
     this.header.keywordObj = v;
     // this.createdConditionList();
@@ -915,7 +914,6 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         });
       }
     });
-    debugger;
     if (!!this.keywords?.length) {
       /** 自定义搜索条件 */
       temp.push(...this.keywords.map(id => ({ id, name: id })));
@@ -1803,7 +1801,6 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
   handleOperation(type: EmptyStatusOperationType) {
     if (type === 'clear-filter') {
       this.header.keywordObj = [];
-      debugger;
       this.handleGetListData();
       return;
     }
