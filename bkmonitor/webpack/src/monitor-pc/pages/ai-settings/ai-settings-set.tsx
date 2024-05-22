@@ -208,12 +208,17 @@ export default class AiSettingsSet extends tsc<object> {
           default_sensitivity: undefined,
         },
       };
-      await saveAiSetting(params).catch(() => (this.btnLoading = false));
-      this.btnLoading = false;
-      this.$bkMessage({
-        theme: 'success',
-        message: this.$t('保存成功！'),
-      });
+      const res = await saveAiSetting(params)
+        .then(() => true)
+        .catch(() => false);
+      this.btnLoading = res;
+      if (res) {
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('保存成功！'),
+        });
+        this.handleCancel();
+      }
     }
   }
 
