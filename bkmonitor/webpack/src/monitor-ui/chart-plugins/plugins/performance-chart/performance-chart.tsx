@@ -159,7 +159,7 @@ export default class PerformanceChart extends TimeSeries {
             .hostIntelligenAnomalyRange({
               start_time: params.start_time,
               end_time: params.end_time,
-              interval: this.viewOptions.interval,
+              interval: isNaN(+this.viewOptions.interval) ? this.viewOptions.interval : this.viewOptions.interval + 's', // 默认 interval 单位 s
               metric_ids: metrics?.map(item => item.metric_id),
               host: [
                 {
