@@ -339,7 +339,9 @@ class ProfilingChart extends CommonSimpleChart {
     return '';
   }
   goLink() {
-    const url = location.href.replace(location.hash, '#/trace/profiling');
+    const params = this.getParams({ diagram_types: this.activeMode });
+    const target = JSON.stringify({ ...params, start: this.timeRange[0], end: this.timeRange[1] });
+    const url = location.href.replace(location.hash, `#/trace/profiling?target=${encodeURIComponent(target)}`);
     window.open(url, '_blank');
   }
   handleFiltersChange(values, key) {
