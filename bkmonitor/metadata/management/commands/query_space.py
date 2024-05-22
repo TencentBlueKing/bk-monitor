@@ -16,13 +16,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Concat
 
-from metadata.models import (
-    BCSClusterInfo,
-    DataSource,
-    Space,
-    SpaceDataSource,
-    SpaceResource,
-)
+from metadata.models import BCSClusterInfo, DataSource, Space, SpaceDataSource
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.service.data_source import query_biz_plugin_data_id_list
 
@@ -56,16 +50,15 @@ class Command(BaseCommand):
         disabled_data_id_list = self._query_disabled_data_id_list()
 
         # 获取业务下的数据源及关联资源
-        biz_space_data_source_dict, biz_space_resource_dict = {}, {}
-        not_biz_space_data_source_dict, not_biz_space_resource_dict = {}, {}
+        biz_space_data_source_dict, not_biz_space_data_source_dict = {}, {}
         if biz_space_dict:
-            biz_space_data_source_dict, biz_space_resource_dict = self._query_bkcc_space_data(
+            biz_space_data_source_dict = self._query_bkcc_space_data(
                 biz_space_dict.keys(), removed_cluster_data_id_list, disabled_data_id_list
             )
 
         # 获取关联数据
         if not_biz_space_dict:
-            not_biz_space_data_source_dict, not_biz_space_resource_dict = self._query_not_bkcc_space_data(
+            not_biz_space_data_source_dict = self._query_not_bkcc_space_data(
                 not_biz_space_dict.keys(), removed_cluster_data_id_list, disabled_data_id_list
             )
 
@@ -86,13 +79,10 @@ class Command(BaseCommand):
                     data_sources["belong_space_data_id_list"].extend(_data_ids)
                 data_sources["belong_space_data_id_total"] = len(data_sources["belong_space_data_id_list"])
                 data_sources["platform_data_id_list"] = space_type_data_ids.get(key[0]) or []
-                resource = biz_space_resource_dict.get(key, [])
             else:
                 data_sources = not_biz_space_data_source_dict.get(key, [])
-                resource = not_biz_space_resource_dict.get(key, [])
                 data_sources["platform_data_id_list"] = space_type_data_ids.get(key[0]) or []
             val["data_sources"] = data_sources
-            val["resources"] = resource
 
         self.stdout.write(json.dumps(space_dict.values()))
 
@@ -143,40 +133,13 @@ class Command(BaseCommand):
         这里需要过滤业务下的集群资源
         """
         # 获取关联的 data id
-        space_resource_filter_q, space_data_id_filter_q = Q(), Q()
+        space_data_id_filter_q = Q()
         # space_uid_list 格式为 [(space_type_id, space_id), (space_type_id1, space_id1)]
         for s in space_uid_list:
-            space_resource_filter_q |= Q(resource_type=s[0], resource_id=s[1])
             space_data_id_filter_q |= Q(space_type_id=s[0], space_id=s[1])
 
-        # 获取对应的资源
-        space_resource = SpaceResource.objects.filter(space_resource_filter_q)
-        biz_space_map = {}
-        not_biz_filter_q = Q()
-        for sr in space_resource:
-            biz_space_map[(sr.space_type_id, sr.space_id)] = (sr.resource_type, sr.resource_id)
-            not_biz_filter_q |= Q(
-                space_type_id=sr.space_type_id, space_id=sr.space_id, resource_type=SpaceTypes.BCS.value
-            )
-        not_biz_space_resource = {}
-        if not_biz_filter_q:
-            objs = SpaceResource.objects.filter(not_biz_filter_q)
-            for sr in objs:
-                key = (sr.space_type_id, sr.space_id)
-                resource = {
-                    "resource_type": sr.resource_type,
-                    "resource_id": sr.resource_id,
-                    "dimension_values": sr.dimension_values,
-                }
-                not_biz_space_resource.setdefault(key, []).append(resource)
-
-        space_resource_dict = {}
-        for src, dst in biz_space_map.items():
-            space_resource_dict.setdefault(dst, []).extend(not_biz_space_resource.get(src))
-
-        return (
-            self._query_space_data_source(space_data_id_filter_q, removed_cluster_data_id_list, disabled_data_id_list),
-            space_resource_dict,
+        return self._query_space_data_source(
+            space_data_id_filter_q, removed_cluster_data_id_list, disabled_data_id_list
         )
 
     def _query_not_bkcc_space_data(
@@ -188,25 +151,7 @@ class Command(BaseCommand):
         for s in space_uid_list:
             filter_q |= Q(space_type_id=s[0], space_id=s[1])
 
-        # 获取对应的资源
-        space_resource = SpaceResource.objects.filter(filter_q)
-        space_resource_dict, space_cluster_id = {}, set()
-        for sr in space_resource:
-            key = (sr.space_type_id, sr.space_id)
-            dimension = sr.dimension_values
-            resource = {
-                "resource_type": sr.resource_type,
-                "resource_id": sr.resource_id,
-                "dimension_values": dimension,
-            }
-            for d in dimension:
-                space_cluster_id.add(d.get("cluster_id"))
-            space_resource_dict.setdefault(key, []).append(resource)
-
-        return (
-            self._query_space_data_source(filter_q, removed_cluster_data_id_list, disabled_data_id_list),
-            space_resource_dict,
-        )
+        return self._query_space_data_source(filter_q, removed_cluster_data_id_list, disabled_data_id_list)
 
     def _query_space_data_source(
         self, filter_q: Q, removed_cluster_data_id_list: List, disabled_data_id_list: List
