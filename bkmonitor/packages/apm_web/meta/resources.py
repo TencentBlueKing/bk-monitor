@@ -1882,7 +1882,7 @@ class ModifyMetricResource(Resource):
 
 
 class QueryEndpointStatisticsResource(PageListResource):
-    span_keys = ["db.system", "http.url", "messaging.system", "rpc.system"]
+    span_keys = ["db.system", "http.url", "messaging.system", "rpc.system", "trpc.callee_method"]
 
     default_sort = "-request_count"
 
@@ -1891,6 +1891,7 @@ class QueryEndpointStatisticsResource(PageListResource):
         "http_url": "attributes.http.url",
         "messaging_system": "attributes.messaging.system",
         "rpc_system": "attributes.rpc.system",
+        "trpc_callee_method": "attributes.trpc.callee_method",
     }
 
     def get_columns(self, column_type=None):
