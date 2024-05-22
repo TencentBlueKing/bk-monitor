@@ -348,8 +348,8 @@ importers:
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.21
-        version: 0.3.0-beta.21
+        specifier: 0.2.0-beta.1
+        version: 0.2.0-beta.1
       '@blueking/login-modal':
         specifier: ^1.0.1
         version: 1.0.1
@@ -575,8 +575,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.21
-        version: 0.3.0-beta.21
+        specifier: 0.2.0-beta.1
+        version: 0.2.0-beta.1
       '@blueking/login-modal':
         specifier: ^1.0.1
         version: 1.0.1
@@ -2470,8 +2470,8 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/ip-selector@0.3.0-beta.21:
-    resolution: {integrity: sha512-nbLiw+kiOEpKfu3krWtOz1rF/3NDVY8LQsuM4vHlA1ONA5VyqIg/mHgRQvxknyJwow/yzGb5zOBpyURqcZAHPQ==}
+  /@blueking/ip-selector@0.2.0-beta.1:
+    resolution: {integrity: sha512-ODkudyOh/YIigjRawmzXLdAWV0TO3ICzNNZYcxE4c5ZGPLdKzFnF4OWyaA+xXCMS1I2S/NiM6Te4sBHG7wF1Xg==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
     dev: false
 

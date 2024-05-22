@@ -83,6 +83,7 @@ export default class MultipleMetricView extends tsc<IProps> {
         time_field: timeField,
         bkmonitor_strategy_id: bkmonitorStrategyId,
         custom_event_name: customEventName,
+        name,
       } = metric;
       const tableValue = () => {
         if (dataSourceLabel === 'bk_monitor' && dataTypeLabel === 'alert') {
@@ -132,7 +133,7 @@ export default class MultipleMetricView extends tsc<IProps> {
         id: this.dashboardId,
         dashboardId: this.dashboardId,
         type: 'graph',
-        title: metricFieldName,
+        title: name || metricFieldName,
         subTitle: '',
         options: {
           time_series: {

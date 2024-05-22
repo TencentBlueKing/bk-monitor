@@ -51,14 +51,18 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
         logger.exception("CMDB的主机缓存获取失败。获取不到主机，有可能会导致pingserver不执行")
         return
 
+    exists_host_ids = set()
     cloud_to_hosts = defaultdict(list)
     for h in all_hosts:
         ip = h.bk_host_innerip_v6 if is_ipv6_biz(h.bk_biz_id) else h.bk_host_innerip
-        if h.ignore_monitoring or not ip:
+        if h.ignore_monitoring or not ip or h.bk_host_id in exists_host_ids:
             continue
         cloud_to_hosts[h.bk_cloud_id].append(
             {"ip": ip, "bk_cloud_id": h.bk_cloud_id, "bk_biz_id": h.bk_biz_id, "bk_host_id": h.bk_host_id}
         )
+        exists_host_ids.add(h.bk_host_id)
+
+    del all_hosts
 
     # 2. 获取云区域下的所有ProxyIP
     for bk_cloud_id, target_ips in cloud_to_hosts.items():

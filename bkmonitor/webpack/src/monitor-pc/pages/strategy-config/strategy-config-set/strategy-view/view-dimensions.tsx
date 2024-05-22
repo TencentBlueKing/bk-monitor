@@ -103,6 +103,7 @@ export default class ViewDimensions extends tsc<IProps> {
               <div class='item-content'>
                 <bk-select
                   class='item-content-select'
+                  placeholder={this.$t('请选择')}
                   size='small'
                   value={this.localValues[item.id]}
                   allowCreate

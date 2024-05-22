@@ -288,4 +288,5 @@ export default {
 
   '选择应用/服务': 'Select Application/Service',
   请输入关键字或标签: 'Please enter keywords or tags',
+  搜索指标: 'Search Metrics',
 };
