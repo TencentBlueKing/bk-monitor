@@ -274,7 +274,7 @@ export default class FieldAnalysis extends Vue {
           if (index === 0 || index === res.data.length - 1 || this.fieldData.distinct_count < 10) {
             return item[0];
           }
-          return `${res.data[index][0]} ~ ${item[0]}`;
+          return `${res.data[index - 1][0]} ~ ${item[0]}`;
         });
       } else {
         // 折线图数据初始化
