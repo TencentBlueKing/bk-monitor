@@ -90,6 +90,7 @@ INSTALLED_APPS += (
     "log_adapter",
     "bkm_search_module",
     "bk_notice_sdk",
+    "apigw_manager.apigw",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -372,6 +373,14 @@ BK_FAQ_URL = "https://bk.tencent.com/s-mart/community"
 
 # SaaS访问域名
 BK_BKLOG_HOST = os.environ.get("BK_BKLOG_HOST", f"{BK_PAAS_HOST}/o/bk_log_search/")
+
+# API访问地址，APIGW 需要用到
+BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api")
+
+# 网关管理员
+APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split(","))}]'
+# 网关名称
+APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 
 # 日志归档文档
 BK_ARCHIVE_DOC_URL = os.getenv("BKAPP_ARCHIVE_DOC_URL", "")
