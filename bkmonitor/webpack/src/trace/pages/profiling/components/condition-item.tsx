@@ -87,7 +87,6 @@ export default defineComponent({
     );
 
     onMounted(() => {
-      console.log('mounted', props.data.key);
       localValue.key && getLabelValuesDebounce();
     });
 
