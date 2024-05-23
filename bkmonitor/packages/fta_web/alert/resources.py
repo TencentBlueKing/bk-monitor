@@ -94,6 +94,7 @@ from fta_web.alert.serializers import (
     AlertSuggestionSerializer,
     EventSearchSerializer,
 )
+from fta_web.alert.utils import slice_time_interval
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
     AlertFeedback,
@@ -1104,6 +1105,90 @@ class SearchAlertResource(Resource):
         record_history = serializers.BooleanField(label="是否保存收藏历史", default=False)
         must_exists_fields = serializers.ListField(label="必要字段", child=serializers.CharField(), default=[])
 
+    def add_overview(self, result, sliced_result):
+        if "overview" not in result.keys():
+            result["overview"] = {
+                "id": sliced_result["overview"]["id"],
+                "name": sliced_result["overview"]["name"],
+                "count": 0,
+                "children": {},
+            }
+        result["overview"]["count"] += sliced_result["overview"]["count"]
+        for child in sliced_result["overview"]["children"]:
+            child_id = child["id"]
+            if child_id not in result["overview"]["children"]:
+                result["overview"]["children"][child_id] = {"id": child["id"], "name": child["name"], "count": 0}
+            result["overview"]["children"][child_id]["count"] += child["count"]
+
+    def add_aggs(self, agg_id_map, result, sliced_result):
+        for agg in sliced_result["aggs"]:
+            if agg["id"] not in agg_id_map:
+                new_agg = copy.deepcopy(agg)
+                result["aggs"].append(new_agg)
+                agg_id_map[agg["id"]] = len(result["aggs"]) - 1
+            else:
+                index = agg_id_map[agg["id"]]
+                result["aggs"][index]["count"] += agg["count"]
+                for child in agg["children"]:
+                    for res_child in result["aggs"][index]["children"]:
+                        if res_child["id"] == child["id"]:
+                            res_child["count"] += child["count"]
+
+    def perform_request(self, validated_request_data):
+        show_overview = validated_request_data.get("show_overview")
+        show_aggs = validated_request_data.get("show_aggs")
+        show_dsl = validated_request_data.get("show_dsl")
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        results = resource.alert.search_alert_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    **validated_request_data,
+                }
+                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+            ]
+        )
+
+        result = {
+            "alerts": [],
+            "total": 0,
+        }
+        if show_aggs:
+            result["aggs"] = []
+            agg_id_map = {}
+        if show_dsl:
+            is_change = True
+        for sliced_result in results:
+            result["alerts"].extend(sliced_result["alerts"])
+            result["total"] += sliced_result["total"]
+
+            if show_overview:
+                self.add_overview(result, sliced_result)
+            if show_aggs:
+                self.add_aggs(agg_id_map, result, sliced_result)
+            if show_dsl:
+                if is_change:
+                    sliced_result["dsl"]["query"]["bool"]["filter"][0]["bool"]["should"][1]["range"]["end_time"][
+                        "gte"
+                    ] = start_time
+                    sliced_result["dsl"]["query"]["bool"]["filter"][0]["bool"]["must"][0]["bool"]["should"][0]["range"][
+                        "begin_time"
+                    ]["lte"] = end_time
+                    sliced_result["dsl"]["query"]["bool"]["filter"][0]["bool"]["must"][0]["bool"]["should"][1]["range"][
+                        "create_time"
+                    ]["lte"] = end_time
+                    result["dsl"] = sliced_result["dsl"]
+                    is_change = False
+
+        if show_overview:
+            result["overview"]["children"] = list(result["overview"]["children"].values())
+
+        return result
+
+
+class SearchAlertResultResource(Resource):
     def perform_request(self, validated_request_data):
         show_overview = validated_request_data.pop("show_overview")
         show_aggs = validated_request_data.pop("show_aggs")
@@ -1118,7 +1203,6 @@ class SearchAlertResource(Resource):
             enabled=record_history and validated_request_data.get("query_string"),
         ):
             result = handler.search(show_overview=show_overview, show_aggs=show_aggs, show_dsl=show_dsl)
-
         return result
 
 
