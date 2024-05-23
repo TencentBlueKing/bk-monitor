@@ -61,7 +61,7 @@ class Command(BaseCommand):
         # 如果存在差异，需要先检查数据源，再重试
         diff = set(data_id_list) - data_ids
         if diff:
-            self.stderr.write(f"数据源 {json.dumps(diff)} 处于运行状态，不能删除路由")
+            self.stderr.write(f"删除GSE路由失败, 数据源 {json.dumps(diff)} 处于运行状态，不能删除路由")
             return False
 
         return True
