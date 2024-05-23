@@ -129,7 +129,7 @@ MIDDLEWARE = (
     # Auth middleware
     # "blueapps.account.middlewares.BkJwtLoginRequiredMiddleware",
     "blueapps.account.middlewares.WeixinLoginRequiredMiddleware",
-    "apigw_manager.apigw.authentication.ApiGatewayJWTMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
+    "apigw_manager.apigw.authentication.ApiGatewayJWTGenericMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
     "apigw_manager.apigw.authentication.ApiGatewayJWTAppMiddleware",  # 根据 request.jwt，获取 request.app 对象
     "apigw_manager.apigw.authentication.ApiGatewayJWTUserMiddleware",  # 根据 request.jwt，获取 request.user 对象
     # "blueapps.account.middlewares.LoginRequiredMiddleware",
