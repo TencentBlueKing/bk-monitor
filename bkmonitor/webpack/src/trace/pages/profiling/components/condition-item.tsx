@@ -67,6 +67,8 @@ export default defineComponent({
     const scrollLoading = ref(false);
     const valueList = ref<string[]>([]);
 
+    const getLabelValuesDebounce = debounce(getLabelValues, 100);
+
     watch(
       () => props.data,
       newVal => {
@@ -85,10 +87,9 @@ export default defineComponent({
     );
 
     onMounted(() => {
+      console.log('mounted', props.data.key);
       localValue.key && getLabelValuesDebounce();
     });
-
-    const getLabelValuesDebounce = debounce(getLabelValues, 100);
 
     /** 获取过滤项值列表 */
     async function getLabelValues() {
@@ -111,7 +112,6 @@ export default defineComponent({
     function handleKeyChange() {
       localValue.value = '';
       valueList.value = [];
-      getLabelValuesDebounce();
       handleEmitData();
     }
 

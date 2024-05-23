@@ -323,6 +323,7 @@ export default defineComponent({
               <div class='search-title'>{this.t('当前查询项')}</div>
               {this.localFormData.where.map((item, index) => (
                 <ConditionItem
+                  key={item.key}
                   class='condition-item'
                   data={item}
                   labelList={this.labelList}
@@ -344,6 +345,7 @@ export default defineComponent({
                 <div class='search-title'>{this.t('参照查询项')}</div>
                 {this.localFormData.comparisonWhere.map((item, index) => (
                   <ConditionItem
+                    key={item.key}
                     class='condition-item'
                     data={item}
                     labelList={this.labelList}

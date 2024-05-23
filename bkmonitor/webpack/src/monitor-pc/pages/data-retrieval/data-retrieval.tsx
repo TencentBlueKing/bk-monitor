@@ -1065,7 +1065,7 @@ export default class DataRetrieval extends tsc<object> {
 
   handleCompareValueChange(data: PanelToolsType.Compare) {
     this.compareValue.compare = data;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
 
   /**
@@ -1074,7 +1074,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleToolsTimeRangeChange(timeRange: TimeRangeType) {
     this.compareValue.tools.timeRange = timeRange;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
   /**
    * @description: 变更时区
@@ -1082,7 +1082,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleTimezoneChange(timezone: string) {
     this.compareValue.tools.timezone = timezone;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
   /**
    * @description: 合并视图
@@ -1090,7 +1090,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleSplitChange(val: boolean) {
     this.compareValue.compare.value = val;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
 
   /**
