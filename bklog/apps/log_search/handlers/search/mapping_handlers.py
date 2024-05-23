@@ -268,7 +268,7 @@ class MappingHandlers(object):
                     "agg_field": field["field_name"],
                 }
                 try:
-                    field["field_count"] = UnifyQueryHandler(search_params).get_field_count()
+                    field["field_count"] = UnifyQueryHandler(search_params).get_distinct_count()
                 except Exception as e:  # pylint: disable=broad-except
                     logger.exception("get_field_count error: %s, search params: %s", e, search_params)
 
