@@ -27,12 +27,9 @@ import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import { CancelToken } from 'monitor-api/index';
-import {
-  getIntelligentDetectAccessStatus,
-  getIntelligentModel,
-  listIntelligentModels,
-} from 'monitor-api/modules/strategies';
+import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
+import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData } from '../../../typings';
 import Form from '../form/form';
 import { FormItem, IFormDataItem } from '../form/utils';
@@ -191,7 +188,9 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
   /** 获取模型的列表数据 */
   async getModelList() {
     this.loading = true;
-    const resData = await listIntelligentModels({ algorithm: 'IntelligentDetect' }).catch(() => (this.loading = false));
+    const resData = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.IntelligentDetect,
+    }).catch(() => (this.loading = false));
     const modelItem: FormItem = this.staticFormItem.find(item => item.field === MODEL_FIELD);
     // 根据服务端返回的 is_default 字段 是否 默认选中 特定的模型。
     let defaultSelectModelId = null;

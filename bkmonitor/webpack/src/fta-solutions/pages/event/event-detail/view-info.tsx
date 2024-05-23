@@ -520,7 +520,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         this.detail.bk_biz_id || bizId
       }#/data-retrieval/?targets=${JSON.stringify(targets)}`;
-      window.open(url, '__blank');
+      window.open(url, '_blank');
     }
   }
 
