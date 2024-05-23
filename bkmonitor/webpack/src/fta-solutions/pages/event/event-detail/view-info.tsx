@@ -110,6 +110,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
     const sourceTypeLabels = [
       { sourceLabel: 'bk_log_search', typeLabel: 'time_series' },
       { sourceLabel: 'custom', typeLabel: 'event' },
+      { sourceLabel: 'bk_monitor', typeLabel: 'event' },
       { sourceLabel: 'bk_log_search', typeLabel: 'log' },
       { sourceLabel: 'bk_monitor', typeLabel: 'log' },
     ];
