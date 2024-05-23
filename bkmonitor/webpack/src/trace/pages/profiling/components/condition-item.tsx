@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, reactive, ref, watch } from 'vue';
+import { defineComponent, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Select } from 'bkui-vue';
@@ -83,6 +83,10 @@ export default defineComponent({
         valueList.value = [];
       }
     );
+
+    onMounted(() => {
+      localValue.key && getLabelValuesDebounce();
+    });
 
     const getLabelValuesDebounce = debounce(getLabelValues, 100);
 
