@@ -20,70 +20,36 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
-// import Echarts from 'echarts';
-import dayjs from 'dayjs';
-import $http from '@/api';
+import { Component, Prop, Ref, Vue, Emit } from 'vue-property-decorator';
+import $http from '../../../api';
+import { lineColor } from '../../../store/constant';
 import './field-analysis.scss';
 
-const lineColor = [
-  '#A3C5FD', // 0: pale green
-  '#EAB839', // 1: mustard
-  '#6ED0E0', // 2: light blue
-  '#EF843C', // 3: orange
-  '#E24D42', // 4: red
-  '#1F78C1', // 5: ocean
-  '#BA43A9', // 6: purple
-  '#705DA0', // 7: violet
-  '#508642', // 8: dark green
-  '#CCA300', // 9: dark sand
-  '#447EBC',
-  '#C15C17',
-  '#890F02',
-  '#0A437C',
-  '#6D1F62',
-  '#584477',
-  '#B7DBAB',
-  '#F4D598',
-  '#70DBED',
-  '#F9BA8F',
-  '#F29191',
-  '#82B5D8',
-  '#E5A8E2',
-  '#AEA2E0',
-  '#629E51',
-  '#E5AC0E',
-  '#64B0C8',
-  '#E0752D',
-  '#BF1B00',
-  '#0A50A1',
-  '#962D82',
-  '#614D93',
-  '#9AC48A',
-  '#F2C96D',
-  '#65C5DB',
-  '#F9934E',
-  '#EA6460',
-  '#5195CE',
-  '#D683CE',
-  '#806EB7',
-  '#3F6833',
-  '#967302',
-  '#2F575E',
-  '#99440A',
-  '#58140C',
-  '#052B51',
-  '#511749',
-  '#3F2B5B',
-  '#E0F9D7',
-  '#FCEACA',
-  '#CFFAFF',
-  '#F9E2D2',
-  '#FCE2DE',
-  '#BADFF4',
-  '#F9D9F9',
-  '#DEDAF7'
-];
+/** 无数据提示 */
+const graphic = {
+  elements: [
+    {
+      type: 'text',
+      left: 'center',
+      top: 'center',
+      style: {
+        text: window.mainComponent.$t('无数据'),
+        fontSize: 20,
+        fill: '#000'
+      },
+      invisible: true
+    }
+  ]
+};
+
+/** 柱状图基础高度 */
+const PILLAR_CHART_BASE_HEIGHT = 200;
+/** 折线图图基础高度 */
+const LINE_CHART_BASE_HEIGHT = 170;
+/** 折线图一行的情况下与底部的百分比设置 */
+const GRID_PERCENTAGE = 8;
+/** 折线图一行的情况下与底部的分类的高度 */
+const LINE_CHART_LEGEND_HEIGHT = 18;
 
 @Component
 export default class FieldAnalysis extends Vue {
@@ -91,11 +57,12 @@ export default class FieldAnalysis extends Vue {
   @Ref('fieldChart') private readonly fieldChartRef!: HTMLDivElement;
 
   chart = null;
-  height = 170;
-  // height = 200;
+  /** 图表高度 */
+  height = PILLAR_CHART_BASE_HEIGHT;
   infoLoading = false;
   chartLoading = false;
 
+  /** 折线图数据 */
   lineChartOption = {
     tooltip: {
       trigger: 'axis'
@@ -107,17 +74,26 @@ export default class FieldAnalysis extends Vue {
       padding: 0,
       bottom: 0,
       icon: 'rect',
+      textStyle: {
+        fontSize: 12
+      },
+      formatter: name => {
+        // 限制显示文本的长度
+        return name.length > 10 ? `${name.slice(0, 10)}...` : name;
+      },
+      tooltip: {
+        show: true
+      },
       data: []
     },
     grid: {
       left: '0',
-      right: '4%',
+      right: '6%',
       top: '4%',
       bottom: '20%',
       containLabel: true
     },
     xAxis: {
-      boundaryGap: false,
       axisLine: {
         show: false
       },
@@ -127,7 +103,8 @@ export default class FieldAnalysis extends Vue {
       axisLabel: {
         color: '#979BA5'
       },
-      data: []
+      boundaryGap: [0, 0], // 设置为0确保时间数据顶边和底边对齐
+      type: 'time'
     },
     yAxis: {
       type: 'value',
@@ -148,13 +125,14 @@ export default class FieldAnalysis extends Vue {
         show: true
       }
     },
-    series: []
+    series: [],
+    graphic
   };
 
+  /** 柱状图数据 */
   pillarChartOption = {
     tooltip: {
       trigger: 'axis'
-      // formatter: this.handleSetPillarTooltips
     },
     xAxis: {
       axisLine: {
@@ -164,7 +142,12 @@ export default class FieldAnalysis extends Vue {
         show: false
       },
       axisLabel: {
-        color: '#979BA5'
+        color: '#979BA5',
+        interval: 3,
+        formatter: value => {
+          if (value.length > 10) return `${value.slice(0, 10)}...`; // 只显示前10个字符
+          return value;
+        }
       },
       type: 'category',
       data: []
@@ -203,7 +186,8 @@ export default class FieldAnalysis extends Vue {
           color: '#689DF3'
         }
       }
-    ]
+    ],
+    graphic
   };
 
   fieldData = {
@@ -218,13 +202,14 @@ export default class FieldAnalysis extends Vue {
       min: 0
     }
   };
-
-  get isShowValueAnalysis() {
-    return this.isPillarChart && !Object.values(this.fieldData?.value_analysis).every(item => item === 0);
-  }
-
+  /** 是否显示柱状图 是否是数字类型字段 */
   get isPillarChart() {
     return ['integer', 'long', 'double'].includes(this.queryParams?.field_type);
+  }
+
+  @Emit('statisticsInfoFinish')
+  private statisticsInfoFinish() {
+    return true;
   }
 
   mounted() {
@@ -250,7 +235,7 @@ export default class FieldAnalysis extends Vue {
       this.infoLoading = false;
     }
   }
-
+  /** 图表请求 */
   async queryStatisticsGraph() {
     try {
       // this.chartLoading = true;
@@ -269,6 +254,7 @@ export default class FieldAnalysis extends Vue {
       });
       // 分折线图和柱状图显示
       if (this.isPillarChart) {
+        // 折线图初始化
         this.pillarChartOption.series[0].data = res.data.map(item => item[1]);
         this.pillarChartOption.xAxis.data = res.data.map((item, index) => {
           if (index === 0 || index === res.data.length - 1 || this.fieldData.distinct_count < 10) {
@@ -277,19 +263,12 @@ export default class FieldAnalysis extends Vue {
           return `${res.data[index - 1][0]} ~ ${item[0]}`;
         });
       } else {
-        // 折线图数据初始化
-        const timeData = res.data.series[0].values.map(vItem => dayjs.tz(vItem[0]).format('YYYY-MM-DD HH:mm:ss'));
-        const seriesData = res.data.series.map(item => {
-          return {
-            name: item.group_values[0],
-            data: item.values.map(vItem => vItem[1])
-          };
-        });
-        this.lineChartOption.xAxis.data = timeData;
+        this.height = LINE_CHART_BASE_HEIGHT;
+        const seriesData = res.data.series;
         const series = [];
         const legendData = [];
         seriesData.forEach((el, index) => {
-          legendData.push(el.name);
+          legendData.push(el.group_values[0]);
           series.push({
             type: 'line',
             lineStyle: {
@@ -298,20 +277,21 @@ export default class FieldAnalysis extends Vue {
               }
             },
             symbol: 'none',
-            name: el.name,
-            data: el.data
+            name: el.group_values[0],
+            data: el.values
           });
         });
-        // if (seriesData.length === 1) {
-        //   this.lineChartOption.grid.bottom = '0%';
-        //   legendData.splice(0, legendData.length);
-        // }
         this.lineChartOption.series = series;
         this.lineChartOption.legend.data = legendData;
         this.lineChartOption.color = lineColor.slice(0, seriesData.length);
+        // 根据分类数量增加底边的百分比高度
+        this.lineChartOption.grid.bottom = `${Math.ceil(legendData.length / 3) * GRID_PERCENTAGE}%`;
+        // 根据分类数量增加高度
+        this.height = this.height + Math.ceil(legendData.length / 3) * LINE_CHART_LEGEND_HEIGHT;
       }
     } catch (error) {
     } finally {
+      this.statisticsInfoFinish();
       this.chartLoading = false;
     }
   }
@@ -319,18 +299,39 @@ export default class FieldAnalysis extends Vue {
   initFieldChart() {
     const echarts = require('echarts');
     const chart: any = echarts.init(this.fieldChartRef, null, {
-      height: 'auto'
+      height: `${this.height}px`
     });
     const getInitChartOption = this.isPillarChart ? this.pillarChartOption : this.lineChartOption;
     chart && chart.setOption(getInitChartOption);
+    if (this.isPillarChart) {
+      if (!this.pillarChartOption.series[0].data.length) {
+        chart.setOption({
+          graphic: {
+            elements: [
+              {
+                invisible: true
+              }
+            ]
+          }
+        });
+      }
+    } else {
+      chart.on('legendselectchanged', params => {
+        const anySeriesSelected = Object.keys(params.selected).some(key => params.selected[key]);
+        // 更新无数据文本的显示状态
+        chart.setOption({
+          graphic: {
+            elements: [
+              {
+                invisible: anySeriesSelected
+              }
+            ]
+          }
+        });
+      });
+    }
     this.chart = chart;
     this.chart.resize();
-  }
-
-  handleSetPillarTooltips() {
-    // if (this.fieldData.distinct_count > 10) {
-    // }
-    // return `<div>${1}</div>`;
   }
 
   render() {
@@ -361,7 +362,7 @@ export default class FieldAnalysis extends Vue {
               <span class='log-str'>{window.mainComponent.$t('去重日志条数')}</span>
             </div>
           </div>
-          {this.isShowValueAnalysis && (
+          {this.isPillarChart && (
             <div class='number-num-container'>
               <div class='num-box'>
                 <span class='num-key'>{window.mainComponent.$t('最大值')}</span>
@@ -384,7 +385,9 @@ export default class FieldAnalysis extends Vue {
         </div>
         <div v-bkloading={{ isLoading: this.chartLoading }}>
           <div class='chart-title'>
-            {!this.isPillarChart ? window.mainComponent.$t('TOP 5 时序图') : window.mainComponent.$t('数值分布直方图')}
+            {!this.isPillarChart
+              ? `TOP 5 ${window.mainComponent.$t('时序图')}`
+              : window.mainComponent.$t('数值分布直方图')}
           </div>
           <div
             ref='fieldChart'
