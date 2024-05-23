@@ -47,6 +47,8 @@ class Command(BaseCommand):
         - 数据源必须处于被禁用状态
         """
         if is_force:
+            # 设置数据源状态为 disabled
+            models.DataSource.objects.filter(bk_data_id__in=data_id_list).update(is_enable=False)
             return True
 
         data_ids = set(
