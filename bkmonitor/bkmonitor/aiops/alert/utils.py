@@ -131,7 +131,7 @@ class AIOPSManager(abc.ABC):
                             "function": compare_function,
                         },
                         "datasourceId": "time_series",
-                        "name": "时序数据",
+                        "name": _("时序数据"),
                         "alias": "$time_offset",
                     }
                 ],
@@ -374,7 +374,7 @@ class AIOPSManager(abc.ABC):
                 {
                     "data": unify_query_params,
                     "datasourceId": "time_series",
-                    "name": "时序数据",
+                    "name": _("时序数据"),
                     "alias": "$metric_field-$time_offset" if is_composite else "$time_offset",
                 }
             ],
@@ -830,7 +830,6 @@ class DimensionDrillManager(AIOPSManager):
 
     def fetch_aiops_result(self):
         if not self.is_enable():
-            # raise AIOpsDisableError({"func": _("维度下钻")})
             raise AIOpsFunctionAccessedError({"func": _("维度下钻")})
 
         graph_panel = AIOPSManager.get_graph_panel(self.alert, use_raw_query_config=True)
@@ -891,7 +890,6 @@ class RecommendMetricManager(AIOPSManager):
             return {}
 
         if not self.is_enable():
-            # raise AIOpsDisableError({"func": _("指标推荐")})
             raise AIOpsFunctionAccessedError({"func": _("指标推荐")})
 
         graph_panel = self.get_graph_panel(self.alert, use_raw_query_config=True)

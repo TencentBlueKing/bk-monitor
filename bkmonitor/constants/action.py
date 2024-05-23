@@ -400,7 +400,7 @@ VARIABLES = [
             {
                 "name": "alarm.alert_info",
                 "desc": _lazy("回调数据【new】"),
-                "example": _lazy(json.dumps({"alarm": "the new version content of webhook"})),
+                "example": json.dumps({"alarm": "the new version content of webhook"}),
             },
             {
                 "name": "alarm.bkm_info",
