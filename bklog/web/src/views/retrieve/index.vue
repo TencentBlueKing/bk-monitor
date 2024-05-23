@@ -1633,8 +1633,6 @@ export default {
      */
     async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
       this.$store.commit('updateClearTableWidth', 1);
-      // requestFields已经更新过一次了展示了 不需要再更新
-      if (!isRequestFields) this.initVisibleFields(displayFieldNames);
       // 缓存展示字段
       const showFieldObj = this.sessionShowFieldObj();
       Object.assign(showFieldObj, { [this.indexId]: displayFieldNames });
@@ -1644,7 +1642,12 @@ export default {
         window.localStorage.setItem('showFieldAlias', showFieldAlias);
       }
       await this.$nextTick();
-      isRequestFields && this.requestFields();
+      if (!isRequestFields) {
+        this.initVisibleFields(displayFieldNames);
+      } else {
+        this.isSetDefaultTableColumn = false;
+        this.requestFields();
+      }
     },
     requestTableData() {
       if (this.requesting) return;
