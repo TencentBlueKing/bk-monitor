@@ -55,7 +55,7 @@ class ResultTableAndDataSource:
         # 组装获取数据详情
         data = []
         for table_id, data_id in table_id_data_id.items():
-            if not detail:
+            if not detail or self.bcs_cluster_id:
                 detail = self.get_basic_detail(data_id)
             detail.update(self.get_table_id(table_id))
             detail.update(self.get_biz_info(table_id, detail["data_source"]))
@@ -140,6 +140,7 @@ class ResultTableAndDataSource:
             bk_data_id_list = [
                 cluster_record.K8sMetricDataID,
                 cluster_record.CustomMetricDataID,
+                cluster_record.K8sEventDataID,
             ]
             return {
                 obj.table_id: obj.bk_data_id
