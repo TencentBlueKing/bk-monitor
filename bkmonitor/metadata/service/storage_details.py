@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Union
 
 import kafka
 import requests
+from django.db.models import Q
 from elasticsearch import Elasticsearch as Elasticsearch
 from kafka.admin import KafkaAdminClient
 
@@ -35,6 +36,8 @@ class ResultTableAndDataSource:
 
     def get_detail(self):
         detail = self.get_basic_detail(self.bk_data_id)
+        # 获取结果表信息
+
         # 获取table id和data id
         try:
             table_id_data_id = self.get_table_id_data_id()
@@ -52,8 +55,9 @@ class ResultTableAndDataSource:
         # 组装获取数据详情
         data = []
         for table_id, data_id in table_id_data_id.items():
-            if not detail:
+            if not detail or self.bcs_cluster_id:
                 detail = self.get_basic_detail(data_id)
+            detail.update(self.get_table_id(table_id))
             detail.update(self.get_biz_info(table_id, detail["data_source"]))
             detail.update(self.get_storage_cluster(table_id))
             detail.update(self.get_influxdb_instance_cluster(table_id))
@@ -79,7 +83,41 @@ class ResultTableAndDataSource:
         except Exception:
             raise Exception(f"bk_data_id: {bk_data_id} not found")
 
-        return {"bk_data_id": ds.bk_data_id, "bk_data_name": ds.data_name, "space_uid": ds.space_uid}
+        # 如果是集群的数据源ID，则返回集群信息
+        cluster_obj = models.BCSClusterInfo.objects.filter(
+            Q(K8sMetricDataID=bk_data_id)
+            | Q(CustomMetricDataID=bk_data_id)
+            | Q(K8sEventDataID=bk_data_id)
+            | Q(CustomEventDataID=bk_data_id)
+        ).first()
+        cluster_id = ""
+        if cluster_obj:
+            cluster_id = cluster_obj.cluster_id
+
+        return {
+            "bk_data_id": ds.bk_data_id,
+            "bk_data_name": ds.data_name,
+            "space_uid": ds.space_uid,
+            "etl_config": ds.etl_config,
+            "creator": ds.creator,
+            "updater": ds.last_modify_user,
+            "cluster_id": cluster_id,
+            "is_enable": ds.is_enable,
+        }
+
+    def get_table_id(self, table_id: str) -> Dict:
+        """获取结果表信息"""
+        try:
+            rt = models.ResultTable.objects.get(table_id=table_id)
+        except models.ResultTable.DoesNotExist:
+            raise Exception(f"table_id: {table_id} not found")
+        return {
+            "result_table": {
+                "table_id": rt.table_id,
+                "result_table_name": rt.table_name_zh,
+                "is_enable": rt.is_enable,
+            }
+        }
 
     def get_table_id_data_id(self) -> Dict:
         """
@@ -102,6 +140,7 @@ class ResultTableAndDataSource:
             bk_data_id_list = [
                 cluster_record.K8sMetricDataID,
                 cluster_record.CustomMetricDataID,
+                cluster_record.K8sEventDataID,
             ]
             return {
                 obj.table_id: obj.bk_data_id

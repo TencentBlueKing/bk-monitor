@@ -647,8 +647,8 @@ export default defineComponent({
         app_name: params.app_name,
         search_type: state.searchType,
         search_id: searchIdType.value,
-        start_tiem: timeRange.value[0],
-        end_tiem: timeRange.value[1],
+        start_time: timeRange.value[0],
+        end_time: timeRange.value[1],
         refleshInterval: refleshInterval.value,
       };
 
@@ -1036,16 +1036,16 @@ export default defineComponent({
         const {
           app_name: appName,
           refleshInterval: interval,
-          start_tiem: startTiem,
-          end_tiem: endTiem,
+          start_time: startTime,
+          end_time: endTime,
           query: keyword,
           duration,
           listType,
           conditionList: conditionListStringify,
         } = route.query;
         state.app = appName as string;
-        if (startTiem && endTiem) {
-          timeRange.value = [startTiem, endTiem] as [string, string];
+        if (startTime && endTime) {
+          timeRange.value = [startTime, endTime] as [string, string];
           curTimestamp.value = handleTransformToTimestamp(timeRange.value);
         }
         if (interval) {

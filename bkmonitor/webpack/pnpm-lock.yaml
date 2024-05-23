@@ -195,6 +195,9 @@ importers:
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
+      '@blueking/functional-dependency':
+        specifier: 0.0.1-beta.10
+        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.1
         version: 1.0.1
@@ -341,6 +344,9 @@ importers:
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
+      '@blueking/functional-dependency':
+        specifier: 0.0.1-beta.10
+        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
       '@blueking/ip-selector':
         specifier: 0.2.0-beta.1
         version: 0.2.0-beta.1
@@ -2449,6 +2455,19 @@ packages:
 
   /@blueking/fork-resize-detector@0.0.2:
     resolution: {integrity: sha512-gHy4ulTJzy1IG/2o+X13hkC/pN9hbD3WTJz2h9ILSMZy7jHdpQt2Utj0Ppn8MSS/go9QKm0fbHFvNUaLt1/tVw==}
+    dev: false
+
+  /@blueking/functional-dependency@0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16):
+    resolution: {integrity: sha512-bQXGIJP5tI+IHtS7moLyqUqX4dDASCCShc2tniMdWakFJCXH7WZasHPJGmzieNhGIzIRFk4lwlVPY6kk5TEzJQ==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
+      bkui-vue: ^1.0.3-beta.38
+      vue: ^3
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.4
+      bkui-vue: 1.0.3-beta.69(highlight.js@11.5.1)(vue@2.7.16)
+      vue: 2.7.16
     dev: false
 
   /@blueking/ip-selector@0.2.0-beta.1:

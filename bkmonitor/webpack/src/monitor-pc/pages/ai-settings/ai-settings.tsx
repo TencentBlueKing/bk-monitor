@@ -29,9 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { getBusinessTargetDetail } from 'monitor-api/modules/commons';
-import { listIntelligentModels } from 'monitor-api/modules/strategies';
-import { transformDataKey } from 'monitor-common/utils';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
+import IntelligentModelsStore, { IntelligentModelsType } from '../../store/modules/intelligent-models';
 // import HistoryDialog from '../../components/history-dialog/history-dialog';
 import StrategyTargetTable from '../strategy-config/strategy-config-detail/strategy-config-detail-table.vue';
 import { handleSetTargetDesc } from './components/common';
@@ -99,11 +99,17 @@ export default class AiSettingsPage extends tsc<object> {
    */
   async getSchemeList() {
     // 获取单指标
-    this.schemeList = await listIntelligentModels({ algorithm: 'IntelligentDetect' }).catch(() => []);
+    this.schemeList = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.IntelligentDetect,
+    }).catch(() => {
+      this.loading = false;
+    });
     // 获取多场景
-    this.multipleSchemeList = await listIntelligentModels({ algorithm: 'MultivariateAnomalyDetection' }).catch(
-      () => []
-    );
+    this.multipleSchemeList = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.MultivariateAnomalyDetection,
+    }).catch(() => {
+      this.loading = false;
+    });
   }
 
   /** *

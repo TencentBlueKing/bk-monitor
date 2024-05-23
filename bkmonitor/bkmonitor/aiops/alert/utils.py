@@ -182,8 +182,8 @@ class AIOPSManager(abc.ABC):
                             "metrics": [{"field": "_index", "method": "SUM", "alias": "a"}],
                             "filter_dict": {
                                 "event_name": event_name_mapping[query_config["metric_field"]],
-                                "ip": alert.dimensions.get("ip", ""),
-                                "bk_cloud_id": alert.dimensions.get("bk_cloud_id", 0),
+                                "ip": alert.event.ip,
+                                "bk_cloud_id": alert.event.bk_cloud_id,
                             },
                             "time_field": "time",
                             "interval": 60,

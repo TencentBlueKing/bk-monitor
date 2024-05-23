@@ -45,6 +45,7 @@ def test_query_storage(create_and_delete_record):
         'influxdb_instance_cluster',
         'data_source',
         'victoria_metrics',
+        'result_table',
     ]
     assert not (set(keys) - set(output[0].keys()))
     assert output[0]["kafka_config"]["topic"] == DEFAULT_NAME
