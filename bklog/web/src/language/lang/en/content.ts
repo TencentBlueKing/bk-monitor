@@ -393,7 +393,7 @@ export default {
     'Note: if stored as another type after parsing, it will not be associated.',
   '不能跨集群添加多个索引，切换集群请先清空索引':
     'Multiple indexes cannot be added across clusters, please clear the indexes before switching clusters',
-  '{0}/{1}条记录中数量排名前 5 的数据值': 'Top 5 data values with the highest quantity ranking in {0}/{1} records',
+  '{0}/{1}条记录中数量排名前 {2} 的数据值': 'Top {2} data values with the highest quantity ranking in {0}/{1} records',
   '自定义输入格式: 如 1h 代表一小时 h小时': 'Custom input format: e.g. 1h represents one hour, h for hours',
   '支持拖拽更改顺序，排在上面的拥有更高的排序权重':
     'Supports drag and drop to change order, those above have a higher sorting weight',

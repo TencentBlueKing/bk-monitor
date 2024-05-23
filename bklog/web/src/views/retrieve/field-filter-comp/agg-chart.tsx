@@ -43,6 +43,7 @@ export default class AggChart extends tsc<{}> {
     is: '=',
     'is not': '!='
   };
+  limitSize = 5;
   fieldValueData = {
     name: '',
     columns: [],
@@ -96,6 +97,7 @@ export default class AggChart extends tsc<{}> {
     return false;
   }
   async queryFieldFetchTopList(limit = 5) {
+    this.limitSize = limit;
     try {
       const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
       this.listLoading = true;
@@ -126,9 +128,10 @@ export default class AggChart extends tsc<{}> {
         v-bkloading={{ isLoading: this.listLoading }}
       >
         <div class='title'>
-          <i18n path='{0}/{1}条记录中数量排名前 5 的数据值'>
+          <i18n path='{0}/{1}条记录中数量排名前 {2} 的数据值'>
             <span>{this.fieldValueData.field_count}</span>
             <span>{this.fieldValueData.total_count}</span>
+            <span>{this.limitSize}</span>
           </i18n>
         </div>
         <ul class='chart-list'>

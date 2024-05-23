@@ -22,7 +22,7 @@
 
 import { Component, Prop, Ref, Vue, Emit } from 'vue-property-decorator';
 import $http from '../../../api';
-import { lineColor } from '../../../common/util';
+import { lineColor } from '../../../store/constant';
 import './field-analysis.scss';
 
 /** 无数据提示 */
@@ -42,13 +42,23 @@ const graphic = {
   ]
 };
 
+/** 柱状图基础高度 */
+const PILLAR_CHART_BASE_HEIGHT = 200;
+/** 折线图图基础高度 */
+const LINE_CHART_BASE_HEIGHT = 170;
+/** 折线图一行的情况下与底部的百分比设置 */
+const GRID_PERCENTAGE = 8;
+/** 折线图一行的情况下与底部的分类的高度 */
+const LINE_CHART_LEGEND_HEIGHT = 18;
+
 @Component
 export default class FieldAnalysis extends Vue {
   @Prop({ type: Object, default: () => ({}) }) private readonly queryParams: any;
   @Ref('fieldChart') private readonly fieldChartRef!: HTMLDivElement;
 
   chart = null;
-  height = 170;
+  /** 图表高度 */
+  height = PILLAR_CHART_BASE_HEIGHT;
   infoLoading = false;
   chartLoading = false;
 
@@ -253,7 +263,7 @@ export default class FieldAnalysis extends Vue {
           return `${res.data[index - 1][0]} ~ ${item[0]}`;
         });
       } else {
-        this.height = 170;
+        this.height = LINE_CHART_BASE_HEIGHT;
         const seriesData = res.data.series;
         const series = [];
         const legendData = [];
@@ -275,9 +285,9 @@ export default class FieldAnalysis extends Vue {
         this.lineChartOption.legend.data = legendData;
         this.lineChartOption.color = lineColor.slice(0, seriesData.length);
         // 根据分类数量增加底边的百分比高度
-        this.lineChartOption.grid.bottom = `${Math.ceil(legendData.length / 3) * 8}%`;
+        this.lineChartOption.grid.bottom = `${Math.ceil(legendData.length / 3) * GRID_PERCENTAGE}%`;
         // 根据分类数量增加高度
-        this.height = this.height + Math.ceil(legendData.length / 3) * 18;
+        this.height = this.height + Math.ceil(legendData.length / 3) * LINE_CHART_LEGEND_HEIGHT;
       }
     } catch (error) {
     } finally {
