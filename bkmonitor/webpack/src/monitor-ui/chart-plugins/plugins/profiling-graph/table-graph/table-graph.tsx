@@ -26,16 +26,19 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
+import { deepClone } from 'monitor-common/utils';
+import { ProfileDataUnit, parseProfileDataTypeValue } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+
 import { ColorTypes, ITableTipsDetail, ProfilingTableItem, TableColumn, TextDirectionType } from '../../../typings';
 import { getHashVal } from '../flame-graph/utils';
+import { sortTableGraph } from './utils';
 
 import './table-graph.scss';
 
 const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
 
 interface ITableChartProps {
-  unit: string;
+  unit: ProfileDataUnit;
   textDirection: TextDirectionType;
   data: ProfilingTableItem[];
   highlightId: number;
@@ -51,7 +54,7 @@ interface ITableChartEvents {
 
 @Component
 export default class ProfilingTableChart extends tsc<ITableChartProps, ITableChartEvents> {
-  @Prop({ required: true, type: String }) unit: string;
+  @Prop({ required: true, type: String }) unit: ProfileDataUnit;
   @Prop({ required: true, type: String }) textDirection: TextDirectionType;
   @Prop({ required: true, type: Array }) data: ProfilingTableItem[];
   @Prop({ default: -1, type: Number }) highlightId: number;
@@ -66,9 +69,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   /** 表格数据 */
   tableData: ProfilingTableItem[] = [];
   tableColumns: TableColumn[] = [
-    { id: 'Location', name: 'Location', sort: '' },
-    { id: 'Self', name: 'Self', mode: 'normal', sort: '' },
-    { id: 'Total', name: 'Total', mode: 'normal', sort: '' },
+    { id: 'name', name: 'Location', sort: '' },
+    { id: 'self', name: 'Self', mode: 'normal', sort: '' },
+    { id: 'total', name: 'Total', mode: 'normal', sort: '' },
     { id: 'baseline', name: window.i18n.t('查询项'), mode: 'diff', sort: '' },
     { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
     { id: 'diff', name: 'Diff', mode: 'diff', sort: '' },
@@ -76,6 +79,8 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   tipDetail: ITableTipsDetail = {};
   diffMode = false;
   localIsCompared = false;
+  sortKey = '';
+  sortType = '';
 
   @Emit('updateHighlightId')
   handleHighlightIdChange(val: number) {
@@ -93,7 +98,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
       self: Math.max(...val.map(item => item.self)),
       total: Math.max(...val.map(item => item.total)),
     };
+    this.sortKey = '';
     this.getTableData();
+    this.tableColumns = this.tableColumns.map(item => ({ ...item, sort: '' }));
   }
 
   @Watch('filterKeyword')
@@ -102,8 +109,10 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   }
 
   getTableData() {
-    this.tableData = (this.data || [])
-      .filter(item => (!!this.filterKeyword ? item.name.includes(this.filterKeyword) : true))
+    const filterList = deepClone(this.data || [])
+      .filter(item =>
+        !!this.filterKeyword ? item.name.toLocaleLowerCase().includes(this.filterKeyword.toLocaleLowerCase()) : true
+      )
       .map(item => {
         const palette = Object.values(ColorTypes);
         const colorIndex = getHashVal(item.name) % palette.length;
@@ -113,19 +122,13 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
           color,
         };
       });
+    this.tableData = sortTableGraph(filterList, this.sortKey, this.sortType);
     this.localIsCompared = this.isCompared;
   }
   // Self 和 Total 值的展示
   formatColValue(val: number) {
-    switch (this.unit) {
-      case 'nanoseconds': {
-        const nsFormat = getValueFormat('ns');
-        const { text, suffix } = nsFormat(val);
-        return text + suffix;
-      }
-      default:
-        return '';
-    }
+    const { value } = parseProfileDataTypeValue(val, this.unit);
+    return value;
   }
   // 获取对应值与列最大值所占百分比背景色
   getColStyle(row: ProfilingTableItem, field: string) {
@@ -145,21 +148,24 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   }
   /** 列字段排序 */
   handleSort(col: TableColumn) {
-    let sortKey;
     switch (col.sort) {
       case 'asc':
         col.sort = 'desc';
-        sortKey = `-${col.id}`;
+        this.sortType = 'desc';
+        this.sortKey = col.id;
         break;
       case 'desc':
         col.sort = '';
-        sortKey = undefined;
+        this.sortType = '';
+        this.sortKey = undefined;
         break;
       default:
         col.sort = 'asc';
-        sortKey = col.id;
+        this.sortType = 'asc';
+        this.sortKey = col.id;
     }
-    this.handleSortChange(sortKey);
+    this.handleSortChange(this.sortKey);
+    this.getTableData();
     this.tableColumns = this.tableColumns.map(item => {
       return {
         ...item,
@@ -170,8 +176,8 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   handleRowMouseMove(e: MouseEvent, row: ProfilingTableItem) {
     let axisLeft = e.pageX;
     let axisTop = e.pageY;
-    if (axisLeft + 394 > window.innerWidth) {
-      axisLeft = axisLeft - 394 - 20;
+    if (axisLeft + 360 > window.innerWidth) {
+      axisLeft = axisLeft - 360 - 20;
     } else {
       axisLeft = axisLeft + 20;
     }
@@ -181,7 +187,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
       axisTop = axisTop;
     }
 
-    const { name, self, total, baseline, comparison, mark = '' } = row;
+    const { name, self, total, baseline, comparison, mark = '', diff = 0 } = row;
     const totalItem = this.tableData[0];
 
     this.tipDetail = {
@@ -193,6 +199,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
       baseline,
       comparison,
       mark,
+      diff,
       selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
       totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`,
     };
@@ -214,12 +221,11 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
         return <span style={`color: ${row.mark === 'removed' ? '#ff5656' : '#2dcb56'}`}>{row.mark}</span>;
       }
 
-      const { baseline, comparison } = row;
-      const diffVal = (baseline - comparison) / comparison;
+      const { diff } = row;
 
-      if (diffVal === 0) return <span style='color:#dddfe3'>0%</span>;
+      if (diff === 0) return <span style='color:#dddfe3'>0%</span>;
 
-      return <span style={`color:${diffVal > 0 ? '#ff5656' : '#2dcb56'}`}>{`${(diffVal * 100).toFixed(0)}%`}</span>;
+      return <span style={`color:${diff > 0 ? '#ff5656' : '#2dcb56'}`}>{`${(diff * 100).toFixed(2)}%`}</span>;
     };
 
     return (
@@ -240,7 +246,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                       </div>
                     </div>
                   </th>
-                ),
+                )
             )}
           </thead>
           <tbody>
@@ -249,15 +255,15 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                 this.tableData.map(row => (
                   <tr
                     class={row.id === this.highlightId ? 'hightlight' : ''}
+                    onClick={() => this.handleHighlightClick(row.id)}
                     onMousemove={e => this.handleRowMouseMove(e, row)}
                     onMouseout={() => this.handleRowMouseout()}
-                    onClick={() => this.handleHighlightClick(row.id)}
                   >
                     <td>
                       <div class='location-info'>
                         <span
-                          class='color-reference'
                           style={`background-color: ${!this.localIsCompared ? row.color : '#dcdee5'}`}
+                          class='color-reference'
                         ></span>
                         <span class={`text direction-${this.textDirection}`}>{row.name}</span>
                         {/* <div class='trace-mark'>Trace</div> */}
@@ -281,9 +287,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                 <td colspan={3}>
                   <bk-exception
                     class='empty-table-exception'
-                    type='search-empty'
-                    scene='part'
                     description={this.$t('搜索为空')}
+                    scene='part'
+                    type='search-empty'
                   />
                 </td>
               </tr>
@@ -292,12 +298,12 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
         </table>
 
         <div
-          class='table-graph-row-tips'
           style={{
             left: `${this.tipDetail.left || 0}px`,
             top: `${this.tipDetail.top || 0}px`,
             display: this.tipDetail.title ? 'block' : 'none',
           }}
+          class='table-graph-row-tips'
         >
           {this.tipDetail.title && [
             <div class='funtion-name'>{this.tipDetail.title}</div>,
@@ -306,9 +312,9 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                 ? [
                     <thead>
                       <th></th>
-                      <th>Baseline</th>
-                      <th>Comparison</th>
-                      <th>Diff</th>
+                      <th>{this.$t('当前')}</th>
+                      <th>{this.$t('参照')}</th>
+                      <th>{this.$t('差异')}</th>
                     </thead>,
                   ]
                 : [

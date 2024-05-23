@@ -66,7 +66,6 @@ import {
   ViewedBoundsFunctionType,
 } from '../utils';
 import { DEFAULT_HEIGHTS, generateRowStates } from '../virtualized-trace-view';
-
 import Positions from './positions';
 
 type TWrapperProps = {
@@ -214,7 +213,7 @@ export default defineComponent({
           const elem = document.querySelector('.trace-detail-wrapper');
           elem?.scrollTo({ top: val * 28, behavior: 'smooth' });
         }
-      },
+      }
     );
 
     const getRowHeight = (index: number) => {
@@ -416,7 +415,7 @@ export default defineComponent({
       });
     };
 
-    const renderRow = (key: string, style: CSSProperties, index: number, attrs: {}) => {
+    const renderRow = (key: string, style: CSSProperties, index: number, attrs: object) => {
       const { span, spanIndex, bgColorIndex } = getRowStates.value[index];
       return renderSpanBarRow(span, spanIndex, key, style, attrs, bgColorIndex as number);
     };
@@ -426,8 +425,8 @@ export default defineComponent({
       spanIndex: number,
       key: string,
       style: CSSProperties,
-      attrs: {},
-      bgColorIndex: number,
+      attrs: object,
+      bgColorIndex: number
     ) => {
       const { spanID } = span;
       const { detailStates, spanNameColumnWidth, haveReadSpanIds } = props;
@@ -474,26 +473,26 @@ export default defineComponent({
 
       return (
         <div
-          class='virtualized-trace-view-row'
           key={key}
           style={style}
+          class='virtualized-trace-view-row'
           onClick={() => handleClick(span)}
           {...attributes}
         >
           <SpanBarRow
             class={getClippingCssClasses()}
+            bgColorIndex={bgColorIndex}
             color={span.color}
             columnDivision={spanNameColumnWidth}
+            isActiveMatching={isActiveMatching}
             isChildrenExpanded={!isCollapsed}
             isDetailExpanded={isDetailExpanded}
-            isMatchingFilter={isMatchingFilter}
-            isActiveMatching={isActiveMatching}
             isFocusMatching={isFocusMatching}
             isHaveRead={isHaveRead}
-            numTicks={NUM_TICKS}
-            bgColorIndex={bgColorIndex}
-            rpc={rpc}
+            isMatchingFilter={isMatchingFilter}
             noInstrumentedServer={noInstrumentedServer}
+            numTicks={NUM_TICKS}
+            rpc={rpc}
             showErrorIcon={showErrorIcon}
             span={span}
             onLoadCrossAppInfo={getCrossAppInfo}
@@ -597,6 +596,7 @@ export default defineComponent({
       >
         <div style={scrollerStyle}>
           <div
+            ref='itemHolderElm'
             style={{
               position: 'absolute',
               top: 0,
@@ -604,7 +604,6 @@ export default defineComponent({
               padding: 0,
             }}
             class={this.$props.itemsWrapperClassName}
-            ref='itemHolderElm'
           >
             {items}
           </div>

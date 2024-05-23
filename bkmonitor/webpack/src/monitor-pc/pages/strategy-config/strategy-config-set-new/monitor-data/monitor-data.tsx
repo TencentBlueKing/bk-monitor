@@ -32,6 +32,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { copyText, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
@@ -44,7 +45,6 @@ import { handleSetTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
 import { dataModeType, EditModeType, MetricDetail, MetricType } from '../typings';
-
 import { IFunctionsValue } from './function-select';
 import MonitorDataInput from './monitor-data-input';
 
@@ -197,10 +197,10 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
       content:
         this.dataMode === 'converge'
           ? this.$t(
-              '汇聚是可以基于存储落地的数据按周期、维度（group by）、条件(where) 进行汇聚计算(MAX/AVG) 得到的结果再进行各种检测算法。所以汇聚至少有1个周期的等待，及时性会慢点，但功能强大。',
+              '汇聚是可以基于存储落地的数据按周期、维度（group by）、条件(where) 进行汇聚计算(MAX/AVG) 得到的结果再进行各种检测算法。所以汇聚至少有1个周期的等待，及时性会慢点，但功能强大。'
             )
           : this.$t(
-              '实时是基于链路中的数据点（未落地时），直接进行数据的阈值比对，所以只适用于快速的单点的数据检测场景。像系统事件类就是没有落地存储直接在链路中进行检查。',
+              '实时是基于链路中的数据点（未落地时），直接进行数据的阈值比对，所以只适用于快速的单点的数据检测场景。像系统事件类就是没有落地存储直接在链路中进行检查。'
             ),
     };
   }
@@ -242,13 +242,13 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     ];
     this.metricInfoMap = {
       time_series: this.$t(
-        '指标：指标数据即时序数据。数据来源有：监控采集，自定义上报，计算平台，日志平台。可以对数据进行多指标计算和相应的函数功能。',
+        '指标：指标数据即时序数据。数据来源有：监控采集，自定义上报，计算平台，日志平台。可以对数据进行多指标计算和相应的函数功能。'
       ),
       event: this.$t(
-        '事件：事件包括平台默认采集的系统事件，还有自定义上报的事件。系统事件未落存储，所以辅助视图是无数据状态。',
+        '事件：事件包括平台默认采集的系统事件，还有自定义上报的事件。系统事件未落存储，所以辅助视图是无数据状态。'
       ),
       log: this.$t(
-        '日志关键字：日志关键字能力有两种，日志平台基于ES存储判断的日志关键字和基于Agent端进行日志关键字匹配的事件。',
+        '日志关键字：日志关键字能力有两种，日志平台基于ES存储判断的日志关键字和基于Agent端进行日志关键字匹配的事件。'
       ),
       alert: this.$t('关联告警：可以基于告警事件/策略进行与或等，判断是否要再进行告警或者进行告警处理等。'),
     };
@@ -264,7 +264,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
       this.targetList,
       this.metricData?.[0]?.targetType,
       this.defaultCheckedTarget?.node_count || 0,
-      this.defaultCheckedTarget?.instance_count || 0,
+      this.defaultCheckedTarget?.instance_count || 0
     );
   }
   handleChangeTab(item) {
@@ -324,7 +324,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         strList.some(str => ipMap.some(s => new RegExp(s).test(str)) && cloudIdMap.some(s => new RegExp(s).test(str)));
     } else {
       hasIpDimension = this.metricData.some(
-        item => item.agg_dimension.some(d => cloudIdMap.includes(d)) && item.agg_dimension.some(d => ipMap.includes(d)),
+        item => item.agg_dimension.some(d => cloudIdMap.includes(d)) && item.agg_dimension.some(d => ipMap.includes(d))
       );
     }
     return !hasIpDimension;
@@ -343,7 +343,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     targetList: { count: number; bk_obj_id: string; nodes_count?: number; instances_count?: number; all_host: any[] }[],
     bkTargetType: string,
     nodeCount = 0,
-    instance_count = 0,
+    instance_count = 0
   ) {
     const objectType = this.metricData?.[0]?.objectType || this.defaultCheckedTarget?.instance_type || '';
     const result = handleSetTargetDesc(targetList, bkTargetType, objectType, nodeCount, instance_count);
@@ -434,10 +434,10 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     if (!this.readonly) {
       return (
         <StrategyIpv6
-          showDialog={this.showTopoSelector}
+          checkedNodes={this.targetList || []}
           nodeType={targetType as INodeType}
           objectType={objectType as TargetObjectType}
-          checkedNodes={this.targetList || []}
+          showDialog={this.showTopoSelector}
           onChange={this.handleTopoCheckedChange}
           onCloseDialog={v => (this.showTopoSelector = v)}
         />
@@ -446,18 +446,18 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     const tableData = this.readonly ? transformDataKey(this.defaultCheckedTarget?.detail || []) : [];
     return (
       <monitor-dialog
-        v-model={this.showTopoSelector}
-        on-change={v => (this.showTopoSelector = v)}
-        on-on-cancel={this.handleTargetCancel}
-        need-footer={false}
         width='1100'
+        v-model={this.showTopoSelector}
+        need-footer={false}
         title={this.$t('监控目标')}
         zIndex={1002}
+        on-change={v => (this.showTopoSelector = v)}
+        on-on-cancel={this.handleTargetCancel}
       >
         <strategy-target-table
+          objType={objectType}
           tableData={tableData}
           targetType={targetType}
-          objType={objectType}
         />
       </monitor-dialog>
     );
@@ -519,10 +519,10 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             {this.metricInfoMap[this.metricData?.[0]?.data_type_label || 'time_series']}
             <a
               class='info-url'
-              target='blank'
               href={`${window.bk_docs_site_url}markdown/${
                 this.metricUrlMap[this.metricData?.[0]?.data_type_label || 'time_series']
               }`}
+              target='blank'
             >
               {this.$t('查看更多文档')}
             </a>
@@ -537,7 +537,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                   .map((item, index) => (
                     <span
                       key={item.id}
-                      v-en-style='width: 80px'
+                      style={{ marginLeft: index > 0 ? '-1px' : '' }}
                       class={[
                         'tab-item',
                         {
@@ -545,8 +545,6 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                           'tab-disable': isTabDisabled(item.id),
                         },
                       ]}
-                      style={{ marginLeft: index > 0 ? '-1px' : '' }}
-                      on-click={() => !this.readonly && !isTabDisabled(item.id) && this.handleChangeTab(item)}
                       v-bk-tooltips={{
                         maxWidth: 240,
                         content:
@@ -554,11 +552,11 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                             ? (() => {
                                 if (item.id === 'converge') {
                                   return this.$t(
-                                    '汇聚是可以基于存储落地的数据按周期、维度（group by）、条件(where) 进行汇聚计算(MAX/AVG) 得到的结果再进行各种检测算法。所以汇聚至少有1个周期的等待，及时性会慢点，但功能强大。',
+                                    '汇聚是可以基于存储落地的数据按周期、维度（group by）、条件(where) 进行汇聚计算(MAX/AVG) 得到的结果再进行各种检测算法。所以汇聚至少有1个周期的等待，及时性会慢点，但功能强大。'
                                   );
                                 }
                                 return this.$t(
-                                  '实时是基于链路中的数据点（未落地时），直接进行数据的阈值比对，所以只适用于快速的单点的数据检测场景。像系统事件类就是没有落地存储直接在链路中进行检查。',
+                                  '实时是基于链路中的数据点（未落地时），直接进行数据的阈值比对，所以只适用于快速的单点的数据检测场景。像系统事件类就是没有落地存储直接在链路中进行检查。'
                                 );
                               })()
                             : tabContent(item.id),
@@ -568,6 +566,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         //  || !isTabDisabled(item.id)
                         //  || this.readonly
                       }}
+                      v-en-style='width: 80px'
+                      on-click={() => !this.readonly && !isTabDisabled(item.id) && this.handleChangeTab(item)}
                     >
                       <span class='bd-hover'>{item.name}</span>
                     </span>
@@ -592,8 +592,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
               </span>} */}
                 {this.editMode === 'Source' && (
                   <div
-                    class='metric-copy-btn'
                     id='metric-copy-btn-select-id'
+                    class='metric-copy-btn'
                     onClick={() => this.handleMetricSelectShow(true)}
                   >
                     <span>{this.$t('指标选择')}</span>
@@ -601,12 +601,12 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                   </div>
                 )}
                 <MetricSelector
-                  show={this.metricSelectorShow}
-                  type={MetricType.TimeSeries}
-                  targetId={'#metric-copy-btn-select-id'}
                   isPromql={true}
-                  onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
+                  show={this.metricSelectorShow}
+                  targetId={'#metric-copy-btn-select-id'}
+                  type={MetricType.TimeSeries}
                   onSelected={this.handleSelectMetric}
+                  onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
                 ></MetricSelector>
               </div>
               <div class='tool-right'>
@@ -630,23 +630,23 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             <div onMouseenter={this.handleMonitorDataMouseenter}>
               <MonitorDataInput
                 class={{ 'alert-metric': this.metricData.some(item => item.data_type_label === 'alert') }}
-                readonly={this.readonly}
-                metricNameLabel={this.metricNameLabel}
-                metricData={this.metricData}
-                isRealTimeModel={this.dataMode === 'realtime'}
-                expression={this.expression}
-                expFunctions={this.expFunctions}
-                hasAiOpsDetect={this.hasAiOpsDetect}
-                hasAIntelligentDetect={this.hasAIntelligentDetect}
                 dataTypeLabel={this.metricData?.[0]?.data_type_label || this.dataTypeLabel}
+                expFunctions={this.expFunctions}
+                expression={this.expression}
+                hasAIntelligentDetect={this.hasAIntelligentDetect}
+                hasAiOpsDetect={this.hasAiOpsDetect}
+                isRealTimeModel={this.dataMode === 'realtime'}
+                metricData={this.metricData}
+                metricNameLabel={this.metricNameLabel}
+                readonly={this.readonly}
+                on-add-metric={this.handleAddMetric}
+                on-delete={this.handleDeleteMetric}
+                on-expression-change={this.handleExpressionChange}
+                onAddNullMetric={this.handleAddNullMetric}
+                onExpFunctionsChange={this.handleFunctionsChange}
+                onExpressionBlur={this.handleExpressionBlur}
                 onFunctionChange={this.emitFunctionChange}
                 onMethodChange={this.emitMethodChange}
-                onExpressionBlur={this.handleExpressionBlur}
-                on-expression-change={this.handleExpressionChange}
-                on-delete={this.handleDeleteMetric}
-                on-add-metric={this.handleAddMetric}
-                onExpFunctionsChange={this.handleFunctionsChange}
-                onAddNullMetric={this.handleAddNullMetric}
                 onShowExpress={this.showExpressChange}
               />
             </div>
@@ -663,14 +663,14 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 //   onChange={this.handlePromsqlChange}
                 // />
                 <PromqlMonacoEditor
-                  class='mt-16'
                   ref='promql-editor'
+                  class='mt-16'
+                  executeQuery={this.handlePromqlEnter}
+                  isError={this.promqlError}
                   minHeight={80}
                   value={this.source}
-                  isError={this.promqlError}
-                  onFocus={this.handlePromqlFocus}
-                  executeQuery={this.handlePromqlEnter}
                   onChange={this.handlePromsqlChange}
+                  onFocus={this.handlePromqlFocus}
                 />
               )}
               {/* <div class={['metric-source', { 'is-error': this.promqlError }]}>
@@ -679,15 +679,15 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
               <div class='source-options-wrap'>
                 <bk-input
                   class='step-input'
-                  value={this.sourceStep}
                   min={10}
-                  type='number'
                   precision={0}
+                  type='number'
+                  value={this.sourceStep}
                   onChange={this.handleSourceStepChange}
                 >
                   <div
-                    slot='prepend'
                     class='step-input-prepend'
+                    slot='prepend'
                   >
                     <span>{'Step'}</span>
                     <span
@@ -723,8 +723,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 : [
                     <i class='icon-monitor icon-mc-tv'></i>,
                     <span
-                      class='subtitle'
                       style='color: #63656e;'
+                      class='subtitle'
                     >
                       {this.target.desc.message}
                       {this.target.desc.subMessage}
@@ -779,7 +779,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                   ))}
                 </bk-radio-group>
               </div>
-            ),
+            )
         )}
       </div>
     );

@@ -41,8 +41,8 @@ const collectStorageKey = 'collectVariablesConfig';
 const setCollectVariable: Function = (
   collectId: string, // 采集id 或者自定义指标id
   sceneName: string, // 场景名
-  data: { type: 'variables' | 'dashboard'; variables?: { id: string; value: string[] }[]; active?: string[] }, // 存储检查视图变量或者图表分组展开记录 type:variables对应variables 'dashboard'对应active
-  type = 'collect', // 区分是采集还是其他地方的检查视图
+  data: { type: 'dashboard' | 'variables'; variables?: { id: string; value: string[] }[]; active?: string[] }, // 存储检查视图变量或者图表分组展开记录 type:variables对应variables 'dashboard'对应active
+  type = 'collect' // 区分是采集还是其他地方的检查视图
 ) => {
   const id = `${type}_${collectId}`;
   const collectConfig: ICollectConfig = JSON.parse(localStorage.getItem(collectStorageKey)) || {};
@@ -86,8 +86,8 @@ const setCollectVariable: Function = (
 const getCollectVariable: Function = (
   collectId: string, // 采集id 或者自定义指标id
   sceneName: string, // 场景名
-  dataType: 'variables' | 'dashboard', // 存储检查视图变量或者图表分组展开记录
-  type = 'collect', // 区分是采集还是其他地方的检查视图
+  dataType: 'dashboard' | 'variables', // 存储检查视图变量或者图表分组展开记录
+  type = 'collect' // 区分是采集还是其他地方的检查视图
 ) => {
   const id = `${type}_${collectId}`;
   const collectConfig: ICollectConfig = JSON.parse(localStorage.getItem(collectStorageKey));
@@ -105,7 +105,7 @@ const getCollectVariable: Function = (
 const delCollectScene: Function = (
   collectId: string, // 采集id 或者自定义指标id
   sceneName: string, // 场景名
-  type = 'collect', // 区分是采集还是其他地方的检查视图
+  type = 'collect' // 区分是采集还是其他地方的检查视图
 ) => {
   const id = `${type}_${collectId}`;
   const collectConfig: ICollectConfig = JSON.parse(localStorage.getItem(collectStorageKey));
@@ -118,7 +118,7 @@ const delCollectScene: Function = (
 // 根据采集id删除记录
 const delCollectRecord: Function = (
   collectId: string, // 采集列表id或者自定义指标id
-  type = 'collect', // 区分是采集还是其他地方的检查视图
+  type = 'collect' // 区分是采集还是其他地方的检查视图
 ) => {
   const id = `${type}_${collectId}`;
   const collectConfig: ICollectConfig = JSON.parse(localStorage.getItem(collectStorageKey));
@@ -131,7 +131,7 @@ const delCollectRecord: Function = (
 // 根据采集列表批量删除记录
 const batchDelCollectRecord: Function = (
   collectIds: string[], // 采集列表id合集
-  type = 'collect', // 区分是采集还是其他地方的检查视图
+  type = 'collect' // 区分是采集还是其他地方的检查视图
 ) => {
   const collectIdsObj = {};
   collectIds.forEach(id => {

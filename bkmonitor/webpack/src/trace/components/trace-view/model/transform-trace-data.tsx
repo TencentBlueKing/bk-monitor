@@ -28,9 +28,8 @@ import _isEqual from 'lodash/isEqual';
 
 import { getTraceSpanIdsAsTree } from '../selectors/trace';
 import { KeyValuePair, Span, SpanData, Trace, TraceData } from '../typings';
-import { getConfigValue } from '../utils/config/get-config';
 import TreeNode from '../utils/TreeNode';
-
+import { getConfigValue } from '../utils/config/get-config';
 import { getTraceName } from './trace-viewer';
 
 // exported for tests

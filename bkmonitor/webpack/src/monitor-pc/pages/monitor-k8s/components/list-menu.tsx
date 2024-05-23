@@ -51,7 +51,7 @@ export default class ListMenu extends tsc<IListMenuProps, IListMenuEvent> {
     if (!this.keyword?.trim?.().length) return this.list;
     const keyword = this.keyword.toLowerCase();
     return this.list.filter(
-      item => item.id.toString().toLowerCase().includes(keyword) || item.name.toLowerCase().includes(keyword),
+      item => item.id.toString().toLowerCase().includes(keyword) || item.name.toLowerCase().includes(keyword)
     );
   }
   beforeDestroy() {
@@ -99,14 +99,14 @@ export default class ListMenu extends tsc<IListMenuProps, IListMenuEvent> {
         {this.$slots.default}
         <div style='display: none'>
           <ul
-            class='list-menu'
             ref='menu'
+            class='list-menu'
           >
             {this.filterList?.length ? (
               this.filterList.map(item => (
                 <li
-                  class='list-menu-item'
                   key={item.id}
+                  class='list-menu-item'
                   onMousedown={() => this.handleMenuClick(item)}
                 >
                   {item.name}
@@ -115,8 +115,8 @@ export default class ListMenu extends tsc<IListMenuProps, IListMenuEvent> {
             ) : (
               <div class='global-part-empty'>
                 <bk-exception
-                  type='empty'
                   scene='part'
+                  type='empty'
                 >
                   {this.$t('查无数据')}
                 </bk-exception>

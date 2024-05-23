@@ -26,6 +26,7 @@
 
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getPlugins, getPluginTemplates, getTemplateDetail } from 'monitor-api/modules/action';
 import { retrieveActionConfig } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
@@ -438,8 +439,8 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
     return (
       <div class='set-meal-detail-wrap'>
         <bk-sideslider
-          isShow={this.isShow}
           width={this.width}
+          isShow={this.isShow}
           quickClose
           {...{
             on: {
@@ -448,27 +449,27 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
           }}
         >
           <div
-            slot='header'
             class='title-wrap'
+            slot='header'
           >
             <span class='title'>{this.$t('套餐详情')}</span>
             {this.detailInfo?.edit_allowed && (
               <div class='title-btn'>
                 {/* <i class="icon-monitor icon-mc-link"></i> */}
                 <bk-button
+                  style='width: 88px; margin-right: 8px'
                   v-authority={{ active: !this.isAuth(Number(this.detailInfo.bk_biz_id)).authority }}
+                  v-bk-tooltips={{
+                    content: this.$t('进入编辑页，编辑完可直接返回不会丢失数据'),
+                    disabled: !this.needEditTips,
+                  }}
+                  outline={true}
+                  theme='primary'
                   onClick={() =>
                     this.isAuth(Number(this.detailInfo.bk_biz_id)).authority
                       ? this.toEditMeal()
                       : this.handleShowAuthorityDetail(this.isAuth(Number(this.detailInfo.bk_biz_id)).authorityType)
                   }
-                  theme='primary'
-                  outline={true}
-                  style='width: 88px; margin-right: 8px'
-                  v-bk-tooltips={{
-                    content: this.$t('进入编辑页，编辑完可直接返回不会丢失数据'),
-                    disabled: !this.needEditTips,
-                  }}
                 >
                   {this.$t('编辑')}
                 </bk-button>
@@ -477,8 +478,8 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
             )}
           </div>
           <div
-            slot='content'
             class='set-meal-detail-content'
+            slot='content'
             v-bkloading={{ isLoading: this.isLoading }}
           >
             <div class='detail-content-h1'>{this.$t('基本信息')}</div>
@@ -516,19 +517,19 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                   {this.$t('关联策略')}
                 </div>
                 <div
-                  class='form-item-content'
                   key={this.id}
+                  class='form-item-content'
                 >
                   {this.tplShowMore}
                   {this.strategyList.length ? (
                     <bk-table
-                      max-height={400}
                       ref='strategyListWrap'
                       data={this.filterStrategyList}
+                      max-height={400}
                     >
                       <bk-table-column
-                        label={this.$t('策略名')}
                         formatter={formatter}
+                        label={this.$t('策略名')}
                       ></bk-table-column>
                     </bk-table>
                   ) : undefined}
@@ -615,15 +616,15 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
               }
               {this.isCommon ? (
                 <Container
-                  title={this.peripheralData.formName}
                   class='form-container'
+                  title={this.peripheralData.formName}
                 >
                   {this.formData.map(item => (
                     <div class='content-form-item'>
                       <div
                         class='form-item-label'
-                        v-en-class='en-lang'
                         v-bk-overflow-tips
+                        v-en-class='en-lang'
                       >
                         {item.label}
                       </div>
@@ -644,8 +645,8 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
               ) : undefined}
               {this.isCommon ? (
                 <div
-                  class='content-form-item'
                   style={{ marginTop: '16px' }}
+                  class='content-form-item'
                 >
                   <div
                     class='form-item-label'
@@ -655,8 +656,8 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                   </div>
                   <div class='form-item-content'>
                     <i18n
-                      path='当执行{0}分钟未结束按失败处理。'
                       class='failure-text'
+                      path='当执行{0}分钟未结束按失败处理。'
                     >
                       {this.mealData.peripheral.timeout}
                     </i18n>
@@ -667,9 +668,9 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                 // http回调
                 this.isHttp ? (
                   <HttpCallBack
-                    value={this.mealData.webhook}
-                    label='URL'
                     isEdit={false}
+                    label='URL'
+                    value={this.mealData.webhook}
                   ></HttpCallBack>
                 ) : undefined
               }
@@ -692,15 +693,15 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                           .map(item => (
                             <bk-tab-panel
                               key={item.key}
-                              name={item.key}
                               label={item.label}
+                              name={item.key}
                             ></bk-tab-panel>
                           ))}
                       </bk-tab>
                       <div class='notice-tab-wrap'>
                         <div
-                          class='content-form-item'
                           style={{ marginTop: '16px' }}
+                          class='content-form-item'
                         >
                           <div
                             class='form-item-label'
@@ -710,8 +711,8 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                           </div>
                           <div class='form-item-content'>
                             <i18n
-                              path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
                               class='content-interval'
+                              path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
                             >
                               <span>{intervalModeName[this.noticeAlertData.intervalNotifyMode]}</span>
                               <span>{this.noticeAlertData.notifyInterval}</span>
@@ -749,15 +750,15 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                           .map(item => (
                             <bk-tab-panel
                               key={item.key}
-                              name={item.key}
                               label={item.label}
+                              name={item.key}
                             ></bk-tab-panel>
                           ))}
                       </bk-tab>
                       <div class='notice-tab-wrap'>
                         <div
-                          class='content-form-item'
                           style={{ marginTop: '16px' }}
+                          class='content-form-item'
                         >
                           <div
                             class='form-item-label'
@@ -795,15 +796,15 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                           .map(item => (
                             <bk-tab-panel
                               key={item.key}
-                              name={item.key}
                               label={item.label}
+                              name={item.key}
                             ></bk-tab-panel>
                           ))}
                       </bk-tab>
                       <div class='notice-tab-wrap'>
                         <div
-                          class='content-form-item-column'
                           style={{ marginTop: '16px' }}
+                          class='content-form-item-column'
                         >
                           <div
                             class='form-item-label'

@@ -25,6 +25,8 @@
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -32,11 +34,11 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName,
@@ -44,6 +46,7 @@ import {
 import CommonStatus from '../common-status/common-status';
 
 import './common-list.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface ICommonListProps {
   // 场景id
@@ -134,7 +137,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     return this.list.filter(item =>
       (item.name.includes(this.keyword) || item.id.toString().includes(this.keyword)) && this.currentStatus === 'all'
         ? true
-        : item.status?.type === this.currentStatus,
+        : item.status?.type === this.currentStatus
     );
   }
 
@@ -203,7 +206,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           this.statusList = data.filter || [];
           return list?.map?.(set => {
@@ -214,7 +217,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
               name: set.name || id,
             };
           });
-        }),
+        })
     );
     const [data] = await Promise.all(promiseList).catch(() => {
       this.emptyType = '500';
@@ -233,7 +236,8 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     needLoading && (this.loading = false);
   }
 
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.getPanelData();
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
@@ -320,19 +324,18 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       >
         <div class='list-header'>
           {this.conditionList.length ? (
-            <bk-search-select
-              placeholder={this.$t('搜索')}
-              vModel={this.searchCondition}
-              show-condition={false}
+            <SearchSelect
+              clearable={false}
               data={this.currentConditionList}
-              show-popover-tag-change={false}
+              modelValue={this.searchCondition}
+              placeholder={this.$t('搜索')}
               onChange={this.handleSearch}
             />
           ) : (
             <bk-input
               v-model={this.keyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
             ></bk-input>
           )}
@@ -355,19 +358,18 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
           {this.localList?.length ? (
             <bk-virtual-scroll
               ref='virtualInstance'
-              item-height={32}
               scopedSlots={{
                 default: ({ data }) => {
                   const itemId = this.panel.targets[0]?.handleCreateItemId(data);
                   return (
                     <div
-                      onClick={() => this.handleSelectedItem(data)}
                       class={[
                         `list-wrapper-item ${data.id === this.activeId ? 'item-active' : ''}`,
                         {
                           'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
                         },
                       ]}
+                      onClick={() => this.handleSelectedItem(data)}
                     >
                       {!!data.status?.type && (
                         <CommonStatus
@@ -399,6 +401,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
                   );
                 },
               }}
+              item-height={32}
             ></bk-virtual-scroll>
           ) : (
             <EmptyStatus

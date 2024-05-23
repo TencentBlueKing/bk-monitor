@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { favorite, sticky } from 'monitor-api/modules/home';
 import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 import MonitorPieEchart from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
@@ -271,11 +272,11 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
     const tags = spaceTypeTexts(item);
     return tags.map(tag => (
       <div
-        class='type-tag'
         style={{
           color: tag.light.color,
           backgroundColor: tag.light.backgroundColor,
         }}
+        class='type-tag'
       >
         {tag.name}
       </div>
@@ -322,14 +323,11 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
           </div>
           <div class='bottom'>
             <div
-              class='view'
               style={'width: 130px'}
+              class='view'
             >
               <MonitorPieEchart
                 height='130'
-                backgroundUrl={'none'}
-                chartType={'pie'}
-                series={this.series}
                 options={{
                   legend: { show: false },
                   tooltip: {
@@ -337,6 +335,9 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
                     appendToBody: true,
                   },
                 }}
+                backgroundUrl={'none'}
+                chartType={'pie'}
+                series={this.series}
                 onClick={() => {
                   this.handleToEvent('NOT_SHIELDED_ABNORMAL');
                 }}
@@ -366,12 +367,12 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
               <div id='mttaTipRef'>
                 <div>
                   {window.i18n.tc(
-                    '平均应答时间，从告警真实发生到用户响应的平均时间。平均应答时间=总持续时间/总告警数量',
+                    '平均应答时间，从告警真实发生到用户响应的平均时间。平均应答时间=总持续时间/总告警数量'
                   )}
                 </div>
                 <div>
                   {window.i18n.tc(
-                    '总持续时间：所有告警的首次异常时间到下一个状态变更的时间点，如确认/屏蔽/恢复/关闭/已解决',
+                    '总持续时间：所有告警的首次异常时间到下一个状态变更的时间点，如确认/屏蔽/恢复/关闭/已解决'
                   )}
                 </div>
               </div>
@@ -380,7 +381,7 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
               <div id='mttrTipRef'>
                 <div>
                   {window.i18n.tc(
-                    '平均解决时间，从告警真实发生到告警被处理的平均时间。平均解决时间=总持续时间/总告警数量',
+                    '平均解决时间，从告警真实发生到告警被处理的平均时间。平均解决时间=总持续时间/总告警数量'
                   )}
                 </div>
                 <div>{window.i18n.tc('总持续时间: 所有告警的首次异常时间到告警标记为已解决或已恢复的时间。')}</div>
@@ -389,8 +390,8 @@ export default class BusinessItem extends tsc<BusinessItemProps, BusinessItemEve
             <div class='count-panles'>
               {this.data.dataCounts.map((item, index) => (
                 <div
-                  class='count-panle'
                   key={index}
+                  class='count-panle'
                   v-bk-tooltips={{
                     content: item.allowHtml ? `#${item.tip}` : item.tip,
                     allowHTML: item.allowHtml,

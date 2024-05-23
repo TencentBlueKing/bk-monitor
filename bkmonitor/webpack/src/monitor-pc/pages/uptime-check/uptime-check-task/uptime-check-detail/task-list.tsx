@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
@@ -147,7 +148,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
   @Debounce(300)
   handleSearch() {
     this.localTaskData = this.taskData.filter(
-      task => task.name?.toLowerCase().indexOf(this.searchKeyword.toLowerCase()) > -1,
+      task => task.name?.toLowerCase().indexOf(this.searchKeyword.toLowerCase()) > -1
     );
   }
 
@@ -190,8 +191,8 @@ export default class TaskList extends tsc<IProps, IEvents> {
           <div class='task-list-search-row'>
             <bk-input
               v-model={this.searchKeyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleSearch}
             ></bk-input>
             <bk-button
@@ -221,8 +222,8 @@ export default class TaskList extends tsc<IProps, IEvents> {
           ) : (
             <bk-exception
               class='exception-wrap-item exception-part'
-              type='search-empty'
               scene='part'
+              type='search-empty'
             />
           )}
         </div>

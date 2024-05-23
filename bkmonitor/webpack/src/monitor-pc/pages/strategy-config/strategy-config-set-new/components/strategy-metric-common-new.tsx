@@ -26,6 +26,8 @@
 
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
@@ -42,10 +44,10 @@ import {
   IStaticParams,
 } from '../../../../types/strategy-config/strategy-metric';
 import { IScenarioItem, MetricDetail } from '../typings/index';
-
 import HorizontalScrollContainer from './horizontal-scroll-container';
 
 import './strategy-metric-common.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface IStrategyMetricCommon {
   isShow: boolean;
@@ -59,8 +61,8 @@ interface IStrategyMetricCommon {
 }
 interface IOption {
   name: string;
-  id?: string | number;
-  value?: string | number;
+  id?: number | string;
+  value?: number | string;
   children?: IOption[];
 }
 
@@ -716,7 +718,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   }
 
   //  搜索事件
-  filterMetric() {
+  filterMetric(v) {
+    this.searchObj.keyWord = v;
     this.tapChangeInit();
     const cacheKey = `${this.sourceType}_${this.scenarioType}`;
     this.cache[cacheKey].page = 1;
@@ -833,9 +836,9 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   render() {
     return (
       <MonitorDialog
-        value={this.isShow}
-        title={this.$t('选择监控指标')}
         width={960}
+        title={this.$t('选择监控指标')}
+        value={this.isShow}
         zIndex={3000}
         on-change={this.handleShowChange}
       >
@@ -844,17 +847,15 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
           v-bkloading={{ isLoading: this.loading }}
         >
           <div class='head'>
-            <bk-search-select
-              ref='searchSelect'
-              class='metric-search'
-              v-model={this.searchObj.keyWord}
-              showPopoverTagChange={false}
-              popoverZindex={2600}
-              data={this.searchObj.data}
-              placeholder={this.$t('关键字搜索')}
-              on-change={this.handleSearch}
-              show-condition={false}
-            ></bk-search-select>
+            <div class='metric-search'>
+              <SearchSelect
+                clearable={false}
+                data={this.searchObj.data}
+                modelValue={this.searchObj.keyWord}
+                placeholder={this.$t('关键字搜索')}
+                on-change={this.handleSearch}
+              />
+            </div>
             <bk-button
               class='metric-refresh'
               icon='icon-refresh'
@@ -868,9 +869,9 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
             <div class='built-in'>
               {this.tag.list.map(item => (
                 <div
-                  on-click={() => this.handleTagClick(item.id)}
-                  class={['built-in-item', { active: this.tag.value === item.id }]}
                   key={item.id}
+                  class={['built-in-item', { active: this.tag.value === item.id }]}
+                  on-click={() => this.handleTagClick(item.id)}
                 >
                   {item.name}
                 </div>
@@ -881,8 +882,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
             <ul class='content-left'>
               {this.scenarioListAll.map(item => (
                 <li
-                  class={['left-item', { 'item-active': this.scenarioType === item.name }]}
                   key={item.name}
+                  class={['left-item', { 'item-active': this.scenarioType === item.name }]}
                   on-click={() => this.handleLeftChange(item.name)}
                 >
                   <span class='left-item-name'>{item.label}</span>
@@ -908,10 +909,10 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
               </div>
               <div class='see-selected'>
                 <bk-checkbox
-                  checked={false}
-                  true-value={true}
-                  false-value={false}
                   v-model={this.isSeeSelected}
+                  checked={false}
+                  false-value={false}
+                  true-value={true}
                   on-change={this.SeeSelectedChange}
                 >
                   <div class='selected-text'>
@@ -922,8 +923,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
               </div>
               {this.curData?.list.length ? (
                 <div
-                  class='metric-common-content'
                   ref='metricContent'
+                  class='metric-common-content'
                 >
                   {this.curData.list.map(item => this.getMetricComponent(item))}
                   {this.getNoMetricComponent('rel')}
@@ -932,8 +933,8 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
                 <div class='metric-common-content'>
                   <bk-exception
                     class='exception-wrap-item right-empty'
-                    type='empty'
                     scene='part'
+                    type='empty'
                   ></bk-exception>
                 </div>
               )}
@@ -945,9 +946,9 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         <template slot='footer'>
           {!this.readonly ? (
             <bk-button
-              theme='primary'
               style='margin-right: 10px'
               disabled={this.checkedMetric && this.checkedMetric.length === 0}
+              theme='primary'
               on-click={this.handleConfirm}
             >
               {this.$t('添加')}
@@ -975,17 +976,17 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
             sourceName,
           ])}，`}</span>
           <span
-            on-click={this.handleToCheckedMetric}
             class='text-click'
+            on-click={this.handleToCheckedMetric}
           >{`${this.$t('前往查看')};`}</span>
           <span>{`${this.$t('你也可以')}`}</span>
           <span
-            on-click={this.confirmCheckCurMetric}
             class='text-click'
+            on-click={this.confirmCheckCurMetric}
           >{`${this.$t('清空已选并选择当前指标')}。`}</span>
           <div
-            on-click={this.popoverCancel}
             class='text-click cancel'
+            on-click={this.popoverCancel}
           >
             {this.$t('取消')}
           </div>
@@ -999,12 +1000,12 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         >
           <span>{`${this.$t('拨测相关指标只能单选')}。`}</span>
           <span
-            on-click={this.confirmCheckCurMetric}
             class='text-click'
+            on-click={this.confirmCheckCurMetric}
           >{`${this.$t('清空已选并选择当前指标')}。`}</span>
           <div
-            on-click={this.popoverCancel}
             class='text-click cancel'
+            on-click={this.popoverCancel}
           >
             {this.$t('取消')}
           </div>
@@ -1018,12 +1019,12 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
         >
           <span>{`${this.$t('多指标下不支持cmdb节点维度的聚合')}。`}</span>
           <span
-            on-click={this.confirmCheckCurMetricSpecialCMDBD}
             class='text-click'
+            on-click={this.confirmCheckCurMetricSpecialCMDBD}
           >{`${this.$t('清空已选并选择当前指标')}。`}</span>
           <div
-            on-click={this.popoverCancel}
             class='text-click cancel'
+            on-click={this.popoverCancel}
           >
             {this.$t('取消')}
           </div>
@@ -1031,9 +1032,9 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
       </div>,
       <div style='display: none'>
         <div
-          on-mouseleave={this.handleTipsLeave}
-          class='uptimecheck-tips'
           ref='uptimecheckTips'
+          class='uptimecheck-tips'
+          on-mouseleave={this.handleTipsLeave}
         >
           {this.$t('该指标需设置期望返回码/期望响应信息后才可选取')}
           <span

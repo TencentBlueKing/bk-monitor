@@ -25,6 +25,7 @@
  */
 import { defineComponent, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Form, Loading, Sideslider } from 'bkui-vue';
 
 import { useDocumentLink } from '../../../hooks';
@@ -40,7 +41,7 @@ export default defineComponent({
       default: DetailType.Application,
     },
     detailData: {
-      type: Object as PropType<ServicesDetail | FileDetail>,
+      type: Object as PropType<FileDetail | ServicesDetail>,
       default: () => null,
     },
     show: {
@@ -139,6 +140,7 @@ export default defineComponent({
           <Form.FormItem label={`${this.t('文件md5')}:`}>{data.file_md5 || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('上传人')}:`}>{data.operator || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('上传时间')}:`}>{data.uploaded_time || '-'}</Form.FormItem>
+          <Form.FormItem label={`${this.t('pprof文件时间')}:`}>{data.data_time || '-'}</Form.FormItem>
           {['parsing_failed', 'store_failed'].includes(data.status) && (
             <Form.FormItem label={`${this.t('错误信息')}:`}>{data.content || '-'}</Form.FormItem>
           )}
@@ -149,11 +151,11 @@ export default defineComponent({
     return (
       <>
         <Sideslider
-          isShow={this.show}
-          onUpdate:isShow={this.handleShowChange}
-          quick-close
           width={400}
           ext-cls='profiling-detail-sideslider'
+          isShow={this.show}
+          quick-close
+          onUpdate:isShow={this.handleShowChange}
         >
           {{
             header: () => (

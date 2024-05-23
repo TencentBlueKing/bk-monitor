@@ -27,13 +27,13 @@
   <bk-dialog
     width="768"
     ext-cls="permission-dialog"
-    :z-index="2990"
-    :mask-close="false"
     :header-position="'left'"
+    :mask-close="false"
     :title="''"
-    @value-change="handleValueChange"
     :value="isModalShow"
+    :z-index="2990"
     @cancel="onCloseDialog"
+    @value-change="handleValueChange"
   >
     <div
       class="permission-modal"
@@ -42,10 +42,10 @@
       <div class="permission-header">
         <span class="title-icon">
           <img
+            class="lock-img"
             :src="lock"
             alt="permission-lock"
-            class="lock-img"
-          >
+          />
         </span>
         <h3>{{ $t('该操作需要以下权限') }}</h3>
       </div>
@@ -76,8 +76,8 @@
                 </td>
                 <td width="50%">
                   <p
-                    class="resource-type-item"
                     v-for="(reItem, reIndex) in getResource(action.relatedResourceTypes)"
+                    class="resource-type-item"
                     :key="reIndex"
                   >
                     {{ reItem }}
@@ -89,7 +89,9 @@
               <td
                 class="no-data"
                 colspan="3"
-              >{{ $t('无数据') }}</td>
+              >
+                {{ $t('无数据') }}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -103,11 +105,13 @@
         <bk-button
           theme="primary"
           @click="goToApply"
-        >{{ $t('去申请') }}</bk-button>
+          >{{ $t('去申请') }}</bk-button
+        >
         <bk-button
           theme="default"
           @click="onCloseDialog"
-        >{{ $t('取消') }}</bk-button>
+          >{{ $t('取消') }}</bk-button
+        >
       </div>
     </div>
   </bk-dialog>
@@ -152,7 +156,7 @@ export default class AuthorityModal extends Vue {
     }
 
     const data = [];
-    resoures.forEach((resource) => {
+    resoures.forEach(resource => {
       if (resource.instances.length > 0) {
         const instances = resource.instances
           .map(instanceItem => instanceItem.map(item => item.name).join('，'))
@@ -168,13 +172,13 @@ export default class AuthorityModal extends Vue {
     // showAccessRequest(this.applyUrl);
     try {
       if (self === top) {
-        window.open(this.applyUrl, '__blank');
+        window.open(this.applyUrl, '_blank');
       } else {
         top.BLUEKING.api.open_app_by_other('bk_iam', this.applyUrl);
       }
     } catch (_) {
       // 防止跨域问题
-      window.open(this.applyUrl, '__blank');
+      window.open(this.applyUrl, '_blank');
     }
   }
   onCloseDialog() {

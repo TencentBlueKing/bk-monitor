@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Editor, EditorOptions, PreviewStyle } from '@toast-ui/editor';
 
 // import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
@@ -42,7 +43,7 @@ interface IMarkdownEditorProps {
   flowchartStyle?: boolean;
 }
 @Component
-export default class MyComponent extends tsc<IMarkdownEditorProps> {
+export default class MarkdownEditor extends tsc<IMarkdownEditorProps> {
   editor: Editor = null;
   editorEvents: string[] = ['load', 'change', 'stateChange', 'focus', 'blur'];
   valueUpdateMethod: string[] = ['insertText', 'setValue', 'setMarkdown', 'setHtml', 'reset'];

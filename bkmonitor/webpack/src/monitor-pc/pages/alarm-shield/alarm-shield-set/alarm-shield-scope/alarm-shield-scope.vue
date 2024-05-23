@@ -32,14 +32,14 @@
       </div>
       <div class="item-container">
         <bk-select
-          readonly
           v-model="biz.value"
+          readonly
           :clearable="false"
         >
           <bk-option
             v-for="(item, index) in biz.list"
-            :key="index"
             :id="item.id"
+            :key="index"
             :name="item.text"
           />
         </bk-select>
@@ -57,8 +57,8 @@
       </div>
       <div class="item-container">
         <div
-          class="bk-button-group"
           v-if="!isEdit"
+          class="bk-button-group"
         >
           <bk-button
             v-for="(item, index) in bkGroup.list"
@@ -71,9 +71,9 @@
           </bk-button>
         </div>
         <bk-table
-          class="static-table"
           v-else-if="bkGroup.value !== 'biz'"
           ref="bkTable"
+          class="static-table"
           :data="tableData"
           :max-height="450"
         >
@@ -88,9 +88,9 @@
 
     <!-- 提示信息start -->
     <div
+      v-if="!isEdit"
       class="set-shield-config-item tips-wrapper"
       :class="{ 'tab-biz': bkGroup.value === 'biz' }"
-      v-if="!isEdit"
     >
       <div class="item-label" />
       <div class="item-container">
@@ -100,13 +100,13 @@
     <!-- 提示信息end -->
 
     <div
-      class="set-shield-config-item topo-selector"
       v-show="bkGroup.value !== 'biz' && !isEdit"
+      class="set-shield-config-item topo-selector"
     >
       <div class="item-label" />
       <div
         class="item-container"
-        style="width: 80%;"
+        style="width: 80%"
       >
         <alarm-shield-ipv6
           v-if="inited"
@@ -121,7 +121,9 @@
         <div
           v-if="targetError"
           class="item-container-error"
-        >{{ $t('选择屏蔽目标') }}</div>
+        >
+          {{ $t('选择屏蔽目标') }}
+        </div>
       </div>
     </div>
 
@@ -151,11 +153,15 @@
         <bk-button
           theme="primary"
           @click="handleSubmit"
-        > {{ $t('提交') }} </bk-button>
+        >
+          {{ $t('提交') }}
+        </bk-button>
         <bk-button
-          @click="handleCancel"
           class="ml10"
-        > {{ $t('取消') }} </bk-button>
+          @click="handleCancel"
+        >
+          {{ $t('取消') }}
+        </bk-button>
       </div>
     </div>
   </div>
@@ -167,30 +173,33 @@ import { deepClone } from 'monitor-common/utils';
 import { transformMonitorToValue, transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import ShieldDateConfig from '../../alarm-shield-components/alarm-shield-date';
 import ShiledNotice from '../../alarm-shield-components/alarm-shield-notice';
-
-import AlarmShieldIpv6, { Ipv6FieldMap, ShieldDetailTargetFieldMap, ShieldDimension2NodeType } from './alarm-shield-ipv6';
+import AlarmShieldIpv6, {
+  Ipv6FieldMap,
+  ShieldDetailTargetFieldMap,
+  ShieldDimension2NodeType,
+} from './alarm-shield-ipv6';
 
 export default {
   name: 'AlarmShieldScope',
   components: {
     ShieldDateConfig,
     ShiledNotice,
-    AlarmShieldIpv6
+    AlarmShieldIpv6,
     // ShieldTarget
   },
   model: {
     prop: 'commonDateData',
-    event: 'changeCommonDateData'
+    event: 'changeCommonDateData',
   },
   props: {
     shieldData: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     commonDateData: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     const defaultData = this.generationDefaultData();
@@ -202,9 +211,9 @@ export default {
         instance: this.$t('服务实例屏蔽: 屏蔽告警中包含该实例的通知'),
         ip: this.$t('主机屏蔽: 屏蔽告警中包含该IP通知,包含对应的实例'),
         node: this.$t('节点屏蔽: 屏蔽告警中包含该节点下的所有IP和实例的通知'),
-        biz: this.$t('业务屏蔽: 屏蔽告警中包含该业务的所有通知')
+        biz: this.$t('业务屏蔽: 屏蔽告警中包含该业务的所有通知'),
       },
-      ...defaultData
+      ...defaultData,
     };
   },
   computed: {
@@ -213,7 +222,7 @@ export default {
     },
     prop() {
       return this.bkGroup.value === 'ip' ? 'ip' : 'name';
-    }
+    },
   },
   watch: {
     shieldData: {
@@ -225,14 +234,14 @@ export default {
           case 'alarm-shield-clone':
             this.inited = false;
             this.handleSetEditOrCloneData(newVal);
-            this.$nextTick(() => this.inited = true);
+            this.$nextTick(() => (this.inited = true));
             break;
           default:
             break;
         }
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   mounted() {
     switch (this.$route.name) {
@@ -251,7 +260,7 @@ export default {
   },
   activated() {
     const defaultData = this.generationDefaultData();
-    Object.keys(defaultData).forEach((key) => {
+    Object.keys(defaultData).forEach(key => {
       this[key] = defaultData[key];
     });
     this.biz.list = this.$store.getters.bizList;
@@ -262,14 +271,14 @@ export default {
       return {
         biz: {
           list: [],
-          value: ''
+          value: '',
         },
         tableData: [],
         labelMap: {
           ip: this.$t('主机'),
           instance: this.$t('服务实例'),
           node: this.$t('节点名称'),
-          biz: this.$t('业务')
+          biz: this.$t('业务'),
         },
         shieldDesc: '',
         bkGroup: {
@@ -277,15 +286,15 @@ export default {
             { name: this.$t('button-服务实例'), id: 'instance' },
             { name: this.$t('button-主机'), id: 'ip' },
             { name: this.$t('button-拓扑节点'), id: 'node' },
-            { name: this.$t('button-业务'), id: 'biz' }
+            { name: this.$t('button-业务'), id: 'biz' },
           ],
-          value: 'ip'
+          value: 'ip',
         },
         targetError: false,
         showIpv6Dialog: false,
         ipv6Value: {},
         originIpv6Value: {},
-        inited: true
+        inited: true,
       };
     },
     handleScopeChange(v) {
@@ -302,7 +311,7 @@ export default {
       shieldDate.typeEn = type;
       shieldDate[type] = {
         list: [...cycleConfig.day_list, ...cycleConfig.week_list],
-        range: isSingle ? [data.begin_time, data.end_time] : [cycleConfig.begin_time, cycleConfig.end_time]
+        range: isSingle ? [data.begin_time, data.end_time] : [cycleConfig.begin_time, cycleConfig.end_time],
       };
       shieldDate.dateRange = isSingle ? [] : [data.begin_time, data.end_time];
       this.$refs.noticeDate.setDate(shieldDate);
@@ -311,8 +320,8 @@ export default {
           notificationMethod: data.notice_config.notice_way,
           noticeNumber: data.notice_config.notice_time,
           member: {
-            value: data.notice_config.notice_receiver.map(item => item.id)
-          }
+            value: data.notice_config.notice_receiver.map(item => item.id),
+          },
         };
         this.$refs.shieldNotice.setNoticeData(shieldNoticeData);
       }
@@ -322,9 +331,12 @@ export default {
       if (this.bkGroup.value !== 'biz') {
         this.tableData = data.dimension_config.target.map(item => ({ name: item }));
         const targetList = data.dimension_config?.[ShieldDetailTargetFieldMap[data.scope_type]] || [];
-        this.ipv6Value = data.scope_type === 'instance' ? {
-          [Ipv6FieldMap[data.scope_type]]: targetList.map(id => ({ service_instance_id: id }))
-        } : transformMonitorToValue(targetList, ShieldDimension2NodeType[data.scope_type]);
+        this.ipv6Value =
+          data.scope_type === 'instance'
+            ? {
+                [Ipv6FieldMap[data.scope_type]]: targetList.map(id => ({ service_instance_id: id })),
+              }
+            : transformMonitorToValue(targetList, ShieldDimension2NodeType[data.scope_type]);
         this.originIpv6Value = deepClone(this.ipv6Value);
       }
     },
@@ -338,12 +350,12 @@ export default {
         end_time: isSingle ? '' : cycleDate.range[1],
         day_list: result.typeEn === 'month' ? result.month.list : [],
         week_list: result.typeEn === 'week' ? result.week.list : [],
-        type: result.type
+        type: result.type,
       };
       return {
         begin_time: isSingle ? cycleDate.range[0] : result.dateRange[0],
         end_time: isSingle ? cycleDate.range[1] : result.dateRange[1],
-        cycle_config: params
+        cycle_config: params,
       };
     },
     handleDimensionConfig() {
@@ -368,13 +380,13 @@ export default {
         ...cycleConfig,
         shield_notice: typeof noticeData !== 'boolean',
         notice_config: {},
-        description: this.shieldDesc
+        description: this.shieldDesc,
       };
       if (params.shield_notice) {
         params.notice_config = {
           notice_time: noticeData.notice_time,
           notice_way: noticeData.notice_way,
-          notice_receiver: noticeData.notice_receiver
+          notice_receiver: noticeData.notice_receiver,
         };
       }
       if (this.isEdit) {
@@ -416,8 +428,8 @@ export default {
     },
     handleValueChange({ value }) {
       this.ipv6Value = { ...this.ipv6Value, ...value };
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

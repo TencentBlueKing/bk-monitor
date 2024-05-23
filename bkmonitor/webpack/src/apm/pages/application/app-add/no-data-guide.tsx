@@ -25,6 +25,7 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { applicationInfoByAppName, metaConfigInfo, pushUrl, queryBkDataToken } from 'monitor-api/modules/apm_meta';
 import { copyText } from 'monitor-common/utils/utils';
 import Collapse from 'monitor-pc/components/collapse/collapse';
@@ -32,7 +33,6 @@ import svgIcon from 'monitor-pc/components/svg-icon/svg-icon.vue';
 import MarkdowViewer from 'monitor-ui/markdown-editor/viewer';
 
 import * as authorityMap from '../../home/authority-map';
-
 import SelectCardItem from './select-card-item';
 import { ICardItem, IListDataItem, SystemData } from './utils';
 
@@ -201,16 +201,16 @@ export default class NoDataGuide extends tsc<IProps> {
           !cardItem.hidden && (
             <SelectCardItem
               class='system-select-list-item'
-              title={cardItem.title}
-              theme={cardItem.theme}
-              multiple={row.multiple}
-              img={cardItem.img}
-              mode='small'
               checked={cardItem.checked}
               descData={cardItem.descData}
+              img={cardItem.img}
+              mode='small'
+              multiple={row.multiple}
+              theme={cardItem.theme}
+              title={cardItem.title}
               onClick={() => this.handleCheckedCardItem(cardItem, row, !cardItem.checked)}
             />
-          ),
+          )
       );
     return (
       <div
@@ -224,10 +224,10 @@ export default class NoDataGuide extends tsc<IProps> {
               <div class='step-tips-wrap'>
                 <Collapse
                   defaultHeight={56}
+                  expand={this.expandStepTips}
                   maxHeight={96}
                   needCloseButton={false}
                   renderAnimation={false}
-                  expand={this.expandStepTips}
                 >
                   <div class='step-tips-content'>
                     {this.stepTipsList.map((item, index) => (
@@ -262,8 +262,8 @@ export default class NoDataGuide extends tsc<IProps> {
                       <span class={['handle-btn', { 'btn-loading': this.secureKeyLoading }]}>
                         <span class='loading'></span>
                         <span
-                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           class='handle-text'
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           onClick={() => {
                             this.authority
                               ? this.handleGetSecureKey()
@@ -296,12 +296,12 @@ export default class NoDataGuide extends tsc<IProps> {
                   <span class='config-value'>
                     {this.pushUrl.map(item => (
                       <span>{`${this.$t('管控区域')} ${item.bk_cloud_id} ${item.push_url} [${item.tags.join(
-                        ',',
+                        ','
                       )}]`}</span>
                     ))}
                   </span>
                 </div>
-              </div>,
+              </div>
             )}
             {rowContent(
               this.$tc('配置选择'),
@@ -331,14 +331,14 @@ export default class NoDataGuide extends tsc<IProps> {
                                     </div>
                                   </div>
                                 </div>
-                              ) : undefined,
+                              ) : undefined
                             )}
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              ),
+              )
             )}
             {rowContent(
               this.$tc('流程指引'),
@@ -346,18 +346,18 @@ export default class NoDataGuide extends tsc<IProps> {
                 {this.mdData ? (
                   <MarkdowViewer
                     class='md-viwer'
-                    value={this.mdData}
                     flowchartStyle={true}
+                    value={this.mdData}
                   ></MarkdowViewer>
                 ) : (
                   <bk-exception
-                    type='empty'
                     scene='part'
+                    type='empty'
                   >
                     {this.$t('选择语言和环境')}
                   </bk-exception>
                 )}
-              </div>,
+              </div>
             )}
           </div>
         </div>

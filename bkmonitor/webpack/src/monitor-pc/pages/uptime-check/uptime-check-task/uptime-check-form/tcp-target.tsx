@@ -26,6 +26,7 @@
 import { CreateElement } from 'vue';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { domain } from 'monitor-common/regex/domain';
 import { v4, v6 } from 'monitor-common/regex/ip';
 import { copyText } from 'monitor-common/utils';
@@ -34,7 +35,6 @@ import MonitorDialog from 'monitor-ui/monitor-dialog';
 import MonitorIpSelector from '../../../../components/monitor-ip-selector/monitor-ip-selector';
 import { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
 import { transformMonitorToValue, transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
-
 import AddBtn from './add-btn';
 import CommonAddDialog from './common-add-dialog';
 import CommonCollapse from './common-collapse';
@@ -161,7 +161,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
     }
     if (this.defaultValue.node_list?.length) {
       this.outputFieldList = (this.defaultValue.output_fields || window.uptimecheck_output_fields).map(
-        key => OutputFiledsMap[key],
+        key => OutputFiledsMap[key]
       );
       const nodeItem = this.defaultValue.node_list.find(item => item.bk_obj_id);
       if (!nodeItem) {
@@ -297,7 +297,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
    * @param {*} type
    * @return {*}
    */
-  handleDomainMenuSelect(id: string, type: 'ip' | 'domain') {
+  handleDomainMenuSelect(id: string, type: 'domain' | 'ip') {
     if (id === 'clear-all') {
       if (type === 'domain') {
         this.domains = [];
@@ -378,10 +378,10 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
         <div class='domain-item-content'>
           <bk-input
             class={`domain-input ${this.showValidateDomainTips ? 'is-error' : ''}`}
-            type='textarea'
             vModel={this.defaultDomain.value}
-            onFocus={() => (this.showValidateDomainTips = false)}
             placeholder={this.$tc('输入域名说明/校验规则，可通过回车区隔多个域名')}
+            type='textarea'
+            onFocus={() => (this.showValidateDomainTips = false)}
           />
           {this.showValidateDomainTips && <div class='validate-tips'>{this.$t('输入正确的域名')}</div>}
         </div>
@@ -425,11 +425,11 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
                 {this.ips.map((url, index) => (
                   <HttpUrlInput
                     key={index}
-                    value={url}
-                    validateFn={this.validateIp}
                     errorTips={this.$t('输入正常的IP')}
-                    onDelete={() => this.handleDeleteIp(index)}
+                    validateFn={this.validateIp}
+                    value={url}
                     onChange={v => this.handleIpEdit(v, index)}
+                    onDelete={() => this.handleDeleteIp(index)}
                   />
                 ))}
               </div>
@@ -457,11 +457,11 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
                 {this.domains.map((domain, index) => (
                   <HttpUrlInput
                     key={index}
-                    value={domain}
                     errorTips={this.$t('输入正确的域名')}
                     validateFn={this.validateDomain}
-                    onDelete={() => this.handleDeleteDomain(index)}
+                    value={domain}
                     onChange={v => this.handleEditDomain(v, index)}
+                    onDelete={() => this.handleDeleteDomain(index)}
                   />
                 ))}
               </div>
@@ -469,13 +469,6 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
           )}
           {/* 添加CMD IP */}
           <MonitorIpSelector
-            mode='dialog'
-            showDialog={this.showAddCmdbIp}
-            showView={true}
-            value={this.cmdIpValue}
-            outputFieldOptionalHostTableColumn={['ip', 'ipv6', 'outer_ip', 'outer_ipv6']}
-            defaultOutputFieldList={this.defaultOutFields}
-            outputFieldList={this.outputFieldList}
             hostTableRenderColumnList={[
               'ip',
               'ipv6',
@@ -490,7 +483,14 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
               'hostId',
               'agentId',
             ]}
+            defaultOutputFieldList={this.defaultOutFields}
             hostTableCustomColumnList={this.hostTableCustomColumnList}
+            mode='dialog'
+            outputFieldList={this.outputFieldList}
+            outputFieldOptionalHostTableColumn={['ip', 'ipv6', 'outer_ip', 'outer_ipv6']}
+            showDialog={this.showAddCmdbIp}
+            showView={true}
+            value={this.cmdIpValue}
             onChange={this.handleIpChange}
             onCloseDialog={this.closeDialog}
             onOutputFieldChange={this.handleOutputFieldChange}
@@ -499,23 +499,23 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
         {/* 添加IP */}
         <CommonAddDialog
           defaultValue={this.defaultIp}
-          show={this.showAddIp}
-          title={this.$t('添加/编辑IP')}
           placeholder={this.$t('输入IP，可通过回车区隔多个IP')}
+          show={this.showAddIp}
           showValidateTips={this.showIpValidateTips}
+          title={this.$t('添加/编辑IP')}
           validateTips={this.$t('输入正常的IP')}
-          onShowChange={this.handleShowIpChange}
-          onFocus={() => (this.showIpValidateTips = false)}
           onConfirm={this.handleAddIp}
+          onFocus={() => (this.showIpValidateTips = false)}
+          onShowChange={this.handleShowIpChange}
         />
         {/* 添加域名 */}
         <MonitorDialog
-          value={this.showAddDomain}
+          width='488'
           class='common-add-dialog domain-dialog'
           title={this.$t('添加/编辑域名').toString()}
-          width='488'
-          onChange={this.handleShowDomainChange}
+          value={this.showAddDomain}
           onCancel={this.handleDomainCancel}
+          onChange={this.handleShowDomainChange}
           onConfirm={this.handleDomainConfirm}
         >
           <div class='domain-header'>
@@ -523,8 +523,8 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
             {this.createIpTypeItem()}
           </div>
           <div
-            class='domain-content'
             style='marginTop: 22px'
+            class='domain-content'
           >
             {this.createDomainInput()}
           </div>

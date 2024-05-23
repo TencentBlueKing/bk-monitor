@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 export interface ICollectorTaskData {
-  status: 'STOPPED' | 'STARTED'; // 采集任务启停状态
+  status: 'STARTED' | 'STOPPED'; // 采集任务启停状态
   id: number | string; // 任务id
   name: string;
 }

@@ -31,7 +31,7 @@ import './expired-select.scss';
 
 export interface IOptionsItem {
   id: IProps['value'];
-  name: string | TranslateResult;
+  name: TranslateResult | string;
 }
 interface IProps {
   value?: number;
@@ -153,8 +153,8 @@ export default class ExpiredSelect extends tsc<IProps, IEvents> {
         key={JSON.stringify(this.localOptions)}
         ref='selectRef'
         style={{ width: `${this.width}px` }}
-        value={this.value}
         clearable={false}
+        value={this.value}
         onChange={this.valueChange}
         onToggle={this.handleToggle}
       >
@@ -165,15 +165,15 @@ export default class ExpiredSelect extends tsc<IProps, IEvents> {
           />
         ))}
         <div
-          slot='extension'
           class='expired-select-custom-input-wrap'
+          slot='extension'
         >
           <bk-input
-            placeholder={this.placeholder}
             v-model={this.customInput}
+            placeholder={this.placeholder}
+            show-controls={false}
             size='small'
             type='number'
-            show-controls={false}
             onEnter={this.handleEnter}
           />
         </div>

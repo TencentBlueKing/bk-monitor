@@ -26,6 +26,7 @@
 
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import { MonitorEchartOptions, MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -37,7 +38,7 @@ import './link-status-chart.scss';
 
 interface LinkStatusChartProps {
   timeRange?: TimeRangeType;
-  type: 'minute' | 'hour';
+  type: 'hour' | 'minute';
   data: [number, number][];
   getChartData: () => any;
 }
@@ -108,6 +109,8 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     series: [],
     tooltip: {
       trigger: 'axis',
+      backgroundColor: 'rgba(54,58,67,.88)',
+      borderWidth: 0,
     },
     textStyle: {
       color: '#63656E',
@@ -120,8 +123,9 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
       containLabel: true,
     },
   });
-
   loading = false;
+  width = 0;
+  resizeObserver: ResizeObserver;
 
   get options(): MonitorEchartOptions {
     const minute: MonitorEchartSeries = {
@@ -160,6 +164,16 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
 
   mounted() {
     this.handleRefresh();
+    this.resizeObserver = new ResizeObserver(entries => {
+      const rect = entries[0].contentRect;
+      this.width = rect.width;
+      this.chartResize();
+    });
+    this.resizeObserver.observe(this.$el);
+  }
+
+  beforeDestroy() {
+    this.resizeObserver?.unobserve(this.$el);
   }
 
   chartResize() {
@@ -194,10 +208,10 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
           <div class='chart-label'>{this.type === 'minute' ? this.$tc('分钟数据量') : this.$tc('小时数据量')}</div>
           <div class='chart-tools'>
             <TimeRange
-              value={this.timeRange}
-              onChange={val => this.handleTimeRange(val)}
               commonUseList={this.defaultShortcuts}
               needTimezone={false}
+              value={this.timeRange}
+              onChange={val => this.handleTimeRange(val)}
             ></TimeRange>
             <span class='operate'>
               <i
@@ -211,6 +225,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
           <div class='chart-wrap'>
             <BaseEchart
               ref='baseChartRef'
+              width={this.width}
               height={200}
               options={this.options}
             />

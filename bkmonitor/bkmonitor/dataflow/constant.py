@@ -110,6 +110,11 @@ ALGORITHM_INFO_MAP = {
         env_plan_variate_name="BK_DATA_PLAN_ID_MULTIVARIATE_ANOMALY_DETECTION",
         bk_base_name="MultivariateAnomalyDetection",
     ),
+    AlgorithmModel.AlgorithmChoices.HostAnomalyDetection: AlgorithmInfo(
+        env_scene_variate_name="BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION",
+        env_plan_variate_name="BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION",
+        bk_base_name="HostAnomalyDetection",
+    ),
     METRIC_RECOMMENDATION_SCENE_NAME: AlgorithmInfo(
         env_scene_variate_name="BK_DATA_SCENE_ID_METRIC_RECOMMENDATION",
         env_plan_variate_name="BK_DATA_PLAN_ID_METRIC_RECOMMENDATION",
@@ -138,6 +143,7 @@ def get_scene_id_by_algorithm(algorithm_id):
 AI_SETTING_ALGORITHMS = [
     AlgorithmModel.AlgorithmChoices.IntelligentDetect,
     AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection,
+    AlgorithmModel.AlgorithmChoices.HostAnomalyDetection,
 ]
 
 

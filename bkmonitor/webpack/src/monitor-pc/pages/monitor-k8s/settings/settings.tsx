@@ -25,13 +25,13 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deleteSceneView, getSceneView, getSceneViewList, updateSceneView } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import { IBookMark, ISettingTpl, SettingsDashboardType, SettingsWrapType } from '../typings';
 import { SettingsTabType, SettingsVarType, SettingType } from '../typings/settings';
 import { SETTINGS_POP_ZINDEX } from '../utils';
-
 import SettingsDashboard from './settings-dashboard/settings-dashboard';
 import SettingsTab from './settings-tab/settings-tab';
 import SettingsVar from './settings-var/settings-var';
@@ -70,7 +70,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
   /** 设置页签的切换 */
   localActiveTab = '';
   /** 首次通过dashboard进入设置页面的页签数据，用户比较设置弹窗关闭后判断是否需要更新页签 */
-  sourceTabData = {};
+  sourceTabData: Record<string, any> = {};
   localBookMarkData: IBookMark[] = [];
   isShowPanelChange = false;
 
@@ -94,7 +94,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
   /** 判断是否可新增删除页签 目前未动态配置 暂时由前端配置 采集、自定义指标支持 */
   get canAddTab() {
     // 匹配采集场景
-    return /^collect_|custom_metric_.*$/.test(this.sceneId) || this.$route.name === 'custom-scenes-view';
+    return this.sourceTabData?.options?.view_editable;
   }
 
   created() {
@@ -240,7 +240,7 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
     this.isShowPanelChange = data.show_panel_count;
     this.handleSaveConfig(config, tabData).then(async () => {
       const newTabData = await this.getTabList();
-      const curPageData = await this.localBookMarkData.find(item => item.id === data.id);
+      const curPageData = this.localBookMarkData.find(item => item.id === data.id);
       const isPanelChange = JSON.stringify(newTabData) !== JSON.stringify(this.bookMarkData);
       curPageData && (curPageData.show_panel_count = data.show_panel_count);
       this.handlePanelChange(isPanelChange);
@@ -370,26 +370,26 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
         <SettingsTab
           key={this.active}
           ref='settingsTabRef'
-          needAutoAdd={this.initAddSetting}
-          canAddTab={this.canAddTab}
           activeTab={this.localActiveTab}
           bookMarkData={this.localBookMarkData}
+          canAddTab={this.canAddTab}
+          needAutoAdd={this.initAddSetting}
           title={this.title}
-          onSave={this.handleSaveTabList}
           onDelete={this.handleDeleteTab}
+          onSave={this.handleSaveTabList}
         />
       ),
       /** 编辑变量 */
       'edit-variate': (
         <SettingsVar
-          sceneId={this.sceneId}
-          needAutoAdd={this.initAddSetting}
-          viewType={this.viewType}
-          activeTab={this.activeTab}
           ref='settingsVarRef'
+          activeTab={this.activeTab}
           bookMarkData={this.localBookMarkData}
-          title={this.title}
           getTabDetail={this.getTabDetail}
+          needAutoAdd={this.initAddSetting}
+          sceneId={this.sceneId}
+          title={this.title}
+          viewType={this.viewType}
           onSave={this.handleSaveVarList}
         />
       ),
@@ -399,10 +399,10 @@ export default class SettingsWrapper extends tsc<SettingsWrapType.IProps, Settin
           ref='settingsDashBoardRef'
           activeTab={this.localActiveTab}
           bookMarkData={this.localBookMarkData}
-          title={this.title}
           enableAutoGrouping={this.enableAutoGrouping}
-          onGetTabDetail={this.getTabDetail}
+          title={this.title}
           on-tab-change={tab => (this.localActiveTab = tab)}
+          onGetTabDetail={this.getTabDetail}
           onSave={this.handleSaveOrder}
         />
       ),

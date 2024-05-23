@@ -95,7 +95,8 @@ export default class TableStore {
       const noticeGroupList = item.notice.user_groups;
       const noticeGroupNameList = item.notice.user_group_list.map(item => item?.name);
       const intervalNotifyMode = intervalModeNames[item.notice.config.interval_notify_mode] || '';
-      const queryConfig = item.items[0].query_configs[0];
+      const queryConfigs = item.items[0].query_configs;
+      const queryConfig = queryConfigs[0];
       const dataTypeLabelName = dataTypeLabelNames[queryConfig.data_type_label];
       const dataMode =
         dataModeNames[
@@ -131,7 +132,7 @@ export default class TableStore {
         action =>
           `${action.signal
             .map(signal => (signalNames[signal] ? `${signalNames[signal]},` : ''))
-            .join('')}${window.i18n.t('执行套餐')}${action.config?.name || '--'}`,
+            .join('')}${window.i18n.t('执行套餐')}${action.config?.name || '--'}`
       );
       this.data.push({
         id: item.id,
@@ -170,6 +171,7 @@ export default class TableStore {
         shieldInfo: item.shield_info,
         abnormalAlertCount: item.alert_count || 0,
         metricDescriptionList: item.metric_description_list,
+        queryConfigs,
         itemDescription: this.getItemDescription(item.items[0].query_configs),
         intervalNotifyMode,
         dataTypeLabelName,
@@ -195,22 +197,6 @@ export default class TableStore {
     // this.data = originData
   }
 
-  getTableData() {
-    // let ret = this.data
-    // if (this.keyword.length) {
-    //     const keyword = this.keyword.toLocaleLowerCase()
-    //     ret = ret.filter(item => item.strategyName.toLocaleLowerCase().includes(keyword))
-    // }
-    // this.total = ret.length
-    return this.data.slice(0, this.pageSize);
-  }
-
-  setDefaultStore() {
-    this.keyword = '';
-    this.page = 1;
-    this.pageSize = +localStorage.getItem('__common_page_size__') || 10;
-    this.pageList = [10, 20, 50, 100];
-  }
   getItemDescription(itemlist) {
     if (!itemlist) {
       return {
@@ -277,5 +263,21 @@ export default class TableStore {
       });
     });
     return res;
+  }
+
+  getTableData() {
+    // let ret = this.data
+    // if (this.keyword.length) {
+    //     const keyword = this.keyword.toLocaleLowerCase()
+    //     ret = ret.filter(item => item.strategyName.toLocaleLowerCase().includes(keyword))
+    // }
+    // this.total = ret.length
+    return this.data.slice(0, this.pageSize);
+  }
+  setDefaultStore() {
+    this.keyword = '';
+    this.page = 1;
+    this.pageSize = +localStorage.getItem('__common_page_size__') || 10;
+    this.pageList = [10, 20, 50, 100];
   }
 }

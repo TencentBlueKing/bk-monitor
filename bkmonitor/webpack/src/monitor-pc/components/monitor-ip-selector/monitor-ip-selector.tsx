@@ -22,6 +22,7 @@
 
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import create from '@blueking/ip-selector/dist/index.esm';
 import {
   agentStatisticsIpChooserTemplate,
@@ -265,7 +266,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       this.transformParams({
         scope_list: this.scopeList,
         ...node,
-      }),
+      })
     ).catch(() => []);
   }
   // 动态拓扑 - 勾选节点(获取多个拓扑节点的主机 Agent 状态统计信息)
@@ -321,7 +322,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
         scope_list: this.scopeList,
         template_type: 'SERVICE_TEMPLATE',
         ...params,
-      }),
+      })
     ).catch(() => []);
   }
   // 获取服务模板下各个节点
@@ -331,7 +332,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
         scope_list: this.scopeList,
         template_type: 'SERVICE_TEMPLATE',
         ...query,
-      }),
+      })
     ).catch(() => []);
   }
   // 获取服务模板下各个主机
@@ -361,7 +362,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
               total_count: item.count,
             },
             service_template: query.service_template_list[0],
-          })),
+          }))
         )
         .catch(() => []);
     }
@@ -374,7 +375,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
         scope_list: this.scopeList,
         template_type: 'SET_TEMPLATE',
         ...query,
-      }),
+      })
     ).catch(() => []);
   }
   // 获取集群模板下各个节点
@@ -384,7 +385,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
         scope_list: this.scopeList,
         template_type: 'SET_TEMPLATE',
         ...query,
-      }),
+      })
     ).catch(() => []);
   }
   // 获取集群模板下各个主机
@@ -414,7 +415,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
               total_count: item.count,
             },
             set_template: query.set_template_list[0],
-          })),
+          }))
         )
         .catch(() => []);
     }
@@ -492,27 +493,27 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   render() {
     return (
       <BkIpSelector
-        mode={this.mode}
-        value={this.value}
-        originalValue={this.originalValue}
-        showView={this.showView}
-        showDialog={this.showDialog}
-        showViewDiff={this.showViewDiff}
-        viewSearchKey={this.viewSearchKey}
-        readonly={this.readonly}
-        keepHostFieldOutput={this.keepHostFieldOutput}
+        config={this.ipSelectorConfig}
+        defaultOutputFieldList={this.defaultOutputFieldList}
         disableDialogSubmitMethod={this.disableDialogSubmitMethod}
         disableHostMethod={this.disableHostMethod}
-        service={this.ipSelectorServices}
-        config={this.ipSelectorConfig}
-        singleHostSelect={this.singleHostSelect}
+        keepHostFieldOutput={this.keepHostFieldOutput}
+        mode={this.mode}
+        originalValue={this.originalValue}
         outputFieldList={this.outputFieldList}
         outputFieldOptionalHostTableColumn={this.outputFieldOptionalHostTableColumn}
-        defaultOutputFieldList={this.defaultOutputFieldList}
+        readonly={this.readonly}
+        service={this.ipSelectorServices}
+        showDialog={this.showDialog}
+        showView={this.showView}
+        showViewDiff={this.showViewDiff}
+        singleHostSelect={this.singleHostSelect}
+        value={this.value}
+        viewSearchKey={this.viewSearchKey}
         on-change={this.change}
-        on-panel-change={this.panelChange}
         on-close-dialog={this.closeDialog}
         on-output-field-change={this.outPutFieldChange}
+        on-panel-change={this.panelChange}
       />
     );
   }

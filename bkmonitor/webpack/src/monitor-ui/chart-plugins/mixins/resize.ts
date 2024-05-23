@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Debounce } from 'monitor-common/utils/utils';
 
@@ -32,12 +33,6 @@ export default class ResizeMixin extends Vue {
   height = 100;
   width = 300;
 
-  mounted() {
-    addListener(this.$el as HTMLDivElement, this.handleResize);
-  }
-  beforeDestroy() {
-    removeListener(this.$el as HTMLDivElement, this.handleResize);
-  }
   @Debounce(100)
   handleResize() {
     if (this.$refs.chart) {
@@ -48,5 +43,11 @@ export default class ResizeMixin extends Vue {
         this.width = width;
       }
     }
+  }
+  beforeDestroy() {
+    removeListener(this.$el as HTMLDivElement, this.handleResize);
+  }
+  mounted() {
+    addListener(this.$el as HTMLDivElement, this.handleResize);
   }
 }

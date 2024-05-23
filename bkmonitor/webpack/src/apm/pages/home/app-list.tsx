@@ -27,6 +27,7 @@
 // import { Component, Mixins, Provide } from 'vue-tsx-support';
 import { Component, Provide, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { CancelToken } from 'monitor-api/index';
 import {
   deleteApplication,
@@ -40,8 +41,6 @@ import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
-import type { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 // import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
@@ -54,11 +53,13 @@ import { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 
 import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
-
 import AppAddForm from './app-add-form';
 import { IAppSelectOptItem } from './app-select';
 import * as authorityMap from './authority-map';
 import NavBar from './nav-bar';
+
+import type { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './app-list.scss';
 
@@ -240,7 +241,7 @@ export default class AppList extends tsc<object> {
         name: item.name,
         icon: item.icon || '',
         desc: item.short_description || '',
-      }),
+      })
     );
     this.guideUrl = guide_url as IGuideLink;
   }
@@ -480,9 +481,9 @@ export default class AppList extends tsc<object> {
       <bk-switcher
         v-authority={{ active: !hasPermission }}
         v-model={row.is_enabled}
-        theme='primary'
-        size='small'
         pre-check={() => this.handleEnablePreCheck(row, hasPermission)}
+        size='small'
+        theme='primary'
       ></bk-switcher>
     );
   }
@@ -577,8 +578,8 @@ export default class AppList extends tsc<object> {
           <NavBar routeList={this.routeList}>
             {!this.showGuidePage && (
               <div
-                slot='handler'
                 class='dashboard-tools-wrap'
+                slot='handler'
               >
                 <AlarmTools
                   class='alarm-tools'
@@ -616,24 +617,20 @@ export default class AppList extends tsc<object> {
         <div class='app-list-main'>
           {this.showGuidePage ? (
             <GuidePage
-              guideId='apm-home'
               guideData={this.apmIntroduceData}
+              guideId='apm-home'
             />
           ) : (
             <div class='app-list-content'>
               <bk-input
                 class='app-list-search'
-                placeholder={this.$t('输入搜索或筛选')}
                 v-model={this.searchKeyword}
+                placeholder={this.$t('输入搜索或筛选')}
                 clearable
                 onInput={this.handleSearch}
               ></bk-input>
               <CommonTable
                 {...{ props: this.tableData }}
-                onPageChange={this.handlePageChange}
-                onLimitChange={this.handlePageLimitChange}
-                onSortChange={this.handleSortChange}
-                onFilterChange={this.handleFilterChange}
                 scopedSlots={{
                   enable: this.handleGetEnableColumn,
                   opreate: this.handleGetOprateColumn,
@@ -654,10 +651,14 @@ export default class AppList extends tsc<object> {
                     </div>
                   ),
                 }}
+                onFilterChange={this.handleFilterChange}
+                onLimitChange={this.handlePageLimitChange}
+                onPageChange={this.handlePageChange}
+                onSortChange={this.handleSortChange}
               >
                 <EmptyStatus
-                  type={this.emptyStatusType}
                   slot='empty'
+                  type={this.emptyStatusType}
                   onOperation={this.handleOperation}
                 />
               </CommonTable>
@@ -665,21 +666,21 @@ export default class AppList extends tsc<object> {
           )}
         </div>
         <AppAddForm
-          pluginId={this.pluginId}
           v-model={this.showAddDialog}
+          pluginId={this.pluginId}
         ></AppAddForm>
         <bk-dialog
-          value={this.showGuideDialog}
-          mask-close={true}
-          ext-cls='guide-create-dialog'
           width={1360}
+          ext-cls='guide-create-dialog'
+          mask-close={true}
           show-footer={false}
+          value={this.showGuideDialog}
           on-cancel={this.handleCloseGuideDialog}
         >
           <GuidePage
-            marginless
-            guideId='apm-home'
             guideData={this.apmIntroduceData}
+            guideId='apm-home'
+            marginless
           />
         </bk-dialog>
       </div>

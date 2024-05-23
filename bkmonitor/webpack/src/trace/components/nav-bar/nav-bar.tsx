@@ -98,8 +98,8 @@ export default defineComponent({
       const len = props.routeList.length;
       return (
         <div
-          class={`navigation-bar common-nav-bar ${props.needShadow ? 'detail-bar' : ''}`}
           key='navigationBar'
+          class={`navigation-bar common-nav-bar ${props.needShadow ? 'detail-bar' : ''}`}
         >
           {!readonly && (props.needBack || ((props.needBack ?? true) && len > 1)) && (
             <span

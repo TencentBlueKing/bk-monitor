@@ -129,8 +129,10 @@ export default {
       display: inline-block;
       width: 68px;
       height: 26px;
-      font-size: 12px;
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
       line-height: 26px;
+      color: var(--table-fount-color);
       text-align: center;
       cursor: pointer;
       background-color: #f5f7fa;
@@ -158,11 +160,8 @@ export default {
       /* stylelint-disable-next-line declaration-no-important */
       font-size: var(--table-fount-size) !important;
 
-      .vjs-value__string,
-      .vjs-value__number {
-        line-height: 24px;
-        white-space: pre-wrap;
-        tab-size: 3;
+      .vjs-tree__node {
+        line-height: 22px;
       }
     }
   }

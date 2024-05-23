@@ -30,12 +30,12 @@
  */
 import Vue from 'vue';
 import Router, { RouteConfig } from 'vue-router';
+
 import { random } from 'monitor-common/utils/utils';
 import ExceptionPage from 'monitor-pc/pages/exception-page/exception-page.vue';
 
 import authorityStore from '../store/modules/authority';
 import Store from '../store/store';
-
 import eventRoutes from './event/event';
 import homeRoutes from './home/home';
 import intergratedRoutes from './intergrated/intergrated';

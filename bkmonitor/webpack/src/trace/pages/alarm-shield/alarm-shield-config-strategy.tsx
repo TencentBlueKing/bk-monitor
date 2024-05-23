@@ -25,15 +25,16 @@
  */
 import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Checkbox, Loading, Select, Table } from 'bkui-vue';
 import { getMetricListV2, getStrategyListV2, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils';
 
+import AlarmShieldConfigScope, { scopeData } from './alarm-shield-config-scope';
 import DimensionConditionInput from './components/dimension-input';
 import FormItem from './components/form-item';
 import StrategyDetail from './components/strategy-detail';
 import WhereDisplay from './components/where-display';
-import AlarmShieldConfigScope, { scopeData } from './alarm-shield-config-scope';
 
 import './alarm-shield-config-strategy.scss';
 
@@ -132,7 +133,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     /**
@@ -157,7 +158,7 @@ export default defineComponent({
         dimensionCondition.conditionKey = random(8);
         localValue.value.scopeData.key = random(8);
         handleStrategyChange(true);
-      },
+      }
     );
 
     function handleChange() {
@@ -358,26 +359,26 @@ export default defineComponent({
         <Loading loading={this.loading}>
           <FormItem
             class='mt24'
+            errMsg={this.errMsg.strategyId}
             label={this.t('屏蔽策略')}
             require={true}
-            errMsg={this.errMsg.strategyId}
           >
             <div>
               <Select
                 class='width-940'
+                filterable={true}
                 modelValue={this.strategyId}
                 multiple={true}
-                filterable={true}
                 selectedStyle={'checkbox'}
-                onUpdate:modelValue={v => (this.strategyId = v)}
-                onToggle={() => this.handleStrategyChange()}
                 onClear={this.handleClear}
+                onToggle={() => this.handleStrategyChange()}
+                onUpdate:modelValue={v => (this.strategyId = v)}
               >
                 {this.strategyList.map(item => (
                   <Select.Option
+                    id={item.id}
                     key={item.id}
                     name={item.name}
-                    id={item.id}
                   >
                     {{
                       default: () => (
@@ -406,9 +407,6 @@ export default defineComponent({
               {this.isEdit ? (
                 <div class='max-w836'>
                   <Table
-                    data={[{}]}
-                    maxHeight={450}
-                    border={['outer']}
                     columns={[
                       {
                         id: 'name',
@@ -418,10 +416,10 @@ export default defineComponent({
                             if (this.dimensionCondition.conditionList.length) {
                               return (
                                 <WhereDisplay
-                                  value={this.dimensionCondition.conditionList}
-                                  readonly={true}
-                                  allNames={this.dimensionCondition.allNames}
                                   key={this.dimensionCondition.conditionKey}
+                                  allNames={this.dimensionCondition.allNames}
+                                  readonly={true}
+                                  value={this.dimensionCondition.conditionList}
                                 ></WhereDisplay>
                               );
                             }
@@ -429,6 +427,9 @@ export default defineComponent({
                           })(),
                       },
                     ]}
+                    border={['outer']}
+                    data={[{}]}
+                    maxHeight={450}
                   ></Table>
                 </div>
               ) : (
@@ -444,19 +445,19 @@ export default defineComponent({
           )}
           {!!this.isShowDetail && (
             <AlarmShieldConfigScope
-              isEdit={this.isEdit}
-              show={true}
-              require={false}
               filterTypes={['ip', 'node']}
+              isEdit={this.isEdit}
+              require={false}
+              show={true}
               value={this.localValue.scopeData}
               onChange={v => this.handleScopeChange(v)}
             ></AlarmShieldConfigScope>
           )}
           <FormItem
-            label={this.t('告警等级')}
-            require={true}
             class='mt24'
             errMsg={this.errMsg.level}
+            label={this.t('告警等级')}
+            require={true}
           >
             <Checkbox.Group
               class='mt8'

@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
@@ -36,7 +37,7 @@ interface IProps {
   needBack?: boolean;
   backGotoItem?: IRouteBackItem;
 }
-type handlerPosition = 'right' | 'center' | 'left';
+type handlerPosition = 'center' | 'left' | 'right';
 
 @Component
 export default class NavBar extends tsc<IProps> {
@@ -62,16 +63,16 @@ export default class NavBar extends tsc<IProps> {
       <div class='app-nav-bar-wrap'>
         <CommonNavBar
           class='nav-route'
-          routeList={this.routeList}
+          backGotoItem={this.backGotoItem}
           needBack={this.needBack}
           needShadow={true}
-          backGotoItem={this.backGotoItem}
+          routeList={this.routeList}
         ></CommonNavBar>
         <div
-          class='app-nav-bar-handler'
           style={{
             'justify-content': this.position,
           }}
+          class='app-nav-bar-handler'
         >
           {this.$slots.handler}
         </div>

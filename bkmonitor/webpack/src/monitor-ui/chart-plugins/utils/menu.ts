@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { PanelModel } from '../typings';
-
 import { getMetricId } from './utils';
 
 export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
@@ -37,7 +36,7 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
           item.data_type_label,
           item.metrics?.[0]?.field,
           item.table,
-          item.index_set_id,
+          item.index_set_id
         );
         metricIdMap[metricId] = 'true';
       });
@@ -51,7 +50,7 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
     window.open(
       location.href.replace(
         location.hash,
-        `#/event-center?queryString=${queryString}&from=${timeRange[0]}&to=${timeRange[1]}&timezone=${window.timezone}`,
-      ),
+        `#/event-center?queryString=${queryString}&from=${timeRange[0]}&to=${timeRange[1]}&timezone=${window.timezone}`
+      )
     );
 };

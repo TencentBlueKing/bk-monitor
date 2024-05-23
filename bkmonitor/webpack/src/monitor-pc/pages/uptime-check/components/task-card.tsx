@@ -30,7 +30,7 @@ import { filterTaskAlarmColor, IDragStatus, isTaskDisable } from '../uptime-chec
 
 import './task-card.scss';
 
-export type IOptionTypes = 'edit' | 'delete' | 'clone' | 'stop' | 'enable';
+export type IOptionTypes = 'clone' | 'delete' | 'edit' | 'enable' | 'stop';
 const options: { id: IOptionTypes; name: string }[] = [
   { id: 'edit', name: window.i18n.tc('编辑') },
   { id: 'delete', name: window.i18n.tc('删除') },
@@ -148,16 +148,16 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
       <div
         class='uptime-check-task-card'
         draggable
-        on-dragstart={this.handleDragStart}
-        on-dragend={this.handleDragEnd}
-        on-mouseleave={this.handleMouseleave}
         on-click={this.handleCardClick}
+        on-dragend={this.handleDragEnd}
+        on-dragstart={this.handleDragStart}
+        on-mouseleave={this.handleMouseleave}
       >
         <div class='card-title'>
           <div class={['title-name', { disabled: isTaskDisable(this.data.status) }]}>
             <span
-              v-bk-overflow-tips
               class='name-text'
+              v-bk-overflow-tips
             >
               {this.data.name}
             </span>
@@ -193,8 +193,8 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
               ) : !(item.id === 'task_duration' && this.data.task_duration === null) ? (
                 <div class='top'>
                   <span
-                    class='num'
                     style={{ color: filterTaskAlarmColor(this.data[item.id], this.data[item.alarmId]) }}
+                    class='num'
                   >
                     {this.data[item.id]}
                   </span>
@@ -209,8 +209,8 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
         </div>
         <div style={{ display: 'none' }}>
           <div
-            class='popover-desc'
             ref='popoverContent'
+            class='popover-desc'
           >
             {options
               .filter(item => (isTaskDisable(this.data.status) ? item.id !== 'stop' : item.id !== 'enable'))

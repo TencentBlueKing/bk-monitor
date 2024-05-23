@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import {
   defaultAddTimeRange,
@@ -46,14 +47,14 @@ export interface IProps {
   autoSort?: boolean;
   needHandle?: boolean;
   allowNextFocus?: boolean;
-  format?: 'HH:mm:ss' | 'HH:mm';
+  format?: 'HH:mm' | 'HH:mm:ss';
 }
 interface IEvents {
   onChange: IProps['value'];
 }
 enum EMode {
-  edit = 'edit', // 编辑时间范围
   add = 'add', // 新增时间范围
+  edit = 'edit', // 编辑时间范围
 }
 /**
  * 多选的时间范围组件
@@ -368,7 +369,6 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
     return (
       <div
         class={['time-picker-multiple-wrap']}
-        onClick={this.handleAddTimeRange}
         v-bk-tooltips={{
           placement: 'top',
           content: this.$t('暂无可选时间段'),
@@ -376,12 +376,13 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
           delay: 200,
           disabled: this.isAllowAdd,
         }}
+        onClick={this.handleAddTimeRange}
       >
         <i class='icon-monitor icon-mc-time'></i>
         {
           <ul
-            class='time-range-list'
             ref='timeRangeListRef'
+            class='time-range-list'
           >
             {this.localValue.map((item, index) => (
               <li
@@ -403,6 +404,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
               </li>
             ))}
             <li
+              ref='triggerInputRef'
               style={{ display: this.isShow ? '' : 'none' }}
               class={[
                 'trigger-input-wrap',
@@ -410,36 +412,35 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
                   'hide-second': this.format === 'HH:mm',
                 },
               ]}
-              ref='triggerInputRef'
               onClick={modifiers.stop(() => {})}
             >
               <bk-time-picker
-                v-model={this.timeRange}
                 ref='timePickerRef'
-                type='timerange'
-                open={this.isShow}
-                allow-cross-day
+                v-model={this.timeRange}
                 ext-popover-cls='time-range-multiple-popover'
+                open={this.isShow}
+                type='timerange'
+                allow-cross-day
                 on-open-change={this.handleTimePickerShow}
               >
                 <input
-                  class='trigger-input'
-                  v-model={this.triggerInputText}
                   ref='inputRef'
+                  class='trigger-input'
                   slot='trigger'
-                  onFocus={() => (this.isFocus = true)}
+                  v-model={this.triggerInputText}
                   onBlur={this.handleTimeRangeInputBlur}
+                  onFocus={() => (this.isFocus = true)}
                   onInput={this.handleTimeRangeInput}
                   onKeydown={modifiers.del(this.handleDelItem)}
                 ></input>
                 {this.needHandle && (
                   <div
-                    slot='footer'
                     class='timerange-footer'
+                    slot='footer'
                   >
                     <bk-button
-                      theme='primary'
                       size='small'
+                      theme='primary'
                       onClick={modifiers.stop(this.handleSubmit)}
                     >
                       {this.$t('确认')}

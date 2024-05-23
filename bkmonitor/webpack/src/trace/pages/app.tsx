@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, onMounted, ref } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
+
 import { ConfigProvider, Navigation } from 'bkui-vue';
 import { en, zhCn } from 'bkui-vue/lib/locale';
 import { getLinkMapping } from 'monitor-api/modules/commons';
@@ -34,7 +35,6 @@ import { docCookies, getUrlParam } from 'monitor-common/utils/utils';
 import AuthorityModal from '../components/authority-modal/authority-modal';
 import { createRouteConfig } from '../router/router-config';
 import { useAppStore } from '../store/modules/app';
-
 import { useAppReadonlyProvider } from './provider';
 
 import './app.scss';
@@ -67,7 +67,7 @@ export default defineComponent({
         item =>
           item.route === routeId ||
           item.id === routeId ||
-          item?.children?.some(child => child.children.some((set: { id: string | number }) => set.id === routeId)),
+          item?.children?.some(child => child.children.some((set: { id: number | string }) => set.id === routeId))
       )?.id;
     });
     onMounted(() => {

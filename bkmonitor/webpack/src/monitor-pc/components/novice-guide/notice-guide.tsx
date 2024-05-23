@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { debounce } from 'throttle-debounce';
 
 import './notice-guide.scss';
@@ -209,13 +210,13 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
         {this.step < this.stepList.length && (
           <div
             ref='wraper'
-            class='novice-guide'
             style={{ display: this.showWrap ? 'flex' : 'none' }}
+            class='novice-guide'
           >
             <div
               ref='tip'
-              class={`step-box ${this.placement}`}
               style={this.tipStyles}
+              class={`step-box ${this.placement}`}
             >
               <div class='step-title'>{this.currentStep.title}</div>
               <div class='step-close-icon'>
@@ -240,11 +241,11 @@ export default class NoticeGuide extends tsc<INoticeCuideProps, INoticeCuideEven
                   </div>
                 }
                 <bk-button
+                  ext-cls='ukown-btn'
+                  v-show={this.step !== 3}
                   text={true}
                   title='primary'
-                  ext-cls='ukown-btn'
                   onClick={this.handleFinish}
-                  v-show={this.step !== 3}
                 >
                   {this.$t('知道了!')}
                 </bk-button>

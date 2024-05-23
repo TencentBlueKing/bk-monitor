@@ -30,7 +30,6 @@ import { useTraceStore } from '../../../store/modules/trace';
 import { ITraceTree } from '../../../typings';
 import { useChildrenHiddenProvide } from '../hooks';
 import { Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
-
 import TimelineHeaderRow from './timeline-header-row';
 import VirtualizedTraceView from './virtualized-trace-view';
 
@@ -200,26 +199,26 @@ export default defineComponent({
   render() {
     return (
       <div
-        class='trace-timeline-viewer'
-        style='position:relative;height:100%;'
         ref='wrapperRef'
+        style='position:relative;height:100%;'
+        class='trace-timeline-viewer'
       >
         <TimelineHeaderRow
+          columnResizeHandleHeight={this.height}
           duration={this.trace?.duration as number}
+          minSpanNameColumnWidth={this.minSpanNameColumnWidth}
+          nameColumnWidth={this.spanNameColumnWidth}
+          numTicks={NUM_TICKS}
           onCollapseAll={this.collapseAll}
           onCollapseOne={this.collapseOne}
-          onExpandOne={this.expandOne}
-          onExpandAll={this.expandAll}
-          nameColumnWidth={this.spanNameColumnWidth}
-          minSpanNameColumnWidth={this.minSpanNameColumnWidth}
           onColummWidthChange={this.setSpanNameColumnWidth}
-          numTicks={NUM_TICKS}
-          columnResizeHandleHeight={this.height}
+          onExpandAll={this.expandAll}
+          onExpandOne={this.expandOne}
         />
         <VirtualizedTraceView
           ref='virtualizedTraceView'
-          spanNameColumnWidth={this.spanNameColumnWidth}
           detailStates={new Map()}
+          spanNameColumnWidth={this.spanNameColumnWidth}
         />
       </div>
     );

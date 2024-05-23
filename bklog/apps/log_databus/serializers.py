@@ -159,7 +159,7 @@ class PluginConditionSerializer(serializers.Serializer):
 
 class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
     syslog_field = serializers.ChoiceField(
-        label=_("匹配字段"), choices=SyslogFilterFieldEnum.get_choices(), required=False, default=""
+        label=_("匹配字段"), choices=SyslogFilterFieldEnum.get_choices(), required=False, default="", allow_blank=True
     )
     syslog_content = serializers.CharField(label=_("匹配内容"), max_length=255, required=False, default="")
     syslog_op = serializers.ChoiceField(
@@ -167,12 +167,14 @@ class SyslogPluginConditionFiltersSerializer(serializers.Serializer):
         choices=PluginParamOpEnum.get_choices(),
         required=False,
         default=PluginParamOpEnum.OP_INCLUDE.value,
+        allow_blank=True
     )
     syslog_logic_op = serializers.ChoiceField(
         label=_("逻辑操作符"),
         choices=PluginParamLogicOpEnum.get_choices(),
         required=False,
         default=PluginParamLogicOpEnum.AND.value,
+        allow_blank=True
     )
 
 
@@ -220,7 +222,6 @@ class PluginParamSerializer(serializers.Serializer):
         label=_("windows事件内容匹配操作符"),
         choices=PluginParamOpEnum.get_choices(),
         required=False,
-        default="",
     )
 
     # Redis慢日志相关参数

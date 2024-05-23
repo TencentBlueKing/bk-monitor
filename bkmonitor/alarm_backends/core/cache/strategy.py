@@ -32,7 +32,12 @@ from alarm_backends.core.cache.cmdb import (
     TopoManager,
 )
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.models import MetricListCache, StrategyHistoryModel, StrategyModel
+from bkmonitor.models import (
+    AlgorithmModel,
+    MetricListCache,
+    StrategyHistoryModel,
+    StrategyModel,
+)
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
@@ -136,6 +141,10 @@ class StrategyCacheManager(CacheManager):
         need_check_type = [DataTypeLabel.ALERT, DataTypeLabel.TIME_SERIES]
         # 检测单位与数据单位是否同族，多指标无需检测
         if item["algorithms"]:
+            if item["algorithms"][0]["type"] == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
+                # 主机智能异常检测不检测指标项
+                return
+
             unit_prefix = item["algorithms"][0].get("unit_prefix", "")
             unit = item["query_configs"][0].get("unit", "")
             if invalid_strategy_dict["loaded_unit"].get(unit):
@@ -355,7 +364,7 @@ class StrategyCacheManager(CacheManager):
                 if cls.handle_strategy(strategy_config, invalid_strategy_dict):
                     result_map[strategy_id] = strategy_config
             except Exception as e:
-                logger.exception("refresh strategy error when handle_strategy", e)
+                logger.exception("refresh strategy error when handle_strategy[%s]: %s", strategy_id, e)
 
         cls.check_related_strategy(result_map, invalid_strategy_dict)
 
@@ -710,7 +719,7 @@ class StrategyCacheManager(CacheManager):
                         bk_biz_id, []
                     ).append(strategy["id"])
             except Exception as e:
-                logger.exception("refresh strategy error when refresh_real_time_strategy_ids", e)
+                logger.exception("refresh strategy error when refresh_real_time_strategy_ids: %s", e)
 
         cls.cache.set(cls.REAL_TIME_CACHE_KEY, json.dumps(real_time_strategys), cls.CACHE_TIMEOUT)
 
@@ -729,7 +738,7 @@ class StrategyCacheManager(CacheManager):
                 if data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR and data_type_label == DataTypeLabel.EVENT:
                     gse_event_strategy_ids[strategy["bk_biz_id"]].append(strategy["id"])
             except Exception as e:
-                logger.exception("refresh strategy error when refresh_gse_alarm_strategy_ids", e)
+                logger.exception("refresh strategy error when refresh_gse_alarm_strategy_ids: %s", e)
 
         cls.cache.set(cls.GSE_ALARM_CACHE_KEY, json.dumps(gse_event_strategy_ids), cls.CACHE_TIMEOUT)
 
@@ -758,7 +767,7 @@ class StrategyCacheManager(CacheManager):
                             ).append(strategy["id"])
 
             except Exception as e:
-                logger.exception("refresh strategy error when refresh_fta_alert_strategy_ids", e)
+                logger.exception("refresh strategy error when refresh_fta_alert_strategy_ids: %s", e)
 
         # 批量保存 Key
         if fta_alert_strategy_ids:
@@ -859,7 +868,7 @@ class StrategyCacheManager(CacheManager):
                             {"bk_biz_id": bk_biz_id}
                         )
                     except Exception as e:
-                        logger.exception("refresh strategy error when add_enabled_cluster_condition", e)
+                        logger.exception("refresh strategy error when add_enabled_cluster_condition: %s", e)
                 add_condition(enabled_cluster_map[bk_biz_id], strategy_config)
 
     @classmethod
@@ -920,7 +929,7 @@ class StrategyCacheManager(CacheManager):
                     for strategy in strategies_query:
                         processor.insert_target(strategy)
             except Exception as e:
-                logger.exception("refresh strategy error when add_target_shield_condition", e)
+                logger.exception("refresh strategy error when add_target_shield_condition: %s", e)
 
     @classmethod
     def refresh(cls):

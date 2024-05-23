@@ -26,6 +26,7 @@
 
 import { Component, Emit, Inject, Prop, PropSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { indicesInfo, metaConfigInfo, setup, storageFieldInfo } from 'monitor-api/modules/apm_meta';
 import { byteConvert } from 'monitor-common/utils/utils';
 
@@ -33,7 +34,6 @@ import EditableFormItem from '../../../components/editable-form-item/editable-fo
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
 import { ISetupData } from '../app-add/app-add';
-
 import { ClusterOption, IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem } from './type';
 
 interface IStorageStateProps {
@@ -81,7 +81,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
   /** 选中的集群 */
   get currentCluster() {
     return this.clusterList.find(
-      item => item.storage_cluster_id === this.appInfo.application_datasource_config.es_storage_cluster,
+      item => item.storage_cluster_id === this.appInfo.application_datasource_config.es_storage_cluster
     );
   }
   /** 过期时间的最大值 */
@@ -312,64 +312,64 @@ export default class StorageState extends tsc<IStorageStateProps> {
             <div class='form-content'>
               <div class='item-row'>
                 <EditableFormItem
+                  formType='input'
                   label={this.$t('存储索引名')}
-                  value={this.appInfo.es_storage_index_name}
-                  formType='input'
                   showEditable={false}
+                  value={this.appInfo.es_storage_index_name}
                 />
                 <EditableFormItem
-                  label={this.$t('存储集群')}
-                  value={this.appInfo.application_datasource_config?.es_storage_cluster}
-                  selectList={this.clusterOptions}
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
                   formType='select'
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
+                  label={this.$t('存储集群')}
+                  selectList={this.clusterOptions}
                   updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
+                  value={this.appInfo.application_datasource_config?.es_storage_cluster}
                 />
               </div>
               <div class='item-row'>
                 <EditableFormItem
-                  label={this.$t('过期时间')}
-                  value={this.appInfo.application_datasource_config?.es_retention}
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
                   formType='expired'
-                  tooltips={this.$t('过期时间')}
+                  label={this.$t('过期时间')}
                   maxExpired={this.retentionDaysMax}
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
+                  tooltips={this.$t('过期时间')}
                   updateValue={val => this.handleUpdateValue(val, 'es_retention')}
+                  value={this.appInfo.application_datasource_config?.es_retention}
                 />
                 <EditableFormItem
-                  label={this.$t('副本数')}
-                  value={this.appInfo.application_datasource_config?.es_number_of_replicas}
-                  formType='input'
-                  tooltips={this.$t('副本数')}
                   authority={this.authority.MANAGE_AUTH}
                   authorityName={authorityMap.MANAGE_AUTH}
-                  validator={val => this.initValidator(val, 'es_number_of_replicas')}
+                  formType='input'
+                  label={this.$t('副本数')}
+                  tooltips={this.$t('副本数')}
                   updateValue={val => this.handleUpdateValue(val, 'es_number_of_replicas')}
+                  validator={val => this.initValidator(val, 'es_number_of_replicas')}
+                  value={this.appInfo.application_datasource_config?.es_number_of_replicas}
                 />
               </div>
               <div class='item-row'>
                 <EditableFormItem
-                  label={this.$t('分片数')}
-                  value={this.appInfo.application_datasource_config?.es_shards}
-                  formType='input'
-                  tooltips={this.$t('分片数')}
                   authority={this.authority.MANAGE_AUTH}
                   authorityName={authorityMap.MANAGE_AUTH}
-                  validator={val => this.initValidator(val, 'es_shards')}
+                  formType='input'
+                  label={this.$t('分片数')}
+                  tooltips={this.$t('分片数')}
                   updateValue={val => this.handleUpdateValue(val, 'es_shards')}
+                  validator={val => this.initValidator(val, 'es_shards')}
+                  value={this.appInfo.application_datasource_config?.es_shards}
                 />
                 <EditableFormItem
-                  label={this.$t('索引切分大小')}
-                  value={this.appInfo.application_datasource_config?.es_slice_size}
-                  formType='input'
-                  unit='G'
-                  tooltips={this.$t('索引切分大小')}
                   authority={this.authority.MANAGE_AUTH}
                   authorityName={authorityMap.MANAGE_AUTH}
-                  validator={val => this.initValidator(val, 'es_slice_size')}
+                  formType='input'
+                  label={this.$t('索引切分大小')}
+                  tooltips={this.$t('索引切分大小')}
+                  unit='G'
                   updateValue={val => this.handleUpdateValue(val, 'es_slice_size')}
+                  validator={val => this.initValidator(val, 'es_slice_size')}
+                  value={this.appInfo.application_datasource_config?.es_slice_size}
                 />
               </div>
             </div>
@@ -377,13 +377,13 @@ export default class StorageState extends tsc<IStorageStateProps> {
         </PanelItem>
         <PanelItem title={this.$t('物理索引')}>
           <bk-table
-            outer-border={false}
-            data={this.indicesList}
             v-bkloading={{ isLoading: this.indicesLoading }}
+            data={this.indicesList}
+            outer-border={false}
           >
             <bk-table-column
-              label={this.$t('索引')}
               width={280}
+              label={this.$t('索引')}
               prop={'index'}
             />
             <bk-table-column
@@ -415,9 +415,9 @@ export default class StorageState extends tsc<IStorageStateProps> {
         </PanelItem>
         <PanelItem title={this.$t('字段信息')}>
           <bk-table
-            outer-border={false}
-            data={this.fieldList}
             v-bkloading={{ isLoading: this.fieldLoading }}
+            data={this.fieldList}
+            outer-border={false}
           >
             <bk-table-column
               label={this.$t('字段名')}
@@ -428,28 +428,28 @@ export default class StorageState extends tsc<IStorageStateProps> {
               scopedSlots={chFieldNameSlot}
             />
             <bk-table-column
-              label={this.$t('数据类型')}
               width={180}
-              prop={'field_type'}
+              filter-method={this.fieldFilterMethod}
               filter-multiple={false}
               filters={this.fieldFilterList}
-              filter-method={this.fieldFilterMethod}
+              label={this.$t('数据类型')}
+              prop={'field_type'}
             />
             <bk-table-column
-              label={this.$t('分词')}
               width={100}
+              filter-method={this.whetherFilterMethod}
+              filters={this.whetherFilters}
+              label={this.$t('分词')}
               prop={'analysis_field'}
               scopedSlots={analysisSlot}
-              filters={this.whetherFilters}
-              filter-method={this.whetherFilterMethod}
             />
             <bk-table-column
-              label={this.$t('时间')}
               width={100}
+              filter-method={this.whetherFilterMethod}
+              filters={this.whetherFilters}
+              label={this.$t('时间')}
               prop={'time_field'}
               scopedSlots={timeSlot}
-              filters={this.whetherFilters}
-              filter-method={this.whetherFilterMethod}
             />
           </bk-table>
         </PanelItem>

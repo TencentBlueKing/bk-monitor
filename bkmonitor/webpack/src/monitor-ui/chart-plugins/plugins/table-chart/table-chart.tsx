@@ -25,6 +25,8 @@
  */
 import { Component, Emit, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { Debounce } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -40,6 +42,7 @@ import {
 } from 'monitor-pc/pages/monitor-k8s/typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
   updateBkSearchSelectName,
@@ -51,16 +54,16 @@ import { ITableDataItem } from '../../typings/table-chart';
 import { reviewInterval, setStyle } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
-
 import StatusTab from './status-tab';
 
 import './table-chart.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const STORE_KEY_PREFIX = 'table_chart_store_key_'; /** 图表缓存前缀 */
 
 export enum TABLE_CHART_TYPE {
-  TABLE = 'table',
   FIELD = 'field',
+  TABLE = 'table',
 }
 
 interface INumberChartProps {
@@ -197,7 +200,7 @@ export class TableChart extends CommonSimpleChart {
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval,
+        this.panel.collect_interval
       );
       const variablesService = new VariablesService({
         ...this.viewOptions,
@@ -234,15 +237,15 @@ export class TableChart extends CommonSimpleChart {
                   ...this.viewOptions,
                   ...this.viewOptions.variables,
                   interval,
-                },
+                }
               ),
-              { needMessage: false },
+              { needMessage: false }
             )
             .then(({ columns, data, total, filter, condition_list, overview_data, check_filter = [] }) => {
               this.filterList = filter ?? [];
               this.tableData = data || [];
               this.columns = columns || [];
-              this.conditionOptions = condition_list || [];
+              this.conditionOptions = transformConditionSearchList(condition_list || []);
               this.conditionList = updateBkSearchSelectName(this.conditionOptions, this.conditionList, true, true);
               this.overviewData = overview_data;
               // this.pagination.limit = 10;
@@ -263,7 +266,7 @@ export class TableChart extends CommonSimpleChart {
             })
             .catch(error => {
               this.handleErrorMsgChange(error.msg || error.message);
-            }),
+            })
         );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
@@ -297,7 +300,7 @@ export class TableChart extends CommonSimpleChart {
       this.panel.targets
         // 根据 queryData 的 data_tyep = field 和 async_columns 匹配当前异步字段的请求target
         .filter(
-          item => item.dataType === TABLE_CHART_TYPE.FIELD && item.options?.table_chart?.async_columns?.includes(field),
+          item => item.dataType === TABLE_CHART_TYPE.FIELD && item.options?.table_chart?.async_columns?.includes(field)
         )
         .map(item => {
           const asyncDictKey = item.options?.table_chart?.async_dict_key ?? '';
@@ -326,9 +329,9 @@ export class TableChart extends CommonSimpleChart {
                   ...(this.viewOptions.filters?.current_target || {}),
                   ...this.viewOptions,
                   ...this.viewOptions.variables,
-                },
+                }
               ),
-              { needMessage: false },
+              { needMessage: false }
             )
             .then(res => {
               // 组合结果 以键值对形式组合字段值
@@ -446,7 +449,8 @@ export class TableChart extends CommonSimpleChart {
   }
 
   /** search select组件搜索 */
-  handleConditionChange() {
+  handleConditionChange(v) {
+    this.conditionList = v;
     this.pagination.current = 1;
     this.getPanelData();
   }
@@ -469,44 +473,42 @@ export class TableChart extends CommonSimpleChart {
         {this.hasTitle ? (
           <ChartHeader
             class='draggable-handle'
-            title={this.panel.title}
             draging={this.panel.draging}
-            subtitle={this.panel.subTitle}
             isInstant={this.panel.instant}
             showMore={false}
+            subtitle={this.panel.subTitle}
+            title={this.panel.title}
             onMenuClick={this.handleMenuToolsSelect}
           />
         ) : (
           <div class='draggable-handle drag-area'></div>
         )}
         <div
-          class={['table-chart-contain', { 'no-title': !this.hasTitle }]}
           ref='scrollRef'
+          class={['table-chart-contain', { 'no-title': !this.hasTitle }]}
         >
           {this.columns?.length ? (
             [
               <div class='search-wrapper'>
                 {}
                 {this.searchType === 'search_select' ? (
-                  <bk-search-select
-                    v-model={this.conditionList}
-                    class='search-wrapper-input'
-                    show-condition={false}
-                    clearable
-                    data={this.conditionOptions}
-                    onChange={this.handleConditionChange}
-                    onClear={this.handleConditionChange}
-                  />
+                  <div class='search-wrapper-input'>
+                    <SearchSelect
+                      data={this.conditionOptions}
+                      modelValue={this.conditionList}
+                      onChange={this.handleConditionChange}
+                    />
+                  </div>
                 ) : this.searchType === 'input' ? (
                   <bk-input
                     class='search-wrapper-input'
-                    placeholder='搜索'
-                    clearable
                     v-model={this.keyword}
-                    onEnter={this.handleSearchChange}
-                    onClear={() => this.handleSearchChange('')}
-                    onChange={this.handleSearchChange}
+                    placeholder='搜索'
                     right-icon='bk-icon icon-search'
+                    clearable
+                    onChange={this.handleSearchChange}
+                    onClear={() => this.handleSearchChange('')}
+                    onEnter={this.handleSearchChange}
                   />
                 ) : (
                   ''
@@ -519,8 +521,8 @@ export class TableChart extends CommonSimpleChart {
                   >
                     {this.checkFilterList.map(item => (
                       <bk-checkbox
-                        value={item.id}
                         key={item.id}
+                        value={item.id}
                       >
                         {item.name}
                       </bk-checkbox>
@@ -540,21 +542,21 @@ export class TableChart extends CommonSimpleChart {
               <CommonTable
                 style='background: #fff;'
                 checkable={false}
-                data={this.tableData}
-                overviewData={this.overviewData}
                 columns={this.columns}
+                data={this.tableData}
                 defaultSize='small'
-                storeKey={!!this.panel.title ? `${STORE_KEY_PREFIX}${this.panel.title}` : ''}
-                paginationType='simple'
-                pagination={this.pagination}
-                showExpand={this.showExpand}
-                jsonViewerDataKey={this.jsonViewerDataKey}
                 jsonViewerDataEmptyText={this.jsonViewerDataEmptyText}
-                onSortChange={this.handleSortChange}
-                onLimitChange={this.handleLimitChange}
-                onPageChange={this.handlePageChange}
+                jsonViewerDataKey={this.jsonViewerDataKey}
+                overviewData={this.overviewData}
+                pagination={this.pagination}
+                paginationType='simple'
+                showExpand={this.showExpand}
+                storeKey={!!this.panel.title ? `${STORE_KEY_PREFIX}${this.panel.title}` : ''}
                 onCollect={this.handleCollect}
                 onFilterChange={this.handleFilterChange}
+                onLimitChange={this.handleLimitChange}
+                onPageChange={this.handlePageChange}
+                onSortChange={this.handleSortChange}
               />,
             ]
           ) : (

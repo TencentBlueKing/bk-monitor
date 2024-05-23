@@ -43,6 +43,7 @@ const IconFont = (props: IIconFontProps) => {
   const localClasses = props?.classes || [];
   return (
     <i
+      style={`--height: ${localHeight}px; --width: ${localWidth}px; --font-size: ${localFontSize}px;`}
       class={[
         'trace-icon-font',
         'icon-monitor',
@@ -53,7 +54,6 @@ const IconFont = (props: IIconFontProps) => {
         },
         ...localClasses,
       ]}
-      style={`--height: ${localHeight}px; --width: ${localWidth}px; --font-size: ${localFontSize}px;`}
     />
   );
 };

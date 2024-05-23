@@ -35,7 +35,7 @@ import './history-dialog.scss';
 
 interface IHistoryDialogProps {
   title?: string;
-  list?: { label: string | TranslateResult; value: (string | number)[] | (string | number) }[];
+  list?: { label: TranslateResult | string; value: (number | string)[] | (number | string) }[];
   showCallback?: () => Promise<void> | void;
 }
 
@@ -70,14 +70,14 @@ export default class HistoryDialog extends tsc<IHistoryDialogProps> {
     return (
       <div
         class='history-container'
-        onClick={this.handleHistoryClick}
         v-bk-tooltips={{ content: this.title, allowHTML: false }}
+        onClick={this.handleHistoryClick}
       >
         <span class='icon-monitor icon-lishijilu icon'></span>
         <ViewParam
+          list={this.list}
           title={this.title}
           visible={this.visible}
-          list={this.list}
           on={{ 'update:visible': val => (this.visible = val) }}
         >
           {this.$slots.default && <template slot='default'>{this.$slots.default}</template>}

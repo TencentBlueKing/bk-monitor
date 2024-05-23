@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
+
 import { xssFilter } from 'monitor-common/utils/xss';
 
 import { MetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
@@ -38,7 +39,7 @@ export default class metricTipsContentMixin extends Vue {
         : `${data.data_source_label}_${data.data_type_label}`;
     if (data.result_table_label === 'uptimecheck' && data.default_condition) {
       const response = (data.default_condition as any[]).find(
-        item => item.key === 'response_code' || item.key === 'message',
+        item => item.key === 'response_code' || item.key === 'message'
       );
       if (response && !response.value) {
         return '';
@@ -136,7 +137,7 @@ export default class metricTipsContentMixin extends Vue {
     if (resultTableLabel === 'uptimecheck' && !relatedId) {
       const list = elList.bk_monitor_time_series;
       elList.bk_monitor_time_series = list.filter(
-        item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名'),
+        item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名')
       );
     }
     const curElList = elList[sourceType] || [];

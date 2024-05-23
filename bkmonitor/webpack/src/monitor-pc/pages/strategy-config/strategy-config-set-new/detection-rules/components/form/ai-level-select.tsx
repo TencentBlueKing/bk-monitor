@@ -148,15 +148,15 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
           class='level-type-select simplicity-select'
           v-model={this.levelType}
           behavior='simplicity'
-          disabled={this.disabled}
           clearable={false}
+          disabled={this.disabled}
           onChange={this.levelTypeChange}
         >
           {this.levelTypeList.map(item => (
             <bk-option
-              disabled={item.disabled}
-              key={item.id}
               id={item.id}
+              key={item.id}
+              disabled={item.disabled}
               name={item.name}
             />
           ))}
@@ -170,17 +170,17 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
           <bk-select
             class='level-select'
             v-model={this.localValue}
-            ext-popover-cls='level-select-popover'
             behavior='simplicity'
-            disabled={this.disabled}
             clearable={false}
+            disabled={this.disabled}
+            ext-popover-cls='level-select-popover'
             prefix-icon={`icon-monitor ${this.levelList[(this.localValue as number) - 1].icon}`}
             onChange={this.valueChange}
           >
             {this.levelList.map(item => (
               <bk-option
-                key={item.id}
                 id={item.id}
+                key={item.id}
                 name={item.name}
               >
                 <i class={`icon-monitor ${item.icon}`}></i>
@@ -193,8 +193,8 @@ export default class AiLevelSelect extends tsc<IProps, IEvents> {
         {this.levelType === 'auto' && (
           <div style={{ display: 'none' }}>
             <div
-              class='al-level-popover-content'
               ref='aiLevelPopoverRef'
+              class='al-level-popover-content'
             >
               <span class='title'>
                 {this.$t('输出级别')}

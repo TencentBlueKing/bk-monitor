@@ -37,7 +37,7 @@
           <img
             src="../../../static/images/svg/spinner.svg"
             alt=""
-          >
+          />
           <span v-if="state === 'PENDING' || state === 'PREPARE_FILE'"> {{ $t('准备中...') }} </span>
           <span v-else-if="state === 'MAKE_PACKAGE'"> {{ $t('打包中...') }} </span>
         </div>
@@ -51,14 +51,22 @@
               <span
                 v-show="isMakePackage"
                 class="gray"
-              >（<span :class="{ blue: packageNum.collect_config_file > 0 }">{{ $t(' {num} 个', { num: packageNum.collect_config_file }) }}</span>）</span>
+                >（<span :class="{ blue: packageNum.collect_config_file > 0 }">{{
+                  $t(' {num} 个', { num: packageNum.collect_config_file })
+                }}</span
+                >）</span
+              >
             </div>
             <div>
               {{ $t('自动关联采集配置文件') }}
               <span
                 v-show="isMakePackage"
                 class="gray"
-              >（<span :class="{ blue: packageNum.associated_collect_config > 0 }">{{ $t(' {num} 个', { num: packageNum.associated_collect_config }) }}</span> ）</span>
+                >（<span :class="{ blue: packageNum.associated_collect_config > 0 }">{{
+                  $t(' {num} 个', { num: packageNum.associated_collect_config })
+                }}</span>
+                ）</span
+              >
             </div>
           </div>
           <div class="column">
@@ -67,14 +75,22 @@
               <span
                 v-show="isMakePackage"
                 class="gray"
-              >（<span :class="{ blue: packageNum.strategy_config_file > 0 }">{{ $t(' {num} 个', { num: packageNum.strategy_config_file }) }}</span>）</span>
+                >（<span :class="{ blue: packageNum.strategy_config_file > 0 }">{{
+                  $t(' {num} 个', { num: packageNum.strategy_config_file })
+                }}</span
+                >）</span
+              >
             </div>
             <div>
               {{ $t('自动关联插件文件') }}
               <span
                 v-show="isMakePackage"
                 class="gray"
-              >（<span :class="{ blue: packageNum.associated_plugin > 0 }">{{ $t(' {num} 个', { num: packageNum.associated_plugin }) }}</span>）</span>
+                >（<span :class="{ blue: packageNum.associated_plugin > 0 }">{{
+                  $t(' {num} 个', { num: packageNum.associated_plugin })
+                }}</span
+                >）</span
+              >
             </div>
           </div>
           <div>
@@ -82,7 +98,11 @@
             <span
               v-show="isMakePackage"
               class="gray"
-            >（<span :class="{ blue: packageNum.view_config_file > 0 }">{{ $t(' {num} 个', { num: packageNum.view_config_file }) }}</span>）</span>
+              >（<span :class="{ blue: packageNum.view_config_file > 0 }">{{
+                $t(' {num} 个', { num: packageNum.view_config_file })
+              }}</span
+              >）</span
+            >
           </div>
         </div>
       </div>
@@ -94,7 +114,9 @@
         <div
           class="dialog-tips"
           :class="{ 'tips-err': state === 'FAILURE' }"
-        >{{ $t('失败原因') }}</div>
+        >
+          {{ $t('失败原因') }}
+        </div>
         <div class="dialog-content dialog-content-err">
           <div class="column">
             {{ message }}
@@ -103,7 +125,9 @@
             <span
               style="margin-right: 16px"
               @click="handlerRetry"
-            > {{ $t('点击重试') }} </span><span @click="handleCloseDialog"> {{ $t('取消') }} </span>
+            >
+              {{ $t('点击重试') }} </span
+            ><span @click="handleCloseDialog"> {{ $t('取消') }} </span>
           </div>
         </div>
       </div>
@@ -118,26 +142,26 @@ export default {
     // 导出状态 PENDING PREPARE_FILE MAKE_PACKAGE FAILURE
     state: {
       type: String,
-      default: 'PREPARE_FILE'
+      default: 'PREPARE_FILE',
     },
     // 文件具体个数
     packageNum: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     // 控制dialog显示
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     // 错误信息
-    message: String
+    message: String,
   },
   computed: {
     // 判断各文件数值是否有值
     isMakePackage() {
       return this.state === 'MAKE_PACKAGE' && Object.keys(this.packageNum).length;
-    }
+    },
   },
   methods: {
     // 导出失败取消按钮事件
@@ -147,8 +171,8 @@ export default {
     // 重试操作事件
     handlerRetry() {
       this.$parent.handleSubmit();
-    }
-  }
+    },
+  },
 };
 </script>
 

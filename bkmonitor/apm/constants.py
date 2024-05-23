@@ -571,6 +571,9 @@ class ProfileApiType:
     # type查询
     COL_TYPE = "col_type"
 
+    # 复杂查询
+    AGGREGATE = "select_aggregate"
+
 
 class ProfileQueryType:
     """Profile查询中api_params.type参数枚举值"""

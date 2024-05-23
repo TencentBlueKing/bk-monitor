@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
 import { Component, merge, Vue2 } from '@blueking/ip-selector/dist/vue2.6.x.esm';
 
 export default options => {
@@ -37,7 +38,6 @@ export default options => {
       const rootRef = ref();
 
       let app = new Vue2(Component);
-
       const syncProps = () => {
         Object.keys(props).forEach(propName => {
           const newValue = props[propName];
@@ -45,9 +45,9 @@ export default options => {
             const v = Object.keys(newValue).reduce(
               (result, item) => ({
                 ...result,
-                [item]: newValue[item],
+                [item]: Array.isArray(newValue[item]) ? [...newValue[item]] : newValue[item],
               }),
-              {},
+              {}
             );
 
             app._props[propName] = Object.freeze(v);
@@ -68,7 +68,7 @@ export default options => {
           },
           {
             immediate: true,
-          },
+          }
         );
         propWatchStack.push(unwatch);
       });

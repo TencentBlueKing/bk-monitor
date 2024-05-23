@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './select-menu.scss';
 
 export interface IListItem {
-  id: string | number;
-  name: string | number;
+  id: number | string;
+  name: number | string;
 }
 interface ISelectMenuProps {
   target?: any;
@@ -121,17 +121,17 @@ export default class SelectMenu extends tsc<ISelectMenuProps> {
   render() {
     return (
       <div
-        class='select-menu-wrap'
         style='display: none'
+        class='select-menu-wrap'
       >
         <div
-          class='select-menu-content'
           ref='content'
+          class='select-menu-content'
         >
           {this.list?.length ? (
             <ul
-              class='default-content-list'
               style={{ minWidth: `${this.minWidth}px` }}
+              class='default-content-list'
             >
               {this.list.map((item, index) => (
                 <li
@@ -146,9 +146,9 @@ export default class SelectMenu extends tsc<ISelectMenuProps> {
           ) : undefined}
           {!this.list.length && !this.needDelete ? <div class='no-list'>{this.$t('暂无可选项')}</div> : undefined}
           <div
+            style={{ display: this.needDelete ? 'block' : 'none' }}
             class='del-btn'
             on-mousedown={this.handleDel}
-            style={{ display: this.needDelete ? 'block' : 'none' }}
           >
             {this.$t('删除')}
           </div>

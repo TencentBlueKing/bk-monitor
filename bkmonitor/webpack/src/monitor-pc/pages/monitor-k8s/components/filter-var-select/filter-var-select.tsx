@@ -26,12 +26,12 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone, random, typeTools } from 'monitor-common/utils/utils';
 import { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import { IOption } from '../../typings';
-
 // import { getPopoverWidth } from '../../../../utils';
 import FilterVarTagInput from './filter-var-tag-input';
 
@@ -40,7 +40,7 @@ import './filter-var-select.scss';
 const SPLIT_CHART = '-'; // 变量id的分隔符
 
 export interface IProps {
-  label?: string | TranslateResult;
+  label?: TranslateResult | string;
   panel?: IVariableModel;
   customParams?: CustomParamsType;
   multiple?: boolean;
@@ -49,7 +49,7 @@ export interface IProps {
   required?: boolean;
   clearable?: boolean;
   autoGetOption?: boolean;
-  whereRefMap: Map<string, string[] | string>;
+  whereRefMap: Map<string, string | string[]>;
   viewOptions: IViewOptions;
   variables: Record<string, any>;
   currentGroupValue?: CurrentGroupValueType;
@@ -66,7 +66,7 @@ export interface IEvents {
   onValueChange: FilterDictType;
 }
 
-type LocalValue<T extends boolean> = T extends true ? Array<string | number> : string | number;
+type LocalValue<T extends boolean> = T extends true ? Array<number | string> : number | string;
 
 @Component({
   name: 'FilterVarSelect',
@@ -93,7 +93,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
   /** 是否可清空 */
   @Prop({ default: true, type: Boolean }) clearable: boolean;
   /** 变量的引用值得映射表 用于替换变量where条件的$开头的变量*/
-  @Prop({ default: () => new Map(), type: Map }) whereRefMap: Map<string, string[] | string>;
+  @Prop({ default: () => new Map(), type: Map }) whereRefMap: Map<string, string | string[]>;
   /** 接口的过滤条件 */
   @Prop({ default: () => ({}), type: Object }) viewOptions: IViewOptions;
   /** 回显数据 */
@@ -103,7 +103,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
   localOptions: IOption[] = [];
 
   /** 变量选中的值 */
-  localValue: LocalValue<true> | LocalValue<false> = [];
+  localValue: LocalValue<false> | LocalValue<true> = [];
 
   /* 用于初始化taginput组件 */
   tagInputKey = random(8);
@@ -350,10 +350,10 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
         )}
         <FilterVarTagInput
           key={this.tagInputKey}
-          value={this.localValue}
+          clearable={this.clearable}
           list={this.localOptions}
           multiple={this.multiple}
-          clearable={this.clearable}
+          value={this.localValue}
           onChange={this.handleTagInputChange}
         ></FilterVarTagInput>
         {/* <bk-select

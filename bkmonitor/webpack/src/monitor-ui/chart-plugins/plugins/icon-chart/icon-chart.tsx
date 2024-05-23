@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -38,12 +39,12 @@ interface IIconChartProps {
 }
 
 enum StatusIconEnum {
+  FAILD = 'minus-line',
   SUCCESS = 'check-line',
   WARNING = 'close-line-2',
-  FAILD = 'minus-line',
 }
 
-type StatusType = 'SUCCESS' | 'WARNING' | 'FAILD';
+type StatusType = 'FAILD' | 'SUCCESS' | 'WARNING';
 
 @Component
 class IconChart extends CommonSimpleChart {
@@ -86,7 +87,7 @@ class IconChart extends CommonSimpleChart {
                 ...viewOptions,
               },
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(res => {
             this.clearErrorMsg();
@@ -94,7 +95,7 @@ class IconChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const data = await Promise.all(promiseList);
       data && this.updateChartData(data);
@@ -146,15 +147,15 @@ class IconChart extends CommonSimpleChart {
                 </div>
                 {!!this.panel.instant && (
                   <img
-                    alt=''
                     class='instant-icon'
-                    // eslint-disable-next-line @typescript-eslint/no-require-imports
-                    src={require(`../../../../fta-solutions/static/img/home/icon_mttr.svg`)}
                     v-bk-tooltips={{
                       content: 'lgnores selected time',
                       boundary: 'window',
                       placements: ['top'],
                     }}
+                    alt=''
+                    // eslint-disable-next-line @typescript-eslint/no-require-imports
+                    src={require(`../../../../fta-solutions/static/img/home/icon_mttr.svg`)}
                   />
                 )}
               </li>

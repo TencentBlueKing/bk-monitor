@@ -25,10 +25,12 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { HierarchyNode } from 'd3-hierarchy';
-import { Debounce } from 'monitor-common/utils/utils';
+import { copyText, Debounce } from 'monitor-common/utils/utils';
 import MonitorResizeLayout from 'monitor-pc/components/resize-layout/resize-layout';
+import { ProfileDataUnit, parseProfileDataTypeValue } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
 import {
@@ -42,7 +44,6 @@ import {
   IZoomRect,
   RootId,
 } from '../../../typings';
-
 import { FlameChart } from './use-flame';
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from './utils';
 
@@ -61,6 +62,7 @@ interface IFlameGraphProps {
   showGraphTools?: boolean;
   highlightId?: number;
   isCompared?: boolean;
+  unit: ProfileDataUnit;
 }
 
 interface IFlameGraphEvent {
@@ -92,6 +94,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   @Prop({ default: true, type: Boolean }) showGraphTools: boolean;
   @Prop({ default: -1, type: Number }) highlightId: number;
   @Prop({ default: false, type: Boolean }) isCompared: boolean;
+  @Prop({ default: 'nanoseconds', type: String }) unit: ProfileDataUnit;
 
   showException = true;
   showDiffLegend = false;
@@ -162,6 +165,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
             minHeight: this.wrapperRef?.getBoundingClientRect().height - 40,
             direction: this.textDirection,
             keywords: this.filterKeywords,
+            unit: this.unit,
             getFillColor: (d: BaseDataType) => {
               if (d.id === RootId) return 'rgb(223,133,32)';
               return this.isCompared && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
@@ -171,29 +175,34 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 this.tipDetail = {};
                 return;
               }
-              const { text, suffix } = usFormat(d.data.value / 1000);
-              let diffDuration = '';
+              let detailsData, dataText;
+              const { value: dataValue, text: profileText } = parseProfileDataTypeValue(d.data.value, this.unit, true);
+              detailsData = dataValue;
+              dataText = profileText;
+
+              let diffData;
               let diffValue = 0;
               if (this.isCompared && d.data?.diff_info) {
-                const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison);
-                diffDuration = diffText + diffSuffix;
+                const { value: diffProfileValue } = parseProfileDataTypeValue(d.data.diff_info.comparison, this.unit);
+                diffData = diffProfileValue;
                 diffValue =
                   d.data.diff_info.comparison === 0 || d.data.diff_info.mark === 'unchanged'
                     ? 0
-                    : +(
-                        ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
-                        d.data.diff_info.comparison
-                      ).toFixed(2);
+                    : d.data.diff_info.diff;
+                // : +(
+                //     ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
+                //     d.data.diff_info.comparison
+                //   ).toFixed(2);
               }
               let axisLeft = e.pageX - (boundryBody ? 0 : this.svgRect.left);
               let axisTop = e.pageY - (boundryBody ? 0 : this.svgRect.top);
-              if (axisLeft + 240 > window.innerWidth) {
-                axisLeft = axisLeft - 220 - 16;
+              if (axisLeft + 360 > window.innerWidth) {
+                axisLeft = axisLeft - 340 - 16;
               } else {
                 axisLeft = axisLeft + 16;
               }
-              if (axisTop + 120 > window.innerHeight) {
-                axisTop = axisTop - 120;
+              if (axisTop + 180 > window.innerHeight) {
+                axisTop = axisTop - 180;
               } else {
                 axisTop = axisTop;
               }
@@ -203,8 +212,9 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 id: d.data.id,
                 title: d.data.name,
                 proportion: ((d.data.value * 100) / c.rootValue).toFixed(4).replace(/[0]+$/g, ''),
-                duration: text + suffix,
-                diffDuration,
+                data: detailsData,
+                dataText,
+                diffData,
                 diffValue,
                 mark: d.data.diff_info?.mark,
               };
@@ -238,7 +248,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
             },
             onMouseDown: () => {},
           },
-          this.chartRef,
+          this.chartRef
         );
         setTimeout(() => {
           this.setSvgRect();
@@ -315,9 +325,9 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
    */
   handleContextMenuClick(item: ICommonMenuItem) {
     this.contextMenuRect.left = -1;
-    // if (item.id === 'span') {
-    //   return this.contextMenuRect.spanId && emit('showSpanDetail', this.contextMenuRect.spanId);
-    // }
+    if (item.id === 'copy') {
+      copyText(this.contextMenuRect.spanName);
+    }
     if (item.id === 'reset') {
       this.initScale();
       this.$emit('updateHighlightId', -1);
@@ -415,20 +425,20 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     if (this.showException)
       return (
         <bk-exception
-          type='empty'
-          scene='part'
           description={this.$t('暂无数据')}
+          scene='part'
+          type='empty'
         />
       );
     return (
       <MonitorResizeLayout
-        placement='right'
         style='height: 100%'
         class={'hide-aside'}
+        placement='right'
       >
         <div
-          slot='main'
           class='selector-list-slot'
+          slot='main'
         >
           <div class={['profiling-compare-legend', { 'is-show': this.localIsCompared }]}>
             <span class='tag tag-new'>added</span>
@@ -440,23 +450,23 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
             <span class='tag tag-removed'>removed</span>
           </div>
           <div
+            ref='wrapperRef'
             class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
             tabindex={1}
             onBlur={this.handleClickWrapper}
             onClick={this.handleClickWrapper}
-            ref='wrapperRef'
           >
             <div
               ref='chartRef'
               class='flame-graph'
             />
             <div
-              class='flame-graph-tips'
               style={{
                 left: `${this.tipDetail.left}px`,
                 top: `${this.tipDetail.top + 16}px`,
                 display: this.tipDetail.title ? 'block' : 'none',
               }}
+              class='flame-graph-tips'
             >
               {this.tipDetail.title && [
                 <div class='funtion-name'>{this.tipDetail.title}</div>,
@@ -479,16 +489,16 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                       </tr>
                     )}
                     <tr>
-                      <td>{window.i18n.t('耗时')}</td>
-                      <td>{this.tipDetail.duration}</td>
+                      <td>{this.tipDetail.dataText}</td>
+                      <td>{this.tipDetail.data}</td>
                       {this.localIsCompared &&
                         this.tipDetail.id !== RootId && [
-                          <td>{this.tipDetail.diffDuration ?? '--'}</td>,
+                          <td>{this.tipDetail.diffData ?? '--'}</td>,
                           <td>
                             {this.tipDetail.mark === 'added' ? (
                               <span class='tips-added'>{this.tipDetail.mark}</span>
                             ) : (
-                              `${this.tipDetail.diffValue}%`
+                              `${((this.tipDetail.diffValue as number) * 100).toFixed(2)}%`
                             )}
                           </td>,
                         ]}
@@ -502,41 +512,40 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               ]}
             </div>
             <ul
-              class='flame-graph-menu'
               style={{
                 left: `${this.contextMenuRect.left}px`,
                 top: `${this.contextMenuRect.top}px`,
                 visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
               }}
+              class='flame-graph-menu'
             >
               {CommonMenuList.map(item => (
                 <li
-                  class='menu-item'
                   key={item.id}
+                  class='menu-item'
                   onClick={() => this.handleContextMenuClick(item)}
                 >
-                  <i class={`menu-item-icon icon-monitor ${item.icon}`} />
                   <span class='menu-item-text'>{item.name}</span>
                 </li>
               ))}
             </ul>
             <div
-              class='flame-graph-axis'
               style={{
                 left: `${this.axisRect.left || 0}px`,
                 top: `${this.axisRect.top || 0}px`,
                 bottom: `${this.axisRect.bottom || 0}px`,
                 visibility: this.axisRect.visibility,
               }}
+              class='flame-graph-axis'
             >
               <span class='axis-label'>{this.axisRect.title}</span>
             </div>
             <div
-              class='flame-graph-zoom'
               style={{
                 left: `${this.zoomRect?.left || 0}px`,
                 width: `${this.zoomRect?.width || 0}px`,
               }}
+              class='flame-graph-zoom'
             ></div>
           </div>
         </div>

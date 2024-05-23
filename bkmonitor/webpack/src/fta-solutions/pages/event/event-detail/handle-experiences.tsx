@@ -25,6 +25,7 @@
  */
 import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { deleteExperience, getExperience, saveExperience } from 'monitor-api/modules/alert';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
@@ -36,7 +37,6 @@ import ConditionInput, {
 import Editor from 'monitor-ui/markdown-editor/editor';
 
 import TipMsg from '../../setting/components/tip-msg';
-
 import Viewer from './custom-view';
 import { IDetail } from './type';
 import WhereDisplay from './where-display';
@@ -44,8 +44,8 @@ import WhereDisplay from './where-display';
 import './handle-experiences.scss';
 
 enum EType {
-  METRIC = 'metric',
   DIMENSION = 'dimension',
+  METRIC = 'metric',
 }
 
 const bindList = [
@@ -85,7 +85,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   // 条件数据
   conditionList: IConditionItem[] = [];
   // 是否为编辑模式
-  mode: 'list' | 'edit' | 'add' = 'list';
+  mode: 'add' | 'edit' | 'list' = 'list';
   // 当前md文档内容
   curDescription = '';
   // 当前经验列表
@@ -279,7 +279,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   /* 切换至维度类型回填数据 */
   dimensionDataChange() {
     const index = this.experienceList.findIndex(
-      item => this.conditionCompare(item.conditions, this.conditionList) && item.type === EType.DIMENSION,
+      item => this.conditionCompare(item.conditions, this.conditionList) && item.type === EType.DIMENSION
     );
     const confirm = () => {
       this.curDescription = this.experienceList[index].description;
@@ -391,7 +391,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     const index = this.experienceList.findIndex(item =>
       this.curBind === EType.METRIC
         ? item.type === EType.METRIC
-        : this.conditionCompare(item.conditions, this.conditionList) && item.type === EType.DIMENSION,
+        : this.conditionCompare(item.conditions, this.conditionList) && item.type === EType.DIMENSION
     );
     if (index > -1) {
       this.experienceList.splice(index, 1);
@@ -428,8 +428,8 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   render() {
     return (
       <div
-        v-bkloading={{ isLoading: this.isLoading }}
         class={['event-detail-handleexperiences', { displaynone: !this.show }]}
+        v-bkloading={{ isLoading: this.isLoading }}
       >
         <TipMsg msg={this.$tc('处理经验可以与指标和维度进行绑定，可以追加多种处理经验方便经验的共享。')}></TipMsg>
         {/* 添加按钮 */}
@@ -448,8 +448,8 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         {!this.experienceList.length && this.mode === 'list' && (
           <div>
             <bk-exception
-              type='empty'
               class='empty-bg'
+              type='empty'
             >
               <span>{this.$t('当前暂无处理经验')}</span>
             </bk-exception>
@@ -460,8 +460,8 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
           <div class='experience-list'>
             {this.experienceList.map((item, index) => (
               <div
-                class='experience-item'
                 key={index}
+                class='experience-item'
               >
                 <div class='item-header'>
                   {item.type === EType.METRIC && (
@@ -478,10 +478,10 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                       {Boolean(this.metricMeta) && (
                         <WhereDisplay
                           class='condition-readonly'
-                          value={item.conditions as any}
+                          allWhereValueMap={this.allWhereValueMap}
                           groupByList={this.dimensionList}
                           metric={this.metricMeta as any}
-                          allWhereValueMap={this.allWhereValueMap}
+                          value={item.conditions as any}
                           onValueMapChange={v => (this.allWhereValueMap = v)}
                         ></WhereDisplay>
                       )}
@@ -503,8 +503,8 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                 <div class='item-content'>
                   {item.description ? (
                     <Viewer
-                      value={item.description}
                       key={item.description.length}
+                      value={item.description}
                     ></Viewer>
                   ) : undefined}
                 </div>
@@ -529,18 +529,18 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                   }}
                 >
                   <bk-select
+                    key={this.selectKey}
                     class='bind-select'
-                    value={this.curBind}
                     clearable={false}
                     readonly={this.mode === 'edit'}
-                    key={this.selectKey}
+                    value={this.curBind}
                     onSelected={this.handleBindSelect}
                   >
                     {bindList.map(item => (
                       <bk-option
+                        id={item.id}
                         key={item.id}
                         name={item.name}
-                        id={item.id}
                       ></bk-option>
                     ))}
                   </bk-select>
@@ -554,16 +554,16 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                   (this.mode === 'edit' ? (
                     <WhereDisplay
                       class='condition-readonly'
-                      value={this.conditionList as any}
                       groupByList={this.dimensionList}
                       metric={this.metricMeta as any}
+                      value={this.conditionList as any}
                     ></WhereDisplay>
                   ) : (
                     <ConditionInput
-                      metricMeta={transformDataKey(this.metricMeta)}
-                      dimensionsList={this.dimensionList}
                       conditionList={this.conditionList}
                       defaultValue={this.defalutDimensionValue}
+                      dimensionsList={this.dimensionList}
+                      metricMeta={transformDataKey(this.metricMeta)}
                       on-change={this.handleCondition}
                     ></ConditionInput>
                   ))}
@@ -582,8 +582,8 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
             </div>
             <div class='content-bottom'>
               <bk-button
-                theme='primary'
                 class='save'
+                theme='primary'
                 onClick={this.handleSave}
               >
                 {this.$t('保存')}

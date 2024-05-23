@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { DecimalCount } from '../types/displayValue';
-
 import { FormattedValue, toFixed } from './valueFormats';
 
 export function toPercent(size: number, decimals?: DecimalCount): FormattedValue {

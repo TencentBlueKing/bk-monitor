@@ -26,21 +26,22 @@
  */
 
 import { TranslateResult } from 'vue-i18n';
+
 import { random } from 'monitor-common/utils/utils';
 
 import { CP_METHOD_LIST, INTERVAL_LIST, METHOD_LIST } from '../../../../constant/constant';
 import { IModelData } from '../detection-rules/components/time-series-forecast/time-series-forecast';
 
-export type unitType = 's' | 'm';
+export type unitType = 'm' | 's';
 export interface ICommonItem {
-  id: string | number;
-  name: string | TranslateResult;
+  id: number | string;
+  name: TranslateResult | string;
   type?: string;
   is_dimension?: boolean;
 }
 export interface IMetricDetail {
   alias?: string;
-  bk_biz_id: string | number;
+  bk_biz_id: number | string;
   category_display: string;
   collect_config: string;
   collect_config_ids: string;
@@ -99,19 +100,29 @@ export interface IMetricDetail {
   sceneConfig?: ISceneConfig;
 }
 export enum MetricType {
-  TimeSeries = 'time_series',
-  LOG = 'log',
-  EVENT = 'event',
   ALERT = 'alert',
+  EVENT = 'event',
+  /* 场景智能检测type传参用此字段 */
+  HostAnomalyDetection = 'HostAnomalyDetection',
+  LOG = 'log',
   MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
+  TimeSeries = 'time_series',
 }
 export class MetricDetail {
+  _agg_condition = [];
+  agg_dimension: string[] = [];
+  agg_interval: any = 60;
+  agg_interval_list = INTERVAL_LIST;
+  agg_method = 'AVG';
   alias?: string = '';
-  bk_biz_id: string | number = '';
+  bk_biz_id: number | string = '';
+  bkmonitor_strategy_id = 0;
   category_display = '';
+  checked: boolean;
   collect_config = '';
   collect_config_ids = '';
   collect_interval = 0;
+  custom_event_name = '';
   data_label = '';
   data_source_label = '';
   data_target = '';
@@ -121,52 +132,45 @@ export class MetricDetail {
   default_trigger_config: { check_window: number; count: number } = null;
   description = '';
   dimensions: ICommonItem[] = [];
-  rawDimensions: ICommonItem[] = [];
   extend_fields: any = '';
-  name?: string = '';
+  functions = [];
   id: number | string = '';
-  metric_id: number | string = '';
   index_set_id?: number | string = '';
+  index_set_name = '';
+  intelligent_detect?: Record<string, any>;
+  key = '';
+  keywords_query_string?: string = '*';
+  level = 1;
+  localQueryString?: string = '*';
+  logMetricList: IMetricDetail[] = null;
+  method_list = [];
   metric_description = '';
   metric_field: string;
   metric_field_name: string;
+  metric_id: number | string = '';
+  metric_type = null;
+  name?: string = '';
+  objectType = '';
   plugin_type = '';
+  promql_metric?: string;
+  rawDimensions: ICommonItem[] = [];
+  readable_name = '';
   related_id = '';
   related_name = '';
+  remarks = [];
   result_table_id = '';
   result_table_label = '';
   result_table_label_name = '';
   result_table_name = '';
+  sceneConfig?: ISceneConfig = null;
+  targetType = '';
+  time_field = '';
   unit = '';
   unit_conversion = 0;
   unit_suffix_id = 'NONE';
   unit_suffix_list: ICommonItem[] = [];
   use_frequency = 0;
-  keywords_query_string?: string = '*';
-  localQueryString?: string = '*';
-  agg_method = 'AVG';
-  method_list = [];
-  agg_interval: any = 60;
-  agg_interval_list = INTERVAL_LIST;
-  level = 1;
-  agg_dimension: string[] = [];
-  _agg_condition = [];
-  functions = [];
-  objectType = '';
-  targetType = '';
-  remarks = [];
-  time_field = '';
-  intelligent_detect?: Record<string, any>;
-  custom_event_name = '';
-  bkmonitor_strategy_id = 0;
-  key = '';
-  index_set_name = '';
-  readable_name = '';
-  metric_type = null;
-  logMetricList: IMetricDetail[] = null;
-  sceneConfig?: ISceneConfig = null;
-  promql_metric?: string;
-  constructor(public metricDetail?: IMetricDetail) {
+  constructor(public metricDetail?: Partial<IMetricDetail>) {
     if (!metricDetail) return;
     Object.keys(metricDetail).forEach(key => {
       if (key === 'unit_suffix_list') {
@@ -224,7 +228,7 @@ export class MetricDetail {
       const hasbizId = this.agg_dimension.includes('bk_biz_id');
       this.dimensions = metricDetail.dimensions.filter(
         item =>
-          (needBizId || hasbizId || item.id !== 'bk_biz_id') && (item.is_dimension || item.is_dimension === undefined),
+          (needBizId || hasbizId || item.id !== 'bk_biz_id') && (item.is_dimension || item.is_dimension === undefined)
       );
       this.rawDimensions = metricDetail.dimensions.filter(item => needBizId || hasbizId || item.id !== 'bk_biz_id');
     }
@@ -278,66 +282,6 @@ export class MetricDetail {
     }
     this._agg_condition = v;
   }
-  get metricMetaId() {
-    return `${this.data_source_label}|${this.data_type_label}`;
-  }
-  // 是否可以设置多指标
-  get canSetMulitpeMetric() {
-    return (
-      (['bk_monitor|time_series', 'custom|time_series'].includes(this.metricMetaId) &&
-        !this.result_table_id.match(/^uptimecheck/i) &&
-        !this.isSpecialCMDBDimension) ||
-      this.data_type_label === 'alert'
-    );
-  }
-  get isSpecialCMDBDimension() {
-    return (
-      this.metricMetaId === 'bk_monitor|time_series' &&
-      (this.agg_dimension.some(dim => ['bk_inst_id', 'bk_obj_id'].includes(dim)) ||
-        this.agg_condition.some(condition => ['bk_inst_id', 'bk_obj_id'].includes(condition.key)))
-    );
-  }
-  // 是否可以设置实时查询
-  get canSetRealTimeSearch() {
-    return ['bk_monitor|time_series', 'custom|time_series', 'bk_monitor|event'].includes(this.metricMetaId);
-  }
-  // 是否可设置汇聚查询
-  get canSetConvergeSearch() {
-    return this.metricMetaId !== 'bk_monitor|event' && this.data_type_label !== 'alert';
-  }
-  // 是否可设置汇聚查询
-  get canSetSourceCode() {
-    return this.data_type_label === 'time_series' && this.data_source_label !== 'bk_log_search';
-  }
-  // 是否可设置维度
-  get canSetDimension() {
-    return this.metricMetaId !== 'bk_monitor|event';
-  }
-  // 是否可设置汇聚方法
-  get canSetAggMethod() {
-    return this.metricMetaId !== 'bk_monitor|event' && this.data_type_label !== 'alert';
-  }
-  // 是否可设置汇聚周期
-  get canSetAggInterval() {
-    return this.metricMetaId !== 'bk_monitor|event' && this.data_type_label !== 'alert';
-  }
-  // 是否可设置检索语句
-  get canSetQueryString() {
-    return this.data_source_label !== 'bk_monitor' && this.data_type_label === 'log';
-  }
-  // 是否可设置函数
-  get canSetFunction() {
-    if (this.metricMetaId === 'bk_data|time_series') return true; // 数据平台指标支持function
-    return this.canSetMulitpeMetric && this.data_type_label !== 'alert';
-  }
-  // 是否可设置多指标计算
-  get canSetMetricCalc() {
-    return (
-      ['bk_monitor|time_series', 'custom|time_series'].includes(this.metricMetaId) &&
-      !this.result_table_id.match(/^uptimecheck/i) &&
-      !this.isSpecialCMDBDimension
-    );
-  }
   get aggMethodList() {
     if (this.metric_type === MetricType.LOG && this.metricMetaId === 'bk_log_search|log') {
       return METHOD_LIST;
@@ -348,13 +292,65 @@ export class MetricDetail {
     if (this.method_list?.length) return this.method_list.map(set => ({ id: set, name: set }));
     return this.canSetMulitpeMetric ? [...METHOD_LIST, ...CP_METHOD_LIST] : METHOD_LIST;
   }
-  get onlyCountMethod() {
+  /** 是否支持源码编辑 */
+  get allowSource() {
+    return ['bk_monitor', 'custom'].includes(this.data_source_label) && this.data_type_label === 'time_series';
+  }
+  // 是否可设置汇聚周期
+  get canSetAggInterval() {
+    return this.metricMetaId !== 'bk_monitor|event' && this.data_type_label !== 'alert';
+  }
+  // 是否可设置汇聚方法
+  get canSetAggMethod() {
+    return this.metricMetaId !== 'bk_monitor|event' && this.data_type_label !== 'alert';
+  }
+  // 是否可设置汇聚查询
+  get canSetConvergeSearch() {
+    return this.metricMetaId !== 'bk_monitor|event' && this.data_type_label !== 'alert';
+  }
+  // 是否需要检测算法
+  get canSetDetEctionRules() {
+    return this.metricMetaId !== 'bk_monitor|event' && this.data_type_label !== 'alert';
+  }
+  // 是否可设置维度
+  get canSetDimension() {
+    return this.metricMetaId !== 'bk_monitor|event';
+  }
+  // 是否可设置函数
+  get canSetFunction() {
+    if (this.metricMetaId === 'bk_data|time_series') return true; // 数据平台指标支持function
+    return this.canSetMulitpeMetric && this.data_type_label !== 'alert';
+  }
+  // 是否可设置多指标计算
+  get canSetMetricCalc() {
+    if (this.data_source_label === 'bk_data') return true;
     return (
-      ['bk_log_search|log', 'custom|event', 'bk_fta|event'].includes(this.metricMetaId) ||
-      (this.metricMetaId === 'bk_monitor|time_series' &&
-        this.result_table_id === 'uptimecheck.http' &&
-        ['message', 'response_code'].includes(this.metric_field))
+      ['bk_monitor|time_series', 'custom|time_series'].includes(this.metricMetaId) &&
+      !this.result_table_id.match(/^uptimecheck/i) &&
+      !this.isSpecialCMDBDimension
     );
+  }
+  // 是否可以设置多指标
+  get canSetMulitpeMetric() {
+    return (
+      (['bk_monitor|time_series', 'custom|time_series'].includes(this.metricMetaId) &&
+        !this.result_table_id.match(/^uptimecheck/i) &&
+        !this.isSpecialCMDBDimension) ||
+      this.data_type_label === 'alert' ||
+      this.data_source_label === 'bk_data'
+    );
+  }
+  // 是否可设置检索语句
+  get canSetQueryString() {
+    return this.data_source_label !== 'bk_monitor' && this.data_type_label === 'log';
+  }
+  // 是否可以设置实时查询
+  get canSetRealTimeSearch() {
+    return ['bk_monitor|time_series', 'custom|time_series', 'bk_monitor|event'].includes(this.metricMetaId);
+  }
+  // 是否可设置汇聚查询
+  get canSetSourceCode() {
+    return this.data_type_label === 'time_series' && this.data_source_label !== 'bk_log_search';
   }
   // 是否可以选择监控目标
   get canSetTarget() {
@@ -367,32 +363,45 @@ export class MetricDetail {
       ) // 主机设备 和 硬件设备 不可选择监控目标
     );
   }
-  // 是否为icmp类型拨测指标
-  get isICMP() {
-    return this?.result_table_id === 'uptimecheck.icmp';
-  }
-  // 是否需要检测算法
-  get canSetDetEctionRules() {
-    return this.metricMetaId !== 'bk_monitor|event' && this.data_type_label !== 'alert';
-  }
-  // 关联告警
-  get isRelatedAlert() {
-    return this.data_type_label === 'alert';
-  }
-  /** 是否为空指标 */
-  get isNullMetric(): boolean {
-    return !this.metric_id;
-  }
-  /** 是否支持源码编辑 */
-  get allowSource() {
-    return ['bk_monitor', 'custom'].includes(this.data_source_label) && this.data_type_label === 'time_series';
-  }
   /** 日志关键字当前真实指标 */
   get curRealMetric() {
     if (this.metricMetaId === 'bk_log_search|log' && this.agg_method !== 'COUNT') {
       return this.logMetricList?.find(item => item.metric_id === this.metric_id);
     }
     return null;
+  }
+  // 是否为icmp类型拨测指标
+  get isICMP() {
+    return this?.result_table_id === 'uptimecheck.icmp';
+  }
+  /** 是否为空指标 */
+  get isNullMetric(): boolean {
+    return !this.metric_id;
+  }
+  // 关联告警
+  get isRelatedAlert() {
+    return this.data_type_label === 'alert';
+  }
+  get isSpecialCMDBDimension() {
+    return (
+      this.metricMetaId === 'bk_monitor|time_series' &&
+      (this.agg_dimension.some(dim => ['bk_inst_id', 'bk_obj_id'].includes(dim)) ||
+        this.agg_condition.some(condition => ['bk_inst_id', 'bk_obj_id'].includes(condition.key)))
+    );
+  }
+  get metricMetaId() {
+    return `${this.data_source_label}|${this.data_type_label}`;
+  }
+  get onlyCountMethod() {
+    return (
+      ['bk_log_search|log', 'custom|event', 'bk_fta|event'].includes(this.metricMetaId) ||
+      (this.metricMetaId === 'bk_monitor|time_series' &&
+        this.result_table_id === 'uptimecheck.http' &&
+        ['message', 'response_code'].includes(this.metric_field))
+    );
+  }
+  setChecked(v: boolean) {
+    this.checked = v;
   }
   /** 日志关键字对应指标列表 */
   setLogMetricList(list: IMetricDetail[]) {
@@ -430,39 +439,39 @@ export interface IDetectionConfig {
 
 // 检测规则算法类型枚举
 export enum DetectionRuleTypeEnum {
-  /** 单指标异常检测 */
-  IntelligentDetect = 'IntelligentDetect',
-  /** 时序预测 */
-  TimeSeriesForecasting = 'TimeSeriesForecasting',
   /** 离群检测 */
   AbnormalCluster = 'AbnormalCluster',
-  /** 静态阈值 */
-  Threshold = 'Threshold',
-  /** 同比策略(大类) */
-  YearRound = 'YearRound',
-  /** 环比策略(大类) */
-  RingRatio = 'RingRatio',
-  /** 同比简易 */
-  SimpleYearRound = 'SimpleYearRound',
-  /** 同比高级 */
-  AdvancedYearRound = 'AdvancedYearRound',
-  /** 同比振幅 */
-  YearRoundAmplitude = 'YearRoundAmplitude',
-  /** 环比简易 */
-  SimpleRingRatio = 'SimpleRingRatio',
   /** 环比高级 */
   AdvancedRingRatio = 'AdvancedRingRatio',
-  /** 环比振幅 */
-  RingRatioAmplitude = 'RingRatioAmplitude',
+  /** 同比高级 */
+  AdvancedYearRound = 'AdvancedYearRound',
+  /** 单指标异常检测 */
+  IntelligentDetect = 'IntelligentDetect',
   /** 部分节点数 */
   PartialNodes = 'PartialNodes',
+  /** 环比策略(大类) */
+  RingRatio = 'RingRatio',
+  /** 环比振幅 */
+  RingRatioAmplitude = 'RingRatioAmplitude',
+  /** 环比简易 */
+  SimpleRingRatio = 'SimpleRingRatio',
+  /** 同比简易 */
+  SimpleYearRound = 'SimpleYearRound',
+  /** 静态阈值 */
+  Threshold = 'Threshold',
+  /** 时序预测 */
+  TimeSeriesForecasting = 'TimeSeriesForecasting',
+  /** 同比策略(大类) */
+  YearRound = 'YearRound',
+  /** 同比振幅 */
+  YearRoundAmplitude = 'YearRoundAmplitude',
   /** 同比区间 */
   YearRoundRange = 'YearRoundRange',
 }
 
 export interface IDetectionType {
   id: string;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
   show: boolean;
   disabled?: boolean;
   default?: any;
@@ -507,20 +516,20 @@ export interface IBaseInfoRouteParams {
 
 // 策略类型
 export type strategyType = 'fta' | 'monitor';
-export type EditModeType = 'Source' | 'Edit';
+export type EditModeType = 'Edit' | 'Source';
 
 /** 条件类型 */
 export interface IWhereItem {
   condition?: 'and' | 'or';
   key: string;
   method: string;
-  value: string[] | number[];
+  value: number[] | string[];
 }
 
 /* source模式下 sourceData */
 export interface ISourceData {
   sourceCode: string;
-  step: string | number;
+  step: number | string;
   sourceCodeCache?: string;
   promqlError?: boolean;
   errorMsg?: string;

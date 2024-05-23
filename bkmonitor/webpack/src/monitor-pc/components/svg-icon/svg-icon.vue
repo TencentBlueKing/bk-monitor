@@ -40,8 +40,8 @@ export default {
   props: {
     iconName: {
       type: String,
-      required: true
-    }
+      required: true,
+    },
   },
   computed: {
     iconId() {
@@ -49,13 +49,13 @@ export default {
         return `#${this.iconName.trim().toLocaleString()}`;
       }
       return `#icon-${this.iconName.trim().toLocaleString()}`;
-    }
+    },
   },
   methods: {
     clickHandle(e) {
       this.$emit('click', e);
-    }
-  }
+    },
+  },
 };
 </script>
 

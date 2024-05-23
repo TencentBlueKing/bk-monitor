@@ -25,6 +25,7 @@
  */
 import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Input, Slider } from 'bkui-vue';
 import { debounce } from 'monitor-common/utils/utils';
 
@@ -77,7 +78,7 @@ export default defineComponent({
       () => props.range,
       val => {
         if (!val) handleClear();
-      },
+      }
     );
 
     /** 触发重新检索 */
@@ -88,7 +89,7 @@ export default defineComponent({
         emit('change', value);
       },
       300,
-      false,
+      false
     );
     /** 设置滑动选择器配置 */
     const handleSetSlider = (isUpdate = true) => {
@@ -138,7 +139,7 @@ export default defineComponent({
       errMsg.value = '';
     };
     /** 输入框数值改变 */
-    const handleInputChange = (val: string, type: 'start' | 'end') => {
+    const handleInputChange = (val: string, type: 'end' | 'start') => {
       const isError = !inputReg.test(val);
       type === 'start' ? (startError.value = isError) : (endError.value = isError);
       if (!startError.value && !endError.value) {
@@ -197,26 +198,26 @@ export default defineComponent({
         <div class='filter-tools'>
           <div class={['verify-input', { 'is-error': this.startError }]}>
             <Input
-              placeholder={'0ns'}
               v-model={this.startVal}
+              placeholder={'0ns'}
               onChange={val => this.handleInputChange(val, 'start')}
             />
           </div>
           <Slider
-            range
             class='duration-slider'
             v-model={this.durationSlider.curValue}
-            minValue={this.durationSlider.min}
-            maxValue={this.durationSlider.max}
-            step={this.durationSlider.step}
             disable={this.durationSlider.disable}
+            maxValue={this.durationSlider.max}
+            minValue={this.durationSlider.min}
+            step={this.durationSlider.step}
+            range
             onChange={() => this.handleChangeDebounce()}
             onUpdate:modelValue={this.handleRangeChange}
           />
           <div class={['verify-input', { 'is-error': this.endError }]}>
             <Input
-              placeholder={'1s'}
               v-model={this.endVal}
+              placeholder={'1s'}
               onChange={val => this.handleInputChange(val, 'end')}
             />
           </div>

@@ -26,8 +26,8 @@
 export enum AlarmStatus {
   /** 致命 */
   DeadlyAlarm = 1,
-  /** 预警 */
-  WarningAlarm = 2,
   /** 提醒 */
   RemindAlarm = 3,
+  /** 预警 */
+  WarningAlarm = 2,
 }

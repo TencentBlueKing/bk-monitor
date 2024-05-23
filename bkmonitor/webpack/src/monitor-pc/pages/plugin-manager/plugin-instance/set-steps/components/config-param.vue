@@ -29,31 +29,29 @@
     theme="primary"
     :mask-close="false"
     header-position="left"
-    @after-leave="handleCancel"
     :show-footer="!disabledEditConfig"
     :width="480"
     :title="disabledEditConfig ? $t('参数配置') : $t('定义参数')"
+    @after-leave="handleCancel"
   >
     <div
-      class="readonly-param"
       v-if="disabledEditConfig"
+      class="readonly-param"
     >
       <div
-        class="item"
         v-for="(item, index) in readonlyParam"
         :key="index"
+        class="item"
       >
-        <div class="label">
-          {{ item.label }} ：
-        </div>
+        <div class="label">{{ item.label }} ：</div>
         <div class="value">
           {{ item.value || '--' }}
         </div>
       </div>
     </div>
     <div
-      class="param-html"
       v-else
+      class="param-html"
     >
       <div class="item-param param-type">
         <span class="item-required"> {{ $t('参数类型') }} </span>
@@ -63,11 +61,11 @@
           @change="handleTypeChange"
         >
           <bk-option
-            v-show="type.id !== 'collector'"
             v-for="(type, index) in paramType"
+            v-show="type.id !== 'collector'"
             :id="type.id"
-            :name="type.name"
             :key="index"
+            :name="type.name"
           />
         </bk-select>
       </div>
@@ -96,8 +94,14 @@
         <span> {{ $t('默认值') }} </span>
         <i
           v-show="config.types.type === 'dms_insert'"
+          v-bk-tooltips="{
+            content: $t(
+              config.default.type === 'service'
+                ? '维度名:实例标签名，如cluster_name:cluster_name'
+                : '维度名:主机字段名，如host_ip:bk_host_innerip'
+            ),
+          }"
           class="bk-icon icon-info"
-          v-bk-tooltips="{ content: $t(config.default.type === 'service' ? '维度名:实例标签名，如cluster_name:cluster_name' : '维度名:主机字段名，如host_ip:bk_host_innerip') }"
         />
         <verify-input
           :show-validate="dmsInsertError"
@@ -106,39 +110,39 @@
           <div class="default-value">
             <div :class="['value-type', { 'is-input': ['text', 'password', 'file'].includes(config.default.type) }]">
               <bk-select
-                :clearable="false"
                 v-model="config.default.type"
+                :clearable="false"
                 @selected="handleDefaultTypeChange"
               >
                 <bk-option
                   v-for="item in defaultTypeList"
-                  :key="item.id"
                   :id="item.id"
+                  :key="item.id"
                   :name="item.name"
                 />
               </bk-select>
             </div>
             <div class="value">
               <bk-input
-                v-model="config.default.value"
                 v-if="config.default.type === 'text'"
+                v-model="config.default.value"
               />
               <bk-input
-                v-model="config.default.value"
                 v-else-if="['password', 'encrypt'].includes(config.default.type)"
+                v-model="config.default.value"
                 type="password"
                 ext-cls="value-password"
               />
               <bk-switcher
                 v-else-if="config.default.type === 'switch'"
+                v-model="config.default.value"
                 class="value-switch"
                 true-value="true"
                 false-value="false"
-                v-model="config.default.value"
               />
               <div
-                class="file-input-wrap"
                 v-else-if="config.default.type === 'file'"
+                class="file-input-wrap"
               >
                 <import-file
                   :file-name="config.default.value"
@@ -149,11 +153,13 @@
                 <div
                   v-if="fileErrorMsg"
                   class="error-msg"
-                >{{ fileErrorMsg }}</div>
+                >
+                  {{ fileErrorMsg }}
+                </div>
               </div>
               <bk-tag-input
-                v-model="config.default.value"
                 v-else-if="['service', 'host'].includes(config.default.type)"
+                v-model="config.default.value"
                 allow-create
                 has-delete-icon
                 @change="validInsertValue"
@@ -185,35 +191,36 @@
         theme="default"
         :title="$t('取消')"
         @click="handleCancel"
-      > {{ $t('取消') }} </bk-button>
+      >
+        {{ $t('取消') }}
+      </bk-button>
     </div>
   </bk-dialog>
 </template>
 <script>
 import VerifyInput from '../../../../../components/verify-input/verify-input';
-
 import importFile from './import-file';
 
 export default {
   name: 'ConfigParam',
   components: {
     VerifyInput,
-    importFile
+    importFile,
   },
   props: {
     show: Boolean,
     param: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     paramList: {
       type: Array,
-      default: () => ({})
+      default: () => ({}),
     },
     pluginType: {
       type: String,
-      default: 'Script'
-    }
+      default: 'Script',
+    },
   },
   data() {
     return {
@@ -222,7 +229,7 @@ export default {
         name: this.$t('参数名称'),
         alias: this.$t('参数别名'),
         default: this.$t('默认值'),
-        description: this.$t('参数说明')
+        description: this.$t('参数说明'),
       },
       types: {
         text: this.$t('文本'),
@@ -230,90 +237,90 @@ export default {
         password: this.$t('密码'),
         switch: this.$t('开关'),
         service: this.$t('服务实例标签'),
-        host: this.$t('主机字段')
+        host: this.$t('主机字段'),
       },
       typeDes: {
         opt_cmd: this.$t('最常用的参数使用方式。如 --port 3306'),
-        env: this.$t('在程序中直接获取环境变量中的变量如 os.getenv(\'PYTHONPATH\')'),
+        env: this.$t("在程序中直接获取环境变量中的变量如 os.getenv('PYTHONPATH')"),
         pos_cmd: this.$t('基于参数传递的顺序进行变量的获取,由添加参数的顺序决定,如Shell中常见的echo $1'),
-        dms_insert: this.$t('注入的维度信息将追加进采集的指标数据中，基于配置平台的服务实例自定义标签及主机字段获取')
+        dms_insert: this.$t('注入的维度信息将追加进采集的指标数据中，基于配置平台的服务实例自定义标签及主机字段获取'),
       },
       config: {
         types: {
           list: [
             {
               id: 'opt_cmd',
-              name: this.$t('命令行参数')
+              name: this.$t('命令行参数'),
             },
             {
               id: 'env',
-              name: this.$t('环境变量')
+              name: this.$t('环境变量'),
             },
             {
               id: 'pos_cmd',
-              name: this.$t('位置参数')
+              name: this.$t('位置参数'),
             },
             {
               id: 'collector',
-              name: this.$t('采集器参数')
+              name: this.$t('采集器参数'),
             },
             {
               id: 'dms_insert',
-              name: this.$t('维度注入')
-            }
+              name: this.$t('维度注入'),
+            },
           ],
-          type: 'opt_cmd'
+          type: 'opt_cmd',
         },
         default: {
           list: [
             {
               name: this.$t('文本'),
-              id: 'text'
+              id: 'text',
             },
             {
               name: this.$t('强密码'),
-              id: 'encrypt'
+              id: 'encrypt',
             },
             {
               name: this.$t('密码'),
-              id: 'password'
+              id: 'password',
             },
             {
               name: this.$t('文件'),
-              id: 'file'
+              id: 'file',
             },
             {
               name: this.$t('开关'),
-              id: 'switch'
+              id: 'switch',
             },
             {
               name: this.$t('服务实例标签'),
-              id: 'service'
+              id: 'service',
             },
             {
               name: this.$t('主机字段'),
-              id: 'host'
-            }
+              id: 'host',
+            },
           ],
           type: 'text',
-          value: ''
+          value: '',
         },
         paramName: '',
         alias: '',
-        description: ''
+        description: '',
       },
       rules: {
         name: {
           error: false,
-          message: this.$t('输入参数名')
+          message: this.$t('输入参数名'),
         },
         dmsInsert: {
           typeError: false,
           valueError: false,
-          message: this.$t('已添加该默认值')
-        }
+          message: this.$t('已添加该默认值'),
+        },
       },
-      fileErrorMsg: ''
+      fileErrorMsg: '',
     };
   },
   computed: {
@@ -329,7 +336,7 @@ export default {
     readonlyParam() {
       const param = this.param || {};
       const result = [];
-      Object.keys(this.labels).forEach((key) => {
+      Object.keys(this.labels).forEach(key => {
         result.push({
           label: this.labels[key],
           value:
@@ -337,7 +344,7 @@ export default {
               ? `${param[key]}`.length
                 ? `${this.types[param.type]}=${param[key]}`
                 : this.types[param.type]
-              : param[key]
+              : param[key],
         });
       });
       return result;
@@ -362,7 +369,7 @@ export default {
     },
     dmsInsertError() {
       return this.rules.dmsInsert.typeError || this.rules.dmsInsert.valueError;
-    }
+    },
   },
   watch: {
     show(val) {
@@ -377,7 +384,7 @@ export default {
         this.rules.dmsInsert.typeError = false;
         this.rules.dmsInsert.valueError = false;
       }
-    }
+    },
   },
   methods: {
     handleConfirm() {
@@ -398,7 +405,7 @@ export default {
         default: ['text', 'password'].includes(this.config.default.type)
           ? this.config.default.value.trim()
           : this.config.default.value,
-        description: this.config.description.trim()
+        description: this.config.description.trim(),
       };
       if (this.config.types.type === 'dms_insert') {
         // ['a:1','b:2'] -----> { a: '1', b: '2' }
@@ -462,7 +469,7 @@ export default {
           this.config.description = this.$t('可以从配置平台获取相应主机的字段追加到采集的数据里当成维度');
           this.config.paramName = this.$t('主机维度注入');
           this.validInsertType();
-        }
+        },
       };
       this.fileErrorMsg = '';
       typeMap[type]?.();
@@ -486,7 +493,7 @@ export default {
     validInsertValue(tags) {
       const len = tags.length;
       const keys = [];
-      for (let i = 0; i < len; i ++) {
+      for (let i = 0; i < len; i++) {
         tags[i] = tags[i].replace('：', ':');
         const [key, value] = tags[i].split(':');
         if (key && value) {
@@ -546,8 +553,8 @@ export default {
     },
     handleImportError(msg) {
       this.fileErrorMsg = msg;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

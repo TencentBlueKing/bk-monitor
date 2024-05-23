@@ -115,21 +115,21 @@ export default class IconBtn extends tsc<IProps, IEvents> {
         {this.hasOptions ? (
           <bk-popover
             ref='optionsPopoverRef'
-            trigger='click'
-            placement='bottom-start'
-            theme='dark icon-btn'
             animation='slide-toggle'
             // width={74}
             arrow={false}
-            offset={-1}
             distance={12}
-            onShow={() => this.handleOptionsShow(true)}
+            offset={-1}
+            placement='bottom-start'
+            theme='dark icon-btn'
+            trigger='click'
             onHide={() => this.handleOptionsShow(false)}
+            onShow={() => this.handleOptionsShow(true)}
           >
             {btnTpl}
             <div
-              slot='content'
               class='icon-options-list'
+              slot='content'
             >
               {this.options.map(opt => (
                 <div
@@ -141,8 +141,8 @@ export default class IconBtn extends tsc<IProps, IEvents> {
                 >
                   {!!opt.icon && (
                     <i
-                      class={['icon-monitor', 'option-icon', opt.icon]}
                       style={{ ...opt.style }}
+                      class={['icon-monitor', 'option-icon', opt.icon]}
                     ></i>
                   )}
                   <span>{opt.name}</span>

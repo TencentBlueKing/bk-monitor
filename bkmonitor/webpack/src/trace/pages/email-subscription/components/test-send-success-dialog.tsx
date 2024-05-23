@@ -25,6 +25,7 @@
  */
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Dialog } from 'bkui-vue';
 
 import './test-send-success-dialog.scss';
@@ -49,12 +50,7 @@ export default defineComponent({
   render() {
     return (
       <Dialog
-        isShow={this.modelValue}
-        dialog-type='show'
         ext-cls='test-send-result-dialog'
-        onClosed={() => {
-          this.emit('update:modelValue', false);
-        }}
         v-slots={{
           default: () => {
             return (
@@ -65,13 +61,18 @@ export default defineComponent({
             return (
               <div>
                 <i
-                  class='icon-monitor icon-mc-check-fill'
                   style='color: #2dca56;'
+                  class='icon-monitor icon-mc-check-fill'
                 />
                 <span style='margin-left: 10px;font-weight: bold;'>{this.t('发送测试邮件成功')}</span>
               </div>
             );
           },
+        }}
+        dialog-type='show'
+        isShow={this.modelValue}
+        onClosed={() => {
+          this.emit('update:modelValue', false);
         }}
       ></Dialog>
     );

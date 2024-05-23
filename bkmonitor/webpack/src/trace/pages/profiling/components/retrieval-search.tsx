@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 import { listApplicationServices, queryLabels } from 'monitor-api/modules/apm_profile';
@@ -39,7 +40,6 @@ import {
   SearchType,
   ToolsFormData,
 } from '../typings';
-
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';
 
@@ -73,6 +73,7 @@ export default defineComponent({
       normal: [],
       no_data: [],
     });
+    const applicationListLoading = ref(false);
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: {
@@ -91,14 +92,14 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
     watch(
       () => toolsFormData.value.timeRange,
       () => {
-        getLabelList();
+        // getLabelList();
         getApplicationList();
-      },
+      }
     );
 
     /**
@@ -204,6 +205,7 @@ export default defineComponent({
 
     /** 获取应用/服务列表 */
     async function getApplicationList() {
+      applicationListLoading.value = true;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       applicationList.value = await listApplicationServices({
         start_time: start,
@@ -212,6 +214,7 @@ export default defineComponent({
         normal: [],
         no_data: [],
       }));
+      applicationListLoading.value = false;
     }
 
     /** 查询项公共参数 */
@@ -234,9 +237,12 @@ export default defineComponent({
       localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item => !item.key);
       labelList.value = [];
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
-      const labels = await queryLabels({
-        ...labelCommonParams.value,
-      }).catch(() => ({ label_keys: [] }));
+      const labels = await queryLabels(
+        {
+          ...labelCommonParams.value,
+        },
+        { needMessage: false }
+      ).catch(() => ({ label_keys: [] }));
       labelList.value = labels.label_keys;
     }
 
@@ -250,6 +256,7 @@ export default defineComponent({
     return {
       t,
       applicationList,
+      applicationListLoading,
       localFormData,
       retrievalType,
       labelList,
@@ -287,6 +294,7 @@ export default defineComponent({
                 <div class='content'>
                   <ApplicationCascade
                     list={this.applicationList}
+                    loading={this.applicationListLoading}
                     value={[this.localFormData.server.app_name, this.localFormData.server.service_name]}
                     onChange={this.handleApplicationChange}
                   ></ApplicationCascade>
@@ -303,8 +311,8 @@ export default defineComponent({
                 <div class='content'>
                   <Switcher
                     modelValue={this.localFormData.isComparison}
-                    theme='primary'
                     size='small'
+                    theme='primary'
                     onChange={this.handleComparisonChange}
                   />
                 </div>
@@ -312,9 +320,10 @@ export default defineComponent({
             ]}
 
             <div class='search-panel'>
-              <div class='search-title'>{this.t('查询项')}</div>
+              <div class='search-title'>{this.t('当前查询项')}</div>
               {this.localFormData.where.map((item, index) => (
                 <ConditionItem
+                  key={item.key}
                   class='condition-item'
                   data={item}
                   labelList={this.labelList}
@@ -333,9 +342,10 @@ export default defineComponent({
             </div>
             {this.localFormData.isComparison && (
               <div class='search-panel'>
-                <div class='search-title'>{this.t('对比项')}</div>
+                <div class='search-title'>{this.t('参照查询项')}</div>
                 {this.localFormData.comparisonWhere.map((item, index) => (
                   <ConditionItem
+                    key={item.key}
                     class='condition-item'
                     data={item}
                     labelList={this.labelList}

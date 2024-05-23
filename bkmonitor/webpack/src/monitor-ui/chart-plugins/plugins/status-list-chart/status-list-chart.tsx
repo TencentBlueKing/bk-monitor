@@ -26,6 +26,7 @@
 
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -73,7 +74,7 @@ class StatusListChart extends CommonSimpleChart {
                 ...this.viewOptions,
               },
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(res => {
             this.clearErrorMsg();
@@ -81,7 +82,7 @@ class StatusListChart extends CommonSimpleChart {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item.length)) {
@@ -117,13 +118,13 @@ class StatusListChart extends CommonSimpleChart {
             <div class='item-val-box'>
               {item.items.map(v => (
                 <div
-                  class='item-val'
                   style={{ cursor: v.link ? 'pointer' : '' }}
+                  class='item-val'
                   onClick={() => this.handleJump(v)}
                 >
                   <div
-                    class='dot'
                     style={{ 'background-color': v.color }}
+                    class='dot'
                   ></div>
                   <span>{v.value}</span>
                 </div>
@@ -140,8 +141,8 @@ class StatusListChart extends CommonSimpleChart {
       <div class='status-list-chart'>
         <ChartHeader
           class='draggable-handle'
-          title={this.panel.title}
           metrics={this.metrics}
+          title={this.panel.title}
         />
         {!this.empty ? this.chartContent() : <span class='empty-chart'>{this.emptyText}</span>}
       </div>

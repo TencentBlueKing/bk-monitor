@@ -113,8 +113,7 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     const asideEl = this.bkResizeLayoutRef.$el.querySelector('.bk-resize-layout-aside');
     asideEl.style.height = `${height}px`;
     this.asideHeight = height;
-    // this.handleAfterResize();
-    this.handleAfterResizeImmediately();
+    this.handleAfterResize();
     enableAnimation &&
       setTimeout(() => {
         this.needAnimation = false;
@@ -179,20 +178,11 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
     };
   }
 
-  /* 立即执行 无需防抖 */
-  @Emit('afterResize')
-  handleAfterResizeImmediately() {
-    this.isResizing = false;
-    return {
-      mainHeight: this.mainHeight,
-      asideHeight: this.asideHeight,
-    };
-  }
-
   render() {
     return (
       <bk-resize-layout
         ref='bkResizeLayoutRef'
+        style='height: 100%'
         class={[
           'resize-layout-wrapper',
           this.localPlacement,
@@ -201,20 +191,19 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
             'is-resizing': this.isResizing,
           },
         ]}
-        style='height: 100%'
+        disabled={this.disabled}
+        initial-divide={this.default}
+        max={this.max}
+        min={this.min}
+        placement={this.localPlacement}
         collapsible
         immediate
-        disabled={this.disabled}
-        min={this.min}
-        max={this.max}
-        placement={this.localPlacement}
-        initial-divide={this.default}
+        on-after-resize={this.handleAfterResize}
         onResizing={this.handleResizing}
-        on-after-resize={this.handleAfterResizeImmediately}
       >
         <div
-          slot='collapse-trigger'
           class='toggle-wrap'
+          slot='collapse-trigger'
         >
           {['top', 'bottom'].includes(this.localPlacement) && (
             <span
@@ -227,14 +216,14 @@ export default class MonitorResizeLayout extends tsc<IProps, IEvents> {
           )}
         </div>
         <div
-          slot='main'
           class='resize-main'
+          slot='main'
         >
           {this.$slots.main}
         </div>
         <div
-          slot='aside'
           class='resize-aside'
+          slot='aside'
         >
           {this.$slots.aside}
         </div>

@@ -27,14 +27,13 @@
 import _get from 'lodash/get';
 
 import { TNil } from '../../typings';
-
 import EUpdateTypes from './e-update-types';
 import { DraggableBounds, DraggingUpdate } from './types';
 
 const LEFT_MOUSE_BUTTON = 0;
 
 type DraggableManagerOptions = {
-  getBounds: (tag: string | TNil) => DraggableBounds;
+  getBounds: (tag: TNil | string) => DraggableBounds;
   onMouseEnter?: (update: DraggingUpdate) => void;
   onMouseLeave?: (update: DraggingUpdate) => void;
   onMouseMove?: (update: DraggingUpdate) => void;
@@ -66,10 +65,10 @@ export default class DraggableManager {
    * the range the current drag can span to. It also establishes the left offset
    * to adjust `clientX` by (from the `MouseEvent`s).
    */
-  getBounds: (tag: string | TNil) => DraggableBounds;
+  getBounds: (tag: TNil | string) => DraggableBounds;
 
   // convenience data
-  tag: string | TNil;
+  tag: TNil | string;
 
   // handlers for integration with DOM elements
   handleMouseEnter: (event: MouseEvent) => void;

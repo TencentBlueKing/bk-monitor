@@ -26,6 +26,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getGroupByCount } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 // import { handleTimeRange } from '../../../utils';
@@ -37,7 +38,6 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import FieldFiltering from '../event-retrieval/field-filtering';
 import HandleBtn from '../handle-btn/handle-btn';
 import { EventRetrievalViewType, FieldValue, IDataRetrievalView, IEventRetrieval, IFilterCondition } from '../typings';
-
 import FilterCondition from './filter-condition';
 
 import './event-retrieval.scss';
@@ -300,6 +300,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     this.handleChartTitleChange();
     this.getGroupByList();
     this.emptyStatusChange(this.localValue.result_table_id ? 'search-empty' : 'empty');
+    this.$emit('change', this.localValue);
     // 每次查询若输入框的值与kv列表下钻的值不同则清空下钻查询语句
     if (this.drillKeywords !== this.localValue.query_string) this.handleClearDrillKeywords();
     return deepClone(this.currentGroupByVarPramas);
@@ -451,8 +452,8 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
           <div class='er-from-item'>
             <div class='er-from-item-label'>{this.$t('事件类型')}</div>
             <bk-select
-              clearable={false}
               vModel={this.localValue.eventType}
+              clearable={false}
               onSelected={this.handleChangeEventType}
             >
               {this.eventTypeList.map(item => (
@@ -469,9 +470,9 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
                 {this.$t(this.localValue.eventType === 'custom_event' ? '数据ID' : '采集ID')}
               </div>
               <bk-select
-                clearable={false}
-                vModel={this.localValue.result_table_id}
                 key={JSON.stringify(this.dataIdList)}
+                vModel={this.localValue.result_table_id}
+                clearable={false}
                 onSelected={this.handleInitLocalValue}
               >
                 {this.dataIdList.map(item => (
@@ -492,41 +493,41 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
               ></i>
             </div>
             <bk-input
-              type='textarea'
               class='query-string-input'
               vModel={this.localValue.query_string}
+              type='textarea'
               onBlur={this.handleQueryStringBlur}
               onFocus={this.handleInputFocus}
             />
           </div>
           <div class='er-from-item'>
             <FilterCondition
-              value={this.localValue.where}
               groupBy={this.currentDimensionsList}
+              value={this.localValue.where}
               varParams={this.currentGroupByVarPramas}
               onChange={this.handleConditionChange}
             />
           </div>
           <HandleBtn
             style='padding-top: 8px;'
-            canQuery={true}
-            canFav={Boolean(this.localValue.result_table_id)}
             autoQuery={this.autoQuery}
+            canFav={Boolean(this.localValue.result_table_id)}
+            canQuery={true}
             favCheckedValue={this.favCheckedValue}
             isFavoriteUpdate={this.isFavoriteUpdate}
-            onQueryTypeChange={this.handleAutoQueryChange}
-            onQuery={this.handleEventQuery}
             onAddFav={this.handleAddEventFav}
             onClear={this.handleClearQuery}
+            onQuery={this.handleEventQuery}
+            onQueryTypeChange={this.handleAutoQueryChange}
           />
         </div>
         <FieldFiltering
-          v-bkloading={{ isLoading: this.gourpByLoading }}
           class='field-filtering'
-          value={this.groupByList}
+          v-bkloading={{ isLoading: this.gourpByLoading }}
           total={this.total}
-          onChange={list => (this.groupByList = list)}
+          value={this.groupByList}
           onAddCondition={this.handleAddFilterCondition}
+          onChange={list => (this.groupByList = list)}
         />
         {tipsContentTpl()}
       </div>

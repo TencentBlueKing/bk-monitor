@@ -26,9 +26,10 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { importEventPlugin } from 'monitor-api/modules/event_plugin';
 
-export type ViewType = 'list' | 'card';
+export type ViewType = 'card' | 'list';
 interface ITypeData {
   id: ViewType;
   icon: string;
@@ -105,29 +106,29 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
       <header class='header'>
         <div class='header-left'>
           <bk-button
-            onClick={() => this.handleImport()}
             loading={this.fileLoading}
+            onClick={() => this.handleImport()}
           >
             <span class='import-btn'>
               <span class='icon-monitor icon-xiazai1'></span>
               <span>{this.$t('导入')}</span>
               <input
+                ref='upload'
+                class='file-input'
+                accept='.gz,.tar.gz'
+                type='file'
+                on-change={this.fileChange}
                 onClick={e => {
                   e.stopPropagation();
                 }}
-                class='file-input'
-                type='file'
-                ref='upload'
-                accept='.gz,.tar.gz'
-                on-change={this.fileChange}
               />
             </span>
           </bk-button>
         </div>
         <div class='header-right'>
           <i
-            class='icon-monitor icon-double-up set-filter'
             style={{ display: this.filterWidth > 200 ? 'none' : 'flex' }}
+            class='icon-monitor icon-double-up set-filter'
             on-click={() => this.$emit('set-filter')}
           />
           <div class='type-switch'>
@@ -147,8 +148,8 @@ export default class ContentHeader extends tsc<{ searchValue: string; filterWidt
           </div>
           <bk-input
             class='search'
-            right-icon='bk-icon icon-search'
             placeholder={this.$t('搜索事件源名称、ID、分类、方式、作者、创建人、更新人')}
+            right-icon='bk-icon icon-search'
             value={this.searchValue}
             onChange={this.handleSearchValueChange}
           ></bk-input>

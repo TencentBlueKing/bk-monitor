@@ -40,8 +40,8 @@
           <span
             class="field-text"
             :title="field"
-            >{{ field }}</span
-          >
+            >{{ field }}
+          </span>
         </div>
         <div class="handle-option-list">
           <span
@@ -76,7 +76,7 @@
 <script>
 import _escape from 'lodash/escape';
 import { mapState } from 'vuex';
-import { getTextPxWidth } from '@/common/util';
+import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
 import TextSegmentation from './text-segmentation.tsx';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
@@ -159,7 +159,8 @@ export default {
     },
     /** 获取字段里最大的字段宽度 */
     getMaxWidth() {
-      const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item));
+      // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
+      const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item, '13px', TABLE_FOUNT_FAMILY));
       return Math.max(...fieldWidthList) + 18; // 18是icon的宽度
     },
     hiddenFields() {
@@ -384,9 +385,11 @@ export default {
         display: block;
         width: auto;
         overflow: hidden;
+        font-family: var(--table-fount-family);
+        font-size: var(--table-fount-size);
+        color: var(--table-fount-color);
         word-break: normal;
         word-wrap: break-word;
-        white-space: pre-wrap;
       }
 
       :deep(.icon-ext) {
@@ -459,6 +462,7 @@ export default {
 
   .relation-monitor-btn {
     margin-left: 12px;
+    font-size: 12px;
     color: #3a84ff;
     cursor: pointer;
   }

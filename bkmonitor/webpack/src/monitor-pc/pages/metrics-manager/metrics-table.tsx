@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { secToString } from '../../components/cycle-input/utils';
@@ -33,7 +34,6 @@ import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empt
 import CommonTable from '../monitor-k8s/components/common-table';
 import { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings/table';
 import { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
-
 import MetricDetailSide from './metric-detail-side';
 
 import './metrics-table.scss';
@@ -234,13 +234,13 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
           <ul class='label-menu-list'>
             {this.filterPopover.list.map(item => (
               <li
-                class='item'
                 key={item.checked}
+                class='item'
               >
                 <bk-checkbox
-                  value={item.value}
-                  trueValue={item.checked}
                   falseValue={item.cancel}
+                  trueValue={item.checked}
+                  value={item.value}
                   on-change={() => this.handleCheckTabelHeader(item.checked)}
                 ></bk-checkbox>
                 <span class='name'>{item.name}</span>
@@ -320,8 +320,8 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
     const active = !!this.filterPopover.checkedList.find(item => item.column === id)?.list?.length;
     return (
       <span
-        onClick={e => handleShow(e)}
         class={['custom-label', { active }]}
+        onClick={e => handleShow(e)}
       >
         {names[id]}
         <i class='icon-monitor icon-filter-fill'></i>
@@ -437,22 +437,22 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
             <bk-input
               class='metric-input'
               v-model={this.filter.metric_id}
-              clearable
               placeholder={window.i18n.t('输入指标id搜索')}
               rightIcon={'bk-icon icon-search'}
+              clearable
               on-change={this.handleConditionChange}
             >
               <div
-                slot='prepend'
                 class='group-text'
+                slot='prepend'
               >
                 {window.i18n.t('指标')}
               </div>
             </bk-input>
             <bk-input
               v-model={this.filter.query}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('输入')}
+              right-icon='bk-icon icon-search'
               clearable
               on-change={this.handleConditionChange}
             ></bk-input>
@@ -460,10 +460,6 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
         )}
         <div class={['content', { 'show-search': this.showSearch }]}>
           <CommonTable
-            columns={this.columns}
-            data={this.tableData}
-            pagination={this.pagination}
-            checkable={false}
             scopedSlots={{
               metricName: row => {
                 const name = (() => {
@@ -509,21 +505,25 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
                 </bk-button>,
               ],
             }}
-            onPageChange={this.handlePageChange}
-            onLimitChange={this.handleLimitChange}
+            checkable={false}
+            columns={this.columns}
+            data={this.tableData}
+            pagination={this.pagination}
             onColumnSettingChange={this.handleColumnSettingChange}
+            onLimitChange={this.handleLimitChange}
+            onPageChange={this.handlePageChange}
           >
             <EmptyStatus
-              type={this.emptyStatusType}
               slot='empty'
+              type={this.emptyStatusType}
               onOperation={this.handleOperation}
             />
           </CommonTable>
         </div>
         {this.getLabelMenu()}
         <MetricDetailSide
-          show={this.details.show}
           detail={this.details.data}
+          show={this.details.show}
           onShowChange={(v: boolean) => (this.details.show = v)}
         ></MetricDetailSide>
       </div>

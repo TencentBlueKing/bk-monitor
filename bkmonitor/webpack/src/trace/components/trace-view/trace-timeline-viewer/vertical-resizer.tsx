@@ -148,14 +148,14 @@ export default defineComponent({
         ]}
       >
         <div
-          class='vertical-resizer-gripIcon'
           style={gripStyle}
+          class='vertical-resizer-gripIcon'
         />
         <div
-          aria-hidden
-          class='vertical-resizer-dragger'
-          onMousedown={this.dragManager.handleMouseDown}
           style={draggerStyle}
+          class='vertical-resizer-dragger'
+          aria-hidden
+          onMousedown={this.dragManager.handleMouseDown}
         />
       </div>
     );

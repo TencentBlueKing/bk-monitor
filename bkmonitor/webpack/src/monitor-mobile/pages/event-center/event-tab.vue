@@ -26,8 +26,8 @@
 <template>
   <div class="event-tab">
     <van-tabs
-      :value="value"
       :class="'event-tab-' + tabList.length"
+      :value="value"
       @change="handleChangeTab"
     >
       <van-tab
@@ -40,9 +40,11 @@
               {{ item.count ? (item.shortTitle ? item.shortTitle : item.title) : item.title }}
             </span>
             <span
-              v-show="item.count"
               class="count"
-            >{{ handleCount(item.count) }}</span>
+              v-show="item.count"
+            >
+              {{ handleCount(item.count) }}
+            </span>
           </div>
         </template>
       </van-tab>
@@ -51,6 +53,7 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
+
 import { Tab, Tabs } from 'vant';
 
 import { ITabItem } from './event-center.vue';
@@ -59,8 +62,8 @@ import { ITabItem } from './event-center.vue';
   name: 'event-tab',
   components: {
     [Tab.name]: Tab,
-    [Tabs.name]: Tabs
-  }
+    [Tabs.name]: Tabs,
+  },
 })
 export default class EventTab extends Vue {
   // tab的配置

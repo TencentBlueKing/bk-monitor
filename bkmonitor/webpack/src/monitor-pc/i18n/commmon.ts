@@ -63,7 +63,7 @@ export function compareJson(
   a: Record<string, string>,
   b: Record<string, string>,
   needLogChange = false,
-  needAddLable = false,
+  needAddLable = false
 ) {
   Object.keys(a).forEach(key => {
     if (!b[key]) {
@@ -112,7 +112,7 @@ function mergeJson<T extends keyof MonitorLang>(data: Record<string, string>, it
     return res;
   }, data);
 }
-
+type MonitorLangDataType = typeof MonitorLangData;
 /**
  * @description 合并所有翻译文件
  * @returns {Record<string, Record<string, string>>} 合并后的翻译文件
@@ -135,7 +135,7 @@ export function mergeI18nJson() {
     zhCN: Object.keys(data).reduce((res, key) => {
       res[key] = key.replace(reg, '');
       return res;
-    }, {}) as typeof MonitorLangData,
-    enUS: data as typeof MonitorLangData,
+    }, {}) as MonitorLangDataType[keyof MonitorLangDataType],
+    enUS: data as MonitorLangDataType[keyof MonitorLangDataType],
   };
 }

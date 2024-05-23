@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, getCurrentInstance, inject, onBeforeUnmount, PropType, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { bkTooltips } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
@@ -134,7 +135,7 @@ export default defineComponent({
     // 图例数据
     const legendData = ref<ILegendItem[]>([]);
     // 撤销api请求tokens func
-    let cancelTokens: Function[] = [];
+    let cancelTokens: (() => void)[] = [];
     // 自动粒度降采样
     const downSampleRange = 'auto';
     const startTime = inject<Ref>('startTime') || ref('');
@@ -148,6 +149,12 @@ export default defineComponent({
       .add(1, 'hour')
       .format('YYYY-MM-DD HH:mm:ss');
     const spanDetailActiveTab = inject<Ref>('SpanDetailActiveTab') || ref('');
+    // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
+    const enableSelectionRestoreAll = inject<Ref<boolean>>('enableSelectionRestoreAll') || ref(false);
+    const handleChartDataZoom = inject<(value: any) => void>('handleChartDataZoom') || (() => null);
+    const handleRestoreEvent = inject<() => void>('handleRestoreEvent') || (() => null);
+    const showRestore = inject<Ref>('showRestore') || ref(false);
+
     // 主机标签页需要特殊处理：因为这里的开始\结束时间是从当前 span 数据的开始时间（-1小时）和结束时间（+1小时）去进行提交、而非直接 inject 时间选择器的时间区间。
     /**
      * 20230807 注意：目前能打开主机标签页的方式有以下两种方式。
@@ -307,7 +314,7 @@ export default defineComponent({
         const precision = handleGetMinPrecision(
           item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
           unitFormatter,
-          item.unit,
+          item.unit
         );
         return {
           ...item,
@@ -335,7 +342,7 @@ export default defineComponent({
       const lastItem = seriesData[seriesData.length - 1];
       const val = new Date('2010-01-01').getTime();
       const getXVal = (timeVal: any) => {
-        if (!val) return val;
+        if (!timeVal) return timeVal;
         return timeVal[0] > val ? timeVal[0] : timeVal[1];
       };
       const minX = Array.isArray(firstItem) ? getXVal(firstItem) : getXVal(firstItem?.value);
@@ -424,10 +431,11 @@ export default defineComponent({
       return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
     }
     function dataZoom(startTime: string, endTime: string) {
-      // this.isCustomTimeRange
-      //   ? this.$emit('dataZoom', startTime, endTime)
-      //   : this.getPanelData(startTime, endTime);
-      getPanelData(startTime, endTime);
+      if (enableSelectionRestoreAll.value) {
+        handleChartDataZoom([startTime, endTime]);
+      } else {
+        getPanelData(startTime, endTime);
+      }
     }
     /** 处理点击左侧响铃图标 跳转策略的逻辑 */
     function handleAlarmClick(alarmStatus: ITitleAlarm) {
@@ -445,8 +453,8 @@ export default defineComponent({
               location.hash,
               `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${
                 timeRange?.value[0]
-              }&to=${timeRange?.value[1]}`,
-            ),
+              }&to=${timeRange?.value[1]}`
+            )
           );
           break;
       }
@@ -462,7 +470,7 @@ export default defineComponent({
         registerObserver(start_time, end_time);
         return;
       }
-      emit('loading', true);
+      if (inited.value) emit('loading', true);
       emptyText.value = t('加载中...');
       try {
         unregisterOberver();
@@ -478,7 +486,7 @@ export default defineComponent({
         const interval = reviewInterval(
           viewOptions!.value.interval || 0,
           params.end_time - params.start_time,
-          props.panel!.collect_interval,
+          props.panel!.collect_interval
         );
         const variablesService = new VariablesService({
           ...viewOptions?.value,
@@ -500,14 +508,14 @@ export default defineComponent({
                 down_sample_range: downSampleRangeComputed(
                   downSampleRange,
                   [params.start_time, params.end_time],
-                  item.apiFunc,
+                  item.apiFunc
                 ),
               };
 
               if (!item.apiModule) return;
               return currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
                 [item.apiFunc](newPrarams, {
-                  cancelToken: new CancelToken((cb: Function) => cancelTokens.push(cb)),
+                  cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
                   needMessage: false,
                 })
                 .then((res: { metrics: any; series: any[] }) => {
@@ -524,7 +532,7 @@ export default defineComponent({
                           ? `${handleTransformTimeShift((time_shift as string) || 'current')}-`
                           : ''
                       }${handleSeriesName(item, set) || set.target}`,
-                    })),
+                    }))
                   );
                   handleClearErrorMsg();
                   return true;
@@ -556,7 +564,7 @@ export default defineComponent({
               unit: item.unit,
               z: 1,
               traceData: item.trace_data ?? '',
-            })) as any,
+            })) as any
           );
           seriesList = seriesList.map((item: any) => ({
             ...item,
@@ -602,7 +610,7 @@ export default defineComponent({
           const echartOptions = deepmerge(
             deepClone(chartBaseOptions),
             props.panel?.options?.time_series?.echart_option || {},
-            { arrayMerge: (_, newArr) => newArr },
+            { arrayMerge: (_, newArr) => newArr }
           );
           options.value = Object.freeze(
             deepmerge(echartOptions, {
@@ -636,7 +644,7 @@ export default defineComponent({
               },
               series: seriesList,
               tooltip: props.customTooltip ?? {},
-            }),
+            })
           );
           metrics.value = metricList || [];
           // this.handleDrillDownOption(this.metrics);
@@ -665,7 +673,7 @@ export default defineComponent({
       (v, o) => {
         if (v && o && isShadowEqual(v, o)) return;
         getPanelData();
-      },
+      }
     );
     // 监听上层注入
     const unWathChartData = useCommonChartWatch(getPanelData);
@@ -674,12 +682,12 @@ export default defineComponent({
       timeSeriesRef as Ref<HTMLDivElement>,
       chartWrapperRef as Ref<HTMLDivElement>,
       width,
-      height,
+      height
     );
     // 监听是否在可视窗口内
     const { isInViewPort, registerObserver, unregisterOberver, intersectionObserver } = useChartIntersection(
       timeSeriesRef! as Ref<HTMLDivElement>,
-      getPanelData,
+      getPanelData
     );
     // 通用图表图例设置
     const useLegendRet = useChartLegend(baseChartRef, isInHover, legendData);
@@ -732,6 +740,13 @@ export default defineComponent({
     function handleClearErrorMsg() {
       props.isUseAlone ? (errorMsg.value = '') : props.clearErrorMsg();
     }
+    function handleRestore() {
+      if (!!enableSelectionRestoreAll.value) {
+        handleRestoreEvent();
+      } else {
+        dataZoom(undefined, undefined);
+      }
+    }
     return {
       ...unWathChartData,
       ...useLegendRet,
@@ -765,6 +780,7 @@ export default defineComponent({
       viewOptions,
       options,
       t,
+      showRestore,
       downSampleRangeComputed,
       handleTransformTimeShift,
       handleTimeOffset,
@@ -778,6 +794,7 @@ export default defineComponent({
       handleMenuClick,
       handleMetricClick,
       handleDblClick,
+      handleRestore,
     };
   },
   render() {
@@ -785,26 +802,26 @@ export default defineComponent({
     return (
       <div
         ref='timeSeriesRef'
+        class='time-series'
         onMouseenter={() => (this.isInHover = true)}
         onMouseleave={() => (this.isInHover = false)}
-        class='time-series'
       >
         {this.showChartHeader && this.panel && (
           <ChartTitle
             class='draggable-handle'
-            title={this.panel.title}
-            showMore={this.isInHover}
-            menuList={this.menuList}
-            drillDownOption={this.drillDownOptions}
-            showAddMetric={this.showAddMetric}
             draging={this.panel.draging}
-            metrics={this.metrics}
-            subtitle={this.panel.subTitle || ''}
+            drillDownOption={this.drillDownOptions}
             isInstant={this.panel.instant}
-            onMenuClick={this.handleMenuClick}
+            menuList={this.menuList}
+            metrics={this.metrics}
+            showAddMetric={this.showAddMetric}
+            showMore={this.isInHover}
+            subtitle={this.panel.subTitle || ''}
+            title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
-            onMetricClick={this.handleMetricClick}
             onAllMetricClick={this.handleMetricClick}
+            onMenuClick={this.handleMenuClick}
+            onMetricClick={this.handleMetricClick}
             onSelectChild={({ child }) => this.handleMenuClick(child)}
             onUpdateDragging={() => this.panel?.updateDraging(false)}
           />
@@ -812,18 +829,19 @@ export default defineComponent({
         {!this.empty ? (
           <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
-              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
               ref='chartWrapperRef'
+              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChartRef'
-                  height={this.height}
                   width={this.width}
-                  options={this.options}
                   groupId={this.panel!.dashboardId}
-                  onDataZoom={this.getPanelData}
+                  options={this.options}
+                  showRestore={this.showRestore}
+                  onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
+                  onRestore={this.handleRestore}
                 />
               )}
             </div>
@@ -831,13 +849,13 @@ export default defineComponent({
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
                 {legend?.displayMode === 'table' ? (
                   <TableLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 ) : (
                   <CommonLegend
-                    onSelectLegend={this.handleSelectLegend}
                     legendData={this.legendData}
+                    onSelectLegend={this.handleSelectLegend}
                   />
                 )}
               </div>

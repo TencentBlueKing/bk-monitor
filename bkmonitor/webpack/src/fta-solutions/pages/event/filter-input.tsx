@@ -27,19 +27,19 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { getEventPaths } from 'monitor-pc/utils';
 
 import debounceDecorator from '../../common/debounce-decorator';
 import EventModuleStore from '../../store/modules/event';
-
 import { FilterInputStatus, ICommonItem, SearchType } from './typings/event';
 
 import './filter-input.scss';
 
-type PanelType = 'history' | 'field' | 'favorite';
-type PanelShowType = false | 'method' | 'field' | 'condition' | 'value';
+type PanelType = 'favorite' | 'field' | 'history';
+type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
 interface IFocusData {
   show?: PanelShowType;
   replaceStart?: number;
@@ -95,7 +95,7 @@ class FilterText {
     public text: string,
     public startOffset: number,
     public dataType: string,
-    separator?: string,
+    separator?: string
   ) {
     this.endOffset = startOffset + text.length;
     this.separator = separator || ' ';
@@ -506,7 +506,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       }
       this.handleReplaceInputValue(
         item.special ? `${item.id}.` : `${item.name.toString()} : `,
-        item.special ? '' : ' ',
+        item.special ? '' : ' '
       );
     } else if (id === 'history') {
       this.inputValue = String(item.name);
@@ -594,7 +594,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
           } else {
             const list = this[`${filterItem.dataType}List`] as IListItem[];
             const item = list.find(
-              item => item.id.trim() === filterItem.text || item.name.toString().trim() === filterItem.text,
+              item => item.id.trim() === filterItem.text || item.name.toString().trim() === filterItem.text
             );
             if (item) {
               resolve({
@@ -1047,7 +1047,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       <ul class='panel-list'>
         {list.map((item, index) => (
           <li
-            onMousedown={e => !item.edit && this.handleSelectPanelItem(e, id, item)}
+            key={item.id}
             class={[
               'panel-list-item',
               {
@@ -1057,7 +1057,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
                   (item.id === this.focusData.nextText || item.name === this.focusData.nextText),
               },
             ]}
-            key={item.id}
+            onMousedown={e => !item.edit && this.handleSelectPanelItem(e, id, item)}
           >
             {!item.edit && <span>{item.name}</span>}
             {id === 'field' && !item.edit && !this.isEn && <span class='item-id'>({item.id})</span>}
@@ -1077,9 +1077,9 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
                 <bk-input
                   ref={`favorite-input-${item.id}`}
                   class='favorite-input'
-                  type='text'
                   v-model={item.fakeName}
                   placeholder={this.$t('输入收藏名称')}
+                  type='text'
                   on-blur={e => this.handleFavoriteInputBlur(e, item)}
                 />,
                 <i
@@ -1096,30 +1096,30 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       </ul>
     );
   }
-  panelEmptyComponent(content?: string | TranslateResult) {
+  panelEmptyComponent(content?: TranslateResult | string) {
     return <div class='panel-empty'>{content || this.$t('暂无数据')}</div>;
   }
   render() {
     return (
       <div
-        class='filter-input-wrap'
         ref='filterSearch'
+        class='filter-input-wrap'
       >
         <div
-          class='filter-search'
           style={{ borderColor: this.inputStatus === 'error' ? '#ff5656' : '#c4c6cc' }}
+          class='filter-search'
         >
           <i class='icon-monitor icon-filter-fill filter-icon' />
           <input
             ref='input'
             class='search-input'
-            spellcheck={false}
-            placeholder={String(this.$t('输入搜索条件'))}
-            onMousedown={this.handleInputFocus}
-            onInput={this.handleInput}
-            onBlur={this.handleBlur}
-            onKeydown={this.handleKeydown}
             v-model={this.inputValue}
+            placeholder={String(this.$t('输入搜索条件'))}
+            spellcheck={false}
+            onBlur={this.handleBlur}
+            onInput={this.handleInput}
+            onKeydown={this.handleKeydown}
+            onMousedown={this.handleInputFocus}
           ></input>
           <span
             ref='preText'
@@ -1128,8 +1128,8 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             {this.inputValue.slice(0, this.focusData.replaceStart)}
           </span>
           <i
-            class='icon-monitor icon-mc-close-fill filter-clear'
             style={{ display: this.inputValue?.trim().length ? 'flex' : 'none' }}
+            class='icon-monitor icon-mc-close-fill filter-clear'
             v-bk-tooltips={this.$t('清空搜索条件')}
             onMousedown={this.handleClear}
           />
@@ -1144,9 +1144,9 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         </span>
         <div style='display: none;'>
           <div
-            class='filter-input-panel'
             ref='filterPanel'
             style={{ width: `${this.panelWidth}px` }}
+            class='filter-input-panel'
           >
             <div class='field-panel common-panel'>
               <div class='panel-title'>{this.$t('建议字段')}</div>
@@ -1168,8 +1168,8 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         </div>
         <div style='display: none;'>
           <ul
-            class='condition-list'
             ref='menuPanel'
+            class='condition-list'
           >
             {this.menuList.length
               ? this.menuList.map(item => (

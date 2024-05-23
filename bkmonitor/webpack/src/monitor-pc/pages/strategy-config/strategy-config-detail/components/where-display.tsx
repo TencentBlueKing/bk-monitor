@@ -26,6 +26,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getVariableValue } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils/utils';
 
@@ -52,7 +53,7 @@ export default class WhereDisplay extends tsc<IProps> {
   @Prop({ type: Object }) metric: MetricDetail;
 
   /** 维度名 */
-  whereNameMap: Map<string | number, string | TranslateResult> = new Map();
+  whereNameMap: Map<number | string, TranslateResult | string> = new Map();
 
   /** 方法名 */
   methodNameMap: Map<string, string> = new Map();
@@ -91,14 +92,14 @@ export default class WhereDisplay extends tsc<IProps> {
               ? {
                   index_set_id,
                 }
-              : {},
+              : {}
           ),
           type: 'dimension',
         };
         return getVariableValue(params).then(res => {
           this.whereValueMap.set(
             item.key,
-            res.map(set => ({ id: set.label, name: set.value })),
+            res.map(set => ({ id: set.label, name: set.value }))
           );
         });
       });
@@ -135,8 +136,8 @@ export default class WhereDisplay extends tsc<IProps> {
             >{` ${this.whereNameMap.get(item.key) || item.key} `}</span>
             <span class='where-method'>{` ${this.methodNameMap.get(item.method) || item.method} `}</span>
             <span
-              class='where-content'
               key={this.valueKey}
+              class='where-content'
             >
               {this.handleValue(item.value, item.key)}
             </span>

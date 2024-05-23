@@ -31,8 +31,8 @@ import SelectMenu from '../../../components/select-menu';
 import './threshold-select.scss';
 
 export interface IItem {
-  id: string | number;
-  name: string | number;
+  id: number | string;
+  name: number | string;
 }
 
 export interface ILocalValueItem {
@@ -197,8 +197,8 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
     return (
       <div class={['threshold-select-wrap', { 'is-readonly': this.readonly }]}>
         <span
-          class='desc-text'
           style='margin-right: 8px;'
+          class='desc-text'
         >
           {this.label}
         </span>
@@ -206,10 +206,10 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
           if (item.condition) {
             return (
               <span
-                style={`display: ${!index && 'none;'}`}
                 key={`condition-${index}`}
-                class='condition active'
                 ref={`condition-${index}`}
+                style={`display: ${!index && 'none;'}`}
+                class='condition active'
                 onClick={() => this.handleShowSelect(`condition-${index}`, index, item.index)}
               >
                 {this.conditionNameDisplsy(item.condition.condition)}
@@ -239,12 +239,12 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
                       'has-unit-larger': this.unit.length > 2,
                     },
                   ]}
-                  behavior='simplicity'
-                  readonly={this.readonly}
-                  onInput={this.emitLocalChange}
                   // style="width: 78px"
                   v-model={item.value.value}
+                  behavior='simplicity'
+                  readonly={this.readonly}
                   type='number'
+                  onInput={this.emitLocalChange}
                 >
                   <template slot='append'>
                     <div class='right-unit'>{this.unit}</div>
@@ -262,18 +262,18 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
         )}
         {this.isChinese ? (
           <span
-            class='desc-text'
             style='margin-left: 8px;'
+            class='desc-text'
           >
             时触发告警
           </span>
         ) : undefined}
         <SelectMenu
-          show={this.showSelectMenu}
-          target={this.curSelectTarget}
           list={this.menuList}
           min-width={60}
           need-delete={this.needDelete}
+          show={this.showSelectMenu}
+          target={this.curSelectTarget}
           {...{
             on: {
               'on-delete': this.handleMenuDelete,

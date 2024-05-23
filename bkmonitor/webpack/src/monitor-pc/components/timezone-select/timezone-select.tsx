@@ -69,16 +69,16 @@ export default class TimezoneSelect extends tsc<IProps> {
   render() {
     return (
       <bk-select
+        class='time-select-component'
         v-model={this.localValue}
         ext-popover-cls={'timezone-select-component-pop'}
-        class='time-select-component'
         searchable
         onSelected={this.handleSelected}
         onToggle={this.handleToggle}
       >
         <div
-          slot='trigger'
           class='input-wrap'
+          slot='trigger'
         >
           <div class='left'>
             {!!this.curInfo.name ? (
@@ -96,8 +96,8 @@ export default class TimezoneSelect extends tsc<IProps> {
         </div>
         {timezoneList.map(item => (
           <bk-option
-            key={item.name}
             id={item.name}
+            key={item.name}
             name={item.name}
           >
             <span class='timezone-option'>

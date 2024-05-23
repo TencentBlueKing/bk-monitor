@@ -31,7 +31,7 @@ import './operate-options.scss';
 
 export interface IOperateOption {
   id: string;
-  name?: string | TranslateResult;
+  name?: TranslateResult | string;
   authority?: boolean;
   disable?: boolean;
   authorityDetail?: string;
@@ -102,11 +102,11 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
             }}
           >
             <bk-button
-              text
-              theme='primary'
               class='options-item'
               v-authority={{ active: !item.authority }}
               disabled={Boolean(item.disable)}
+              theme='primary'
+              text
               on-click={() =>
                 item.authority ? this.handleOptionClick(item.id) : this.handleShowAuthorityDetail(item.authorityDetail)
               }
@@ -126,8 +126,8 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
         ) : undefined}
         <div style={{ display: 'none' }}>
           <div
-            class='table-operate-options-component-more-items'
             ref='moreItems'
+            class='table-operate-options-component-more-items'
           >
             {this.options?.popover?.map(item => (
               <span

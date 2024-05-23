@@ -44,20 +44,20 @@
 export default {
   model: {
     prop: 'value',
-    event: 'change'
+    event: 'change',
   },
   props: {
     value: {
       type: Number,
-      default: 25
+      default: 25,
     },
     list: {
       type: Array,
       default() {
         return [0, 25, 50, 75, 100];
-      }
-    }
-  }
+      },
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

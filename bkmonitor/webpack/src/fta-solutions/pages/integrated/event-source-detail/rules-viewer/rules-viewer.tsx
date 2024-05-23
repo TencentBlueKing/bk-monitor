@@ -114,11 +114,11 @@ export default class RulesViewer extends tsc<IRules> {
       <span class='rules-viewer-wrap'>
         {this.localValue.map(item => (
           <span
-            class={['tag', item.type]}
             style={{
               color: this.aggConditionColorMap[item.value],
               'font-weight': this.aggConditionFontMap[item.value],
             }}
+            class={['tag', item.type]}
           >
             {item.type === 'value' ? item.value.join(', ') : item.value}
           </span>

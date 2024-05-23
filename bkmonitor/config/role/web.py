@@ -314,6 +314,11 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/5"),
         "enabled": True,
     },
+    "monitor_web.tasks.update_uptime_check_task_status": {
+        "task": "monitor_web.tasks.update_uptime_check_task_status",
+        "schedule": crontab(minute="*/10"),
+        "enabled": True,
+    },
     "monitor_web.tasks.update_aiops_dataflow_status": {
         "task": "monitor_web.tasks.update_aiops_dataflow_status",
         "schedule": crontab(minute="*/10"),

@@ -45,7 +45,7 @@ export function validateQuery(
   query: string,
   interpolatedQuery: string,
   queryLines: string[],
-  parser: LRParser,
+  parser: LRParser
 ): ParserErrorBoundary[] | false {
   if (!query) {
     return false;
@@ -61,7 +61,7 @@ export function validateQuery(
     const queryErrors: ParseError[] = parseQuery(query, parser);
     parseErrors = interpolatedErrors.flatMap(
       interpolatedError =>
-        queryErrors.filter(queryError => interpolatedError.text === queryError.text) || interpolatedError,
+        queryErrors.filter(queryError => interpolatedError.text === queryError.text) || interpolatedError
     );
   }
 

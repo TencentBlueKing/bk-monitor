@@ -178,10 +178,10 @@ export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
     return (
       <div class='auto-input-component-setting'>
         <bk-input
-          v-model={this.params}
-          type='text'
           ref='input'
+          v-model={this.params}
           behavior={'simplicity'}
+          type='text'
           on-input={this.handleInput}
         ></bk-input>
         <div style={{ display: 'none' }}>
@@ -191,13 +191,13 @@ export default class AutoInput extends tsc<IAutoInput, IAutoInputEvent> {
           >
             {this.tipsData.map((item, index) => (
               <li
-                class='list-item'
-                on-mousedown={() => this.handleMousedown(item)}
                 key={item.id + index}
                 style={{
                   display: !this.params || item.id.includes(this.keyword) ? 'flex' : 'none',
                   position: 'relative',
                 }}
+                class='list-item'
+                on-mousedown={() => this.handleMousedown(item)}
               >
                 {item.id}
                 <span class='item-desc'>{item.name}</span>

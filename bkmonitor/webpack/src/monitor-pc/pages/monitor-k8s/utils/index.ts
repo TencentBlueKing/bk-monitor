@@ -107,7 +107,7 @@ export const handleCheckVarWhere = (sourceData: VarWhereMap): boolean => {
  * @param {IWhere} where 条件
  * @param {Map} dataMap 变量替换的映射表
  */
-export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, string[] | string>) => {
+export const handleReplaceWhereVar = (where: IWhere[], dataMap: Map<string, string | string[]>) => {
   const result = where
     .filter(item => !!item.value.length)
     .map(item => {
@@ -180,9 +180,9 @@ export const handleReplaceVarData = (data: Record<string, any>, map: Map<string,
 export const transformConditionValueParams = (condition: IBkSeachSelectValue[]): IQueryDataSearch =>
   condition.map(item => {
     const key = item.values ? item.id : 'keyword';
-    const vlaue = item.values ? (item.multiable ? item.values.map(val => val.id) : item.values[0]?.id) : item.id;
+    const value = item.values ? (item.multiple ? item.values.map(val => val.id) : item.values[0]?.id) : item.id;
     return {
-      [key]: vlaue,
+      [key]: value,
     };
   });
 /**
@@ -204,7 +204,7 @@ export const transformQueryDataSearch = (search: IQueryDataSearch): IBkSeachSele
     return {
       id: key,
       name: key,
-      multiable: Array.isArray(value) && key !== 'keyword',
+      multiple: Array.isArray(value) && key !== 'keyword',
       values:
         typeof value === 'string'
           ? [{ id: value, name: value }]
@@ -228,13 +228,13 @@ export const updateBkSearchSelectName = (
   conditionList: IBkSeachSelectValue[],
   searchList: IBkSeachSelectValue[],
   needFilter = false,
-  excludesKeyword = false,
+  excludesKeyword = false
 ): IBkSeachSelectValue[] => {
   const localSearchList = deepClone(searchList);
   const res = localSearchList.reduce((total: IBkSeachSelectValue[], item) => {
     const target = conditionList.find(tar => tar.id === item.id);
     if (target) {
-      const childList = target.chidlren || [];
+      const childList = target.children || [];
       item.name = target.name;
       item.values = item.values.map(val => {
         const childTarget = childList.find(child => child.id === val.id);
@@ -253,6 +253,20 @@ export const updateBkSearchSelectName = (
 };
 
 /**
+ * 转换成search-select的数据结构
+ * @param conditionList 需要转换的数据
+ * @returns search-select组件的数据结构
+ */
+export const transformConditionSearchList = conditionList => {
+  return conditionList.map(item => {
+    if (item.children?.length) {
+      item.children = transformConditionSearchList(item.children);
+    }
+    return { ...item, multiple: item.multiable === undefined ? item.multiple : item.multiable };
+  });
+};
+
+/**
  * 处理视图部分左侧栏搜索组件bk-search-select 过滤已选得条件
  * @param conditionList 可选项
  * @param searchList 已选中的值
@@ -265,7 +279,7 @@ export const filterSelectorPanelSearchList = (conditionList, searchList) =>
       isShow = !searchList.find(set => set.id === item.id && !!set.values);
     } else if (item.children.length > 1) {
       item.children = item.children.filter(
-        child => !searchList.some(set => set.values?.some?.(val => val.id === child.id) ?? true),
+        child => !searchList.some(set => set.values?.some?.(val => val.id === child.id) ?? true)
       );
       if (!item.children.length) isShow = false;
     }

@@ -126,7 +126,7 @@
                 margin: 0 10px;
                 font-size: 20px;
                 color: #979ba5;
-                transition: .3s transform;
+                transition: 0.3s transform;
                 transform: rotate(-90deg);
 
                 &.expan {
@@ -248,6 +248,10 @@
     .app-list-search {
       width: 426px;
       background: #fff;
+    }
+
+    .bk-loading {
+      z-index: 9999;
     }
   }
 

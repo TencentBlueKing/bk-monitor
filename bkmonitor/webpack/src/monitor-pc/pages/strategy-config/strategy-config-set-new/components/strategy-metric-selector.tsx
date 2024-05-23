@@ -27,7 +27,6 @@ import { Component, Emit, Prop, PropSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { IScenarioItem, MetricDetail, MetricType, strategyType } from '../typings/index';
-
 import StrategyMetricAlert from './strategy-metric-alert';
 import StrategyMetricCommon from './strategy-metric-common-new';
 import StrategyMetricWrap, { TMode } from './strategy-metric-wrap';
@@ -98,41 +97,41 @@ export default class StrategyMetricSelector extends tsc<IStrategyMetricSelectorP
       <div>
         <StrategyMetricCommon
           isShow={this.isShow && this.type === MetricType.TimeSeries}
-          scenarioList={this.scenarioList}
-          monitorType={this.monitorTypeSync}
+          maxLength={this.maxLength}
           metricData={this.metricData}
+          monitorType={this.monitorTypeSync}
           multiple={this.multiple}
           readonly={this.readonly}
-          maxLength={this.maxLength}
+          scenarioList={this.scenarioList}
+          on-add={this.emitMetricValue}
+          on-hide-dialog={this.emitShowChange}
           on-scenariotype={this.emitScenarioType}
           on-show-change={this.emitShowChange}
-          on-hide-dialog={this.emitShowChange}
-          on-add={this.emitMetricValue}
         ></StrategyMetricCommon>
         {['event', 'log'].includes(this.type) && (
           <StrategyMetricWrap
+            checkedMetric={this.metricData}
+            isEdit={this.isEdit}
             isShow={this.isShow}
             mode={this.type as TMode}
-            scenarioList={this.scenarioList}
-            checkedMetric={this.metricData}
             monitorType={this.monitorTypeSync}
-            isEdit={this.isEdit}
             readonly={this.readonly}
+            scenarioList={this.scenarioList}
             strategyType={this.strategyType}
             onLeftSelect={this.emitScenarioType}
-            onShowChange={this.emitShowChange}
             onSelected={v => this.emitMetricValue(v[0])}
+            onShowChange={this.emitShowChange}
           ></StrategyMetricWrap>
         )}
         {this.type === 'alert' && (
           <StrategyMetricAlert
             isShow={this.isShow && this.type === 'alert'}
-            scenarioList={this.scenarioList}
-            monitorType={this.monitorTypeSync}
             metricData={this.metricData}
-            onShowChange={this.emitShowChange}
-            onSelected={this.emitMetricValue}
+            monitorType={this.monitorTypeSync}
+            scenarioList={this.scenarioList}
             onScenarioChange={this.emitScenarioType}
+            onSelected={this.emitMetricValue}
+            onShowChange={this.emitShowChange}
           ></StrategyMetricAlert>
         )}
       </div>

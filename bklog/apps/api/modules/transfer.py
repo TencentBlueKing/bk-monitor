@@ -403,6 +403,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("查询置顶空间实例列表"),
             before_request=add_esb_info_before_request,
+            cache_time=60,
         )
         self.create_log_group = DataAPI(
             method="POST",

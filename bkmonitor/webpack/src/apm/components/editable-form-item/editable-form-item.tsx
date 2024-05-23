@@ -27,6 +27,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { copyText } from 'monitor-common/utils/utils';
 
 import ExpiredSelect from '../../components/expired-select/expired-select';
@@ -37,7 +38,7 @@ import './editable-form-item.scss';
 
 interface IEditableFormItemProps {
   value: any;
-  label?: string | TranslateResult;
+  label?: TranslateResult | string;
   selectEditValue?: any; // 下拉编辑选值
   selectEditOption?: Array<object>; // 下拉编辑options
   formType?: IFormType; // 表单类型
@@ -45,7 +46,7 @@ interface IEditableFormItemProps {
   showEditable?: boolean; // 是否显示编辑icon
   showLabel?: boolean; // 是否显示label
   validator?: any; // 检验规则
-  tooltips?: string | TranslateResult; // tooltip提示内容
+  tooltips?: TranslateResult | string; // tooltip提示内容
   maxExpired?: number; // 过期时间最大限制
   selectList?: Array<object>; // select类型下拉 options
   unitList?: IUnitItme[]; // 单位列表
@@ -61,7 +62,7 @@ interface IEditableFormItemEvent {
   onUpdateValue: string;
 }
 
-type IFormType = 'input' | 'select' | 'unit' | 'switch' | 'tag' | 'password' | 'expired' | 'selectEdit';
+type IFormType = 'expired' | 'input' | 'password' | 'select' | 'selectEdit' | 'switch' | 'tag' | 'unit';
 
 @Component
 export default class EditableFormItem extends tsc<IEditableFormItemProps, IEditableFormItemEvent> {
@@ -113,7 +114,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         group.formats.find(option => {
           txt = option.id === this.value ? option.name : '';
           return option.id === this.value;
-        }),
+        })
       );
       return target ? txt : '';
     }
@@ -177,9 +178,9 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         return (
           <bk-switcher
             v-authority={{ active: !this.authority }}
+            pre-check={() => this.preCheckSwitcher(this.value)}
             theme='primary'
             value={this.value}
-            pre-check={() => this.preCheckSwitcher(this.value)}
           />
         );
       case 'tag': // 标签
@@ -206,8 +207,8 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
             <span class='placeholder'>●●●●●●●●●●</span>
             {this.secureKeyLoading && <span class='loading'></span>}
             <span
-              v-authority={{ active: !this.authority }}
               class='view-btn'
+              v-authority={{ active: !this.authority }}
               onClick={this.handleGetSecureKey}
             >
               {this.$t('点击查看')}
@@ -254,8 +255,8 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           >
             {this.selectList.map(option => (
               <bk-option
-                key={option.id}
                 id={option.id}
+                key={option.id}
                 name={option.name}
               ></bk-option>
             ))}
@@ -271,13 +272,13 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           >
             {this.unitList.map((group, index) => (
               <bk-option-group
-                name={group.name}
                 key={index}
+                name={group.name}
               >
                 {group.formats.map(option => (
                   <bk-option
-                    key={option.id}
                     id={option.id}
+                    key={option.id}
                     name={option.name}
                   ></bk-option>
                 ))}
@@ -290,8 +291,8 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           <bk-input
             ref='input'
             class='edit-item input-item'
-            disabled={this.isSubmiting}
             v-model={this.lcoalValue}
+            disabled={this.isSubmiting}
             onChange={v => v && (this.errorMsg.value = '')}
           />
         );
@@ -353,16 +354,16 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     return (
       <div>
         <bk-select
-          class='edit-item select-item'
           style='margin-right: 8px;'
+          class='edit-item select-item'
           v-model={this.editSubmitVal}
           clearable={false}
           onChange={() => this.handleEditObjChange('select')}
         >
           {this.selectEditOption?.map(option => (
             <bk-option
-              key={option.id}
               id={option.id}
+              key={option.id}
               name={option.name}
             ></bk-option>
           ))}

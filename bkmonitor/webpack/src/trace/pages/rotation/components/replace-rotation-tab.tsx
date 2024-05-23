@@ -25,11 +25,11 @@
  */
 import { defineComponent, PropType, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button } from 'bkui-vue';
 import { random } from 'lodash';
 
 import { RotationSelectTypeEnum } from '../typings/common';
-
 import ReplaceRotationTableItem, { ReplaceItemDataModel } from './replace-rotation-table-item';
 
 import './replace-rotation-tab.scss';
@@ -63,7 +63,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     function createDefaultItemData(): ReplaceDataModel {
@@ -133,8 +133,8 @@ export default defineComponent({
     return (
       <table
         class='replace-table-wrap-content-component'
-        cellspacing='0'
         cellpadding='0'
+        cellspacing='0'
       >
         <tr class='table-header'>
           <th class='title-content'>
@@ -150,9 +150,9 @@ export default defineComponent({
         </tr>
         {this.localValue.map((item, index) => (
           <ReplaceRotationTableItem
+            key={item.key}
             class='table-item'
             data={item}
-            key={item.key}
             onChange={val => this.handleDataChange(val, index)}
             onDrop={this.handleEmitDrop}
           >

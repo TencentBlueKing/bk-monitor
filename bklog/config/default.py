@@ -100,9 +100,14 @@ else:
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
     INSTALLED_APPS += ("version_log",)
 
+# 设置pyinstrument的profiler开关
+PYINSTRUMENT_URL_ARGUMENT = "bk-log-profile"
+
 # 这里是默认的中间件，大部分情况下，不需要改动
 # 如果你已经了解每个默认 MIDDLEWARE 的作用，确实需要去掉某些 MIDDLEWARE，或者改动先后顺序，请去掉下面的注释，然后修改
 MIDDLEWARE = (
+    # 性能分析
+    "apps.middleware.pyinstrument.ProfilerMiddleware",
     # http -> https 转换中间件
     "apps.middlewares.HttpsMiddleware",
     "django.middleware.gzip.GZipMiddleware",
@@ -398,7 +403,7 @@ def redirect_func(request):
     return HttpResponseRedirect(next_url)
 
 
-BLUEAPPS_PAGE_401_RESPONSE_FUNC = redirect_func
+# BLUEAPPS_PAGE_401_RESPONSE_FUNC = redirect_func
 
 # bulk_request limit
 BULK_REQUEST_LIMIT = int(os.environ.get("BKAPP_BULK_REQUEST_LIMIT", 500))

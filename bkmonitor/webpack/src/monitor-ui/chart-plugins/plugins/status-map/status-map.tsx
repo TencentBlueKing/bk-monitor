@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { deepClone } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -118,7 +119,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
-        this.panel.collect_interval,
+        this.panel.collect_interval
       );
       const variablesService = new VariablesService({
         ...this.scopedVars,
@@ -135,7 +136,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
               }),
               ...params,
             },
-            { needMessage: false },
+            { needMessage: false }
           )
           .then(res => {
             series = res.series || [];
@@ -145,7 +146,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
           })
           .catch(error => {
             this.handleErrorMsgChange(error.msg || error.message);
-          }),
+          })
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res && series.length) {
@@ -175,12 +176,12 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
       <div class='status-map'>
         <ChartHeader
           class='draggable-handle'
-          title={this.panel.title}
-          showMore={false}
           draging={this.panel.draging}
-          metrics={this.metrics}
-          subtitle={this.panel.subTitle || ''}
           isInstant={this.panel.instant}
+          metrics={this.metrics}
+          showMore={false}
+          subtitle={this.panel.subTitle || ''}
+          title={this.panel.title}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
 
@@ -203,13 +204,13 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
               </div>
             </div>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               <MonitorBaseEchart
                 ref='baseChart'
-                height={this.height}
                 width={this.width}
+                height={this.height}
                 options={this.chartOption}
               />
             </div>

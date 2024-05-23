@@ -26,6 +26,8 @@
 import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { destroyUserGroup, listDutyRule, listUserGroup } from 'monitor-api/modules/model';
 import { debounce } from 'throttle-debounce';
@@ -38,14 +40,15 @@ import * as authorityMap from '../authority-map';
 import TableStore from '../store';
 
 import './alarm-group.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
 
-type TGroupType = 'monitor' | 'fta';
+type TGroupType = 'fta' | 'monitor';
 interface IGroupList {
-  type: TGroupType;
-  fromRouterName: string;
-  needReflesh: boolean;
+  type?: TGroupType;
+  fromRouterName?: string;
+  needReflesh?: boolean;
 }
 
 @Component({
@@ -178,7 +181,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   searchCondition = [];
 
-  handleSearch: Function = () => {};
+  handleSearch: (() => void) | debounce<(val: string) => void> = () => {};
 
   get isMonitor(): boolean {
     return this.type === 'monitor';
@@ -284,10 +287,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
   cellHandle(row) {
     return [
       <bk-button
-        text={true}
-        disabled={!row.edit_allowed}
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
+        disabled={!row.edit_allowed}
+        text={true}
         onClick={() =>
           this.authority.MANAGE_AUTH
             ? this.handleShowAddView('edit', row)
@@ -297,10 +300,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
         {this.$t('button-编辑')}
       </bk-button>,
       <bk-button
-        text={true}
-        disabled={!row.delete_allowed}
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
+        disabled={!row.delete_allowed}
+        text={true}
         onClick={() =>
           this.authority.MANAGE_AUTH
             ? this.handleDeleteRow(row.id, row.name)
@@ -416,8 +419,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
       title: this.$t('确认要删除？'),
       subHeader: () => (
         <DeleteSubtitle
-          title={this.$tc('名称')}
           name={name}
+          title={this.$tc('名称')}
         />
       ),
       maskClose: true,
@@ -552,8 +555,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
             <div class='alarm-group-tool'>
               <bk-button
                 class='tool-btn mc-btn-add'
-                theme='primary'
                 v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                theme='primary'
                 onClick={() =>
                   this.authority.MANAGE_AUTH
                     ? this.handleShowAddView('add')
@@ -563,10 +566,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.$t('新建')}
               </bk-button>
-              <bk-search-select
+              <SearchSelect
                 class='tool-search'
-                values={this.searchCondition}
-                placeholder={this.$t('ID / 告警组名称')}
                 data={[
                   {
                     name: 'ID',
@@ -581,10 +582,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     id: 'rule',
                   },
                 ]}
-                strink={false}
-                show-condition={false}
+                modelValue={this.searchCondition}
+                placeholder={this.$t('ID / 告警组名称')}
+                uniqueSelect={true}
                 onChange={this.handleSearchCondition}
-              ></bk-search-select>
+              ></SearchSelect>
               {/* <bk-input
             class='tool-search'
             placeholder={this.$t('ID / 告警组名称')}
@@ -596,8 +598,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
             <bk-table
               class='alarm-group-table'
               data={this.tableData}
-              outer-border={false}
               header-border={false}
+              outer-border={false}
               size={this.tableSize}
             >
               <div slot='empty'>
@@ -615,14 +617,14 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     prop={item.prop}
                     {...{ props: item.props }}
                     width={item.width}
+                    formatter={item.formatter}
                     min-width={item.minWidth}
                     show-overflow-tooltip={item.prop !== 'duty_rules'}
-                    formatter={item.formatter}
                   />
                 ))}
               <bk-table-column
-                type='setting'
                 tippy-options={{ zIndex: 999 }}
+                type='setting'
               >
                 <bk-table-setting-content
                   fields={this.settingFields}
@@ -637,14 +639,14 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 <bk-pagination
                   class='config-pagination list-pagination'
                   align='right'
-                  size='small'
+                  count={this.tableInstance.total}
                   current={this.tableInstance.page}
                   limit={this.tableInstance.pageSize}
-                  count={this.tableInstance.total}
                   limit-list={this.tableInstance.pageList}
+                  size='small'
+                  show-total-count
                   on-change={this.handlePageChange}
                   on-limit-change={this.handleLimitChange}
-                  show-total-count
                 ></bk-pagination>
               ) : undefined}
             </div>

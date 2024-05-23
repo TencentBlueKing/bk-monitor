@@ -302,3 +302,5 @@ export const DEFAULT_REFLESH_LIST = [
     id: 60 * 24 * 60 * 1000,
   },
 ];
+/** 小写英文字符集合 用于unifyquery experssion alias等 */
+export const LETTERS = 'abcdefghijklmnopqrstuvwxyz';

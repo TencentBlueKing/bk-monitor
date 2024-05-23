@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 // import { copyText } from 'monitor-common/utils/utils'
 import dayjs from 'dayjs';
 import { tailEventPluginData } from 'monitor-api/modules/event_plugin';
@@ -140,8 +141,8 @@ export default class RulesViewer extends tsc<IDataStatus> {
           if (!row.data?.length) return '--';
           return (
             <div
-              class='data-item-list'
               style='min-height: 42px;'
+              class='data-item-list'
             >
               {row.data.map(item => (
                 <div class='data-item'>{JSON.stringify(item)}</div>
@@ -185,9 +186,9 @@ export default class RulesViewer extends tsc<IDataStatus> {
             {this.sourceDataTableColumn.map((item, i) => (
               <bk-table-column
                 key={i}
+                width={item.width}
                 label={item.label}
                 prop={item.prop}
-                width={item.width}
                 resizable={false}
                 {...{ scopedSlots }}
               ></bk-table-column>
@@ -203,27 +204,27 @@ export default class RulesViewer extends tsc<IDataStatus> {
         </MonacoEditor> */}
         <bk-sideslider
           ext-cls='data-status-sideslider'
-          transfer={true}
           isShow={this.sideslider.isShow}
+          transfer={true}
           {...{ on: { 'update:isShow': v => (this.sideslider.isShow = v) } }}
-          quick-close={true}
           width={656}
+          quick-close={true}
           onHidden={this.handleHiddenSlider}
         >
           <div
-            slot='header'
             class='sideslider-title'
+            slot='header'
           >
             <span>{this.sideslider.title + this.$t('上报日志详情')}</span>
             <bk-button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</bk-button>
           </div>
           <div slot='content'>
             <MonacoEditor
+              style='height: calc(100vh - 60px)'
               class='code-viewer'
               language='json'
-              value={this.sideslider.data}
               options={{ readOnly: true }}
-              style='height: calc(100vh - 60px)'
+              value={this.sideslider.data}
             ></MonacoEditor>
           </div>
         </bk-sideslider>

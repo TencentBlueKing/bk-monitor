@@ -129,4 +129,7 @@ export default {
   有数据应用: 'Has data applied',
   无数据应用: 'No data applied',
   订阅详情: 'Subscription details',
+  '暂未开启 Profiling 功能': 'Profiling is not enabled yet',
+  '暂无 Profiling 数据': 'No profiling data yet',
+  关闭目标: 'Close target',
 };

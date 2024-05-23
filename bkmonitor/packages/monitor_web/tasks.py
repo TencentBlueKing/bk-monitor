@@ -22,6 +22,7 @@ from celery.task import task
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
+from django.forms import model_to_dict
 from django.utils.translation import ugettext as _
 
 from bkm_space.api import SpaceApi
@@ -36,6 +37,7 @@ from bkmonitor.dataflow.constant import (
 )
 from bkmonitor.dataflow.flow import DataFlow
 from bkmonitor.dataflow.task.intelligent_detect import (
+    HostAnomalyIntelligentDetectTask,
     MetricRecommendTask,
     MultivariateAnomalyIntelligentModelDetectTask,
     StrategyIntelligentModelDetectTask,
@@ -482,6 +484,18 @@ def append_event_metric_list_cache(bk_event_group_id):
             )
     else:
         BkMonitorLogCacheManager().run()
+
+
+@task(ignore_result=True)
+def update_uptime_check_task_status():
+    """
+    定时刷新 starting 状态的拨测任务
+    :return:
+    """
+    from monitor_web.models.uptime_check import UptimeCheckTask
+
+    for task_id in UptimeCheckTask.objects.filter(status=UptimeCheckTask.Status.STARTING).values_list("id", flat=True):
+        update_task_running_status(task_id)
 
 
 @task(ignore_result=True, queue="celery_resource")
@@ -962,6 +976,7 @@ def parse_scene_metrics(plan_args):
             "name": _(metric.metric_field_name),
             "unit": metric.unit,
             "metric_name": metric.bkmonitor_metric_fullname,
+            "metric": model_to_dict(metric),
         }
         for metric in metrics_info
     ]
@@ -1139,3 +1154,137 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
     except Exception as e:  # noqa
         err_msg = "create metric recommend by bk_biz_id({}) failed: {}".format(access_bk_biz_id, e)
         logger.exception(err_msg)
+
+
+@task(ignore_result=True, queue="celery_resource")
+def access_host_anomaly_detect_by_strategy_id(strategy_id):
+    from bkmonitor.aiops.utils import AiSetting
+    from bkmonitor.models import (
+        AlgorithmModel,
+        ItemModel,
+        QueryConfigModel,
+        StrategyModel,
+    )
+    from constants.aiops import SceneSet
+
+    strategy = StrategyModel.objects.get(id=strategy_id, is_enabled=True)
+    item = ItemModel.objects.filter(strategy_id=strategy_id).first()
+    detect_algorithm = AlgorithmModel.objects.filter(
+        strategy_id=strategy_id,
+        item_id=item.id,
+        type=AlgorithmModel.AlgorithmChoices.HostAnomalyDetection,
+    ).first()
+    if not detect_algorithm:
+        logger.info("strategy_id({}) does not config host anomaly detect, skipped", strategy_id)
+        return
+
+    plan_args = {
+        "$metric_list": ",".join(
+            ["__".join(item["metric_name"].split(".")) for item in detect_algorithm.config.get("metrics")]
+        ),
+        "$sensitivity": detect_algorithm.config.get("sensitivity", 50),
+        "$alert_levels": ",".join(map(lambda x: str(x), sorted(detect_algorithm.config.get("levels", [])))),
+    }
+
+    rt_query_config = QueryConfig.from_models(
+        QueryConfigModel.objects.filter(strategy_id=strategy_id, item_id=item.id)
+    )[0]
+
+    rt_query_config.intelligent_detect["status"] = AccessStatus.CREATED
+    rt_query_config.save()
+
+    # 2. 检查当前业务的主机场景多指标异常检测是否接入
+    ai_setting = AiSetting(bk_biz_id=strategy.bk_biz_id)
+    if not ai_setting.multivariate_anomaly_detection.host.intelligent_detect.get("status") == "success":
+        try:
+            access_aiops_multivariate_anomaly_detection_by_bk_biz_id(strategy.bk_biz_id, [SceneSet.HOST.value])
+        except Exception as e:
+            err_msg = f"Access biz multivariate anomaly detection error: {str(e)}"
+            rt_query_config.intelligent_detect["status"] = AccessStatus.FAILED
+            rt_query_config.intelligent_detect["message"] = err_msg
+            rt_query_config.save()
+            raise Exception(err_msg)
+
+    rt_query_config.intelligent_detect["status"] = AccessStatus.RUNNING
+    rt_query_config.save()
+
+    # 3. 创建智能检测dataflow
+    agg_dimensions = ai_setting.multivariate_anomaly_detection.host.intelligent_detect.get("agg_dimension", [])
+    scene_id = get_scene_id_by_algorithm(detect_algorithm.type)
+    plan_id = get_plan_id_by_algorithm(detect_algorithm.type)
+    try:
+        detect_data_flow = HostAnomalyIntelligentDetectTask(
+            strategy_id=strategy.id,
+            access_bk_biz_id=strategy.bk_biz_id,
+            scene_id=scene_id,
+            plan_id=plan_id,
+            metric_field=rt_query_config.metric_field,
+            agg_dimensions=agg_dimensions,
+            plan_args=plan_args,
+        )
+        detect_data_flow.create_flow()
+        detect_data_flow.start_flow(consuming_mode=ConsumingMode.Current)
+        output_table_name = detect_data_flow.output_table_name
+
+        if detect_data_flow.flow_status != DataFlow.Status.Running:
+            raise Exception(f"flow status is not running, current flow status:({detect_data_flow.flow_status})")
+
+    except BaseException as e:  # noqa
+        retries = rt_query_config.intelligent_detect.get("retries", 0)
+        if retries < AIOPS_ACCESS_MAX_RETRIES:
+            err_msg = "create intelligent detect by strategy_id({}) failed: {}, retrying: {}/{}".format(
+                strategy.id,
+                e,
+                retries,
+                AIOPS_ACCESS_MAX_RETRIES,
+            )
+            logger.exception(err_msg)
+            # 失败之后继续尝试
+            access_host_anomaly_detect_by_strategy_id.apply_async(
+                args=(strategy_id,), countdown=AIOPS_ACCESS_RETRY_INTERVAL
+            )
+            rt_query_config.intelligent_detect["status"] = AccessStatus.RUNNING
+            rt_query_config.intelligent_detect["retries"] = retries + 1
+            rt_query_config.intelligent_detect["message"] = err_msg
+            rt_query_config.save()
+        else:
+            # 超过最大重试次数后直接失败
+            err_msg = "create intelligent detect by strategy_id({}) failed: {}".format(strategy.id, e)
+            logger.exception(err_msg)
+            rt_query_config.intelligent_detect["status"] = AccessStatus.FAILED
+            rt_query_config.intelligent_detect["message"] = err_msg
+            rt_query_config.save()
+
+            # 发邮件
+            params = {
+                "receiver__username": settings.BK_DATA_PROJECT_MAINTAINER,
+                "title": _("{}创建异常检测").format(strategy_id),
+                "content": traceback.format_exc().replace("\n", "<br>"),
+                "is_content_base64": True,
+            }
+            try:
+                api.cmsi.send_mail(**params)
+            except BaseException:  # noqa
+                logger.exception(
+                    "send.mail({}) failed, content:({})".format(settings.BK_DATA_PROJECT_MAINTAINER, params)
+                )
+
+        # 只要失败就直接退出
+        return
+
+    # 将配置好的模型生成的rt_id放到extend_fields中，前端会根据这张表来查询数据
+    rt_query_config.intelligent_detect = {
+        "data_flow_id": detect_data_flow.data_flow.flow_id,
+        "data_source_label": DataSourceLabel.BK_DATA,
+        "data_type_label": DataTypeLabel.TIME_SERIES,
+        "result_table_id": output_table_name,
+        "metric_field": "is_anomaly",
+        "extend_fields": {"values": ["anomaly_sort", "extra_info"]},
+        "agg_condition": [],
+        "agg_dimension": agg_dimensions,
+        "plan_id": plan_id,
+        "agg_method": '',
+        "status": AccessStatus.SUCCESS,
+        "message": "create dataflow success",
+    }
+    rt_query_config.save()

@@ -25,10 +25,10 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 
 import SortPanel from '../../performance/performance-detail/sort-panel.vue';
-
 import { addSceneResult, metric, orderList, sceneList, viewSettingParams } from './type';
 import { delCollectScene, getCollectVariable, setCollectVariable } from './variable-set';
 
@@ -155,7 +155,7 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
             `${this.id}`,
             this.labelName,
             Object.keys(tempVariables).map(key => ({ id: key, value: tempVariables[key] })),
-            this.routeType,
+            this.routeType
           );
           this.editChange(params.config);
         } else {
@@ -220,18 +220,18 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
   render() {
     return (
       <bk-sideslider
-        ext-cls='view-settings-side'
-        title={this.$t('视图设置')}
         width={524}
+        ext-cls='view-settings-side'
         is-show={this.isShow}
+        title={this.$t('视图设置')}
         {...{ on: { 'update:isShow': val => (this.isShow = val) } }}
         quick-close={true}
         show-mask={false}
         on-hidden={this.hiddenChange}
       >
         <div
-          slot='content'
           class={{ 'view-sort-hide': this.viewSortHide }}
+          slot='content'
           v-bkloading={{ isLoading: this.isLoading }}
         >
           <div class='settings-side-abs'>
@@ -242,16 +242,16 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                 {this.verify ? <span class='err-red'>{this.$t('视图标签名不能为空且不能相同')}</span> : undefined}
               </div>
               <bk-input
-                on-focus={() => (this.verify = false)}
                 v-model={this.labelName}
                 disabled={this.isLabelDisable}
                 maxlength={20}
                 show-word-limit
+                on-focus={() => (this.verify = false)}
               ></bk-input>
             </div>
             <div
-              class='sort-setting-title'
               style={this.viewSortHide ? 'display: none' : undefined}
+              class='sort-setting-title'
             >
               <span class='title'>{this.$t('视图设置')}</span>
               <span class='title-create'>
@@ -290,8 +290,8 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                   {this.groupList.map(item => (
                     <bk-option
                       id={item.id}
-                      name={item.title}
                       key={item.id}
+                      name={item.title}
                     ></bk-option>
                   ))}
                 </bk-select>
@@ -306,15 +306,15 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
           </div>
           <SortPanel
             ref='sortPanel'
-            is-not-dialog={true}
             v-model={this.showChartSort}
-            groups-data={this.orderList}
-            need-group={true}
             defaultOrderList={this.defaultOrderList}
+            groups-data={this.orderList}
+            is-not-dialog={true}
+            need-group={true}
             viewSortHide={this.viewSortHide}
-            on-save={this.handleSortChange}
-            on-groups-change={this.groupsChange}
             on-checked-change={v => (this.isChecked = v)}
+            on-groups-change={this.groupsChange}
+            on-save={this.handleSortChange}
           ></SortPanel>
         </div>
       </bk-sideslider>

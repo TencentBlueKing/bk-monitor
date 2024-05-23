@@ -86,7 +86,7 @@ module.exports = async (baseConfig, { production, app }) => {
             APP: JSON.stringify(`${app}`),
           },
         },
-      }),
+      })
     );
   } else if (app !== 'email') {
     config.plugins.push(
@@ -97,7 +97,7 @@ module.exports = async (baseConfig, { production, app }) => {
             APP: JSON.stringify(`${app}`),
           },
         },
-      }),
+      })
     );
     config.plugins.push(new MonitorWebpackPlugin(app));
   }
@@ -110,7 +110,7 @@ module.exports = async (baseConfig, { production, app }) => {
         { from: path.resolve(`./public/${app}/`), to: distUrl },
         { from: path.resolve('./public/img'), to: path.resolve(distUrl, './img') },
       ].filter(Boolean),
-    }),
+    })
   );
   return {
     ...config,

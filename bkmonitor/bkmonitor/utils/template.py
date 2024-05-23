@@ -36,9 +36,9 @@ class NoticeRowRenderer(object):
         lambda: "{title}{content}",
         {
             "mail": '<tr style="background: #FFFFFF;"><td style="color: #979BA5; font-size: 14px; height: 19px; '
-                    'vertical-align: text-top;">{title}</td><td style="color: #63656E; font-size: 14px; '
-                    'vertical-align: text-top;">{content}</td></tr><tr style="background: #FFFFFF;">'
-                    '<td colspan="4" style="height: 20px;"></td></tr>',
+            'vertical-align: text-top;">{title}</td><td style="color: #63656E; font-size: 14px; '
+            'vertical-align: text-top;">{content}</td></tr><tr style="background: #FFFFFF;">'
+            '<td colspan="4" style="height: 20px;"></td></tr>',
             "markdown": '**{title}**{content}',
         },
     )
@@ -199,7 +199,7 @@ class AlarmNoticeTemplate(object):
         for renderer in self.Renderers:
             template_message = renderer.render(template_message, context)
 
-        return template_message.replace("\\n", "\n")
+        return template_message.replace("\\n", "\n").replace("\\t", "\t")
 
     @staticmethod
     def get_template_source(template_path):

@@ -213,6 +213,7 @@
         <bk-table-column
           prop="date"
           min-width="180"
+          sortable
           :label="$t('时间')"
         />
         <bk-table-column
@@ -235,6 +236,7 @@
 <script lang="ts">
 import { CreateElement } from 'vue';
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+
 import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
@@ -244,16 +246,14 @@ import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
 import { downCsvFile, IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import { debounce } from 'throttle-debounce';
 
-import './map/china';
-
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
-
 import ChartAnnotation from './components/chart-annotation.vue';
 import ChartLegend from './components/chart-legend.vue';
 import ChartTools from './components/chart-tools.vue';
 import StatusChart from './components/status-chart.vue';
 import TableChart from './components/table-chart';
 import TextChart from './components/text-chart.vue';
+import './map/china';
 import { colorList } from './options/constant';
 import EchartOptions from './options/echart-options';
 import {
@@ -272,8 +272,8 @@ import watermarkMaker from './utils/watermarkMaker';
 import { getValueFormat } from './valueFormats';
 
 interface ICurValue {
-  xAxis: string | number;
-  yAxis: string | number;
+  xAxis: number | string;
+  yAxis: number | string;
   dataIndex: number;
   color: string;
   name: string;
@@ -303,7 +303,7 @@ export default class MonitorEcharts extends Vue {
   @Ref() readonly charWrapRef!: HTMLDivElement;
 
   // echarts配置项
-  @Prop() readonly options: MonitorEchartOptions | IStatusChartOption | ITextChartOption;
+  @Prop() readonly options: IStatusChartOption | ITextChartOption | MonitorEchartOptions;
   // 是否自动resize
   @Prop({ default: true }) readonly autoresize: boolean;
   // 是否需要设置全屏
@@ -325,7 +325,7 @@ export default class MonitorEcharts extends Vue {
   @Prop({ default: '' }) readonly title: string;
   @Prop({ default: '', type: String }) readonly errorMsg: string;
   // 图表系列数据
-  @Prop() readonly series: MonitorEchartSeries | IStatusSeries | ITextSeries;
+  @Prop() readonly series: IStatusSeries | ITextSeries | MonitorEchartSeries;
 
   // 背景图
   @Prop({
@@ -519,7 +519,7 @@ export default class MonitorEcharts extends Vue {
       (this.options || {}) as MonitorEchartOptions,
       {
         arrayMerge: (destinationArray, sourceArray) => sourceArray,
-      },
+      }
     );
   }
   get chartWrapHeight() {
@@ -636,7 +636,7 @@ export default class MonitorEcharts extends Vue {
         class: 'ellipsis',
         directives: [{ name: 'bk-overflow-tips' }],
       },
-      column.label,
+      column.label
     );
   }
 
@@ -823,10 +823,11 @@ export default class MonitorEcharts extends Vue {
           if (this.chart) {
             let options = deepMerge(optionData.options, this.defaultOptions);
             const width = (this.$refs?.chartRef as any)?.clientWidth;
+            const splitNumber = Math.ceil(width / 100);
             if (['line', 'bar'].includes(this.chartType) && width) {
               options = deepMerge(options, {
                 xAxis: {
-                  splitNumber: Math.ceil(width / 100),
+                  splitNumber: splitNumber > 12 ? 12 : splitNumber,
                   min: 'dataMin',
                 },
               });
@@ -1165,7 +1166,7 @@ export default class MonitorEcharts extends Vue {
         break;
       case 1:
         window.open(
-          location.href.replace(location.hash, `#/strategy-config?metricId=${this.extendMetricData.metric_id}`),
+          location.href.replace(location.hash, `#/strategy-config?metricId=${this.extendMetricData.metric_id}`)
         );
         break;
       case 2:
@@ -1337,7 +1338,7 @@ export default class MonitorEcharts extends Vue {
           this.handleSetChartData(deepMerge({}, { series: this.series }));
         }
       },
-      { deep: !this.watchOptionsDeep },
+      { deep: !this.watchOptionsDeep }
     );
   }
 

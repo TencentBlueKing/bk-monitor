@@ -26,6 +26,7 @@
 import { computed, defineComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 import {
   Button,
   Dialog,
@@ -56,7 +57,6 @@ import { deepClone, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
 
 import NavBar from '../../components/nav-bar/nav-bar';
-
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
@@ -87,9 +87,9 @@ export default defineComponent({
     const router = useRouter();
     const route = useRoute();
     // 查询订阅列表 相关参数 开始
-    const createType = ref<'manager' | 'user' | 'self'>('manager');
+    const createType = ref<'manager' | 'self' | 'user'>('manager');
     const queryType = ref<'all' | 'available' | 'invalid'>('all');
-    const queryTypeForSelf = ref<'all' | 'RUNNING' | 'FAILED' | 'SUCCESS'>('all');
+    const queryTypeForSelf = ref<'FAILED' | 'RUNNING' | 'SUCCESS' | 'all'>('all');
     const searchKey = ref('');
     const page = ref(1);
     const pageSize = ref(20);
@@ -149,12 +149,12 @@ export default defineComponent({
                 .toString();
               return (
                 <Popover
-                  maxWidth='300'
-                  placement='top'
-                  popoverDelay={[300, 0]}
                   v-slots={{
                     content,
                   }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
                 >
                   <div
                     class={{
@@ -220,12 +220,12 @@ export default defineComponent({
                   : getSendFrequencyText(data);
               return (
                 <Popover
-                  maxWidth='300'
-                  placement='top'
-                  popoverDelay={[300, 0]}
                   v-slots={{
                     content,
                   }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
                 >
                   <div
                     class={{
@@ -267,8 +267,8 @@ export default defineComponent({
                   }}
                 >
                   <i
-                    class={['icon-circle', data.send_status]}
                     style='margin-right: 10px;'
+                    class={['icon-circle', data.send_status]}
                   ></i>
                   {t(SendStatus[data.send_status])}
                 </div>
@@ -320,8 +320,8 @@ export default defineComponent({
                 <div>
                   <Switcher
                     v-model={data.is_enabled}
-                    theme='primary'
                     size='small'
+                    theme='primary'
                     onChange={() => handleSetEnable(index)}
                   ></Switcher>
                 </div>
@@ -358,9 +358,9 @@ export default defineComponent({
                   </Button>
 
                   <Button
+                    style='margin-left: 10px;'
                     theme='primary'
                     text
-                    style='margin-left: 10px;'
                     onClick={() => {
                       subscriptionDetail.value = row.data;
                       isShowEditSideslider.value = true;
@@ -372,10 +372,6 @@ export default defineComponent({
                   {/* 实现方式有问题，看看有没有其它的实现方式 */}
                   <div>
                     <Popover
-                      trigger='click'
-                      theme='light'
-                      isShow={toggleMap[row.index] || false}
-                      placement='bottom-start'
                       extCls='email-subscription-popover'
                       v-slots={{
                         content: () => (
@@ -421,10 +417,14 @@ export default defineComponent({
                           </div>
                         ),
                       }}
+                      isShow={toggleMap[row.index] || false}
+                      placement='bottom-start'
+                      theme='light'
+                      trigger='click'
                     >
                       <i
-                        class='more-btn icon-monitor icon-mc-more'
                         style='margin-left: 10px;'
+                        class='more-btn icon-monitor icon-mc-more'
                         onClick={() => (toggleMap[row.index] = true)}
                       />
                     </Popover>
@@ -491,12 +491,12 @@ export default defineComponent({
                 .toString();
               return (
                 <Popover
-                  maxWidth='300'
-                  placement='top'
-                  popoverDelay={[300, 0]}
                   v-slots={{
                     content,
                   }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
                 >
                   <div>{content}</div>
                 </Popover>
@@ -540,12 +540,12 @@ export default defineComponent({
                   : getSendFrequencyText(data);
               return (
                 <Popover
-                  maxWidth='300'
-                  placement='top'
-                  popoverDelay={[300, 0]}
                   v-slots={{
                     content,
                   }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
                 >
                   <div>{content}</div>
                 </Popover>
@@ -559,8 +559,8 @@ export default defineComponent({
               return (
                 <div>
                   <i
-                    class={['icon-circle', data.status]}
                     style='margin-right: 10px;'
+                    class={['icon-circle', data.status]}
                   ></i>
                   {ApplyStatus[data.status]}
                 </div>
@@ -641,14 +641,14 @@ export default defineComponent({
               const content = data.send_results.map(item => item.id).toString();
               return (
                 <Popover
-                  maxWidth='300'
-                  placement='top'
-                  popoverDelay={[300, 0]}
                   v-slots={{
                     content: () => {
                       return <span style='word-break: break-word;'>{content}</span>;
                     },
                   }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
                 >
                   <div style='overflow: hidden;text-overflow: ellipsis;white-space: nowrap;'>{content}</div>
                 </Popover>
@@ -665,11 +665,11 @@ export default defineComponent({
                     <span style='margin-left: 10px;'>{t(SendStatus[data.send_status])}</span>
                   ) : (
                     <span
+                      style='margin-left: 10px;'
                       v-bk-tooltips={{
                         content: data.send_results.find(item => !item.result)?.message,
                         placement: 'top',
                       }}
-                      style='margin-left: 10px;'
                     >
                       {t(SendStatus[data.send_status])}
                     </span>
@@ -683,12 +683,7 @@ export default defineComponent({
             render: ({ data, index }) => {
               return (
                 <Popover
-                  trigger='click'
-                  isShow={toggleMapForSendRecord[index] || false}
-                  theme='light'
-                  placement='bottom-start'
                   extCls='email-subscription-popover'
-                  disableOutsideClick
                   // zIndex={99999 + index}
                   v-slots={{
                     content: () => {
@@ -760,23 +755,23 @@ export default defineComponent({
                           <div style='margin-top: 10px;'>
                             <TagInput
                               v-model={data.selectedTag}
+                              content-width={238}
+                              display-key='id'
                               list={data.tempSendResult}
                               placeholder={t('请选择')}
-                              has-delete-icon
-                              trigger='focus'
-                              display-key='id'
                               save-key='id'
                               search-key={['id']}
-                              content-width={238}
+                              trigger='focus'
+                              has-delete-icon
                             ></TagInput>
                           </div>
 
                           <div class='footer-operation'>
                             <Button
-                              theme='primary'
                               style='min-width: 64px;'
-                              loading={isResending.value}
                               disabled={!data.selectedTag.length}
+                              loading={isResending.value}
+                              theme='primary'
                               onClick={() => {
                                 handleResendSubscription(data, index);
                               }}
@@ -797,10 +792,15 @@ export default defineComponent({
                       );
                     },
                   }}
+                  isShow={toggleMapForSendRecord[index] || false}
+                  placement='bottom-start'
+                  theme='light'
+                  trigger='click'
+                  disableOutsideClick
                 >
                   <Button
-                    text
                     theme='primary'
+                    text
                     onClick={() => {
                       toggleMapForSendRecord[index] = true;
                       // 每次重新发送都会重置一次 tag 列表。不知道是否实用。
@@ -1248,8 +1248,8 @@ export default defineComponent({
               <span>{this.t('新建')}</span>
             </Button>
             <Radio.Group
-              v-model={this.createType}
               style='margin-left: 16px;background-color: white;'
+              v-model={this.createType}
               onChange={() => {
                 if (this.isManagerOrUser) {
                   this.resetAndGetSubscriptionList();
@@ -1275,15 +1275,15 @@ export default defineComponent({
                 <Radio.Button label='all'>{this.t('全部')}</Radio.Button>
                 <Radio.Button label='available'>
                   <i
-                    class='icon-circle success'
                     style='margin-right: 4px;'
+                    class='icon-circle success'
                   />
                   <span>{this.t('生效中')}</span>
                 </Radio.Button>
                 <Radio.Button label='invalid'>
                   <i
-                    class='icon-circle gray'
                     style='margin-right: 4px;'
+                    class='icon-circle gray'
                   />
                   <span>{this.t('已失效')}</span>
                 </Radio.Button>
@@ -1312,13 +1312,8 @@ export default defineComponent({
               </Radio.Group>
             )}
             <Input
-              v-model={this.searchKey}
-              clearable
               class='search-input'
-              onEnter={this.handleInputKeydown}
-              onClear={this.handleInputKeydown}
-              onBlur={this.handleInputKeydown}
-              placeholder={this.t('请输入搜索条件')}
+              v-model={this.searchKey}
               v-slots={{
                 suffix: () => (
                   <div class='suffix-icon'>
@@ -1326,6 +1321,11 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              placeholder={this.t('请输入搜索条件')}
+              clearable
+              onBlur={this.handleInputKeydown}
+              onClear={this.handleInputKeydown}
+              onEnter={this.handleInputKeydown}
             />
           </div>
         </div>
@@ -1335,8 +1335,8 @@ export default defineComponent({
       <div>
         {this.isShowHeaderNav && (
           <NavBar
-            routeList={this.navList}
             class='report-nav'
+            routeList={this.navList}
           ></NavBar>
         )}
         <div class={['email-subscription-config-container', { 'as-iframe': !this.isShowHeaderNav }]}>
@@ -1344,13 +1344,8 @@ export default defineComponent({
           {headerTmpl()}
           <Loading loading={this.isTableLoading}>
             <Table
-              v-show={this.isManagerOrUser}
-              data={this.table.data}
-              columns={this.table.columns.fields as Column[]}
-              border={['outer']}
-              settings={this.table.settings}
               style='margin-top: 16px;background-color: white;'
-              remote-pagination
+              v-show={this.isManagerOrUser}
               pagination={{
                 current: this.page,
                 limit: this.pageSize,
@@ -1365,6 +1360,11 @@ export default defineComponent({
                   this.fetchSubscriptionList();
                 },
               }}
+              border={['outer']}
+              columns={this.table.columns.fields as Column[]}
+              data={this.table.data}
+              settings={this.table.settings}
+              remote-pagination
               onColumnFilter={({ checked, column }) => {
                 let currentIndex = -1;
                 const result = this.conditions.filter((item, index) => {
@@ -1405,12 +1405,12 @@ export default defineComponent({
             ></Table>
 
             <Table
-              v-show={this.createType === 'self'}
-              data={this.computedTableDataForSelf}
-              columns={this.tableForSelf.columns.fields as Column[]}
-              border={['outer']}
-              settings={this.tableForSelf.settings}
               style='margin-top: 16px;background-color: white;'
+              v-show={this.createType === 'self'}
+              border={['outer']}
+              columns={this.tableForSelf.columns.fields as Column[]}
+              data={this.computedTableDataForSelf}
+              settings={this.tableForSelf.settings}
               onColumnFilter={({ checked, column }) => {
                 if (!checked.length) {
                   this.filterConfig.key = '';
@@ -1427,10 +1427,10 @@ export default defineComponent({
             ></Table>
           </Loading>
           <Dialog
+            width='960'
+            dialog-type='show'
             is-show={this.isShowSendRecord}
             title={this.t('发送记录')}
-            dialog-type='show'
-            width='960'
             onClosed={() => {
               this.isShowSendRecord = false;
               Object.keys(this.toggleMapForSendRecord).forEach(key => {
@@ -1444,8 +1444,8 @@ export default defineComponent({
                   <div class='label-container'>
                     <div class='label'>{this.t('发送频率')}:</div>
                     <div
-                      class='value'
                       style='max-width: 200px;white-space: normal;word-break: break-all;'
+                      class='value'
                     >
                       {this.getSendFrequencyText(this.subscriptionDetail)}
                     </div>
@@ -1458,8 +1458,8 @@ export default defineComponent({
                   {this.subscriptionDetail.frequency.type !== FrequencyType.onlyOnce && (
                     <div class='label-container'>
                       <div
-                        class='label'
                         style='margin-left: 55px;'
+                        class='label'
                       >
                         {this.t('任务有效期')}:
                       </div>
@@ -1471,11 +1471,11 @@ export default defineComponent({
                 </div>
                 <div>
                   <Button
-                    text
-                    theme='primary'
-                    disabled={this.sendRecordTable.isLoading}
-                    onClick={this.getSendingRecordList}
                     style='font-size: 12px;'
+                    disabled={this.sendRecordTable.isLoading}
+                    theme='primary'
+                    text
+                    onClick={this.getSendingRecordList}
                   >
                     {this.t('刷新')}
                   </Button>
@@ -1484,21 +1484,21 @@ export default defineComponent({
 
               <Loading loading={this.sendRecordTable.isLoading}>
                 <Table
-                  data={this.sendRecordTable.data}
-                  columns={this.sendRecordTable.columns.fields as Column[]}
-                  height={400}
-                  virtual-enabled
                   style='margin-top: 16px;'
+                  height={400}
+                  columns={this.sendRecordTable.columns.fields as Column[]}
+                  data={this.sendRecordTable.data}
+                  virtual-enabled
                 />
               </Loading>
             </div>
           </Dialog>
 
           <Sideslider
-            v-model={[this.isShowCreateSubscription, 'isShow']}
-            title={this.t('新建订阅')}
             width={960}
             ext-cls='edit-subscription-sideslider-container'
+            v-model={[this.isShowCreateSubscription, 'isShow']}
+            title={this.t('新建订阅')}
             transfer
           >
             <CreateSubscription
@@ -1513,14 +1513,10 @@ export default defineComponent({
           </Sideslider>
 
           <Sideslider
-            v-model={[this.isShowSubscriptionDetailSideslider, 'isShow']}
             // 根据显示内容要动态调整。
             width={640}
             ext-cls='detail-subscription-sideslider-container'
-            transfer
-            onHidden={() => {
-              this.isSelfMode = false;
-            }}
+            v-model={[this.isShowSubscriptionDetailSideslider, 'isShow']}
             v-slots={{
               header: () => {
                 return (
@@ -1528,19 +1524,19 @@ export default defineComponent({
                     <div class='title-container'>
                       <span class='title'>{this.t('订阅详情')}</span>
                       <Popover
-                        maxWidth='300'
-                        placement='bottom'
                         v-slots={{
                           content: () => {
                             return <span>{this.subscriptionDetail.name}</span>;
                           },
                         }}
+                        maxWidth='300'
+                        placement='bottom'
                       >
                         <span
-                          class='sub-title'
                           style={{
                             maxWidth: currentLang === 'en' ? '180px' : '250px',
                           }}
+                          class='sub-title'
                         >
                           -&nbsp;{this.subscriptionDetail.name}
                         </span>
@@ -1572,9 +1568,9 @@ export default defineComponent({
                           {this.t('发送给自己')}
                         </Button>
                         <Button
-                          outline
-                          theme='primary'
                           style='margin-right: 8px;'
+                          theme='primary'
+                          outline
                           onClick={() => {
                             this.isShowEditSideslider = true;
                           }}
@@ -1583,23 +1579,23 @@ export default defineComponent({
                         </Button>
 
                         <Popover
-                          placement='bottom-end'
                           v-slots={{
                             content: () => {
                               return (
                                 <div>
                                   <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
                                   <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
-                                    'YYYY-MM-DD HH:mm:ss',
+                                    'YYYY-MM-DD HH:mm:ss'
                                   )}`}</div>
                                   <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
                                   <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
-                                    'YYYY-MM-DD HH:mm:ss',
+                                    'YYYY-MM-DD HH:mm:ss'
                                   )}`}</div>
                                 </div>
                               );
                             },
                           }}
+                          placement='bottom-end'
                         >
                           <Button style='margin-right: 24px;'>
                             <i class='icon-monitor icon-lishi'></i>
@@ -1614,20 +1610,24 @@ export default defineComponent({
                 return (
                   <div>
                     <SubscriptionDetail
-                      detailInfo={this.subscriptionDetail}
                       style='padding: 20px 40px;'
+                      detailInfo={this.subscriptionDetail}
                     ></SubscriptionDetail>
                   </div>
                 );
               },
             }}
+            transfer
+            onHidden={() => {
+              this.isSelfMode = false;
+            }}
           ></Sideslider>
 
           <Sideslider
-            v-model={[this.isShowEditSideslider, 'isShow']}
-            title={this.t('编辑')}
             width={960}
             ext-cls='edit-subscription-sideslider-container'
+            v-model={[this.isShowEditSideslider, 'isShow']}
+            title={this.t('编辑')}
             transfer
             onHidden={() => {
               this.isShowDropdownMenu = false;
@@ -1647,8 +1647,8 @@ export default defineComponent({
                   {this.isShowCreateReportFormComponent && (
                     <CreateSubscriptionForm
                       ref='refOfCreateSubscriptionForm'
-                      mode='edit'
                       detailInfo={this.subscriptionDetail}
+                      mode='edit'
                       onSelectExistedReport={this.handleReportDetailChange}
                     ></CreateSubscriptionForm>
                   )}
@@ -1656,8 +1656,8 @@ export default defineComponent({
 
                 <div class='footer-bar'>
                   <Button
-                    theme='primary'
                     style='width: 88px;margin-right: 8px;'
+                    theme='primary'
                     onClick={() => {
                       this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
                         if (isOnCloneMode) {
@@ -1678,9 +1678,6 @@ export default defineComponent({
                     {this.t('保存')}
                   </Button>
                   <Dropdown
-                    isShow={this.isShowDropdownMenu}
-                    trigger='manual'
-                    placement='top-start'
                     v-slots={{
                       content: () => {
                         return (
@@ -1695,12 +1692,15 @@ export default defineComponent({
                         );
                       },
                     }}
+                    isShow={this.isShowDropdownMenu}
+                    placement='top-start'
+                    trigger='manual'
                   >
                     <Button
+                      style='width: 88px;margin-right: 8px;'
+                      loading={this.isSending}
                       theme='primary'
                       outline
-                      loading={this.isSending}
-                      style='width: 88px;margin-right: 8px;'
                       onClick={() => {
                         this.isShowDropdownMenu = !this.isShowDropdownMenu;
                       }}

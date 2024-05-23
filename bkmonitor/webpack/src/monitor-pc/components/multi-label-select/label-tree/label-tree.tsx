@@ -26,6 +26,7 @@
 import { VNode } from 'vue';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deleteStrategyLabel, strategyLabel } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -426,7 +427,7 @@ export default class LabelTree extends tsc<IContainerProps> {
               },
             }),
           ]),
-        ],
+        ]
       ),
     ];
   }
@@ -490,7 +491,7 @@ export default class LabelTree extends tsc<IContainerProps> {
         style: { 'padding-left': this.itemPadding(node) },
         on: { click: () => this.handleCheckedNode(node) },
       },
-      node.isCreate || node.renamed ? this.editTpl(node) : this.normalTpl(node),
+      node.isCreate || node.renamed ? this.editTpl(node) : this.normalTpl(node)
     );
   }
 
@@ -498,10 +499,10 @@ export default class LabelTree extends tsc<IContainerProps> {
     return (
       <div class='label-tree-wrap'>
         <bk-tree
-          show-icon={false}
-          tpl={this.tpl}
           data={this.localTreeList}
           node-key='id'
+          show-icon={false}
+          tpl={this.tpl}
         ></bk-tree>
       </div>
     );

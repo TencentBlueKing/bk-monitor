@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 import VerifyInput from 'monitor-pc/components/verify-input/verify-input.vue';
@@ -39,6 +40,8 @@ interface IQuickShieldProps {
   details: IDetail[];
   ids?: Array<string>;
   bizIds?: number[];
+  authority?: Record<string, boolean>;
+  handleShowAuthorityDetail?: (action: any) => void;
 }
 export interface IDetail {
   severity: number;
@@ -54,16 +57,8 @@ export interface IDetail {
   name: 'QuickShield',
 })
 export default class MyComponent extends tsc<IQuickShieldProps> {
-  /**
-   * 由于 event-center 和 event-center-detail 这两个页面都需要 Provide 以下的 authority 和 authorityFromEventDetail
-   * 但是都继承了 authorityMixin 的方法，其中 beforeRouteEnter 这个只有页面组件才能执行该回调，
-   * 会导致，事件详情侧边栏也会 Provide 一个初始化值到快捷屏蔽告警 dialog 上形成bug，这里将注入两种类型的变量去解决上述问题。
-   * 副作用是会产生 Injection "xxx" not found 的警告
-   */
-  @Inject('authority') authority;
-  @Inject('authorityFromEventDetail') authorityFromEventDetail;
-  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Inject('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetailFromEventDetail = null;
+  @Prop({ type: Object, default: () => ({}) }) authority: IQuickShieldProps['authority'];
+  @Prop({ type: Function, default: null }) handleShowAuthorityDetail: IQuickShieldProps['handleShowAuthorityDetail'];
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Array, default: () => [] }) details: IDetail[];
   @Prop({ type: Array, default: () => [] }) ids: Array<string>;
@@ -229,19 +224,6 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
     window.open(url);
   }
 
-  getAuthority(): any {
-    const routeName = this.$route.name;
-    if (routeName === 'event-center') return this.authority;
-    if (routeName === 'event-center-detail') return this.authorityFromEventDetail;
-    return {};
-  }
-
-  getHandleShowAuthorityDetail(action: any) {
-    const routeName = this.$route.name;
-    if (routeName === 'event-center') this.handleShowAuthorityDetail(action);
-    if (routeName === 'event-center-detail') this.handleShowAuthorityDetailFromEventDetail?.(action);
-  }
-
   getInfoCompnent() {
     return this.details.map(detail => (
       <div class='item-content'>
@@ -266,8 +248,8 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           <div class='column-content'>{detail.dimension}</div>
         </div>
         <div
-          class='column-item'
           style='margin-bottom: 18px'
+          class='column-item'
         >
           <div class='column-label'> {`${this.$t('触发条件')}：`} </div>
           <div class='column-content'>{detail.trigger}</div>
@@ -294,26 +276,26 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
                 {this.timeList.map((item, index) => (
                   <bk-button
                     key={index}
-                    on-click={e => this.handleScopeChange(e, item.id)}
                     class={['width-item', { 'is-selected': this.timeValue === item.id }]}
+                    on-click={e => this.handleScopeChange(e, item.id)}
                   >
                     {item.name}
                   </bk-button>
                 ))}
                 {this.timeValue !== 0 ? (
                   <bk-button
-                    on-click={e => this.handleScopeChange(e, 0)}
                     class={['custom-width', { 'is-selected': this.timeValue === 0 }]}
+                    on-click={e => this.handleScopeChange(e, 0)}
                   >
                     {this.$t('button-自定义')}
                   </bk-button>
                 ) : (
                   <bk-date-picker
                     ref='time'
-                    type={'datetimerange'}
-                    placeholder={this.$t('选择日期时间范围')}
-                    options={this.options}
                     v-model={this.customTime}
+                    options={this.options}
+                    placeholder={this.$t('选择日期时间范围')}
+                    type={'datetimerange'}
                   ></bk-date-picker>
                 )}
               </div>
@@ -332,11 +314,11 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           <div class='item-label'> {this.$t('屏蔽原因')} </div>
           <div class='item-desc'>
             <bk-input
-              type='textarea'
-              v-model={this.desc}
               width={625}
-              rows={3}
+              v-model={this.desc}
               maxlength={100}
+              rows={3}
+              type='textarea'
             ></bk-input>
           </div>
         </div>
@@ -347,25 +329,25 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   render() {
     return (
       <MonitorDialog
+        width={'804'}
         class='quick-shield-dialog'
+        header-position={'left'}
+        title={this.$t('快捷屏蔽告警')}
         value={this.show}
         on-change={this.handleShowChange}
-        title={this.$t('快捷屏蔽告警')}
-        header-position={'left'}
-        width={'804'}
       >
         {this.getContentComponent()}
         <template slot='footer'>
           <bk-button
-            on-click={() =>
-              this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH
-                ? this.handleSubmit()
-                : this.getHandleShowAuthorityDetail(this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH)
-            }
-            theme='primary'
             style='margin-right: 10px'
+            v-authority={{ active: !this.authority?.ALARM_SHIELD_MANAGE_AUTH }}
             disabled={this.loading}
-            v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
+            theme='primary'
+            on-click={() =>
+              this.authority?.ALARM_SHIELD_MANAGE_AUTH
+                ? this.handleSubmit()
+                : this.handleShowAuthorityDetail?.(this.authority?.ALARM_SHIELD_MANAGE_AUTH)
+            }
           >
             {this.$t('确定')}
           </bk-button>

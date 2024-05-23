@@ -24,17 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import type { App } from 'vue';
 import { bkTooltips } from 'bkui-vue';
 
 import authority from './authority';
+import overflowText from './overflow-text';
 import watermark from './watermark';
+
+import type { App } from 'vue';
 
 const directives: Record<string, any> = {
   // 指令对象
   authority,
   bkTooltips,
   watermark,
+  overflowText,
 };
 
 export default {

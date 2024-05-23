@@ -33,77 +33,79 @@
     <bk-navigation
       :class="{
         'no-need-menu': !header.needMenu,
-        'custom-content': customContent
+        'custom-content': customContent,
       }"
-      @toggle="handleToggle"
+      :default-open="nav.toggle"
       :need-menu="header.needMenu"
       :side-title="nav.title"
+      @toggle="handleToggle"
       @toggle-click="handleToggleClick"
-      :default-open="nav.toggle"
     >
       <div
-        slot="header"
         class="monitor-navigation-header"
+        slot="header"
       >
         <div class="header-title">
           <span
             v-if="$route.meta.needBack"
-            @click="handleBack"
             class="header-title-back icon-monitor icon-back-left"
+            @click="handleBack"
           />
           {{ navTitle && $t('route-' + navTitle).replace('route-', '') }}
           <i
             v-if="showCopyBtn"
-            v-bk-tooltips="{ content: $t('复制链接') }"
             class="icon-monitor icon-copy-link monitor-copy-link"
+            v-bk-tooltips="{ content: $t('复制链接') }"
             @click="handleCopyLink"
           />
           <template v-if="$route.name === 'grafana'">
             <set-menu
               ref="setMenu"
-              @click="!hasDashboardAuth && handleUnDashboardAuth()"
               :has-auth="hasDashboardAuth"
               :menu-list="grafanaMenuList"
+              @click="!hasDashboardAuth && handleUnDashboardAuth()"
               @item-click="handleGrafanaMenuClick"
             />
           </template>
         </div>
         <bk-select
           ref="headerSelect"
-          search-with-pinyin
           class="header-select"
           v-model="header.select.value"
-          @change="handleBizChange"
-          searchable
           :clearable="false"
+          search-with-pinyin
+          searchable
+          @change="handleBizChange"
         >
           <bk-option
             v-for="(option, index) in header.select.list"
-            :key="index"
             :id="option.id"
+            :key="index"
             :name="option.text"
           />
           <div
-            slot="extension"
             class="select-extension"
+            slot="extension"
           >
             <span
               class="select-extension-btn has-border"
               @click="handleGetBizAuth"
-            >{{ $t('申请业务权限') }}</span>
+              >{{ $t('申请业务权限') }}</span
+            >
             <span
+              v-if="hasDemoBiz"
               class="select-extension-btn"
               @click="handleGotoDemo"
-              v-if="hasDemoBiz"
-            >{{ $t('DEMO') }}</span>
+              >{{ $t('DEMO') }}</span
+            >
           </div>
         </bk-select>
         <bk-popover
-          theme="light navigation-message"
           :arrow="false"
+          :tippy-options="{ hideOnClick: false }"
           offset="-20, 6"
           placement="bottom-start"
-          :tippy-options="{ hideOnClick: false }"
+          theme="light navigation-message"
         >
           <div class="header-help is-left">
             <span class="help-icon icon-monitor icon-mc-help-fill" />
@@ -111,8 +113,8 @@
           <template slot="content">
             <ul class="monitor-navigation-help">
               <li
-                class="nav-item"
                 v-for="(item, index) in help.list"
+                class="nav-item"
                 :key="index"
                 @click="handleHelp(item)"
               >
@@ -122,11 +124,11 @@
           </template>
         </bk-popover>
         <bk-popover
-          theme="light navigation-message"
           :arrow="false"
+          :tippy-options="{ hideOnClick: false }"
           offset="-20, 10"
           placement="bottom-start"
-          :tippy-options="{ hideOnClick: false }"
+          theme="light navigation-message"
         >
           <div class="header-user is-left">
             {{ userName }}
@@ -140,19 +142,19 @@
       >
         <img
           class="monitor-logo-icon"
-          src="../../static/images/svg/monitor-logo.svg"
           alt=""
-        >
+          src="../../static/images/svg/monitor-logo.svg"
+        />
       </div>
       <div
-        slot="menu"
         class="monitor-menu"
+        slot="menu"
       >
         <bk-navigation-menu
           ref="menu"
+          :before-nav-change="handleBeforeNavChange"
           :default-active="defaultRouteId"
           :toggle-active="nav.toggle"
-          :before-nav-change="handleBeforeNavChange"
         >
           <template v-for="item in nav.list">
             <bk-navigation-menu-group
@@ -162,24 +164,24 @@
             >
               <template v-for="child in item.children">
                 <bk-navigation-menu-item
+                  v-if="!child.hidden"
                   :key="child.id"
                   v-bind="child"
-                  v-if="!child.hidden"
+                  :default-active="child.active"
                   :href="getNavHref(child)"
                   @click="handleNavItemClick(child)"
-                  :default-active="child.active"
                 >
                   <span>{{ $t('route-' + (child.navName || child.name)) }}</span>
                 </bk-navigation-menu-item>
               </template>
             </bk-navigation-menu-group>
             <bk-navigation-menu-item
+              v-else
               :key="item.id"
               v-bind="item"
-              v-else
+              :default-active="item.active"
               :href="getNavHref(item)"
               @click="handleNavItemClick(item)"
-              :default-active="item.active"
             >
               <span>{{ $t('route-' + (item.navName || item.name)) }}</span>
             </bk-navigation-menu-item>
@@ -188,14 +190,14 @@
       </div>
       <!-- eslint-disable-next-line vue/no-v-html-->
       <div
-        slot="footer"
-        style="width: 100%"
         v-if="$route.name === 'home'"
+        style="width: 100%"
+        slot="footer"
         v-html="footer.html"
       />
       <div
-        v-bkloading="{ isLoading: mcMainLoading }"
         class="monitor-main-loading"
+        v-bkloading="{ isLoading: mcMainLoading }"
         v-show="mcMainLoading"
       />
       <template>
@@ -208,8 +210,8 @@
         <router-view
           key="noCache"
           v-bind="Object.assign({}, $route.params, { title: '' })"
-          name="noCache"
           :toggle-set="nav.toggleSet"
+          name="noCache"
         />
         <authority-modal />
       </template>
@@ -221,11 +223,12 @@
 
 <script>
 import Vue from 'vue';
-import { createNamespacedHelpers } from 'vuex';
+
 import BkPaasLogin from '@blueking/paas-login';
 import { getFooter } from 'monitor-api/modules/commons';
 import { copyText, deleteCookie, getUrlParam, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal/index';
+import { createNamespacedHelpers } from 'vuex';
 
 import LogVersion from '../../components/log-version/log-version';
 import LogVersionMixin from '../../components/log-version/log-version-mixin';
@@ -235,7 +238,6 @@ import { SET_BIZ_ID } from '../../store/modules/app';
 import authorityStore from '../../store/modules/authority';
 import PerformanceModule from '../../store/modules/performance';
 import { MANAGE_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
-
 import SetMenu from './set-menu/set-menu';
 
 const { mapMutations } = createNamespacedHelpers('app');
@@ -246,7 +248,7 @@ export default {
     LogVersion,
     AuthorityModal,
     SetMenu,
-    BkPaasLogin
+    BkPaasLogin,
   },
   mixins: [LogVersionMixin, documentLinkMixin],
   data() {
@@ -257,18 +259,18 @@ export default {
         toggle: false,
         submenuActive: false,
         title: this.$t('监控平台'),
-        toggleSet: false
+        toggleSet: false,
       },
       header: {
         select: {
           list: [],
-          value: 0
+          value: 0,
         },
         needMenu: true,
-        setDashboard: false
+        setDashboard: false,
       },
       user: {
-        list: [this.$t('项目管理'), this.$t('权限中心'), this.$t('退出')]
+        list: [this.$t('项目管理'), this.$t('权限中心'), this.$t('退出')],
       },
       loading: false,
       // 帮助列表
@@ -277,40 +279,40 @@ export default {
           {
             id: 'DOCS',
             name: this.$t('产品文档'),
-            href: ''
+            href: '',
           },
           {
             id: 'VERSION',
-            name: this.$t('版本日志')
+            name: this.$t('版本日志'),
           },
           {
             id: 'FAQ',
             name: this.$t('问题反馈'),
-            href: window.ce_url
-          }
-        ]
+            href: window.ce_url,
+          },
+        ],
       },
       // 显示版本日志
       log: {
-        show: false
+        show: false,
       },
       footer: {
-        html: ''
+        html: '',
       },
       grafanaMenuList: [
         {
           id: 'create',
-          name: this.$t('新建仪表盘')
+          name: this.$t('新建仪表盘'),
         },
         {
           id: 'folder',
-          name: this.$t('新建目录')
+          name: this.$t('新建目录'),
         },
         {
           id: 'import',
-          name: this.$t('导入仪表盘')
-        }
-      ]
+          name: this.$t('导入仪表盘'),
+        },
+      ],
     };
   },
   computed: {
@@ -333,7 +335,7 @@ export default {
         'event-center-detail',
         'event-center-action-detail',
         'strategy-config-detail',
-        'collect-config-view'
+        'collect-config-view',
       ].includes(this.$route.name);
     },
     siteUrl() {
@@ -353,7 +355,7 @@ export default {
     },
     hasDashboardAuth() {
       return this.$store.getters['grafana/hasManageAuth'];
-    }
+    },
   },
   watch: {
     '$route.name': {
@@ -362,8 +364,8 @@ export default {
           this.footer.html = await getFooter().catch(() => '');
         }
       },
-      imediadate: true
-    }
+      imediadate: true,
+    },
   },
   beforeCreate() {
     const siteUrl = window.site_url || window.siteUrl;
@@ -392,7 +394,7 @@ export default {
     },
     // 设置全局业务
     handleGlobalBiz() {
-      const bizId = +getUrlParam('bizId')?.replace(/\//gmi, '') || +window.cc_biz_id;
+      const bizId = +getUrlParam('bizId')?.replace(/\//gim, '') || +window.cc_biz_id;
       this.header.select.value = bizId;
       this.header.select.list = this.$store.getters.bizList;
     },
@@ -411,7 +413,7 @@ export default {
         await this.$nextTick();
         if (!this.$router.history.pending) {
           this.$router.push({
-            name: item.id
+            name: item.id,
           });
         }
       }
@@ -419,7 +421,7 @@ export default {
     handleCopyLink() {
       const str = `${window.location.origin + window.location.pathname}`;
       const url = `${str}?bizId=${this.$store.getters.bizId}${location.hash}${PerformanceModule.urlQuery}`;
-      copyText(url, (err) => {
+      copyText(url, err => {
         this.$bkMessage('error', err);
       });
       this.$bkMessage({ theme: 'success', message: this.$t('链接复制成功') });
@@ -478,12 +480,12 @@ export default {
           'alarm-shield-add',
           'alarm-shield-edit',
           'plugin-add',
-          'plugin-edit'
+          'plugin-edit',
         ].includes(this.$route.name)
       ) {
         if (newId !== oldId) {
           this.$router.push({
-            name: newId
+            name: newId,
           });
         }
         return false;
@@ -522,10 +524,10 @@ export default {
     async handleSetDefaultDashboardId() {
       this.header.setDashboard = true;
       const success = await this.$store.dispatch('grafana/setDefaultDashboard');
-      success
-        && this.$bkMessage({
+      success &&
+        this.$bkMessage({
           message: this.$t('设置成功'),
-          theme: 'success'
+          theme: 'success',
         });
       this.header.setDashboard = false;
     },
@@ -534,13 +536,13 @@ export default {
       if (!data.apply_url) return;
       try {
         if (self === top) {
-          window.open(data.apply_url, '__blank');
+          window.open(data.apply_url, '_blank');
         } else {
           top.BLUEKING.api.open_app_by_other('bk_iam', data.apply_url);
         }
       } catch (_) {
         // 防止跨域问题
-        window.open(data.apply_url, '__blank');
+        window.open(data.apply_url, '_blank');
       }
     },
     handleGrafanaMenuClick({ id }) {
@@ -549,8 +551,8 @@ export default {
     // 无grafana管理权限时触发
     handleUnDashboardAuth() {
       authorityStore.getAuthorityDetail(GRAFANA_MANAGE_AUTH);
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -595,7 +597,7 @@ export default {
   color: #63656e;
   background: #fff;
   border: 1px solid #e2e2e2;
-  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, .06);
+  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, 0.06);
 
   .nav-item {
     display: flex;
@@ -763,7 +765,7 @@ export default {
 
           &-font {
             line-height: 10px;
-            transform: scale(.75);
+            transform: scale(0.75);
           }
         }
 
