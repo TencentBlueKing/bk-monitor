@@ -28,9 +28,10 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
-import { listIntelligentModels } from 'monitor-api/modules/strategies';
 
 import ErrorMsg from '../../components/error-msg/error-msg';
+// import { listIntelligentModels } from 'monitor-api/modules/strategies';
+import IntelligentModelsStore, { IntelligentModelsType } from '../../store/modules/intelligent-models';
 import AnomalyDetection from './components/anomaly-detection';
 import ExpanCard from './components/expan-card';
 import IpSelector from './components/ip-selector';
@@ -134,10 +135,12 @@ export default class AiSettingsSet extends tsc<object> {
    */
   async getSchemeList() {
     // 获取单指标
-    this.schemeList = await listIntelligentModels({ algorithm: AISettingType.IntelligentDetect }).catch(() => []);
+    this.schemeList = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.IntelligentDetect,
+    }).catch(() => []);
     // 获取多场景
-    this.multipleSchemeList = await listIntelligentModels({
-      algorithm: AISettingType.MultivariateAnomalyDetection,
+    this.multipleSchemeList = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.MultivariateAnomalyDetection,
     }).catch(() => []);
   }
 
