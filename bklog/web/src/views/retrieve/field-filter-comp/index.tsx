@@ -39,6 +39,7 @@ export default class FieldFilterComp extends tsc<{}> {
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldsData: object;
   @Prop({ type: Boolean, default: false }) parentLoading: boolean;
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
+  @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Ref('filterPopover') private readonly filterPopoverRef!: HTMLDivElement;
 
   showFilterPopover = false; // 字段类型过滤 popover 显示状态
@@ -363,6 +364,7 @@ export default class FieldFilterComp extends tsc<{}> {
                       field-alias-map={this.fieldAliasMap}
                       show-field-alias={this.showFieldAlias}
                       visible-fields={this.visibleFields}
+                      date-picker-value={this.datePickerValue}
                       field-item={item}
                       onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                     />
@@ -386,6 +388,7 @@ export default class FieldFilterComp extends tsc<{}> {
                   retrieve-params={this.retrieveParams}
                   field-alias-map={this.fieldAliasMap}
                   show-field-alias={this.showFieldAlias}
+                  date-picker-value={this.datePickerValue}
                   field-item={item}
                   onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                 />
@@ -413,6 +416,7 @@ export default class FieldFilterComp extends tsc<{}> {
                   retrieve-params={this.retrieveParams}
                   field-alias-map={this.fieldAliasMap}
                   show-field-alias={this.showFieldAlias}
+                  date-picker-value={this.datePickerValue}
                   field-item={item}
                   onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                 />

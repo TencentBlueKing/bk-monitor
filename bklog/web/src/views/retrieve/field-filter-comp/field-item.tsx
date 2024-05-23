@@ -25,6 +25,7 @@ import { Component, Prop, Emit } from 'vue-property-decorator';
 import './field-item.scss';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 
 @Component
 export default class FieldItem extends tsc<{}> {
@@ -32,7 +33,7 @@ export default class FieldItem extends tsc<{}> {
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
-  // @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
+  @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Object, required: true }) retrieveParams: object;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
 
@@ -100,33 +101,44 @@ export default class FieldItem extends tsc<{}> {
     });
   }
   handleClickAnalysisItem() {
+    this.instanceDestroy();
     this.analysisActive = true;
     this.fieldAnalysisInstance = new FieldAnalysis().$mount();
     const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
     this.fieldAnalysisInstance.$props.fieldItem = this.fieldItem;
+    const tempList = handleTransformToTimestamp(this.datePickerValue);
     this.fieldAnalysisInstance.$props.queryParams = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
-      agg_field: this.fieldItem.field_name
+      agg_field: this.fieldItem.field_name,
+      start_time: tempList[0],
+      end_time: tempList[1]
     };
+    this.fieldAnalysisInstance?.$off('statisticsInfoFinish', this.updatePopperInstance);
+    this.fieldAnalysisInstance?.$on('statisticsInfoFinish', this.updatePopperInstance);
     this.operationInstance = this.$bkPopover(this.$refs.operationRef, {
       content: this.fieldAnalysisInstance.$el,
       arrow: true,
       placement: 'right-start',
-      boundary: document.querySelector('body'),
+      boundary: 'viewport',
       trigger: 'click',
       theme: 'light',
       interactive: true,
       appendTo: document.body,
       onHidden: () => {
         this.instanceDestroy();
-      },
-      onShow: () => {}
+      }
     });
     this.operationInstance.show(100);
   }
+  updatePopperInstance() {
+    setTimeout(() => {
+      this.operationInstance.popperInstance.update();
+    }, 100);
+  }
   instanceDestroy() {
+    this.fieldAnalysisInstance?.$off('statisticsInfoFinish', this.updatePopperInstance);
     this.operationInstance?.destroy();
     this.fieldAnalysisInstance?.$destroy();
     this.operationInstance = null;
