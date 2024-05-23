@@ -117,18 +117,6 @@ export default class AiSettingsSet extends tsc<object> {
       ],
     },
   ];
-  /* 关闭通知的对象 */
-  excludeTargetDetail = {
-    targets: [],
-    targetTable: [],
-    targetType: '',
-    objType: '',
-    desc: '',
-    nodeCount: 0,
-    instanceCount: 0,
-    info: null,
-    show: false,
-  };
   // 单指标
   schemeList: SchemeItem[] = [];
   // 多指标场景
@@ -217,10 +205,6 @@ export default class AiSettingsSet extends tsc<object> {
     this.$router.push({
       name: 'ai-settings',
     });
-  }
-
-  handleShowTargetDetail() {
-    this.excludeTargetDetail.show = true;
   }
 
   /**
