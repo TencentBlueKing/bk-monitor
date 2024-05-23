@@ -135,7 +135,7 @@ export default defineComponent({
      */
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
-      // handleQuery();
+      setUrlParams();
     }
 
     /** 是否全屏 */
@@ -229,10 +229,16 @@ export default defineComponent({
           query: {},
         });
       } else {
-        const { global_query, ...params } = queryParams.value;
+        const { global_query, ...params } = getParams();
         router.replace({
           query: {
-            target: encodeURIComponent(JSON.stringify(params)),
+            target: encodeURIComponent(
+              JSON.stringify({
+                ...params,
+                start: toolsFormData.value.timeRange[0],
+                end: toolsFormData.value.timeRange[1],
+              })
+            ),
           },
         });
       }
