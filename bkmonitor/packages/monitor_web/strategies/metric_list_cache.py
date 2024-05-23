@@ -437,8 +437,8 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
 
             # 通过 time_series_group_name 的生成规则过滤掉插件类型的数据
             custom_ts_result = [i for i in custom_ts_result if i["time_series_group_name"] not in db_name_list]
-        apm_metrics, apm_result_table_ids = self._apm_get_tables()
         apm_table_regex = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
+        apm_metrics, apm_result_table_ids = self._apm_get_tables(custom_ts_result, apm_table_regex)
         # 过滤APM指标
         custom_ts_result = [i for i in custom_ts_result if not apm_table_regex.match(i["table_id"])]
 
@@ -449,8 +449,13 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
 
         yield from apm_metrics
 
-    def _apm_get_tables(self):
-        # apm 指标
+    def _apm_get_tables(self, custom_ts_result: list, apm_table_regex):
+        """
+        获取 APM 指标
+        :param custom_ts_result: 自定义时序结果表
+        :param apm_table_regex: 配置规则
+        """
+        # apm 内置指标
         metrics = []
         result_table_ids = []
         applications = api.apm_api.list_application({"bk_biz_id": self.bk_biz_id})
@@ -491,6 +496,15 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
                 }
             )
 
+        # 添加 APM 非内置指标
+        apm_custom_ts_result = [i for i in custom_ts_result if apm_table_regex.match(i["table_id"])]
+        apm_metrics = set(name for name, _, _ in ApmMetrics.all())
+        for table in apm_custom_ts_result:
+            table_metrics = set(metric["field_name"] for metric in table.get("metric_info_list", []))
+            if table_metrics - apm_metrics:
+                table["label"] = "apm"
+                metrics.append(table)
+                result_table_ids.append(table["table_id"])
         return metrics, result_table_ids
 
     @staticmethod
