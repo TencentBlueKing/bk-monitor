@@ -760,6 +760,6 @@ export default {
   最小值: 'Minimum value',
   平均值: 'Average value',
   中位数: 'Median value',
-  'TOP 5 时序图': 'TOP 5 Related Pictures',
+  时序图: 'Related Pictures',
   数值分布直方图: 'Numeric Distribution Histogram'
 };

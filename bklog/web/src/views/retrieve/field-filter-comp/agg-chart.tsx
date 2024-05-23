@@ -66,7 +66,11 @@ export default class AggChart extends tsc<{}> {
 
   // 计算百分比
   computePercent(count) {
-    return `${Math.round(+(count / this.fieldValueData.field_count).toFixed(2) * 100)}%`;
+    const percentageNum = count / this.fieldValueData.field_count;
+    // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
+    const showPercentageStr =
+      percentageNum >= 0.01 ? Math.round(+percentageNum.toFixed(2) * 100) : (percentageNum * 100).toFixed(2);
+    return `${showPercentageStr}%`;
   }
   addCondition(operator, value) {
     if (this.fieldType === '__virtual__') return;
@@ -106,8 +110,7 @@ export default class AggChart extends tsc<{}> {
       });
       if (res.code === 0) {
         await this.$nextTick();
-        // this.shouldShowMore = res.data.values.length > 5;
-        this.shouldShowMore = true;
+        this.shouldShowMore = res.data.distinct_count > 5;
         Object.assign(this.fieldValueData, res.data);
       }
     } catch (error) {

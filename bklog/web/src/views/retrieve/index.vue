@@ -159,6 +159,7 @@
                   :show-field-alias="showFieldAlias"
                   :statistical-fields-data="statisticalFieldsData"
                   :parent-loading="tableLoading"
+                  :date-picker-value="datePickerValue"
                   @fieldsUpdated="handleFieldsUpdated"
                 />
               </div>
