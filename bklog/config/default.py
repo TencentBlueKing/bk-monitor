@@ -129,6 +129,9 @@ MIDDLEWARE = (
     # Auth middleware
     "blueapps.account.middlewares.BkJwtLoginRequiredMiddleware",
     "blueapps.account.middlewares.WeixinLoginRequiredMiddleware",
+    "apigw_manager.apigw.authentication.ApiGatewayJWTGenericMiddleware",  # JWT 认证，解析请求头中的 X-Bkapi-JWT，获取 request.jwt 对象
+    "apigw_manager.apigw.authentication.ApiGatewayJWTAppMiddleware",  # 根据 request.jwt，获取 request.app 对象
+    "apigw_manager.apigw.authentication.ApiGatewayJWTUserMiddleware",  # 根据 request.jwt，获取 request.user 对象
     # "blueapps.account.middlewares.LoginRequiredMiddleware",
     # 注释掉是因为ApiTokenAuthenticationMiddleware中针对非TOKEN校验的会继承父类
     "apps.middleware.api_token_middleware.ApiTokenAuthenticationMiddleware",
@@ -380,7 +383,7 @@ BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api"
 # 网关管理员
 APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split(","))}]'
 # 网关名称
-APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
+BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
 BK_API_URL_TMPL = os.getenv("BKAPP_API_URL_TMPL", f"{PAAS_API_HOST}/api/{{api_name}}/")
 
@@ -527,6 +530,7 @@ AUTHENTICATION_BACKENDS = (
     "blueapps.account.backends.BkJwtBackend",
     "blueapps.account.backends.UserBackend",
     "django.contrib.auth.backends.ModelBackend",
+    "apigw_manager.apigw.authentication.UserModelBackend",
 )
 REDIRECT_FIELD_NAME = "c_url"
 # 验证登录的cookie名

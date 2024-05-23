@@ -30,7 +30,7 @@ class Command(BaseCommand):
         if not getattr(settings, "SYNC_APIGATEWAY_ENABLED", True):
             return
 
-        gateway_name = settings.APIGW_NAME
+        gateway_name = settings.BK_APIGW_NAME
 
         # 待同步网关、资源定义文件，需调整为实际的配置文件地址
         definition_path = f"{settings.BASE_DIR}/support-files/apigw/definition.yaml"
