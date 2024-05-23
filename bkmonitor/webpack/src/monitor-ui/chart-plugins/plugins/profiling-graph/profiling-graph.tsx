@@ -232,7 +232,7 @@ class ProfilingChart extends CommonSimpleChart {
       cancelToken: new CancelToken(c => (this.cancelTableFlameFn = c)),
     })
       .then(data => {
-        if (data) {
+        if (data && Object.keys(data)?.length) {
           this.unit = data.unit || '';
           this.tableData = data.table_data?.items ?? [];
           this.flameData = data.flame_data;
