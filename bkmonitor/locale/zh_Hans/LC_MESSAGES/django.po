@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-23 11:33+0800\n"
+"POT-Creation-Date: 2024-05-23 17:33+0800\n"
 "PO-Revision-Date: 2017-11-24 14:50+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: zh_Hans <LL@li.org>\n"
@@ -2411,12 +2411,6 @@ msgstr "监控指标不存在"
 
 msgid "策略所属业务不存在"
 msgstr "策略所属业务不存在"
-
-msgid "常规值班"
-msgstr ""
-
-msgid "交替轮值"
-msgstr ""
 
 msgid "监控维度请选择任务ID"
 msgstr "监控维度请选择任务ID"
@@ -4872,15 +4866,6 @@ msgstr "群机器人"
 msgid "默认"
 msgstr "默认"
 
-msgid "审批中"
-msgstr "审批中"
-
-msgid "审批成功"
-msgstr ""
-
-msgid "审批失败"
-msgstr ""
-
 msgid "发送成功, 消息ID为{}"
 msgstr "发送成功, 消息ID为{}"
 
@@ -5724,6 +5709,9 @@ msgstr "已收敛"
 msgid "收到"
 msgstr "收到"
 
+msgid "审批中"
+msgstr "审批中"
+
 msgid "收敛中"
 msgstr "收敛中"
 
@@ -5898,12 +5886,6 @@ msgstr "远程调用"
 msgid "高级(Advances)"
 msgstr "高级(Advances)"
 
-msgid "HTTP Host"
-msgstr ""
-
-msgid "HTTP URL"
-msgstr ""
-
 msgid "服务地址"
 msgstr ""
 
@@ -6022,30 +6004,6 @@ msgstr "服务关联"
 msgid "尾部采样Flow"
 msgstr ""
 
-msgid "gt"
-msgstr ""
-
-msgid "gte"
-msgstr ""
-
-msgid "lt"
-msgstr ""
-
-msgid "lte"
-msgstr ""
-
-msgid "eq"
-msgstr ""
-
-msgid "neq"
-msgstr ""
-
-msgid "reg"
-msgstr ""
-
-msgid "nreg"
-msgstr ""
-
 msgid "trace请求耗时"
 msgstr "trace请求耗时"
 
@@ -6069,12 +6027,6 @@ msgstr "trace分钟总请求耗时"
 
 msgid "trace总请求耗时bucket"
 msgstr "trace总请求耗时bucket"
-
-msgid "常规"
-msgstr ""
-
-msgid "交替"
-msgstr ""
 
 msgid "每天"
 msgstr "每天"
@@ -6148,95 +6100,6 @@ msgstr "关联策略"
 
 msgid "Trace明细指标"
 msgstr "Trace明细指标"
-
-msgid "日志聚类"
-msgstr ""
-
-msgid "仪表盘"
-msgstr "仪表盘"
-
-msgid "观测场景"
-msgstr ""
-
-msgid "周期发送"
-msgstr ""
-
-msgid "只发一次"
-msgstr ""
-
-msgid "仅自己"
-msgstr ""
-
-#, fuzzy
-#| msgid "其他"
-msgid "其他人"
-msgstr "其他"
-
-msgid "不比对"
-msgstr ""
-
-msgid "1小时前"
-msgstr ""
-
-msgid "2小时前"
-msgstr ""
-
-msgid "3小时前"
-msgstr ""
-
-msgid "6小时前"
-msgstr ""
-
-msgid "12小时前"
-msgstr ""
-
-msgid "24小时前"
-msgstr ""
-
-msgid "所有"
-msgstr ""
-
-#, fuzzy
-#| msgid "上升%s%%"
-msgid "上升"
-msgstr "上升%s%%"
-
-#, fuzzy
-#| msgid "下降%s%%"
-msgid "下降"
-msgstr "下降%s%%"
-
-msgid "PATTERN模式"
-msgstr ""
-
-msgid "采样日志"
-msgstr ""
-
-#, fuzzy
-#| msgid "配置管理人员"
-msgid "管理员"
-msgstr "配置管理人员"
-
-msgid "自己"
-msgstr ""
-
-#, fuzzy
-#| msgid "已失效"
-msgid "失效"
-msgstr "已失效"
-
-#, fuzzy
-#| msgid "已失效"
-msgid "已取消"
-msgstr "已失效"
-
-#, fuzzy
-#| msgid "用户"
-msgid "生效"
-msgstr "用户"
-
-msgid "全部"
-msgstr "全部"
 
 msgid "监控采集"
 msgstr "监控采集"
@@ -7846,6 +7709,9 @@ msgstr "分区数量获取失败，请确认"
 msgid "数据({})未接入到计算平台，请先接入后再试"
 msgstr "数据({})未接入到计算平台，请先接入后再试"
 
+msgid "全部"
+msgstr "全部"
+
 msgid "慢语句"
 msgstr "慢语句"
 
@@ -7878,50 +7744,11 @@ msgstr "未启用"
 msgid "无告警"
 msgstr "无告警"
 
-msgid "获取"
-msgstr "获取"
-
-msgid "其他日志"
-msgstr "其他日志"
-
-msgid "随机采样"
-msgstr ""
-
-msgid "尾部采样"
-msgstr ""
-
-msgid "不采样"
-msgstr ""
-
 msgid "语言"
 msgstr "语言"
 
 msgid "蓝鲸DataId"
 msgstr "蓝鲸DataId"
-
-msgid "自动匹配"
-msgstr "自动匹配"
-
-msgid "手动匹配"
-msgstr "手动匹配"
-
-msgid "入口服务"
-msgstr "入口服务"
-
-msgid "入口接口"
-msgstr "入口接口"
-
-msgid "状态码"
-msgstr "状态码"
-
-msgid "调用类型"
-msgstr "调用类型"
-
-msgid "Trace视角"
-msgstr "Trace视角"
-
-msgid "span视角"
-msgstr "span视角"
 
 msgid "其他网卡"
 msgstr "其他网卡"
@@ -8031,6 +7858,12 @@ msgstr "最大耗时 {}"
 #, python-brace-format
 msgid "存在不支持的分组字段: {group_fields}"
 msgstr "存在不支持的分组字段: {group_fields}"
+
+msgid "入口服务"
+msgstr "入口服务"
+
+msgid "入口接口"
+msgstr "入口接口"
 
 msgid "入口状态码"
 msgstr "入口状态码"
@@ -8179,12 +8012,6 @@ msgid "目前暂不支持关闭 Tracing 功能"
 msgstr ""
 
 msgid "Span耗时"
-msgstr ""
-
-msgid "tracing"
-msgstr ""
-
-msgid "profiling"
 msgstr ""
 
 msgid "随机采样未配置采集百分比"
@@ -8401,6 +8228,9 @@ msgstr "接口概览"
 msgid "接口"
 msgstr "接口"
 
+msgid "调用类型"
+msgstr "调用类型"
+
 msgid "平均响应时间"
 msgstr "平均响应时间"
 
@@ -8418,27 +8248,6 @@ msgstr "{}天"
 
 msgid "自定义数据源"
 msgstr "自定义数据源"
-
-#, fuzzy
-#| msgid "相同文件已上传"
-msgid "已上传"
-msgstr "相同文件已上传"
-
-#, fuzzy
-#| msgid "{} 解析失败: {}"
-msgid "解析失败"
-msgstr "{} 解析失败: {}"
-
-msgid "已解析"
-msgstr ""
-
-#, fuzzy
-#| msgid "已保存"
-msgid "已存储"
-msgstr "已保存"
-
-msgid "存储失败"
-msgstr ""
 
 #, fuzzy
 #| msgid "应用({}) 不存在"
@@ -10288,9 +10097,6 @@ msgstr "所选目标与配置需求目标不一致"
 msgid "私人仪表盘"
 msgstr "私人仪表盘"
 
-msgid "IP"
-msgstr ""
-
 msgid "时间间隔必须为整数或auto"
 msgstr ""
 
@@ -10305,6 +10111,9 @@ msgstr "告警名称不能为空"
 
 msgid "策略ID不能为空"
 msgstr "策略ID不能为空"
+
+msgid "仪表盘"
+msgstr "仪表盘"
 
 msgid "文件夹"
 msgstr "文件夹"
@@ -10491,11 +10300,6 @@ msgstr "发布版本"
 
 msgid "平铺"
 msgstr "平铺"
-
-#, fuzzy
-#| msgid "{}(业务id:{})"
-msgid "业务id"
-msgstr "{}(业务id:{})"
 
 msgid "修改通知组失败"
 msgstr "修改通知组失败"
@@ -11956,6 +11760,9 @@ msgstr "拨测任务(id=%s)获取失败"
 msgid "(未知)"
 msgstr "(未知)"
 
+msgid "状态码"
+msgstr "状态码"
+
 msgid "响应内容"
 msgstr "响应内容"
 
@@ -12193,6 +12000,79 @@ msgstr "结果表[%s]未配置物理存储"
 #, python-format
 msgid "存储[%s]对应的查询引擎不存在"
 msgstr "存储[%s]对应的查询引擎不存在"
+
+#, fuzzy
+#~| msgid "其他"
+#~ msgid "其他人"
+#~ msgstr "其他"
+
+#, fuzzy
+#~| msgid "上升%s%%"
+#~ msgid "上升"
+#~ msgstr "上升%s%%"
+
+#, fuzzy
+#~| msgid "下降%s%%"
+#~ msgid "下降"
+#~ msgstr "下降%s%%"
+
+#, fuzzy
+#~| msgid "配置管理人员"
+#~ msgid "管理员"
+#~ msgstr "配置管理人员"
+
+#, fuzzy
+#~| msgid "已失效"
+#~ msgid "失效"
+#~ msgstr "已失效"
+
+#, fuzzy
+#~| msgid "已失效"
+#~ msgid "已取消"
+#~ msgstr "已失效"
+
+#, fuzzy
+#~| msgid "用户"
+#~ msgid "生效"
+#~ msgstr "用户"
+
+#~ msgid "获取"
+#~ msgstr "获取"
+
+#~ msgid "其他日志"
+#~ msgstr "其他日志"
+
+#~ msgid "自动匹配"
+#~ msgstr "自动匹配"
+
+#~ msgid "手动匹配"
+#~ msgstr "手动匹配"
+
+#~ msgid "Trace视角"
+#~ msgstr "Trace视角"
+
+#~ msgid "span视角"
+#~ msgstr "span视角"
+
+#, fuzzy
+#~| msgid "相同文件已上传"
+#~ msgid "已上传"
+#~ msgstr "相同文件已上传"
+
+#, fuzzy
+#~| msgid "{} 解析失败: {}"
+#~ msgid "解析失败"
+#~ msgstr "{} 解析失败: {}"
+
+#, fuzzy
+#~| msgid "已保存"
+#~ msgid "已存储"
+#~ msgstr "已保存"
+
+#, fuzzy
+#~| msgid "{}(业务id:{})"
+#~ msgid "业务id"
+#~ msgstr "{}(业务id:{})"
 
 #, fuzzy
 #~| msgid "主机智能异常检测结果内容异常"

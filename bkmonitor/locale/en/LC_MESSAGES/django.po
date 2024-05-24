@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-23 11:33+0800\n"
+"POT-Creation-Date: 2024-05-23 17:33+0800\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #, python-brace-format
@@ -4837,9 +4837,6 @@ msgstr "Group Robot"
 msgid "默认"
 msgstr "Default"
 
-msgid "审批中"
-msgstr "Approval"
-
 msgid "发送成功, 消息ID为{}"
 msgstr "Sent successfully, message ID {}"
 
@@ -5677,6 +5674,9 @@ msgstr "Converged"
 msgid "收到"
 msgstr "receive"
 
+msgid "审批中"
+msgstr "Approval"
+
 msgid "收敛中"
 msgstr "Convergence"
 
@@ -6058,9 +6058,6 @@ msgstr "Related Rules"
 msgid "Trace明细指标"
 msgstr "Trace Details"
 
-msgid "仪表盘"
-msgstr "Dashboard"
-
 msgid "监控采集"
 msgstr "Monitoring Collection"
 
@@ -6296,6 +6293,7 @@ msgstr "Abnormal Content in Host Intelligent Anomaly Detection Result"
 msgid "AIOps功能未开启"
 msgstr "AIOps is not accessed"
 
+#, python-brace-format
 msgid "当前空间尚未开[{func}]功能"
 msgstr "[{func}] not accessed in this space"
 
@@ -6581,12 +6579,14 @@ msgstr "Data_id: {data_id} does not exist."
 msgid "结果表元数据错误"
 msgstr "ResultTable Meta Error"
 
+#, python-brace-format
 msgid "元数据错误：{msg}"
 msgstr "ResultTable Meta Error: {msg}"
 
 msgid "采集器元数据错误"
 msgstr "Collector Plugin Meta Error"
 
+#, python-brace-format
 msgid "采集器元数据错误：{msg}"
 msgstr "Collector Plugin Meta Error: {msg}"
 
@@ -7651,6 +7651,9 @@ msgstr "The number of partitions failed, please confirm"
 msgid "数据({})未接入到计算平台，请先接入后再试"
 msgstr "Data ({}) is not accessible to the calculation platform, please first access before try"
 
+msgid "全部"
+msgstr "ALL,"
+
 msgid "慢语句"
 msgstr "Slow Query"
 
@@ -7681,41 +7684,11 @@ msgstr "Disabled"
 msgid "无告警"
 msgstr "No Alarms"
 
-msgid "获取"
-msgstr "Obtain"
-
-msgid "其他日志"
-msgstr "Other Logs"
-
 msgid "语言"
-msgstr "language"
+msgstr "Language"
 
 msgid "蓝鲸DataId"
 msgstr "BlueKing Data ID"
-
-msgid "自动匹配"
-msgstr "Auto Match"
-
-msgid "手动匹配"
-msgstr "Manual Match"
-
-msgid "入口服务"
-msgstr "Entry Service"
-
-msgid "入口接口"
-msgstr "Entry Endpoint"
-
-msgid "状态码"
-msgstr "Status Code"
-
-msgid "调用类型"
-msgstr "Invocation Type"
-
-msgid "Trace视角"
-msgstr "Trace View"
-
-msgid "span视角"
-msgstr "Span View"
 
 msgid "其他网卡"
 msgstr "Other NIC"
@@ -7825,6 +7798,12 @@ msgstr "Maximum Time {}"
 #, python-brace-format
 msgid "存在不支持的分组字段: {group_fields}"
 msgstr "unsupported grouping field: {group_fields}"
+
+msgid "入口服务"
+msgstr "Entry Service"
+
+msgid "入口接口"
+msgstr "Entry Endpoint"
 
 msgid "入口状态码"
 msgstr "Entry status code"
@@ -8179,6 +8158,9 @@ msgstr "Interface Overview"
 
 msgid "接口"
 msgstr "Interface"
+
+msgid "调用类型"
+msgstr "Invocation Type"
 
 msgid "平均响应时间"
 msgstr "Average response time"
@@ -10051,6 +10033,9 @@ msgstr "The name of the alarm cannot be empty"
 msgid "策略ID不能为空"
 msgstr "Rule ID cannot be empty"
 
+msgid "仪表盘"
+msgstr "Dashboard"
+
 msgid "文件夹"
 msgstr "Folder"
 
@@ -11695,6 +11680,9 @@ msgstr "Check task (id=%s) acquisition failure"
 
 msgid "(未知)"
 msgstr "(unknown)"
+
+msgid "状态码"
+msgstr "Status Code"
 
 msgid "响应内容"
 msgstr "Response Content"
