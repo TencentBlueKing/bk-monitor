@@ -23,7 +23,8 @@ def add_bcs_tag(apps, schema_editor):
         bcs_cluster_id = config.bcs_cluster_id
         try:
             # 校验标签是否已存在，创建或获取标签ID
-            tag_id, _ = IndexSetTag.objects.get_or_create(name=bcs_cluster_id)
+            tag, _ = IndexSetTag.objects.get_or_create(name=bcs_cluster_id)
+            tag_id = tag.tag_id
 
             # 校验是否为内置标签
             inner_tag_names = list(InnerTag.get_dict_choices().keys())
@@ -39,7 +40,9 @@ def add_bcs_tag(apps, schema_editor):
                 tag_ids.append(str(tag_id))
                 index_set_obj.tag_ids = tag_ids
                 index_set_obj.save()
-            print(f"add tag[{bcs_cluster_id}] to index[{config.collector_config_name_en}] success.")
+                print(f"add tag[{bcs_cluster_id}] to index[{config.collector_config_name_en}] success.")
+            else:
+                print(f"index[{config.collector_config_name_en}] - tag[{bcs_cluster_id}] already exist.")
         except Exception as e:
             print(f"add tag[{bcs_cluster_id}] to index[{config.collector_config_name_en}] failed: {e}")
 
