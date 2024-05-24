@@ -11,18 +11,34 @@ specific language governing permissions and limitations under the License.
 # -*- coding: utf-8 -*-
 from django.db import migrations
 
-from apps.log_search.handlers.index_set import IndexSetHandler
+from apps.log_search.constants import InnerTag
 
 
 def add_bcs_tag(apps, schema_editor):
     IndexSetTag = apps.get_model("log_search", "IndexSetTag")
+    LogIndexSet = apps.get_model("log_search", "LogIndexSet")
     CollectorConfig = apps.get_model("log_databus", "CollectorConfig")
     collect_configs = list(CollectorConfig.objects.filter(bk_app_code="bk_bcs"))
     for config in collect_configs:
         bcs_cluster_id = config.bcs_cluster_id
-        tag_id, _ = IndexSetTag.objects.get_or_create(name=bcs_cluster_id)
         try:
-            IndexSetHandler(config.index_set_id).add_tag(tag_id=tag_id)
+            # 校验标签是否已存在，创建或获取标签ID
+            tag_id, _ = IndexSetTag.objects.get_or_create(name=bcs_cluster_id)
+
+            # 校验是否为内置标签
+            inner_tag_names = list(InnerTag.get_dict_choices().keys())
+            inner_tag_ids = list(IndexSetTag.objects.filter(name__in=inner_tag_names).values_list("tag_id", flat=True))
+            if tag_id in inner_tag_ids:
+                continue
+
+            index_set_obj = LogIndexSet.objects.get(index_set_id=config.index_set_id)
+            tag_ids = list(index_set_obj.tag_ids)
+
+            # 若标签已存在，则不重复添加
+            if str(tag_id) not in tag_ids:
+                tag_ids.append(str(tag_id))
+                index_set_obj.tag_ids = tag_ids
+                index_set_obj.save()
             print(f"add tag[{bcs_cluster_id}] to index[{config.collector_config_name_en}] success.")
         except Exception as e:
             print(f"add tag[{bcs_cluster_id}] to index[{config.collector_config_name_en}] failed: {e}")
