@@ -2294,6 +2294,10 @@ class Strategy(AbstractConfig):
                 for field in query_config_fields:
                     new_query_config[field] = getattr(query_config, field, None)
 
+                # 聚合维度排序
+                if new_query_config["agg_dimension"]:
+                    new_query_config["agg_dimension"] = sorted(new_query_config["agg_dimension"])
+
                 # promql需要去除条件
                 if getattr(query_config, "promql", None):
                     try:

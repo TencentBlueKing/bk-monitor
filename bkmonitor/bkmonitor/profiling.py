@@ -74,6 +74,11 @@ SAMPLE_TYPE_CONFIG = {
 SAMPLE_TYPE_CONFIG_JSON = json.dumps(SAMPLE_TYPE_CONFIG).encode()
 
 
+class ProfileTypes:
+    CPU = "cpu"
+    MEM = "mem"
+
+
 def convert_stack_event(
     self,
     thread_id,  # type: str
@@ -402,5 +407,10 @@ def patch_ddtrace_to_pyroscope(skip_converter: bool = False):
         patch_converter()
 
     from ddtrace.profiling.profiler import _ProfilerInstance  # noqa
+
+    # 'cpu' always open，but 'mem' is on demand
+    profiling_types = str(os.getenv("BKAPP_CONTINUOUS_PROFILING_TYPES", ProfileTypes.CPU)).split(",")
+    if ProfileTypes.MEM not in profiling_types:
+        os.environ["DD_PROFILING_MEMORY_ENABLED"] = "False"
 
     _ProfilerInstance._build_default_exporters = _build_default_exporters

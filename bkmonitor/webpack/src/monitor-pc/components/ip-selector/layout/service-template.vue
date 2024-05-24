@@ -140,7 +140,7 @@ export default class ServiceTemplate extends Vue {
   // 默认为true是为了阻止 IpListTable 组件loading
   private isLoading = true;
   private selectionIds: (string | number)[] = [];
-  private emptyText: TranslateResult = '';
+  private emptyText: TranslateResult = window.i18n.t('暂无数据');
 
   private isSelectAll = false;
 
@@ -157,11 +157,11 @@ export default class ServiceTemplate extends Vue {
   //   }
   @Watch('selectionIds')
   private handleSelectionIdsChange() {
-    this.emptyText = !!this.selectionIds.length ? this.$t('查无数据') : this.$t('选择');
+    // this.emptyText = !!this.selectionIds.length ? this.$t('查无数据') : this.$t('选择');
   }
 
   private created() {
-    this.emptyText = this.$t('选择');
+    // this.emptyText = this.$t('选择');
   }
 
   private mounted() {

@@ -2,7 +2,7 @@
   "name": "blueking-monitor",
   "description": "blueking-monitor",
   "private": "true",
-  "version": "3.9.x",
+  "version": "3.9.0",
   "author": "bkfe",
   "license": "MIT",
   "scripts": {
@@ -78,8 +78,7 @@
       "local.settings.js",
       "webpack.config.js",
       "pnpm-lock.yaml"
-    ],
-    "extentions": []
+    ]
   },
   "engines": {
     "node": ">= 18.16"

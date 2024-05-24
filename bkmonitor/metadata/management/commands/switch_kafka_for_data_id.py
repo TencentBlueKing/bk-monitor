@@ -19,16 +19,24 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--data_ids", type=int, nargs="*", help="switched data id")
+        parser.add_argument("--bk_data_ids", type=str, help="switched data id, split by comma")
         parser.add_argument("--kafka_cluster_id", type=int, help="kafka cluster id")
 
     def handle(self, *args, **options):
         self.stdout.write("start to switch kafka cluster")
 
         data_ids = options.get("data_ids")
+        bk_data_ids = options.get("bk_data_ids")
         cluster_id = options.get("kafka_cluster_id")
         # 校验不能为空
-        if not (data_ids and cluster_id):
-            raise CommandError("data_ids and cluster_id can not be null")
+        if not (data_ids or bk_data_ids):
+            raise CommandError("one of --data_ids and --bk_data_ids option must be given")
+
+        if not cluster_id:
+            raise CommandError("option --kafka_cluster_id must be given")
+
+        if bk_data_ids:
+            data_ids = [int(data_id) for data_id in bk_data_ids.split(",")]
 
         # 校验数据
         if not ClusterInfo.objects.filter(cluster_id=cluster_id).exists():

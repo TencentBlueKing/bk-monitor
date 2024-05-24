@@ -45,6 +45,8 @@ import './select-index-set.scss';
 type IndexSetType = 'single' | 'union';
 type ActiveType = 'favorite' | 'history';
 
+const MAX_UNION_INDEXSET_LIMIT = 20;
+
 @Component
 export default class QueryStatement extends tsc<{}> {
   @Prop({ type: String, required: true }) indexId: string;
@@ -305,7 +307,7 @@ export default class QueryStatement extends tsc<{}> {
   }
 
   get isOverSelect() {
-    return this.selectTagCatchIDList.length >= 10;
+    return this.selectTagCatchIDList.length >= MAX_UNION_INDEXSET_LIMIT;
   }
 
   @Watch('unionIndexList', { immediate: true, deep: true })
@@ -348,13 +350,13 @@ export default class QueryStatement extends tsc<{}> {
         // 当前未全选中  则把过滤后的标签索引集id全放到缓存的id列表
         this.selectTagCatchIDList = [...new Set([...this.selectedItemIDlist, ...this.havValRenderIDSetList])].slice(
           0,
-          10
+          MAX_UNION_INDEXSET_LIMIT
         ); // 最多选10条数据
       } else {
         // 全选选中 清空 已有的过滤后的标签索引集id
         this.selectTagCatchIDList = this.selectedItemIDlist
           .filter(item => !this.havValRenderIDSetList.includes(item))
-          .slice(0, 10); // 最多选10条数据
+          .slice(0, MAX_UNION_INDEXSET_LIMIT); // 最多选20条数据
       }
     }
   }
@@ -941,7 +943,7 @@ export default class QueryStatement extends tsc<{}> {
             >
               {this.selectedItemList.length}
             </i18n>
-            {this.isOverSelect && <span class='over-select'>{this.$t('每次最多可选择10项')}</span>}
+            {this.isOverSelect && <span class='over-select'>{this.$t('每次最多可选择20项')}</span>}
           </div>
           <Popover
             ref='favoritePopover'

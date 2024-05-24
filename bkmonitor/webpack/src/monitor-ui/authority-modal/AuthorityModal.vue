@@ -27,24 +27,24 @@
   <bk-dialog
     width="768"
     ext-cls="permission-dialog"
-    :z-index="2990"
-    :mask-close="false"
     :header-position="'left'"
+    :mask-close="false"
     :title="''"
     :value="isModalShow"
-    @value-change="handleValueChange"
+    :z-index="2990"
     @cancel="onCloseDialog"
+    @value-change="handleValueChange"
   >
     <div
-      v-bkloading="{ isLoading: loading }"
       class="permission-modal"
+      v-bkloading="{ isLoading: loading }"
     >
       <div class="permission-header">
         <span class="title-icon">
           <img
+            class="lock-img"
             :src="lock"
             alt="permission-lock"
-            class="lock-img"
           />
         </span>
         <h3>{{ $t('该操作需要以下权限') }}</h3>
@@ -77,8 +77,8 @@
                 <td width="50%">
                   <p
                     v-for="(reItem, reIndex) in getResource(action.relatedResourceTypes)"
-                    :key="reIndex"
                     class="resource-type-item"
+                    :key="reIndex"
                   >
                     {{ reItem }}
                   </p>
@@ -98,8 +98,8 @@
       </div>
     </div>
     <div
-      slot="footer"
       class="permission-footer"
+      slot="footer"
     >
       <div class="button-group">
         <bk-button
@@ -172,13 +172,13 @@ export default class AuthorityModal extends Vue {
     // showAccessRequest(this.applyUrl);
     try {
       if (self === top) {
-        window.open(this.applyUrl, '__blank');
+        window.open(this.applyUrl, '_blank');
       } else {
         top.BLUEKING.api.open_app_by_other('bk_iam', this.applyUrl);
       }
     } catch (_) {
       // 防止跨域问题
-      window.open(this.applyUrl, '__blank');
+      window.open(this.applyUrl, '_blank');
     }
   }
   onCloseDialog() {

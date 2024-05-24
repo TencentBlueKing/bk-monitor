@@ -181,10 +181,7 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
                 context["BK_BIZ_ID"] = space_list[0]["bk_biz_id"]
             except IndexError:
                 # 什么权限都没有
-                if settings.DEMO_BIZ_ID:
-                    context["BK_BIZ_ID"] = int(settings.DEMO_BIZ_ID or 0)
-                else:
-                    context["BK_BIZ_ID"] = -1
+                context["BK_BIZ_ID"] = -1
 
     # 用于主机详情渲染
     context["HOST_DATA_FIELDS"] = (
