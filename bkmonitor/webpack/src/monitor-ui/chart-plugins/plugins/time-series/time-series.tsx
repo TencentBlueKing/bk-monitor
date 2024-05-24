@@ -72,6 +72,7 @@ import {
   PanelModel,
 } from '../../typings';
 import { isShadowEqual, reviewInterval } from '../../utils';
+import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { handleRelateAlert } from '../../utils/menu';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
@@ -408,6 +409,7 @@ export class LineChart
       });
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
+        const maxXInterval = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
         this.series = Object.freeze(series) as any;
@@ -487,13 +489,13 @@ export class LineChart
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
 
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
-
         const echartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
+        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -526,11 +528,14 @@ export class LineChart
               axisLabel: {
                 formatter: formatterFunc || '{value}',
               },
-              splitNumber: Math.ceil(this.width / 80),
-              min: 'dataMin',
+              ...xInterval,
             },
             series: seriesList,
             tooltip: this.handleSetTooltip(),
+            customData: {
+              // customData 自定义的一些配置 用户后面echarts实例化后的配置
+              maxXInterval,
+            },
           })
         );
         this.metrics = metrics || [];
@@ -757,7 +762,7 @@ export class LineChart
           return dayjs.tz(v).format('HH:mm');
         }
         if (duration < 60 * 60 * 24 * 8) {
-          return dayjs.tz(v).format('MM-DD HH:mm');
+          return dayjs.tz(v).format('MM-DD');
         }
         if (duration <= 60 * 60 * 24 * 30 * 12) {
           return dayjs.tz(v).format('MM-DD');
