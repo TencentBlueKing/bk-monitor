@@ -407,6 +407,7 @@ export class LineChart
         promiseList.push(...list);
       });
       await Promise.all(promiseList).catch(() => false);
+      this.metrics = metrics || [];
       if (series.length) {
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
@@ -533,7 +534,6 @@ export class LineChart
             tooltip: this.handleSetTooltip(),
           })
         );
-        this.metrics = metrics || [];
         this.handleDrillDownOption(this.metrics);
         this.inited = true;
         this.empty = false;
@@ -545,6 +545,7 @@ export class LineChart
           this.handleResize();
         }, 100);
       } else {
+        this.inited = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
