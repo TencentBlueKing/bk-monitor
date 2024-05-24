@@ -527,7 +527,7 @@ LOCALE_PATHS = (os.path.join(PROJECT_ROOT, "locale"),)
 AUTH_USER_MODEL = "account.User"
 AUTHENTICATION_BACKENDS = (
     "apps.middleware.api_token_middleware.ApiTokenAuthBackend",
-    "apigw_manager.apigw.authentication.UserModelBackend",
+    "apps.middleware.apigw.UserModelBackend",
     "blueapps.account.backends.BkJwtBackend",
     "blueapps.account.backends.UserBackend",
     "django.contrib.auth.backends.ModelBackend",
