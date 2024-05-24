@@ -25,9 +25,9 @@ the project delivered to anyone in the future.
 """
 import datetime  # noqa
 import time  # noqa
-import pytz  # noqa
 
 import arrow  # noqa
+import pytz  # noqa
 from django.conf import settings  # noqa
 from django.utils import timezone, translation  # noqa
 from rest_framework import serializers  # noqa
@@ -66,7 +66,9 @@ def timeformat_to_timestamp(timeformat, time_multiplicator=DEFAULT_MULTIPLICATOR
     return int(timestamp * time_multiplicator)
 
 
-def timestamp_to_timeformat(timestamp, time_multiplicator=DEFAULT_MULTIPLICATOR, t_format="%Y-%m-%d %H:%M:%S", tzformat=True):
+def timestamp_to_timeformat(
+    timestamp, time_multiplicator=DEFAULT_MULTIPLICATOR, t_format="%Y-%m-%d %H:%M:%S", tzformat=True
+):
     timestamp = int(timestamp / time_multiplicator)
     timestamp = time.localtime(timestamp)
     timeformat = time.strftime(t_format, timestamp)

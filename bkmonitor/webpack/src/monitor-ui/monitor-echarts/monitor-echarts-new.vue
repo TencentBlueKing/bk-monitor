@@ -25,9 +25,9 @@
 -->
 <template>
   <div
-    v-bkloading="{ isLoading: loading, zIndex: 2000 }"
-    class="monitor-echart-wrap"
     :style="{ 'background-image': backgroundUrl }"
+    class="monitor-echart-wrap"
+    v-bkloading="{ isLoading: loading, zIndex: 2000 }"
     @mouseenter="showTitleTool = true"
     @mouseleave="showTitleTool = false"
   >
@@ -37,35 +37,35 @@
     >
       <chart-title
         class="chart-title-wrap"
-        :title="chartTitle"
         :menu-list="chartOption.tool.list"
-        :subtitle="chartSubTitle"
         :show-more="!readonly && showTitleTool"
+        :subtitle="chartSubTitle"
+        :title="chartTitle"
         @menuClick="handleMoreToolItemSet"
         @selectChild="handleSelectChildMenu"
       />
     </div>
     <div
       ref="charWrapRef"
-      class="chart-wrapper-echarts"
-      tabindex="-1"
       :style="{
         flexDirection: !chartOption.legend.toTheRight ? 'column' : 'row',
         minHeight: chartWrapHeight + 'px',
         maxHeight: chartWrapHeight + 'px',
       }"
+      class="chart-wrapper-echarts"
+      tabindex="-1"
       @blur="handleCharBlur"
     >
       <div
         v-if="!noData"
-        class="echart-instance-wrap"
         :style="{ height: chartHeight + 'px' }"
+        class="echart-instance-wrap"
       >
         <div
           ref="chartRef"
           class="echart-instance"
-          @dblclick.prevent="handleChartDblClick"
           @click.stop="handleChartClick"
+          @dblclick.prevent="handleChartDblClick"
         >
           <status-chart
             v-if="chartType === 'status'"
@@ -77,8 +77,8 @@
           />
           <table-chart
             v-else-if="chartType === 'table'"
-            :series="tableSeries"
             :max-height="chartHeight + 'px'"
+            :series="tableSeries"
           />
         </div>
         <span
@@ -99,8 +99,8 @@
         <chart-legend
           v-if="legend.show"
           :legend-data="legend.list"
-          :to-the-right="chartOption.legend.toTheRight"
           :legend-type="chartOption.legend.asTable ? 'table' : 'common'"
+          :to-the-right="chartOption.legend.toTheRight"
           @legend-event="handleLegendEvent"
         />
       </div>
@@ -117,8 +117,8 @@
     </div>
     <div
       v-if="setNoData"
-      v-show="noData"
       class="echart-content"
+      v-show="noData"
     >
       <slot name="noData">
         {{ emptyText }}
@@ -127,20 +127,20 @@
     <div
       v-if="scatterTips.show && hasTraceInfo"
       ref="scatterTipsRef"
-      v-bk-clickoutside="handleScatterTipOutside"
-      class="scatter-tips"
       :style="{
         left: `${scatterTips.left}px`,
         top: `${scatterTips.top}px`,
       }"
+      class="scatter-tips"
+      v-bk-clickoutside="handleScatterTipOutside"
     >
       <div class="time">
         {{ scatterTips.data.time }}
       </div>
       <div
         v-for="(item, index) in scatterTips.data.list"
-        :key="index"
         class="info-item"
+        :key="index"
       >
         <span class="label">{{ item.label }}: </span>
         <span
@@ -164,21 +164,21 @@
       </div>
       <div class="bottom">
         <span
-          class="point"
           :style="{ background: scatterTips.data.target.color }"
+          class="point"
         />
         <span class="label">{{ scatterTips.data.target.label }}</span>
       </div>
     </div>
     <span
       v-if="errorMsg"
+      class="is-error"
       v-bk-tooltips="{
         content: errorMsg,
         placement: 'top-start',
         extCls: 'monitor-wrapper-error-tooltip',
         allowHTML: false,
       }"
-      class="is-error"
     />
     <div
       v-if="hasResize"
@@ -204,26 +204,26 @@
 
       <bk-table
         class="chart-table"
-        :data="tableData"
-        :height="tableHeight"
         :virtual-render="{
           lineHeight: 32,
         }"
+        :data="tableData"
+        :height="tableHeight"
       >
         <bk-table-column
-          prop="date"
-          min-width="180"
-          sortable
           :label="$t('时间')"
+          min-width="180"
+          prop="date"
+          sortable
         />
         <bk-table-column
           v-for="item of seriesData"
           :key="item.target"
           :label="item.target"
           :prop="item.key"
-          sortable
-          min-width="120"
           :render-header="renderHeader"
+          min-width="120"
+          sortable
         >
           <template #default="{ row }">
             {{ row[item.key] }}
@@ -559,7 +559,6 @@ export default class MonitorEcharts extends Vue {
     });
   }
 
-  @Watch('chartTy')
   @Watch('height', { immediate: true })
   onHeightChange(val) {
     this.localChartHeight = val ?? 0;

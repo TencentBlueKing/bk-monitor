@@ -175,7 +175,7 @@ else:
                 params["auth_info"] = json.dumps(auth_info)
             params.update({"blueking_language": translation.get_language()})
 
-            bk_username = req.user.bk_username if hasattr(req.user, "bk_username") else req.user.username
+            bk_username = getattr(req.user, "bk_username", None) or req.user.username
             if "bk_username" not in params:
                 params["bk_username"] = bk_username
 
