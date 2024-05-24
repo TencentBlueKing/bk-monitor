@@ -712,7 +712,11 @@ class ServiceInstance(object):
         self.bk_module_id = int(bk_module_id or 0)
         self.service_category_id = int(service_category_id or 0)
         self.labels = labels or {}
-        self.topo_link = topo_link
+        self.topo_link = {}
+
+        if topo_link:
+            for node_id, nodes in topo_link.items():
+                self.topo_link[node_id] = [TopoNode(**node) if isinstance(node, dict) else node for node in nodes]
 
         # 自定义属性
         self._extra_attr = kwargs
