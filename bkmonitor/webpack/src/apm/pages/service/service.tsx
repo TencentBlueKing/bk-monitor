@@ -142,7 +142,6 @@ export default class Service extends tsc<object> {
       vm.viewOptions = {};
       vm.appName = appName;
       vm.serviceName = serviceName;
-      vm.handleGetAppInfo();
       vm.getApplicationList();
       vm.getServiceList();
     };
