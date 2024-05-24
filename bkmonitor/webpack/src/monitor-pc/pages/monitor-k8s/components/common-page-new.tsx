@@ -762,7 +762,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     //  切换tab时初始化 showMode
     if (!this.sceneData.selectorPanel && this.showMode === 'list') {
       this.showMode = 'dashboard';
+    } else if (this.sceneData.options?.panel_tool?.full_table) {
+      this.showMode = 'list';
     }
+
     // 判断左侧栏是否需要缓存
     this.selectorPanelKey = oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
     const variables = {};
@@ -795,6 +798,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     // if (this.selectorPanelPriority) this.refleshVariablesKey = random(8);
     needLoading && (this.loading = false);
     this.handleResizeCollapse();
+    console.log(v);
     this.emitTabChange(v);
     this.emitLocalSceneTypeChange();
   }
@@ -1193,7 +1197,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }
     });
     const queryDataStr = Object.keys(queryData).length ? encodeURIComponent(JSON.stringify(queryData)) : undefined;
-
     this.$router.replace({
       name: this.$route.name,
       query: {
