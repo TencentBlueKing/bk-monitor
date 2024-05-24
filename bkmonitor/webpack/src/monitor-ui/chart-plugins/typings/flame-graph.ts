@@ -97,6 +97,7 @@ export interface IFlameChartOptions {
   h?: number;
   c?: number;
   minHeight?: number;
+  unit?: string;
   transitionDuration?: number;
   keywords?: string[];
   direction?: 'ltr' | 'rtl';
@@ -148,9 +149,12 @@ export interface ITipsDetail {
   proportion?: number | string;
   duration?: string;
   diffDuration?: string;
+  diffData?: number | string;
   diffValue?: number | string;
   id?: number | string;
   mark?: BaseDataType['diff_info']['mark'];
+  data?: number | string;
+  dataText?: string;
 }
 export interface IAxisRect {
   left?: number;

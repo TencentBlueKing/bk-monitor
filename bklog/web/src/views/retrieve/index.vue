@@ -454,6 +454,13 @@ export default {
       timezone: dayjs.tz.guess(),
       /** 数据指纹是否请求布尔值 */
       fingerSearchState: false,
+      /** 是否需要初始化过滤条件回显所需的参数 */
+      isFilterInitPage: true,
+      /** 首次初始化回显时需要的参数 */
+      initFilterParams: {
+        queryParams: {},
+        initAddition: {}
+      },
       logSourceField: {
         description: null,
         es_doc_values: false,
@@ -601,14 +608,18 @@ export default {
     },
     /** 索引集更变时的数据初始化 */
     initIndexSetChangeFn(val, isUnionSearch = false) {
-      this.isSearchAllowed = isUnionSearch
-        ? val?.every(
-            item =>
-              this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
-                authorityMap.SEARCH_LOG_AUTH
-              ]
-          )
-        : !!this.indexSetList.find(item => item.index_set_id === val)?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      if (!isUnionSearch) {
+        const aloneSetItem = this.indexSetList.find(item => item.index_set_id === val);
+        this.indexSetItem = aloneSetItem ?? { index_set_name: '', indexName: '', scenario_name: '', scenario_id: '' };
+        this.isSearchAllowed = !!aloneSetItem?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      } else {
+        this.isSearchAllowed = val?.every(
+          item =>
+            this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
+              authorityMap.SEARCH_LOG_AUTH
+            ]
+        );
+      }
       if (this.isSearchAllowed) this.authPageInfo = null;
       this.resetRetrieveCondition();
       this.resetFavoriteValue();
@@ -1008,7 +1019,11 @@ export default {
     batchAddCondition(additionList, isLink) {
       if (isLink) {
         const notExistAddition = additionList.filter(item => !this.additionIsExist(item));
-        this.additionLinkOpen(notExistAddition, { activeTableTab: 'origin', clusterRouteParams: '{}' });
+        const changeOperatorAddition = notExistAddition.map(item => ({
+          ...item,
+          operator: this.getAdditionMappingOperator(item)
+        }));
+        this.additionLinkOpen(changeOperatorAddition, { activeTableTab: 'origin', clusterRouteParams: '{}' });
       } else {
         additionList.forEach(item => {
           const { field, operator, value } = item;
@@ -1228,6 +1243,7 @@ export default {
           'end_time',
           // 'time_range',
           'unionList',
+          'tags',
           'activeTableTab', // 表格活跃的lab
           'clusterRouteParams', // 日志聚类参数
           'timezone'
@@ -1275,6 +1291,18 @@ export default {
                     const unionParamsList = JSON.parse(decodeURIComponent(param));
                     const resetUnionList = this.isUnionSearch ? this.unionIndexList : unionParamsList;
                     this.$store.commit('updateUnionIndexList', resetUnionList);
+                  }
+                  break;
+                case 'tags': // BCS索引集注入内置标签特殊检索
+                  {
+                    const tagList = param.split(',');
+                    const indexSetMatch = this.indexSetList
+                      .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
+                      .map(val => val.index_set_id);
+                    if (indexSetMatch?.length) {
+                      this.$store.commit('updateUnionIndexList', indexSetMatch);
+                      queryParamsStr.unionList = encodeURIComponent(JSON.stringify(indexSetMatch));
+                    }
                   }
                   break;
                 case 'ip_chooser':
@@ -1356,6 +1384,10 @@ export default {
         ...queryParamsStr,
         keyword: queryParamsStr?.keyword
       };
+
+      // tags 参数用于匹配转换为 unionList 不保留
+      if (queryObj.tags) delete queryObj.tags;
+
       this.$router.push({
         name: 'retrieve',
         // 联合查询不需要路由索引集ID
@@ -1372,6 +1404,13 @@ export default {
         this.resetResult();
         // 表格loading处理
         this.$refs.resultMainRef.reset();
+        // 字段过滤初始化所需的参数
+        if (this.isFilterInitPage) {
+          this.initFilterParams.queryParams = queryParams;
+          this.initFilterParams.initAddition = !!queryParamsStr?.addition
+            ? JSON.parse(queryParamsStr.addition)
+            : undefined;
+        }
         if (!this.totalFields.length || this.shouldUpdateFields) {
           window.bus.$emit('openChartLoading');
           this.isThollteField = false;
@@ -1394,11 +1433,6 @@ export default {
           Object.entries(clusteringParams).forEach(([key, val]) => {
             this[key] = val;
           });
-          await this.$nextTick();
-          // 初始化 回填添加条件
-          const addition = !!queryParamsStr.addition ? JSON.parse(queryParamsStr?.addition) : undefined;
-          const chooserSwitch = Boolean(queryParams.ip_chooser);
-          this.$refs.searchCompRef.initConditionList(addition, this.catchIpChooser, chooserSwitch); // 初始化 更新当前添加条件列表
           this.isInitPage = false;
         }
 
@@ -1555,7 +1589,17 @@ export default {
         this.isThollteField = false;
         this.$store.commit('retrieve/updateFiledSettingConfigID', config_id); // 当前配置ID
         this.$nextTick(() => {
-          this.$refs.searchCompRef?.initAdditionDefault();
+          if (this.isFilterInitPage) {
+            const { queryParams, initAddition } = this.initFilterParams;
+            // 初始化 回填添加条件
+            const chooserSwitch = Boolean(queryParams.ip_chooser);
+            // 初始化 更新当前添加条件列表
+            this.$refs.searchCompRef.initConditionList(initAddition, this.catchIpChooser, chooserSwitch);
+            this.initFilterParams = null;
+            this.isFilterInitPage = false;
+          } else {
+            this.$refs.searchCompRef?.initAdditionDefault();
+          }
           // 字段设置下拉列表更新
           this.configWatchBool = !this.configWatchBool;
         });
@@ -1606,8 +1650,6 @@ export default {
      */
     async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
       this.$store.commit('updateClearTableWidth', 1);
-      // requestFields已经更新过一次了展示了 不需要再更新
-      if (!isRequestFields) this.initVisibleFields(displayFieldNames);
       // 缓存展示字段
       const showFieldObj = this.sessionShowFieldObj();
       Object.assign(showFieldObj, { [this.indexId]: displayFieldNames });
@@ -1617,7 +1659,12 @@ export default {
         window.localStorage.setItem('showFieldAlias', showFieldAlias);
       }
       await this.$nextTick();
-      isRequestFields && this.requestFields();
+      if (!isRequestFields) {
+        this.initVisibleFields(displayFieldNames);
+      } else {
+        this.isSetDefaultTableColumn = false;
+        this.requestFields();
+      }
     },
     requestTableData() {
       if (this.requesting) return;

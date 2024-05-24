@@ -1047,6 +1047,7 @@ export default class DataRetrieval extends tsc<object> {
     this.filterQueryResult = [];
     this.promqlData = [];
     this.promqlExpandedData = [];
+    this.routeParamsReset();
     this.handleAddQuery();
     this.handleAddCode();
   }
@@ -1064,7 +1065,7 @@ export default class DataRetrieval extends tsc<object> {
 
   handleCompareValueChange(data: PanelToolsType.Compare) {
     this.compareValue.compare = data;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
 
   /**
@@ -1073,7 +1074,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleToolsTimeRangeChange(timeRange: TimeRangeType) {
     this.compareValue.tools.timeRange = timeRange;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
   /**
    * @description: 变更时区
@@ -1081,7 +1082,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleTimezoneChange(timezone: string) {
     this.compareValue.tools.timezone = timezone;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
   /**
    * @description: 合并视图
@@ -1089,7 +1090,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleSplitChange(val: boolean) {
     this.compareValue.compare.value = val;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
 
   /**
@@ -1273,7 +1274,7 @@ export default class DataRetrieval extends tsc<object> {
           ...(metricData || {}),
           alias,
           enable: item.enable,
-          agg_condition: item.agg_condition || [],
+          agg_condition: item.agg_condition || item._agg_condition || [],
           agg_dimension: item.agg_dimension || [],
           agg_interval: item.agg_interval,
           agg_method: item.agg_method,
@@ -1619,6 +1620,19 @@ export default class DataRetrieval extends tsc<object> {
     //   this.loading = false
     //   console.error(err)
     // })
+    if (this.tabActive === 'event') {
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          ...(this.$route.query || {}),
+          from: this.compareValue.tools.timeRange[0],
+          to: this.compareValue.tools.timeRange[1],
+          timezone: this.compareValue.tools.timezone,
+          type: 'event',
+          key: random(10),
+        },
+      });
+    }
     let params = this.getQueryParams();
     // 过滤无效查询
     if (!params) {
@@ -1649,8 +1663,111 @@ export default class DataRetrieval extends tsc<object> {
         this.queryResult = [];
         this.emptyStatus = '500';
       })
-      .finally(() => (this.loading = false));
+      .finally(() => {
+        this.loading = false;
+        this.routerParamsUpdate();
+      });
     this.isHandleQuery = false;
+  }
+
+  /**
+   * @description 更新路由参数（检索的任何更改都需要记录到路由上）
+   * @param panels
+   */
+  routerParamsUpdate() {
+    const targets = [];
+    if (this.editMode === 'UI') {
+      this.localValue.forEach((item: DataRetrievalQueryItem) => {
+        // 指标
+        if (item.isMetric && !item.isNullMetric && !item.sourceCodeError) {
+          const queryConfigItem: IDataRetrieval.queryConfigsParams | any = {
+            metric: item.metric_field,
+            method: item.agg_method,
+            alias: item.alias,
+            interval: item.agg_interval,
+            table: item.result_table_id,
+            data_source_label: item.data_source_label,
+            data_type_label: item.data_type_label,
+            group_by: item.agg_dimension,
+            where: item.agg_condition.filter(item => item.value.length).filter(item => item.key),
+            functions: item.functions,
+            metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }],
+          };
+          item.index_set_id && (queryConfigItem.index_set_id = item.index_set_id);
+          item.data_label && (queryConfigItem.data_label = item.data_label);
+          const temp = {
+            alias: item.alias,
+            data: {
+              query_configs: [queryConfigItem],
+              expression: item.alias,
+              alias: item.alias,
+            },
+          };
+          targets.push(temp);
+        } else if (!!item?.value || item?.functions?.length) {
+          const temp = {
+            alias: item.alias,
+            data: {
+              query_configs: [],
+              expression: item.value,
+              functions: item?.functions,
+              alias: item.alias,
+            },
+          };
+          targets.push(temp);
+        }
+      });
+    } else if (this.editMode === 'PromQL') {
+      this.promqlData.forEach(promqlItem => {
+        if (!!promqlItem.code && promqlItem.enable) {
+          const temp = {
+            data: {
+              query_configs: [
+                {
+                  data_source_label: 'prometheus',
+                  data_type_label: 'time_series',
+                  promql: promqlItem.code,
+                  interval: promqlItem.step || 'auto',
+                  alias: promqlItem.alias,
+                },
+              ],
+            },
+          };
+          targets.push(temp);
+        }
+      });
+    }
+
+    const routeParams = {
+      name: this.$route.name,
+      query: {
+        ...(this.$route.query || {}),
+        targets: targets.length ? JSON.stringify(targets) : undefined,
+        from: this.compareValue.tools.timeRange[0],
+        to: this.compareValue.tools.timeRange[1],
+        timezone: this.compareValue.tools.timezone,
+        key: random(10),
+      },
+    };
+    this.$router.replace(routeParams);
+  }
+
+  /**
+   * @description 重置路由参数
+   */
+  routeParamsReset() {
+    const routeParams = {
+      name: this.$route.name,
+      query: {
+        ...(this.$route.query || {}),
+        targets: undefined,
+        from: this.compareValue.tools.timeRange[0],
+        to: this.compareValue.tools.timeRange[1],
+        timezone: this.compareValue.tools.timezone,
+        key: random(10),
+      },
+    };
+    this.$router.replace(routeParams);
   }
 
   /**
@@ -2074,7 +2191,7 @@ export default class DataRetrieval extends tsc<object> {
         /** 去除单指标时重复的表达式a查询 */
         if (expression) {
           // display为grafana的隐藏展示参数 如果为单指标跳转不展示表达式的图
-          const enable = isMultipleMetric ? targets[index].data.display ?? true : false;
+          const enable = isMultipleMetric ? targets[index].data.display ?? true : expression !== 'a';
           const expItem: IDataRetrieval.IExpressionItem = {
             alias: '',
             enable,
@@ -2124,16 +2241,16 @@ export default class DataRetrieval extends tsc<object> {
       });
       return promqlData;
     }
-    if (targets?.[0]?.data?.query_configs?.[0]?.data_source_label === 'prometheus') {
-      targets[0].data.query_configs.forEach(q => {
+    targets.forEach(target => {
+      if (target?.data?.query_configs?.[0]?.data_source_label === 'prometheus') {
+        const q = target.data.query_configs[0];
         const temp = {
           code: q.promql,
           step: q.interval || q.agg_interval || 'auto',
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
-      });
-      return promqlData;
-    }
+      }
+    });
     return promqlData;
   }
   handleRoutePromqlData(promqlData: any[], from?: string, to?: string) {
@@ -2532,6 +2649,55 @@ export default class DataRetrieval extends tsc<object> {
       method: 'SUM',
       ...(params || deepClone(this.eventRetrievalRef.currentGroupByVarPramas)),
     };
+  }
+
+  /**
+   * @description 事件检索路由参数
+   * @param data
+   */
+  handleEventDataChange(data) {
+    const targets = [
+      {
+        data: {
+          query_configs: [
+            {
+              ...(() => {
+                const obj = {
+                  data_type_label: '',
+                  data_source_label: '',
+                };
+                if (data.eventType === 'custom_event') {
+                  obj.data_type_label = 'event';
+                  obj.data_source_label = 'custom';
+                } else if (data.eventType === 'bk_monitor_log') {
+                  obj.data_type_label = 'log';
+                  obj.data_source_label = 'bk_monitor';
+                }
+                return obj;
+              })(),
+              result_table_id: data.result_table_id || '',
+              where: data.where || [],
+              query_string: data.query_string || '',
+              group_by: [],
+              filter_dict: {},
+            },
+          ],
+        },
+      },
+    ];
+    const routeParams = {
+      name: this.$route.name,
+      query: {
+        ...(this.$route.query || {}),
+        targets: JSON.stringify(targets),
+        from: this.compareValue.tools.timeRange[0],
+        to: this.compareValue.tools.timeRange[1],
+        timezone: this.compareValue.tools.timezone,
+        type: 'event',
+        key: random(10),
+      },
+    };
+    this.$router.replace(routeParams);
   }
 
   /**
@@ -3302,6 +3468,7 @@ export default class DataRetrieval extends tsc<object> {
                           where={this.eventWhere}
                           onAddFav={this.handleClickAddOrUpdateFav}
                           onAutoQueryChange={this.handleAutoQueryOfEventChange}
+                          onChange={this.handleEventDataChange}
                           onChartTitleChange={this.eventChartTitleChange}
                           onCountChange={count => (this.eventCount = count)}
                           onEmptyStatusChange={this.handleEmptyStatusChange}

@@ -73,6 +73,7 @@ export default defineComponent({
       normal: [],
       no_data: [],
     });
+    const applicationListLoading = ref(false);
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: {
@@ -204,6 +205,7 @@ export default defineComponent({
 
     /** 获取应用/服务列表 */
     async function getApplicationList() {
+      applicationListLoading.value = true;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       applicationList.value = await listApplicationServices({
         start_time: start,
@@ -212,6 +214,7 @@ export default defineComponent({
         normal: [],
         no_data: [],
       }));
+      applicationListLoading.value = false;
     }
 
     /** 查询项公共参数 */
@@ -230,16 +233,23 @@ export default defineComponent({
 
     /** 获取过滤项列表 */
     async function getLabelList() {
-      localFormData.where = localFormData.where.filter(item => !item.key);
-      localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item => !item.key);
       labelList.value = [];
-      if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
+      if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) {
+        localFormData.where = [];
+        localFormData.comparisonWhere = [];
+        return;
+      }
       const labels = await queryLabels(
         {
           ...labelCommonParams.value,
         },
         { needMessage: false }
       ).catch(() => ({ label_keys: [] }));
+      // 获取label列表后，移除不在列表中的选项
+      localFormData.where = localFormData.where.filter(item => labels.label_keys.includes(item.key));
+      localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item =>
+        labels.label_keys.includes(item.key)
+      );
       labelList.value = labels.label_keys;
     }
 
@@ -253,6 +263,7 @@ export default defineComponent({
     return {
       t,
       applicationList,
+      applicationListLoading,
       localFormData,
       retrievalType,
       labelList,
@@ -290,6 +301,7 @@ export default defineComponent({
                 <div class='content'>
                   <ApplicationCascade
                     list={this.applicationList}
+                    loading={this.applicationListLoading}
                     value={[this.localFormData.server.app_name, this.localFormData.server.service_name]}
                     onChange={this.handleApplicationChange}
                   ></ApplicationCascade>
@@ -318,6 +330,7 @@ export default defineComponent({
               <div class='search-title'>{this.t('当前查询项')}</div>
               {this.localFormData.where.map((item, index) => (
                 <ConditionItem
+                  key={item.key}
                   class='condition-item'
                   data={item}
                   labelList={this.labelList}
@@ -339,6 +352,7 @@ export default defineComponent({
                 <div class='search-title'>{this.t('参照查询项')}</div>
                 {this.localFormData.comparisonWhere.map((item, index) => (
                   <ConditionItem
+                    key={item.key}
                     class='condition-item'
                     data={item}
                     labelList={this.labelList}

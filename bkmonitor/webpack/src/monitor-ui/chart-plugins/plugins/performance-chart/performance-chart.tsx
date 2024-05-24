@@ -38,6 +38,7 @@ import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
 import { ILegendItem, ITimeSeriesItem, LegendActionType, MonitorEchartOptions } from '../../typings';
 import { reviewInterval } from '../../utils';
+import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
@@ -139,6 +140,7 @@ export default class PerformanceChart extends TimeSeries {
       });
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
+        const maxXInterval = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         const emitDimensions = () => {
           const dimensionSet = new Set();
@@ -159,7 +161,7 @@ export default class PerformanceChart extends TimeSeries {
             .hostIntelligenAnomalyRange({
               start_time: params.start_time,
               end_time: params.end_time,
-              interval: this.viewOptions.interval,
+              interval: isNaN(+this.viewOptions.interval) ? this.viewOptions.interval : this.viewOptions.interval + 's', // 默认 interval 单位 s
               metric_ids: metrics?.map(item => item.metric_id),
               host: [
                 {
@@ -241,6 +243,7 @@ export default class PerformanceChart extends TimeSeries {
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         );
+        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -269,10 +272,13 @@ export default class PerformanceChart extends TimeSeries {
               axisLabel: {
                 formatter: formatterFunc || '{value}',
               },
-              splitNumber: Math.ceil(this.width / 80),
-              min: 'dataMin',
+              ...xInterval,
             },
             series: seriesList,
+            customData: {
+              // customData 自定义的一些配置 用户后面echarts实例化后的配置
+              maxXInterval,
+            },
           })
         );
         this.metrics = metrics || [];

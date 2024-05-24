@@ -35,8 +35,8 @@
         <i class="icon-down" />
       </div>
       <div
-        v-show="compareType.value > 0"
         class="table-filter-dimension"
+        v-show="compareType.value > 0"
         @click="handleShowPopup('compareData')"
       >
         {{ compareValue }}
@@ -56,8 +56,8 @@
     <!-- 表格内容 -->
     <van-row
       v-for="(row, index) in data"
-      :key="index"
       class="table-body"
+      :key="index"
     >
       <van-col
         v-for="(config, i) in dataConfig"
@@ -66,10 +66,10 @@
       >
         <span
           v-if="config.prop === 'name'"
-          class="compare-icon"
           :style="{
             background: colors[index],
           }"
+          class="compare-icon"
         />
         <span>{{ row[config.prop] | filterBigNum }}</span>
       </van-col>
@@ -77,10 +77,10 @@
     <!-- select -->
     <bk-select
       v-model="currentCompare.value"
-      :show.sync="showPopup"
       :columns="columns"
-      @confirm="handleConfirm"
+      :show.sync="showPopup"
       @cancel="handleCancel"
+      @confirm="handleConfirm"
     />
   </div>
 </template>

@@ -29,6 +29,7 @@ import { hierarchy, HierarchyNode, HierarchyRectangularNode, partition } from 'd
 import { NumberValue, scaleLinear } from 'd3-scale';
 import { BaseType, select, Selection, ValueFn } from 'd3-selection';
 import { curveCatmullRom, line } from 'd3-shape';
+import { parseProfileDataTypeValue, ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import {
@@ -69,6 +70,7 @@ export class FlameChart<D extends BaseDataType> {
   threadsData: D[] = [];
   transitionDuration = 750;
   transitionEase = easeCubic;
+  unit: ProfileDataUnit = 'nanoseconds';
   w = 960;
   zoomData: BaseRect = {};
   constructor(
@@ -102,16 +104,20 @@ export class FlameChart<D extends BaseDataType> {
   getName(d: HierarchyNode<D> | HierarchyRectangularNode<D>, type: 'all' | 'name' | 'value' = 'all') {
     const value = this.getValue(d as HierarchyRectangularNode<D>);
     if (type === 'name') return d.data.name;
+    if (type === 'value') {
+      const percent = `${((value / this.getValue(this.mainData)) * 100).toFixed(2)}%`;
+      const { value: dataValue } = parseProfileDataTypeValue(value, this.unit, false, percent);
+      return dataValue;
+    }
     const { text, suffix } = usFormat(value);
-    if (type === 'value') return `(${((value / this.getValue(this.mainData)) * 100).toFixed(2)}%, ${text}${suffix})`;
     return `${d.data.name}(${((value / this.getValue(this.mainData)) * 100).toFixed(2)}%, ${text}${suffix})`;
   }
   getValue(d: D | HierarchyRectangularNode<D>) {
     if ('data' in d) {
-      return d.data.value / 1000;
+      return d.data.value;
     }
 
-    return d.value / 1000;
+    return d.value;
   }
   /**
    *
@@ -373,7 +379,9 @@ export class FlameChart<D extends BaseDataType> {
           const colorIndex = getHashVal(d.data.name) % palette.length;
           const defColor = customColor || palette[colorIndex];
           if (this.zoomData?.keywords?.length) {
-            if (this.zoomData.keywords.some(k => d.data.name.toLocaleLowerCase().includes(k))) return defColor;
+            if (this.zoomData.keywords.some(k => d.data.name.toLocaleLowerCase().includes(k.toLocaleLowerCase()))) {
+              return defColor;
+            }
             return '#aaa';
           }
           if (highlightName) return d.data.name === highlightName ? defColor : '#aaa';

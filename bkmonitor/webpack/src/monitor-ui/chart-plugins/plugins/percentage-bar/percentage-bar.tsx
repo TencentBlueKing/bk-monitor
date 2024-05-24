@@ -198,7 +198,7 @@ class PercentageBarChart extends CommonSimpleChart {
    * @description: 跳转更多的数据
    */
   handleShowMoreData() {
-    window.open(this.viewMoreLink, '__blank');
+    window.open(this.viewMoreLink, '_blank');
   }
 
   /**

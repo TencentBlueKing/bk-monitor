@@ -34,7 +34,7 @@ from django_prometheus.utils import Time, TimeSince
 
 from apps.api import BKLoginApi
 from apps.exceptions import ApiRequestError, ApiResultError
-from apps.utils.cache import cache_half_minute
+from apps.utils.cache import cache_five_minute
 from apps.utils.local import activate_request, set_local_param
 from apps.utils.prometheus import BkLogMetrics
 
@@ -66,9 +66,11 @@ class UserLocalMiddleware(MiddlewareMixin):
         set_local_param("time_zone", tzname)
         timezone.activate(pytz.timezone(tzname))
         request.session["bluking_timezone"] = tzname
+        # 注入用户信息
+        request.user_info = user_info
 
     @staticmethod
-    @cache_half_minute("{user}_user_info")
+    @cache_five_minute("{user}_user_info")
     def _get_user_info(*, user):
         try:
             return BKLoginApi.get_user({"username": user})

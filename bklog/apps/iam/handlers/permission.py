@@ -338,17 +338,7 @@ class Permission(object):
             # 获取业务列表
             from apps.log_search.models import Space
 
-            space_list = Space.objects.values(
-                "id",
-                "space_type_id",
-                "space_type_name",
-                "space_id",
-                "space_name",
-                "space_uid",
-                "space_code",
-                "bk_biz_id",
-                "properties",
-            )
+            space_list = Space.get_all_spaces()
         # 跳过权限检验
         if settings.IGNORE_IAM_PERMISSION:
             return space_list

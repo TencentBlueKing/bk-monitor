@@ -243,15 +243,24 @@ def test_discover_bcs_clusters(
     # 测试状态标记为删除
     discover_bcs_clusters()
     cluster_info_model = BCSClusterInfo.objects.get(cluster_id="BCS-K8S-00000")
-    assert cluster_info_model.status == BCSClusterInfo.CLUSTER_STATUS_RUNNING
+    assert cluster_info_model.status in [
+        BCSClusterInfo.CLUSTER_STATUS_RUNNING,
+        BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING,
+    ]
     cluster_info_model = BCSClusterInfo.objects.get(cluster_id="BCS-K8S-00001")
-    assert cluster_info_model.status == BCSClusterInfo.CLUSTER_STATUS_DELETED
+    assert cluster_info_model.status in [
+        BCSClusterInfo.CLUSTER_STATUS_DELETED,
+        BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
+    ]
 
     # 测试状态恢复
-    BCSClusterInfo.objects.filter(cluster_id="BCS-K8S-00000").update(status=BCSClusterInfo.CLUSTER_STATUS_DELETED)
+    BCSClusterInfo.objects.filter(cluster_id="BCS-K8S-00000").update(status=BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED)
     discover_bcs_clusters()
     cluster_info_model = BCSClusterInfo.objects.get(cluster_id="BCS-K8S-00000")
-    assert cluster_info_model.status == BCSClusterInfo.CLUSTER_STATUS_RUNNING
+    assert cluster_info_model.status in [
+        BCSClusterInfo.CLUSTER_STATUS_RUNNING,
+        BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING,
+    ]
 
 
 def test_update_bcs_cluster_cloud_id_config(

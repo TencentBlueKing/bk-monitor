@@ -807,7 +807,9 @@ class ListApplicationResource(PageListResource):
         def to_representation(self, instance):
             data = super(ListApplicationResource.ApplicationSerializer, self).to_representation(instance)
             if not data["is_enabled"]:
-                data["data_status"] = DataStatus.STOP
+                data["data_status"] = DataStatus.DISABLED
+            if not data["is_enabled_profiling"]:
+                data["profiling_data_status"] = DataStatus.DISABLED
             return data
 
     def get_filter_fields(self):
@@ -1880,7 +1882,7 @@ class ModifyMetricResource(Resource):
 
 
 class QueryEndpointStatisticsResource(PageListResource):
-    span_keys = ["db.system", "http.url", "messaging.system", "rpc.system"]
+    span_keys = ["db.system", "http.url", "messaging.system", "rpc.system", "trpc.callee_method"]
 
     default_sort = "-request_count"
 
@@ -1889,6 +1891,7 @@ class QueryEndpointStatisticsResource(PageListResource):
         "http_url": "attributes.http.url",
         "messaging_system": "attributes.messaging.system",
         "rpc_system": "attributes.rpc.system",
+        "trpc_callee_method": "attributes.trpc.callee_method",
     }
 
     def get_columns(self, column_type=None):
@@ -1983,7 +1986,7 @@ class QueryEndpointStatisticsResource(PageListResource):
             "start_time": int(params["start_time"]) * 1000,
             "end_time": int(params["end_time"]) * 1000,
             "bk_biz_id": params["bk_biz_id"],
-            "app_name": params["app_name"]
+            "app_name": params["app_name"],
         }
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):

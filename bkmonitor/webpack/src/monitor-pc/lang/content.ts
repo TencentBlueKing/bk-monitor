@@ -207,4 +207,14 @@ export default {
   已通过: 'Passed',
   未通过: 'Not passed',
   未审批: 'Not approved',
+  请先在左侧选择应用: 'Please select an application on the left side first',
+  '应用加载中，请耐心等候…': 'Application is loading, please wait patiently...',
+  '启用 AI 功能，将支持维度下钻、关联指标事件展示等功能。':
+    'Enabling the AI function will support functions such as dimension drill-down and associated indicator event display.',
+  '1. 基础计算平台：将 AI 相关的模型导入到该环境运行':
+    '1. Basic computing platform: Import AI-related models into this environment to run',
+  '如需使用该功能，需要部署：': 'To use this feature, you need to deploy:',
+  '暂无 AI 功能': 'No AI function yet',
+  '支持单指标异常检测、时序预测、离群检测等智能检测算法':
+    'Supports single-index anomaly detection, time series prediction, outlier detection and other intelligent detection algorithms',
 };

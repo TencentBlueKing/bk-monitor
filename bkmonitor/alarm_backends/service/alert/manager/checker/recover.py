@@ -113,7 +113,7 @@ class RecoverStatusChecker(BaseChecker):
         window_unit = Strategy.get_check_window_unit(item, self.DEFAULT_CHECK_WINDOW_UNIT)
 
         try:
-            if self.check_has_dynamic_severity(item):
+            if self.check_is_multi_indicator_strategy(item):
                 recovery_configs = list(Strategy.get_recovery_configs(strategy).values())[0]
             else:
                 recovery_configs = Strategy.get_recovery_configs(strategy)[str(alert.event_severity)]
@@ -129,7 +129,7 @@ class RecoverStatusChecker(BaseChecker):
         recovery_window_offset = window_unit * recovery_window_size
 
         try:
-            if self.check_has_dynamic_severity(item):
+            if self.check_is_multi_indicator_strategy(item):
                 trigger_config = list(Strategy.get_trigger_configs(strategy).values())[0]
             else:
                 trigger_config = Strategy.get_trigger_configs(strategy)[str(alert.event_severity)]
@@ -202,6 +202,7 @@ class RecoverStatusChecker(BaseChecker):
                 _("连续 {} 个周期不满足触发条件，告警已{{handle}}").format(recovery_window_size),
                 status_setter=status_setter,
                 latest_normal_record=latest_normal_record,
+                strategy_item=item,
             )
             logger.info(
                 "[处理结果] ({}) alert({}), strategy({}) 连续 {} 个周期内不满足触发条件，进行事件{}".format(
@@ -364,7 +365,14 @@ class RecoverStatusChecker(BaseChecker):
         return True, latest_normal_record
 
     @classmethod
-    def recover(cls, alert, description, status_setter="recovery", latest_normal_record: tuple = None):
+    def recover(
+        cls,
+        alert,
+        description,
+        status_setter="recovery",
+        latest_normal_record: tuple = None,
+        strategy_item: dict = None,
+    ):
         """
         事件恢复
         """
@@ -379,7 +387,10 @@ class RecoverStatusChecker(BaseChecker):
         description = description.format(handle=handle)
         if latest_normal_record:
             record_value_display = cls.get_value_display(alert, latest_normal_record[1])
-            if record_value_display is not None:
+            # 如果是AIOPS多指标的智能异常检测，则不展示当前值(is_anomaly)，后续考虑从接口获取当前恢复时所以监控的多个指标的值
+            if record_value_display is not None and not (
+                strategy_item and cls.check_is_multi_indicator_strategy(strategy_item)
+            ):
                 description = _("{description}，当前值为{record_value_display}").format(
                     description=description, record_value_display=record_value_display
                 )
@@ -400,7 +411,8 @@ class RecoverStatusChecker(BaseChecker):
             logger.info("load value unit for alert(%s) failed %s, current value(%s)", alert.id, str(error), value)
             return value
 
-    def check_has_dynamic_severity(self, strategy_item) -> bool:
+    @classmethod
+    def check_is_multi_indicator_strategy(cls, strategy_item) -> bool:
         """检查策略是否包含动态告警级别.
 
         :param strategy_item: 策略配置

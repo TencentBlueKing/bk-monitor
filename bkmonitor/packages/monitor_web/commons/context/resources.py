@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
-from django.conf import settings
 from django.middleware.csrf import get_token
 from django.utils import timezone
 
@@ -57,8 +56,6 @@ class GetContextResource(Resource):
                     bk_biz_id = space.bk_biz_id
                 except BKAPIError as e:
                     logger.exception(f"获取空间信息({attrs['space_uid']})失败：{e}")
-                    if settings.DEMO_BIZ_ID:
-                        bk_biz_id = settings.DEMO_BIZ_ID
 
                 if bk_biz_id:
                     attrs["bk_biz_id"] = bk_biz_id
@@ -121,8 +118,6 @@ class EnhancedGetContextResource(Resource):
                 logger.warning(
                     f"[get_basic_context] space_uid not found: " f"uid -> {space_uid} not in space_list -> {space_list}"
                 )
-                if settings.DEMO_BIZ_ID:
-                    bk_biz_id = int(settings.DEMO_BIZ_ID or 0)
         elif not bk_biz_id:
             bk_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
 

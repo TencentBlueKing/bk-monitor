@@ -98,6 +98,10 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
       height: 16px;
       color: #979ba5;
 
+      .bk-slider-interval {
+        display: none;
+      }
+
       .bk-slider-label {
         &:first-child {
           justify-content: start;
@@ -109,6 +113,23 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
           transform: translateX(-100%);
         }
       }
+
+      &.process-item-readonly {
+        pointer-events: none;
+
+        .slider-button {
+          width: 4px;
+          cursor: not-allowed;
+          background: #979ba5;
+          border-radius: 4px;
+        }
+      }
+    }
+
+    .item-readonly-value {
+      position: absolute;
+      top: 0px;
+      left: 330px;
     }
 
     .aiops-metric-select {
@@ -222,5 +243,9 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
     .bk-select-loading {
       top: 3px;
     }
+  }
+
+  .bk-slider-button {
+    z-index: 1;
   }
 }

@@ -30,20 +30,19 @@
       class="article"
     >
       <step-field
-        v-if="curStep === 1"
         :cur-step="curStep"
         :is-clean-field="true"
         @stepChange="stepChange"
         @changeClean="isCleaning = true"
         @changeSubmit="changeSubmit"
       />
-      <step-storage
+      <!-- <step-storage
         v-if="curStep === 2"
         :cur-step="curStep"
         :is-clean-field="true"
         @stepChange="stepChange"
         @changeSubmit="changeSubmit"
-      />
+      /> -->
     </article>
 
     <article
@@ -58,14 +57,14 @@
 <script>
 import { mapState } from 'vuex';
 import stepField from '@/components/collection-access/step-field';
-import stepStorage from '@/components/collection-access/step-storage';
+// import stepStorage from '@/components/collection-access/step-storage';
 import advanceCleanLand from '@/components/collection-access/advance-clean-land';
 
 export default {
   name: 'LogCleanCreate',
   components: {
     stepField,
-    stepStorage,
+    // stepStorage,
     advanceCleanLand
   },
   data() {
@@ -109,8 +108,6 @@ export default {
         });
         return;
       }
-
-      this.curStep = num;
     }
   }
 };

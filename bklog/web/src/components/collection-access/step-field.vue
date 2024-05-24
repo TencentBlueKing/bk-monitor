@@ -429,30 +429,15 @@
                 <bk-select
                   v-show="scopeValueType"
                   v-model="visibleBkBiz"
+                  display-key="space_full_code_name"
+                  id-key="bk_biz_id"
+                  enable-virtual-scroll
+                  :list="mySpaceList"
+                  :virtual-scroll-render="virtualscrollSpaceList"
                   searchable
                   multiple
                   display-tag
                 >
-                  <bk-option
-                    v-for="item in mySpaceList"
-                    :id="item.bk_biz_id"
-                    :key="item.space_uid"
-                    :name="item.space_full_code_name"
-                  >
-                    <div class="space-code-option">
-                      <span
-                        class="code-name"
-                        :title="item.space_full_code_name"
-                        >{{ item.space_full_code_name }}</span
-                      >
-                      <div class="list-item-right">
-                        <span :class="['list-item-tag', 'light-theme', item.space_type_id || 'other-type']">
-                          {{ item.space_type_name }}
-                        </span>
-                        <span :class="`${visibleBkBiz.includes(item.bk_biz_id) && 'bk-icon icon-check-1'}`"></span>
-                      </div>
-                    </div>
-                  </bk-option>
                 </bk-select>
               </div>
             </template>
@@ -525,10 +510,10 @@
       </section>
 
       <div class="form-button">
-        <template v-if="!isFinishCreateStep">
+        <template v-if="!isFinishCreateStep && !isCleanField">
           <!-- 上一步 -->
           <bk-button
-            v-if="!isCleanField && !isTempField && !isSetEdit"
+            v-if="!isTempField && !isSetEdit"
             theme="default"
             data-test-id="fieldExtractionBox_button_previousPage"
             :title="$t('上一步')"
@@ -574,7 +559,7 @@
           </bk-button>
           <!-- 日志清洗 保存模板 取消 -->
           <bk-button
-            v-if="isCleanField || isTempField"
+            v-if="isTempField"
             theme="default"
             class="ml10"
             data-test-id="fieldExtractionBox_button_cancelSaveTemplate"
@@ -689,12 +674,14 @@ import AuthContainerPage from '@/components/common/auth-container-page';
 import { projectManages } from '@/common/util';
 import * as authorityMap from '../../common/authority-map';
 import { deepClone, deepEqual } from '../../common/util';
+import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
 
 export default {
   components: {
     fieldTable,
     AuthContainerPage
   },
+  mixins: [SpaceSelectorMixin],
   props: {
     operateType: String,
     curStep: {
@@ -862,7 +849,8 @@ export default {
       editComparedData: {
         isLogOriginLast: false,
         comparedVal: {}
-      }
+      },
+      isUseMark: false
     };
   },
   computed: {
@@ -1155,7 +1143,7 @@ export default {
       this.requestEtlPreview();
     },
     // 字段提取
-    fieldCollection(isCollect = false) {
+    fieldCollection(isCollect = false, callback) {
       this.isLoading = true;
       this.basicLoading = true;
       const { etl_config: etlConfig, etl_params: etlParams } = this.formData;
@@ -1185,11 +1173,17 @@ export default {
         this.fieldCollectionRequest(data);
         return;
       } else if (isCollect) {
-        // 缓存采集项清洗配置
-        urlParams.collector_config_id = this.curCollect.collector_config_id;
-        data.bk_biz_id = this.bkBizId;
-        delete data.visible_type;
-        requestUrl = 'clean/updateCleanStash';
+        // 除 新建采集项 步骤字段清洗设置外 其余情况下保存直接入库 不需提交暂存
+        if (this.isFinishCreateStep || this.isCleanField) {
+          this.fieldCollectionRequest(data, callback);
+          return;
+        } else {
+          // 缓存采集项清洗配置
+          urlParams.collector_config_id = this.curCollect.collector_config_id;
+          data.bk_biz_id = this.bkBizId;
+          delete data.visible_type;
+          requestUrl = 'clean/updateCleanStash';
+        }
       } else {
         // 新建/编辑清洗模板
         data.name = this.saveTempName;
@@ -1212,12 +1206,11 @@ export default {
               this.$emit('updateLogFields');
             } else if (isCollect) {
               // 下发页的字段清洗
-              if (this.isFinishCreateStep) {
+              if (this.isFinishCreateStep || this.isCleanField) {
                 // 编辑的情况下要请求入库接口
-                this.fieldCollectionRequest(res.data);
+                this.fieldCollectionRequest(res.data, callback);
               } else {
-                const step = this.isCleanField ? 2 : null;
-                this.$emit('stepChange', step);
+                this.$emit('stepChange');
               }
             } else {
               // 新建/编辑清洗模板
@@ -1232,8 +1225,9 @@ export default {
             }
           }
         })
+        .catch(() => callback?.(false))
         .finally(() => {
-          if (!this.isFinishCreateStep) {
+          if (!this.isFinishCreateStep && !this.isCleanField) {
             this.isLoading = false;
             this.basicLoading = false;
           }
@@ -1256,11 +1250,18 @@ export default {
       }
     },
     /** 入库请求 */
-    async fieldCollectionRequest(atLastFormData) {
+    async fieldCollectionRequest(atLastFormData, callback) {
       const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields } = atLastFormData;
       // 检索设置 直接入库
-      const { table_id, storage_cluster_id, retention, storage_replies, allocation_min_days, view_roles } =
-        this.curCollect;
+      const {
+        table_id,
+        storage_cluster_id,
+        retention,
+        storage_replies,
+        allocation_min_days,
+        view_roles,
+        storage_shards_nums: storageShardsNums
+      } = this.curCollect;
       const storageList = await this.getStorage();
       const isOpenHotWarm = storageList.find(item => item.storage_cluster_id === storage_cluster_id)?.enable_hot_warm;
       const data = {
@@ -1268,6 +1269,7 @@ export default {
         storage_cluster_id,
         retention,
         storage_replies,
+        es_shards: storageShardsNums,
         allocation_min_days: isOpenHotWarm ? Number(allocation_min_days) : 0,
         view_roles,
         etl_config: etlConfig,
@@ -1288,19 +1290,24 @@ export default {
             if (this.isSetEdit) {
               this.messageSuccess(this.$t('保存成功'));
               this.$emit('updateLogFields');
-            } else if (this.isFinishCreateStep) {
+            } else if (this.isFinishCreateStep || this.isCleanField) {
+              if (callback) {
+                callback(true);
+                return;
+              }
               // 编辑保存的情况下, 回退到列表
               this.handleCancel();
             }
           }
         })
+        .catch(() => callback?.(false))
         .finally(() => {
           this.isLoading = false;
           this.basicLoading = false;
         });
     },
     // 检查提取方法或条件是否已变更
-    checkEtlConfChnage(isCollect = false) {
+    checkEtlConfChnage(isCollect = false, callback) {
       let isConfigChange = false; // 提取方法或条件是否已变更
       const etlConfigParam = this.params.etl_config;
       // 如果未选模式 则默认传bk_log_text
@@ -1334,23 +1341,29 @@ export default {
             this.$t('字段提取方法或条件已发生变更，需【调试&设置】按钮点击操作成功才会生效')
           ),
           confirmFn: () => {
-            isCollect ? this.fieldCollection(true) : this.handleSaveTemp();
+            isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
           }
         });
         return;
       }
-      isCollect ? this.fieldCollection(true) : this.handleSaveTemp();
+      isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
+    },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.finish(true, callback);
     },
     // 完成按钮
-    finish(isCollect = false) {
+    finish(isCollect = false, callback) {
       const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
       if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
         this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
+        callback?.(false);
         return;
       }
       // 清洗模板选择多业务时不能为空
       if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
         this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
+        callback?.(false);
         return;
       }
       // const promises = [this.checkStore()];
@@ -1360,9 +1373,10 @@ export default {
       }
       Promise.all(promises).then(
         () => {
-          this.checkEtlConfChnage(isCollect);
+          this.checkEtlConfChnage(isCollect, callback);
         },
         validator => {
+          callback?.(false);
           console.warn('保存失败', validator);
         }
       );
@@ -1378,11 +1392,12 @@ export default {
       }
       let routeName;
       // 保存, 回退到列表
-      if (this.isFinishCreateStep) {
+      if (this.isFinishCreateStep || this.isCleanField) {
         this.$emit('changeSubmit', true);
       }
-      if (!!this.$route.query?.backRoute) {
-        routeName = this.$route.query?.backRoute;
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
       } else if (['edit', 'storage', 'masking'].includes(this.operateType)) {
         routeName = 'collection-item';
       } else {
@@ -1391,12 +1406,13 @@ export default {
       this.$router.push({
         name: routeName,
         query: {
+          ...reset,
           spaceUid: this.$store.state.spaceUid
         }
       });
     },
     prevHandler() {
-      this.$emit('stepChange', 1);
+      this.$emit('stepChange', this.curStep - 1);
     },
     // 即将前往高级清洗
     advanceHandler() {
@@ -1840,9 +1856,10 @@ export default {
               this.originParticipleState = 'custom';
               this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
             }
-            if (this.isFinishCreateStep) {
-              this.editComparedData.comparedVal = this.getSubmitParams();
-            }
+          }
+          // 暂存信息可能为空 对比项仍需赋值
+          if (this.isFinishCreateStep) {
+            this.editComparedData.comparedVal = this.getSubmitParams();
           }
         })
         .finally(() => {
@@ -1984,6 +2001,8 @@ export default {
     },
     /** 判断是否有更改过值 */
     getIsUpdateSubmitValue() {
+      // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
+      if (this.basicLoading) return false;
       const fieldTableData = this.getNotParticipleFieldTableData();
       const editParams = this.editComparedData.comparedVal;
       const params = this.getSubmitParams(fieldTableData);

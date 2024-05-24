@@ -526,7 +526,7 @@
               "resource.service.name": "$service_name",
               "resource.bk.instance.id": "$bk_instance_id"
             },
-            "span_keys": ["http.url", "messaging.system", "rpc.system"]
+            "span_keys": ["http.url", "messaging.system", "rpc.system", "trpc.callee_method"]
           },
           "dataType": "table",
           "api": "apm_meta.queryEndpointStatistics"
