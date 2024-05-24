@@ -63,6 +63,7 @@ import StrategyChart from './strategy-chart/strategy-chart';
 import StrategyViewAlarm from './strategy-view-alarm.vue';
 import StrategyViewLog from './strategy-view-log.vue';
 import StrategyViewTool from './strategy-view-tool.vue';
+import { EShortcutsType } from './typing';
 // import StrategyViewDimensions from './strategy-view-dimensions.vue';
 import ViewDimensions from './view-dimensions';
 
@@ -76,11 +77,6 @@ const metricUrlMap = {
   log: '监控平台/产品白皮书/alarm-configurations/log_monitor.md',
   alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md',
 };
-
-enum EShortcutsType {
-  NEAR = 'NEAR',
-  assign = 'assign',
-}
 
 interface IStrateViewProps {
   metricData: MetricDetail[];
@@ -969,9 +965,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       editMode={this.editMode}
                       expFunctions={this.expFunctions}
                       expression={this.expression}
-                      isNear={this.isNear}
                       metricData={this.metricQueryData}
-                      nearNum={this.shortcutsType === EShortcutsType.NEAR ? this.nearNum : undefined}
+                      nearNum={this.realShortcutsType === EShortcutsType.NEAR ? this.nearNum : 20}
+                      shortcutsType={this.realShortcutsType}
                       sourceData={this.sourceData}
                       strategyTarget={this.strategyTarget}
                       onLogQuery={this.handleLogQuery}
