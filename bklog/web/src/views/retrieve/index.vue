@@ -1243,6 +1243,7 @@ export default {
           'end_time',
           // 'time_range',
           'unionList',
+          'tags',
           'activeTableTab', // 表格活跃的lab
           'clusterRouteParams', // 日志聚类参数
           'timezone'
@@ -1290,6 +1291,18 @@ export default {
                     const unionParamsList = JSON.parse(decodeURIComponent(param));
                     const resetUnionList = this.isUnionSearch ? this.unionIndexList : unionParamsList;
                     this.$store.commit('updateUnionIndexList', resetUnionList);
+                  }
+                  break;
+                case 'tags': // BCS索引集注入内置标签特殊检索
+                  {
+                    const tagList = param.split(',');
+                    const indexSetMatch = this.indexSetList
+                      .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
+                      .map(val => val.index_set_id);
+                    if (indexSetMatch?.length) {
+                      this.$store.commit('updateUnionIndexList', indexSetMatch);
+                      queryParamsStr.unionList = encodeURIComponent(JSON.stringify(indexSetMatch));
+                    }
                   }
                   break;
                 case 'ip_chooser':
@@ -1371,6 +1384,10 @@ export default {
         ...queryParamsStr,
         keyword: queryParamsStr?.keyword
       };
+
+      // tags 参数用于匹配转换为 unionList 不保留
+      if (queryObj.tags) delete queryObj.tags;
+
       this.$router.push({
         name: 'retrieve',
         // 联合查询不需要路由索引集ID
