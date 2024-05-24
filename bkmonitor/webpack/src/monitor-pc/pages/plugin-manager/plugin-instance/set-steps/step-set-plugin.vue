@@ -26,8 +26,8 @@
 <template>
   <div
     ref="stepPlugin"
-    v-bkloading="{ isLoading: data.isEdit ? pluginLoading : false }"
     class="step-plugin"
+    v-bkloading="{ isLoading: data.isEdit ? pluginLoading : false }"
   >
     <div class="step-plugin-item">
       <div class="item-label item-required">
@@ -35,10 +35,10 @@
       </div>
       <div class="item-container">
         <bk-select
-          v-model="bizList.value"
           class="biz"
-          :disabled="isPublicPlugin || data.isEdit || ccBizId !== 0"
+          v-model="bizList.value"
           :clearable="false"
+          :disabled="isPublicPlugin || data.isEdit || ccBizId !== 0"
         >
           <bk-option
             v-for="(biz, index) in bizList.list"
@@ -62,25 +62,25 @@
           :validator="{ content: pluginBasicInfo.nameErrorMsg }"
         >
           <bk-input
-            v-model="pluginBasicInfo.name"
-            :placeholder="$t('英文')"
-            :disabled="disabledPluginId"
             class="item-input"
+            v-model="pluginBasicInfo.name"
+            :disabled="disabledPluginId"
+            :placeholder="$t('英文')"
             @blur="checkPluginId"
           />
         </verify-input>
         <bk-checkbox
+          style="vertical-align: baseline"
           v-model="isPublicPlugin"
           v-authority="{ active: !authority.MANAGE_PUBLIC_AUTH }"
-          :disabled="!authority.MANAGE_PUBLIC_AUTH"
           :class="{
             'auth-disabled': !authority.MANAGE_PUBLIC_AUTH,
           }"
-          style="vertical-align: baseline"
+          :disabled="!authority.MANAGE_PUBLIC_AUTH"
+          @change="handlePublicPluginChange"
           @click.native="
             !authority.MANAGE_PUBLIC_AUTH && handleShowAuthorityDetail(pluginManageAuth.MANAGE_PUBLIC_AUTH)
           "
-          @change="handlePublicPluginChange"
         >
           {{ $t('设为公共插件') }}
         </bk-checkbox>
@@ -92,9 +92,9 @@
       </div>
       <div class="item-container">
         <bk-input
+          class="item-input"
           v-model="pluginBasicInfo.alias"
           :placeholder="$t('别名')"
-          class="item-input"
         />
       </div>
     </div>
@@ -110,9 +110,9 @@
           <bk-button
             v-for="(pluginType, index) in pluginBasicInfo.type.list"
             v-show="!pluginBasicInfo.type.notShowType.includes(pluginType.id)"
-            :key="index"
-            :disabled="disabledPluginId && pluginType.name !== pluginBasicInfo.type.value"
             :class="{ 'is-selected': pluginType.id === pluginBasicInfo.type.value }"
+            :disabled="disabledPluginId && pluginType.name !== pluginBasicInfo.type.value"
+            :key="index"
             @click="handlePluginChange(pluginType.id)"
           >
             {{ pluginType.name }}
@@ -132,45 +132,45 @@
       </div>
     </div>
     <div
-      v-show="['Exporter', 'DataDog'].includes(pluginBasicInfo.type.value)"
       class="step-plugin-item label-bottom upload-package"
+      v-show="['Exporter', 'DataDog'].includes(pluginBasicInfo.type.value)"
     >
       <div class="item-label item-required">
         {{ $t('上传内容') }}
       </div>
       <div class="item-container">
         <div
-          class="upload-container"
           style="margin: -8px 0 0 -10px"
+          class="upload-container"
         >
           <div
             v-for="(system, index) in systemTabs.list"
+            class="upload-item"
             v-show="pluginBasicInfo.type.value === 'Exporter'"
             :key="`${index}-Exporter`"
-            class="upload-item"
           >
             <mo-upload
-              :ref="`uploadFile-exporter-${index}`"
               :collector="pluginBasicInfo.exporterCollector[system.name]"
               :is-edit="data.isEdit"
               :plugin-id="pluginBasicInfo.name"
-              :system="system.name"
               :plugin-type="pluginBasicInfo.type.value"
+              :ref="`uploadFile-exporter-${index}`"
+              :system="system.name"
             />
           </div>
           <div
             v-for="(system, index) in systemTabs.list"
+            class="upload-item"
             v-show="pluginBasicInfo.type.value === 'DataDog'"
             :key="`${index}-DataDog`"
-            class="upload-item"
           >
             <mo-upload
-              :ref="`uploadFile-datadog-${index}`"
               :collector="pluginBasicInfo.dataDogCollector[system.name]"
               :is-edit="data.isEdit"
               :plugin-id="pluginBasicInfo.name"
-              :system="system.name"
               :plugin-type="pluginBasicInfo.type.value"
+              :ref="`uploadFile-datadog-${index}`"
+              :system="system.name"
               @change="getCheckNameChange"
               @yaml="getYaml"
             />
@@ -179,8 +179,8 @@
       </div>
     </div>
     <div
-      v-show="['Script', 'JMX', 'DataDog'].includes(pluginBasicInfo.type.value)"
       class="step-plugin-item label-bottom"
+      v-show="['Script', 'JMX', 'DataDog'].includes(pluginBasicInfo.type.value)"
     >
       <div class="item-label item-required">
         {{ $t('采集配置') }}
@@ -188,40 +188,40 @@
       <div class="item-container editor-wrapper">
         <new-plugin-monaco
           ref="newPluginMonaco"
-          :type="pluginBasicInfo.type.value"
+          :mode="data.type"
           :systems="testSystemList"
+          :type="pluginBasicInfo.type.value"
           :value="pluginMonaco.defaultValue"
           :width="pluginMonaco.width"
-          :mode="data.type"
           @switcher-change="handleOsSwitcherChange"
         />
       </div>
     </div>
     <div
-      v-show="pluginBasicInfo.type.value === 'Exporter'"
       class="step-plugin-item"
+      v-show="pluginBasicInfo.type.value === 'Exporter'"
     >
       <div class="item-label item-required">
         {{ $t('绑定端口') }}
       </div>
       <div class="item-container">
         <verify-input
+          class="run-port"
           :show-validate.sync="pluginBasicInfo.isPortLegal"
           :validator="{ content: $t('输入合法端口') }"
-          class="run-port"
         >
           <param-card
             v-model="pluginBasicInfo.port"
-            title="${port}"
             :placeholder="$t('输入端口')"
+            title="${port}"
             @blur="pluginBasicInfo.isPortLegal = !portRgx.test(pluginBasicInfo.port.trim())"
           />
         </verify-input>
       </div>
     </div>
     <div
-      v-show="pluginBasicInfo.type.value === 'Exporter'"
       class="step-plugin-item"
+      v-show="pluginBasicInfo.type.value === 'Exporter'"
     >
       <div class="item-label">
         {{ $t('绑定主机') }}
@@ -229,15 +229,15 @@
       <div class="item-container">
         <param-card
           v-model="pluginBasicInfo.bindUrl"
-          title="${host}"
           :disabled="true"
           :placeholder="$t('输入主机')"
+          title="${host}"
         />
       </div>
     </div>
     <div
-      v-show="pluginBasicInfo.type.value === 'SNMP'"
       class="step-plugin-item"
+      v-show="pluginBasicInfo.type.value === 'SNMP'"
     >
       <div class="item-label item-required">
         {{ $t('SNMP版本') }}
@@ -257,8 +257,8 @@
       </div>
     </div>
     <div
-      v-show="pluginBasicInfo.type.value === 'SNMP'"
       class="step-plugin-item"
+      v-show="pluginBasicInfo.type.value === 'SNMP'"
     >
       <div class="item-label item-required">
         {{ $t('采集配置') }}
@@ -267,10 +267,10 @@
         <import-file
           class="snmp-yaml-import"
           :base64="false"
-          accept=".yaml"
-          :file-name="pluginBasicInfo.snmpConfig.name"
           :file-content="pluginBasicInfo.snmpConfig.content"
+          :file-name="pluginBasicInfo.snmpConfig.name"
           :placeholder="$i18n.t('点击上传文件')"
+          accept=".yaml"
           @change="handleFileChange"
         />
       </div>
@@ -292,8 +292,8 @@
       <div class="item-container">
         <div
           v-for="(param, index) in params"
-          :key="index"
           class="item-param"
+          :key="index"
           @click="handleEditParam(param)"
         >
           <div class="wrapper">
@@ -301,8 +301,8 @@
               {{ param.alias || param.name }}
             </span>
             <span
-              v-show="!param.disabled"
               class="bk-icon icon-close-circle-shape"
+              v-show="!param.disabled"
               @click.stop="handleDeleteParam(param)"
             />
           </div>
@@ -324,8 +324,8 @@
       </div>
     </div>
     <div
-      v-show="pluginBasicInfo.type.value === 'Exporter'"
       class="step-plugin-item"
+      v-show="pluginBasicInfo.type.value === 'Exporter'"
     >
       <div class="item-label" />
       <div class="item-container">
@@ -355,9 +355,9 @@
             >
               <bk-option
                 v-for="(option, i) in group.children"
+                :disabled="option.disabled"
                 :id="option.id"
                 :key="i"
-                :disabled="option.disabled"
                 :name="option.name"
               >
                 <div
@@ -391,8 +391,8 @@
       </div>
     </div>
     <div
-      class="step-plugin-item"
       style="align-items: normal"
+      class="step-plugin-item"
     >
       <div class="item-label">
         {{ $t('描述') }}
@@ -411,9 +411,9 @@
       <div>
         <bk-button
           v-authority="{ active: !authority.MANAGE_AUTH }"
-          theme="primary"
-          :icon="bkBtnIcon"
           :disabled="!!bkBtnIcon"
+          :icon="bkBtnIcon"
+          theme="primary"
           @click="authority.MANAGE_AUTH ? handleNextStep() : handleShowAuthorityDetail()"
         >
           {{ $t('下一步') }}
@@ -421,15 +421,15 @@
       </div>
     </div>
     <config-param
+      :param="configParam.value"
       :param-list="params"
       :plugin-type="pluginBasicInfo.type.value"
       :show.sync="configParam.show"
-      :param="configParam.value"
       @confirm="handleConfirm"
     />
     <polling-loading
-      :status="registerDialog.status"
       :show.sync="registerDialog.show"
+      :status="registerDialog.status"
     />
     <bk-dialog
       v-model="pluginChangeMsg.show"
@@ -445,8 +445,8 @@
       </div>
       <div slot="footer">
         <bk-button
-          theme="primary"
           :title="$t('确认')"
+          theme="primary"
           @click="handleUpdateDesc"
           @keyup.enter="handleUpdateDesc"
         >
@@ -1070,7 +1070,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       if (pluginBasicInfo.name && !pluginBasicInfo.isNameLagal) {
         const res = await checkIdCollectorPlugin(
           { plugin_id: this.pluginBasicInfo.name.trim() },
-          { needRes: true, needMessage: false }
+          { needRes: true, needMessage: false, needTraceId: false }
         ).catch(error => error);
         this.pluginBasicInfo.isNameLegal = !res.result;
         this.pluginBasicInfo.nameErrorMsg = this.$t(res.message);
