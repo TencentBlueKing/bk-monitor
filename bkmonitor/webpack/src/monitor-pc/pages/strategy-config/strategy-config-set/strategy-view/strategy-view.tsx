@@ -77,6 +77,11 @@ const metricUrlMap = {
   alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md',
 };
 
+enum EShortcutsType {
+  NEAR = 'NEAR',
+  assign = 'assign',
+}
+
 interface IStrateViewProps {
   metricData: MetricDetail[];
   detectionConfig: IDetectionConfig;
@@ -205,11 +210,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   private metricQueryString = '';
   private alertTabActive = '';
   // 快捷方式 近20条数据或指定（指定：不变）
-  private shortcutsType: 'NEAR' | 'assign' = 'NEAR';
+  private shortcutsType: EShortcutsType = EShortcutsType.NEAR;
+  /* 实际的快捷方式 当选择了维度并且切换的指定数据则为指定类型 */
+  private realShortcutsType: EShortcutsType = EShortcutsType.NEAR;
   private nearNum = 20;
   private shortcutsList = [
-    { id: 'NEAR', name: '' },
-    { id: 'assign', name: window.i18n.t('查看指定数据') },
+    { id: EShortcutsType.NEAR, name: '' },
+    { id: EShortcutsType.assign, name: window.i18n.t('查看指定数据') },
   ];
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
@@ -309,7 +316,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
 
   /* 是否为最近多少条数据 */
   get isNear() {
-    return this.shortcutsType === 'NEAR';
+    return this.realShortcutsType === EShortcutsType.NEAR;
   }
 
   get needNearRadio() {
@@ -327,8 +334,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
 
   deactivated() {
     // 图例查看方式还原
-    this.shortcutsType = 'NEAR';
+    this.shortcutsType = EShortcutsType.NEAR;
     this.nearNum = 20;
+    this.handleShortcutsTypeChange(this.shortcutsType);
   }
 
   @Watch('metricData', { deep: true })
@@ -404,8 +412,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (!this.metricData.length) return;
     try {
       if (!this.needNearRadio) {
-        this.shortcutsType = 'assign';
+        this.shortcutsType = EShortcutsType.assign;
         this.nearNum = 20;
+        this.handleShortcutsTypeChange(this.shortcutsType);
       }
       /* 触发图表查询无需清空已选条件 */
       const keys = this.dimensionData.map(item => item.id);
@@ -772,8 +781,12 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 监控维度变更
   handleDimensionsChange(dimensions) {
     this.dimensions = dimensions;
+    this.handleShortcutsTypeChange(this.shortcutsType);
     this.handleGetVariableValue();
     // this.handleRefreshView();
+  }
+  hasDimensionValue() {
+    return Object.values(this.dimensions).some(v => !!v);
   }
   // 查询日志内容
   async handleLogQuery() {
@@ -921,6 +934,16 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     this.alertTabActive = v;
     this.handleLogQuery();
   }
+
+  handleShortcutsTypeChange(type: EShortcutsType) {
+    this.shortcutsType = type;
+    if (type === EShortcutsType.assign && this.hasDimensionValue()) {
+      this.realShortcutsType = type;
+    } else {
+      this.realShortcutsType = EShortcutsType.NEAR;
+    }
+  }
+
   render() {
     return (
       <div class='strategy-view'>
@@ -948,7 +971,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       expression={this.expression}
                       isNear={this.isNear}
                       metricData={this.metricQueryData}
-                      nearNum={this.nearNum}
+                      nearNum={this.shortcutsType === EShortcutsType.NEAR ? this.nearNum : undefined}
                       sourceData={this.sourceData}
                       strategyTarget={this.strategyTarget}
                       onLogQuery={this.handleLogQuery}
@@ -956,10 +979,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     // 查看近20条数据
                     !!this.needNearRadio && (
                       <div class='radio-count-options'>
-                        <bk-radio-group v-model={this.shortcutsType}>
+                        <bk-radio-group
+                          value={this.shortcutsType}
+                          onChange={this.handleShortcutsTypeChange}
+                        >
                           {this.shortcutsList.map(sh => (
                             <bk-radio value={sh.id}>
-                              {sh.id === 'NEAR' ? (
+                              {sh.id === EShortcutsType.NEAR ? (
                                 <i18n
                                   class='flex-center'
                                   path='查看{0}条数据'
@@ -992,7 +1018,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     //   key={this.dimensionsPanelKey}
                     //   on-change={this.handleDimensionsChange}>
                     // </strategy-view-dimensions> : undefined,
-                    this.editMode === 'Edit' && (this.shortcutsType !== 'NEAR' || this.hasTimeSeriesForecast) ? (
+                    this.editMode === 'Edit' &&
+                    (this.shortcutsType !== EShortcutsType.NEAR || this.hasTimeSeriesForecast) ? (
                       <ViewDimensions
                         key={this.dimensionsPanelKey}
                         class='strategy-view-dimensions'
