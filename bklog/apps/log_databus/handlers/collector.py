@@ -2108,13 +2108,15 @@ class CollectorHandler(object):
         """
         plugin_status_mapping = {}
         for plugin_obj in plugin_data:
-            plugin_status_mapping[plugin_obj["bk_host_id"]] = plugin_obj["plugin_status"]
+            for item in plugin_obj["plugin_status"]:
+                if item["name"] == "bkunifylogbeat":
+                    plugin_status_mapping[plugin_obj["bk_host_id"]] = item
 
         instance_list = list()
         for instance_obj in instance_data:
             # 日志采集暂时只支持本地采集
             bk_host_id = instance_obj["instance_info"]["host"]["bk_host_id"]
-            plugin_statuses = (plugin_status_mapping[bk_host_id] or [{}])[0]
+            plugin_statuses = plugin_status_mapping[bk_host_id] or [{}]
             plugin_status = plugin_statuses.get("status", CollectStatus.FAILED)
 
             status = CollectStatus.FAILED
