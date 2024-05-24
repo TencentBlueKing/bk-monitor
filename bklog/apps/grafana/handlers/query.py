@@ -726,7 +726,7 @@ class GrafanaQueryHandler:
         start_time: int,
         end_time: int,
         query_string: str = "",
-        size: int = 10000,
+        size: int = 65535,
         where_conditions: list = None,
     ):
         data = {
