@@ -30,11 +30,15 @@
       :type="type"
     >
       <template v-if="type + '' === '403'">
-        <div class="exception-title">{{ $t('您没有该资源的权限，请先申请或联系管理员!') }}<bk-button
-          class="exception-btn"
-          theme="primary"
-          @click="handleGotoAppy"
-        >{{ $t('去申请') }}</bk-button></div>
+        <div class="exception-title">
+          {{ $t('您没有该资源的权限，请先申请或联系管理员!')
+          }}<bk-button
+            class="exception-btn"
+            theme="primary"
+            @click="handleGotoApply"
+            >{{ $t('去申请') }}</bk-button
+          >
+        </div>
         <table class="permission-table table-header">
           <thead>
             <tr>
@@ -62,8 +66,8 @@
                   </td>
                   <td width="50%">
                     <p
-                      class="resource-type-item"
                       v-for="(reItem, reIndex) in getResource(action.related_resource_types)"
+                      class="resource-type-item"
                       :key="reIndex"
                     >
                       {{ reItem }}
@@ -75,7 +79,9 @@
                 <td
                   class="no-data"
                   colspan="3"
-                >{{ $t('无数据') }}</td>
+                >
+                  {{ $t('无数据') }}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -86,15 +92,16 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+
 import { getAuthorityDetail } from 'monitor-api/modules/iam';
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from '../../components/access-request-dialog';
 Component.registerHooks(['beforeRouteEnter']);
 @Component({
-  name: 'error-exception'
+  name: 'error-exception',
 })
 export default class ExceptionPage extends Vue {
-  @Prop({ default: '404' }) type: string | number;
+  @Prop({ default: '404' }) type: number | string;
   @Prop({ default: '' }) queryUid: string;
   applyUrl = '';
   applyActions = [];
@@ -113,7 +120,7 @@ export default class ExceptionPage extends Vue {
   //   })
   // }
   @Watch('queryUid', { immediate: true })
-  async onQeueryUidChange() {
+  async onQueryUidChange() {
     this.applyActions = [];
     const { actionId } = this.$route.query;
     if (actionId) {
@@ -121,7 +128,7 @@ export default class ExceptionPage extends Vue {
         {
           action_ids: Array.isArray(actionId) ? actionId : [actionId],
           space_uid: window.space_uid || undefined,
-          bk_biz_id: !window.space_uid ? window.bk_biz_id : undefined
+          bk_biz_id: !window.space_uid ? window.bk_biz_id : undefined,
         },
         { needMessage: false }
       ).catch(() => false);
@@ -132,28 +139,28 @@ export default class ExceptionPage extends Vue {
     }
   }
 
-  handleGotoAppy() {
+  handleGotoApply() {
     // 20231205 代码还原，先保留原有部分
     // showAccessRequest(this.applyUrl);
 
     if (!this.applyUrl) return;
     try {
       if (self === top) {
-        window.open(this.applyUrl, '__blank');
+        window.open(this.applyUrl, '_blank');
       } else {
         top.BLUEKING.api.open_app_by_other('bk_iam', this.applyUrl);
       }
-    } catch (_) {
-      window.open(this.applyUrl, '__blank');
+    } catch {
+      window.open(this.applyUrl, '_blank');
     }
   }
-  getResource(resoures) {
-    if (resoures.length === 0) {
+  getResource(resources) {
+    if (resources.length === 0) {
       return ['--'];
     }
 
     const data = [];
-    resoures.forEach((resource) => {
+    resources.forEach(resource => {
       if (resource.instances.length > 0) {
         const instances = resource.instances
           .map(instanceItem => instanceItem.map(item => `[${item.id}]${item.name}`).join('，'))

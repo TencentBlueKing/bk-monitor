@@ -59,6 +59,7 @@ import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
 import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
+import IntelligentModelsStore from '../../../store/modules/intelligent-models';
 import { ISpaceItem } from '../../../types';
 import { IOptionsItem } from '../../calendar/types';
 import { IDataRetrieval } from '../../data-retrieval/typings';
@@ -517,6 +518,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const { width } = this.contentRef.getBoundingClientRect();
     this.strategyView.rightWidth = Math.ceil(width / 3);
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
+    // 异步初始化所有ai模型列表 用于判断是否展示功能依赖 以及前置后面选择ai模型的初始化数据
+    IntelligentModelsStore.initAllListIntelligentModels();
   }
   beforeDestroy() {
     bus.$off(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);

@@ -59,6 +59,7 @@ class RecordRuleService:
         )
         # 创建结果表对应的指标
         self._create_table_id_fields(table_id, list(bksql_metrics["rule_metrics"].values()))
+        self._create_vm_storage(table_id, dst_rt)
 
     def _create_record_rule_record(
         self, table_id: str, bksql: List, rule_metrics: Dict, src_table_ids: List, dst_rt: str
@@ -110,6 +111,7 @@ class RecordRuleService:
                         "field_type": models.ResultTableField.FIELD_TYPE_STRING,
                         "description": metric,
                         "tag": models.ResultTableField.FIELD_TAG_METRIC,
+                        "is_config_by_user": True,
                     }
                 )
             )

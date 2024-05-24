@@ -367,6 +367,10 @@ class Alarm(BaseContextObject):
         return time_tools.utc2localtime(self.parent.alert.begin_time) if self.parent.alert else "--"
 
     @cached_property
+    def begin_timestamp(self):
+        return self.parent.alert.begin_time if self.parent.alert else 0
+
+    @cached_property
     def duration(self):
         """
         事件持续时间

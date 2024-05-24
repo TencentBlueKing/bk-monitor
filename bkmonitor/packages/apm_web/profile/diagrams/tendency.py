@@ -10,8 +10,6 @@ specific language governing permissions and limitations under the License.
 
 
 class TendencyDiagrammer:
-    field_key = "(round((cast(dtEventTimeStamp as DOUBLE) / cast(60000 as DOUBLE))) * cast(60 as DOUBLE))"
-    field_key1 = "((round((CAST(`dtEventTimeStamp` AS DOUBLE) / 60000)) * 60))"
     value_key = "sum(value)"
     value_key1 = "sum(`value`)"
 
@@ -42,10 +40,10 @@ class TendencyDiagrammer:
                     "datapoints": [
                         [
                             i.get(self.value_key, i.get(self.value_key1)),
-                            int(i.get(self.field_key, i.get(self.field_key1))) * 1000,
+                            int(i.get("time")),
                         ]
                         for i in c.get("list", [])
-                        if self.field_key in i or self.field_key1 in i
+                        if "time" in i
                     ],
                     "target": target,
                     "type": "line",
@@ -79,10 +77,10 @@ class TendencyDiagrammer:
                     "datapoints": [
                         [
                             i.get(self.value_key, i.get(self.value_key1)),
-                            int(i.get(self.field_key, i.get(self.field_key1))) * 1000,
+                            int(i.get("time")),
                         ]
                         for i in base_doris_converter.get("list", [])
-                        if self.field_key in i or self.field_key1 in i
+                        if "time" in i
                     ],
                     "target": target,
                     "type": "line",
@@ -95,10 +93,10 @@ class TendencyDiagrammer:
                     "datapoints": [
                         [
                             i.get(self.value_key, i.get(self.value_key1)),
-                            int(i.get(self.field_key, i.get(self.field_key1))) * 1000,
+                            int(i.get("time")),
                         ]
                         for i in diff_doris_converter.get("list", [])
-                        if self.field_key in i or self.field_key1 in i
+                        if "time" in i
                     ],
                     "target": target,
                     "type": "line",

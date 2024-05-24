@@ -153,7 +153,7 @@ export default defineComponent({
         cancelToken: new CancelToken((c: () => void) => (cancelTableFlameFn = c)),
       })
         .then(data => {
-          if (data) {
+          if (data && Object.keys(data)?.length) {
             unit.value = data.unit || '';
             tableData.value = data.table_data?.items ?? [];
             flameData.value = data.flame_data;

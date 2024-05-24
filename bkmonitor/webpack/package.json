@@ -2,7 +2,7 @@
   "name": "blueking-monitor",
   "description": "blueking-monitor",
   "private": "true",
-  "version": "1.0.0",
+  "version": "3.9.0",
   "author": "bkfe",
   "license": "MIT",
   "scripts": {
@@ -78,8 +78,7 @@
       "local.settings.js",
       "webpack.config.js",
       "pnpm-lock.yaml"
-    ],
-    "extentions": []
+    ]
   },
   "engines": {
     "node": ">= 18.16"
@@ -89,6 +88,8 @@
       "@blueking/user-selector>vue": "v2-latest",
       "bk-magic-vue": "2.5.8",
       "eslint": "$eslint",
+      "monaco-editor": "0.44.0",
+      "monaco-editor-webpack-plugin>monaco-editor": "0.44.0",
       "semver": "^7.6.0",
       "vue-class-component": "^7.2.6",
       "vue-property-decorator": "^9.1.2",

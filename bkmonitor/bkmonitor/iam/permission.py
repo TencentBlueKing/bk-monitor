@@ -287,31 +287,6 @@ class Permission(object):
         url = self.get_apply_url(actions, resources)
         return data, url
 
-    @staticmethod
-    def is_demo_biz_resource(resources: List[Resource] = None):
-        """
-        判断资源是否为demo业务的资源
-        """
-        if not settings.DEMO_BIZ_ID or int(settings.DEMO_BIZ_ID or 0) <= 0:
-            return False
-        if not resources:
-            return False
-        if not len(resources) == 1:
-            return False
-        if (resources[0].system, resources[0].type, str(resources[0].id)) == (
-            BusinessResource.system_id,
-            BusinessResource.id,
-            str(settings.DEMO_BIZ_ID),
-        ):
-            # 业务类型资源判断资源ID
-            return True
-        if resources[0].attribute and resources[0].attribute.get("_bk_iam_path_", "").startswith(
-            f"/biz,{settings.DEMO_BIZ_ID}/"
-        ):
-            # 其他类型资源，判断路径
-            return True
-        return False
-
     def is_allowed(
         self, action: Union[ActionMeta, str], resources: List[Resource] = None, raise_exception: bool = False
     ):
@@ -349,14 +324,6 @@ class Permission(object):
         action = get_action_by_id(action)
         if not action.related_resource_types:
             resources = []
-
-        # ===== 针对demo业务的权限豁免 开始 ===== #
-        if self.is_demo_biz_resource(resources):
-            # 如果是demo业务，则进行权限豁免，分为读写权限
-            if settings.DEMO_BIZ_WRITE_PERMISSION or action.is_read_action():
-                # 鉴权通过，直接返回。如果不通过，就走权限中心鉴权
-                return True
-        # ===== 针对demo业务的权限豁免 结束 ===== #
 
         request = self.make_request(action, resources)
 
@@ -450,17 +417,6 @@ class Permission(object):
         request = self.make_multi_action_request(actions)
         result = self.iam_client.batch_resource_multi_actions_allowed(request, resources)
 
-        # ===== 针对demo业务的权限豁免 开始 ===== #
-        for action in actions:
-            if action.is_read_action():
-                continue
-            for resource in resources:
-                resource_id = resource[0].id
-                action_id = action.id
-                if self.is_demo_biz_resource(resource) and resource_id in result and action_id in result[resource_id]:
-                    result[resource_id][action_id] = True
-        # ===== 针对demo业务的权限豁免 结束 ===== #
-
         return result
 
     @classmethod
@@ -512,10 +468,6 @@ class Permission(object):
             return []
 
         if not policies:
-            # 如果策略是空，则说明没有任何权限，若存在Demo业务，返回Demo业务，否则返回空
-            for space in space_list:
-                if int(settings.DEMO_BIZ_ID or 0) == space.bk_biz_id:
-                    return [space]
             return []
 
         # 生成表达式
@@ -526,11 +478,7 @@ class Permission(object):
             obj_set = ObjectSet()
             obj_set.add_object(ResourceEnum.BUSINESS.id, {"id": str(space.bk_biz_id)})
 
-            # 计算表达式
-            is_allowed = self.iam_client._eval_expr(expr, obj_set)
-
-            # 如果是demo业务，也直接加到业务列表中
-            if is_allowed or int(settings.DEMO_BIZ_ID or 0) == space.bk_biz_id:
+            if self.iam_client._eval_expr(expr, obj_set):
                 results.append(space)
 
         return results
@@ -560,10 +508,6 @@ class Permission(object):
             return []
 
         if not policies:
-            # 如果策略是空，则说明没有任何权限，若存在Demo业务，返回Demo业务，否则返回空
-            for business in business_list:
-                if int(settings.DEMO_BIZ_ID or 0) == business.bk_biz_id:
-                    return [business]
             return []
 
         # 生成表达式
@@ -574,11 +518,7 @@ class Permission(object):
             obj_set = ObjectSet()
             obj_set.add_object(ResourceEnum.BUSINESS.id, {"id": str(business.bk_biz_id)})
 
-            # 计算表达式
-            is_allowed = self.iam_client._eval_expr(expr, obj_set)
-
-            # 如果是demo业务，也直接加到业务列表中
-            if is_allowed or int(settings.DEMO_BIZ_ID or 0) == business.bk_biz_id:
+            if self.iam_client._eval_expr(expr, obj_set):
                 results.append(business)
 
         return results

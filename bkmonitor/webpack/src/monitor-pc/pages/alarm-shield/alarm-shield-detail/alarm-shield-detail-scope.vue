@@ -74,21 +74,25 @@ export default {
 .alarm-shield-detail-scope {
   font-size: 14px;
   color: #63656e;
+
   .scope-item {
     display: flex;
     align-items: flex-start;
     margin-bottom: 20px;
+
     .item-label {
       min-width: 90px;
+      margin-right: 24px;
       color: #979ba5;
       text-align: right;
-      margin-right: 24px;
     }
+
     .item-content {
       min-height: 16px;
+
       &-target {
-        word-break: break-all;
         max-width: calc(100vw - 306px);
+        word-break: break-all;
       }
     }
   }

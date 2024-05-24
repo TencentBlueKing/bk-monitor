@@ -74,4 +74,4 @@ def compose_rule_table_id(table_id: str) -> str:
         table_id = table_id.split(".__default__")[0]
     name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
     # NOTE: 清洗结果表不能出现双下划线
-    return name.strip("_")
+    return f"vm_{name.strip('_')}"

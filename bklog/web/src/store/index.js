@@ -203,11 +203,18 @@ const store = new Vuex.Store({
       state.bkBizId = state.space.bk_biz_id;
     },
     updateMySpaceList(state, spaceList) {
-      // eslint-disable-next-line max-len
-      state.mySpaceList = spaceList.map(item => ({
-        ...item,
-        py_text: Vue.prototype.$bkToPinyin(item.space_name, true)
-      }));
+      state.mySpaceList = spaceList.map(item => {
+        const defaultTag = { id: item.space_type_id, name: item.space_type_name, type: item.space_type_id };
+        return {
+          ...item,
+          name: item.space_name.replace(/\[.*?\]/, ''),
+          py_text: Vue.prototype.$bkToPinyin(item.space_name, true),
+          tags:
+            item.space_type_id === 'bkci' && item.space_code
+              ? [defaultTag, { id: 'bcs', name: window.mainComponent.$t('容器项目'), type: 'bcs' }]
+              : [defaultTag]
+        };
+      });
     },
     updateIndexId(state, indexId) {
       state.indexId = indexId;
