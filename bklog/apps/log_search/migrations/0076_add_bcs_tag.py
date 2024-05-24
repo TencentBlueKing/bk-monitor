@@ -20,7 +20,7 @@ def add_bcs_tag(apps, schema_editor):
     collect_configs = list(CollectorConfig.objects.filter(bk_app_code="bk_bcs"))
     for config in collect_configs:
         bcs_cluster_id = config.bcs_cluster_id
-        tag_id = IndexSetTag.get_tag_id(bcs_cluster_id)
+        tag_id, _ = IndexSetTag.objects.get_or_create(name=bcs_cluster_id)
         try:
             IndexSetHandler(config.index_set_id).add_tag(tag_id=tag_id)
             print(f"add tag[{bcs_cluster_id}] to index[{config.collector_config_name_en}] success.")
