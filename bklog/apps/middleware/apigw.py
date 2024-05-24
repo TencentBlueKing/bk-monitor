@@ -19,40 +19,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf import settings
-from rest_framework.permissions import BasePermission
 
-from apps.log_search.exceptions import BkJwtVerifyException
-from apps.utils.local import get_request_username
-from apps.utils.log import logger
+from django.contrib.auth import get_user_model
+from django.contrib.auth.backends import ModelBackend
 
 
-class Permission(BasePermission):
-    @classmethod
-    def is_superuser(cls, request):
-        username = get_request_username()
-        if not request.user.is_superuser and username not in settings.INIT_SUPERUSER:
-            return False
-        return True
+class UserModelBackend(ModelBackend):
+    """Get users by username"""
 
-    """
-    ESQUEYR鉴权
-    1. esquery_search 查询需要指定index_set_id 或 数据平台的索引
-    2. dsl、mapping只有日志平台可以使用，第三方应用暂时不能使用（或只能用数据平台）
-    """
+    def __init__(self):
+        super().__init__()
 
-    @classmethod
-    def get_auth_info(cls, request, raise_exception=True):
-        try:
-            bk_app_code = request.app.bk_app_code
-            bk_username = request.user.username
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception("[BK_JWT]校验异常: %s" % e)
-            if raise_exception:
-                raise BkJwtVerifyException()
-            return False
+        user_model = get_user_model()
 
-        return {
-            "bk_app_code": bk_app_code,
-            "bk_username": bk_username,
-        }
+        # 未将用户保存到 db，防止未预期添加用户数据
+        # 未查询 db 中用户，因用户可能在 db 中不存在
+        self.user_maker = lambda username: user_model(**{user_model.USERNAME_FIELD: username})
+
+    def authenticate(self, request, gateway_name, bk_username, verified, **credentials):
+        return self.user_maker(bk_username)
