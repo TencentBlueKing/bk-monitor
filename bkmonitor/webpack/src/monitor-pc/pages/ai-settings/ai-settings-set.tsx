@@ -281,7 +281,7 @@ export default class AiSettingsSet extends tsc<object> {
               message={settingsItem.errorsMsg.default_plan_id as string}
             >
               {this.loading ? (
-                <div class='skeleton-element mt-6'></div>
+                <div class='skeleton-element h16 mt-6'></div>
               ) : (
                 <bk-select
                   v-model={settingsItem.data.default_plan_id}
@@ -316,7 +316,7 @@ export default class AiSettingsSet extends tsc<object> {
                 {this.formItemRender(
                   this.$t('是否启用'),
                   this.loading ? (
-                    <div class='skeleton-element'></div>
+                    <div class='skeleton-element h16'></div>
                   ) : (
                     <span class='enable-switch-wrap'>
                       <bk-switcher
@@ -350,7 +350,7 @@ export default class AiSettingsSet extends tsc<object> {
                           message={child.errorsMsg.default_plan_id}
                         >
                           {this.loading ? (
-                            <div class='skeleton-element mt-6'></div>
+                            <div class='skeleton-element h16 mt-6'></div>
                           ) : (
                             <bk-select
                               v-model={child.data.default_plan_id}
@@ -370,7 +370,7 @@ export default class AiSettingsSet extends tsc<object> {
                       this.formItemRender(
                         <span class='item-label required'>{this.$t('默认敏感度')}</span>,
                         this.loading ? (
-                          <div class='skeleton-element'></div>
+                          <div class='skeleton-element h16'></div>
                         ) : (
                           <div class='mt-6'>
                             <bk-slider
