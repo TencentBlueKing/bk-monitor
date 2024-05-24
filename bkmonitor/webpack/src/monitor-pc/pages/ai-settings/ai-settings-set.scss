@@ -54,6 +54,10 @@
       .item-content {
         position: relative;
         min-width: 400px;
+
+        .skeleton-element {
+          height: 16px;
+        }
       }
 
       .enable-switch-wrap {

@@ -7,6 +7,7 @@
   }
 
   .ai-settings-page-content {
+    position: relative;
     padding: 16px 40px 24px 32px;
     background: #ffffff;
     border-radius: 2px;
@@ -59,6 +60,11 @@
         .host-count {
           font-weight: 700;
           color: #3a84ff;
+        }
+
+        .skeleton-element {
+          width: 80px;
+          height: 16px;
         }
       }
     }
