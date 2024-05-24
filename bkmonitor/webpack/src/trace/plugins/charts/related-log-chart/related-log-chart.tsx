@@ -407,7 +407,7 @@ export default defineComponent({
      */
     const isScrollLoading = ref(false);
     async function updateTableData(start_time?: string, end_time?: string) {
-      isScrollLoading.value = true;
+      if (pagination.value > 1) isScrollLoading.value = true;
       handleLoadingChange(true);
       try {
         unregisterOberver();
