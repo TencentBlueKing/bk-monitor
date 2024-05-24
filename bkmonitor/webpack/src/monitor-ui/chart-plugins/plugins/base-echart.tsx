@@ -78,14 +78,14 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     const height = instance?.getHeight() || 0;
     if (!height || Math.abs(height - h) < 1) return;
     if (this.height < 200) {
-      (this as any).instance?.setOption({
+      instance?.setOption({
         yAxis: {
           splitNumber: 2,
           scale: false,
         },
       });
     }
-    (this as any).instance?.resize({
+    instance?.resize({
       silent: true,
     });
   }
