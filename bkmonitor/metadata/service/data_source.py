@@ -106,3 +106,39 @@ def stop_or_enable_datasource(data_id_list: List[int], is_enabled: bool) -> bool
             logger.info("delete data_id: %s consul config", datasource.bk_data_id)
 
     return True
+
+
+def query_biz_plugin_data_id_list(biz_id_list: List) -> Dict:
+    """过滤业务下的数据源 ID
+
+    插件现阶段仅在业务下可用
+    """
+    from monitor_web.models import CollectorPluginMeta
+
+    # 通过业务 ID 获取插件
+
+    plugins = CollectorPluginMeta.objects.filter(bk_biz_id__in=biz_id_list)
+    # 获取插件名称，以便通过插件对应的数据源名称吗，然后过滤到对应的数据源 ID
+    data_name_biz_id = {}
+    for plugin in plugins:
+        plugin_version = plugin.current_version
+        plugin_type = plugin_version.plugin.plugin_type
+        data_name = f"{plugin_type}_{plugin_version.plugin.plugin_id}".lower()
+        data_name_biz_id[data_name] = plugin.bk_biz_id
+
+    # 获取对应的数据源信息
+    data_name_data_id = {
+        ds["data_name"]: ds["bk_data_id"]
+        for ds in models.DataSource.objects.filter(data_name__in=list(data_name_biz_id.keys()), is_enable=True).values(
+            "bk_data_id", "data_name"
+        )
+    }
+    # 组装数据
+    biz_data_ids = {}
+    for data_name, data_id in data_name_data_id.items():
+        biz_id = data_name_biz_id[data_name]
+        if not biz_id:
+            continue
+        biz_data_ids.setdefault(biz_id, []).append(data_id)
+
+    return biz_data_ids

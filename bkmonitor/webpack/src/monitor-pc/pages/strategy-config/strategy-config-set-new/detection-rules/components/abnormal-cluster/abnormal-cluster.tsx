@@ -27,12 +27,9 @@ import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import { CancelToken } from 'monitor-api/index';
-import {
-  getIntelligentDetectAccessStatus,
-  getIntelligentModel,
-  listIntelligentModels,
-} from 'monitor-api/modules/strategies';
+import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
+import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
 import { DetectionRuleTypeEnum, IDetectionTypeRuleData, MetricDetail } from '../../../typings';
 import Form from '../form/form';
 import {
@@ -236,7 +233,9 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
    */
   async getModelList() {
     this.loading = true;
-    const resData = await listIntelligentModels({ algorithm: 'AbnormalCluster' }).catch(() => (this.loading = false));
+    const resData = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.AbnormalCluster,
+    }).catch(() => (this.loading = false));
     let modelItem: FormItem = null;
     this.staticFormItem.forEach(item => {
       if (item.field === MODEL_FIELD) modelItem = item;

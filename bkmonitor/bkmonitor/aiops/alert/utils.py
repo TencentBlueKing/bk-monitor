@@ -152,6 +152,7 @@ class AIOPSManager(abc.ABC):
         }
 
         extra_unify_query_params = {
+            # AIOPS 额外图表
             "expression": item.get("expression", ""),
             "functions": item.get("functions", []),
             "query_configs": [],
@@ -181,8 +182,8 @@ class AIOPSManager(abc.ABC):
                             "metrics": [{"field": "_index", "method": "SUM", "alias": "a"}],
                             "filter_dict": {
                                 "event_name": event_name_mapping[query_config["metric_field"]],
-                                "ip": alert.dimensions.get("ip", ""),
-                                "bk_cloud_id": alert.dimensions.get("bk_cloud_id", 0),
+                                "ip": alert.event.ip,
+                                "bk_cloud_id": alert.event.bk_cloud_id,
                             },
                             "time_field": "time",
                             "interval": 60,
@@ -192,6 +193,7 @@ class AIOPSManager(abc.ABC):
                     )
                     continue
 
+                # promql
                 if use_raw_query_config:
                     raw_query_config = query_config.get("raw_query_config", {})
                     query_config.update(raw_query_config)
@@ -343,6 +345,7 @@ class AIOPSManager(abc.ABC):
                 if extra_metrics:
                     extra_query_config = copy.deepcopy(query_config)
                     extra_query_config["metrics"] = extra_metrics
+                    extra_unify_query_params["expression"] = extra_metrics[0].get("alias") or extra_metrics[0]["field"]
                     extra_unify_query_params["query_configs"].append(extra_query_config)
 
         if not unify_query_params["query_configs"]:

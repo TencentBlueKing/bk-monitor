@@ -28,16 +28,14 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
-import { getBusinessTargetDetail } from 'monitor-api/modules/commons';
-import { listIntelligentModels } from 'monitor-api/modules/strategies';
-import { transformDataKey } from 'monitor-common/utils';
 
 import ErrorMsg from '../../components/error-msg/error-msg';
+// import { listIntelligentModels } from 'monitor-api/modules/strategies';
+import IntelligentModelsStore, { IntelligentModelsType } from '../../store/modules/intelligent-models';
 import AnomalyDetection from './components/anomaly-detection';
-import { handleSetTargetDesc } from './components/common';
 import ExpanCard from './components/expan-card';
-import Notification from './components/notification';
-import { SchemeItem } from './types';
+import IpSelector from './components/ip-selector';
+import { HostValueItem, SchemeItem } from './types';
 
 import './ai-settings-set.scss';
 
@@ -45,7 +43,7 @@ interface HostData {
   default_plan_id: number;
   default_sensitivity: number;
   is_enabled: boolean;
-  exclude_target: string[];
+  exclude_target: HostValueItem[][];
   intelligent_detect: Record<string, any>; // 可能需要根据实际需要调整类型
 }
 enum AISettingType {
@@ -120,18 +118,6 @@ export default class AiSettingsSet extends tsc<object> {
       ],
     },
   ];
-  /* 关闭通知的对象 */
-  excludeTargetDetail = {
-    targets: [],
-    targetTable: [],
-    targetType: '',
-    objType: '',
-    desc: '',
-    nodeCount: 0,
-    instanceCount: 0,
-    info: null,
-    show: false,
-  };
   // 单指标
   schemeList: SchemeItem[] = [];
   // 多指标场景
@@ -149,10 +135,12 @@ export default class AiSettingsSet extends tsc<object> {
    */
   async getSchemeList() {
     // 获取单指标
-    this.schemeList = await listIntelligentModels({ algorithm: AISettingType.IntelligentDetect }).catch(() => []);
+    this.schemeList = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.IntelligentDetect,
+    }).catch(() => []);
     // 获取多场景
-    this.multipleSchemeList = await listIntelligentModels({
-      algorithm: AISettingType.MultivariateAnomalyDetection,
+    this.multipleSchemeList = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.MultivariateAnomalyDetection,
     }).catch(() => []);
   }
 
@@ -166,7 +154,6 @@ export default class AiSettingsSet extends tsc<object> {
       this.settingsData[0].data.default_plan_id = this.aiSetting.kpi_anomaly_detection.default_plan_id;
       this.settingsData[1].data[0].data = this.aiSetting.multivariate_anomaly_detection.host;
     }
-    await this.handleExcludeTargetChange();
   }
 
   handleValidate() {
@@ -208,12 +195,17 @@ export default class AiSettingsSet extends tsc<object> {
           default_sensitivity: undefined,
         },
       };
-      await saveAiSetting(params).catch(() => (this.btnLoading = false));
-      this.btnLoading = false;
-      this.$bkMessage({
-        theme: 'success',
-        message: this.$t('保存成功！'),
-      });
+      const res = await saveAiSetting(params)
+        .then(() => true)
+        .catch(() => false);
+      this.btnLoading = res;
+      if (res) {
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('保存成功！'),
+        });
+        this.handleCancel();
+      }
     }
   }
 
@@ -224,51 +216,12 @@ export default class AiSettingsSet extends tsc<object> {
   }
 
   /**
-   * @description 主机区域关闭通知的对象
+   * @description 表单项渲染
+   * @param label
+   * @param content
+   * @param isRequired
+   * @returns
    */
-  async handleExcludeTargetChange() {
-    const excludeTarget = this.settingsData[1].data[0].data.exclude_target;
-    if (excludeTarget?.[0]?.[0]?.value?.length) {
-      const data = await getBusinessTargetDetail({
-        target: excludeTarget,
-      }).catch(() => null);
-      if (data) {
-        const excludeTargetDetail = {
-          ...this.excludeTargetDetail,
-          targets: data.target_detail,
-          targetTable: transformDataKey(data.target_detail),
-          targetType: data.node_type,
-          objType: data.instance_type,
-          nodeCount: data.node_count,
-          instanceCount: data.instance_count,
-          desc: '',
-        };
-        const info = handleSetTargetDesc(
-          excludeTargetDetail.targets,
-          excludeTargetDetail.targetType as any,
-          excludeTargetDetail.objType,
-          excludeTargetDetail.nodeCount,
-          excludeTargetDetail.instanceCount
-        );
-        this.excludeTargetDetail = {
-          ...excludeTargetDetail,
-          info,
-        };
-      } else {
-        this.excludeTargetDetail.info = {
-          message: '',
-          messageCount: 0,
-          subMessage: '',
-          subMessageCount: 0,
-        };
-      }
-    }
-  }
-
-  handleShowTargetDetail() {
-    this.excludeTargetDetail.show = true;
-  }
-
   formItemRender(label, content, isRequired = false) {
     return (
       <div class='settings-form-item'>
@@ -277,6 +230,45 @@ export default class AiSettingsSet extends tsc<object> {
       </div>
     );
   }
+
+  /**
+   * @description 渲染方案选项
+   * @param schemeList
+   * @returns
+   */
+  renderSchemeOption(schemeList: SchemeItem[]) {
+    return schemeList.map(item => (
+      <bk-option
+        id={item.id}
+        style='width: 100%;'
+        name={item.name}
+      >
+        <bk-popover
+          style='width: 100%;'
+          ext-cls='programme-item-popover'
+          placement='right-end'
+          theme='light'
+        >
+          <div style='width: 100%;'>{item.name}</div>
+          <div slot='content'>
+            <div class='content-item'>
+              <span class='content-item-title'>{this.$t('依赖历史数据长度')}:</span>
+              <span>{item.ts_depend}</span>
+            </div>
+            <div class='content-item'>
+              <span class='content-item-title'>{this.$t('数据频率')}:</span>
+              <span>{item.ts_freq || this.$t('无限制')}</span>
+            </div>
+            <div class='content-item'>
+              <span class='content-item-title'>{this.$t('描述')}:</span>
+              <span class='content-item-description'>{item.description}</span>
+            </div>
+          </div>
+        </bk-popover>
+      </bk-option>
+    ));
+  }
+
   contentRender(settingsItem: SettingsData) {
     if (settingsItem.type === AISettingType.IntelligentDetect) {
       /* 单指标异常检测 */
@@ -297,36 +289,7 @@ export default class AiSettingsSet extends tsc<object> {
                   settingsItem.errorsMsg.default_plan_id = '';
                 }}
               >
-                {this.schemeList.map(item => (
-                  <bk-option
-                    id={item.id}
-                    style='width: 100%;'
-                    name={item.name}
-                  >
-                    <bk-popover
-                      style='width: 100%;'
-                      ext-cls='programme-item-popover'
-                      placement='right-end'
-                      theme='light'
-                    >
-                      <div style='width: 100%;'>{item.name}</div>
-                      <div slot='content'>
-                        <div class='content-item'>
-                          <span class='content-item-title'>{this.$t('依赖历史数据长度')}:</span>
-                          <span>{item.ts_depend}</span>
-                        </div>
-                        <div class='content-item'>
-                          <span class='content-item-title'>{this.$t('数据频率')}:</span>
-                          <span>{item.ts_freq || this.$t('无限制')}</span>
-                        </div>
-                        <div class='content-item'>
-                          <span class='content-item-title'>{this.$t('描述')}:</span>
-                          <span class='content-item-description'>{item.description}</span>
-                        </div>
-                      </div>
-                    </bk-popover>
-                  </bk-option>
-                ))}
+                {this.renderSchemeOption(this.schemeList)}
               </bk-select>
             </ErrorMsg>,
             true
@@ -367,13 +330,10 @@ export default class AiSettingsSet extends tsc<object> {
                   ? [
                       this.formItemRender(
                         <span class='item-label'>{this.$t('关闭通知的对象')}</span>,
-                        <Notification
-                          v-model={child.data.exclude_target}
-                          hostInfo={this.excludeTargetDetail.info}
-                          isEdit={true}
-                          onChange={this.handleExcludeTargetChange}
-                          onShowTargetDetail={this.handleShowTargetDetail}
-                        ></Notification>
+                        <IpSelector
+                          value={child.data.exclude_target}
+                          onChange={v => (child.data.exclude_target = v)}
+                        ></IpSelector>
                       ),
                       this.formItemRender(
                         <span class='item-label required mt-6'>{this.$t('默认方案')}</span>,
@@ -390,36 +350,7 @@ export default class AiSettingsSet extends tsc<object> {
                               child.errorsMsg.default_plan_id = '';
                             }}
                           >
-                            {this.multipleSchemeList.map(item => (
-                              <bk-option
-                                id={item.id}
-                                style='width: 100%;'
-                                name={item.name}
-                              >
-                                <bk-popover
-                                  style='width: 100%;'
-                                  ext-cls='programme-item-popover'
-                                  placement='right-end'
-                                  theme='light'
-                                >
-                                  <div style='width: 100%;'>{item.name}</div>
-                                  <div slot='content'>
-                                    <div class='content-item'>
-                                      <span class='content-item-title'>{this.$t('依赖历史数据长度')}:</span>
-                                      <span>{item.ts_depend}</span>
-                                    </div>
-                                    <div class='content-item'>
-                                      <span class='content-item-title'>{this.$t('数据频率')}:</span>
-                                      <span>{item.ts_freq || this.$t('无限制')}</span>
-                                    </div>
-                                    <div class='content-item'>
-                                      <span class='content-item-title'>{this.$t('描述')}:</span>
-                                      <span class='content-item-description'>{item.description}</span>
-                                    </div>
-                                  </div>
-                                </bk-popover>
-                              </bk-option>
-                            ))}
+                            {this.renderSchemeOption(this.multipleSchemeList)}
                           </bk-select>
                         </ErrorMsg>,
                         true

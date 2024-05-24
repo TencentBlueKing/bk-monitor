@@ -534,6 +534,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "messaging_system": {"terms": {"field": "attributes.messaging.system", "missing_bucket": True}}
         },
         "rpc_system": {"rpc_system": {"terms": {"field": "attributes.rpc.system", "missing_bucket": True}}},
+        "trpc_callee_method": {
+            "trpc_callee_method": {"terms": {"field": "attributes.trpc.callee_method", "missing_bucket": True}}
+        },
     }
 
     GROUP_KEY_FILTER_CONFIG = {
@@ -541,6 +544,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         "http_url": Q("exists", field="attributes.http.url"),
         "messaging_system": Q("exists", field="attributes.messaging.system"),
         "rpc_system": Q("exists", field="attributes.rpc.system"),
+        "trpc_callee_method": Q("exists", field="attributes.trpc.namespace"),
     }
 
     DEFAULT_LIMIT_MAX_SIZE = 10000
