@@ -33,6 +33,7 @@ from api.cmdb.define import Business
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
     DB_SYSTEM_TUPLE,
+    DEFAULT_APM_APP_QPS,
     DEFAULT_DB_CONFIG,
     DEFAULT_DIMENSION_DATA_PERIOD,
     DEFAULT_NO_DATA_PERIOD,
@@ -385,9 +386,12 @@ class ApplicationInfoResource(Resource):
             data["no_data_period"] = instance.no_data_period
             # db 类型配置
             data["application_db_system"] = DB_SYSTEM_TUPLE
-            # 补充默认配置
-            if "application_db_config" not in data:
-                data["application_db_config"] = [DEFAULT_DB_CONFIG]
+            # 补充 db 默认配置
+            if Application.DB_CONFIG_KEY not in data:
+                data[Application.DB_CONFIG_KEY] = [DEFAULT_DB_CONFIG]
+            # 补充 QPS 默认配置
+            if Application.QPS_CONFIG_KEY not in data:
+                data[Application.QPS_CONFIG_KEY] = DEFAULT_APM_APP_QPS
             data["plugin_config"] = instance.plugin_config
 
             # 转换采样配置显示内容
@@ -585,6 +589,7 @@ class SetupResource(Resource):
         is_enabled = serializers.BooleanField(label="Tracing启/停", required=False)
         profiling_is_enabled = serializers.BooleanField(label="Profiling启/停", required=False)
         plugin_config = PluginConfigSerializer(required=False)
+        application_qps_config = serializers.IntegerField(label="qps", required=False)
 
     class SetupProcessor:
         update_key = []
@@ -664,6 +669,17 @@ class SetupResource(Resource):
                 override=True,
             )
 
+    class QPSSetupProcessor(SetupProcessor):
+        update_key = ["application_qps_config"]
+
+        def setup(self):
+            self._application.setup_config(
+                self._application.qps_config,
+                self._params["application_qps_config"],
+                self._application.QPS_CONFIG_KEY,
+                override=True,
+            )
+
     def perform_request(self, validated_data):
         try:
             application = Application.objects.get(application_id=validated_data["application_id"])
@@ -681,6 +697,7 @@ class SetupResource(Resource):
                 # self.DimensionSetupProcessor,
                 self.NoDataPeriodProcessor,
                 self.DbSetupProcessor,
+                self.QPSSetupProcessor,
             ]
         ]
 
