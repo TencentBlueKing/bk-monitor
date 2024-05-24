@@ -276,12 +276,16 @@ export default class AiSettingsPage extends tsc<object> {
 
           <div class='scene-detection'>
             <div class='title'>{this.$t('场景智能异常检测')}</div>
-            {this.sceneIntelligent.map(item => (
-              <div class='detection-item'>
-                <div class='name'>{item.name}</div>
-                {this.renderForm(item, 'sceneIntelligent')}
-              </div>
-            ))}
+            {this.loading ? (
+              <div class='skeleton-element empty-scene-detection'></div>
+            ) : (
+              this.sceneIntelligent.map(item => (
+                <div class='detection-item'>
+                  <div class='name'>{item.name}</div>
+                  {this.renderForm(item, 'sceneIntelligent')}
+                </div>
+              ))
+            )}
           </div>
         </div>
 
