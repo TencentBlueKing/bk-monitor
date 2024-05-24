@@ -131,6 +131,7 @@ declare global {
     page_title: string;
     wxwork_bot_send_image?: boolean;
     showLoginModal: (option: ShowLoginModalOption) => void;
+    BLUEKING?: Record<string, any>;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

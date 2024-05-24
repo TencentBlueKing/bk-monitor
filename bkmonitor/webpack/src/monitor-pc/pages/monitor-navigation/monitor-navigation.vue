@@ -26,8 +26,8 @@
 -->
 <template>
   <div
-    v-bkloading="{ isLoading: loading }"
     class="monitor-navigation"
+    v-bkloading="{ isLoading: loading }"
     :class="$route.meta.navClass"
   >
     <bk-navigation
@@ -35,15 +35,15 @@
         'no-need-menu': !header.needMenu,
         'custom-content': customContent,
       }"
+      :default-open="nav.toggle"
       :need-menu="header.needMenu"
       :side-title="nav.title"
-      :default-open="nav.toggle"
       @toggle="handleToggle"
       @toggle-click="handleToggleClick"
     >
       <div
-        slot="header"
         class="monitor-navigation-header"
+        slot="header"
       >
         <div class="header-title">
           <span
@@ -54,8 +54,8 @@
           {{ navTitle && $t('route-' + navTitle).replace('route-', '') }}
           <i
             v-if="showCopyBtn"
-            v-bk-tooltips="{ content: $t('复制链接') }"
             class="icon-monitor icon-copy-link monitor-copy-link"
+            v-bk-tooltips="{ content: $t('复制链接') }"
             @click="handleCopyLink"
           />
           <template v-if="$route.name === 'grafana'">
@@ -70,11 +70,11 @@
         </div>
         <bk-select
           ref="headerSelect"
-          v-model="header.select.value"
-          search-with-pinyin
           class="header-select"
-          searchable
+          v-model="header.select.value"
           :clearable="false"
+          search-with-pinyin
+          searchable
           @change="handleBizChange"
         >
           <bk-option
@@ -84,8 +84,8 @@
             :name="option.text"
           />
           <div
-            slot="extension"
             class="select-extension"
+            slot="extension"
           >
             <span
               class="select-extension-btn has-border"
@@ -101,11 +101,11 @@
           </div>
         </bk-select>
         <bk-popover
-          theme="light navigation-message"
           :arrow="false"
+          :tippy-options="{ hideOnClick: false }"
           offset="-20, 6"
           placement="bottom-start"
-          :tippy-options="{ hideOnClick: false }"
+          theme="light navigation-message"
         >
           <div class="header-help is-left">
             <span class="help-icon icon-monitor icon-mc-help-fill" />
@@ -114,8 +114,8 @@
             <ul class="monitor-navigation-help">
               <li
                 v-for="(item, index) in help.list"
-                :key="index"
                 class="nav-item"
+                :key="index"
                 @click="handleHelp(item)"
               >
                 {{ item.name }}
@@ -124,11 +124,11 @@
           </template>
         </bk-popover>
         <bk-popover
-          theme="light navigation-message"
           :arrow="false"
+          :tippy-options="{ hideOnClick: false }"
           offset="-20, 10"
           placement="bottom-start"
-          :tippy-options="{ hideOnClick: false }"
+          theme="light navigation-message"
         >
           <div class="header-user is-left">
             {{ userName }}
@@ -137,38 +137,38 @@
         </bk-popover>
       </div>
       <div
-        slot="side-icon"
         class="monitor-logo"
+        slot="side-icon"
       >
         <img
           class="monitor-logo-icon"
-          src="../../static/images/svg/monitor-logo.svg"
           alt=""
+          src="../../static/images/svg/monitor-logo.svg"
         />
       </div>
       <div
-        slot="menu"
         class="monitor-menu"
+        slot="menu"
       >
         <bk-navigation-menu
           ref="menu"
+          :before-nav-change="handleBeforeNavChange"
           :default-active="defaultRouteId"
           :toggle-active="nav.toggle"
-          :before-nav-change="handleBeforeNavChange"
         >
           <template v-for="item in nav.list">
             <bk-navigation-menu-group
               v-if="item.children && !!item.children.length"
-              :key="item.name"
               :group-name="nav.toggle ? $t(item.navName || item.name) : $t(item.shortName)"
+              :key="item.name"
             >
               <template v-for="child in item.children">
                 <bk-navigation-menu-item
                   v-if="!child.hidden"
                   :key="child.id"
                   v-bind="child"
-                  :href="getNavHref(child)"
                   :default-active="child.active"
+                  :href="getNavHref(child)"
                   @click="handleNavItemClick(child)"
                 >
                   <span>{{ $t('route-' + (child.navName || child.name)) }}</span>
@@ -179,8 +179,8 @@
               v-else
               :key="item.id"
               v-bind="item"
-              :href="getNavHref(item)"
               :default-active="item.active"
+              :href="getNavHref(item)"
               @click="handleNavItemClick(item)"
             >
               <span>{{ $t('route-' + (item.navName || item.name)) }}</span>
@@ -191,14 +191,14 @@
       <!-- eslint-disable-next-line vue/no-v-html-->
       <div
         v-if="$route.name === 'home'"
-        slot="footer"
         style="width: 100%"
+        slot="footer"
         v-html="footer.html"
       />
       <div
-        v-show="mcMainLoading"
-        v-bkloading="{ isLoading: mcMainLoading }"
         class="monitor-main-loading"
+        v-bkloading="{ isLoading: mcMainLoading }"
+        v-show="mcMainLoading"
       />
       <template>
         <keep-alive>
@@ -210,8 +210,8 @@
         <router-view
           key="noCache"
           v-bind="Object.assign({}, $route.params, { title: '' })"
-          name="noCache"
           :toggle-set="nav.toggleSet"
+          name="noCache"
         />
         <authority-modal />
       </template>
@@ -536,13 +536,13 @@ export default {
       if (!data.apply_url) return;
       try {
         if (self === top) {
-          window.open(data.apply_url, '__blank');
+          window.open(data.apply_url, '_blank');
         } else {
           top.BLUEKING.api.open_app_by_other('bk_iam', data.apply_url);
         }
       } catch (_) {
         // 防止跨域问题
-        window.open(data.apply_url, '__blank');
+        window.open(data.apply_url, '_blank');
       }
     },
     handleGrafanaMenuClick({ id }) {

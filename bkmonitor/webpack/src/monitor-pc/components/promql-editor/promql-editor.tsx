@@ -152,7 +152,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Prop({ default: () => ({}) }) readonly overrideServices?: object;
   @Prop({ default: null }) readonly className?: null | string;
   @Prop({ default: () => null }) readonly executeQuery: (v: boolean) => void;
-  @Prop() readonly uri?: (v: any) => void;
+  @Prop() readonly uri?: (v: any) => monaco.Uri;
   @Prop({ default: false }) readonly: boolean;
 
   editor: monaco.editor.IStandaloneCodeEditor | null = null;
@@ -262,7 +262,10 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
     if (this.containerElement) {
       const finalOptions = { ...this.options, ...editorWillMount(monaco) };
       const modelUri = this.uri?.(monaco);
-      let model = modelUri && monaco.editor.getModel(modelUri);
+      let model = null;
+      if (modelUri) {
+        model = monaco.editor.getModel(modelUri);
+      }
       if (model) {
         model.setValue(finalValue);
         monaco.editor.setModelLanguage(model, this.language);
