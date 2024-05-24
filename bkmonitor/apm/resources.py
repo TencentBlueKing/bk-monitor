@@ -23,6 +23,7 @@ from rest_framework import serializers
 
 from apm.constants import GLOBAL_CONFIG_BK_BIZ_ID, ConfigTypes, VisibleEnum
 from apm.core.handlers.application_hepler import ApplicationHelper
+from apm.core.handlers.application_hub import DataHubHandler
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.instance_handlers import InstanceHandler
@@ -54,6 +55,11 @@ from apm.models import (
     TraceDataSource,
 )
 from apm.models.profile import ProfileService
+from apm.serializer import (
+    ApplicationHubSerializer,
+    CustomReportHubSerializer,
+    EsStorageOptionSerializer,
+)
 from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
@@ -1654,3 +1660,25 @@ class QueryProfileServiceDetailResource(Resource):
             params["sample_type"] = validated_data["sample_type"]
 
         return ProfileService.objects.filter(**params).order_by("created_at")
+
+
+class CreateApplicationHubResource(Resource):
+    """
+    一键创建 APM 应用、自定义上报
+    返回：
+    1. Metric DataId (APM 应用)
+    2. Trace DataId (APM 应用)
+    3. Profile DataId (APM 应用)
+    4. Log DataId (自定义上报)
+    5. Token
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        bcs_cluster_id = serializers.CharField(label="BCS 集群 ID", max_length=255)
+        apm_application = ApplicationHubSerializer(label="APM 应用配置", required=False, default={})
+        custom_report = CustomReportHubSerializer(label="日志自定义上报配置", required=False, default={})
+        storage = EsStorageOptionSerializer(label="ES 存储配置", required=False, default={})
+
+    def perform_request(self, validated_request_data):
+        return DataHubHandler.create_data_hub(**validated_request_data)

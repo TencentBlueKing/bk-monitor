@@ -12,6 +12,7 @@ from apm.resources import (
     AppConfigResource,
     ApplicationInfoResource,
     ApplyDatasourceResource,
+    CreateApplicationHubResource,
     CreateApplicationResource,
     CreateApplicationSimpleResource,
     CreateOrUpdateBkdataFlowResource,
@@ -104,6 +105,7 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("GET", GetBkDataFlowDetailResource, endpoint="get_bkdata_flow"),
         ResourceRoute("POST", CreateOrUpdateBkdataFlowResource, endpoint="create_or_update_bkdata_flow"),
         ResourceRoute("POST", OperateApmDataIdResource, endpoint="operate_apm_dataid"),
+        ResourceRoute("POST", CreateApplicationHubResource, endpoint="create_application_hub"),
     ]
 
 

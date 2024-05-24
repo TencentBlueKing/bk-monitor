@@ -138,6 +138,11 @@ from monitor_web.strategies.user_groups import get_or_create_ops_notice_group
 
 
 class CreateApplicationResource(Resource):
+    """
+    创建 APM 应用
+    此接口还在 api 侧的 CreateApplicationHubResource/CreateApplicationSimpleResource 被调用
+    """
+
     class RequestSerializer(serializers.Serializer):
         class DatasourceOptionSerializer(serializers.Serializer):
             es_storage_cluster = serializers.IntegerField(label="es存储集群")

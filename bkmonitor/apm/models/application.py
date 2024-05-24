@@ -192,3 +192,49 @@ class EbpfApplicationConfig(models.Model):
 
     class Meta:
         verbose_name = "ebpf应用配置"
+
+
+class ApplicationHub(models.Model):
+    bk_biz_id = models.IntegerField("业务id")
+    bcs_cluster_id = models.CharField("BCS 集群 ID", max_length=255)
+    app_name = models.CharField("应用名称", max_length=50, null=True)
+    app_id = models.IntegerField("应用 Id", null=True)
+    custom_report_id = models.IntegerField("日志自定义上报 ID", null=True)
+    custom_report_index_set_id = models.IntegerField("日志定义上报索引集ID", null=True)
+    metric_data_id = models.IntegerField("APM Metric DataId", null=True)
+    trace_data_id = models.IntegerField("APM Trace DataId", null=True)
+    profile_data_id = models.IntegerField("APM Profile DataId", null=True)
+    log_data_id = models.IntegerField("APM Log DataId", null=True)
+    is_finished = models.BooleanField("是否已创建完成", null=True, default=False)
+
+    class Meta:
+        verbose_name = "大应用列表"
+
+    @classmethod
+    def get_hub(cls, bk_biz_id, bcs_cluster_id):
+        return cls.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id).first()
+
+    @classmethod
+    def to_json(cls, bk_biz_id, bcs_cluster_id):
+        hub = cls.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id).first()
+        if not hub:
+            return None
+
+        return {
+            "bk_biz_id": hub.bk_biz_id,
+            "app_name": hub.app_name,
+            "bcs_cluster_id": hub.bcs_cluster_id,
+            "custom_report_id": hub.custom_report_id,
+            "metric_data_id": hub.metric_data_id,
+            "trace_data_id": hub.trace_data_id,
+            "profile_data_id": hub.profile_data_id,
+            "log_data_id": hub.log_data_id,
+            "token": transform_data_id_to_v1_token(
+                metric_data_id=hub.metric_data_id,
+                trace_data_id=hub.trace_data_id,
+                log_data_id=hub.log_data_id,
+                profile_data_id=hub.profile_data_id,
+                bk_biz_id=hub.bk_biz_id,
+                app_name=hub.app_name,
+            ),
+        }
