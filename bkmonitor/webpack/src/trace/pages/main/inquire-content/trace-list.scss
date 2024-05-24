@@ -572,9 +572,14 @@
       }
 
       .bk-modal-content {
+        overflow: hidden;
+      }
+
+      .bk-dialog-content {
         height: 100vh !important;
         max-height: 100vh !important;
         padding: 0;
+        margin: 0;
       }
     }
   }
