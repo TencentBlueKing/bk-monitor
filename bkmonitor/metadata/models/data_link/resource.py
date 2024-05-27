@@ -56,8 +56,6 @@ class DataLinkResourceConfig(BaseModelWithTime):
         {
             "kind": "DataId",
             "metadata": {
-                "annotations": {},
-                "labels": {},
                 "name": "{{name}}",
                 "namespace": "{{namespace}}"
             },
@@ -88,8 +86,6 @@ class DataLinkResourceConfig(BaseModelWithTime):
         {
             "kind": "ResultTable",
             "metadata": {
-                "annotations": {},
-                "labels": {},
                 "name": "{{name}}",
                 "namespace": "{{namespace}}"
             },
@@ -129,8 +125,6 @@ class DataLinkResourceConfig(BaseModelWithTime):
         {
             "kind": "VmStorageBinding",
             "metadata": {
-                "annotations": {},
-                "labels": {},
                 "name": "{{name}}",
                 "namespace": "{{namespace}}"
             },
@@ -182,8 +176,6 @@ class DataLinkResourceConfig(BaseModelWithTime):
         {
             "kind": "Databus",
             "metadata": {
-                "annotations": {},
-                "labels": {},
                 "name": "{{name}}",
                 "namespace": "{{namespace}}"
             },

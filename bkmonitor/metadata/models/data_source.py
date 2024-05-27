@@ -787,6 +787,22 @@ class DataSource(models.Model):
         刷新GSE 配置，告知GSE DATA服务最新的MQ配置信息
         :return: True | raise Exception
         """
+        from metadata.models.data_link.constants import DataLinkKind
+        from metadata.models.data_link.resource import DataLinkResourceConfig
+        from metadata.models.data_link.utils import get_bkdata_data_id_name
+
+        if (
+            not self.is_enable
+            or DataLinkResourceConfig.objects.filter(
+                name=get_bkdata_data_id_name(self.data_name), kind=DataLinkKind.DATAID.value
+            ).exists()
+        ):
+            logger.info(
+                "data->[%s] is not enable or has been moved to new data link, nothing will refresh to outer systems.",
+                self.bk_data_id,
+            )
+            return
+
         self.refresh_gse_config_to_gse()
 
     def add_built_in_channel_id_to_gse(self):
@@ -905,8 +921,21 @@ class DataSource(models.Model):
         :return: True | raise Exception
         """
         # 如果数据源没有启用，则不用刷新 consul 配置
-        if not self.is_enable:
-            return
+        from metadata.models.data_link.constants import DataLinkKind
+        from metadata.models.data_link.resource import DataLinkResourceConfig
+        from metadata.models.data_link.utils import get_bkdata_data_id_name
+
+        if (
+            not self.is_enable
+            or DataLinkResourceConfig.objects.filter(
+                name=get_bkdata_data_id_name(self.data_name), kind=DataLinkKind.DATAID.value
+            ).exists()
+        ):
+            logger.info(
+                "data->[%s] is not enable or has been moved to new data link, nothing will refresh to outer systems.",
+                self.bk_data_id,
+            )
+            return True
 
         # transfer不处理data_id 1002--1006的数据，忽略推送到consul
         if self.bk_data_id in IGNORED_CONSUL_SYNC_DATA_IDS:

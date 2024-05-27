@@ -389,7 +389,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     data_type_cluster = get_data_type_cluster(data_id=data_id)
     # 接入 vm 链路
     try:
-        data_name = DataSource.objects.get(data_id=data_id).data_name
+        data_name = DataSource.objects.get(bk_data_id=data_id).data_name
         create_vm_data_link(
             table_id=table_id,
             data_name=data_name,

@@ -309,7 +309,7 @@ def _access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
 
     if settings.ENABLE_V2_VM_DATA_LINK:
-        access_v2_bkdata_vm(k_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+        access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
         access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
 

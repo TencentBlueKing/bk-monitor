@@ -38,6 +38,7 @@ class DataLinkKind(Enum):
 
 class DataLinkResourceStatus(Enum):
     """数据链路资源状态
+
     Pending: The resource has been created but has not been scheduled yet
     Reconciling: The resource is in a reconciliation loop
     Terminating: The resource is terminating
