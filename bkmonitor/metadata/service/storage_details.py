@@ -138,8 +138,6 @@ class ResultTableAndDataSource:
                 table_id = models.AccessVMRecord.objects.get(vm_result_table_id=self.vm_table_id).result_table_id
             obj = models.DataSourceResultTable.objects.get(table_id=table_id)
             return {obj.table_id: obj.bk_data_id}
-        elif self.vm_table_id:
-            obj = models.AccessVMRecord.objects.get(vm_result_table_id=self.vm_table_id)
 
         elif self.bk_data_id:
             return {
