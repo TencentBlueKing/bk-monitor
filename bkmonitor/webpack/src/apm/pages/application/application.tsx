@@ -188,8 +188,8 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   async getApplicationList() {
     const listData = await listApplicationInfo().catch(() => []);
     this.appList = listData.map(item => ({
-      id: item.application_id,
-      name: item.app_name,
+      id: item.app_name,
+      name: `${item.app_name}(${item.app_alias})`,
       ...item,
     }));
     this.routeList[1].selectOption.selectList = this.appList;
@@ -215,7 +215,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   /** 导航栏下拉选择 */
   async handleNavSelect(item: ISelectItem, navId: string) {
     if (navId === 'application') {
-      this.appName = item.name;
+      this.appName = item.id;
       this.getServiceList();
       const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
       this.$router.replace({

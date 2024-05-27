@@ -137,10 +137,21 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
     this.$set(this.navSelectShow, item.id, !this.navSelectShow[item.id]);
   }
 
-  handleNavSelect(selectItem: ISelectItem, routeItem: INavItem) {
-    if (selectItem.name === routeItem.selectOption.value) return;
-    this.$emit('navSelect', selectItem, routeItem.id);
-    (this.$refs[`navSelectPopover_${routeItem.id}`] as any)?.hideHandler();
+  handleNavSelect(selectItem: string, routeItem: INavItem) {
+    this.$emit(
+      'navSelect',
+      routeItem.selectOption.selectList.find(item => item.id === selectItem),
+      routeItem.id
+    );
+  }
+
+  sortSelectList(selectOption: INavItem['selectOption']) {
+    const selectList: ISelectItem[] = JSON.parse(JSON.stringify(selectOption.selectList));
+    const index = selectList.findIndex(item => item.id === selectOption.value);
+    const selectItem = selectList.splice(index, 1);
+    selectList.sort((a, b) => (a.id >= b.id ? 1 : -1));
+    selectList.unshift(...selectItem);
+    return selectList;
   }
 
   render() {
@@ -183,42 +194,39 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                     )}
                   </span>,
                   item.selectOption && (
-                    <bk-popover
-                      ref={`navSelectPopover_${item.id}`}
-                      arrow={false}
-                      distance={0}
-                      offset={-10}
-                      placement='bottom-end'
-                      theme='light nav-bar-select-popover'
-                      trigger='click'
-                      onHide={() => this.handleNavSelectShow(item)}
-                      onShow={() => this.handleNavSelectShow(item)}
+                    <bk-select
+                      popover-options={{
+                        placement: 'bottom',
+                      }}
+                      ext-popover-cls='nav-bar-select-popover'
+                      popover-width={240}
+                      value={item.selectOption.value}
+                      searchable
+                      onChange={val => this.handleNavSelect(val, item)}
+                      onToggle={() => this.handleNavSelectShow(item)}
                     >
-                      {
-                        <div class={{ 'arrow-wrap': true, active: this.navSelectShow[item.id] }}>
-                          <i class='icon-monitor icon-mc-arrow-down'></i>
-                        </div>
-                      }
-
-                      <ul
-                        class='nav-bar-select-popover-content'
-                        slot='content'
+                      <div
+                        class={{ 'arrow-wrap': true, active: this.navSelectShow[item.id] }}
+                        slot='trigger'
                       >
-                        {item.selectOption.selectList.length ? (
-                          item.selectOption.selectList?.map(selectItem => (
-                            <li
-                              class={{ item: true, active: selectItem.name === item.selectOption.value }}
-                              v-bk-overflow-tips
-                              onClick={() => this.handleNavSelect(selectItem, item)}
-                            >
-                              {selectItem.name}
-                            </li>
-                          ))
-                        ) : (
-                          <li class='empty'>{this.$t('暂无数据')}</li>
-                        )}
-                      </ul>
-                    </bk-popover>
+                        <i class='icon-monitor icon-mc-arrow-down'></i>
+                      </div>
+                      {this.sortSelectList(item.selectOption).map(selectItem => (
+                        <bk-option
+                          id={selectItem.id}
+                          key={selectItem.id}
+                          class={{ item: true, active: selectItem.id === item.selectOption.value }}
+                          name={selectItem.name}
+                        >
+                          <div
+                            class='name'
+                            v-bk-overflow-tips
+                          >
+                            {selectItem.name}
+                          </div>
+                        </bk-option>
+                      ))}
+                    </bk-select>
                   ),
                 ]
               ) : (
