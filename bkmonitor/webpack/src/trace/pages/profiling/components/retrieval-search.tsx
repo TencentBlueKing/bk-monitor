@@ -233,16 +233,23 @@ export default defineComponent({
 
     /** 获取过滤项列表 */
     async function getLabelList() {
-      localFormData.where = localFormData.where.filter(item => !item.key);
-      localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item => !item.key);
       labelList.value = [];
-      if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
+      if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) {
+        localFormData.where = [];
+        localFormData.comparisonWhere = [];
+        return;
+      }
       const labels = await queryLabels(
         {
           ...labelCommonParams.value,
         },
         { needMessage: false }
       ).catch(() => ({ label_keys: [] }));
+      // 获取label列表后，移除不在列表中的选项
+      localFormData.where = localFormData.where.filter(item => labels.label_keys.includes(item.key));
+      localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item =>
+        labels.label_keys.includes(item.key)
+      );
       labelList.value = labels.label_keys;
     }
 

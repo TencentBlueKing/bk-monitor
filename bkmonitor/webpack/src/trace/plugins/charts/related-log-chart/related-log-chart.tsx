@@ -36,12 +36,13 @@ import api from 'monitor-api/api';
 // TODO：需要重新实现
 // import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 // TODO：这个是父组件，需要将相关代码和mixins部分 copy 过来这里
+// 原有类型
+import { Column } from 'bkui-vue/lib/table/props';
 // import { CommonSimpleChart } from '../../common-simple-chart';
 import { debounce } from 'monitor-common/utils/utils';
 import { type ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 // import { MONITOR_BAR_OPTIONS } from '../../constants';
 import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
-// 原有类型
 // import { PanelModel } from '../../typings';
 import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 // src/monitor-ui/chart-plugins/utils/index.ts
@@ -165,6 +166,9 @@ export default defineComponent({
     // 在 Span-Detail 里 provide appName与serviceName。
     const appName = inject<ComputedRef<string>>('appName');
     const serviceName = inject<Ref<string>>('serviceName');
+    const traceId = inject<Ref>('traceId');
+    const injectStartTime = inject<Ref>('originSpanStartTime');
+    const injectEndTime = inject<Ref>('originSpanEndTime');
     // const viewOptions = useViewOptionsInject();
     // 这里强行凑一个 viewOptions
     const viewOptions = ref<Record<string, any>>({
@@ -389,7 +393,7 @@ export default defineComponent({
                 }
               })
           );
-      } catch (error) {
+      } catch (error: any) {
         handleErrorMsgChange(error.msg || error.message);
       }
       props.clearErrorMsg();
@@ -403,7 +407,7 @@ export default defineComponent({
      */
     const isScrollLoading = ref(false);
     async function updateTableData(start_time?: string, end_time?: string) {
-      isScrollLoading.value = true;
+      if (pagination.value > 1) isScrollLoading.value = true;
       handleLoadingChange(true);
       try {
         unregisterOberver();
@@ -514,8 +518,11 @@ export default defineComponent({
      * @desc 链接跳转
      */
     function goLink() {
+      // 时间范围由 开始时间前一小时 + 耗时 + 结束时间后一小时
+      const startTime = injectStartTime.value - 36 * Math.pow(10, 5);
+      const endTime = injectEndTime.value + 36 * Math.pow(10, 5);
       const url = isBkLog.value
-        ? `${window.bk_log_search_url}#/retrieve/${relatedIndexSetId.value}?bizId=${relatedBkBizId.value}`
+        ? `${window.bk_log_search_url}#/retrieve/${relatedIndexSetId.value}?bizId=${relatedBkBizId.value}&keyword=${traceId.value}&start_time=${startTime}&end_time=${endTime}`
         : thirdPartyLog.value;
       window.open(url, '_blank');
     }
@@ -691,7 +698,7 @@ export default defineComponent({
                             width={this.width}
                             height={this.height}
                             class='base-chart'
-                            options={this.customOptions}
+                            options={this.customOptions as any}
                             onDataZoom={this.dataZoom}
                             onDblClick={this.handleDblClick}
                           />
@@ -745,7 +752,7 @@ export default defineComponent({
                         );
                       },
                     }}
-                    columns={this.transformedColumns}
+                    columns={this.transformedColumns as Column[]}
                     data={this.tableData}
                     scroll-loading={this.isScrollLoading}
                     onScrollBottom={this.handlePageChange}

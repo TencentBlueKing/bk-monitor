@@ -145,6 +145,8 @@ import { mapGetters } from 'vuex';
 import TableLog from './table-log.vue';
 import FieldsSetting from '../../result-comp/fields-setting';
 import ExportLog from '../../result-comp/export-log.vue';
+import axios from 'axios';
+const CancelToken = axios.CancelToken;
 
 export default {
   components: {
@@ -209,7 +211,6 @@ export default {
   },
   watch: {
     watchQueryIndexValue: {
-      immediate: true,
       handler() {
         if ((!this.isUnionSearch && this.routeIndexSet) || (this.isUnionSearch && this.unionIndexList?.length)) {
           this.requestFiledConfig();
@@ -255,19 +256,28 @@ export default {
       /** 获取配置列表 */
       this.fieldConfigIsLoading = true;
       try {
-        const res = await this.$http.request('retrieve/getFieldsListConfig', {
-          data: {
-            ...(this.isUnionSearch ? { index_set_ids: this.unionIndexList } : { index_set_id: this.routeIndexSet }),
-            scope: 'default',
-            index_set_type: this.isUnionSearch ? 'union' : 'single'
+        const res = await this.$http.request(
+          'retrieve/getFieldsListConfig',
+          {
+            data: {
+              ...(this.isUnionSearch ? { index_set_ids: this.unionIndexList } : { index_set_id: this.routeIndexSet }),
+              scope: 'default',
+              index_set_type: this.isUnionSearch ? 'union' : 'single'
+            }
+          },
+          {
+            cancelToken: new CancelToken(c => {
+              this.getFieldsConfigCancelFn = c;
+            })
           }
-        });
+        );
         this.fieldsConfigList = res.data;
       } catch (error) {
       } finally {
         this.fieldConfigIsLoading = false;
       }
     },
+    getFieldsConfigCancelFn() {},
     async handleSelectFieldConfig(configID, option) {
       const { display_fields: displayFields, sort_list: sortList } = option;
       // 更新config
@@ -285,7 +295,6 @@ export default {
         .catch(e => {
           console.warn(e);
         });
-      this.$store.commit('updateClearTableWidth', 1);
       this.confirmModifyFields(displayFields, sortList);
     },
     handleAddNewConfig() {
