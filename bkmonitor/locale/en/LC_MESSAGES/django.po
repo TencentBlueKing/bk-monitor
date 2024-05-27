@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-23 17:33+0800\n"
+"POT-Creation-Date: 2024-05-27 17:55+0800\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #, python-brace-format
@@ -2187,33 +2187,6 @@ msgstr "Create"
 msgid "更新"
 msgstr "renew"
 
-msgid "通知"
-msgstr "Notification"
-
-msgid "HTTP回调"
-msgstr "Http Callback"
-
-msgid "作业平台"
-msgstr "Job System"
-
-msgid "标准运维"
-msgstr "Standard OPS"
-
-msgid "流程服务"
-msgstr "Process Service Management"
-
-msgid "通用插件"
-msgstr "General Plugin"
-
-msgid "内置"
-msgstr "Built-in"
-
-msgid "周边系统"
-msgstr "Peripheral System"
-
-msgid "蓝鲸插件"
-msgstr "BK-Plugin"
-
 msgid "达到通知告警的执行条件【{{{{action_signal}}}}】, {}"
 msgstr "The execution condition of the notification alarm is reached【{{{{action_signal}}}}】, {}"
 
@@ -2250,6 +2223,9 @@ msgstr "Convergence"
 
 msgid "处理事件"
 msgstr "Treatment Event"
+
+msgid "通知"
+msgstr "Notification"
 
 msgid "处理动作"
 msgstr "Handling Actions"
@@ -5266,6 +5242,9 @@ msgstr "Chartham Islands"
 msgid "奥克兰"
 msgstr "Auckland"
 
+msgid "内置"
+msgstr "Built-in"
+
 msgid "自定义"
 msgstr "Custom"
 
@@ -5322,6 +5301,21 @@ msgstr "Dispatch"
 
 msgid "仅通知"
 msgstr "Notify Only"
+
+msgid "HTTP回调"
+msgstr "Http Callback"
+
+msgid "作业平台"
+msgstr "Job System"
+
+msgid "标准运维"
+msgstr "Standard OPS"
+
+msgid "流程服务"
+msgstr "Process Service Management"
+
+msgid "通用插件"
+msgstr "General Plugin"
 
 msgid "汇总"
 msgstr "Summary"
@@ -8421,6 +8415,12 @@ msgstr "With dimensions of alarm notification"
 
 msgid "汇总告警通知"
 msgstr "Summary alarm notification"
+
+msgid "周边系统"
+msgstr "Peripheral System"
+
+msgid "蓝鲸插件"
+msgstr "BK-Plugin"
 
 msgid "告警链接"
 msgstr "Alarm Link"

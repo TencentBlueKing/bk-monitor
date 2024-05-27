@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-23 17:33+0800\n"
+"POT-Creation-Date: 2024-05-27 17:55+0800\n"
 "PO-Revision-Date: 2017-11-24 14:50+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: zh_Hans <LL@li.org>\n"
@@ -2216,33 +2216,6 @@ msgstr "创建"
 msgid "更新"
 msgstr "更新"
 
-msgid "通知"
-msgstr "通知"
-
-msgid "HTTP回调"
-msgstr "HTTP回调"
-
-msgid "作业平台"
-msgstr "作业平台"
-
-msgid "标准运维"
-msgstr "标准运维"
-
-msgid "流程服务"
-msgstr "流程服务"
-
-msgid "通用插件"
-msgstr "通用插件"
-
-msgid "内置"
-msgstr "内置"
-
-msgid "周边系统"
-msgstr "周边系统"
-
-msgid "蓝鲸插件"
-msgstr "蓝鲸插件"
-
 msgid "达到通知告警的执行条件【{{{{action_signal}}}}】, {}"
 msgstr "达到通知告警的执行条件【{{{{action_signal}}}}】, {}"
 
@@ -2279,6 +2252,9 @@ msgstr "收敛事件"
 
 msgid "处理事件"
 msgstr "处理事件"
+
+msgid "通知"
+msgstr "通知"
 
 msgid "处理动作"
 msgstr "处理动作"
@@ -5295,6 +5271,9 @@ msgstr "查塔姆群岛"
 msgid "奥克兰"
 msgstr "奥克兰"
 
+msgid "内置"
+msgstr "内置"
+
 msgid "自定义"
 msgstr "自定义"
 
@@ -5351,6 +5330,21 @@ msgstr "分派"
 
 msgid "仅通知"
 msgstr "仅通知"
+
+msgid "HTTP回调"
+msgstr "HTTP回调"
+
+msgid "作业平台"
+msgstr "作业平台"
+
+msgid "标准运维"
+msgstr "标准运维"
+
+msgid "流程服务"
+msgstr "流程服务"
+
+msgid "通用插件"
+msgstr "通用插件"
 
 msgid "汇总"
 msgstr "汇总"
@@ -8498,6 +8492,12 @@ msgstr "同维度告警通知"
 
 msgid "汇总告警通知"
 msgstr "汇总告警通知"
+
+msgid "周边系统"
+msgstr "周边系统"
+
+msgid "蓝鲸插件"
+msgstr "蓝鲸插件"
 
 msgid "告警链接"
 msgstr "告警链接"
