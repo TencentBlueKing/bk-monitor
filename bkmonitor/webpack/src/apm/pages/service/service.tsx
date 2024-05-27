@@ -172,8 +172,8 @@ export default class Service extends tsc<object> {
     this.routeList[1].selectOption.loading = true;
     const listData = await listApplicationInfo().catch(() => []);
     this.appList = listData.map(item => ({
-      id: item.application_id,
-      name: item.app_name,
+      id: item.app_name,
+      name: `${item.app_name}(${item.app_alias})`,
       ...item,
     }));
     this.routeList[1].selectOption.loading = false;
@@ -199,14 +199,14 @@ export default class Service extends tsc<object> {
     // 选择应用
     if (navId === 'application') {
       const { id } = this.routeList[1];
-      this.appName = item.name;
+      this.appName = item.id;
       const targetRoute = this.$router.resolve({ name: id, query: { 'filter-app_name': this.appName } });
       /** 防止出现跳转当前地址导致报错 */
       if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
         this.$router.push({ name: id, query: { 'filter-app_name': this.appName } });
       }
     } else {
-      this.serviceName = item.name;
+      this.serviceName = item.id;
       const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
       this.$router.replace({
         name: this.$route.name,
