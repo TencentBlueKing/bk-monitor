@@ -1352,8 +1352,8 @@ class TestCollector(TestCase):
         self.assertEqual(result[0]["task_id"], 24626)
 
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
-    @patch("apps.api.NodeApi.get_subscription_task_status", lambda _: [TASK_DETAIL_DATA])
-    def _test_get_subscription_task_status(self, collector_config_id):
+    @patch("apps.log_databus.handlers.collector.CollectorHandler.batch_request", return_value=TASK_RESULT_DATA)
+    def _test_get_subscription_task_status(self, collector_config_id, mock_batch_request):
         collector = CollectorHandler(collector_config_id=collector_config_id)
 
         # 采集目标是HOST-TOPO

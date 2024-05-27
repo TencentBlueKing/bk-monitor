@@ -1465,7 +1465,10 @@ class CollectorHandler(object):
         if not task_ready:
             return {"task_ready": task_ready, "contents": []}
 
-        status_result = NodeApi.get_subscription_task_status(param)
+        status_result = self.batch_request(
+            func=NodeApi.get_subscription_task_status,
+            params=param,
+        )
         instance_status = self.format_task_instance_status(status_result)
 
         # 如果采集目标是HOST-INSTANCE
@@ -2058,7 +2061,9 @@ class CollectorHandler(object):
         return {"contents": content_data}
 
     @staticmethod
-    def batch_request(func, params, get_data=lambda x: x["list"], get_count=lambda x: x["total"], limit=500):
+    def batch_request(
+        func, params, get_data=lambda x: x["list"], get_count=lambda x: x["total"], limit=500, thread_num=20
+    ):
         """
         并发请求接口
         :param func: 请求方法
@@ -2066,6 +2071,7 @@ class CollectorHandler(object):
         :param get_data: 获取数据函数
         :param get_count: 获取总数函数
         :param limit: 一次请求数量
+        :param thread_num: 线程数
         :return: 请求结果
         """
         first_param = copy.deepcopy(params)
@@ -2078,9 +2084,9 @@ class CollectorHandler(object):
         start = 1
 
         # 根据请求总数并发请求
-        pool = ThreadPool()
+        pool = ThreadPool(thread_num)
         params_and_future_list = []
-        while start < count:
+        while start <= count:
             request_params = {"page": start, "pagesize": limit}
             request_params.update(params)
             params_and_future_list.append(pool.apply_async(func, kwds={"params": request_params}))
@@ -2116,7 +2122,7 @@ class CollectorHandler(object):
         for instance_obj in instance_data:
             # 日志采集暂时只支持本地采集
             bk_host_id = instance_obj["instance_info"]["host"]["bk_host_id"]
-            plugin_statuses = plugin_status_mapping[bk_host_id] or [{}]
+            plugin_statuses = plugin_status_mapping.get(bk_host_id, {})
             plugin_status = plugin_statuses.get("status", CollectStatus.FAILED)
 
             status = CollectStatus.FAILED
