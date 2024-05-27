@@ -8185,7 +8185,7 @@ msgstr "Cannot Convert Profiling Data"
 
 #, python-brace-format
 msgid "应用：{app.app_name} 未开启 Profile 功能，需先前往应用配置中开启"
-msgstr "Application: {app. app_name} The Profile function is disabled,Turn it on in the Application Configuration"
+msgstr "Application: {app.app_name} The Profile function is disabled,Turn it on in the Application Configuration"
 
 msgid "最近上报时间"
 msgstr "Last Report Time"
