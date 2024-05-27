@@ -36,7 +36,6 @@ class ResultTableAndDataSource:
 
     def get_detail(self):
         detail = self.get_basic_detail(self.bk_data_id)
-        # 获取结果表信息
 
         # 获取table id和data id
         try:
@@ -55,13 +54,15 @@ class ResultTableAndDataSource:
         # 组装获取数据详情
         data = []
         for table_id, data_id in table_id_data_id.items():
+            _detail = {}
             if not detail or self.bcs_cluster_id:
                 detail = self.get_basic_detail(data_id)
-            detail.update(self.get_table_id(table_id))
-            detail.update(self.get_biz_info(table_id, detail["data_source"]))
-            detail.update(self.get_storage_cluster(table_id))
-            detail.update(self.get_influxdb_instance_cluster(table_id))
-            data.append(detail)
+            _detail.update(detail)
+            _detail.update(self.get_table_id(table_id))
+            _detail.update(self.get_biz_info(table_id, detail["data_source"]))
+            _detail.update(self.get_storage_cluster(table_id))
+            _detail.update(self.get_influxdb_instance_cluster(table_id))
+            data.append(_detail)
         return data
 
     def get_basic_detail(self, data_id: int) -> Dict:
