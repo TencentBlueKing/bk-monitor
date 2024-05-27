@@ -22,13 +22,17 @@
       align-items: center;
 
       .search-input {
-        width: 350px;
+        width: 480px;
         margin: 0 0 0 auto;
       }
 
       .icon-zhankai1 ,
       .icon-shouqi1 {
         margin-right: 4px;
+      }
+
+      .expand-up-btn {
+        margin-left: 12px;
       }
       
     }
