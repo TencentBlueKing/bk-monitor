@@ -26,7 +26,7 @@ class DutyCategory:
 
     REGULAR = "regular"
     HANDOFF = "handoff"
-    DutyCategory_DISPLAY_DICT = {REGULAR: _lazy("常规"), HANDOFF: _lazy("交替")}
+    DutyCategory_DISPLAY_DICT = {REGULAR: "常规", HANDOFF: "交替"}
 
 
 class RotationType:

@@ -420,7 +420,7 @@ class MultivariateAnomalyScenesResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=False, default=0, label=_("业务ID"))
+        bk_biz_id = serializers.IntegerField(required=False, default=0, label="业务ID")
 
     @classmethod
     def parse_ai_setting(cls, bk_biz_id: int):

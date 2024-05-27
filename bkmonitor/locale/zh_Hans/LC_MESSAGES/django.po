@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-12-26 18:13+0800\n"
+"POT-Creation-Date: 2024-05-27 17:55+0800\n"
 "PO-Revision-Date: 2017-11-24 14:50+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: zh_Hans <LL@li.org>\n"
@@ -207,9 +207,6 @@ msgstr "当前值"
 msgid "关联信息"
 msgstr "关联信息"
 
-msgid "被分派人"
-msgstr "被分派人"
-
 msgid "分派原因"
 msgstr "分派原因"
 
@@ -227,6 +224,9 @@ msgstr "维度下钻"
 
 msgid "关联指标"
 msgstr "关联指标"
+
+msgid "通知人"
+msgstr "通知人"
 
 msgid "时间范围"
 msgstr "时间范围"
@@ -726,6 +726,31 @@ msgstr "在一个降噪收敛窗口（{}min）内, 未达到设置的阈值{}%, 
 msgid "获取上下文参数错误: {} "
 msgstr "获取上下文参数错误: {} "
 
+#, fuzzy
+#| msgid "台州"
+msgid "序号"
+msgstr "台州"
+
+msgid "是否新增"
+msgstr ""
+
+msgid "数据指纹"
+msgstr ""
+
+#, fuzzy
+#| msgid "Pod数量"
+msgid "数量"
+msgstr "Pod数量"
+
+msgid "占比"
+msgstr ""
+
+msgid "同比数量"
+msgstr ""
+
+msgid "同比变化"
+msgstr ""
+
 msgid "请遵守公司规范，切勿泄露敏感信息，后果自负!"
 msgstr "请遵守公司规范，切勿泄露敏感信息，后果自负!"
 
@@ -755,12 +780,6 @@ msgstr ""
 #, python-brace-format
 msgid "[处理结果] ({result}) record({record_id}), strategy({strategy_id}), item({item_id})"
 msgstr "[处理结果] ({result}) record({record_id}), strategy({strategy_id}), item({item_id})"
-
-msgid "【模块：{}】请求 BCS API 服务错误：{}，请求url: {}，参数: {}"
-msgstr "【模块：{}】请求 BCS API 服务错误：{}，请求url: {}，参数: {}"
-
-msgid "接口返回结果超时"
-msgstr "接口返回结果超时"
 
 msgid "Resource[{}] 请求参数格式错误：{}"
 msgstr "Resource[{}] 请求参数格式错误：{}"
@@ -835,27 +854,6 @@ msgstr "db配置"
 msgid "创建dataId失败"
 msgstr "创建dataId失败"
 
-#, python-format
-msgid "%s业务下已经有EBPF应用"
-msgstr "%s业务下已经有EBPF应用"
-
-msgid "应用不存在"
-msgstr "应用不存在"
-
-msgid "业务下无ebpf应用"
-msgstr "业务下无ebpf应用"
-
-#, python-format
-msgid "不支持的查询操作符: %s"
-msgstr "不支持的查询操作符: %s"
-
-msgid "参数丢失 需要重新从第一页获取"
-msgstr "参数丢失 需要重新从第一页获取"
-
-#, python-format
-msgid "不支持的过滤KEY: %s"
-msgstr "不支持的过滤KEY: %s"
-
 msgid "APM({})虚拟指标"
 msgstr "APM({})虚拟指标"
 
@@ -876,6 +874,27 @@ msgstr "开启清洗任务失败"
 
 msgid "APM虚拟指标: 计算平台创建数据源失败 {}"
 msgstr "APM虚拟指标: 计算平台创建数据源失败 {}"
+
+#, python-format
+msgid "%s业务下已经有EBPF应用"
+msgstr "%s业务下已经有EBPF应用"
+
+msgid "应用不存在"
+msgstr "应用不存在"
+
+msgid "业务下无ebpf应用"
+msgstr "业务下无ebpf应用"
+
+#, python-format
+msgid "不支持的查询操作符: %s"
+msgstr "不支持的查询操作符: %s"
+
+msgid "参数丢失 需要重新从第一页获取"
+msgstr "参数丢失 需要重新从第一页获取"
+
+#, python-format
+msgid "不支持的过滤KEY: %s"
+msgstr "不支持的过滤KEY: %s"
 
 msgid "应用({}) 不存在"
 msgstr "应用({}) 不存在"
@@ -900,6 +919,9 @@ msgstr "指标"
 
 msgid "应用名称: {}已被创建"
 msgstr "应用名称: {}已被创建"
+
+msgid "操作类型不支持: {validated_request_data['type']}"
+msgstr ""
 
 msgid "未找到对应的结果表"
 msgstr "未找到对应的结果表"
@@ -1110,20 +1132,44 @@ msgstr "设置的排除时间范围不正确, 正确格式为00:00--23:59"
 msgid "删除代班日期格式不正确，请按照[年-月-日]填写"
 msgstr "删除代班日期格式不正确，请按照[年-月-日]填写"
 
+#, fuzzy
+#| msgid "设置的时间范围不正确, 正确格式为00:00--23:59"
+msgid "设置的时间范围不正确, 正确格式为01 00:00--01 23:59"
+msgstr "设置的时间范围不正确, 正确格式为00:00--23:59"
+
 msgid "设置的时间范围不正确, 正确格式为00:00--23:59"
 msgstr "设置的时间范围不正确, 正确格式为00:00--23:59"
 
 msgid "需要交接的情况下，交接轮值方式与交接时间不能为空"
 msgstr "需要交接的情况下，交接轮值方式与交接时间不能为空"
 
+msgid "当前轮值为自动分组，请设置每个班次对应的人数"
+msgstr ""
+
+#, fuzzy
+#| msgid "告警组名称长度不能超过128，请重新确认"
+msgid "轮值规则名称长度不能超过128个字符，请重新确认"
+msgstr "告警组名称长度不能超过128，请重新确认"
+
 msgid "告警组名称长度不能超过128，请重新确认"
 msgstr "告警组名称长度不能超过128，请重新确认"
 
-msgid "当前告警组名称已经存在，请重新确认"
-msgstr "当前告警组名称已经存在，请重新确认"
-
 msgid "当前告警组已启用轮值，必须要开启内部通知渠道"
 msgstr "当前告警组已启用轮值，必须要开启内部通知渠道"
+
+#, fuzzy
+#| msgid "当前告警组已启用轮值，必须要开启内部通知渠道"
+msgid "当前告警组已启用轮值，关联的轮值规则不能为空"
+msgstr "当前告警组已启用轮值，必须要开启内部通知渠道"
+
+msgid "时序数据"
+msgstr "时序数据"
+
+msgid "算法无输出"
+msgstr "算法无输出"
+
+msgid "指标推荐"
+msgstr "指标推荐"
 
 msgid "{}参数数量不对"
 msgstr "{}参数数量不对"
@@ -1459,6 +1505,17 @@ msgstr "APM Profiling 开启功能"
 msgid "APM 前端是否开启EBPF功能"
 msgstr "APM 前端是否开启EBPF功能"
 
+msgid "APM 是否针对TRPC有特殊配置"
+msgstr ""
+
+msgid "APM BMW 模块部署集群所属的业务 ID(用来查询指标)"
+msgstr ""
+
+#, fuzzy
+#| msgid "APM应用{}虚拟指标清洗"
+msgid "APM 创建虚拟指标业务列表"
+msgstr "APM应用{}虚拟指标清洗"
+
 msgid "蓝鲸监控机器人名称"
 msgstr "蓝鲸监控机器人名称"
 
@@ -1564,6 +1621,9 @@ msgstr "是否使用新的gse agent状态接口"
 msgid "拨测默认输出字段"
 msgstr "拨测默认输出字段"
 
+msgid "文档链接配置"
+msgstr ""
+
 msgid "已屏蔽"
 msgstr "已屏蔽"
 
@@ -1626,6 +1686,14 @@ msgstr "标签"
 
 msgid "事件的额外属性，K-V 键值对，不支持嵌套结构"
 msgstr "事件的额外属性，K-V 键值对，不支持嵌套结构"
+
+msgid "维度字段"
+msgstr "维度字段"
+
+#, fuzzy
+#| msgid "维度字段"
+msgid "事件去重的维度字段"
+msgstr "维度字段"
 
 msgid "受理人"
 msgstr "受理人"
@@ -1774,11 +1842,17 @@ msgstr "APM应用管理"
 msgid "日历服务管理"
 msgstr "日历服务管理"
 
+msgid "订阅管理"
+msgstr ""
+
 msgid "APM应用"
 msgstr "APM应用"
 
 msgid "Grafana仪表盘"
 msgstr "Grafana仪表盘"
+
+msgid "【蓝鲸】官方插件管理员"
+msgstr "【蓝鲸】官方插件管理员"
 
 msgid "接收字节流量"
 msgstr "接收字节流量"
@@ -1844,6 +1918,11 @@ msgid "环比振幅算法"
 msgstr "环比振幅算法"
 
 msgid "智能异常检测算法"
+msgstr "智能异常检测算法"
+
+#, fuzzy
+#| msgid "智能异常检测算法"
+msgid "主机异常检测算法"
 msgstr "智能异常检测算法"
 
 msgid "致命"
@@ -2137,33 +2216,6 @@ msgstr "创建"
 msgid "更新"
 msgstr "更新"
 
-msgid "通知"
-msgstr "通知"
-
-msgid "HTTP回调"
-msgstr "HTTP回调"
-
-msgid "作业平台"
-msgstr "作业平台"
-
-msgid "标准运维"
-msgstr "标准运维"
-
-msgid "流程服务"
-msgstr "流程服务"
-
-msgid "通用插件"
-msgstr "通用插件"
-
-msgid "内置"
-msgstr "内置"
-
-msgid "周边系统"
-msgstr "周边系统"
-
-msgid "蓝鲸插件"
-msgstr "蓝鲸插件"
-
 msgid "达到通知告警的执行条件【{{{{action_signal}}}}】, {}"
 msgstr "达到通知告警的执行条件【{{{{action_signal}}}}】, {}"
 
@@ -2200,6 +2252,9 @@ msgstr "收敛事件"
 
 msgid "处理事件"
 msgstr "处理事件"
+
+msgid "通知"
+msgstr "通知"
 
 msgid "处理动作"
 msgstr "处理动作"
@@ -2360,11 +2415,11 @@ msgstr "策略名称({})不能重复"
 msgid "策略({})不存在"
 msgstr "策略({})不存在"
 
-msgid "通知方式至少开启一项"
-msgstr "通知方式至少开启一项"
-
 msgid "智能检测算法不支持这些查询条件({})"
 msgstr "智能检测算法不支持这些查询条件({})"
+
+msgid "通知方式至少开启一项"
+msgstr "通知方式至少开启一项"
 
 msgid "tsdb库名不支持下划线"
 msgstr "tsdb库名不支持下划线"
@@ -4748,9 +4803,6 @@ msgstr "服务"
 msgid "服务模块"
 msgstr "服务模块"
 
-msgid "时序数据"
-msgstr "时序数据"
-
 msgid "服务拨测"
 msgstr "服务拨测"
 
@@ -5219,6 +5271,9 @@ msgstr "查塔姆群岛"
 msgid "奥克兰"
 msgstr "奥克兰"
 
+msgid "内置"
+msgstr "内置"
+
 msgid "自定义"
 msgstr "自定义"
 
@@ -5252,18 +5307,6 @@ msgstr "当重复频率为{}时，重复区间里的值应该在{}-{}之间"
 msgid "当重复频率为day时，重复区间必须为[]"
 msgstr "当重复频率为day时，重复区间必须为[]"
 
-msgid "主备负责人"
-msgstr "主备负责人"
-
-msgid "运维"
-msgstr "运维"
-
-msgid "开发"
-msgstr "开发"
-
-msgid "产品"
-msgstr "产品"
-
 msgid "运维人员"
 msgstr "运维人员"
 
@@ -5287,6 +5330,21 @@ msgstr "分派"
 
 msgid "仅通知"
 msgstr "仅通知"
+
+msgid "HTTP回调"
+msgstr "HTTP回调"
+
+msgid "作业平台"
+msgstr "作业平台"
+
+msgid "标准运维"
+msgstr "标准运维"
+
+msgid "流程服务"
+msgstr "流程服务"
+
+msgid "通用插件"
+msgstr "通用插件"
 
 msgid "汇总"
 msgstr "汇总"
@@ -5386,6 +5444,9 @@ msgstr "通知人员"
 
 msgid "通知方式"
 msgstr "通知方式"
+
+msgid "带组员类型的通知方式"
+msgstr ""
 
 msgid "告警信息"
 msgstr "告警信息"
@@ -5559,6 +5620,21 @@ msgid "集群(公共组件) 模块(consul)"
 msgstr "集群(公共组件) 模块(consul)"
 
 msgid "回调数据"
+msgstr "回调数据"
+
+#, fuzzy
+#| msgid "关联信息"
+msgid "日志关联信息"
+msgstr "关联信息"
+
+#, fuzzy
+#| msgid "关联信息"
+msgid "TOPO关联信息"
+msgstr "关联信息"
+
+#, fuzzy
+#| msgid "回调数据"
+msgid "回调数据【new】"
 msgstr "回调数据"
 
 msgid "智能异常检测额外信息"
@@ -5735,11 +5811,11 @@ msgstr "告警源"
 msgid "监控对象"
 msgstr "监控对象"
 
+msgid "策略标签"
+msgstr "策略标签"
+
 msgid "通知人员为空"
 msgstr "通知人员为空"
-
-msgid "告警标签"
-msgstr "告警标签"
 
 msgid "告警IP"
 msgstr "告警IP"
@@ -5768,6 +5844,18 @@ msgstr "已恢复"
 msgid "已抑制"
 msgstr "已抑制"
 
+msgid "主备负责人"
+msgstr "主备负责人"
+
+msgid "运维"
+msgstr "运维"
+
+msgid "开发"
+msgstr "开发"
+
+msgid "产品"
+msgstr "产品"
+
 msgid "被调"
 msgstr "被调"
 
@@ -5791,6 +5879,9 @@ msgstr "远程调用"
 
 msgid "高级(Advances)"
 msgstr "高级(Advances)"
+
+msgid "服务地址"
+msgstr ""
 
 msgid "HTTP协议"
 msgstr "HTTP协议"
@@ -5824,6 +5915,14 @@ msgstr "数据库操作"
 
 msgid "数据库类型"
 msgstr "数据库类型"
+
+msgid "数据库语句"
+msgstr ""
+
+#, fuzzy
+#| msgid "服务实例ID"
+msgid "数据库实例ID"
+msgstr "服务实例ID"
 
 msgid "消息系统"
 msgstr "消息系统"
@@ -5864,6 +5963,14 @@ msgstr "SDK版本"
 msgid "服务命名空间"
 msgstr "服务命名空间"
 
+msgid "主机IP(net.host.ip)"
+msgstr ""
+
+#, fuzzy
+#| msgid "主机IP"
+msgid "主机IP(host.ip)"
+msgstr "主机IP"
+
 msgid "主机端口"
 msgstr "主机端口"
 
@@ -5879,11 +5986,41 @@ msgstr "原始查询"
 msgid "预计算查询"
 msgstr "预计算查询"
 
+msgid "虚拟节点"
+msgstr "虚拟节点"
+
 msgid "主机采集项"
 msgstr "主机采集项"
 
 msgid "服务关联"
 msgstr "服务关联"
+
+msgid "尾部采样Flow"
+msgstr ""
+
+msgid "trace请求耗时"
+msgstr "trace请求耗时"
+
+msgid "trace分钟请求数"
+msgstr "trace分钟请求数"
+
+msgid "trace总请求数"
+msgstr "trace总请求数"
+
+msgid "trace分钟请求最大耗时"
+msgstr "trace分钟请求最大耗时"
+
+msgid "trace分钟请求最小耗时"
+msgstr "trace分钟请求最小耗时"
+
+msgid "trace总请求耗时"
+msgstr "trace总请求耗时"
+
+msgid "trace分钟总请求耗时"
+msgstr "trace分钟总请求耗时"
+
+msgid "trace总请求耗时bucket"
+msgstr "trace总请求耗时bucket"
 
 msgid "每天"
 msgstr "每天"
@@ -5894,8 +6031,30 @@ msgstr "每周"
 msgid "每月"
 msgstr "每月"
 
+msgid "工作日"
+msgstr ""
+
+#, fuzzy
+#| msgid "周期"
+msgid "周末"
+msgstr "周期"
+
+msgid "日期范围"
+msgstr ""
+
+msgid "起止时间"
+msgstr ""
+
 msgid "单次"
 msgstr "单次"
+
+msgid "手动指定"
+msgstr ""
+
+#, fuzzy
+#| msgid "自动匹配"
+msgid "自动"
+msgstr "自动匹配"
 
 msgid "日志"
 msgstr "日志"
@@ -5960,8 +6119,13 @@ msgstr "进程资源超限（进程组维度）"
 msgid "Resource[{}] 返回参数格式错误：{}"
 msgstr "Resource[{}] 返回参数格式错误：{}"
 
-msgid "method仅支持GET或POST或PUT或DELETE"
+#, fuzzy
+#| msgid "method仅支持GET或POST或PUT或DELETE"
+msgid "method仅支持GET或POST或PUT或DELETE或PATCH"
 msgstr "method仅支持GET或POST或PUT或DELETE"
+
+msgid "接口返回结果超时"
+msgstr "接口返回结果超时"
 
 #, python-format
 msgid "resource_class参数必须提供Resource的子类, 当前类型: %s"
@@ -6164,6 +6328,16 @@ msgstr "当前空间尚未接入[{func}]功能"
 
 msgid "主机智能异常检测结果内容异常"
 msgstr "主机智能异常检测结果内容异常"
+
+#, fuzzy
+#| msgid "AIOps功能未接入"
+msgid "AIOps功能未开启"
+msgstr "AIOps功能未接入"
+
+#, fuzzy, python-brace-format
+#| msgid "当前空间尚未接入[{func}]功能"
+msgid "当前空间尚未开[{func}]功能"
+msgstr "当前空间尚未接入[{func}]功能"
 
 msgid "API请求错误"
 msgstr "API请求错误"
@@ -6443,6 +6617,26 @@ msgstr "data id不存在"
 #, python-brace-format
 msgid "data_id: {data_id}不存在"
 msgstr "data_id: {data_id}不存在"
+
+#, fuzzy
+#| msgid "内置指标元数据错误"
+msgid "结果表元数据错误"
+msgstr "内置指标元数据错误"
+
+#, fuzzy, python-brace-format
+#| msgid "指标元数据错误：{msg}"
+msgid "元数据错误：{msg}"
+msgstr "指标元数据错误：{msg}"
+
+#, fuzzy
+#| msgid "内置指标元数据错误"
+msgid "采集器元数据错误"
+msgstr "内置指标元数据错误"
+
+#, fuzzy, python-brace-format
+#| msgid "指标元数据错误：{msg}"
+msgid "采集器元数据错误：{msg}"
+msgstr "指标元数据错误：{msg}"
 
 msgid "结果表"
 msgstr "结果表"
@@ -7019,6 +7213,16 @@ msgstr "创建告警组失败"
 msgid "创建告警组失败：填写内容不合规范"
 msgstr "创建告警组失败：填写内容不合规范"
 
+#, fuzzy
+#| msgid "告警组名称已存在"
+msgid "轮值规则名称已存在"
+msgstr "告警组名称已存在"
+
+#, fuzzy
+#| msgid "告警组名称重复错误: 告警组名称已存在"
+msgid "轮值规则名称重复错误: 轮值规则名称已存在"
+msgstr "告警组名称重复错误: 告警组名称已存在"
+
 msgid "移动端事件模块错误"
 msgstr "移动端事件模块错误"
 
@@ -7302,9 +7506,6 @@ msgstr "时间字段"
 msgid "未知类型字段"
 msgstr "未知类型字段"
 
-msgid "维度字段"
-msgstr "维度字段"
-
 msgid "时间戳字段"
 msgstr "时间戳字段"
 
@@ -7529,50 +7730,19 @@ msgstr "等待"
 msgid "已停止"
 msgstr "已停止"
 
+#, fuzzy
+#| msgid "未启用"
+msgid "未开启"
+msgstr "未启用"
+
 msgid "无告警"
 msgstr "无告警"
-
-msgid "获取"
-msgstr "获取"
-
-msgid "其他日志"
-msgstr "其他日志"
-
-msgid "随机"
-msgstr "随机"
 
 msgid "语言"
 msgstr "语言"
 
 msgid "蓝鲸DataId"
 msgstr "蓝鲸DataId"
-
-msgid "自动匹配"
-msgstr "自动匹配"
-
-msgid "手动匹配"
-msgstr "手动匹配"
-
-msgid "入口服务"
-msgstr "入口服务"
-
-msgid "入口接口"
-msgstr "入口接口"
-
-msgid "状态码"
-msgstr "状态码"
-
-msgid "调用类型"
-msgstr "调用类型"
-
-msgid "Trace视角"
-msgstr "Trace视角"
-
-msgid "span视角"
-msgstr "span视角"
-
-msgid "虚拟节点"
-msgstr "虚拟节点"
 
 msgid "其他网卡"
 msgstr "其他网卡"
@@ -7683,6 +7853,12 @@ msgstr "最大耗时 {}"
 msgid "存在不支持的分组字段: {group_fields}"
 msgstr "存在不支持的分组字段: {group_fields}"
 
+msgid "入口服务"
+msgstr "入口服务"
+
+msgid "入口接口"
+msgstr "入口接口"
+
 msgid "入口状态码"
 msgstr "入口状态码"
 
@@ -7694,6 +7870,9 @@ msgstr "根Span接口"
 
 msgid "根Span服务"
 msgstr "根Span服务"
+
+msgid "设置中未开启计算平台支持，无法创建尾部采样"
+msgstr ""
 
 msgid "容器环境"
 msgstr "容器环境"
@@ -7823,16 +8002,24 @@ msgstr ""
 "trace.set_tracer_provider(tracer_provider)\n"
 "```"
 
+msgid "目前暂不支持关闭 Tracing 功能"
+msgstr ""
+
+msgid "Span耗时"
+msgstr ""
+
+msgid "随机采样未配置采集百分比"
+msgstr ""
+
 msgid "实例名配置含有重复"
 msgstr "实例名配置含有重复"
 
-msgid "目标节点"
-msgstr "目标节点"
+msgid "应用别名"
+msgstr ""
 
-msgid "日志字符集"
-msgstr "日志字符集"
-
-msgid "应用名称"
+#, fuzzy
+#| msgid "应用名称"
+msgid "应用名"
 msgstr "应用名称"
 
 msgid "应用描述"
@@ -7856,9 +8043,17 @@ msgstr "错误率"
 msgid "错误次数"
 msgstr "错误次数"
 
-#, python-brace-format
-msgid "{no_data_period}分钟内无数据"
-msgstr "{no_data_period}分钟内无数据"
+msgid "应用是否启用"
+msgstr ""
+
+msgid "Profiling是否启用"
+msgstr ""
+
+msgid "Profiling数据状态"
+msgstr ""
+
+msgid "Trace数据状态"
+msgstr ""
 
 msgid "服务分类"
 msgstr "服务分类"
@@ -7962,11 +8157,22 @@ msgstr "组件指标值查询不支持{validate_data['category']}分类"
 msgid "收藏"
 msgstr "收藏"
 
+msgid "Tracing 状态"
+msgstr ""
+
 msgid "策略数"
 msgstr "策略数"
 
 msgid "告警状态"
 msgstr "告警状态"
+
+msgid "Profiling 状态"
+msgstr ""
+
+#, fuzzy
+#| msgid "日数据量"
+msgid "数据量"
+msgstr "日数据量"
 
 msgid "配置"
 msgstr "配置"
@@ -8016,6 +8222,9 @@ msgstr "接口概览"
 msgid "接口"
 msgstr "接口"
 
+msgid "调用类型"
+msgstr "调用类型"
+
 msgid "平均响应时间"
 msgstr "平均响应时间"
 
@@ -8034,23 +8243,48 @@ msgstr "{}天"
 msgid "自定义数据源"
 msgstr "自定义数据源"
 
-msgid "应用({}) 未开启性能分析"
-msgstr "应用({}) 未开启性能分析"
+#, fuzzy
+#| msgid "应用({}) 不存在"
+msgid "应用({}.{}) 不存在"
+msgstr "应用({}) 不存在"
 
-msgid "未查询到有效数据"
-msgstr "未查询到有效数据"
+#, fuzzy
+#| msgid "应用({}) 未开启性能分析"
+msgid "应用({}.{}) 未开启性能分析"
+msgstr "应用({}) 未开启性能分析"
 
 msgid "无法转换 profiling 数据"
 msgstr "无法转换 profiling 数据"
 
+#, python-brace-format
+msgid "应用：{app.app_name} 未开启 Profile 功能，需先前往应用配置中开启"
+msgstr ""
+
+#, fuzzy
+#| msgid "上报时间"
+msgid "最近上报时间"
+msgstr "上报时间"
+
 msgid "上传文件为空"
 msgstr "上传文件为空"
 
-msgid "相同文件已上传"
-msgstr "相同文件已上传"
+#, python-brace-format
+msgid "已上传过相同文件，名称：{exist_record.file_name}({exist_record.origin_file_name})"
+msgstr ""
 
-msgid "保存 profiling 数据失败"
-msgstr "保存 profiling 数据失败"
+#, fuzzy
+#| msgid "推送至消息队列失败，失败原因 {}"
+msgid "上传文件失败， 失败原因: {}"
+msgstr "推送至消息队列失败，失败原因 {}"
+
+msgid "未查询到有效数据"
+msgstr "未查询到有效数据"
+
+msgid "当前对比项查询条件未查询到有效数据，请调整后再试"
+msgstr ""
+
+msgid "应用({}) 未开启性能分析"
+msgstr "应用({}) 未开启性能分析"
 
 msgid "不存在的列: {}"
 msgstr "不存在的列: {}"
@@ -8259,6 +8493,12 @@ msgstr "同维度告警通知"
 msgid "汇总告警通知"
 msgstr "汇总告警通知"
 
+msgid "周边系统"
+msgstr "周边系统"
+
+msgid "蓝鲸插件"
+msgstr "蓝鲸插件"
+
 msgid "告警链接"
 msgstr "告警链接"
 
@@ -8353,20 +8593,22 @@ msgstr "处理记录"
 msgid "指标ID"
 msgstr "指标ID"
 
-msgid "策略标签"
-msgstr "策略标签"
-
 msgid "目标IPv6"
 msgstr "目标IPv6"
 
 msgid "目标服务实例ID"
 msgstr "目标服务实例ID"
 
-msgid "通知人"
-msgstr "通知人"
+msgid "目标节点"
+msgstr "目标节点"
 
 msgid "知会人"
 msgstr "知会人"
+
+#, fuzzy
+#| msgid "关注"
+msgid "关注人"
+msgstr "关注"
 
 msgid "是否已确认"
 msgstr "是否已确认"
@@ -8395,6 +8637,9 @@ msgstr "确认时间"
 msgid "数据类型"
 msgstr "数据类型"
 
+msgid "告警来源"
+msgstr ""
+
 msgid "告警源名称"
 msgstr "告警源名称"
 
@@ -8409,6 +8654,9 @@ msgstr "我的告警"
 
 msgid "我负责的"
 msgstr "我负责的"
+
+msgid "我关注的"
+msgstr ""
 
 msgid "我收到的"
 msgstr "我收到的"
@@ -8427,6 +8675,12 @@ msgstr "延迟恢复"
 
 msgid "中断恢复"
 msgstr "中断恢复"
+
+msgid "系统恢复"
+msgstr ""
+
+msgid "系统关闭"
+msgstr ""
 
 msgid "告警级别调整"
 msgstr "告警级别调整"
@@ -8506,9 +8760,6 @@ msgstr "Resource[{}] 请求参数格式错误, 请求的通知ID不存在"
 msgid "Resource[{}] 请求参数格式错误, 请求的token不正确"
 msgstr "Resource[{}] 请求参数格式错误, 请求的token不正确"
 
-msgid "异常事件统计"
-msgstr "异常事件统计"
-
 msgid "集群({}) "
 msgstr "集群({}) "
 
@@ -8517,12 +8768,6 @@ msgstr "模块({})"
 
 msgid "阈值算法"
 msgstr "阈值算法"
-
-msgid "算法无输出"
-msgstr "算法无输出"
-
-msgid "指标推荐"
-msgstr "指标推荐"
 
 msgid "快捷屏蔽3小时"
 msgstr "快捷屏蔽3小时"
@@ -8756,66 +9001,6 @@ msgstr "正则表达式"
 msgid "通配符"
 msgstr "通配符"
 
-#, python-format
-msgid "第三方组件%s异常"
-msgstr "第三方组件%s异常"
-
-msgid "请检查esb及对应组件服务是否正常"
-msgstr "请检查esb及对应组件服务是否正常"
-
-msgid "cc 不存在对应的测试用例"
-msgstr "cc 不存在对应的测试用例"
-
-#, python-brace-format
-msgid "cc中不存在{method_name}"
-msgstr "cc中不存在{method_name}"
-
-msgid "接口不具有依赖关系"
-msgstr "接口不具有依赖关系"
-
-msgid "cc中没有此接口"
-msgstr "cc中没有此接口"
-
-msgid "job不存在对应的测试用例"
-msgstr "job不存在对应的测试用例"
-
-msgid "job 中不存在接口 fast_execute_script 的相关参数"
-msgstr "job 中不存在接口 fast_execute_script 的相关参数"
-
-#, python-brace-format
-msgid "job中不存在{method_name}"
-msgstr "job中不存在{method_name}"
-
-#, python-format
-msgid "查找业务下主机失败,主机查询结果:%s"
-msgstr "查找业务下主机失败,主机查询结果:%s"
-
-msgid "job中没有此接口"
-msgstr "job中没有此接口"
-
-msgid "bk_data中不存在对应的测试用例"
-msgstr "bk_data中不存在对应的测试用例"
-
-msgid "saas的celery状态阻塞"
-msgstr "saas的celery状态阻塞"
-
-msgid "重启saas的celery服务"
-msgstr "重启saas的celery服务"
-
-msgid "rabbitmq服务未开启"
-msgstr "rabbitmq服务未开启"
-
-#, python-format
-msgid "请检查服务[%s]是否启动"
-msgstr "请检查服务[%s]是否启动"
-
-msgid "账户无权限访问rabbitmq"
-msgstr "账户无权限访问rabbitmq"
-
-#, python-format
-msgid "创建账户及v_host: %s"
-msgstr "创建账户及v_host: %s"
-
 msgid "静态阈值"
 msgstr "静态阈值"
 
@@ -8966,6 +9151,9 @@ msgstr "拨测任务启用失败：{}"
 
 msgid "拨测任务停用失败：存在运行中的启停任务，请稍后再试"
 msgstr "拨测任务停用失败：存在运行中的启停任务，请稍后再试"
+
+msgid "拨测任务对应订阅信息不存在"
+msgstr ""
 
 #, python-format
 msgid "拨测任务停用失败：%s"
@@ -9801,6 +9989,57 @@ msgstr "收藏记录({})不存在"
 msgid "您没有权限分享到业务ID为{bk_biz_id}的业务"
 msgstr "您没有权限分享到业务ID为{bk_biz_id}的业务"
 
+msgid "存储类型"
+msgstr "存储类型"
+
+msgid "Proxy集群"
+msgstr "Proxy集群"
+
+msgid "实例集群"
+msgstr "实例集群"
+
+msgid "存储实例数"
+msgstr "存储实例数"
+
+msgid "存储实例"
+msgstr "存储实例"
+
+msgid "主机实例"
+msgstr "主机实例"
+
+msgid "服务端请求数(近1小时)"
+msgstr "服务端请求数(近1小时)"
+
+msgid "服务端错误数(近1小时)"
+msgstr "服务端错误数(近1小时)"
+
+msgid "内存占用量"
+msgstr "内存占用量"
+
+msgid "库名"
+msgstr "库名"
+
+msgid "写入成功点数(近1小时)"
+msgstr "写入成功点数(近1小时)"
+
+msgid "写入失败点数(近1小时)"
+msgstr "写入失败点数(近1小时)"
+
+msgid "磁盘占用量"
+msgstr "磁盘占用量"
+
+msgid "Series数量"
+msgstr "Series数量"
+
+msgid "是"
+msgstr "是"
+
+msgid "否"
+msgstr "否"
+
+msgid "计算平台结果表"
+msgstr "计算平台结果表"
+
 msgid "关联插件不存在"
 msgstr "关联插件不存在"
 
@@ -9858,11 +10097,8 @@ msgstr "所选目标与配置需求目标不一致"
 msgid "私人仪表盘"
 msgstr "私人仪表盘"
 
-msgid "蓝鲸监控 - 时序数据"
-msgstr "蓝鲸监控 - 时序数据"
-
-msgid "默认仪表盘"
-msgstr "默认仪表盘"
+msgid "时间间隔必须为整数或auto"
+msgstr ""
 
 msgid "事件名"
 msgstr "事件名"
@@ -10701,6 +10937,48 @@ msgstr "详情链接"
 msgid "k8s_系统内置"
 msgstr "k8s_系统内置"
 
+msgid "数据采集遇到系统异常情况，导致无法上报数据，会发送告警。"
+msgstr "数据采集遇到系统异常情况，导致无法上报数据，会发送告警。"
+
+msgid ""
+"数据采集遇到插件异常情况，导致无法上报数据，会发送告警，目前能覆盖以下插件异常情况：\n"
+"- 端口服务无法正常监听\n"
+"- 服务输出的内容格式不符合Prom格式"
+msgstr ""
+"数据采集遇到插件异常情况，导致无法上报数据，会发送告警，目前能覆盖以下插件异常情况：\n"
+"- 端口服务无法正常监听\n"
+"- 服务输出的内容格式不符合Prom格式"
+
+msgid ""
+"当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n"
+"- 脚本执行异常，返回非0状态码\n"
+"- 脚本打印内容格式不符合Prom格式"
+msgstr ""
+"当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n"
+"- 脚本执行异常，返回非0状态码\n"
+"- 脚本打印内容格式不符合Prom格式结果表"
+
+msgid ""
+"当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n"
+"- 用户配置中的PID文件不存在\n"
+"- 用户配置的匹配规则无命中任何进程"
+msgstr ""
+"当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n"
+"- 用户配置中的PID文件不存在\n"
+"- 用户配置的匹配规则无命中任何进程"
+
+msgid "集成内置"
+msgstr "集成内置"
+
+msgid "集成内置-数据采集告警分派"
+msgstr "集成内置-数据采集告警分派"
+
+msgid "集成内置-数据采集系统运行异常告警"
+msgstr "集成内置-数据采集系统运行异常告警"
+
+msgid "集成内置-数据采集插件执行异常告警"
+msgstr "集成内置-数据采集插件执行异常告警"
+
 msgid "Gse进程托管事件告警(业务侧)"
 msgstr "Gse进程托管事件告警(业务侧)"
 
@@ -10769,9 +11047,6 @@ msgstr "[kube kubelet] 运行的pod过多 KubeletTooManyPods"
 
 msgid "[kube Master] 客户端访问 APIServer 出错 rest_client_requests_total_5xx"
 msgstr "[kube Master] 客户端访问 APIServer 出错 rest_client_requests_total_5xx"
-
-msgid "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
-msgstr "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
 
 msgid "内存 requests"
 msgstr "内存 requests"
@@ -10892,30 +11167,6 @@ msgstr "期望响应码"
 
 msgid "期望响应内容"
 msgstr "期望响应内容"
-
-msgid "trace请求耗时"
-msgstr "trace请求耗时"
-
-msgid "trace分钟请求数"
-msgstr "trace分钟请求数"
-
-msgid "trace总请求数"
-msgstr "trace总请求数"
-
-msgid "trace分钟请求最大耗时"
-msgstr "trace分钟请求最大耗时"
-
-msgid "trace分钟请求最小耗时"
-msgstr "trace分钟请求最小耗时"
-
-msgid "trace总请求耗时"
-msgstr "trace总请求耗时"
-
-msgid "trace分钟总请求耗时"
-msgstr "trace分钟总请求耗时"
-
-msgid "trace总请求耗时bucket"
-msgstr "trace总请求耗时bucket"
 
 msgid "需要过滤的事件数"
 msgstr "需要过滤的事件数"
@@ -11298,11 +11549,11 @@ msgstr "监控条件填写错误，需要key、method、value键"
 msgid "多个条件时，聚合条件中需要condition参数，且为and或or"
 msgstr "多个条件时，聚合条件中需要condition参数，且为and或or"
 
-msgid "【蓝鲸】官方插件管理员"
-msgstr "【蓝鲸】官方插件管理员"
-
 msgid "【蓝鲸】GSE管理员"
 msgstr "【蓝鲸】GSE管理员"
+
+msgid "采集负责人"
+msgstr ""
 
 msgid "{}创建异常检测"
 msgstr "{}创建异常检测"
@@ -11509,6 +11760,9 @@ msgstr "拨测任务(id=%s)获取失败"
 msgid "(未知)"
 msgstr "(未知)"
 
+msgid "状态码"
+msgstr "状态码"
+
 msgid "响应内容"
 msgstr "响应内容"
 
@@ -11542,9 +11796,6 @@ msgstr "提交内容（POST、PUT、PATCH方法必填）"
 
 msgid "SSL证书校验"
 msgstr "SSL证书校验"
-
-msgid "否"
-msgstr "否"
 
 msgid "期望响应时间（ms）"
 msgstr "期望响应时间（ms）"
@@ -11621,9 +11872,6 @@ msgstr "当前业务下不存在拨测节点[%s]"
 
 msgid "拨测节点未填写"
 msgstr "拨测节点未填写"
-
-msgid "是"
-msgstr "是"
 
 msgid "是否支持秒级填写错误"
 msgstr "是否支持秒级填写错误"
@@ -11753,71 +12001,215 @@ msgstr "结果表[%s]未配置物理存储"
 msgid "存储[%s]对应的查询引擎不存在"
 msgstr "存储[%s]对应的查询引擎不存在"
 
-msgid "存储类型"
-msgstr "存储类型"
+#, fuzzy
+#~| msgid "其他"
+#~ msgid "其他人"
+#~ msgstr "其他"
 
-msgid "Proxy集群"
-msgstr "Proxy集群"
+#, fuzzy
+#~| msgid "上升%s%%"
+#~ msgid "上升"
+#~ msgstr "上升%s%%"
 
-msgid "实例集群"
-msgstr "实例集群"
+#, fuzzy
+#~| msgid "下降%s%%"
+#~ msgid "下降"
+#~ msgstr "下降%s%%"
 
-msgid "存储实例数"
-msgstr "存储实例数"
+#, fuzzy
+#~| msgid "配置管理人员"
+#~ msgid "管理员"
+#~ msgstr "配置管理人员"
 
-msgid "存储实例"
-msgstr "存储实例"
+#, fuzzy
+#~| msgid "已失效"
+#~ msgid "失效"
+#~ msgstr "已失效"
 
-msgid "主机实例"
-msgstr "主机实例"
+#, fuzzy
+#~| msgid "已失效"
+#~ msgid "已取消"
+#~ msgstr "已失效"
 
-msgid "服务端请求数(近1小时)"
-msgstr "服务端请求数(近1小时)"
+#, fuzzy
+#~| msgid "用户"
+#~ msgid "生效"
+#~ msgstr "用户"
 
-msgid "服务端错误数(近1小时)"
-msgstr "服务端错误数(近1小时)"
+#~ msgid "获取"
+#~ msgstr "获取"
 
-msgid "内存占用量"
-msgstr "内存占用量"
+#~ msgid "其他日志"
+#~ msgstr "其他日志"
 
-msgid "库名"
-msgstr "库名"
+#~ msgid "自动匹配"
+#~ msgstr "自动匹配"
 
-msgid "写入成功点数(近1小时)"
-msgstr "写入成功点数(近1小时)"
+#~ msgid "手动匹配"
+#~ msgstr "手动匹配"
 
-msgid "写入失败点数(近1小时)"
-msgstr "写入失败点数(近1小时)"
+#~ msgid "Trace视角"
+#~ msgstr "Trace视角"
 
-msgid "磁盘占用量"
-msgstr "磁盘占用量"
+#~ msgid "span视角"
+#~ msgstr "span视角"
 
-msgid "Series数量"
-msgstr "Series数量"
+#, fuzzy
+#~| msgid "相同文件已上传"
+#~ msgid "已上传"
+#~ msgstr "相同文件已上传"
 
-msgid "计算平台结果表"
-msgstr "计算平台结果表"
+#, fuzzy
+#~| msgid "{} 解析失败: {}"
+#~ msgid "解析失败"
+#~ msgstr "{} 解析失败: {}"
 
-msgid "数据采集遇到系统异常情况，导致无法上报数据，会发送告警。"
-msgstr "数据采集遇到系统异常情况，导致无法上报数据，会发送告警。"
+#, fuzzy
+#~| msgid "已保存"
+#~ msgid "已存储"
+#~ msgstr "已保存"
 
-msgid "数据采集遇到插件异常情况，导致无法上报数据，会发送告警，目前能覆盖以下插件异常情况：\n- 端口服务无法正常监听\n- 服务输出的内容格式不符合Prom格式"
-msgstr "数据采集遇到插件异常情况，导致无法上报数据，会发送告警，目前能覆盖以下插件异常情况：\n- 端口服务无法正常监听\n- 服务输出的内容格式不符合Prom格式"
+#, fuzzy
+#~| msgid "{}(业务id:{})"
+#~ msgid "业务id"
+#~ msgstr "{}(业务id:{})"
 
-msgid "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n- 脚本执行异常，返回非0状态码\n- 脚本打印内容格式不符合Prom格式"
-msgstr "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n- 脚本执行异常，返回非0状态码\n- 脚本打印内容格式不符合Prom格式结果表"
+#, fuzzy
+#~| msgid "主机智能异常检测结果内容异常"
+#~ msgid "主机异常检测结果评级"
+#~ msgstr "主机智能异常检测结果内容异常"
 
-msgid "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n- 用户配置中的PID文件不存在\n- 用户配置的匹配规则无命中任何进程"
-msgstr "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：\n- 用户配置中的PID文件不存在\n- 用户配置的匹配规则无命中任何进程"
+#, fuzzy
+#~| msgid "多指标异常检测"
+#~ msgid "计算平台单指标异常检测场景ID"
+#~ msgstr "多指标异常检测"
 
-msgid "集成内置-数据采集系统运行异常告警"
-msgstr "集成内置-数据采集系统运行异常告警"
+#, fuzzy
+#~| msgid "计算平台结果表"
+#~ msgid "计算平台离群检测场景ID"
+#~ msgstr "计算平台结果表"
 
-msgid "集成内置-数据采集插件执行异常告警"
-msgstr "集成内置-数据采集插件执行异常告警"
+#, fuzzy
+#~| msgid "多指标异常检测"
+#~ msgid "计算平台多指标异常检测场景ID"
+#~ msgstr "多指标异常检测"
 
-msgid "集成内置"
-msgstr "集成内置"
+#, fuzzy
+#~| msgid "计算平台指标"
+#~ msgid "计算平台指标推荐场景ID"
+#~ msgstr "计算平台指标"
 
-msgid "集成内置-数据采集告警分派"
-msgstr "集成内置-数据采集告警分派"
+#, fuzzy
+#~| msgid "修改策略配置失败"
+#~ msgid "数据源配置失败"
+#~ msgstr "修改策略配置失败"
+
+#, fuzzy
+#~| msgid "更新清洗配置失败: {} {}"
+#~ msgid "清洗配置失败"
+#~ msgstr "更新清洗配置失败: {} {}"
+
+#, fuzzy
+#~| msgid "启动失败"
+#~ msgid "清洗启动失败"
+#~ msgstr "启动失败"
+
+#, fuzzy
+#~| msgid "结果表授权失败"
+#~ msgid "项目授权失败"
+#~ msgstr "结果表授权失败"
+
+#, fuzzy
+#~| msgid "导入配置失败"
+#~ msgid "Flow配置失败"
+#~ msgstr "导入配置失败"
+
+#~ msgid "日志字符集"
+#~ msgstr "日志字符集"
+
+#~ msgid "被分派人"
+#~ msgstr "被分派人"
+
+#~ msgid "【模块：{}】请求 BCS API 服务错误：{}，请求url: {}，参数: {}"
+#~ msgstr "【模块：{}】请求 BCS API 服务错误：{}，请求url: {}，参数: {}"
+
+#~ msgid "当前告警组名称已经存在，请重新确认"
+#~ msgstr "当前告警组名称已经存在，请重新确认"
+
+#~ msgid "告警标签"
+#~ msgstr "告警标签"
+
+#~ msgid "随机"
+#~ msgstr "随机"
+
+#~ msgid "{no_data_period}分钟内无数据"
+#~ msgstr "{no_data_period}分钟内无数据"
+
+#~ msgid "保存 profiling 数据失败"
+#~ msgstr "保存 profiling 数据失败"
+
+#~ msgid "异常事件统计"
+#~ msgstr "异常事件统计"
+
+#~ msgid "第三方组件%s异常"
+#~ msgstr "第三方组件%s异常"
+
+#~ msgid "请检查esb及对应组件服务是否正常"
+#~ msgstr "请检查esb及对应组件服务是否正常"
+
+#~ msgid "cc 不存在对应的测试用例"
+#~ msgstr "cc 不存在对应的测试用例"
+
+#~ msgid "cc中不存在{method_name}"
+#~ msgstr "cc中不存在{method_name}"
+
+#~ msgid "接口不具有依赖关系"
+#~ msgstr "接口不具有依赖关系"
+
+#~ msgid "cc中没有此接口"
+#~ msgstr "cc中没有此接口"
+
+#~ msgid "job不存在对应的测试用例"
+#~ msgstr "job不存在对应的测试用例"
+
+#~ msgid "job 中不存在接口 fast_execute_script 的相关参数"
+#~ msgstr "job 中不存在接口 fast_execute_script 的相关参数"
+
+#~ msgid "job中不存在{method_name}"
+#~ msgstr "job中不存在{method_name}"
+
+#~ msgid "查找业务下主机失败,主机查询结果:%s"
+#~ msgstr "查找业务下主机失败,主机查询结果:%s"
+
+#~ msgid "job中没有此接口"
+#~ msgstr "job中没有此接口"
+
+#~ msgid "bk_data中不存在对应的测试用例"
+#~ msgstr "bk_data中不存在对应的测试用例"
+
+#~ msgid "saas的celery状态阻塞"
+#~ msgstr "saas的celery状态阻塞"
+
+#~ msgid "重启saas的celery服务"
+#~ msgstr "重启saas的celery服务"
+
+#~ msgid "rabbitmq服务未开启"
+#~ msgstr "rabbitmq服务未开启"
+
+#~ msgid "请检查服务[%s]是否启动"
+#~ msgstr "请检查服务[%s]是否启动"
+
+#~ msgid "账户无权限访问rabbitmq"
+#~ msgstr "账户无权限访问rabbitmq"
+
+#~ msgid "创建账户及v_host: %s"
+#~ msgstr "创建账户及v_host: %s"
+
+#~ msgid "蓝鲸监控 - 时序数据"
+#~ msgstr "蓝鲸监控 - 时序数据"
+
+#~ msgid "默认仪表盘"
+#~ msgstr "默认仪表盘"
+
+#~ msgid "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
+#~ msgstr "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"

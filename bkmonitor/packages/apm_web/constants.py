@@ -348,7 +348,7 @@ class ServiceDetailReqTypeChoices:
 
     @classmethod
     def choices(cls):
-        return [(cls.GET, _("获取")), (cls.SET, _("更新")), (cls.DEL, _("删除"))]
+        return [(cls.GET, "获取"), (cls.SET, "更新"), (cls.DEL, "删除")]
 
 
 class ServiceRelationLogTypeChoices:
@@ -358,8 +358,8 @@ class ServiceRelationLogTypeChoices:
     @classmethod
     def choices(cls):
         return [
-            (cls.BK_LOG, _("日志平台")),
-            (cls.OTHER, _("其他日志")),
+            (cls.BK_LOG, "日志平台"),
+            (cls.OTHER, "其他日志"),
         ]
 
     @classmethod
@@ -392,9 +392,9 @@ class SamplerTypeChoices:
     @classmethod
     def choices(cls):
         return [
-            (cls.RANDOM, _("随机采样")),
-            (cls.TAIL, _("尾部采样")),
-            (cls.EMPTY, _("不采样")),
+            (cls.RANDOM, "随机采样"),
+            (cls.TAIL, "尾部采样"),
+            (cls.EMPTY, "不采样"),
         ]
 
 
@@ -570,8 +570,8 @@ class CustomServiceMatchType:
     @classmethod
     def choices(cls):
         return [
-            (cls.AUTO, _("自动匹配")),
-            (cls.MANUAL, _("手动匹配")),
+            (cls.AUTO, "自动匹配"),
+            (cls.MANUAL, "手动匹配"),
         ]
 
 
@@ -594,10 +594,10 @@ class TraceFilterField:
     @classmethod
     def choices(cls):
         return [
-            (cls.ROOT_SERVICE, _("入口服务")),
-            (cls.ROOT_SPAN_NAME, _("入口接口")),
-            (cls.ROOT_STATUS_CODE, _("状态码")),
-            (cls.ROOT_CATEGORY, _("调用类型")),
+            (cls.ROOT_SERVICE, "入口服务"),
+            (cls.ROOT_SPAN_NAME, "入口接口"),
+            (cls.ROOT_STATUS_CODE, "状态码"),
+            (cls.ROOT_CATEGORY, "调用类型"),
         ]
 
 
@@ -610,8 +610,8 @@ class QueryMode:
     @classmethod
     def choices(cls):
         return [
-            (cls.TRACE, _("Trace视角")),
-            (cls.SPAN, _("span视角")),
+            (cls.TRACE, "Trace视角"),
+            (cls.SPAN, "span视角"),
         ]
 
 

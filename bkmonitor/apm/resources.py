@@ -213,8 +213,8 @@ class ApplyDatasourceResource(Resource):
 
 class OperateApplicationSerializer(serializers.Serializer):
     class OperateType(db_models.TextChoices):
-        TRACING = "tracing", _("tracing")
-        PROFILING = "profiling", _("profiling")
+        TRACING = "tracing", "tracing"
+        PROFILING = "profiling", "profiling"
 
     application_id = serializers.IntegerField(label="应用id")
     type = serializers.ChoiceField(

@@ -18,7 +18,6 @@ from django.apps import apps
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from api.itsm.default import TokenVerifyResource
@@ -75,7 +74,7 @@ class GetReportListResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
+        bk_biz_id = serializers.IntegerField(label="业务id", required=True)
         search_key = serializers.CharField(required=False, label="搜索关键字", default="", allow_null=True, allow_blank=True)
         query_type = serializers.CharField(required=False, label="查询类型", default=ReportQueryTypeEnum.ALL.value)
         create_type = serializers.CharField(required=False, label="创建类型", default=ReportCreateTypeEnum.SELF.value)

@@ -19,7 +19,6 @@ import jmespath
 from django.conf import settings
 from django.db import connections, models
 from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
 
 from bkmonitor.documents import AlertLog
 from bkmonitor.utils.db import JsonField
@@ -63,12 +62,12 @@ class ActionPlugin(AbstractRecordModel):
     plugin_type = models.CharField(
         "插件类型",
         choices=(
-            ("notice", _lazy("通知")),
-            ("webhook", _lazy("HTTP回调")),
-            ("job", _lazy("作业平台")),
-            ("sops", _lazy("标准运维")),
-            ("itsm", _lazy("流程服务")),
-            ("common", _lazy("通用插件")),
+            ("notice", "通知"),
+            ("webhook", "HTTP回调"),
+            ("job", "作业平台"),
+            ("sops", "标准运维"),
+            ("itsm", "流程服务"),
+            ("common", "通用插件"),
         ),
         max_length=64,
         null=False,
@@ -77,12 +76,12 @@ class ActionPlugin(AbstractRecordModel):
     plugin_key = models.CharField(
         "插件key, 一个唯一的确定值",
         choices=(
-            ("notice", _lazy("通知")),
-            ("webhook", _lazy("HTTP回调")),
-            ("job", _lazy("作业平台")),
-            ("sops", _lazy("标准运维")),
-            ("itsm", _lazy("流程服务")),
-            ("common", _lazy("通用插件")),
+            ("notice", "通知"),
+            ("webhook", "HTTP回调"),
+            ("job", "作业平台"),
+            ("sops", "标准运维"),
+            ("itsm", "流程服务"),
+            ("common", "通用插件"),
         ),
         max_length=64,
         default="common",
@@ -95,9 +94,9 @@ class ActionPlugin(AbstractRecordModel):
     plugin_source = models.CharField(
         "插件来源",
         choices=(
-            ("builtin", _lazy("内置")),
-            ("peripheral", _lazy("周边系统")),
-            ("bk_plugin", _lazy("蓝鲸插件")),
+            ("builtin", "内置"),
+            ("peripheral", "周边系统"),
+            ("bk_plugin", "蓝鲸插件"),
         ),
         max_length=64,
         default="builtin",
