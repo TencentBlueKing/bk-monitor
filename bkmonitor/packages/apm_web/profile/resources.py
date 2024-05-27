@@ -57,22 +57,19 @@ class QueryServicesDetailResource(Resource):
                 "bk_biz_id": validated_data["bk_biz_id"],
                 "app_name": validated_data["app_name"],
                 "service_name": validated_data["service_name"],
+                "order": "-last_check_time",
             }
         )
-
         if not services:
             raise ValueError(f"Profile 服务: {validated_data['service_name']} 不存在，请确认数据是否上报或稍后再试")
 
         # 实时查询最近上报时间等信息
-        sample_type_info_mapping = QueryTemplate(
-            validated_data["bk_biz_id"], validated_data["app_name"]
-        ).get_sample_info(
+        last_report_time = QueryTemplate(validated_data["bk_biz_id"], validated_data["app_name"]).get_sample_info(
             validated_data["start_time"] * 1000,
             validated_data["end_time"] * 1000,
-            sample_types=[i["sample_type"] for i in services],
+            sample_type=next((i["sample_type"] for i in services if i["sample_type"]), None),
             service_name=validated_data["service_name"],
         )
-        last_report_time = sorted([i["last_report_time"] for i in sample_type_info_mapping.values()], reverse=True)
 
         res = {
             "bk_biz_id": validated_data["bk_biz_id"],
@@ -82,7 +79,7 @@ class QueryServicesDetailResource(Resource):
             "last_check_time": self.time_to_str(
                 sorted([self.str_to_time(i["last_check_time"]) for i in services], reverse=True)[0]
             ),
-            "last_report_time": self.timestamp_to_time(last_report_time[0]) if last_report_time else None,
+            "last_report_time": self.timestamp_to_time(last_report_time) if last_report_time else None,
             "data_types": self.to_data_types(services),
         }
 
