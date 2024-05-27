@@ -1219,22 +1219,25 @@ class QueryExceptionEventResource(PageListResource):
             }
         )
         res = []
-        for index, event in enumerate(events, 1):
+        for event in events:
             title = (
                 f"{datetime.datetime.fromtimestamp(int(event['timestamp']) // 1000000).strftime('%Y-%m-%d %H:%M:%S')}  "
                 f"{event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_TYPE, 'unknown')}"
             )
             res.append(
                 {
-                    "id": index,
                     "title": title,
                     "subtitle": event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_STACKTRACE),
                     "content": event.get(OtlpKey.ATTRIBUTES, {})
                     .get(SpanAttributes.EXCEPTION_STACKTRACE, "")
                     .split("\n"),
+                    "timestamp": int(event["timestamp"]),
                 }
             )
-
+        # 对 res 基于 timestamp 字段排序 (倒序)
+        res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
+        for index, r in enumerate(res, 1):
+            r["id"] = index
         return self.get_pagination_data(res, validated_request_data)
 
 
@@ -2194,6 +2197,7 @@ class QueryExceptionDetailEventResource(PageListResource):
                                     "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
                                     "subtitle": subtitle,
                                     "content": stacktrace,
+                                    "timestamp": int(event["timestamp"]),
                                 }
                             )
                     else:
@@ -2203,6 +2207,7 @@ class QueryExceptionDetailEventResource(PageListResource):
                                 "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
                                 "subtitle": subtitle,
                                 "content": stacktrace,
+                                "timestamp": int(event["timestamp"]),
                             }
                         )
             else:
@@ -2212,9 +2217,11 @@ class QueryExceptionDetailEventResource(PageListResource):
                             "title": f"{span_time_strft(span['start_time'])}  {self.UNKNOWN}",
                             "subtitle": subtitle,
                             "content": [],
+                            "timestamp": int(span["start_time"]),
                         }
                     )
-
+        # 对 res 基于 timestamp 字段排序 (倒序)
+        res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
         for index, r in enumerate(res, 1):
             r["id"] = index
 
