@@ -46,6 +46,7 @@ import { debounce } from 'throttle-debounce';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
@@ -62,8 +63,8 @@ import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util
 import DeleteSubtitle from './delete-subtitle';
 import { IHeader, ILabel, IPopover, IStrategyConfigProps } from './type';
 
-import '@blueking/search-select-v3/vue2/vue2.css';
 import './strategy-config.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
 const UN_SET_ACTION = 'UN_SET_ACTION';
@@ -2578,7 +2579,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     return (
       <div
         class='strategy-config'
-        v-monitor-loading={{ isLoading: this.loading }}
+        // v-monitor-loading={{ isLoading: this.loading }}
       >
         <div class='content'>
           <div
@@ -2593,6 +2594,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
               {...{ on: { 'update:show': val => (this.showFilterPanel = val) } }}
               checkedData={this.header.keywordObj}
               data={this.filterPanelData}
+              showSkeleton={this.loading}
               on-change={this.handleSearchSelectChange}
             ></FilterPanel>
             <div
@@ -2737,23 +2739,29 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
                   </div>
                 </bk-popover>
               </div>
-              {this.getTableComponent()}
-              {this.table.data?.length ? (
-                <bk-pagination
-                  class='strategy-pagination list-pagination'
-                  v-show={this.tableInstance.total}
-                  align='right'
-                  count={this.pageCount}
-                  current={this.tableInstance.page}
-                  limit={this.tableInstance.pageSize}
-                  limit-list={this.tableInstance.pageList}
-                  size='small'
-                  pagination-able
-                  show-total-count
-                  on-change={this.handlePageChange}
-                  on-limit-change={this.handleLimitChange}
-                ></bk-pagination>
-              ) : undefined}
+              {this.table.loading || this.loading ? (
+                <TableSkeleton type={2}></TableSkeleton>
+              ) : (
+                [
+                  this.getTableComponent(),
+                  this.table.data?.length ? (
+                    <bk-pagination
+                      class='strategy-pagination list-pagination'
+                      v-show={this.tableInstance.total}
+                      align='right'
+                      count={this.pageCount}
+                      current={this.tableInstance.page}
+                      limit={this.tableInstance.pageSize}
+                      limit-list={this.tableInstance.pageList}
+                      size='small'
+                      pagination-able
+                      show-total-count
+                      on-change={this.handlePageChange}
+                      on-limit-change={this.handleLimitChange}
+                    ></bk-pagination>
+                  ) : undefined,
+                ]
+              )}
             </div>
           </div>
         </div>
