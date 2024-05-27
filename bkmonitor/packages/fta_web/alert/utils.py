@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 
 
 def slice_by_interval_seconds(start_time: int, end_time: int, interval_seconds: int) -> list:
@@ -33,3 +34,34 @@ def slice_time_interval(start_time: int, end_time: int) -> list:
         return slice_by_interval_seconds(start_time, end_time, ONE_DAY_SECONDS)
     else:
         return [(start_time, end_time)]
+
+
+def add_overview(result: dict, sliced_result: dict):
+    if "overview" not in result.keys():
+        result["overview"] = {
+            "id": sliced_result["overview"]["id"],
+            "name": sliced_result["overview"]["name"],
+            "count": 0,
+            "children": {},
+        }
+    result["overview"]["count"] += sliced_result["overview"]["count"]
+    for child in sliced_result["overview"]["children"]:
+        child_id = child["id"]
+        if child_id not in result["overview"]["children"]:
+            result["overview"]["children"][child_id] = {"id": child["id"], "name": child["name"], "count": 0}
+        result["overview"]["children"][child_id]["count"] += child["count"]
+
+
+def add_aggs(agg_id_map: dict, result: dict, sliced_result: dict):
+    for agg in sliced_result["aggs"]:
+        if agg["id"] not in agg_id_map:
+            new_agg = copy.deepcopy(agg)
+            result["aggs"].append(new_agg)
+            agg_id_map[agg["id"]] = len(result["aggs"]) - 1
+        else:
+            index = agg_id_map[agg["id"]]
+            result["aggs"][index]["count"] += agg["count"]
+            for child in agg["children"]:
+                for res_child in result["aggs"][index]["children"]:
+                    if res_child["id"] == child["id"]:
+                        res_child["count"] += child["count"]
