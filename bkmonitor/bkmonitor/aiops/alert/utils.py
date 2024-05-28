@@ -79,7 +79,8 @@ class AIOPSManager(abc.ABC):
     def translate_custom_event_metric(cls, query_config, **kwargs):
         # 关键字的节点维度需要转换成实际的维度字段
         filter_dict = kwargs.get("filter_dict", {})
-        filter_dict["event_name"] = query_config["custom_event_name"]
+        if query_config["custom_event_name"]:
+            filter_dict["event_name"] = query_config["custom_event_name"]
         query_config["metric_field"] = "_index"
 
     @classmethod

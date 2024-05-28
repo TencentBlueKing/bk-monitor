@@ -1025,6 +1025,25 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             metric_detail.update(base_dict)
             yield metric_detail
 
+        # 新增整个事件源
+        if table["event_group_id"] != 0:
+            metric_detail = {
+                "default_dimensions": [],
+                "default_condition": [],
+                "metric_field": table_display_name,
+                "metric_field_name": f'{table_display_name}',
+                "dimensions": [{"id": "event_name", "name": "event_name"}],
+                "extend_fields": {
+                    # 全局自定义事件指标， 不预定义事件名称
+                    "custom_event_name": "",
+                    "bk_data_id": table["bk_data_id"],
+                    "bk_event_group_id": table["event_group_id"],
+                    "bk_event_id": metric_msg.get("event_id", 0),
+                },
+            }
+            metric_detail.update(base_dict)
+            yield metric_detail
+
 
 class BkMonitorLogCacheManager(BaseMetricCacheManager):
     """
