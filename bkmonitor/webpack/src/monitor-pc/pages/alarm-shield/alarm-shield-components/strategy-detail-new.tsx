@@ -46,18 +46,26 @@ export default class StrategyDetailNew extends tsc<IStrategyDetailNewProps> {
 
   levelMap = ['', i18n.t('致命'), i18n.t('预警'), i18n.t('提醒')];
 
+  get queryConfigs() {
+    return this.strategyData?.items?.[0].query_configs || [];
+  }
+
   render() {
     return (
       <div class='alarm-shield-stratrgy-detail'>
-        {this.strategyData?.items?.[0].query_configs.map(item => (
-          <div class='stratrgy-detail'>
-            {item.data_type_label === 'event'
-              ? this.getEventContent(item)
-              : item.data_type_label === 'alert'
-                ? this.getAlertContent(item)
-                : this.getTimeSeriesContent(item)}
-          </div>
-        ))}
+        {this.queryConfigs[0]?.promql ? (
+          <div class='stratrgy-empty'></div>
+        ) : (
+          this.queryConfigs.map(item => (
+            <div class='stratrgy-detail'>
+              {item.data_type_label === 'event'
+                ? this.getEventContent(item)
+                : item.data_type_label === 'alert'
+                  ? this.getAlertContent(item)
+                  : this.getTimeSeriesContent(item)}
+            </div>
+          ))
+        )}
       </div>
     );
   }

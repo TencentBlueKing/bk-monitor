@@ -34,13 +34,13 @@
       {{ $t('添加内容') }}
     </div>
     <div
-      class="content-main"
       slot="content"
+      class="content-main"
     >
       <bk-form
+        ref="validateForm"
         :model="formData"
         :rules="rules"
-        ref="validateForm"
         :label-width="$store.getters.lang === 'en' ? 136 : 120"
         class="form-wrap"
       >
@@ -51,19 +51,19 @@
           :error-display-type="'normal'"
         >
           <bk-input
+            v-model="formData.contentTitle"
             class="input"
             :placeholder="$t('输入子标题')"
-            v-model="formData.contentTitle"
           />
         </bk-form-item>
         <bk-form-item :label="$t('说明')">
           <bk-input
+            v-model="formData.contentDetails"
             class="input"
             :placeholder="$t('输入说明')"
             :type="'textarea'"
             :rows="3"
             :maxlength="200"
-            v-model="formData.contentDetails"
           />
         </bk-form-item>
         <template v-if="contentType === 'view'">
@@ -72,14 +72,14 @@
             :required="true"
           >
             <bk-radio-group
-              class="radio-wrap"
               v-model="formData.rowPicturesNum"
+              class="radio-wrap"
             >
               <bk-radio :value="2">
-                {{`2${$t('个/行')}`}}
+                {{ `2${$t('个/行')}` }}
               </bk-radio>
               <bk-radio :value="1">
-                {{`1${$t('个/行')}`}}
+                {{ `1${$t('个/行')}` }}
               </bk-radio>
             </bk-radio-group>
           </bk-form-item>
@@ -126,16 +126,16 @@
             :required="true"
           >
             <bk-select
+              v-model="formData.curGrafana"
               v-bkloading="{ isLoading: grafanaLoading }"
               class="biz-list-wrap"
-              v-model="formData.curGrafana"
               searchable
               :clearable="false"
             >
               <bk-option
                 v-for="option in grafanaList"
-                :key="option.uid"
                 :id="option.uid"
+                :key="option.uid"
                 :name="option.text"
               />
             </bk-select>
@@ -147,7 +147,8 @@
           theme="primary"
           :disabled="!canSave"
           @click="handleConfirm"
-        >{{ $t('确认') }}</bk-button>
+          >{{ $t('确认') }}</bk-button
+        >
         <bk-button @click="isShow = false">
           {{ $t('取消') }}
         </bk-button>
@@ -158,12 +159,12 @@
 
 <script lang="ts">
 import { Component, Emit, Prop, PropSync, Ref, Vue, Watch } from 'vue-property-decorator';
+
 import { getDashboardList } from 'monitor-api/modules/grafana';
 
 import SpaceSelect from '../../../components/space-select/space-select';
 import { IContentFormData } from '../types';
-
-import selectChart from './select-chart.vue';
+import selectChart from './select-chart';
 /**
  * 添加内容-侧边伸缩栏
  */
@@ -171,32 +172,32 @@ import selectChart from './select-chart.vue';
   name: 'add-content',
   components: {
     selectChart,
-    SpaceSelect
-  }
+    SpaceSelect,
+  },
 })
 export default class AddContent extends Vue {
   // 侧栏展示状态
   @PropSync('show', { type: Boolean, default: false }) isShow: boolean;
   // 新增/编辑状态
-  @Prop({ default: 'add', type: String }) private readonly type: 'add' | 'edit';
+  @Prop({ default: 'add', type: String }) readonly type: 'add' | 'edit';
   // 编辑传入数据
-  @Prop({ type: Object }) private readonly data: IContentFormData;
+  @Prop({ type: Object }) readonly data: IContentFormData;
   // view: 视图截取  pull: 整屏截取
-  @Prop({ type: String, default: 'view' })  private readonly contentType: 'view' | 'full';
-  @Ref('validateForm') private readonly validateFormRef: any;
+  @Prop({ type: String, default: 'view' }) readonly contentType: 'full' | 'view';
+  @Ref('validateForm') readonly validateFormRef: any;
   // 表单展示数据
 
-  private formData: IContentFormData = {
+  formData: IContentFormData = {
     contentTitle: '',
     contentDetails: '',
     rowPicturesNum: 2,
     graphs: [],
     curBizId: `${window.cc_biz_id}`,
     curGrafana: '',
-    curGrafanaName: ''
+    curGrafanaName: '',
   };
 
-  private rules = {
+  rules = {
     contentTitle: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
     contentDetails: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
     rowPicturesNum: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
@@ -206,20 +207,16 @@ export default class AddContent extends Vue {
           return !!val.length;
         },
         message: window.i18n.t('必填项'),
-        trigger: 'none'
-      }
+        trigger: 'none',
+      },
     ],
-    curBizId: [
-      { required: true, message: window.i18n.t('必填项'), trigger: 'none' }
-    ],
-    curGrafana: [
-      { required: true, message: window.i18n.t('必填项'), trigger: 'none' }
-    ]
+    curBizId: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
+    curGrafana: [{ required: true, message: window.i18n.t('必填项'), trigger: 'none' }],
   };
-  private bizIdList = [];
-  private allGrafanaListMap = [];
+  bizIdList = [];
+  allGrafanaListMap = [];
 
-  private grafanaLoading = false;
+  grafanaLoading = false;
 
   get grafanaList() {
     return this.allGrafanaListMap[this.formData.curBizId] || [];
@@ -235,7 +232,7 @@ export default class AddContent extends Vue {
   created() {
     this.bizIdList = this.$store.getters.bizList.map(item => ({
       id: String(item.id),
-      text: item.text
+      text: item.text,
     }));
   }
 
@@ -269,14 +266,14 @@ export default class AddContent extends Vue {
         contentTitle: '',
         contentDetails: '',
         rowPicturesNum: 2,
-        graphs: []
+        graphs: [],
       };
       if (this.contentType === 'full') {
         this.formData = {
           ...this.formData,
           curBizId: `${window.cc_biz_id}`,
           curGrafana: '',
-          curGrafanaName: ''
+          curGrafanaName: '',
         };
       }
     }
@@ -284,7 +281,7 @@ export default class AddContent extends Vue {
   /**
    * 确认操作
    */
-  private handleConfirm() {
+  handleConfirm() {
     this.validateFormRef.validate().then(() => {
       this.isShow = false;
       this.updateData();
@@ -295,30 +292,31 @@ export default class AddContent extends Vue {
    * 对外派发更新数据事件
    */
   @Emit('change')
-  private updateData() {
+  updateData() {
     return this.formData;
   }
 
-  private getChartList(isCreate = false)  {
+  getChartList(isCreate = false) {
     // const noPermission = !this.bizIdList.some(item => `${item.id}` === `${this.curBizId}`)
     if (+this.formData.curBizId === -1) return;
     this.grafanaLoading = true;
     const bizId = this.formData.curBizId || window.cc_biz_id;
-    getDashboardList({ bk_biz_id: bizId }).then((list) => {
-      const graphBiziId: any = {};
-      graphBiziId[bizId] = list;
-      this.allGrafanaListMap = graphBiziId;
-      if (!isCreate) {
-        this.formData.curGrafana = graphBiziId[this.formData.curBizId][0]?.uid || '';
-      }
-    })
+    getDashboardList({ bk_biz_id: bizId })
+      .then(list => {
+        const graphBiziId: any = {};
+        graphBiziId[bizId] = list;
+        this.allGrafanaListMap = graphBiziId;
+        if (!isCreate) {
+          this.formData.curGrafana = graphBiziId[this.formData.curBizId][0]?.uid || '';
+        }
+      })
       .catch(() => [])
       .finally(() => {
         this.grafanaLoading = false;
       });
   }
 
-  private handleBizIdChange(value) {
+  handleBizIdChange(value) {
     if (value.length) {
       this.formData.curBizId = value[0];
       this.getChartList();

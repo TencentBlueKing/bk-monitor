@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getAlarmConfig, updateAlarmConfig } from 'monitor-api/modules/healthz';
 
-import MemberSelector from '../alarm-group/alarm-group-add/member-selector.vue';
+import MemberSelector from '../alarm-group/alarm-group-add/member-selector';
 
 import './healthz-alarm.scss';
 

@@ -51,7 +51,7 @@ import TableFilter from '../../../components/table-filter/table-filter.vue';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import commonPageSizeMixin from '../../../mixins/commonPageSizeMixin';
 import { downFile } from '../../../utils';
-import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
+import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
@@ -2531,9 +2531,10 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         onHideDialog={this.handleDialogChange}
       ></StrategyConfigDialog>,
       <AlarmShieldStrategy
-        is-show-strategy={this.isShowStrategy}
+        isShowStrategy={this.isShowStrategy}
         {...{ on: { 'update:isShowStrategy': val => (this.isShowStrategy = val) } }}
-        strategy-id={this.strategyId}
+        strategyId={this.strategyId}
+        onSuccess={this.handleGetListData}
       ></AlarmShieldStrategy>,
       <TableFilter
         filter-type={this.filterType}
@@ -2547,21 +2548,6 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         on-reset={() => this.handleResetSourceFilter(true)}
         on-selected={this.handleSelectedDataSource}
       ></TableFilter>,
-      // this.targetSet.show ? (
-      //   <StrategySetTarget
-      //     dialog-show={this.targetSet.show}
-      //     {...{ on: { 'update: dialogShow': val => (this.targetSet.show = val) } }}
-      //     biz-id={this.targetSet.bizId}
-      //     strategy-id={this.targetSet.strategyId}
-      //     object-type={this.targetSet.objectType}
-      //     title={this.targetSet.title.toString()}
-      //     canSaveEmpty={true}
-      //     on-show-change={this.handleTargetShowChange}
-      //     on-targets-change={this.handleTargetsChange}
-      //     on-target-type-change={this.handleTargetTypeChange}
-      //     on-save-change={this.handleTargetSaveChange}
-      //   ></StrategySetTarget>
-      // ) : undefined,
       <StrategyIpv6
         bizId={this.targetSet.bizId}
         nodeType={this.targetSet.nodeType as INodeType}

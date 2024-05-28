@@ -1,0 +1,87 @@
+.plugin-manager-dialog {
+  .dialog-title {
+    font-size: 24px;
+    line-height: 32px;
+    color: #313238;
+  }
+
+  .dilog-container {
+    margin-top: -10px;
+    font-size: 12px;
+    color: #63656e;
+
+    .dialog-content {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      height: 42px;
+      padding: 0 12px;
+      background: #f5f7fa;
+      border: 1px dashed #c4c6cc;
+      border-radius: 2px;
+
+      &-icon {
+        font-size: 20px;
+        color: #3a84ff;
+      }
+
+      &-desc {
+        flex: 1;
+        margin-left: 9px;
+
+        .desc-name {
+          display: flex;
+          align-items: center;
+
+          &-size {
+            margin-left: auto;
+          }
+
+          &-set {
+            max-width: 336px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+
+    .dialog-loading {
+      display: flex;
+      margin-top: 4px;
+
+      @keyframes done-loading {
+        0% {
+          transform: rotate(0deg);
+        }
+
+        100% {
+          transform: rotate(-360deg);
+        }
+      }
+
+      .loading-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 12px;
+        margin-top: 3px;
+        margin-right: 4px;
+        color: #3a84ff;
+        transform-origin: center;
+        animation: done-loading 1s linear 0s infinite;
+      }
+    }
+
+    .dialog-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 24px;
+
+      &-btn {
+        margin-left: 10px;
+      }
+    }
+  }
+}

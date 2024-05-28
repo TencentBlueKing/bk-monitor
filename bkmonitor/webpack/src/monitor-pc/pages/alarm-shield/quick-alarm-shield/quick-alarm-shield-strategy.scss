@@ -1,0 +1,97 @@
+.quick-alarm-shield-strategy {
+  font-size: 14px;
+  color: #63656e;
+
+  .strategy-item {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 17px;
+
+    .item-label {
+      width: 86px;
+      margin-bottom: 8px;
+    }
+
+    .item-time {
+      display: flex;
+
+      .width-item {
+        min-width: 86px;
+
+        &:hover {
+          z-index: 2;
+          color: #3a84ff;
+          background: #e1ecff;
+          border: 1px #3a84ff solid;
+        }
+      }
+
+      .custom-width {
+        width: 300px;
+      }
+
+      .is-selected {
+        z-index: 2;
+        color: #3a84ff;
+        background: #e1ecff;
+        border: 1px #3a84ff solid;
+      }
+
+      .bk-button {
+        margin-left: -1px;
+        border-radius: 0;
+      }
+    }
+
+    .item-before {
+      position: relative;
+
+      &::before {
+        position: absolute;
+        top: 0;
+        right: -9px;
+        color: #ea3636;
+        content: '*';
+      }
+    }
+
+    .bk-date-picker.long {
+      width: 300px;
+    }
+
+    .bk-date-picker-rel .bk-date-picker-editor {
+      margin-left: -1px;
+      border: 1px #3a84ff solid;
+      border-radius: 0;
+    }
+  }
+
+  .to-strategy {
+    display: flex;
+    align-items: center;
+    color: #3a84ff;
+    cursor: pointer;
+
+    i {
+      font-size: 21px;
+    }
+  }
+}
+
+.quick-alarm-shield-strategy-dialog {
+  .bk-dialog-body {
+    max-height: 455px;
+    padding: 1px 24px 14px;
+    overflow-y: auto;
+  }
+
+  .bk-date-picker-dropdown {
+    /* stylelint-disable-next-line declaration-no-important */
+    left: 191px !important;
+  }
+
+  .item-content {
+    max-height: 270px;
+    overflow: scroll;
+  }
+}
