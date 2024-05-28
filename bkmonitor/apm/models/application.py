@@ -107,15 +107,19 @@ class ApmApplication(AbstractRecordModel):
     def create_application(
         cls, bk_biz_id, app_name, app_alias, description, es_storage_config, options: Optional[dict] = None
     ):
-        if cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).exists():
-            raise ValueError(_("应用名称(app_name) {} 在该业务({})已经存在").format(app_name, bk_biz_id))
-        # step1: 创建应用
-        application = cls.objects.create(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            app_alias=app_alias,
-            description=description,
-        )
+        application = ApmApplication.origin_objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if application:
+            application.app_alias = app_alias
+            application.description = description
+            application.save()
+        else:
+            # step1: 创建应用
+            application = cls.objects.create(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                app_alias=app_alias,
+                description=description,
+            )
 
         # step2: 创建结果表
         datasource_info = cls.apply_datasource(bk_biz_id, app_name, es_storage_config, options)
