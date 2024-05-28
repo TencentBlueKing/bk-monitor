@@ -20,11 +20,15 @@ class Command(BaseCommand):
         bk_data_id = options.get("bk_data_id")
         table_id = options.get("table_id")
         bcs_cluster_id = options.get("bcs_cluster_id")
-        if not (bk_data_id or table_id or bcs_cluster_id):
+        vm_table_id = options.get("vm_table_id")
+        if not (bk_data_id or table_id or bcs_cluster_id or vm_table_id):
             raise Exception("参数[bk_data_id或table_id或集群]不能全部为空")
-        self.stdout.write(json.dumps(ResultTableAndDataSource(table_id, bk_data_id, bcs_cluster_id).get_detail()))
+        self.stdout.write(
+            json.dumps(ResultTableAndDataSource(table_id, bk_data_id, bcs_cluster_id, vm_table_id).get_detail())
+        )
 
     def add_arguments(self, parser):
         parser.add_argument("--bk_data_id", type=int, default=None, help="数据源ID")
         parser.add_argument("--table_id", type=str, default=None, help="结果表ID")
         parser.add_argument("--bcs_cluster_id", type=str, help="BCS Cluster ID, 如: BCS-K8S-00000")
+        parser.add_argument("--vm_table_id", type=str, default=None, help="接入计算平台 VM 结果表 ID")
