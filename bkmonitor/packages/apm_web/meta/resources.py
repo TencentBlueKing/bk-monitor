@@ -2109,14 +2109,18 @@ class QueryEndpointStatisticsResource(PageListResource):
             filter_key = self.GROUP_KEY_ATT_CONFIG.get(tmp_filter_key, "span_name")
             # http_url 归类处理
             if not is_component and filter_key in [OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)]:
-                url = None
+                http_summary_is_match = False
                 for uri in uri_list:
-                    if re.match(uri, summary):
-                        url = SpanHandler.generate_uri(urlparse(summary))
-                        summary_mappings[url].append(bucket)
-                        break
-                if url:
-                    continue
+                    pure_http_url = SpanHandler.generate_uri(urlparse(summary))
+                    if re.match(uri, pure_http_url):
+                        summary_mappings[uri].append(bucket)
+                        http_summary_is_match = True
+
+                if not http_summary_is_match:
+                    summary_mappings[summary].append(bucket)
+
+                continue
+
             res.append(
                 {
                     "summary": summary,
