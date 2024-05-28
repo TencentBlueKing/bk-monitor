@@ -304,9 +304,26 @@ class AlertDateHistogramResource(Resource):
         interval = serializers.CharField(label="聚合周期", default="auto")
 
     def perform_request(self, validated_request_data):
-        interval = validated_request_data.pop("interval")
-        handler = AlertQueryHandler(**validated_request_data)
-        data = list(handler.date_histogram(interval=interval).values())[0]
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        results = resource.alert.alert_date_histogram_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    **validated_request_data,
+                }
+                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+            ]
+        )
+
+        data = {}
+        for result in results:
+            for key, value in result.items():
+                if key not in data:
+                    data[key] = value
+                else:
+                    data[key].update(value)
         return {
             "series": [
                 {"data": list(series.items()), "name": status, "display_name": EVENT_STATUS_DICT[status]}
@@ -314,6 +331,14 @@ class AlertDateHistogramResource(Resource):
             ],
             "unit": "",
         }
+
+
+class AlertDateHistogramResultResource(Resource):
+    def perform_request(self, validated_request_data):
+        interval = validated_request_data.pop("interval")
+        handler = AlertQueryHandler(**validated_request_data)
+        data = list(handler.date_histogram(interval=interval).values())[0]
+        return data
 
 
 class AlertDetailResource(Resource):
