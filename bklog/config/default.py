@@ -1073,6 +1073,8 @@ ITSM_EXTERNAL_PERMISSION_SERVICE_ID = int(os.getenv("BKAPP_ITSM_EXTERNAL_PERMISS
 BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_BKLOG_HOST)
 # 外部版PAAS地址
 EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
+# UNIFYQUERY 日志数据源标签
+UNIFY_QUERY_DATA_SOURCE = "bklog"
 
 # ==============================================================================
 # Templates

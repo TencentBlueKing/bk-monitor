@@ -23,16 +23,30 @@ reference_names = "abcdefghijklmnopqrstuvwx"
 class UnifyQueryHandler(object):
     def __init__(self, params):
         self.search_params: Dict[str, Any] = params
+        self.start_time = params["start_time"]
+        self.end_time = params["end_time"]
         self.base_dict = self.init_base_dict()
         self.include_nested_fields: bool = params.get("include_nested_fields", True)
 
+    def init_default_interval(self):
+        hour_interval = int((self.end_time - self.start_time) / 3600)
+        if hour_interval <= 1:
+            return "1m"
+        elif hour_interval <= 6:
+            return "5m"
+        elif hour_interval <= 72:
+            return "1h"
+        else:
+            return "1d"
+
     def init_base_dict(self):
+        # TODO: UnifyQuery支持字段包含.符号
         if "." in self.search_params["agg_field"]:
             self.search_params["agg_field"] = self.search_params["agg_field"].replace(".", "___")
         query_list = [
             {
-                "data_source": "bklog",
-                "table_id": result_table_id.replace(".", "_") + ".base",
+                "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+                "table_id": result_table_id,
                 "field_name": self.search_params["agg_field"],
                 "reference_name": reference_names[index],
                 "dimensions": [],
@@ -48,14 +62,17 @@ class UnifyQueryHandler(object):
             "metric_merge": " + ".join([query["reference_name"] for query in query_list]),
             "order_by": ["-time"],
             "step": "60s",
-            "start_time": str(self.search_params["start_time"]),
-            "end_time": str(self.search_params["end_time"]),
+            "start_time": str(self.start_time),
+            "end_time": str(self.end_time),
             "down_sample_range": "",
             "timezone": get_local_param("time_zone", settings.TIME_ZONE),
         }
 
     @staticmethod
     def query_ts(search_dict):
+        """
+        查询时序型数据
+        """
         try:
             return UnifyQueryApi.query_ts(search_dict)
         except Exception as e:  # pylint: disable=broad-except
@@ -63,6 +80,9 @@ class UnifyQueryHandler(object):
 
     @staticmethod
     def query_ts_reference(search_dict):
+        """
+        查询非时序型数据
+        """
         try:
             return UnifyQueryApi.query_ts_reference(search_dict)
         except Exception as e:  # pylint: disable=broad-except
@@ -122,11 +142,16 @@ class UnifyQueryHandler(object):
             return series["values"][0][1]
         return 0
 
-    def get_topk_ts_data(self, vargs=5):
+    def get_topk_ts_data(self, vargs: int = 5):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
-            query["time_aggregation"] = {"function": "count_over_time", "window": "1m"}
+            if search_dict.get("interval", "auto") == "auto":
+                interval = self.init_default_interval()
+            else:
+                interval = search_dict["interval"]
+            query["time_aggregation"] = {"function": "count_over_time", "window": interval}
+            query["step"] = interval
             query["function"] = [
                 {"method": "sum", "dimensions": [self.search_params["agg_field"]]},
                 {"method": "topk", "vargs_list": [vargs]},
@@ -148,7 +173,7 @@ class UnifyQueryHandler(object):
             return round(series["values"][0][1], 2)
         return 0
 
-    def get_topk_list(self, limit=5):
+    def get_topk_list(self, limit: int = 5):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"order_by": ["-_value"], "metric_merge": "a"})
         for query in search_dict["query_list"]:
@@ -158,11 +183,16 @@ class UnifyQueryHandler(object):
         series = data["series"]
         return sorted([[s["group_values"][0], s["values"][0][1]] for s in series], key=lambda x: x[1], reverse=True)
 
-    def get_bucket_data(self):
-        step = round((self.search_params["max"] - self.search_params["min"]) / 10)
+    def get_bucket_data(self, min_value: int, max_value: int):
+        # 浮点数分桶区间精度默认为两位小数
+        digits = None
+        if self.search_params.get("field_type") and self.search_params["field_type"] in ["double", "float"]:
+            digits = 2
+        step = round((max_value - min_value) / 10, digits)
         bucket_data = []
         for index in range(10):
-            start = self.search_params["min"] + index * step
-            bucket_count = self.get_bucket_count(start, start + step)
+            start = min_value + index * step
+            end = start + step if index < 9 else max_value
+            bucket_count = self.get_bucket_count(start, end)
             bucket_data.append([start, bucket_count])
         return bucket_data
