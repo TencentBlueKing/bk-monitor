@@ -240,23 +240,25 @@ export default class AlarmDispatch extends tsc<object> {
       this.observerTableGroup();
     });
   }
+
   observerTableGroup() {
-    let pageSize = 1;
     this.intersectionObserver = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (entry.intersectionRatio <= 0) return;
         if (this.renderGroups.length >= this.ruleGroups.length) return;
-        this.renderGroups.push(...this.ruleGroups.slice(this.renderGroups.length, this.renderGroups.length + pageSize));
+        this.renderGroups.push(...this.ruleGroups.slice(this.renderGroups.length, this.renderGroups.length + 2));
         this.$nextTick(() => {
           if (this.isInViewport(this.itemFooterRef) && this.renderGroups.length < this.ruleGroups.length) {
             this.handleTriggerObserver();
           }
         });
-        pageSize = 1;
       }
     });
     this.intersectionObserver.observe(this.itemFooterRef);
   }
+  /**
+   * 用于触发 IntersectionObserver 监听
+   */
   handleTriggerObserver() {
     this.hiddenFooter = true;
     window.requestIdleCallback(() => {
