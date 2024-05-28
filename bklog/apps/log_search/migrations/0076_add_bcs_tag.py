@@ -26,12 +26,6 @@ def add_bcs_tag(apps, schema_editor):
             tag, _ = IndexSetTag.objects.get_or_create(name=bcs_cluster_id)
             tag_id = tag.tag_id
 
-            # 校验是否为内置标签
-            inner_tag_names = list(InnerTag.get_dict_choices().keys())
-            inner_tag_ids = list(IndexSetTag.objects.filter(name__in=inner_tag_names).values_list("tag_id", flat=True))
-            if tag_id in inner_tag_ids:
-                continue
-
             index_set_obj = LogIndexSet.objects.get(index_set_id=config.index_set_id)
             tag_ids = list(index_set_obj.tag_ids)
 
