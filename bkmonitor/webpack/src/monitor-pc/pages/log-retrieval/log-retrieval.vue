@@ -28,25 +28,25 @@
     <iframe
       ref="iframe"
       class="log-retrieval-frame"
-      allow="fullscreen"
       :src="retrievalUrl"
+      allow="fullscreen"
     />
   </div>
 </template>
 <script lang="ts">
 import { Component, Ref, Vue } from 'vue-property-decorator';
+
 import bus from 'monitor-common/utils/event-bus';
 
 @Component({
-  name: 'log-retrieval'
+  name: 'log-retrieval',
 })
 export default class LogRetrieval extends Vue {
   @Ref('iframe') private iframeRef: HTMLIFrameElement;
 
   get retrievalUrl() {
     if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line vue/max-len
-      return `${process.env.loginHost}/t/log-search-4#/retrieve/?from=monitor&bizId=${this.$store.getters.bizId}&lang=zh`;
+      return `${process.env.devHost}/t/log-search-4#/retrieve/?from=monitor&bizId=${this.$store.getters.bizId}&lang=zh`;
     }
     let { bkLogSearchUrl } = this.$store.getters;
     if (window.location.protocol === 'https:' && this.$store.getters.bkLogSearchUrl.match(/^http:/)) {

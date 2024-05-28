@@ -720,7 +720,7 @@ class MappingHandlers(object):
         if self.scenario_id in [Scenario.BKDATA]:
             schema_result: list = self.get_bkdata_schema(self.indices)
         if self.scenario_id in [Scenario.LOG]:
-            schema_result: list = self.get_meta_schema(self.indices)
+            schema_result: list = self.get_meta_schema(indices=self.indices)
 
         # list to dict
         schema_dict: dict = {}
@@ -764,7 +764,8 @@ class MappingHandlers(object):
             return []
 
     @staticmethod
-    def get_meta_schema(indices):
+    @cache_one_minute("{indices}_meta_schema")
+    def get_meta_schema(*, indices):
         indices = indices.split(",")
         try:
             all_field_list = list()

@@ -280,17 +280,21 @@ export default class AiSettingsSet extends tsc<object> {
               style='width: 100%;'
               message={settingsItem.errorsMsg.default_plan_id as string}
             >
-              <bk-select
-                v-model={settingsItem.data.default_plan_id}
-                clearable={false}
-                ext-popover-cls='ai-settings-scheme-select'
-                searchable
-                on-change={() => {
-                  settingsItem.errorsMsg.default_plan_id = '';
-                }}
-              >
-                {this.renderSchemeOption(this.schemeList)}
-              </bk-select>
+              {this.loading ? (
+                <div class='skeleton-element h16 mt-6'></div>
+              ) : (
+                <bk-select
+                  v-model={settingsItem.data.default_plan_id}
+                  clearable={false}
+                  ext-popover-cls='ai-settings-scheme-select'
+                  searchable
+                  on-change={() => {
+                    settingsItem.errorsMsg.default_plan_id = '';
+                  }}
+                >
+                  {this.renderSchemeOption(this.schemeList)}
+                </bk-select>
+              )}
             </ErrorMsg>,
             true
           )}
@@ -311,20 +315,24 @@ export default class AiSettingsSet extends tsc<object> {
               <div class='form-items'>
                 {this.formItemRender(
                   this.$t('是否启用'),
-                  <span class='enable-switch-wrap'>
-                    <bk-switcher
-                      v-model={child.data.is_enabled}
-                      behavior='simplicity'
-                      size='small'
-                      theme='primary'
-                    ></bk-switcher>
-                    <span class='right-tip'>
-                      <span class='icon-monitor icon-hint'></span>
-                      <span class='tip-text'>
-                        {this.$t('启用后将自动进行主机异常检测，也可在监控策略中配置此类告警')}
+                  this.loading ? (
+                    <div class='skeleton-element h16'></div>
+                  ) : (
+                    <span class='enable-switch-wrap'>
+                      <bk-switcher
+                        v-model={child.data.is_enabled}
+                        behavior='simplicity'
+                        size='small'
+                        theme='primary'
+                      ></bk-switcher>
+                      <span class='right-tip'>
+                        <span class='icon-monitor icon-hint'></span>
+                        <span class='tip-text'>
+                          {this.$t('启用后将自动进行主机异常检测，也可在监控策略中配置此类告警')}
+                        </span>
                       </span>
                     </span>
-                  </span>
+                  )
                 )}
                 {child.data.is_enabled
                   ? [
@@ -341,32 +349,40 @@ export default class AiSettingsSet extends tsc<object> {
                           style='width: 100%;'
                           message={child.errorsMsg.default_plan_id}
                         >
-                          <bk-select
-                            v-model={child.data.default_plan_id}
-                            clearable={false}
-                            ext-popover-cls='ai-settings-scheme-select'
-                            searchable
-                            on-change={() => {
-                              child.errorsMsg.default_plan_id = '';
-                            }}
-                          >
-                            {this.renderSchemeOption(this.multipleSchemeList)}
-                          </bk-select>
+                          {this.loading ? (
+                            <div class='skeleton-element h16 mt-6'></div>
+                          ) : (
+                            <bk-select
+                              v-model={child.data.default_plan_id}
+                              clearable={false}
+                              ext-popover-cls='ai-settings-scheme-select'
+                              searchable
+                              on-change={() => {
+                                child.errorsMsg.default_plan_id = '';
+                              }}
+                            >
+                              {this.renderSchemeOption(this.multipleSchemeList)}
+                            </bk-select>
+                          )}
                         </ErrorMsg>,
                         true
                       ),
                       this.formItemRender(
                         <span class='item-label required'>{this.$t('默认敏感度')}</span>,
-                        <div class='mt-6'>
-                          <bk-slider
-                            v-model={child.data.default_sensitivity}
-                            max-value={10}
-                          ></bk-slider>
-                          <div class='sensitivity-tips'>
-                            <span>{this.$t('较少告警')}</span>
-                            <span>{this.$t('较多告警')}</span>
+                        this.loading ? (
+                          <div class='skeleton-element h16'></div>
+                        ) : (
+                          <div class='mt-6'>
+                            <bk-slider
+                              v-model={child.data.default_sensitivity}
+                              max-value={10}
+                            ></bk-slider>
+                            <div class='sensitivity-tips'>
+                              <span>{this.$t('较少告警')}</span>
+                              <span>{this.$t('较多告警')}</span>
+                            </div>
                           </div>
-                        </div>,
+                        ),
                         true
                       ),
                     ]
@@ -383,10 +399,7 @@ export default class AiSettingsSet extends tsc<object> {
 
   render() {
     return (
-      <div
-        class='ai-settings-set'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='ai-settings-set'>
         <div class='ai-settings-set-content'>
           {this.settingsData.map(item => (
             <AnomalyDetection

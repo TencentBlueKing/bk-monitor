@@ -101,14 +101,10 @@ export default class AiSettingsPage extends tsc<object> {
     // 获取单指标
     this.schemeList = await IntelligentModelsStore.getListIntelligentModels({
       algorithm: IntelligentModelsType.IntelligentDetect,
-    }).catch(() => {
-      this.loading = false;
     });
     // 获取多场景
     this.multipleSchemeList = await IntelligentModelsStore.getListIntelligentModels({
       algorithm: IntelligentModelsType.MultivariateAnomalyDetection,
-    }).catch(() => {
-      this.loading = false;
     });
   }
 
@@ -175,13 +171,22 @@ export default class AiSettingsPage extends tsc<object> {
   renderForm(item: DetectionItem, type: DetectionType) {
     const schemeList = type === 'singleMetric' ? this.schemeList : this.multipleSchemeList;
 
+    const formatValue = val => {
+      if (this.loading) {
+        return <div class='skeleton-element'></div>;
+      }
+      return val || '--';
+    };
+
     /** 目前单指标异常检测只有这一个信息项 */
     if (type === 'singleMetric') {
       return (
         <div class='detail-form'>
           <div class='form-item'>
             <div class='label'>{this.$t('默认方案')}:</div>
-            <div class='value'>{schemeList.find(scheme => scheme.id === item.data.default_plan_id)?.name || '--'}</div>
+            <div class='value'>
+              {formatValue(schemeList.find(scheme => scheme.id === item.data.default_plan_id)?.name)}
+            </div>
           </div>
         </div>
       );
@@ -191,47 +196,51 @@ export default class AiSettingsPage extends tsc<object> {
       <div class='detail-form'>
         <div class='form-item'>
           <div class='label'>{this.$t('是否启用')}:</div>
-          <div class='value'>{this.$t(item.data.is_enabled ? '是' : '否')}</div>
+          <div class='value'>{formatValue(this.$t(item.data.is_enabled ? '是' : '否'))}</div>
         </div>
         <div class='form-item'>
           <div class='label'>{this.$t('关闭通知的对象')}:</div>
           <div class='value'>
-            {item.excludeTargetText ? (
-              <span
-                class='target-overview'
-                onClick={() => {
-                  this.handleShowTargetDetail(item);
-                }}
-              >
-                {item.excludeTargetText?.messageCount > 0 ? (
-                  <i18n path={item.excludeTargetText.message}>
-                    <span class='host-count'> {item.excludeTargetText.messageCount} </span>
-                  </i18n>
-                ) : (
-                  '--'
-                )}
-                {item.excludeTargetText?.subMessageCount > 0 ? (
-                  <span>
-                    (
-                    <i18n path={item.excludeTargetText.subMessage}>
-                      <span class='host-count'> {item.excludeTargetText.subMessageCount} </span>
+            {formatValue(
+              item.excludeTargetText ? (
+                <span
+                  class='target-overview'
+                  onClick={() => {
+                    this.handleShowTargetDetail(item);
+                  }}
+                >
+                  {item.excludeTargetText?.messageCount > 0 ? (
+                    <i18n path={item.excludeTargetText.message}>
+                      <span class='host-count'> {item.excludeTargetText.messageCount} </span>
                     </i18n>
-                    )
-                  </span>
-                ) : null}
-              </span>
-            ) : (
-              '--'
+                  ) : (
+                    '--'
+                  )}
+                  {item.excludeTargetText?.subMessageCount > 0 ? (
+                    <span>
+                      (
+                      <i18n path={item.excludeTargetText.subMessage}>
+                        <span class='host-count'> {item.excludeTargetText.subMessageCount} </span>
+                      </i18n>
+                      )
+                    </span>
+                  ) : null}
+                </span>
+              ) : (
+                '--'
+              )
             )}
           </div>
         </div>
         <div class='form-item'>
           <div class='label'>{this.$t('方案')}:</div>
-          <div class='value'>{schemeList.find(scheme => scheme.id === item.data.default_plan_id)?.name || '--'}</div>
+          <div class='value'>
+            {formatValue(schemeList.find(scheme => scheme.id === item.data.default_plan_id)?.name)}
+          </div>
         </div>
         <div class='form-item'>
           <div class='label'>{this.$t('默认敏感度')}:</div>
-          <div class='value'>{item.data.default_sensitivity ?? '--'}</div>
+          <div class='value'>{formatValue(item.data.default_sensitivity ?? '--')}</div>
         </div>
       </div>
     );
@@ -239,10 +248,7 @@ export default class AiSettingsPage extends tsc<object> {
 
   render() {
     return (
-      <div
-        class='ai-settings-page'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='ai-settings-page'>
         {/* <bk-alert
           title='错误的提示文字'
           type='error'
@@ -270,12 +276,16 @@ export default class AiSettingsPage extends tsc<object> {
 
           <div class='scene-detection'>
             <div class='title'>{this.$t('场景智能异常检测')}</div>
-            {this.sceneIntelligent.map(item => (
-              <div class='detection-item'>
-                <div class='name'>{item.name}</div>
-                {this.renderForm(item, 'sceneIntelligent')}
-              </div>
-            ))}
+            {this.loading ? (
+              <div class='skeleton-element empty-scene-detection'></div>
+            ) : (
+              this.sceneIntelligent.map(item => (
+                <div class='detection-item'>
+                  <div class='name'>{item.name}</div>
+                  {this.renderForm(item, 'sceneIntelligent')}
+                </div>
+              ))
+            )}
           </div>
         </div>
 

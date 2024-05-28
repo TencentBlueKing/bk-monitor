@@ -166,10 +166,7 @@ export default class IpSelector extends tsc<IProps> {
 
   render() {
     return (
-      <div
-        class='ai-settings-ip-selector'
-        v-bkloading={{ isLoading: this.loading }}
-      >
+      <div class='ai-settings-ip-selector'>
         {this.targetList.length > 0 ? (
           <span class='target-overview'>
             <i class='icon-monitor icon-mc-tv notification-tv'></i>
@@ -191,6 +188,8 @@ export default class IpSelector extends tsc<IProps> {
             <span class='add-tag-text'>{this.$t('关闭对象')}</span>
           </span>
         )}
+
+        {this.loading && <div class='skeleton-element'></div>}
         <MonitorIpSelector
           countInstanceType={this.countInstanceType}
           mode={'dialog'}

@@ -125,6 +125,14 @@ export default defineComponent({
     provide('serviceName', serviceNameProvider);
     provide('appName', appName);
 
+    // 用于关联日志跳转信息
+    const traceId = ref('');
+    provide('traceId', traceId);
+    const originSpanStartTime = ref(0);
+    provide('originSpanStartTime', originSpanStartTime);
+    const originSpanEndTime = ref(0);
+    provide('originSpanEndTime', originSpanEndTime);
+
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
     /* 初始化 */
@@ -218,8 +226,16 @@ export default defineComponent({
       const curSpan = originalDataList.find((data: any) => data.span_id === originalSpanId);
       startTimeProvider.value = `${formatDate(curSpan.start_time)} ${formatTime(curSpan.start_time)}`;
       endTimeProvider.value = `${formatDate(curSpan.end_time)} ${formatTime(curSpan.end_time)}`;
+      originSpanStartTime.value = Math.floor(startTime / 1000);
+      originSpanEndTime.value = Math.floor((startTime + duration) / 1000);
       if (curSpan) originalData.value = handleFormatJson(curSpan);
-      const { kind, trace_id: traceId, resource, is_virtual: isVirtual } = originalData.value as Record<string, any>;
+      const {
+        kind,
+        trace_id: originTraceId,
+        resource,
+        is_virtual: isVirtual,
+      } = originalData.value as Record<string, any>;
+      traceId.value = originTraceId;
 
       info.title = `Span ID：${originalSpanId}`;
       /** 头部基本信息 */
@@ -289,13 +305,13 @@ export default defineComponent({
             content: (
               <span
                 class='link'
-                onClick={() => handleToTraceQuery(traceId)}
+                onClick={() => handleToTraceQuery(traceId.value)}
               >
-                <span>{traceId}</span>
+                <span>{traceId.value}</span>
                 <i class='icon-monitor icon-fenxiang' />
               </span>
             ),
-            title: traceId,
+            title: traceId.value,
           },
         ],
       };
