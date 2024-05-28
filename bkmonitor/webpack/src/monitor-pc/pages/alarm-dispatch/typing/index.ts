@@ -123,6 +123,7 @@ export interface IRuleGroup {
   name: string;
   priority: number; // 优先级
   ruleData: IRuleDataItem[];
+  editAllowed?: boolean;
 }
 
 export interface LevelItem {
