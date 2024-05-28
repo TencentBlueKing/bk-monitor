@@ -43,6 +43,7 @@ SUBSCRIPTION_ID = 2
 TASK_ID = 3
 NEW_TASK_ID = 4
 LAST_TASK_ID = 5
+CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
 PARAMS = {
     "bk_biz_id": 706,
     "collector_config_name": "采集项名称",
@@ -1057,14 +1058,16 @@ class TestCollector(TestCase):
             ],
         )
 
+    @patch("apps.api.TransferApi.get_cluster_info")
     @patch("apps.utils.thread.MultiExecuteFunc.append")
     @patch("apps.utils.thread.MultiExecuteFunc.run")
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: [])
     @patch("apps.api.CCApi.search_set", CCSetTest())
-    def _test_retrieve(self, collector_config_id, mock_run, mock_append):
+    def _test_retrieve(self, collector_config_id, mock_run, mock_append, mock_get_cluster_info):
         collector = CollectorHandler(collector_config_id=collector_config_id)
         mock_append.return_value = ""
         mock_run.return_value = CONFIG_DATA
+        mock_get_cluster_info.return_value = CLUSTER_INFO
         result = collector.retrieve()
 
         self.assertEqual(result.get("data_encoding"), "UTF-8")

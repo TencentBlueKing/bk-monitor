@@ -359,7 +359,12 @@ class IndexSetViewSet(ModelViewSet):
             "result": true
         }
         """
-        return super().retrieve(request, *args, **kwargs)
+        response = super().retrieve(request, *args, **kwargs)
+        # 补充es集群端口号 、es集群域名
+        storage_cluster_id = response.data["storage_cluster_id"]
+        cluster_config = IndexSetHandler.get_cluster_map().get(storage_cluster_id, {})
+        response.data.update({"port": cluster_config["port"], "domain_name": cluster_config["domain_name"]})
+        return response
 
     def create(self, request, *args, **kwargs):
         """

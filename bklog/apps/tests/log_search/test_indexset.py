@@ -40,8 +40,7 @@ SCENARIO_ID_BKDATA = "bkdata"
 
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
-CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": ""}}]
-
+CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
 CLUSTER_INFO_WITH_AUTH = [
     {"cluster_config": {"cluster_id": 1, "cluster_name": ""}, "auth_info": {"username": "", "password": ""}}
 ]
@@ -244,6 +243,8 @@ INDEX_SET_LISTS = {
             "sort_fields": [],
             "target_fields": [],
             "result_window": 10000,
+            "domain_name": "",
+            "port": 123,
         }
     ],
 }
@@ -308,6 +309,8 @@ RETRIEVE_LIST = {
     "index_set_id": 63,
     "view_roles": [],
     "bkdata_project_id": None,
+    "domain_name": "",
+    "port": 123,
     "indexes": [
         {
             "index_id": 126,
@@ -641,6 +644,7 @@ class TestIndexSet(TestCase):
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.assertEqual(content, DELETE_SUCCESS)
 
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_retrieve_index_set(self, *args):
         """

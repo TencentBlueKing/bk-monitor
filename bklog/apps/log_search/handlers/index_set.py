@@ -200,7 +200,7 @@ class IndexSetHandler(APIModel):
     @classmethod
     def post_list(cls, index_sets):
         """
-        补充存储集数据分类、数据源、集群名称字段、标签信息
+        补充存储集数据分类、数据源、集群名称字段、标签信息、es集群端口号 、es集群域名
         :param index_sets:
         :return:
         """
@@ -226,7 +226,12 @@ class IndexSetHandler(APIModel):
             _index["category_name"] = GlobalCategoriesEnum.get_display(_index["category_id"])
             _index["scenario_name"] = scenario_choices.get(_index["scenario_id"])
             _index["storage_cluster_name"] = ",".join(
-                {storage_name for storage_name in cluster_map.get(_index["storage_cluster_id"], "").split(",")}
+                {
+                    storage_name
+                    for storage_name in cluster_map.get(_index["storage_cluster_id"], {})
+                    .get("cluster_name", "")
+                    .split(",")
+                }
             )
 
             normal_idx = [idx for idx in _index["indexes"] if idx["apply_status"] == LogIndexSetData.Status.NORMAL]
@@ -285,6 +290,16 @@ class IndexSetHandler(APIModel):
                     }
                 )
 
+            # 补充集群的port和domain信息
+            try:
+                # 兼容storage_cluster_id为"3,3,3"的形式"
+                storage_cluster_id = int(_index["storage_cluster_id"])
+                _index["port"] = cluster_map.get(storage_cluster_id, {}).get("port", "")
+                _index["domain_name"] = cluster_map.get(storage_cluster_id, {}).get("domain_name", "")
+            except ValueError:
+                _index["port"] = ""
+                _index["domain_name"] = ""
+
             # 补充标签信息
             _index.pop("tag_ids")
             tag_ids = tag_ids_mapping.get(int(_index["index_set_id"]), [])
@@ -301,14 +316,21 @@ class IndexSetHandler(APIModel):
     @staticmethod
     def get_cluster_map():
         """
-        集群ID和集群名称映射关系
+        集群ID和集群名称映射、集群port、集群domain映射关系
         :return:
         """
         cluster_data = TransferApi.get_cluster_info()
         cluster_map = {}
         for cluster_obj in cluster_data:
+            cluster_config = cluster_obj["cluster_config"]
             cluster_map.update(
-                {cluster_obj["cluster_config"]["cluster_id"]: cluster_obj["cluster_config"]["cluster_name"]}
+                {
+                    cluster_config["cluster_id"]: {
+                        "cluster_name": cluster_config["cluster_name"],
+                        "domain_name": cluster_config["domain_name"],
+                        "port": cluster_config["port"],
+                    }
+                }
             )
         return cluster_map
 
