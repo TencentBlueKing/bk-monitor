@@ -427,7 +427,7 @@ class CollectConfigDetailResource(Resource):
                 item["mode"] = "plugin"
             value = params.get(item["mode"], {}).get(item.get("key", item["name"])) or item["default"]
             # 获取敏感信息时采用bool值表示用户是否设置密码
-            if item["type"] == "password":
+            if item["type"] in ["password", "encrypt"]:
                 params[item["mode"]][item["name"]] = bool(value)
 
     def perform_request(self, validated_request_data):
@@ -1052,7 +1052,7 @@ class SaveCollectConfigResource(Resource):
         deployment_params = config_meta.deployment_config.params
 
         for param in config_params:
-            if param["type"] != "password":
+            if param["type"] not in ["password", "encrypt"]:
                 continue
 
             param_name = param["name"]
