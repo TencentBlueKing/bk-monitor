@@ -1198,6 +1198,7 @@ class UpgradeCollectPluginResource(Resource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="采集配置id")
         params = serializers.DictField(required=True, label="采集配置参数")
+        realtime = serializers.BooleanField(required=False, default=False, label=_("是否实时刷新缓存"))
 
     @lock(CacheLock("collect_config"))
     def request_nodeman(self, collect_config, deployment_config):
@@ -1209,6 +1210,11 @@ class UpgradeCollectPluginResource(Resource):
             collect_config = CollectConfigMeta.objects.select_related("plugin", "deployment_config").get(pk=data["id"])
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
+
+        # 判断是否需要实时刷新缓存
+        if data["realtime"]:
+            # 调用 collect_config_list 接口刷新采集配置的缓存，避免外部调接口可能会无法更新插件
+            resource.collecting.collect_config_list(page=-1, refresh_status=True, search={"id": data["id"]})
 
         # 判断采集配置是否需要升级
         if not collect_config.need_upgrade:
