@@ -43,6 +43,11 @@ class UnifyQueryHandler(object):
         # TODO: UnifyQuery支持字段包含.符号
         if "." in self.search_params["agg_field"]:
             self.search_params["agg_field"] = self.search_params["agg_field"].replace(".", "___")
+
+        if self.search_params.get("interval", "auto") == "auto":
+            interval = self.init_default_interval()
+        else:
+            interval = self.search_params["interval"]
         query_list = [
             {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
@@ -61,7 +66,7 @@ class UnifyQueryHandler(object):
             "query_list": query_list,
             "metric_merge": " + ".join([query["reference_name"] for query in query_list]),
             "order_by": ["-time"],
-            "step": "60s",
+            "step": interval,
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
@@ -146,12 +151,7 @@ class UnifyQueryHandler(object):
         search_dict = copy.deepcopy(self.base_dict)
         search_dict.update({"metric_merge": "a"})
         for query in search_dict["query_list"]:
-            if search_dict.get("interval", "auto") == "auto":
-                interval = self.init_default_interval()
-            else:
-                interval = search_dict["interval"]
-            query["time_aggregation"] = {"function": "count_over_time", "window": interval}
-            query["step"] = interval
+            query["time_aggregation"] = {"function": "count_over_time", "window": search_dict["step"]}
             query["function"] = [
                 {"method": "sum", "dimensions": [self.search_params["agg_field"]]},
                 {"method": "topk", "vargs_list": [vargs]},
