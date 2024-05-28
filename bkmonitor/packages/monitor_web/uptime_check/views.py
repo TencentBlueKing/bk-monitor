@@ -383,6 +383,10 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         task_data = resource.uptime_check.uptime_check_task_list(
             task_data=queryset, bk_biz_id=bk_biz_id, get_available=get_available, get_task_duration=get_task_duration
         )
+        # 拨测任务 ID
+        task_is_list = list(queryset.values_list("id", flat=True))
+        # 批量更新拨测任务的状态
+        resource.uptime_check.batch_update_task_running_status(task_is_list)
 
         # 如果节点对应的业务id已经不存在了，则该任务状态强制显示为START_FAILED，用于给用户提示
         biz_id_list = get_business_id_list()
