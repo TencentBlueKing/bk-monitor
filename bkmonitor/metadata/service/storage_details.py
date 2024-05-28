@@ -28,11 +28,16 @@ logger = logging.getLogger("metadata")
 
 class ResultTableAndDataSource:
     def __init__(
-        self, table_id: Optional[str] = None, bk_data_id: Optional[int] = None, bcs_cluster_id: Optional[str] = None
+        self,
+        table_id: Optional[str] = None,
+        bk_data_id: Optional[int] = None,
+        bcs_cluster_id: Optional[str] = None,
+        metric_name: Optional[str] = None,
     ):
         self.bk_data_id = bk_data_id
         self.table_id = table_id
         self.bcs_cluster_id = bcs_cluster_id
+        self.metric_name = metric_name
 
     def get_detail(self):
         detail = self.get_basic_detail(self.bk_data_id)
@@ -143,10 +148,19 @@ class ResultTableAndDataSource:
                 cluster_record.CustomMetricDataID,
                 cluster_record.K8sEventDataID,
             ]
-            return {
+
+            tid_ds = {
                 obj.table_id: obj.bk_data_id
                 for obj in models.DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_id_list)
             }
+            # 当指标存在时，根据指标过滤结果表
+            if self.metric_name:
+                tids = models.ResultTableField.objects.filter(
+                    field_name=self.metric_name, table_id__in=tid_ds.keys()
+                ).values_list("table_id", flat=True)
+                return {tid: tid_ds[tid] for tid in tids}
+
+            return tid_ds
 
     def get_biz_info(self, table_id: str, data_source: Dict) -> Dict:
         try:
