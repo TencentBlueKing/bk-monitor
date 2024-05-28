@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const wepack = require('webpack');
+const webpack = require('webpack');
 const path = require('path');
 const fs = require('fs');
 const { transformAppDir, transformDistDir } = require('./webpack/utils');
@@ -32,13 +32,11 @@ const MonitorWebpackPlugin = require('./webpack/monitor-webpack-plugin');
 
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
 const devHost = 'appdev.bktencent.com';
-const loginHost = 'https://paas-dev.bktencent.com';
 const devPort = 7001;
 let devConfig = {
   port: devPort,
   host: devHost,
   devProxyUrl,
-  loginHost,
   proxy: {},
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
@@ -73,15 +71,13 @@ module.exports = async (baseConfig, { production, app }) => {
       watchFiles: [],
     };
     config.plugins.push(
-      new wepack.DefinePlugin({
+      new webpack.DefinePlugin({
         process: {
           env: {
             NODE_ENV: JSON.stringify('development'),
             proxyUrl: JSON.stringify(devConfig.devProxyUrl),
             devUrl: JSON.stringify(`${devConfig.host}:${port}`),
             devHost: JSON.stringify(`${devConfig.host}`),
-            loginHost: JSON.stringify(devConfig.loginHost),
-            loginUrl: JSON.stringify(`${devConfig.loginHost}`),
             defaultBizId: JSON.stringify(`${devConfig.defaultBizId || 2}`),
             APP: JSON.stringify(`${app}`),
           },
@@ -90,7 +86,7 @@ module.exports = async (baseConfig, { production, app }) => {
     );
   } else if (app !== 'email') {
     config.plugins.push(
-      new wepack.DefinePlugin({
+      new webpack.DefinePlugin({
         process: {
           env: {
             NODE_ENV: JSON.stringify('production'),
@@ -103,7 +99,6 @@ module.exports = async (baseConfig, { production, app }) => {
   }
   const appDirName = transformAppDir(app);
   const appDir = `./src/${appDirName}/`;
-  // pulic
   config.plugins.push(
     new CopyPlugin({
       patterns: [
