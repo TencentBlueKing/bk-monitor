@@ -2887,3 +2887,14 @@
   name: get_parent_item_list
   path: /v2/monitor_v3/get_parent_item_list/
   method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/query_vm_rt_by_space/
+  is_hidden: true
+  label: 通过空间获取接入 vm 的指标结果表
+  label_en: query vm rt by space
+  name: metadata_query_vm_rt_by_space
+  path: /v2/monitor_v3/metadata_query_vm_rt_by_space/
+  method: GET
