@@ -419,6 +419,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("DISABLE_BIZ_ID", slz.ListField(label=_("业务黑名单"), default=[])),
         ("BCS_GRAY_CLUSTER_ID_LIST", slz.ListField(label=_("BCS集群灰度ID名单"), default=[])),
         ("BCS_API_DATA_SOURCE", slz.ChoiceField(label=_("BCS集群元数据获取方式"), default="db", choices=("db", "api"))),
+        ("BCS_METRIC_DATA_SOURCE", slz.ChoiceField(label=_("BCS集群指标数据获取方式"), default="db", choices=("db", "api"))),
         ("ENABLE_BCS_GRAY_CLUSTER", slz.BooleanField(label=_("是否启用BCS集群灰度模式"), default=False)),
         ("NOTICE_TITLE", slz.CharField(label=_("告警通知标题"), default="蓝鲸监控")),
         ("DEFAULT_KAFKA_STORAGE_CLUSTER_ID", slz.CharField(label=_("默认 kafka 存储集群ID"), default=None, allow_null=True)),

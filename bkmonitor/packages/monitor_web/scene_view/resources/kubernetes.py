@@ -15,13 +15,15 @@ import json
 import logging
 import operator
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import reduce
 from typing import Dict, List, Optional, Tuple, Union
 
+from django.conf import settings
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q
 from django.db.models.aggregates import Sum
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -162,6 +164,8 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
         total = self.get_total()
         # 根据分页获取一页的数据
         self.pagination_data(view_options)
+        # 需要时实时获取指标数据并更新
+        self.update_metric_data_if_needed(params["bk_biz_id"])
 
         # 搜索条件
         label_condition_list = self.data_to_labels_condition_list(view_options)
@@ -637,8 +641,8 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
             for key, value in filter_dict.items():
                 self.query_set_list.append(Q(**{f"{key}__in": value}))
 
-    def aggregate_by_biz_id(self, bk_biz_id, params: Dict) -> Dict:
-        """按业务ID聚合 ."""
+    def build_aggregation_filter_by_biz_id(self, bk_biz_id) -> Q:
+        """构建基于业务 ID 的聚合过滤条件。"""
         filter_q = Q(bk_biz_id=bk_biz_id)
         if isinstance(bk_biz_id, list):
             filter_q = Q(bk_biz_id__in=bk_biz_id)
@@ -656,9 +660,11 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
             if shared_filter_q_list:
                 filter_q = reduce(operator.or_, shared_filter_q_list)
 
-        query = self.model_class.objects.filter(filter_q)
-        summary = query.aggregate(**params)
-        return summary
+        return filter_q
+
+    def update_metric_data_if_needed(self, bk_biz_id):
+        """实时获取性能数据并更新。"""
+        pass
 
 
 class GetKubernetesGrafanaMetricRecords(ApiAuthResource, abc.ABC):
@@ -917,20 +923,20 @@ class GetKubernetesPodList(KubernetesResource):
         overview_data = super().get_overview_data(params, data)
         if not overview_data:
             return overview_data
-        summary = self.aggregate_by_biz_id(
-            bk_biz_id,
-            {
-                "total_container_count": Sum("total_container_count"),
-                "restarts": Sum("restarts"),
-                "resource_usage_cpu": Sum("resource_usage_cpu"),
-                "resource_usage_memory": Sum("resource_usage_memory"),
-                "resource_usage_disk": Sum("resource_usage_disk"),
-                "resource_requests_cpu": Sum("resource_requests_cpu"),
-                "resource_limits_cpu": Sum("resource_limits_cpu"),
-                "resource_requests_memory": Sum("resource_requests_memory"),
-                "resource_limits_memory": Sum("resource_limits_memory"),
-            },
+
+        agg_filter = self.build_aggregation_filter_by_biz_id(bk_biz_id)
+        summary = self.model_class.objects.filter(agg_filter).aggregate(
+            total_container_count=Sum("total_container_count"),
+            restarts=Sum("restarts"),
+            resource_usage_cpu=Sum("resource_usage_cpu"),
+            resource_usage_memory=Sum("resource_usage_memory"),
+            resource_usage_disk=Sum("resource_usage_disk"),
+            resource_requests_cpu=Sum("resource_requests_cpu"),
+            resource_limits_cpu=Sum("resource_limits_cpu"),
+            resource_requests_memory=Sum("resource_requests_memory"),
+            resource_limits_memory=Sum("resource_limits_memory"),
         )
+
         # 容器数量添加链接
         summary["total_container_count"] = self.model_class.build_search_link(
             bk_biz_id, "container", summary["total_container_count"], scene_type="overview"
@@ -1053,14 +1059,14 @@ class GetKubernetesContainerList(KubernetesResource):
         overview_data = super().get_overview_data(params, data)
         if not overview_data:
             return overview_data
-        summary = self.aggregate_by_biz_id(
-            bk_biz_id,
-            {
-                "resource_usage_cpu": Sum("resource_usage_cpu"),
-                "resource_usage_memory": Sum("resource_usage_memory"),
-                "resource_usage_disk": Sum("resource_usage_disk"),
-            },
+
+        agg_filter = self.build_aggregation_filter_by_biz_id(bk_biz_id)
+        summary = self.model_class.objects.filter(agg_filter).aggregate(
+            resource_usage_cpu=Sum("resource_usage_cpu"),
+            resource_usage_memory=Sum("resource_usage_memory"),
+            resource_usage_disk=Sum("resource_usage_disk"),
         )
+
         resource_usage_cpu = self.model_class.get_cpu_human_readable(summary["resource_usage_cpu"])
         resource_usage_memory = self.model_class.get_bytes_unit_human_readable(summary["resource_usage_memory"])
         resource_usage_disk = self.model_class.get_bytes_unit_human_readable(summary["resource_usage_disk"])
@@ -1131,13 +1137,13 @@ class GetKubernetesServiceList(KubernetesResource):
         overview_data = super().get_overview_data(params, data)
         if not overview_data:
             return overview_data
-        summary = self.aggregate_by_biz_id(
-            bk_biz_id,
-            {
-                "endpoint_count": Sum("endpoint_count"),
-                "pod_count": Sum("pod_count"),
-            },
+
+        agg_filter = self.build_aggregation_filter_by_biz_id(bk_biz_id)
+        summary = self.model_class.objects.filter(agg_filter).aggregate(
+            endpoint_count=Sum("endpoint_count"),
+            pod_count=Sum("pod_count"),
         )
+
         endpoint_count = summary["endpoint_count"]
         pod_count = self.model_class.build_search_link(bk_biz_id, "pod", summary["pod_count"], scene_type="overview")
         overview_data.update({"endpoint_count": endpoint_count, "pod_count": pod_count})
@@ -1187,13 +1193,13 @@ class GetKubernetesWorkloadList(KubernetesResource):
         overview_data = super().get_overview_data(params, data)
         if not overview_data:
             return overview_data
-        summary = self.aggregate_by_biz_id(
-            bk_biz_id,
-            {
-                "container_count": Sum("container_count"),
-                "pod_count": Sum("pod_count"),
-            },
+
+        agg_filter = self.build_aggregation_filter_by_biz_id(bk_biz_id)
+        summary = self.model_class.objects.filter(agg_filter).aggregate(
+            container_count=Sum("container_count"),
+            pod_count=Sum("pod_count"),
         )
+
         container_count = self.model_class.build_search_link(
             bk_biz_id, "container", summary["container_count"], scene_type="overview"
         )
@@ -1382,12 +1388,11 @@ class GetKubernetesNodeList(KubernetesResource):
         overview_data = super().get_overview_data(params, data)
         if not overview_data:
             return overview_data
-        summary = self.aggregate_by_biz_id(
-            bk_biz_id,
-            {
-                "endpoint_count": Sum("endpoint_count"),
-                "pod_count": Sum("pod_count"),
-            },
+
+        agg_filter = self.build_aggregation_filter_by_biz_id(bk_biz_id)
+        summary = self.model_class.objects.filter(agg_filter).aggregate(
+            endpoint_count=Sum("endpoint_count"),
+            pod_count=Sum("pod_count"),
         )
 
         summary["pod_count"] = self.model_class.build_search_link(
@@ -1570,6 +1575,55 @@ class GetKubernetesClusterList(KubernetesResource):
     model_label_class = BCSClusterLabels
     RequestSerializer = KubernetesListRequestSerializer
 
+    def update_metric_data_if_needed(self, bk_biz_id) -> None:
+        if settings.BCS_METRIC_DATA_SOURCE == "db":
+            return
+
+        current_time = timezone.now()
+        two_minutes_ago = current_time - timedelta(minutes=2)
+        clusters_to_update = [item for item in self.data if item.updated_at < two_minutes_ago]
+        if not clusters_to_update:
+            return
+
+        # 获取需要更新的集群的数据
+        cluster_ids = [cluster.bcs_cluster_id for cluster in clusters_to_update]
+        realtime_data = self._fetch_realtime_data(bk_biz_id, cluster_ids)
+
+        for cluster in clusters_to_update:
+            usages = realtime_data.get(cluster.bcs_cluster_id, {})
+            for field, value in usages.items():
+                setattr(cluster, field, round(value, 2))
+            cluster.updated_at = current_time
+
+        update_fields = ["cpu_usage_ratio", "memory_usage_ratio", "disk_usage_ratio", "updated_at"]
+        self.model_class.objects.bulk_update(clusters_to_update, fields=update_fields)
+
+    @staticmethod
+    def _fetch_realtime_data(bk_biz_id: int, bcs_cluster_ids: List[str]) -> Dict[str, dict]:
+        """实时获取资源使用率。"""
+        current_timestamp = int(time.time())
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "usage_types": ["cpu_usage_ratio", "memory_usage_ratio", "disk_usage_ratio"],
+            "bcs_cluster_ids": bcs_cluster_ids,
+            "start_time": current_timestamp - 60,
+            "end_time": current_timestamp,
+        }
+        return api.kubernetes.bulk_fetch_usage_ratios(params)
+
+    @staticmethod
+    def _fetch_realtime_summary_data(bk_biz_id: int, bcs_cluster_ids: List[str]) -> Dict[str, float]:
+        """实时获取资源使用率。"""
+        current_timestamp = int(time.time())
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "usage_types": ["cpu_usage_ratio", "memory_usage_ratio", "disk_usage_ratio"],
+            "bcs_cluster_ids": bcs_cluster_ids,
+            "start_time": current_timestamp - 60,
+            "end_time": current_timestamp,
+        }
+        return api.kubernetes.fetch_usage_ratio_summary(params)
+
     def rendered_data(self, params) -> List:
         for item in self.data:
             bcs_cluster_id = item.bcs_cluster_id
@@ -1583,8 +1637,8 @@ class GetKubernetesClusterList(KubernetesResource):
         data = super().rendered_data(params)
         return data
 
-    def aggregate_by_biz_id(self, bk_biz_id, params: Dict) -> Dict:
-        """按业务ID聚合 ."""
+    def build_aggregation_filter_by_biz_id(self, bk_biz_id) -> Q:
+        """构建基于业务 ID 的聚合过滤条件（不包含共享集群）。"""
         filter_q = Q(bk_biz_id=bk_biz_id)
         if isinstance(bk_biz_id, list):
             filter_q = Q(bk_biz_id__in=bk_biz_id)
@@ -1598,10 +1652,7 @@ class GetKubernetesClusterList(KubernetesResource):
             if shared_q_list:
                 filter_q = reduce(operator.or_, shared_q_list)
 
-        query = self.model_class.objects.filter(filter_q)
-        summary = query.aggregate(**params)
-
-        return summary
+        return filter_q
 
     def get_overview_data(self, params, data):
         bk_biz_id = params["bk_biz_id"]
@@ -1609,16 +1660,20 @@ class GetKubernetesClusterList(KubernetesResource):
         if not overview_data:
             return overview_data
 
-        # 节点数量和资源使用率不包含共享集群
-        summary = self.aggregate_by_biz_id(
-            bk_biz_id,
-            {
-                "node_count": Sum("node_count"),
-                "cpu_usage_ratio": Sum("cpu_usage_ratio"),
-                "memory_usage_ratio": Sum("memory_usage_ratio"),
-                "disk_usage_ratio": Sum("disk_usage_ratio"),
-            },
-        )
+        agg_filter = self.build_aggregation_filter_by_biz_id(bk_biz_id)
+        summary = self.model_class.objects.filter(agg_filter).aggregate(
+            node_count=Sum("node_count"),
+            cpu_usage_ratio=Sum("cpu_usage_ratio"),
+            memory_usage_ratio=Sum("memory_usage_ratio"),
+            disk_usage_ratio=Sum("disk_usage_ratio"),
+            )
+
+        if settings.BCS_METRIC_DATA_SOURCE == "api":
+            # 使用实时数据更新
+            bcs_cluster_ids = self.model_class.objects.filter(agg_filter).values_list("bcs_cluster_id", flat=True)
+            realtime_summary = self._fetch_realtime_summary_data(bk_biz_id, bcs_cluster_ids)
+            summary.update(realtime_summary)
+
         summary["cpu_usage_ratio"] = get_progress_value(summary["cpu_usage_ratio"])
         summary["memory_usage_ratio"] = get_progress_value(summary["memory_usage_ratio"])
         summary["disk_usage_ratio"] = get_progress_value(summary["disk_usage_ratio"])
