@@ -3719,7 +3719,7 @@ class CollectorHandler(object):
             raise BcsClusterIdNotValidException()
         return cluster_info
 
-    def _get_shared_cluster_namespace(self, bk_biz_id: int, bcs_cluster_id: int) -> List[Any]:
+    def _get_shared_cluster_namespace(self, bk_biz_id: int, bcs_cluster_id: str) -> List[Any]:
         """
         获取共享集群有权限的namespace
         """
