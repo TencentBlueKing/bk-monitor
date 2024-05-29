@@ -243,8 +243,8 @@ INDEX_SET_LISTS = {
             "sort_fields": [],
             "target_fields": [],
             "result_window": 10000,
-            "domain_name": "",
-            "port": 123,
+            "storage_cluster_domain_name": "",
+            "storage_cluster_port": 123,
         }
     ],
 }
@@ -309,8 +309,15 @@ RETRIEVE_LIST = {
     "index_set_id": 63,
     "view_roles": [],
     "bkdata_project_id": None,
-    "domain_name": "",
-    "port": 123,
+    "bk_biz_id": 2,
+    'apply_status': 'normal',
+    'apply_status_name': '正常',
+    "storage_cluster_name": "",
+    "tags": [],
+    "storage_cluster_domain_name": "",
+    "storage_cluster_port": 123,
+    "scenario_name": "第三方ES",
+    "category_name": "其他",
     "indexes": [
         {
             "index_id": 126,
@@ -365,7 +372,6 @@ RETRIEVE_LIST = {
     "is_active": True,
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
-    "tag_ids": [],
     "is_editable": True,
     "sort_fields": [],
     "target_fields": [],

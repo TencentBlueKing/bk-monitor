@@ -289,16 +289,17 @@ class IndexSetHandler(APIModel):
                         .split(",")
                     }
                 )
-
-            # 补充集群的port和domain信息
-            try:
-                # 兼容storage_cluster_id为"3,3,3"的形式"
-                storage_cluster_id = int(_index["storage_cluster_id"])
-                _index["port"] = cluster_map.get(storage_cluster_id, {}).get("port", "")
-                _index["domain_name"] = cluster_map.get(storage_cluster_id, {}).get("domain_name", "")
-            except ValueError:
-                _index["port"] = ""
-                _index["domain_name"] = ""
+                # 补充集群的port和domain信息
+                _index["storage_cluster_port"] = result.get(_index["index_set_id"], {}).get("storage_cluster_port", "")
+                _index["storage_cluster_domain_name"] = result.get(_index["index_set_id"], {}).get(
+                    "storage_cluster_domain_name", ""
+                )
+            else:
+                storage_cluster_id = _index["storage_cluster_id"]
+                _index["storage_cluster_port"] = cluster_map.get(storage_cluster_id, {}).get("cluster_port", "")
+                _index["storage_cluster_domain_name"] = cluster_map.get(storage_cluster_id, {}).get(
+                    "cluster_domain_name", ""
+                )
 
             # 补充标签信息
             _index.pop("tag_ids")
@@ -327,8 +328,8 @@ class IndexSetHandler(APIModel):
                 {
                     cluster_config["cluster_id"]: {
                         "cluster_name": cluster_config["cluster_name"],
-                        "domain_name": cluster_config["domain_name"],
-                        "port": cluster_config["port"],
+                        "cluster_domain_name": cluster_config["domain_name"],
+                        "cluster_port": cluster_config["port"],
                     }
                 }
             )
