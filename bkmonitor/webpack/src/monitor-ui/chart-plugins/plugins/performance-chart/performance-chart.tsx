@@ -37,7 +37,7 @@ import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
 import { ILegendItem, ITimeSeriesItem, LegendActionType, MonitorEchartOptions } from '../../typings';
-import { reviewInterval } from '../../utils';
+import { padTextToWidth, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
@@ -253,13 +253,15 @@ export default class PerformanceChart extends TimeSeries {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                   ? (v: any) => {
+                      let value = v;
                       if (seriesList[0].unit !== 'none') {
                         const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                        return obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                        value = obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                       }
-                      return v;
+                      return padTextToWidth(value, this.YAxisLabelWidth);
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                  : (v: number) =>
+                      padTextToWidth(this.handleYxisLabelFormatter(v - this.minBase), this.YAxisLabelWidth),
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
@@ -401,6 +403,7 @@ export default class PerformanceChart extends TimeSeries {
                   width={this.width}
                   height={this.height}
                   groupId={this.panel.dashboardId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}

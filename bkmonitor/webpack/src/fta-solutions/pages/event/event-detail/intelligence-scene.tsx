@@ -97,6 +97,7 @@ export default class IntelligenceScene extends tsc<IProps> {
     const result = data.map(item => {
       return {
         ...item,
+        type: 'performance-chart',
         dashboardId: this.dashboardId,
         targets: item.targets.map(target => ({
           ...target,
@@ -110,6 +111,8 @@ export default class IntelligenceScene extends tsc<IProps> {
         options: {
           time_series: {
             custom_timerange: true,
+            hoverAllTooltips: true,
+            YAxisLabelWidth: 60,
           },
         },
       };
