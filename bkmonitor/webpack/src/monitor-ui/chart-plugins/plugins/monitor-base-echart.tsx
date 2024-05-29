@@ -218,6 +218,10 @@ class MonitorBaseEchart extends BaseEchart {
       });
     }
   }
+  isInViewPort() {
+    const { top, bottom } = this.$el.getBoundingClientRect();
+    return (top > 0 && top <= innerHeight) || (bottom >= 0 && bottom < innerHeight);
+  }
   // 设置tooltip
   handleSetTooltip(params) {
     if (!this.isMouseOver && !this.hoverAllTooltips) return undefined;
@@ -230,6 +234,9 @@ class MonitorBaseEchart extends BaseEchart {
         xAxis: '',
         yAxis: '',
       };
+      return;
+    }
+    if (!this.isInViewPort()) {
       return;
     }
     let liHtmls = [];
