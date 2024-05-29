@@ -917,9 +917,7 @@ PROJECT_CLUSTER_LIST = [
 ]
 
 
-LIST_NAMESPACES = {
-    "count": 2,
-    "results": [
+LIST_NAMESPACES = [
         {
             "cluster_id": BCS_CLUSTER_ID,
             "created_at": "2021-01-01T00:00:00+08:00",
@@ -946,8 +944,7 @@ LIST_NAMESPACES = {
             "status": "",
             "updated_at": "2021-01-01T00:00:00+08:00",
         },
-    ],
-}
+    ]
 
 
 def subscription_statistic(params):
