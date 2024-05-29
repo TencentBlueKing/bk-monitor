@@ -56,19 +56,21 @@ logger = logging.getLogger("metadata")
 class SpaceTableIDRedis:
     """空间路由结果表数据推送 redis 相关功能"""
 
-    def push_space_table_ids(self, space_type: str, space_id: str, is_publish: Optional[bool] = False):
+    def push_space_table_ids(
+        self, space_type: str, space_id: str, is_publish: Optional[bool] = False, can_push_data: Optional[bool] = True
+    ):
         """推送空间及对应的结果表和过滤条件"""
         logger.info("start to push space table_id data, space_type: %s, space_id: %s", space_type, space_id)
         # NOTE: 为防止 space_id 传递非字符串，转换一次
         space_id = str(space_id)
         # 过滤空间关联的数据源信息
         if space_type == SpaceTypes.BKCC.value:
-            self._push_bkcc_space_table_ids(space_type, space_id)
+            self._push_bkcc_space_table_ids(space_type, space_id, can_push_data=can_push_data)
         elif space_type == SpaceTypes.BKCI.value:
             # 开启容器服务，则需要处理集群+业务+构建机+其它(在当前空间下创建的插件、自定义上报等)
-            self._push_bkci_space_table_ids(space_type, space_id)
+            self._push_bkci_space_table_ids(space_type, space_id, can_push_data=can_push_data)
         elif space_type == SpaceTypes.BKSAAS.value:
-            self._push_bksaas_space_table_ids(space_type, space_id)
+            self._push_bksaas_space_table_ids(space_type, space_id, can_push_data=can_push_data)
 
         # 如果指定要更新，则通知
         if is_publish:
@@ -259,6 +261,7 @@ class SpaceTableIDRedis:
         space_type: str,
         space_id: str,
         from_authorization: Optional[bool] = None,
+        can_push_data: Optional[bool] = True,
     ):
         """推送 bkcc 类型空间数据"""
         logger.info("start to push bkcc space table_id, space_type: %s, space_id: %s", space_type, space_id)
@@ -266,7 +269,7 @@ class SpaceTableIDRedis:
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         # 追加预计算结果表
         # 推送数据
-        if _values:
+        if _values and can_push_data:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
@@ -274,11 +277,13 @@ class SpaceTableIDRedis:
             space_type,
             space_id,
         )
+        return _values
 
     def _push_bkci_space_table_ids(
         self,
         space_type: str,
         space_id: str,
+        can_push_data: Optional[bool] = True,
     ):
         """推送 bcs 类型空间下的关联业务的数据"""
         logger.info("start to push biz of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
@@ -292,7 +297,7 @@ class SpaceTableIDRedis:
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
         # 推送数据
-        if _values:
+        if _values and can_push_data:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
@@ -300,12 +305,14 @@ class SpaceTableIDRedis:
             space_type,
             space_id,
         )
+        return _values
 
     def _push_bksaas_space_table_ids(
         self,
         space_type: str,
         space_id: str,
         table_id_list: Optional[List] = None,
+        can_push_data: Optional[bool] = True,
     ):
         """推送 bksaas 类型空间下的数据"""
         logger.info("start to push bksaas space table_id, space_type: %s, space_id: %s", space_type, space_id)
@@ -315,7 +322,7 @@ class SpaceTableIDRedis:
         # 追加特殊的允许全空间使用的数据源
         _values.update(self._compose_all_type_table_ids(space_type, space_id))
         _values.update(self._compose_record_rule_table_ids(space_type, space_id))
-        if _values:
+        if _values and can_push_data:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
@@ -323,6 +330,7 @@ class SpaceTableIDRedis:
             space_type,
             space_id,
         )
+        return _values
 
     def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str) -> Dict:
         """推送 bcs 类型关联业务的数据，现阶段包含主机及部分插件信息"""

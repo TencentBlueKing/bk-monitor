@@ -2898,3 +2898,14 @@
   name: metadata_query_vm_rt_by_space
   path: /v2/monitor_v3/metadata_query_vm_rt_by_space/
   method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/push_and_publish_es_route_config/
+  is_hidden: false
+  label: 推送并发布 es 路由配置
+  label_en: push and publish es route config
+  name: metadata_push_and_publish_es_route_config
+  path: /v2/monitor_v3/metadata_push_and_publish_es_route_config/
+  method: POST

@@ -417,3 +417,7 @@ class SwitchKafkaClusterViewSet(MetaViewSet):
 
 class QueryVmRtBySpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryVmRtBySpace)]
+
+
+class EsRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.EsRouter)]
