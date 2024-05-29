@@ -369,6 +369,15 @@ class CollectorHandler(object):
                         result_table_storage=result["result_table_storage"][self.data.table_id],
                     )
                 )
+                # 补充es集群端口号 、es集群域名
+                storage_cluster_id = collector_config.get("storage_cluster_id", "")
+                cluster_config = IndexSetHandler.get_cluster_map().get(storage_cluster_id, {})
+                collector_config.update(
+                    {
+                        "storage_cluster_port": cluster_config.get("cluster_port", ""),
+                        "storage_cluster_domain_name": cluster_config.get("cluster_domain_name", ""),
+                    }
+                )
             return collector_config
         return collector_config
 
