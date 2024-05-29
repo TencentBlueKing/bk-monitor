@@ -581,7 +581,9 @@ class GroupDutyRuleManager:
                 changed_duties.append(rule_snap)
 
         # 过滤出已经被禁用的规则, 如果被禁用了， 需要及时删除
-        disabled_duty_rules = DutyRule.objects.filter(enabled=False).values_list("id", flat=True)
+        disabled_duty_rules = DutyRule.objects.filter(enabled=False, bk_biz_id=self.user_group.bk_biz_id).values_list(
+            "id", flat=True
+        )
         if disabled_duty_rules:
             # 如果有有禁用的，需要删除掉
             DutyRuleSnap.objects.filter(duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id).delete()

@@ -351,6 +351,7 @@ class ServiceListResource(PageListResource):
         strategy_service_map: dict,
         strategy_alert_map: dict,
         request_count_info: dict,
+        is_enabled_profiling: bool,
         profiling_count_info: dict,
     ):
         return [
@@ -372,9 +373,13 @@ class ServiceListResource(PageListResource):
                 "status": DataStatus.NORMAL
                 if request_count_info.get(service["topo_key"], {}).get("request_count")
                 else DataStatus.NO_DATA,
-                "profiling_data_status": DataStatus.NORMAL
-                if profiling_count_info.get(service["topo_key"], {}).get("profiling_data_count")
-                else DataStatus.NO_DATA,
+                "profiling_data_status": (
+                    DataStatus.NORMAL
+                    if profiling_count_info.get(service["topo_key"], {}).get("profiling_data_count")
+                    else DataStatus.NO_DATA
+                )
+                if is_enabled_profiling
+                else DataStatus.DISABLED,
             }
             for service in services
         ]
@@ -512,6 +517,7 @@ class ServiceListResource(PageListResource):
             strategy_service_map,
             strategy_alert_map,
             request_count_info,
+            app.is_enabled_profiling,
             profiling_request_info,
         )
 

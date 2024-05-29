@@ -213,8 +213,8 @@ class ApplyDatasourceResource(Resource):
 
 class OperateApplicationSerializer(serializers.Serializer):
     class OperateType(db_models.TextChoices):
-        TRACING = "tracing", _("tracing")
-        PROFILING = "profiling", _("profiling")
+        TRACING = "tracing", "tracing"
+        PROFILING = "profiling", "profiling"
 
     application_id = serializers.IntegerField(label="应用id")
     type = serializers.ChoiceField(
@@ -1629,6 +1629,7 @@ class QueryProfileServiceDetailResource(Resource):
         service_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
         data_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
         sample_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        order = serializers.CharField(required=False, default="created_at")
 
     class ResponseSerializer(serializers.ModelSerializer):
         last_check_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
@@ -1653,4 +1654,4 @@ class QueryProfileServiceDetailResource(Resource):
         if validated_data.get("sample_type"):
             params["sample_type"] = validated_data["sample_type"]
 
-        return ProfileService.objects.filter(**params).order_by("created_at")
+        return ProfileService.objects.filter(**params).order_by(validated_data.get("order", "created_at"))

@@ -412,7 +412,8 @@ class StrategyCacheManager(CacheManager):
                 params["data_source_label"] == DataSourceLabel.CUSTOM
                 and params["data_type_label"] == DataTypeLabel.EVENT
             ):
-                params["custom_event_name"] = query_config["custom_event_name"]
+                if query_config["custom_event_name"]:
+                    params["custom_event_name"] = query_config["custom_event_name"]
             elif params["data_source_label"] == DataSourceLabel.BK_FTA:
                 params["alert_name"] = query_config["alert_name"]
             elif (

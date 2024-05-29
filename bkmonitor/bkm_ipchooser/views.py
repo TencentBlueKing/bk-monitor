@@ -49,7 +49,7 @@ class CsrfExemptSessionAuthentication(SessionAuthentication):
 
 class CommonViewSet(GenericViewSet):
     def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
+        return [BusinessActionPermission([ActionEnum.VIEW_HOST])]
 
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 

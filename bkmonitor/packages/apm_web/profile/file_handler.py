@@ -78,7 +78,9 @@ class ProfilingFileHandler:
         sample_type = valid_converter.get_sample_type()
 
         meta_info = {
-            "data_types": [{"key": sample_type["type"], "name": str(sample_type["type"]).upper()}],
+            "data_types": [
+                {"key": f"{sample_type['type']}/{sample_type['unit']}", "name": str(sample_type["type"]).upper()}
+            ],
             "sample_type": sample_type,
         }
         queryset.update(status=UploadedFileStatus.PARSING_SUCCEED, meta_info=meta_info)

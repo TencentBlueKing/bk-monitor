@@ -54,6 +54,9 @@ class TendencyDiagrammer:
 
     def diff(self, base_doris_converter: dict, diff_doris_converter: dict, **options) -> dict:
         """diff two profile data by time"""
+        if not base_doris_converter.get("list", []) or not diff_doris_converter.get("list", []):
+            # 如果任一来源没有数据 则页面上需要展示为无数据
+            return {"series": []}
 
         # follow the structure of bk-ui plugin
 
