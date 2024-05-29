@@ -29,7 +29,9 @@ import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
 import { query } from 'monitor-api/modules/apm_profile';
+import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
+import { parseProfileDataTypeValue, ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import {
   BaseDataType,
   CommonMenuList,
@@ -113,6 +115,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    unit: {
+      type: String as () => ProfileDataUnit,
+      default: 'nanoseconds',
+    },
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
   setup(props, { emit, expose }) {
@@ -171,7 +177,7 @@ export default defineComponent({
                     needCancel: true,
                   }
                 ).catch(() => false)
-              )?.diagrams?.flame_data ?? false;
+              )?.flame_data ?? false;
 
           if (data) {
             if (props.diffTraceId) {
@@ -191,6 +197,7 @@ export default defineComponent({
                 minHeight: wrapperRef.value?.getBoundingClientRect().height - 40,
                 direction: props.textDirection,
                 keywords: props.filterKeywords,
+                unit: props.unit,
                 getFillColor: (d: BaseDataType) => {
                   if (d.id === RootId) return 'rgb(223,133,32)';
                   return props.isCompared && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
@@ -200,29 +207,41 @@ export default defineComponent({
                     tipDetail.value = {};
                     return;
                   }
-                  const { text, suffix } = usFormat(d.data.value / 1000);
-                  let diffDuration = '';
+                  let detailsData, dataText;
+                  const { value: dataValue, text: profileText } = parseProfileDataTypeValue(
+                    d.data.value,
+                    props.unit,
+                    true
+                  );
+                  detailsData = dataValue;
+                  dataText = profileText;
+
+                  let diffData;
                   let diffValue = 0;
                   if (props.isCompared && d.data?.diff_info) {
-                    const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison);
-                    diffDuration = diffText + diffSuffix;
+                    const { value: diffProfileValue } = parseProfileDataTypeValue(
+                      d.data.diff_info.comparison,
+                      props.unit
+                    );
+                    diffData = diffProfileValue;
                     diffValue =
                       d.data.diff_info.comparison === 0 || d.data.diff_info.mark === 'unchanged'
                         ? 0
-                        : +(
-                            ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
-                            d.data.diff_info.comparison
-                          ).toFixed(2);
+                        : d.data.diff_info.diff;
+                    // +(
+                    //     ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
+                    //     d.data.diff_info.comparison
+                    //   ).toFixed(2);
                   }
                   let axisLeft = e.pageX - (boundryBody ? 0 : svgRect.left);
                   let axisTop = e.pageY - (boundryBody ? 0 : svgRect.top);
-                  if (axisLeft + 240 > window.innerWidth) {
-                    axisLeft = axisLeft - 220 - 16;
+                  if (axisLeft + 360 > window.innerWidth) {
+                    axisLeft = axisLeft - 340 - 16;
                   } else {
                     axisLeft = axisLeft + 16;
                   }
-                  if (axisTop + 120 > window.innerHeight) {
-                    axisTop = axisTop - 120;
+                  if (axisTop + 180 > window.innerHeight) {
+                    axisTop = axisTop - 180;
                   } else {
                     axisTop = axisTop;
                   }
@@ -232,8 +251,9 @@ export default defineComponent({
                     id: d.data.id,
                     title: d.data.name,
                     proportion: ((d.data.value * 100) / c.rootValue).toFixed(4).replace(/[0]+$/g, ''),
-                    duration: text + suffix,
-                    diffDuration,
+                    data: detailsData,
+                    dataText,
+                    diffData,
                     diffValue,
                     mark: d.data.diff_info?.mark,
                   };
@@ -373,8 +393,8 @@ export default defineComponent({
      */
     function handleContextMenuClick(item: ICommonMenuItem) {
       contextMenuRect.value.left = -1;
-      if (item.id === 'span') {
-        return contextMenuRect.value.spanId && emit('showSpanDetail', contextMenuRect.value.spanId);
+      if (item.id === 'copy') {
+        copyText(contextMenuRect.value.spanName);
       }
       if (item.id === 'reset') {
         initScale();
@@ -563,16 +583,16 @@ export default defineComponent({
                           </tr>
                         )}
                         <tr>
-                          <td>{window.i18n.t('耗时')}</td>
-                          <td>{this.tipDetail.duration}</td>
+                          <td>{this.tipDetail.dataText}</td>
+                          <td>{this.tipDetail.data}</td>
                           {this.localIsCompared &&
                             this.tipDetail.id !== RootId && [
-                              <td>{this.tipDetail.diffDuration ?? '--'}</td>,
+                              <td>{this.tipDetail.diffData ?? '--'}</td>,
                               <td>
                                 {this.tipDetail.mark === 'added' ? (
                                   <span class='tips-added'>{this.tipDetail.mark}</span>
                                 ) : (
-                                  `${this.tipDetail.diffValue}%`
+                                  `${((this.tipDetail.diffValue as number) * 100).toFixed(2)}%`
                                 )}
                               </td>,
                             ]}
@@ -600,7 +620,6 @@ export default defineComponent({
                     class='menu-item'
                     onClick={() => this.handleContextMenuClick(item)}
                   >
-                    <i class={`menu-item-icon icon-monitor ${item.icon}`} />
                     <span class='menu-item-text'>{item.name}</span>
                   </li>
                 ))}

@@ -8,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+import base64
+import gzip
 import json
 import logging
 import queue
@@ -21,6 +22,7 @@ from typing import Dict, List
 
 import arrow
 import pytz
+import redis
 from django.conf import settings
 from django.utils.functional import cached_property
 from kafka import KafkaConsumer
@@ -268,19 +270,25 @@ class AccessDataProcess(BaseAccessDataProcess):
         """
         获取最大数据落地时间并剔除该字段
         """
-        max_local_time = arrow.get(0).datetime
+        local_time_map = {}
         for record in records:
             local_time = record.pop("_localTime", None)
+            point_time = record["_time_"]
             if not local_time:
                 continue
 
             local_time = datetime.strptime(local_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.utc)
-            if local_time > max_local_time:
-                max_local_time = local_time
+            if point_time not in local_time_map:
+                local_time_map[point_time] = local_time
+
+            if local_time > local_time_map[point_time]:
+                local_time_map[point_time] = local_time
 
         # localTime不是UTC时间，而是计算平台的机器时间
-        max_local_time += timedelta(hours=settings.BKDATA_LOCAL_TIMEZONE_OFFSET)
-        return max_local_time
+        for k, v in local_time_map.items():
+            local_time_map[k] += timedelta(hours=settings.BKDATA_LOCAL_TIMEZONE_OFFSET)
+
+        return sorted(local_time_map.items(), key=lambda x: x[0])
 
     def pull(self):
         """
@@ -290,33 +298,21 @@ class AccessDataProcess(BaseAccessDataProcess):
         if not self.items:
             return
 
-        if self.sub_task_id:
-            client = key.ACCESS_BATCH_DATA_KEY.client
-            cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
-                strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
-            )
+        now_timestamp = arrow.utcnow().timestamp
 
-            raw_points: List[str] = client.lrange(cache_key, 0, -1)
-            client.delete(cache_key)
-            points: List[Dict] = [json.loads(point) for point in raw_points]
-        else:
-            now_timestamp = arrow.utcnow().timestamp
+        # 设置查询时间范围
+        self.get_query_time_range(now_timestamp)
 
-            # 设置查询时间范围
-            self.get_query_time_range(now_timestamp)
+        # 如果策略更新导致查询时间错位，则跳过本次查询
+        if self.from_timestamp > self.until_timestamp:
+            return
 
-            # 如果策略更新导致查询时间错位，则跳过本次查询
-            if self.from_timestamp > self.until_timestamp:
-                return
+        # 数据查询
+        points = self.query_data(now_timestamp)
 
-            # 数据查询
-            points = self.query_data(now_timestamp)
-            if not points:
-                return
-
-            # 当点数大于阈值时，将数据拆分为多个批量任务
-            if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
-                points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
+        # 当点数大于阈值时，将数据拆分为多个批量任务
+        if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
+            points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
 
         # 过滤重复数据并实例化
         self.filter_duplicates(points)
@@ -333,7 +329,11 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 计算平台指标查询localTime
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            first_item.data_sources[0].metrics.append({"field": "localTime", "method": "MAX", "alias": "_localTime"})
+            if len(first_item.expression.strip()) <= 1:
+                # 未配置多指标表达式， 则基于 bksql 查询，判断 localtime
+                first_item.data_sources[0].metrics.append(
+                    {"field": "localTime", "method": "MAX", "alias": "_localTime"}
+                )
 
         try:
             points = first_item.query_record(self.from_timestamp, self.until_timestamp)
@@ -350,24 +350,28 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
         if DataSourceLabel.BK_DATA in first_item.data_source_labels:
-            max_local_time = self.get_max_local_time(points)
+            local_time_list = self.get_max_local_time(points)
             first_item.data_sources[0].metrics = [
                 m for m in first_item.data_sources[0].metrics if m["field"] != "localTime"
             ]
-            if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
-                agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
-                key.ACCESS_END_TIME_KEY.client.set(
-                    key.ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key),
-                    str(self.until_timestamp),
-                    # key超时时间低于监控周期，会导致数据缓存丢失
-                    ex=max([key.ACCESS_END_TIME_KEY.ttl, agg_interval * 5]),
-                )
-                logging.info(
-                    f"skip access {self.strategy_group_key} data because data local time is too close."
-                    f"now: {now_timestamp}, local time: {max_local_time.timestamp()}"
-                )
-                return []
-
+            filter_point_time = None
+            for point_time, max_local_time in local_time_list:
+                if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
+                    agg_interval = min(query_config["agg_interval"] for query_config in first_item.query_configs)
+                    key.ACCESS_END_TIME_KEY.client.set(
+                        key.ACCESS_END_TIME_KEY.get_key(group_key=self.strategy_group_key),
+                        str(self.until_timestamp),
+                        # key超时时间低于监控周期，会导致数据缓存丢失
+                        ex=max([key.ACCESS_END_TIME_KEY.ttl, agg_interval * 5]),
+                    )
+                    logging.info(
+                        f"skip access {self.strategy_group_key} data because data local time is too close."
+                        f"now: {now_timestamp}, local time: {max_local_time.timestamp()}, point_time: {point_time}"
+                    )
+                    filter_point_time = point_time
+                    break
+            if filter_point_time:
+                points = list(filter(lambda point: point["_time_"] < filter_point_time, points))
         return points
 
     def get_query_time_range(self, now_timestamp: int):
@@ -412,9 +416,9 @@ class AccessDataProcess(BaseAccessDataProcess):
         """
         发送分批处理任务，并返回第一批数据
         """
-        self.batch_timestamp = int(time.time())
-
         from alarm_backends.service.access.tasks import run_access_batch_data
+
+        self.batch_timestamp = int(time.time())
 
         client = key.ACCESS_BATCH_DATA_KEY.client
         first_batch_points = []
@@ -443,13 +447,12 @@ class AccessDataProcess(BaseAccessDataProcess):
             else:
                 # 将分批数据写入redis
                 sub_task_id = f"{self.batch_timestamp}.{batch_count}"
-                client.lpush(
-                    key.ACCESS_BATCH_DATA_KEY.get_key(
-                        strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
-                    ),
-                    *[json.dumps(point) for point in batch_points],
+                data_key = key.ACCESS_BATCH_DATA_KEY.get_key(
+                    strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
                 )
-                key.ACCESS_BATCH_DATA_KEY.expire(strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id)
+                data_key.strategy_id = self.items[0].strategy.id
+                compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_points).encode("utf-8")))
+                client.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
 
                 # 发起异步任务
                 run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
@@ -578,6 +581,14 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 如果没有分批任务，直接返回
         if self.batch_count == 1:
+            metrics.ACCESS_DATA_PROCESS_TIME.labels(strategy_group_key=metrics.TOTAL_TAG).observe(
+                time.time() - start_time
+            )
+            metrics.ACCESS_DATA_PROCESS_COUNT.labels(
+                strategy_group_key=metrics.TOTAL_TAG,
+                status=metrics.StatusEnum.from_exc(exc),
+                exception=exc,
+            ).inc()
             return
 
         # 等待分批任务结果
@@ -589,7 +600,8 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "process_counts": self.process_counts,
             }
         ]
-        while len(batch_results) < self.batch_count and time.time() - start_time < 5 * constants.CONST_MINUTES:
+        wait_start_time = time.time()
+        while len(batch_results) < self.batch_count and time.time() - wait_start_time < 5 * constants.CONST_MINUTES:
             batch_result = client.brpop(result_key, timeout=1)
             if batch_result:
                 batch_results.append(json.loads(batch_result[1]))
@@ -743,10 +755,19 @@ class AccessBatchDataProcess(AccessDataProcess):
         cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
             strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
         )
+        cache_key.strategy_id = self.items[0].strategy.id
 
-        points: List[str] = client.lrange(cache_key, 0, -1)
+        try:
+            raw_points: List[str] = client.lrange(cache_key, 0, -1)
+            points: List[Dict] = [json.loads(point) for point in raw_points]
+        except redis.ResponseError:
+            data = client.get(cache_key)
+            if data:
+                points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
+            else:
+                points = []
+
         client.delete(cache_key)
-        points: List[Dict] = [json.loads(point) for point in points]
 
         self.filter_duplicates(points)
 

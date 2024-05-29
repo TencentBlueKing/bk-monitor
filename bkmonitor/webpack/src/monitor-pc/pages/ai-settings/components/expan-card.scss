@@ -1,0 +1,35 @@
+.ai-setting-expan-card {
+  background: #F5F7FA;
+  border: 1px solid transparent;
+  border-radius: 2px; 
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    height: 56px;
+    padding-left: 16px;
+    cursor: pointer;
+
+    .icon-arrow-down {
+      font-size: 20px;
+      transition: all .3s;
+      transform: rotate(-90deg);
+
+      &.expand {
+        transform: rotate(0);
+      }
+    }
+
+    .card-header-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #63656E;
+    }
+  }
+
+  .card-content {
+    &.displaynone {
+      display: none;
+    }
+  }
+}

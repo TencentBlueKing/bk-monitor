@@ -130,7 +130,7 @@ class CollectorScenario(object):
         """
         删除data_id
         """
-        params = {"data_id": bk_data_id, "data_name": data_name, "option": {"is_log_data": True}}
+        params = {"data_id": bk_data_id, "data_name": data_name, "option": {"is_log_data": True}, "is_enable": False}
         TransferApi.modify_data_id(params)
         logger.info(f"[delete_data_id] bk_data_id=>{bk_data_id}, params=>{params}")
         return True

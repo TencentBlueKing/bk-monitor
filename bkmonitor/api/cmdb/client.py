@@ -169,6 +169,10 @@ class SearchBusiness(CMDBBaseResource):
     method = "POST"
 
 
+def return_info_with_list(*args):
+    return {"info": []}
+
+
 class ListServiceCategory(CMDBBaseResource):
     """
     查询服务分类列表
@@ -177,6 +181,8 @@ class ListServiceCategory(CMDBBaseResource):
     cache_type = CacheType.CC_CACHE_ALWAYS
     action = "list_service_category"
     method = "POST"
+
+    return_type = return_info_with_list
 
 
 class ListBizHostsTopo(CMDBBaseResource):

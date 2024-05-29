@@ -159,8 +159,8 @@ export interface ILogUrlParams {
   time_range?: 'customized'; // 带了时间start_time end_time必填
   keyword: string; // 搜索关键字
   addition: IAddition[]; // 搜索条件 即监控的汇聚条件
-  start_time?: number; // 起始时间
-  end_time?: number; // 终止时间
+  start_time?: string; // 起始时间
+  end_time?: string; // 终止时间
 }
 export interface IAddition {
   key: string;
@@ -185,10 +185,8 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
         operator: set.method,
         value: (set.value || []).join(','),
       })) || [],
-
-    start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-
-    end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
+    start_time: start_time || undefined,
+    end_time: end_time || undefined,
     time_range,
   };
   queryStr = Object.keys(queryObj).reduce((str, key, i) => {

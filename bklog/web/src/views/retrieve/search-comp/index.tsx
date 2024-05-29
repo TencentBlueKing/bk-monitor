@@ -395,7 +395,7 @@ export default class SearchComp extends tsc<IProps> {
     const findField = this.filterFields.find(item => item.id === field);
     let findOperatorItem = null;
     // 字段类型并且是包含, 不包含的情况下才会去匹配当前展示的操作符列表元素
-    if (findField.fieldType === 'text' && !['exists', 'does not exists'].includes(operator)) {
+    if (findField?.fieldType === 'text' && !['exists', 'does not exists'].includes(operator)) {
       const containsItem = findField?.operatorList.find(item => item.operator === 'contains match phrase');
       const notContainsItem = findField?.operatorList.find(item => item.operator === 'not contains match phrase');
       findOperatorItem = this.containsStrList.includes(operator) ? containsItem : notContainsItem;

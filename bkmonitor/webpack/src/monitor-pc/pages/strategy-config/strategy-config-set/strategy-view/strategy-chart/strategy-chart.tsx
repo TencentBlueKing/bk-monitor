@@ -39,6 +39,7 @@ import { ChartType } from '../../../strategy-config-set-new/detection-rules/comp
 import { IFunctionsValue } from '../../../strategy-config-set-new/monitor-data/function-select';
 import { EditModeType, IDetectionConfig, ISourceData, MetricDetail } from '../../../strategy-config-set-new/typings';
 import { transformSensitivityValue } from '../../../util';
+import { EShortcutsType } from '../typing';
 
 import './strategy-chart.scss';
 
@@ -54,10 +55,10 @@ interface IProps {
   expFunctions: IFunctionsValue[];
   editMode?: EditModeType;
   sourceData?: ISourceData;
-  isNear: boolean;
   nearNum?: number;
   /** 策略目标 */
   strategyTarget?: any[];
+  shortcutsType?: EShortcutsType;
 }
 interface IEvent {
   onLogQuery: void;
@@ -89,10 +90,10 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   @Prop({ default: '', type: String }) editMode: EditModeType;
   /* source模式数据 */
   @Prop({ default: () => ({ sourceCode: '', step: 'auto' }), type: Object }) sourceData: ISourceData;
-  /* 是否显示近20条数据 */
-  @Prop({ default: true, type: Boolean }) isNear: boolean;
   /* 近多条数据 */
   @Prop({ default: 20, type: Number }) nearNum: number;
+  /* 当前快捷方式 近多少条数据/指定数据（包含维度且默认近20条） */
+  @Prop({ default: EShortcutsType.NEAR, type: String }) shortcutsType: EShortcutsType;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: any;
@@ -191,7 +192,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   }
 
   @Watch('nearNum')
-  @Watch('isNear')
+  @Watch('shortcutsType')
   @Watch('dimensions')
   @Watch('timeRange')
   @Watch('detectionConfig', { deep: true })
@@ -266,7 +267,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
           type: this.chartType,
           only_one_result: true,
           custom_timerange: true,
-          nearSeriesNum: this.isNear ? this.nearNum : 0,
+          nearSeriesNum: this.nearNum,
         },
         time_series_forecast: {
           need_hover_style: false,
@@ -322,8 +323,8 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
           type: this.chartType,
           custom_timerange: true,
           noTransformVariables: this.editMode === 'Source',
-          only_one_result: !this.isNear,
-          nearSeriesNum: this.isNear ? this.nearNum : 0,
+          only_one_result: false,
+          nearSeriesNum: this.nearNum,
           ...thresholdOptions,
         },
       },
@@ -460,14 +461,15 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                     : agg_condition.filter(item => item.key && item.value?.length),
                   interval: agg_interval,
                   time_field: isDetect ? 'dtEventTimeStamp' : timeField || 'time',
-                  filter_dict: this.isNear
-                    ? {}
-                    : Object.keys(this.dimensions).reduce((pre, key) => {
-                        if (!typeTools.isNull(this.dimensions[key]) && agg_dimension.includes(key)) {
-                          pre[key] = this.dimensions[key];
-                        }
-                        return pre;
-                      }, {}),
+                  filter_dict:
+                    this.shortcutsType === EShortcutsType.NEAR
+                      ? {}
+                      : Object.keys(this.dimensions).reduce((pre, key) => {
+                          if (!typeTools.isNull(this.dimensions[key]) && agg_dimension.includes(key)) {
+                            pre[key] = this.dimensions[key];
+                          }
+                          return pre;
+                        }, {}),
                   functions: isDetect ? [] : func,
                   target: this.strategyTarget || [],
                   ...logParam,

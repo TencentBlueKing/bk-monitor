@@ -1025,8 +1025,13 @@ class LuceneQuotesChecker(LuceneCheckerBase):
         :param s: 字符串
         :return: 是否匹配
         """
-        # 避免value是 YY-MM-DD HH:mm:SS 这种情况
-        if ":" in s and s.count(":") == 1:
+        # 避免value是 YY-MM-DD HH:mm:SS 这种情况;避免包含冒号的字符串被分隔
+        if (
+            ":" in s
+            and s.count(":") == 1
+            and not (s.startswith("'") and s.endswith("'"))
+            and not (s.startswith('"') and s.endswith('"'))
+        ):
             __, s = s.split(":")
 
         left_single_quote = s.startswith("'")

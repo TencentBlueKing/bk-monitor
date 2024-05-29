@@ -401,10 +401,6 @@ export default {
       top: 21px;
     }
 
-    &.is-wrap td .cell {
-      display: inline-table;
-    }
-
     .bk-table-empty-text {
       width: 100%;
       padding: 0;

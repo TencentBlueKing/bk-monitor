@@ -59,11 +59,15 @@ export const BaseChartProps = {
     type: String,
     default: '',
   },
+  showRestore: {
+    type: Boolean,
+    default: false,
+  },
 };
 export default defineComponent({
   name: 'BaseEchart',
   props: BaseChartProps,
-  emits: [...MOUSE_EVENTS, 'dataZoom', 'dblClick'],
+  emits: [...MOUSE_EVENTS, 'dataZoom', 'dblClick', 'store'],
   setup(props, { emit }) {
     const chartRef = ref<HTMLDivElement>();
     // 当前图表配置
@@ -368,6 +372,10 @@ export default defineComponent({
     function handleMouseleave() {
       isMouseOver.value = false;
     }
+    function handleClickRestore(e: MouseEvent) {
+      e.preventDefault();
+      emit('restore');
+    }
     return {
       chartRef,
       tooltipSize,
@@ -392,19 +400,30 @@ export default defineComponent({
       handleMouseover,
       handleMouseleave,
       handleDataZoom,
+      handleClickRestore,
     };
   },
   render() {
     return (
-      <div
-        ref='chartRef'
-        style={{ minHeight: `${1}px` }}
-        class='chart-base'
-        onClick={this.handleClick}
-        onDblclick={this.handleDblClick}
-        onMouseleave={this.handleMouseleave}
-        onMouseover={this.handleMouseover}
-      />
+      <div class='chart-base-wrap'>
+        <div
+          ref='chartRef'
+          style={{ minHeight: `${1}px` }}
+          class='chart-base'
+          onClick={this.handleClick}
+          onDblclick={this.handleDblClick}
+          onMouseleave={this.handleMouseleave}
+          onMouseover={this.handleMouseover}
+        />
+        {this.showRestore && (
+          <span
+            class='chart-restore'
+            onClick={this.handleClickRestore}
+          >
+            {this.$t('复位')}
+          </span>
+        )}
+      </div>
     );
   },
 });

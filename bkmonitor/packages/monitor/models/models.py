@@ -282,7 +282,7 @@ class UptimeCheckTask(OperateRecordModel):
     permission_exempt = True
 
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
-    name = models.CharField("任务名称", max_length=50, db_index=True)
+    name = models.CharField("任务名称", max_length=128, db_index=True)
     protocol = models.CharField("协议", choices=PROTOCOL_CHOICES, max_length=10)
     check_interval = models.PositiveIntegerField("拨测周期(分钟)", default=5)
     # 地点变为可选项
@@ -638,11 +638,10 @@ class UptimeCheckTask(OperateRecordModel):
                 "subscription_id", flat=1
             )
             if subscription_ids:
-                status_result = api.node_man.subscription_instance_status(subscription_id_list=subscription_ids)[0][
-                    "instances"
-                ]
-                for status in status_result:
-                    if status.get("running_task", None):
+                subscription_id = subscription_ids[0]
+                instance_list = api.node_man.batch_task_result(subscription_id=subscription_id)
+                for instance in instance_list:
+                    if instance.get("status", None) in ["PENDING", "RUNNING"]:
                         raise CustomException(_("拨测任务启用失败：存在运行中的启停任务，请稍后再试"))
         except BKAPIError as e:
             logger.error(_("拨测任务启停前置检查失败: {}").format(e))
@@ -676,12 +675,14 @@ class UptimeCheckTask(OperateRecordModel):
             subscription_ids = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk).values_list(
                 "subscription_id", flat=1
             )
-            status_result = api.node_man.subscription_instance_status(subscription_id_list=subscription_ids)[0][
-                "instances"
-            ]
-            for status in status_result:
-                if status.get("running_task", None):
-                    raise CustomException(_("拨测任务停用失败：存在运行中的启停任务，请稍后再试"))
+            if subscription_ids:
+                subscription_id = subscription_ids[0]
+                instance_list = api.node_man.batch_task_result(subscription_id=subscription_id)
+                for instance in instance_list:
+                    if instance.get("status", None) in ["PENDING", "RUNNING"]:
+                        raise CustomException(_("拨测任务停用失败：存在运行中的启停任务，请稍后再试"))
+            else:
+                raise CustomException(_("拨测任务对应订阅信息不存在"))
         except BKAPIError as e:
             logger.error(_("拨测任务启停前置检查失败: {}").format(e))
         self.status = self.Status.STOPING

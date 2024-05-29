@@ -7,59 +7,103 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections import defaultdict
-
-from apm_web.profile.constants import DESCRIBING_SAMPLE_UNIT
-from apm_web.profile.converter import Converter
-
-
-def get_statistics(c: Converter) -> dict:
-    statistics = defaultdict(int)
-    for s in c.raw_data:
-        if s["sample_type"].split("/")[1] != DESCRIBING_SAMPLE_UNIT:
-            continue
-        statistics[s["dtEventTimeStamp"]] += int(s["value"])
-
-    return statistics
 
 
 class TendencyDiagrammer:
-    def draw(self, c: Converter, **options) -> dict:
+    value_key = "sum(value)"
+    value_key1 = "sum(`value`)"
+
+    def draw(self, c: dict, **options) -> dict:
         """statistics profile data by time"""
-        statistics = get_statistics(c)
 
         # follow the structure of bk-ui plugin
+        if not c.get("list"):
+            return {"series": []}
+
+        sample_type = (options.get("sample_type") or "samples/count").split("/")
+        sample_type_unit = sample_type[-1]
+        target = "_".join(sample_type)
+        if sample_type_unit == "nanoseconds":
+            unit = "ns"
+        elif sample_type_unit == "seconds":
+            unit = "s"
+        elif sample_type_unit == "bytes":
+            unit = "bytes"
+        else:
+            unit = ""
+
         return {
             "series": [
                 {
                     "alias": "_result_",
-                    "datapoints": [[v, k] for k, v in sorted(statistics.items())],
+                    "metric_field": "_result_",
+                    "datapoints": [
+                        [
+                            i.get(self.value_key, i.get(self.value_key1)),
+                            int(i.get("time")),
+                        ]
+                        for i in c.get("list", [])
+                        if "time" in i
+                    ],
+                    "target": target,
                     "type": "line",
-                    "unit": "",
+                    "unit": unit,
                 }
             ]
         }
 
-    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
+    def diff(self, base_doris_converter: dict, diff_doris_converter: dict, **options) -> dict:
         """diff two profile data by time"""
-        base_statistics = get_statistics(base_doris_converter)
-        diff_statistics = get_statistics(diff_doris_converter)
+        if not base_doris_converter.get("list", []) or not diff_doris_converter.get("list", []):
+            # 如果任一来源没有数据 则页面上需要展示为无数据
+            return {"series": []}
 
         # follow the structure of bk-ui plugin
+
+        sample_type = (options.get("sample_type") or "samples/count").split("/")
+        sample_type_unit = sample_type[-1]
+        target = "_".join(sample_type)
+        if sample_type_unit == "nanoseconds":
+            unit = "ns"
+        elif sample_type_unit == "seconds":
+            unit = "s"
+        elif sample_type_unit == "bytes":
+            unit = "bytes"
+        else:
+            unit = ""
+
         return {
             "series": [
                 {
                     "alias": "_result_",
-                    "datapoints": [[v, k] for k, v in sorted(base_statistics.items())],
+                    "metric_field": "_result_",
+                    "datapoints": [
+                        [
+                            i.get(self.value_key, i.get(self.value_key1)),
+                            int(i.get("time")),
+                        ]
+                        for i in base_doris_converter.get("list", [])
+                        if "time" in i
+                    ],
+                    "target": target,
                     "type": "line",
-                    "unit": "",
+                    "unit": unit,
                     "dimensions": {"device_name": '查询项'},
                 },
                 {
                     "alias": "_result_",
-                    "datapoints": [[v, k] for k, v in sorted(diff_statistics.items())],
+                    "metric_field": "_result_",
+                    "datapoints": [
+                        [
+                            i.get(self.value_key, i.get(self.value_key1)),
+                            int(i.get("time")),
+                        ]
+                        for i in diff_doris_converter.get("list", [])
+                        if "time" in i
+                    ],
+                    "target": target,
                     "type": "line",
-                    "unit": "",
+                    "unit": unit,
                     "dimensions": {"device_name": '对比项'},
                 },
             ]

@@ -23,6 +23,38 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-declare module '*.vue';
-declare module '*.svg';
-declare module '*.png';
+/**
+ *
+ * @param series 时序数据 series 数据
+ * @returns 数据列中最大时间间隔
+ */
+export function getSeriesMaxInterval<T extends Array<{ datapoints: [number, number][] }>>(series: T) {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  series.forEach(s => {
+    minX = Math.min(minX, +s.datapoints.at(0)[1]);
+    maxX = Math.max(maxX, +s.datapoints.at(-1)[1]);
+  });
+  return maxX - minX;
+}
+/**
+ *
+ * @param maxXInterval 最大时间间隔
+ * @param width 图表宽度
+ * @returns 适配于 echarts 中X轴关于限制ticks的设置
+ */
+export function getTimeSeriesXInterval(maxXInterval: number, width: number) {
+  if (!maxXInterval || !width)
+    return {
+      max: 'dataMax',
+      min: 'dataMin',
+      splitNumber: 5,
+    };
+  const interval = Math.ceil(maxXInterval / Math.min(9, Math.ceil(width / 80)));
+  return {
+    interval,
+    minInterval: interval,
+    max: 'dataMax',
+    min: 'dataMin',
+  };
+}

@@ -23,75 +23,88 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { fetchAiSetting, saveAiSetting } from 'monitor-api/modules/aiops';
+import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { getBusinessTargetDetail } from 'monitor-api/modules/commons';
-import { listIntelligentModels } from 'monitor-api/modules/strategies';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
+import IntelligentModelsStore, { IntelligentModelsType } from '../../store/modules/intelligent-models';
+// import HistoryDialog from '../../components/history-dialog/history-dialog';
 import StrategyTargetTable from '../strategy-config/strategy-config-detail/strategy-config-detail-table.vue';
-import AnomalyDetection from './components/anomaly-detection';
 import { handleSetTargetDesc } from './components/common';
-import Notification from './components/notification';
-import SingleIndicator from './components/single-indicator';
-import { AiSetting, SchemeItem } from './types';
+import { AnomalyDetectionBase, SchemeItem } from './types';
 
 import './ai-settings.scss';
 
-@Component
-export default class AiSettings extends tsc<object> {
-  @Ref('single-indicator') readonly singleIndicatorEl: SingleIndicator;
-  @Ref('single-host') readonly singleIndicatorHostEl: SingleIndicator;
+type DetectionType = 'sceneIntelligent' | 'singleMetric';
 
+interface DetectionItem {
+  name?: string;
+  data: AnomalyDetectionBase;
+  type?: string;
+  excludeTargetDetail?: {
+    targetTable: any[];
+    targetType: string;
+    objType: string;
+  };
+  excludeTargetText?: {
+    message: string;
+    messageCount: number;
+    subMessage: string;
+    subMessageCount: number;
+  };
+}
+
+@Component
+export default class AiSettingsPage extends tsc<object> {
   loading = false;
-  btnLoading = false;
-  isEdit = false;
-  // 单指标
+  /** 单指标异常检测列表 */
   schemeList: SchemeItem[] = [];
-  // 多指标场景
+  /** 场景异常智能检测列表 */
   multipleSchemeList: SchemeItem[] = [];
 
-  // ai设置数据
-  aiSetting: AiSetting = {
-    kpi_anomaly_detection: {
+  textMap = {
+    host: '主机',
+  };
+
+  /** 单指标异常检测 */
+  singleMetric: DetectionItem = {
+    data: {
       default_plan_id: 0,
     },
-    multivariate_anomaly_detection: {
-      host: {
-        default_plan_id: 0,
-        default_sensitivity: 0,
-        is_enabled: true,
-        exclude_target: [],
-        intelligent_detect: {},
-      },
-    },
   };
 
-  excludeTargetDetail = {
-    targets: [],
-    targetTable: [],
-    targetType: '',
-    objType: '',
-    desc: '',
-    nodeCount: 0,
-    instanceCount: 0,
-    info: null,
+  /** 场景异常智能检测 */
+  sceneIntelligent: DetectionItem[] = [];
+
+  excludeTargetDialog = {
     show: false,
+    tableData: [],
+    objType: '',
+    targetType: '',
   };
+
+  mounted() {
+    this.loading = true;
+    Promise.all([this.getSchemeList(), this.getAiSetting()]).finally(() => {
+      this.loading = false;
+    });
+  }
 
   /**
-   * 获取默认方案列表
+   * 获取默认方案列表用于展示详细信息
    */
   async getSchemeList() {
     // 获取单指标
-    this.schemeList = await listIntelligentModels({ algorithm: 'IntelligentDetect' }).catch(() => {
-      this.loading = false;
+    this.schemeList = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.IntelligentDetect,
     });
     // 获取多场景
-    this.multipleSchemeList = await listIntelligentModels({ algorithm: 'MultivariateAnomalyDetection' }).catch(() => {
-      this.loading = false;
+    this.multipleSchemeList = await IntelligentModelsStore.getListIntelligentModels({
+      algorithm: IntelligentModelsType.MultivariateAnomalyDetection,
     });
   }
 
@@ -99,218 +112,199 @@ export default class AiSettings extends tsc<object> {
    *  获取ai设置
    */
   async getAiSetting() {
-    this.loading = true;
-    this.aiSetting = await fetchAiSetting().catch(() => (this.loading = false));
-    await this.getTargetDetail();
-    this.isEdit = false;
-    this.loading = false;
-  }
-
-  created() {
-    this.getSchemeList();
-    this.getAiSetting();
-  }
-
-  /**
-   * 校验表单
-   */
-  async handleValidate() {
-    return Promise.all([this.singleIndicatorEl?.validate(), this.singleIndicatorHostEl?.validate()])
-      .then(() => true)
-      .catch(() => false);
-  }
-
-  /**
-   *  保存操作
-   */
-  async handleSubmit() {
-    const result = await this.handleValidate();
-    if (result) {
-      this.btnLoading = true;
-      this.loading = true;
-      const excludeTarget = this.aiSetting.multivariate_anomaly_detection.host.exclude_target;
-      const excludeTargetValue = excludeTarget?.[0]?.[0]?.value || [];
-      const params = {
-        ...this.aiSetting,
-        multivariate_anomaly_detection: {
-          ...this.aiSetting.multivariate_anomaly_detection,
-          host: {
-            ...this.aiSetting.multivariate_anomaly_detection.host,
-            exclude_target: excludeTargetValue.length ? excludeTarget : [],
-          },
-        },
-        kpi_anomaly_detection: {
-          ...this.aiSetting.kpi_anomaly_detection,
-          is_enabled: undefined, // 单指标异常检测需去除是否启用
-          default_sensitivity: undefined,
-        },
+    const aiSetting = await fetchAiSetting();
+    if (!aiSetting) return;
+    this.singleMetric.data = aiSetting.kpi_anomaly_detection;
+    this.sceneIntelligent = Object.keys(aiSetting.multivariate_anomaly_detection).map(key => {
+      const detection = aiSetting.multivariate_anomaly_detection[key];
+      return {
+        name: this.$tc(this.textMap[key]),
+        type: key,
+        data: detection,
+        excludeTargetText: null,
       };
-      await saveAiSetting(params).catch(() => (this.loading = false));
-      this.btnLoading = false;
-      this.loading = false;
-      this.isEdit = false;
-      this.$bkMessage({
-        theme: 'success',
-        message: this.$t('保存成功！'),
-      });
-    }
-  }
-
-  /** *
-   *   重置操作
-   */
-
-  async handleReSet() {
-    this.loading = true;
-    this.aiSetting = await fetchAiSetting({ bk_biz_id: 0 }).catch(() => (this.loading = false));
-    this.loading = false;
-  }
-
-  handleCancel() {
-    this.getAiSetting();
-  }
-
-  /* 查看状态时需要显示目标概览 */
-  async getTargetDetail() {
-    if (this.aiSetting.multivariate_anomaly_detection.host.exclude_target?.[0]?.[0]?.value?.length) {
-      const data = await getBusinessTargetDetail({
-        target: this.aiSetting.multivariate_anomaly_detection.host.exclude_target,
-      }).catch(() => null);
-      if (data) {
-        this.excludeTargetDetail = {
-          ...this.excludeTargetDetail,
-          targets: data.target_detail,
-          targetTable: transformDataKey(data.target_detail),
-          targetType: data.node_type,
-          objType: data.instance_type,
-          nodeCount: data.node_count,
-          instanceCount: data.instance_count,
-        };
-        this.excludeTargetDetail.desc = '';
-        const info = handleSetTargetDesc(
-          this.excludeTargetDetail.targets,
-          this.excludeTargetDetail.targetType as any,
-          this.excludeTargetDetail.objType,
-          this.excludeTargetDetail.nodeCount,
-          this.excludeTargetDetail.instanceCount
-        );
-        this.excludeTargetDetail.info = info;
-      }
-    } else {
-      this.excludeTargetDetail.info = {
-        message: '',
-        messageCount: 0,
-        subMessage: '',
-        subMessageCount: 0,
-      };
-    }
-  }
-  handleExcludeTargetChange() {
+    });
     this.getTargetDetail();
   }
-  handleShowTargetDetail() {
-    this.excludeTargetDetail.show = true;
+
+  /* 获取关闭检测对象的详情信息 */
+  getTargetDetail() {
+    this.sceneIntelligent.forEach(async detection => {
+      if (detection.data.exclude_target?.[0]?.[0]?.value?.length) {
+        const data = await getBusinessTargetDetail({
+          target: detection.data.exclude_target,
+        }).catch(() => null);
+        if (data) {
+          detection.excludeTargetDetail = {
+            targetTable: transformDataKey(data.target_detail),
+            targetType: data.node_type,
+            objType: data.instance_type,
+          };
+          detection.excludeTargetText = handleSetTargetDesc(
+            data.target_detail,
+            data.node_type,
+            data.instance_type,
+            data.node_count,
+            data.instance_count
+          );
+          return;
+        }
+      }
+      detection.excludeTargetText = null;
+    });
+  }
+
+  /** 关闭通知对象弹窗 */
+  handleShowTargetDetail(item: DetectionItem) {
+    this.excludeTargetDialog.show = true;
+    this.excludeTargetDialog.tableData = item.excludeTargetDetail?.targetTable || [];
+    this.excludeTargetDialog.objType = item.excludeTargetDetail?.objType || '';
+    this.excludeTargetDialog.targetType = item.excludeTargetDetail?.targetType || '';
+  }
+
+  handleJump() {
+    this.$router.push({
+      name: 'ai-settings-set',
+    });
+  }
+
+  renderForm(item: DetectionItem, type: DetectionType) {
+    const schemeList = type === 'singleMetric' ? this.schemeList : this.multipleSchemeList;
+
+    const formatValue = val => {
+      if (this.loading) {
+        return <div class='skeleton-element'></div>;
+      }
+      return val || '--';
+    };
+
+    /** 目前单指标异常检测只有这一个信息项 */
+    if (type === 'singleMetric') {
+      return (
+        <div class='detail-form'>
+          <div class='form-item'>
+            <div class='label'>{this.$t('默认方案')}:</div>
+            <div class='value'>
+              {formatValue(schemeList.find(scheme => scheme.id === item.data.default_plan_id)?.name)}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div class='detail-form'>
+        <div class='form-item'>
+          <div class='label'>{this.$t('是否启用')}:</div>
+          <div class='value'>{formatValue(this.$t(item.data.is_enabled ? '是' : '否'))}</div>
+        </div>
+        <div class='form-item'>
+          <div class='label'>{this.$t('关闭通知的对象')}:</div>
+          <div class='value'>
+            {formatValue(
+              item.excludeTargetText ? (
+                <span
+                  class='target-overview'
+                  onClick={() => {
+                    this.handleShowTargetDetail(item);
+                  }}
+                >
+                  {item.excludeTargetText?.messageCount > 0 ? (
+                    <i18n path={item.excludeTargetText.message}>
+                      <span class='host-count'> {item.excludeTargetText.messageCount} </span>
+                    </i18n>
+                  ) : (
+                    '--'
+                  )}
+                  {item.excludeTargetText?.subMessageCount > 0 ? (
+                    <span>
+                      (
+                      <i18n path={item.excludeTargetText.subMessage}>
+                        <span class='host-count'> {item.excludeTargetText.subMessageCount} </span>
+                      </i18n>
+                      )
+                    </span>
+                  ) : null}
+                </span>
+              ) : (
+                '--'
+              )
+            )}
+          </div>
+        </div>
+        <div class='form-item'>
+          <div class='label'>{this.$t('方案')}:</div>
+          <div class='value'>
+            {formatValue(schemeList.find(scheme => scheme.id === item.data.default_plan_id)?.name)}
+          </div>
+        </div>
+        <div class='form-item'>
+          <div class='label'>{this.$t('默认敏感度')}:</div>
+          <div class='value'>{formatValue(item.data.default_sensitivity ?? '--')}</div>
+        </div>
+      </div>
+    );
   }
 
   render() {
     return (
-      <div
-        class='ai-settings'
-        v-bkloading={{ isLoading: this.loading }}
-      >
-        <div style={{ margin: '24px' }}>
-          <AnomalyDetection
-            showExpand={true}
-            title={this.$t('单指标异常检测')}
-          >
-            <SingleIndicator
-              ref='single-indicator'
-              data={this.aiSetting.kpi_anomaly_detection}
-              isEdit={this.isEdit}
-              isSingle={true}
-              schemeList={this.schemeList}
-            />
-          </AnomalyDetection>
-          <AnomalyDetection
-            showExpand={true}
-            title={this.$t('场景智能异常检测')}
-          >
-            <AnomalyDetection
-              showExpand={true}
-              theme='dark'
-              title={this.$t('主机')}
-            >
-              <SingleIndicator
-                ref='single-host'
-                data={this.aiSetting.multivariate_anomaly_detection.host}
-                isEdit={this.isEdit}
-                schemeList={this.multipleSchemeList}
-              >
-                <Notification
-                  slot='notification'
-                  v-model={this.aiSetting.multivariate_anomaly_detection.host.exclude_target}
-                  hostInfo={this.excludeTargetDetail.info}
-                  isEdit={this.isEdit}
-                  onChange={this.handleExcludeTargetChange as any}
-                  onShowTargetDetail={this.handleShowTargetDetail}
-                />
-              </SingleIndicator>
-            </AnomalyDetection>
-          </AnomalyDetection>
+      <div class='ai-settings-page'>
+        {/* <bk-alert
+          title='错误的提示文字'
+          type='error'
+          closable
+        ></bk-alert> */}
+
+        <div class='ai-settings-page-content'>
+          <div class='single-metric-detection'>
+            <div class='header'>
+              <div class='title'>{this.$t('单指标异常检测')}</div>
+              <div class='btns'>
+                <bk-button
+                  class='edit-btn'
+                  theme='primary'
+                  outline
+                  onClick={this.handleJump}
+                >
+                  {this.$t('编辑')}
+                </bk-button>
+                {/* <HistoryDialog /> */}
+              </div>
+            </div>
+            {this.renderForm(this.singleMetric, 'singleMetric')}
+          </div>
+
+          <div class='scene-detection'>
+            <div class='title'>{this.$t('场景智能异常检测')}</div>
+            {this.loading ? (
+              <div class='skeleton-element empty-scene-detection'></div>
+            ) : (
+              this.sceneIntelligent.map(item => (
+                <div class='detection-item'>
+                  <div class='name'>{item.name}</div>
+                  {this.renderForm(item, 'sceneIntelligent')}
+                </div>
+              ))
+            )}
+          </div>
         </div>
-        {/* 底部操作按钮 */}
-        <div class='footer'>
-          {this.isEdit ? (
-            <span>
-              <bk-button
-                class='mr10'
-                loading={this.btnLoading}
-                theme='primary'
-                on-click={this.handleSubmit}
-              >
-                {this.$t('保存')}
-              </bk-button>
-              <bk-button
-                class='mr10'
-                theme='default'
-                onClick={this.handleReSet}
-              >
-                {this.$t('重置')}
-              </bk-button>
-              <bk-button
-                theme='default'
-                onClick={this.handleCancel}
-              >
-                {this.$t('取消')}
-              </bk-button>
-            </span>
-          ) : (
-            <bk-button
-              theme='primary'
-              onClick={() => (this.isEdit = true)}
-            >
-              {this.$t('button-编辑')}
-            </bk-button>
-          )}
-        </div>
-        {!!this.excludeTargetDetail.targetTable ? (
-          <bk-dialog
-            width='1100'
-            ext-cls='target-table-wrap'
-            v-model={this.excludeTargetDetail.show}
-            header-position='left'
-            need-footer={false}
-            show-footer={false}
-            title={this.$t('关闭目标')}
-            on-change={v => (this.excludeTargetDetail.show = v)}
-          >
-            <StrategyTargetTable
-              objType={this.excludeTargetDetail.objType}
-              tableData={this.excludeTargetDetail.targetTable}
-              targetType={this.excludeTargetDetail.targetType}
-            ></StrategyTargetTable>
-          </bk-dialog>
-        ) : undefined}
+
+        <bk-dialog
+          width='1100'
+          ext-cls='target-table-wrap'
+          v-model={this.excludeTargetDialog.show}
+          header-position='left'
+          need-footer={false}
+          show-footer={false}
+          title={this.$t('关闭目标')}
+          on-change={v => (this.excludeTargetDialog.show = v)}
+        >
+          <StrategyTargetTable
+            objType={this.excludeTargetDialog.objType}
+            tableData={this.excludeTargetDialog.tableData}
+            targetType={this.excludeTargetDialog.targetType}
+          ></StrategyTargetTable>
+        </bk-dialog>
       </div>
     );
   }

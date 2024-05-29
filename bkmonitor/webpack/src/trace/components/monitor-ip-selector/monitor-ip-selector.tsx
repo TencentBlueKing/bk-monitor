@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import {
   agentStatisticsIpChooserTemplate,
@@ -64,9 +64,9 @@ import {
 import create from './vue3.x';
 
 import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
-
-const BkIpSelector = create({
-  version: '3',
+import './monitor-ip-selector.scss';
+const BkIpSelector: any = create({
+  version: '4',
   serviceConfigError: false,
 });
 
@@ -81,7 +81,7 @@ export default defineComponent({
         scope_id: store.bizId as string,
       },
     ];
-    const ipSelectorServices = reactive({
+    const ipSelectorServices = {
       fetchTopologyHostCount, // 拉取topology
       fetchTopologyHostsNodes, // 静态拓扑 - 选中节点
 
@@ -108,8 +108,8 @@ export default defineComponent({
       updateCustomSettings,
       fetchConfig,
       ...props.service,
-    });
-    const ipSelectorConfig = reactive({
+    };
+    const ipSelectorConfig = computed(() => ({
       // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'）
       panelList: props.panelList ?? [
         'staticTopo',
@@ -135,7 +135,7 @@ export default defineComponent({
       hostTableRenderColumnList: props.hostTableRenderColumnList ?? [],
       hostViewFieldRender,
       serviceConfigError: true,
-    });
+    }));
     /**
      * @description 拉取topology
      * @returns
@@ -428,6 +428,7 @@ export default defineComponent({
   render() {
     return (
       <BkIpSelector
+        class='monitor-ip-selector'
         config={this.ipSelectorConfig}
         defaultOutputFieldList={this.defaultOutputFieldList}
         disableDialogSubmitMethod={this.disableDialogSubmitMethod}

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,6 +27,7 @@
 
 import { computed, defineComponent, onMounted, provide, reactive, Ref, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import { Dialog } from 'bkui-vue';
 import { queryServicesDetail } from 'monitor-api/modules/apm_profile';
@@ -53,6 +55,8 @@ export default defineComponent({
   name: 'ProfilingPage',
   directives: { monitorDrag },
   setup() {
+    const route = useRoute();
+    const router = useRouter();
     const { t } = useI18n();
     /** 顶部工具栏数据 */
     const toolsFormData = ref<ToolsFormData>({
@@ -61,6 +65,18 @@ export default defineComponent({
       refreshInterval: -1,
     });
     provide<Ref<ToolsFormData>>('toolsFormData', toolsFormData);
+
+    // 是否展示复位
+    const showRestore = ref<boolean>(false);
+    // 时间范围缓存用于复位功能
+    const cacheTimeRange = ref('');
+    provide<Ref<boolean>>('showRestore', showRestore);
+    // 是否开启（框选/复位）全部操作
+    const enableSelectionRestoreAll = computed(() => searchState.formData.type === SearchType.Profiling);
+    provide<Ref<boolean>>('enableSelectionRestoreAll', enableSelectionRestoreAll);
+    // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+    provide('handleChartDataZoom', handleChartDataZoom);
+    provide('handleRestoreEvent', handleRestoreEvent);
 
     /** 当前选择服务的详情数据 */
     const selectServiceData = ref<ServicesDetail>();
@@ -119,7 +135,7 @@ export default defineComponent({
      */
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
-      // handleQuery();
+      setUrlParams();
     }
 
     /** 是否全屏 */
@@ -206,6 +222,68 @@ export default defineComponent({
       };
       isEmpty.value = true;
     }
+
+    function setUrlParams() {
+      if (searchState.formData.type === SearchType.Upload) {
+        router.replace({
+          query: {},
+        });
+      } else {
+        const { global_query, ...params } = getParams();
+        router.replace({
+          query: {
+            target: encodeURIComponent(
+              JSON.stringify({
+                ...params,
+                start: toolsFormData.value.timeRange[0],
+                end: toolsFormData.value.timeRange[1],
+              })
+            ),
+          },
+        });
+      }
+    }
+    function getUrlParams() {
+      const { target } = route.query;
+      if (target) {
+        const {
+          app_name = '',
+          service_name = '',
+          start = 'now-1h',
+          end = 'now',
+          data_type,
+          filter_labels = {},
+          diff_filter_labels = {},
+          is_compared = false,
+        } = JSON.parse(decodeURIComponent(target as string));
+        searchState.formData = {
+          type: SearchType.Profiling,
+          isComparison: is_compared,
+          server: {
+            app_name,
+            service_name,
+          },
+          where: Object.entries<string | string[]>(filter_labels).map(([key, value]) => ({
+            key,
+            method: 'eq',
+            value,
+          })),
+          comparisonWhere: Object.entries<string | string[]>(diff_filter_labels).map(([key, value]) => ({
+            key,
+            method: 'eq',
+            value,
+          })),
+        };
+        toolsFormData.value = {
+          ...toolsFormData.value,
+          timeRange: [start, end],
+        };
+        dataType.value = data_type;
+        handleAppServiceChange(app_name, service_name);
+      }
+    }
+    getUrlParams();
+
     /** 获取接口请求参数 */
     function getParams() {
       const { server, isComparison, where, comparisonWhere, type, startTime, endTime } = searchState.formData;
@@ -236,6 +314,7 @@ export default defineComponent({
       isEmpty.value = !canQuery.value;
       if (!canQuery.value) return;
       queryParams.value = getParams();
+      setUrlParams();
     }
 
     // ----------------------详情-------------------------
@@ -272,6 +351,20 @@ export default defineComponent({
       if (!target) {
         dataType.value = dataTypeList.value[0]?.key || '';
       }
+    }
+
+    // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+    function handleChartDataZoom(value) {
+      if (JSON.stringify(toolsFormData.value.timeRange) !== JSON.stringify(value)) {
+        cacheTimeRange.value = JSON.parse(JSON.stringify(toolsFormData.value.timeRange));
+        toolsFormData.value.timeRange = value;
+        showRestore.value = true;
+      }
+    }
+
+    function handleRestoreEvent() {
+      toolsFormData.value.timeRange = JSON.parse(JSON.stringify(cacheTimeRange.value));
+      showRestore.value = false;
     }
 
     return {
@@ -374,7 +467,7 @@ export default defineComponent({
       <div class='profiling-page'>
         <div class='page-header'>
           <PageHeader
-            v-model={this.toolsFormData}
+            data={this.toolsFormData}
             isShowSearch={this.searchState.isShow}
             onChange={this.handleToolFormDataChange}
             onImmediateRefresh={this.handleQuery}
@@ -447,6 +540,7 @@ export default defineComponent({
         {this.isFull && (
           <Dialog
             ext-cls='full-dialog'
+            dialog-type='show'
             draggable={false}
             header-align='center'
             is-show={this.isFull}

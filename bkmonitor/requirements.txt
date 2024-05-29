@@ -73,7 +73,7 @@ raven==6.9.0
 supervisor==4.2.5
 sentry-sdk==0.9.0
 pyinstrument==3.4.2
-ddtrace==0.14.1
+ddtrace==1.7.5
 
 # other
 pyppeteer==0.2.5
@@ -128,3 +128,6 @@ bk-crypto-python-sdk==1.0.4
 
 # graphviz
 graphviz==0.19.1
+
+# kafka with sasl
+confluent-kafka==2.4.0

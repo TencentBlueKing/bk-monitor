@@ -49,7 +49,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
   @Model('changeCommonDateData', {
     type: Object,
   })
-  commonDateData!: Object;
+  commonDateData!: object;
   isEdit = false;
   isClone = false;
   biz = {
@@ -85,7 +85,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
   desc = '';
   loading = false;
 
-  throttledScroll: Function = () => {};
+  throttledScroll = () => {};
 
   @Watch('shieldData', { immediate: true, deep: true })
   handleShieldData(data) {
@@ -164,13 +164,13 @@ export default class AlarmShieldDimension extends tsc<IProps> {
     this.loading = false;
   }
   /* 获取策略列表数据 */
-  async getStrategyList(serach = '') {
+  async getStrategyList(search = '') {
     return await getStrategyListV2({
-      conditions: serach
+      conditions: search
         ? [
             {
               key: 'strategy_name',
-              value: [serach],
+              value: [search],
             },
           ]
         : [],

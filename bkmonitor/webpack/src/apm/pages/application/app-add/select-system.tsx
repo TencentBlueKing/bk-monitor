@@ -142,11 +142,15 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
     {
       id: 'opentelemetry',
       name: 'OpenTelemetry',
+      desc: '',
+      docs: 'tracing_docs',
       img: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9Ii0xMi43IC0xMi43IDEwMjQuNCAxMDI0LjQiPjxwYXRoIGZpbGw9IiNmNWE4MDAiIGQ9Ik01MjguNyA1NDUuOWMtNDIgNDItNDIgMTEwLjEgMCAxNTIuMXMxMTAuMSA0MiAxNTIuMSAwIDQyLTExMC4xIDAtMTUyLjEtMTEwLjEtNDItMTUyLjEgMHptMTEzLjcgMTEzLjhjLTIwLjggMjAuOC01NC41IDIwLjgtNzUuMyAwLTIwLjgtMjAuOC0yMC44LTU0LjUgMC03NS4zIDIwLjgtMjAuOCA1NC41LTIwLjggNzUuMyAwIDIwLjggMjAuNyAyMC44IDU0LjUgMCA3NS4zem0zNi42LTY0M2wtNjUuOSA2NS45Yy0xMi45IDEyLjktMTIuOSAzNC4xIDAgNDdsMjU3LjMgMjU3LjNjMTIuOSAxMi45IDM0LjEgMTIuOSA0NyAwbDY1LjktNjUuOWMxMi45LTEyLjkgMTIuOS0zNC4xIDAtNDdMNzI1LjkgMTYuN2MtMTIuOS0xMi45LTM0LTEyLjktNDYuOSAwek0yMTcuMyA4NTguOGMxMS43LTExLjcgMTEuNy0zMC44IDAtNDIuNWwtMzMuNS0zMy41Yy0xMS43LTExLjctMzAuOC0xMS43LTQyLjUgMEw3Mi4xIDg1MmwtLjEuMS0xOS0xOWMtMTAuNS0xMC41LTI3LjYtMTAuNS0zOCAwLTEwLjUgMTAuNS0xMC41IDI3LjYgMCAzOGwxMTQgMTE0YzEwLjUgMTAuNSAyNy42IDEwLjUgMzggMHMxMC41LTI3LjYgMC0zOGwtMTktMTkgLjEtLjEgNjkuMi02OS4yeiIvPjxwYXRoIGZpbGw9IiM0MjVjYzciIGQ9Ik01NjUuOSAyMDUuOUw0MTkuNSAzNTIuM2MtMTMgMTMtMTMgMzQuNCAwIDQ3LjRsOTAuNCA5MC40YzYzLjktNDYgMTUzLjUtNDAuMyAyMTEgMTcuMmw3My4yLTczLjJjMTMtMTMgMTMtMzQuNCAwLTQ3LjRMNjEzLjMgMjA1LjljLTEzLTEzLjEtMzQuNC0xMy4xLTQ3LjQgMHptLTk0IDMyMi4zbC01My40LTUzLjRjLTEyLjUtMTIuNS0zMy0xMi41LTQ1LjUgMEwxODQuNyA2NjMuMmMtMTIuNSAxMi41LTEyLjUgMzMgMCA0NS41bDEwNi43IDEwNi43YzEyLjUgMTIuNSAzMyAxMi41IDQ1LjUgMEw0NTggNjk0LjFjLTI1LjYtNTIuOS0yMS0xMTYuOCAxMy45LTE2NS45eiIvPjwvc3ZnPg==',
     },
     {
       id: 'log_trace',
       name: 'Logs to Traces',
+      desc: '',
+      docs: '',
       img: 'data:image/png;base64,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',
     },
   ];
@@ -551,8 +555,15 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                   <div class='plugin-name'>
                     <span>{item.name}</span>
                     <span class='desc'>
-                      说明文案
-                      <span class='link-text'>{this.$t('接入指引')}</span>
+                      <span>{item.desc}</span>
+                      {item.docs && (
+                        <span
+                          class='link-text'
+                          onClick={() => this.handleGotoLink(item.docs)}
+                        >
+                          {this.$t('接入指引')}
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>

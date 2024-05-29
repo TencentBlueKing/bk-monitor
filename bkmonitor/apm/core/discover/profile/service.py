@@ -21,17 +21,13 @@ logger = logging.getLogger("apm")
 
 
 class ServiceDiscover(Discover):
-    # 获取service的前10条数据进行计算信息
-    # TODO
-    #  1. 目前实现可能是临时方案 后续支持SQL查询时使用distinct+group_by实现
-    #  2. Bkbase 暂不支持时间过滤 service 接口所以这里查询了所有出现过的 service
+    """Profile 服务 + 采样类型发现"""
 
     @classmethod
     def get_name(cls):
         return "service_discover"
 
     def discover(self, start_time: int, end_time: int):
-        """发现profile服务"""
         check_time = timezone.now()
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
 
@@ -45,44 +41,75 @@ class ServiceDiscover(Discover):
             # Step2: 按照此服务下出现过的 type
             types = self.get_builder().with_api_type(ProfileApiType.COL_TYPE).with_service_filter(svr).execute()
             if not types:
-                logger.warning(f"[ProfileServiceDiscover] could not found types of service: {svr}")
+                logger.warning(f"[ProfileServiceDiscover] could not found types of service: {svr}, continue")
                 continue
 
             logger.info(f"[ProfileServiceDiscover] found {len(types)} types: {types}")
-            for col_type in types:
-                col_type = col_type.get("type")
+            for item in types:
+                col_type = item.get("type")
                 if not col_type:
-                    logger.warning(f"[ProfileServiceDiscover] query {svr} types successfully, but return a none type")
+                    logger.warning(
+                        f"[ProfileServiceDiscover] query {svr} types successfully, " f"but type is null! item: {item}"
+                    )
                     continue
 
-                # Step3: 获取此 type 下的一条数据
-                type_samplers = (
+                # Step3: 寻找此服务、此 type 下出现过的所有 sample_type
+                sample_types = (
                     self.get_builder()
+                    .with_api_type(ProfileApiType.AGGREGATE)
                     .with_time(start_time, end_time)
-                    .with_api_type(ProfileApiType.SAMPLE)
-                    .with_service_filter(svr)
-                    .with_offset_limit(0, 1)
-                    .with_type(col_type)
+                    .with_metric_fields("count(1)")
+                    .with_dimension_fields("sample_type")
+                    .with_general_filters(
+                        {
+                            "service_name": f"op_eq|{svr}",
+                            "type": f"op_eq|{col_type}",
+                        }
+                    )
                     .execute()
                 )
-                if not type_samplers:
-                    logger.info(f"[ProfileServiceDiscover] receive a empty sample of {svr}")
-                    continue
-                sampler = type_samplers[0]
-                period = sampler.get("period")
-                period_type = sampler.get("period_type")
-                instances.append(
-                    ProfileService(
-                        bk_biz_id=self.bk_biz_id,
-                        app_name=self.app_name,
-                        name=svr,
-                        period=period,
-                        period_type=period_type,
-                        frequency=self._calculate_frequency(sampler),
-                        data_type=col_type,
-                        last_check_time=check_time,
+
+                for sample_type in sample_types:
+                    logger.info(
+                        f"[ProfileServiceDiscover] service: {svr} type: {col_type} "
+                        f"found sample_type: {sample_type.get('sample_type')}, total: {sample_type.get('count(1)')}",
                     )
-                )
+                    if not sample_type.get("sample_type"):
+                        logger.warning(f"[ProfileServiceDiscover] aggregate get empty sample_type! data: {sample_type}")
+                        continue
+
+                    # Step4: 寻找此服务、此 type、此 sample_type下的一条数据
+                    sample_type_samplers = (
+                        self.get_builder()
+                        .with_time(start_time, end_time)
+                        .with_api_type(ProfileApiType.SAMPLE)
+                        .with_service_filter(svr)
+                        .with_offset_limit(0, 1)
+                        .with_type(col_type)
+                        .with_general_filters({"sample_type": f"op_eq|{sample_type['sample_type']}"})
+                        .execute()
+                    )
+                    if not sample_type_samplers:
+                        logger.info(
+                            f"[ProfileServiceDiscover] " f"receive a empty sample of service: {svr} / type: {col_type}"
+                        )
+                        continue
+                    sampler = sample_type_samplers[0]
+                    period = sampler.get("period")
+                    period_type = sampler.get("period_type")
+                    instances.append(
+                        ProfileService(
+                            bk_biz_id=self.bk_biz_id,
+                            app_name=self.app_name,
+                            name=svr,
+                            period=period,
+                            period_type=period_type,
+                            frequency=self._calculate_frequency(sampler),
+                            data_type=col_type,
+                            last_check_time=check_time,
+                            sample_type=sample_type["sample_type"],
+                        )
+                    )
 
         # Final: 保存到数据库
         self._upsert(instances, check_time)
@@ -92,14 +119,14 @@ class ServiceDiscover(Discover):
         update_instances = []
         create_instances = []
 
-        # 去重依据: service_name + data_type
+        # 去重依据: service_name + data_type + sample_type
         exist_mapping = {
-            (i.name, i.data_type): i.id
+            (i.name, i.data_type, i.sample_type): i.id
             for i in ProfileService.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         }
 
         for instance in instances:
-            key = (instance.name, instance.data_type)
+            key = (instance.name, instance.data_type, instance.sample_type)
             if key in exist_mapping:
                 logger.info(f"[ProfileDiscover] update service key -> {key}")
                 instance.id = exist_mapping[key]

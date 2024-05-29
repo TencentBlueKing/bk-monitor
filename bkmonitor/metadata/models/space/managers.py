@@ -153,6 +153,17 @@ class SpaceManager(models.Manager):
         else:
             raise ValueError("biz_id: %s not match space info", bk_biz_id)
 
+    def get_biz_id_by_space(self, space_type: str, space_id: str) -> Optional[int]:
+        """通过空间类型和空间ID获取业务ID"""
+        try:
+            obj = self.get(space_type_id=space_type, space_id=space_id)
+        except self.model.DoesNotExist:
+            return None
+        if space_type == constants.SpaceTypes.BKCC.value:
+            return obj.space_id
+        # 非bkcc空间类型，返回负值
+        return -obj.id
+
 
 class SpaceResourceManager(models.Manager):
     def get_resource_by_resource_type(self, space_type_id: str, resource_type: str) -> List:

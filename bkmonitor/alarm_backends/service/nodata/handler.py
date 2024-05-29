@@ -22,7 +22,6 @@ from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.handlers import base
 from alarm_backends.service.nodata.tasks import no_data_check
-from core.errors.iam import PermissionDeniedError
 
 logger = logging.getLogger("nodata")
 # 每分钟运行一次，检测两个周期前的 access 数据，运行间隔需要保持一致，建议设置为每分钟的后半分钟时间段
@@ -47,22 +46,10 @@ class NodataHandler(base.BaseHandler):
 
         logger.info("[nodata] get leader now")
         now_timestamp = arrow.utcnow().timestamp - constants.CONST_MINUTES
-        strategy_ids = StrategyCacheManager.get_strategy_ids()
+        strategy_ids = StrategyCacheManager.get_nodata_strategy_ids()
         published = []
         for strategy_id in strategy_ids:
             strategy = Strategy(strategy_id)
-
-            # 如果策略没有启用，则不进行检测
-            is_enabled = False
-            try:
-                for item in strategy.items:
-                    if item.no_data_config.get("is_enabled"):
-                        is_enabled = True
-            except PermissionDeniedError:
-                continue
-
-            if not is_enabled:
-                continue
 
             # 只处理当前集群的策略
             if not get_cluster().match(TargetType.biz, strategy.bk_biz_id):

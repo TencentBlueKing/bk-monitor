@@ -14,6 +14,7 @@ import logging
 import typing
 from dataclasses import asdict, dataclass, field
 
+from apm.constants import ProfileApiType
 from core.drf_resource import api
 
 logger = logging.getLogger("apm")
@@ -42,8 +43,11 @@ class ApiParam:
     service_name: str = ""
     limit: ApiParamLimit = None
     order: ApiParamOrder = None
+    metric_fields: str = ""
+    general_filters: dict = None
+    dimension_fields: str = ""
 
-    def to_json(self):
+    def to_json(self, api_type=None):
         r = {
             "biz_id": self.biz_id,
             "app": self.app,
@@ -62,6 +66,16 @@ class ApiParam:
             r["start"] = self.start
         if self.end:
             r["end"] = self.end
+        if api_type in [ProfileApiType.SAMPLE, ProfileApiType.AGGREGATE]:
+            if not self.dimension_fields:
+                r["dimension_fields"] = ",".join(["type", "service_name", "period_type", "period", "sample_type"])
+            else:
+                r["dimension_fields"] = self.dimension_fields
+        if self.general_filters:
+            r["general_filters"] = self.general_filters
+        if self.metric_fields:
+            r["metric_fields"] = self.metric_fields
+
         return r
 
 
@@ -119,6 +133,24 @@ class ProfileQueryBuilder:
         self.api_params.limit = ApiParamLimit(offset=offset, rows=limit)
         return self
 
+    def with_metric_fields(self, fields):
+        if self.api_params.metric_fields:
+            logger.warning(f"[ProfileQuery] metric_fields: {self.api_params.metric_fields} found, overwrite")
+        self.api_params.metric_fields = fields
+        return self
+
+    def with_general_filters(self, filters):
+        if self.api_params.general_filters:
+            logger.warning(f"[ProfileQuery] general_filters: {self.api_params.general_filters} found, overwrite")
+        self.api_params.general_filters = filters
+        return self
+
+    def with_dimension_fields(self, fields):
+        if self.api_params.dimension_fields:
+            logger.warning(f"[ProfileQuery] dimension_fields: {self.api_params.metric_fields} found, overwrite")
+        self.api_params.dimension_fields = fields
+        return self
+
     def copy(self):
         return copy.deepcopy(self)
 
@@ -127,13 +159,13 @@ class ProfileQueryBuilder:
             "sql": json.dumps(
                 {
                     "api_type": self.api_type,
-                    "api_params": self.api_params.to_json(),
+                    "api_params": self.api_params.to_json(self.api_type),
                     "result_table_id": self.table_name,
                 }
             ),
             "prefer_storage": "doris",
             "_user_request": True,
         }
-        logger.info(f"[ProfileQuery] origin_params: \n{json.dumps(params)}\n")
+        logger.info(f"[ProfileQuery] origin_params: \n-----\n{json.dumps(params)}\n-----\n")
         response = api.bkdata.query_data(**params)
         return response.get("list", [])

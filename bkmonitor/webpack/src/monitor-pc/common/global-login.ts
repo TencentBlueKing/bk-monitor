@@ -25,5 +25,5 @@
  */
 import { showLoginModal } from '@blueking/login-modal';
 if (!window.__POWERED_BY_BK_WEWEB__) {
-  window.parent.showLoginModal = showLoginModal;
+  window.showLoginModal = showLoginModal;
 }

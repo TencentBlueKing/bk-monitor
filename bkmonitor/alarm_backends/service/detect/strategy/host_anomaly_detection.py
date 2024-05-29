@@ -32,9 +32,8 @@ class HostAnomalyDetection(BasicAlgorithmsCollection):
         yield ExprDetectAlgorithms(
             expr,
             (
-                "主机智能异常检测 发现 {{ anomaly_sort | length }} 个指标异常："
-                "{% for item in anomaly_sort %}{{ item.4 }}({{ item.0 }})={{ item.3 }}"
-                "(异常得分: {{ item.2 }}); {% endfor %}"
+                "主机智能异常检测 发现 {{ anomaly_sort | length }} 个指标异常：\n"
+                "{% for item in anomaly_sort %}{{ item.4 }}({{ item.0 }})={{ item.3 }}\n{% endfor %}"
             ),
         )
 

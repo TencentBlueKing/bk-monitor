@@ -37,8 +37,8 @@ class BkchatAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         if settings.BKCHAT_APP_CODE:
             validated_request_data.update(
                 {
-                    "bk_app_code": settings.BKHCAT_APP_CODE,
-                    "bk_app_secret": settings.BKHCAT_APP_SECRET,
+                    "bk_app_code": settings.BKCHAT_APP_CODE,
+                    "bk_app_secret": settings.BKCHAT_APP_SECRET,
                     "biz_id": settings.BKCHAT_BIZ_ID,
                 }
             )

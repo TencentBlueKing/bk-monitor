@@ -66,6 +66,10 @@ export default defineComponent({
         if (val) {
           Object.assign(toolsFormData, val);
         }
+      },
+      {
+        immediate: true,
+        deep: true,
       }
     );
 

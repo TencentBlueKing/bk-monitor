@@ -100,6 +100,7 @@ export interface IBookMarkOptions {
     split_switcher?: boolean; // 是否需要合并、分割视图开关
     method_select?: boolean; // 是否需要汇聚周期选择器
     need_compare_target?: boolean; // 是否需要目标对比
+    full_table?: boolean; // 是否需要全屏表格
   };
   // 是否开启图表索引列表功能
   enable_index_list?: boolean;
@@ -294,7 +295,7 @@ export class BookMarkModel implements IBookMark {
         {
           id: '__UN_GROUP__',
           name: window.i18n.tc('未分组视图'),
-          multiable: true,
+          multiple: true,
           children: list,
         },
       ];
@@ -303,7 +304,7 @@ export class BookMarkModel implements IBookMark {
       return this.panels.map(item => ({
         id: item.id.toString(),
         name: item.title.toString(),
-        multiable: true,
+        multiple: true,
         children:
           item.panels?.map(set => ({
             id: set.id.toString(),

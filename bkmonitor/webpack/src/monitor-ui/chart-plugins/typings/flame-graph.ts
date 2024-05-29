@@ -83,6 +83,7 @@ export interface BaseDataType {
     baseline: number;
     comparison: number;
     mark: 'added' | 'changed' | 'removed' | 'unchanged';
+    diff: number;
   };
 }
 export interface ILineData<D extends BaseDataType> {
@@ -96,6 +97,7 @@ export interface IFlameChartOptions {
   h?: number;
   c?: number;
   minHeight?: number;
+  unit?: string;
   transitionDuration?: number;
   keywords?: string[];
   direction?: 'ltr' | 'rtl';
@@ -123,11 +125,11 @@ export interface IBaseTraceInfo {
   trace_duration: number; // trace 持续时间
 }
 export const CommonMenuList: ICommonMenuItem[] = [
-  // {
-  //   id: 'span',
-  //   name: window.i18n.tc('Span 详情'),
-  //   icon: 'icon-menu-view'
-  // },
+  {
+    id: 'copy',
+    name: window.i18n.tc('复制函数名称'),
+    icon: 'icon-menu-view',
+  },
   {
     id: 'reset',
     name: window.i18n.tc('重置图表'),
@@ -135,7 +137,7 @@ export const CommonMenuList: ICommonMenuItem[] = [
   },
   {
     id: 'highlight',
-    name: window.i18n.tc('高亮相似 Span'),
+    name: window.i18n.tc('高亮相似 Node'),
     icon: 'icon-menu-view',
   },
 ];
@@ -147,9 +149,12 @@ export interface ITipsDetail {
   proportion?: number | string;
   duration?: string;
   diffDuration?: string;
+  diffData?: number | string;
   diffValue?: number | string;
   id?: number | string;
   mark?: BaseDataType['diff_info']['mark'];
+  data?: number | string;
+  dataText?: string;
 }
 export interface IAxisRect {
   left?: number;

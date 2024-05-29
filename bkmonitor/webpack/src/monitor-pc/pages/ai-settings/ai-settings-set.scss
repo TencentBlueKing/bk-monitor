@@ -1,0 +1,137 @@
+.ai-settings-set {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: 24px 24px 50px 24px;
+
+  .mt-6 {
+    margin-top: 6px;
+  }
+
+  .mb-16 {
+    margin-bottom: 16px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .w-88 {
+    width: 88px;
+  }
+
+  .bk-slider-button {
+    z-index: 1;
+  }
+
+  .ai-settings-set-content {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 50px;
+
+    .settings-form-item {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 24px;
+      font-size: 12px;
+      color: #63656e;
+
+      .item-label {
+        position: relative;
+        width: 152px;
+        margin-right: 24px;
+        text-align: right;
+
+        &.required::after {
+          position: absolute;
+          top: 4px;
+          right: -9px;
+          color: red;
+          content: '*';
+        }
+      }
+
+      .item-content {
+        position: relative;
+        min-width: 400px;
+
+        .h16 {
+          height: 16px;
+        }
+      }
+
+      .enable-switch-wrap {
+        display: flex;
+        align-items: center;
+      }
+
+      .right-tip {
+        margin-left: 16px;
+        font-size: 12px;
+        color: #979ba5;
+
+        .icon-hint {
+          margin-right: 4px;
+          font-size: 14px;
+        }
+      }
+
+      .sensitivity-tips {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #979ba5;
+      }
+    }
+  }
+
+  .ai-settings-set-footer {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 200;
+    display: flex;
+    flex: 0 0 50px;
+    align-items: center;
+    height: 50px;
+    padding: 0 24px;
+    background: #fff;
+    box-shadow: 0px 3px 4px 0px rgb(64 112 203 / 6%);
+  }
+}
+
+.ai-settings-scheme-select {
+  .bk-tooltip-ref {
+    width: 100%;
+  }
+}
+
+.programme-item-popover {
+  /* stylelint-disable-next-line declaration-no-important */
+  left: 20px !important;
+
+  .content-item {
+    display: flex;
+    padding: 4px;
+    color: #63656e;
+
+    .content-item-title {
+      display: inline-block;
+      width: 100px;
+      margin-right: 4px;
+      color: #979ba5;
+      text-align: right;
+    }
+
+    .content-item-description {
+      display: inline-block;
+      width: 300px;
+      overflow: hidden;
+      // text-overflow: ellipsis;
+      word-wrap: break-word;
+    }
+  }
+}

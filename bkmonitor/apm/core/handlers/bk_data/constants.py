@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.db.models import TextChoices
-from django.utils.translation import ugettext_lazy as _
 
 
 class FlowStatus(TextChoices):
@@ -18,9 +17,9 @@ class FlowStatus(TextChoices):
     用来追踪一个Flow的各个阶段
     """
 
-    CONFIG_DEPLOY_FAILED = "config_deploy_failed", _("数据源配置失败")
-    CONFIG_CLEANS_FAILED = "config_cleans_failed", _("清洗配置失败")
-    CONFIG_CLEANS_START_FAILED = "config_cleans_start_failed", _("清洗启动失败")
-    AUTH_FAILED = "auth_failed", _("项目授权失败")
-    CONFIG_FLOW_FAILED = "config_flow_failed", _("Flow配置失败")
-    SUCCESS = "success", _("启动完成")
+    CONFIG_DEPLOY_FAILED = "config_deploy_failed", "数据源配置失败"
+    CONFIG_CLEANS_FAILED = "config_cleans_failed", "清洗配置失败"
+    CONFIG_CLEANS_START_FAILED = "config_cleans_start_failed", "清洗启动失败"
+    AUTH_FAILED = "auth_failed", "项目授权失败"
+    CONFIG_FLOW_FAILED = "config_flow_failed", "Flow配置失败"
+    SUCCESS = "success", "启动完成"

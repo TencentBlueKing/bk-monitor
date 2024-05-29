@@ -70,7 +70,6 @@ export default class TrendChart extends tsc<ITrendChartProps> {
     let type;
     let targetApi;
     let targetData;
-    const alias = this.queryParams.is_compared ? '' : 'Sample 数';
     if (this.chartType === 'all') {
       type = 'line';
       targetApi = 'apm_profile.query';
@@ -94,7 +93,7 @@ export default class TrendChart extends tsc<ITrendChartProps> {
         {
           api: targetApi,
           datasource: 'time_series',
-          alias,
+          alias: '',
           data: targetData,
         },
       ],

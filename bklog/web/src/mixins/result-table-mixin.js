@@ -169,7 +169,7 @@ export default {
     },
     /** 是否展示数据来源 */
     isShowSourceField() {
-      return this.operatorConfig.isShowSourceField;
+      return this.operatorConfig?.isShowSourceField ?? false;
     }
   },
   watch: {
@@ -186,33 +186,34 @@ export default {
       this.cacheOverFlowCol = [];
     },
     clearTableWidth() {
-      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+      const storageStr = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
+      const columnObj = JSON.parse(localStorage.getItem(storageStr));
       const {
-        params: { indexId },
+        params: { indexId: routerIndexID },
         query: { bizId }
       } = this.$route;
       if (columnObj === null || JSON.stringify(columnObj) === '{}') {
         return;
       }
       const isHaveBizId = Object.keys(columnObj).some(el => el === bizId);
-
-      if (!isHaveBizId || columnObj[bizId].fields[indexId] === undefined) {
+      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : routerIndexID;
+      if (!isHaveBizId || columnObj[bizId].fields[indexKey] === undefined) {
         return;
       }
 
       for (const bizKey in columnObj) {
         if (bizKey === bizId) {
           for (const fieldKey in columnObj[bizKey].fields) {
-            if (fieldKey === indexId) {
-              delete columnObj[bizId].fields[indexId];
-              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexId, 1));
+            if (fieldKey === indexKey) {
+              delete columnObj[bizId].fields[indexKey];
+              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexKey, 1));
               columnObj[bizId].indexsetIds.length === 0 && delete columnObj[bizId];
             }
           }
         }
       }
 
-      localStorage.setItem('table_column_width_obj', JSON.stringify(columnObj));
+      localStorage.setItem(storageStr, JSON.stringify(columnObj));
     }
   },
   methods: {
@@ -256,43 +257,45 @@ export default {
       ele.toggleRowExpansion(row);
     },
     handleHeaderDragend(newWidth, oldWidth, { index }) {
+      const storageStr = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
       const {
-        params: { indexId },
+        params: { indexId: routerIndexID },
         query: { bizId }
       } = this.$route;
-      if (index === undefined || bizId === undefined || indexId === undefined) {
+      if (index === undefined || bizId === undefined || (routerIndexID === undefined && !this.isUnionSearch)) {
         return;
       }
+      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : routerIndexID;
       // 缓存其余的宽度
       const widthObj = {};
       widthObj[index] = Math.ceil(newWidth);
 
-      let columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+      let columnObj = JSON.parse(localStorage.getItem(storageStr));
       if (columnObj === null) {
         columnObj = {};
-        columnObj[bizId] = this.initSubsetObj(bizId, indexId);
+        columnObj[bizId] = this.initSubsetObj(bizId, indexKey);
       }
       const isIncludebizId = Object.keys(columnObj).some(el => el === bizId);
-      isIncludebizId === false && (columnObj[bizId] = this.initSubsetObj(bizId, indexId));
+      isIncludebizId === false && (columnObj[bizId] = this.initSubsetObj(bizId, indexKey));
 
       for (const key in columnObj) {
         if (key === bizId) {
-          if (columnObj[bizId].fields[indexId] === undefined) {
-            columnObj[bizId].fields[indexId] = {};
-            columnObj[bizId].indexsetIds.push(indexId);
+          if (columnObj[bizId].fields[indexKey] === undefined) {
+            columnObj[bizId].fields[indexKey] = {};
+            columnObj[bizId].indexsetIds.push(indexKey);
           }
-          columnObj[bizId].fields[indexId] = Object.assign(columnObj[bizId].fields[indexId], widthObj);
+          columnObj[bizId].fields[indexKey] = Object.assign(columnObj[bizId].fields[indexKey], widthObj);
         }
       }
 
-      localStorage.setItem('table_column_width_obj', JSON.stringify(columnObj));
+      localStorage.setItem(storageStr, JSON.stringify(columnObj));
     },
-    initSubsetObj(bizId, indexId) {
+    initSubsetObj(bizId, indexKey) {
       const subsetObj = {};
       subsetObj.bizId = bizId;
-      subsetObj.indexsetIds = [indexId];
+      subsetObj.indexsetIds = [indexKey];
       subsetObj.fields = {};
-      subsetObj.fields[indexId] = {};
+      subsetObj.fields[indexKey] = {};
       return subsetObj;
     },
     // eslint-disable-next-line no-unused-vars

@@ -29,6 +29,8 @@ import { useI18n } from 'vue-i18n';
 import { Button, Exception, Select } from 'bkui-vue';
 import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { docCookies } from 'monitor-common/utils/utils';
 
 import { IQueryParams } from '../../../typings/trace';
 import { ConditionType, DataTypeItem, RetrievalFormData } from '../typings';
@@ -86,6 +88,8 @@ export default defineComponent({
 
     const selectToggle = ref(false);
 
+    const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+
     init();
 
     /**
@@ -142,12 +146,14 @@ export default defineComponent({
      */
     function handleSelectFileToggle(v: boolean) {
       selectToggle.value = v;
+      // 每次打开下拉框都更新下拉列表数据状态
+      if (v) handleRefleshFiles();
     }
 
     function statusRender(status: EFileStatus, needName = true) {
       if ([EFileStatus.uploaded, EFileStatus.parsingSucceed, EFileStatus.storeSucceed].includes(status)) {
         return (
-          <div class='status'>
+          <div class={['status', { en: isEn }]}>
             <div class='success circle'></div>
             {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>
@@ -155,7 +161,7 @@ export default defineComponent({
       }
       if ([EFileStatus.parsingFailed, EFileStatus.storeFailed].includes(status)) {
         return (
-          <div class='status'>
+          <div class={['status', { en: isEn }]}>
             <div class='error circle'></div>
             {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>
@@ -205,7 +211,7 @@ export default defineComponent({
           </Button>
 
           <div class='file-select'>
-            {this.isCompare && <div class='label where'>{this.t('查询项')}</div>}
+            {this.isCompare && <div class='label where'>{this.t('当前查询项')}</div>}
             <Select
               popoverOptions={{
                 extCls: 'upload-select-popover',
@@ -262,7 +268,7 @@ export default defineComponent({
           </div>
           {this.isCompare && (
             <div class='file-select'>
-              {this.isCompare && <div class='label comparison'>{this.t('对比项')}</div>}
+              {this.isCompare && <div class='label comparison'>{this.t('参照查询项')}</div>}
               <Select
                 popoverOptions={{
                   extCls: 'upload-select-popover',

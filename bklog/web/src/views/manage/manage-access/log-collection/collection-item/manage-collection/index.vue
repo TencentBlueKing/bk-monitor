@@ -59,8 +59,11 @@
         <component
           :is="dynamicComponent"
           class="tab-content"
+          :is-show-edit-btn="true"
           :collector-data="collectorData"
           :index-set-id="collectorData.index_set_id"
+          :edit-auth="editAuth"
+          :edit-auth-data="editAuthData"
           @update-active-panel="activePanel = $event"
         ></component>
       </keep-alive>
@@ -97,6 +100,10 @@ export default {
       authPageInfo: null,
       collectorData: null,
       activePanel: this.$route.query.type || 'basicInfo',
+      /** 是否有编辑权限 */
+      editAuth: false,
+      /** 编辑无权限时的弹窗数据 */
+      editAuthData: null,
       panels: [
         { name: 'basicInfo', label: this.$t('配置信息') },
         { name: 'collectionStatus', label: this.$t('采集状态') },
@@ -122,6 +129,7 @@ export default {
   },
   created() {
     this.initPage();
+    this.getEditAuth();
   },
   methods: {
     async initPage() {
@@ -169,6 +177,24 @@ export default {
           spaceUid: this.$store.state.spaceUid
         }
       });
+    },
+    async getEditAuth() {
+      try {
+        const paramData = {
+          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: this.$route.params.collectorId
+            }
+          ]
+        };
+        const res = await this.$store.dispatch('checkAndGetData', paramData);
+        if (!res.isAllowed) this.editAuthData = res.data;
+        this.editAuth = res.isAllowed;
+      } catch (error) {
+        this.editAuth = false;
+      }
     }
   }
 };

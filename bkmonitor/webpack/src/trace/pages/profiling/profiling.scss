@@ -47,10 +47,20 @@
   }
 }
 
-.full-dialog.bk-modal-wrapper.bk-dialog-wrapper {
+.full-dialog {
   @include viewWrap();
 
-  .bk-modal-footer {
-    display: none;
+  .bk-modal-content {
+    display: flex;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    height: 100% !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    max-height: 100% !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
+    background-color: #f5f7fa;
   }
 }

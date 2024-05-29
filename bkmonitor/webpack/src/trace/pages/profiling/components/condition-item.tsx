@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, reactive, ref, watch } from 'vue';
+import { defineComponent, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Select } from 'bkui-vue';
@@ -67,6 +67,8 @@ export default defineComponent({
     const scrollLoading = ref(false);
     const valueList = ref<string[]>([]);
 
+    const getLabelValuesDebounce = debounce(getLabelValues, 100);
+
     watch(
       () => props.data,
       newVal => {
@@ -84,7 +86,9 @@ export default defineComponent({
       }
     );
 
-    const getLabelValuesDebounce = debounce(getLabelValues, 100);
+    onMounted(() => {
+      localValue.key && getLabelValuesDebounce();
+    });
 
     /** 获取过滤项值列表 */
     async function getLabelValues() {
@@ -107,7 +111,6 @@ export default defineComponent({
     function handleKeyChange() {
       localValue.value = '';
       valueList.value = [];
-      getLabelValuesDebounce();
       handleEmitData();
     }
 
