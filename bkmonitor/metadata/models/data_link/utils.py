@@ -45,4 +45,4 @@ def get_bkdata_data_id_name(data_name: str) -> str:
     # 剔除不符合的字符
     refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, '', data_name)
     # 截取长度为45的字符串，同时拼装前缀
-    return f"bkm_{refine_data_name[-45:]}"
+    return f"bkm_{refine_data_name[-45:].lower()}"
