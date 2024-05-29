@@ -103,20 +103,21 @@ class ApmApplication(AbstractRecordModel):
         return configs
 
     @classmethod
-    def check_application(cls, app, bk_biz_id, app_name):
+    def check_application(cls, app, bk_biz_id, app_name, options: Optional[dict] = None):
         """检查应用是否已经存在"""
+
+        def check_data_source(data_source):
+            return data_source and data_source.bk_biz_id != -1 and data_source.result_table_id
+
         trace = TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         metric = MetricDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
 
-        if (
-            app
-            and trace
-            and trace.bk_biz_id != -1
-            and trace.result_table_id
-            and metric
-            and metric.bk_biz_id != -1
-            and metric.bk_biz_id
-        ):
+        if app and check_data_source(trace) and check_data_source(metric):
+            if options and options.get("enabled_profiling", False):
+                profile = ProfileDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+                if check_data_source(profile):
+                    raise ValueError(_("应用名称(app_name) {} 在该业务({})已经存在").format(app_name, bk_biz_id))
+
             raise ValueError(_("应用名称(app_name) {} 在该业务({})已经存在").format(app_name, bk_biz_id))
 
     @classmethod
@@ -125,7 +126,7 @@ class ApmApplication(AbstractRecordModel):
         cls, bk_biz_id, app_name, app_alias, description, es_storage_config, options: Optional[dict] = None
     ):
         application = cls.origin_objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        cls.check_application(application, bk_biz_id, app_name)
+        cls.check_application(application, bk_biz_id, app_name, options)
         if application:
             application.app_alias = app_alias
             application.description = description
