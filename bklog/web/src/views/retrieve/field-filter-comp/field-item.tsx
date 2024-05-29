@@ -25,7 +25,6 @@ import { Component, Prop, Emit } from 'vue-property-decorator';
 import './field-item.scss';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
-import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 
 @Component
 export default class FieldItem extends tsc<{}> {
@@ -105,14 +104,11 @@ export default class FieldItem extends tsc<{}> {
     this.analysisActive = true;
     this.fieldAnalysisInstance = new FieldAnalysis().$mount();
     const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
-    const tempList = handleTransformToTimestamp(this.datePickerValue);
     this.fieldAnalysisInstance.$props.queryParams = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
-      agg_field: this.fieldItem.field_name,
-      start_time: tempList[0],
-      end_time: tempList[1]
+      agg_field: this.fieldItem.field_name
     };
     /** 当小窗位置过于靠近底部时会显示不全chart图表，需要等接口更新完后更新Popper位置 */
     this.fieldAnalysisInstance?.$on('statisticsInfoFinish', this.updatePopperInstance);

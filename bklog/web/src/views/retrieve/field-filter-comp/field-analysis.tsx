@@ -341,7 +341,7 @@ export default class FieldAnalysis extends Vue {
       if (!this.lineChartOption.series.length) {
         this.setGraphicInvisible(false);
       } else {
-        chart.on('legendselectchanged', params => {
+        this.chart.on('legendselectchanged', params => {
           const anySeriesSelected = Object.keys(params.selected).some(key => params.selected[key]);
           this.setGraphicInvisible(anySeriesSelected);
           // 更新无数据文本的显示状态
