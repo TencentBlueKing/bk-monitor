@@ -84,6 +84,9 @@ export default class IntelligenceScene extends tsc<IProps> {
   timeRangeInit() {
     const interval = this.params.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
     const { startTime, endTime } = createAutoTimerange(this.params.begin_time, this.params.end_time, interval);
+    this.viewOptions = {
+      interval,
+    };
     this.timeRange = [startTime, endTime];
   }
 
@@ -112,7 +115,7 @@ export default class IntelligenceScene extends tsc<IProps> {
           time_series: {
             custom_timerange: true,
             hoverAllTooltips: true,
-            YAxisLabelWidth: 60,
+            YAxisLabelWidth: 70,
           },
         },
       };

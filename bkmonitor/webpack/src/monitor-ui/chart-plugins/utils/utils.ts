@@ -554,7 +554,7 @@ export const flattenObj = obj => {
 function getTextWidth(text: string, fontSize: number): number {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
-  context.font = `${fontSize}px`; // 设置字体样式
+  context.font = `${fontSize}px sans-serif`; // 设置字体样式
   const metrics = context.measureText(text); // 测量文本的宽度
   return metrics.width; // 返回文本的宽度
 }
@@ -574,8 +574,8 @@ export function padTextToWidth(targetText: string, widthInPx: number): string {
   if (textWidth >= widthInPx) {
     return targetText; // 如果目标文本宽度已经大于或等于目标宽度，直接返回目标文本
   } else {
-    const padLength = Math.floor((widthInPx - textWidth) / 3); // 假设一个字符的宽度为 6px
-    const paddedText = String(targetText).padStart(padLength + String(targetText).length, '\u202F'); // 向前填充空格
+    const padLength = Math.round((widthInPx - textWidth) / 3.56); // 假设字符的宽度为 3.56px
+    const paddedText = String(targetText).padStart(padLength + String(targetText).length, ' '); // 向前填充空格
     return paddedText;
   }
 }
