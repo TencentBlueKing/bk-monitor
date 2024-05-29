@@ -1642,7 +1642,7 @@ class GetMetricListV2Resource(Resource):
                     }
                 )
             elif (metric.data_source_label, metric.data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
-                data["custom_event_name"] = data["metric_field"]
+                data["custom_event_name"] = data["extend_fields"]["custom_event_name"]
                 data["extend_fields"]["bk_data_id"] = metric.result_table_id
             elif metric.data_source_label == DataSourceLabel.BK_DATA:
                 data["time_field"] = "dtEventTimeStamp"
