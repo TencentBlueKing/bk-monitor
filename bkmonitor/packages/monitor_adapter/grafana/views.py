@@ -139,10 +139,10 @@ class GrafanaSwitchOrgView(SwitchOrgView):
 class GrafanaProxyView(ProxyView):
     # 单仪表盘权限豁免API
     exempt_apis = [
-        re.compile("^/api/annotations"),
-        re.compile("^/api/ds/query"),
-        re.compile("^/api/datasource/proxy"),
-        re.compile(r"^/api/(\d+|uid/[a-zA-Z0-9_-]+)/resources"),
+        re.compile("/api/annotations"),
+        re.compile("/api/ds/query"),
+        re.compile("/api/datasource/proxy"),
+        re.compile(r"/api/(\d+|uid/[a-zA-Z0-9_-]+)/resources"),
     ]
 
     @method_decorator(csrf_exempt)
