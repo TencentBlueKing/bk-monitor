@@ -2462,6 +2462,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
           onMetricChange={this.handleSceneConfigMetricChange}
+          onModelChange={this.handleModelChange}
           onTargetChange={this.handleTargetChange}
         ></AiopsMonitorData>
       );

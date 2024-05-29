@@ -1847,4 +1847,5 @@ export default {
   方案: 'Plan',
   关闭通知的对象: 'Object for closing notifications',
   默认敏感度: 'Default sensitivity',
+  生成告警级别: 'Generate alarm levels',
 };

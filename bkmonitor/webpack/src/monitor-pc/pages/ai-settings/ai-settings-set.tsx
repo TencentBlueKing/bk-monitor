@@ -78,7 +78,7 @@ export default class AiSettingsSet extends tsc<object> {
     multivariate_anomaly_detection: {
       host: {
         default_plan_id: 0,
-        default_sensitivity: 0,
+        default_sensitivity: 1,
         is_enabled: true,
         exclude_target: [],
         intelligent_detect: {},
@@ -106,7 +106,7 @@ export default class AiSettingsSet extends tsc<object> {
           title: window.i18n.t('主机'),
           data: {
             default_plan_id: 0,
-            default_sensitivity: 0,
+            default_sensitivity: 1,
             is_enabled: true,
             exclude_target: [],
             intelligent_detect: {},
@@ -376,6 +376,7 @@ export default class AiSettingsSet extends tsc<object> {
                             <bk-slider
                               v-model={child.data.default_sensitivity}
                               max-value={10}
+                              min-value={1}
                             ></bk-slider>
                             <div class='sensitivity-tips'>
                               <span>{this.$t('较少告警')}</span>
