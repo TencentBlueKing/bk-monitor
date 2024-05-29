@@ -13,7 +13,7 @@ class LogOutView(APIView):
         auth.logout(request)
 
         # 验证不通过，需要跳转至统一登录平台
-        request.path = "/"
+        request.path = request.path.replace("/console/accounts/logout", "")
         handler = ResponseHandler(ConfFixture, settings)
         handler._build_extra_args = add_logout_slug
         response = handler.build_401_response(request)
