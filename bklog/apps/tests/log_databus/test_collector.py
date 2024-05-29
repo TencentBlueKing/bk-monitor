@@ -1205,12 +1205,12 @@ class TestCollector(TestCase):
         self.assertEqual(result, STATUS_DATA_RETURN)
 
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
-    @patch("apps.log_databus.handlers.collector.CollectorHandler.batch_request")
-    def _test_get_subscription_status(self, collector_config_id, mock_batch_request):
+    @patch("apps.api.base.DataAPI.bulk_request")
+    def _test_get_subscription_status(self, collector_config_id, mock_bulk_request):
         collector = CollectorHandler(collector_config_id=collector_config_id)
 
-        # 设置 batch_request 方法的模拟返回值
-        mock_batch_request.side_effect = [TASK_RESULT_DATA, PLUGIN_RESULT_DATA, TASK_RESULT_DATA, PLUGIN_RESULT_DATA]
+        # 设置 bulk_request 方法的模拟返回值
+        mock_bulk_request.side_effect = [TASK_RESULT_DATA, PLUGIN_RESULT_DATA, TASK_RESULT_DATA, PLUGIN_RESULT_DATA]
 
         # 采集目标是HOST-INSTANCE
         collector.data.target_node_type = "INSTANCE"
@@ -1352,8 +1352,8 @@ class TestCollector(TestCase):
         self.assertEqual(result[0]["task_id"], 24626)
 
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
-    @patch("apps.log_databus.handlers.collector.CollectorHandler.batch_request", return_value=TASK_RESULT_DATA)
-    def _test_get_subscription_task_status(self, collector_config_id, mock_batch_request):
+    @patch("apps.api.base.DataAPI.bulk_request", return_value=TASK_RESULT_DATA)
+    def _test_get_subscription_task_status(self, collector_config_id, mock_bulk_request):
         collector = CollectorHandler(collector_config_id=collector_config_id)
 
         # 采集目标是HOST-TOPO

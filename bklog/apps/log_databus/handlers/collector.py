@@ -25,7 +25,6 @@ import os
 import re
 import tempfile
 from collections import defaultdict
-from multiprocessing.pool import ThreadPool
 from typing import Any, Dict, List, Union
 
 import arrow
@@ -1465,9 +1464,11 @@ class CollectorHandler(object):
         if not task_ready:
             return {"task_ready": task_ready, "contents": []}
 
-        status_result = self.batch_request(
-            func=NodeApi.get_subscription_task_status,
-            params=param,
+        status_result = NodeApi.get_subscription_task_status.bulk_request(
+            params={"subscription_id": self.data.subscription_id},
+            get_data=lambda x: x["list"],
+            get_count=lambda x: x["total"],
+            app="nodeman",
         )
         instance_status = self.format_task_instance_status(status_result)
 
@@ -1993,18 +1994,22 @@ class CollectorHandler(object):
                     }
                 ]
             }
-        instance_data = self.batch_request(
-            func=NodeApi.get_subscription_task_status,
+        instance_data = NodeApi.get_subscription_task_status.bulk_request(
             params={"subscription_id": self.data.subscription_id},
+            get_data=lambda x: x["list"],
+            get_count=lambda x: x["total"],
+            app="nodeman",
         )
 
         bk_host_ids = []
         for item in instance_data:
             bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
 
-        plugin_data = self.batch_request(
-            func=NodeApi.plugin_search,
+        plugin_data = NodeApi.plugin_search.bulk_request(
             params={"conditions": [], "bk_host_id": bk_host_ids},
+            get_data=lambda x: x["list"],
+            get_count=lambda x: x["total"],
+            app="nodeman",
         )
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
 
@@ -2061,50 +2066,6 @@ class CollectorHandler(object):
         return {"contents": content_data}
 
     @staticmethod
-    def batch_request(
-        func, params, get_data=lambda x: x["list"], get_count=lambda x: x["total"], limit=500, thread_num=20
-    ):
-        """
-        并发请求接口
-        :param func: 请求方法
-        :param params: 请求参数
-        :param get_data: 获取数据函数
-        :param get_count: 获取总数函数
-        :param limit: 一次请求数量
-        :param thread_num: 线程数
-        :return: 请求结果
-        """
-        first_param = copy.deepcopy(params)
-        first_param.update({"page": 1, "pagesize": 1})
-        # 请求第一次获取总数
-        result = func(params=first_param)
-
-        count = get_count(result)
-        data = []
-        start = 1
-
-        # 根据请求总数并发请求
-        pool = ThreadPool(thread_num)
-        params_and_future_list = []
-        while start <= count:
-            request_params = {"page": start, "pagesize": limit}
-            request_params.update(params)
-            params_and_future_list.append(pool.apply_async(func, kwds={"params": request_params}))
-
-            start += limit
-
-        pool.close()
-        pool.join()
-
-        # 取值
-        for params_and_future in params_and_future_list:
-            result = params_and_future.get()
-
-            data.extend(get_data(result))
-
-        return data
-
-    @staticmethod
     def format_subscription_instance_status(instance_data, plugin_data):
         """
         对订阅状态数据按照实例运行状态进行归类
@@ -2123,26 +2084,15 @@ class CollectorHandler(object):
             # 日志采集暂时只支持本地采集
             bk_host_id = instance_obj["instance_info"]["host"]["bk_host_id"]
             plugin_statuses = plugin_status_mapping.get(bk_host_id, {})
-            plugin_status = plugin_statuses.get("status", CollectStatus.FAILED)
-
-            status = CollectStatus.FAILED
-            status_name = RunStatus.FAILED
             if instance_obj["status"] in [CollectStatus.PENDING, CollectStatus.RUNNING]:
                 status = CollectStatus.RUNNING
                 status_name = RunStatus.RUNNING
-            elif instance_obj["status"] == CollectStatus.FAILED:
+            elif instance_obj["status"] == CollectStatus.SUCCESS:
+                status = CollectStatus.SUCCESS
+                status_name = RunStatus.SUCCESS
+            else:
                 status = CollectStatus.FAILED
                 status_name = RunStatus.FAILED
-            else:
-                if plugin_status == CollectStatus.RUNNING:
-                    status = CollectStatus.SUCCESS
-                    status_name = RunStatus.SUCCESS
-                elif plugin_status == CollectStatus.UNKNOWN:
-                    status = CollectStatus.FAILED
-                    status_name = RunStatus.FAILED
-                elif plugin_status == CollectStatus.TERMINATED:
-                    status = CollectStatus.TERMINATED
-                    status_name = RunStatus.TERMINATED
 
             bk_cloud_id = instance_obj["instance_info"]["host"]["bk_cloud_id"]
             if isinstance(bk_cloud_id, list):

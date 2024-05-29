@@ -82,7 +82,6 @@ class _BKNodeApi:
             module=self.MODULE,
             description="查看订阅任务运行状态",
             before_request=get_bk_node_request_before,
-            use_superuser=True,
         )
         self.plugin_search = DataAPI(
             method="POST",
@@ -90,7 +89,6 @@ class _BKNodeApi:
             module=self.MODULE,
             description="查询插件列表",
             before_request=get_bk_node_request_before,
-            use_superuser=True,
         )
         self.check_subscription_task_ready = DataAPI(
             method="POST",

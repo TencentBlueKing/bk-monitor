@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 """
 import hashlib
 import json
+import math
 import re
 import time
 from copy import deepcopy
@@ -592,6 +593,7 @@ class DataAPI(object):
         get_data=lambda x: x["info"],
         get_count=lambda x: x["count"],
         limit=settings.BULK_REQUEST_LIMIT,
+        app=None,
     ):
         """
         并发请求接口，用于需要分页多次请求的情况
@@ -599,17 +601,22 @@ class DataAPI(object):
         :param get_data: 获取数据函数
         :param get_count: 获取总数函数
         :param limit: 一次请求数量
+        :param app: 请求系统
         :return: 请求结果
         """
         params = params or {}
-
+        # 不使用偏移量的系统
+        no_use_offset_app_list = ["nodeman", "metadata"]
         # 请求第一次获取总数
-        request_params = {"page": {"start": 0, "limit": limit}, "no_request": True}
+        if app in no_use_offset_app_list:
+            request_params = {"page": 1, "pagesize": limit, "no_request": True}
+        else:
+            request_params = {"page": {"start": 0, "limit": limit}, "no_request": True}
         request_params.update(params)
         result = self.__call__(request_params)
         count = get_count(result)
         data = get_data(result)
-        start = limit
+        start = limit if app not in no_use_offset_app_list else 2
 
         # 如果第一次没拿完，根据请求总数并发请求
         pool = ThreadPool()
@@ -617,8 +624,11 @@ class DataAPI(object):
         request = None
         with ignored(Exception):
             request = get_request()
-        while start < count:
-            request_params = {"page": {"limit": limit, "start": start}, "no_request": True}
+        while start < (count if app not in no_use_offset_app_list else (math.ceil(count / limit) + 1)):
+            if app in no_use_offset_app_list:
+                request_params = {"page": start, "pagesize": limit, "no_request": True}
+            else:
+                request_params = {"page": {"limit": limit, "start": start}, "no_request": True}
             request_params.update(params)
             # request_params["requests"] = get_request()
             futures.append(
@@ -629,7 +639,7 @@ class DataAPI(object):
                 )
             )
 
-            start += limit
+            start += limit if app not in no_use_offset_app_list else 1
 
         pool.close()
         pool.join()
