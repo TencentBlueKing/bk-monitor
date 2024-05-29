@@ -1029,7 +1029,8 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             metric_detail = {
                 "default_dimensions": [],
                 "default_condition": [],
-                "metric_field": str({table["bk_data_id"]}),
+                # "__INDEX__" 表示整个事件源索引
+                "metric_field": "__INDEX__",
                 "metric_field_name": f'{table_display_name}({table["bk_data_id"]})',
                 "dimensions": [{"id": "event_name", "name": "event_name"}],
                 "extend_fields": {
