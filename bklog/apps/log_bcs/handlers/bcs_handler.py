@@ -18,7 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 from apps.utils.log import logger
-from apps.api import BcsCcApi, BcsApi
+from apps.api import BcsApi
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 

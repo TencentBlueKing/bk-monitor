@@ -113,7 +113,6 @@ __all__ = [
     "MonitorApi",
     "GrafanaApi",
     "IAMApi",
-    "BcsCcApi",
     "BcsApi",
     "BkItsmApi",
     "BkSSMApi",
