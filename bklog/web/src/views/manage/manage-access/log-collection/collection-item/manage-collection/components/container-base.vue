@@ -54,7 +54,13 @@
       <!-- 存储集群 -->
       <div>
         <span>{{ $t('存储集群') }}</span>
-        <span>{{ collectorData.storage_cluster_name || '-' }}</span>
+        <span
+          v-bk-tooltips.top="{
+            content: `${collectorData.storage_cluster_domain_name}:${collectorData.storage_cluster_port}`,
+            disabled: !collectorData.storage_cluster_name
+          }"
+          >{{ collectorData.storage_cluster_name || '-' }}</span
+        >
       </div>
       <!-- 日志类型 -->
       <div>

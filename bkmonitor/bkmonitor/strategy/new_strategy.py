@@ -1642,10 +1642,12 @@ class Strategy(AbstractConfig):
         user_group_ids = []
         for action_relation in action_relations:
             user_group_ids.extend(action_relation.validated_user_groups)
-        user_groups_slz = UserGroupSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
         if with_detail:
             user_groups_slz = UserGroupDetailSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
+        else:
+            user_groups_slz = UserGroupSlz(UserGroup.objects.filter(id__in=user_group_ids), many=True).data
         user_groups = {group["id"]: dict(group) for group in user_groups_slz}
+
         for config in configs:
             for action in config["actions"] + [config["notice"]]:
                 user_group_list = []

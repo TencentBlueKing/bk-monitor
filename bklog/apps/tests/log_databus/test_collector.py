@@ -43,6 +43,7 @@ SUBSCRIPTION_ID = 2
 TASK_ID = 3
 NEW_TASK_ID = 4
 LAST_TASK_ID = 5
+CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
 PARAMS = {
     "bk_biz_id": 706,
     "collector_config_name": "采集项名称",
@@ -916,7 +917,7 @@ PROJECT_CLUSTER_LIST = [
 ]
 
 
-SHARED_CLUSTERS_NS = {
+LIST_NAMESPACES = {
     "count": 2,
     "results": [
         {
@@ -928,7 +929,7 @@ SHARED_CLUSTERS_NS = {
             "has_image_secret": False,
             "id": 2,
             "name": "test-cluster-share-test1",
-            "project_id": "1ce0ae294d63478ea46a2a1772acd8a7",
+            "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
             "status": "",
             "updated_at": "2021-01-01T00:00:00+08:00",
         },
@@ -941,7 +942,7 @@ SHARED_CLUSTERS_NS = {
             "has_image_secret": False,
             "id": 3,
             "name": "test-cluster-share-test2",
-            "project_id": "1ce0ae294d63478ea46a2a1772acd8a7",
+            "projectID": "1ce0ae294d63478ea46a2a1772acd8a7",
             "status": "",
             "updated_at": "2021-01-01T00:00:00+08:00",
         },
@@ -1057,14 +1058,16 @@ class TestCollector(TestCase):
             ],
         )
 
+    @patch("apps.api.TransferApi.get_cluster_info")
     @patch("apps.utils.thread.MultiExecuteFunc.append")
     @patch("apps.utils.thread.MultiExecuteFunc.run")
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: [])
     @patch("apps.api.CCApi.search_set", CCSetTest())
-    def _test_retrieve(self, collector_config_id, mock_run, mock_append):
+    def _test_retrieve(self, collector_config_id, mock_run, mock_append, mock_get_cluster_info):
         collector = CollectorHandler(collector_config_id=collector_config_id)
         mock_append.return_value = ""
         mock_run.return_value = CONFIG_DATA
+        mock_get_cluster_info.return_value = CLUSTER_INFO
         result = collector.retrieve()
 
         self.assertEqual(result.get("data_encoding"), "UTF-8")
@@ -1345,7 +1348,7 @@ class TestCollector(TestCase):
 
     @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsCcApi.list_shared_clusters_ns", lambda _: SHARED_CLUSTERS_NS)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _: LIST_NAMESPACES)
     def test_validate_container_config_yaml(self, *args, **kwargs):
         yaml_config = """
 ---
@@ -1398,7 +1401,7 @@ namespaceSelector:
 
     @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsCcApi.list_shared_clusters_ns", lambda _: SHARED_CLUSTERS_NS)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _: LIST_NAMESPACES)
     def test_list_namespace(self, *args, **kwargs):
         expect_namespace_list = {"test-cluster-share-test1", "test-cluster-share-test2"}
 

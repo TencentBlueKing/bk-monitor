@@ -32,7 +32,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsCcApi, BkLogApi, MonitorApi
+from apps.api import BkLogApi, MonitorApi, BcsApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -983,8 +983,8 @@ class SearchHandler(object):
         @param container_id:
         @return:
         """
-        bcs_cluster_info = BcsCcApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
-        space = Space.objects.filter(space_code=bcs_cluster_info["project_id"]).first()
+        bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
+        space = Space.objects.filter(space_code=bcs_cluster_info["projectID"]).first()
         project_code = ""
         if space:
             project_code = space.space_id
