@@ -550,3 +550,32 @@ export const flattenObj = obj => {
   }
   return res;
 };
+
+function getTextWidth(text: string, fontSize: number): number {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  context.font = `${fontSize}px`; // 设置字体样式
+  const metrics = context.measureText(text); // 测量文本的宽度
+  return metrics.width; // 返回文本的宽度
+}
+
+/**
+ * @description 将文字填充到指定宽度
+ * @param targetText
+ * @param widthInPx
+ * @returns
+ */
+export function padTextToWidth(targetText: string, widthInPx: number): string {
+  if (!widthInPx) {
+    return targetText;
+  }
+  const textWidth = getTextWidth(targetText, 12); // 获取目标文本的实际宽度（假设这个函数可以获取文本的宽度）
+  // console.log(textWidth);
+  if (textWidth >= widthInPx) {
+    return targetText; // 如果目标文本宽度已经大于或等于目标宽度，直接返回目标文本
+  } else {
+    const padLength = Math.floor((widthInPx - textWidth) / 3); // 假设一个字符的宽度为 6px
+    const paddedText = String(targetText).padStart(padLength + String(targetText).length, '\u202F'); // 向前填充空格
+    return paddedText;
+  }
+}
