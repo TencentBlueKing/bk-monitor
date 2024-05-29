@@ -35,7 +35,7 @@ const graphic = {
       style: {
         text: window.mainComponent.$t('无数据'),
         fontSize: 20,
-        fill: '#000'
+        fill: '#313238'
       },
       invisible: true
     }
@@ -50,6 +50,10 @@ const LINE_CHART_BASE_HEIGHT = 170;
 const GRID_PERCENTAGE = 8;
 /** 折线图一行的情况下与底部的分类的高度 */
 const LINE_CHART_LEGEND_HEIGHT = 18;
+/** 折线图向右偏移量 */
+const OFFSET_X = 10;
+/** 折线图向下偏移量 */
+const OFFSET_Y = -10;
 
 @Component
 export default class FieldAnalysis extends Vue {
@@ -65,7 +69,19 @@ export default class FieldAnalysis extends Vue {
   /** 折线图数据 */
   lineChartOption = {
     tooltip: {
-      trigger: 'axis'
+      trigger: 'axis',
+      enterable: true,
+      position: (point, params, dom) => {
+        // point 是当前鼠标的位置 [x坐标, y坐标]
+        // 为了更好的显示 Tooltip 会永远出现在鼠标的右上角
+
+        const domRect = dom.getBoundingClientRect();
+        // 计算并返回新的 Tooltip 位置
+        const x = point[0] + OFFSET_X;
+        const y = point[1] - domRect.height + OFFSET_Y;
+
+        return [x, y];
+      }
     },
     color: [],
     legend: {
@@ -296,6 +312,19 @@ export default class FieldAnalysis extends Vue {
     }
   }
 
+  /** 设置无数据的显隐 */
+  setGraphicInvisible(invisible = true) {
+    this.chart.setOption({
+      graphic: {
+        elements: [
+          {
+            invisible
+          }
+        ]
+      }
+    });
+  }
+
   initFieldChart() {
     const echarts = require('echarts');
     const chart: any = echarts.init(this.fieldChartRef, null, {
@@ -303,34 +332,22 @@ export default class FieldAnalysis extends Vue {
     });
     const getInitChartOption = this.isPillarChart ? this.pillarChartOption : this.lineChartOption;
     chart && chart.setOption(getInitChartOption);
+    this.chart = chart;
     if (this.isPillarChart) {
       if (!this.pillarChartOption.series[0].data.length) {
-        chart.setOption({
-          graphic: {
-            elements: [
-              {
-                invisible: true
-              }
-            ]
-          }
-        });
+        this.setGraphicInvisible(false);
       }
     } else {
-      chart.on('legendselectchanged', params => {
-        const anySeriesSelected = Object.keys(params.selected).some(key => params.selected[key]);
-        // 更新无数据文本的显示状态
-        chart.setOption({
-          graphic: {
-            elements: [
-              {
-                invisible: anySeriesSelected
-              }
-            ]
-          }
+      if (!this.lineChartOption.series.length) {
+        this.setGraphicInvisible(false);
+      } else {
+        chart.on('legendselectchanged', params => {
+          const anySeriesSelected = Object.keys(params.selected).some(key => params.selected[key]);
+          this.setGraphicInvisible(anySeriesSelected);
+          // 更新无数据文本的显示状态
         });
-      });
+      }
     }
-    this.chart = chart;
     this.chart.resize();
   }
 
