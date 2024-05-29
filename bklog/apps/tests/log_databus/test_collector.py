@@ -1348,7 +1348,7 @@ class TestCollector(TestCase):
 
     @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsCcApi.list_shared_clusters_ns", lambda _: SHARED_CLUSTERS_NS)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _: SHARED_CLUSTERS_NS)
     def test_validate_container_config_yaml(self, *args, **kwargs):
         yaml_config = """
 ---
@@ -1401,7 +1401,7 @@ namespaceSelector:
 
     @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsCcApi.list_shared_clusters_ns", lambda _: SHARED_CLUSTERS_NS)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _: SHARED_CLUSTERS_NS)
     def test_list_namespace(self, *args, **kwargs):
         expect_namespace_list = {"test-cluster-share-test1", "test-cluster-share-test2"}
 
