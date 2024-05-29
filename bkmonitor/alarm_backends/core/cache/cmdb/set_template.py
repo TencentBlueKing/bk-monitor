@@ -35,6 +35,10 @@ class SetTemplateManager(RefreshByBizMixin, CMDBCacheManager):
         return int(origin_key)
 
     @classmethod
+    def serialize(cls, obj):
+        return json.dumps(obj)
+
+    @classmethod
     def get(cls, set_template_id):
         """
         :param set_template_id: 集群模板ID
