@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 import abc
+import json
 
 import six
 from django.conf import settings
@@ -33,18 +34,19 @@ class UseSaaSAuthInfoMixin:
 
     def full_request_data(self, validated_request_data):
         validated_request_data = super(UseSaaSAuthInfoMixin, self).full_request_data(validated_request_data)
-        validated_request_data.update(
-            {
-                "bk_app_code": settings.SAAS_APP_CODE,
-                "bk_app_secret": settings.SAAS_SECRET_KEY,
-            }
-        )
+        validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
         return validated_request_data
 
     def get_headers(self):
         headers = super(UseSaaSAuthInfoMixin, self).get_headers()
-        headers["X-Bk-App-Code"] = settings.SAAS_APP_CODE
-        headers["X-Bk-App-Secret"] = settings.SAAS_SECRET_KEY
+        auth_info = headers.get("x-bkapi-authorization")
+        if not auth_info:
+            return headers
+
+        auth_info = json.loads(auth_info)
+        auth_info["bk_app_code"] = settings.SAAS_APP_CODE
+        auth_info["bk_app_secret"] = settings.SAAS_SECRET_KEY
+        headers["x-bkapi-authorization"] = json.dumps(auth_info)
         return headers
 
 
