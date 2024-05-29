@@ -1627,11 +1627,57 @@ class BaseTopNResource(Resource):
         return handler.top_n(fields=validated_request_data["fields"], size=validated_request_data["size"])
 
 
-class AlertTopNResource(BaseTopNResource):
+class AlertTopNResultResource(BaseTopNResource):
     handler_cls = AlertQueryHandler
 
     class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
         pass
+
+
+class AlertTopNResource(Resource):
+    handler_cls = AlertQueryHandler
+
+    class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
+        pass
+
+    def perform_request(self, validated_request_data):
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        results = resource.alert.alert_top_n_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    **validated_request_data,
+                }
+                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+            ]
+        )
+
+        result = {
+            "doc_count": 0,
+            "fields": [],
+        }
+        field_map = {}
+        id_map = {}
+        for sliced_result in results:
+            for field in sliced_result["fields"]:
+                if field["field"] not in field_map:
+                    new_field = copy.deepcopy(field)
+                    result["fields"].append(new_field)
+                    field_map[field["field"]] = len(result["fields"]) - 1
+                else:
+                    index = field_map[field["field"]]
+                    result["fields"][index]["bucket_count"] += field["bucket_count"]
+                    for bucket in field["buckets"]:
+                        if bucket["id"] not in id_map:
+                            new_bucket = copy.deepcopy(bucket)
+                            result["fields"][index]["buckets"].append(new_bucket)
+                            id_map[bucket["id"]] = len(result["fields"][index]["buckets"]) - 1
+                        else:
+                            bucket_index = id_map[bucket["id"]]
+                            result["fields"][index]["buckets"][bucket_index]["count"] += bucket["count"]
+        return result
 
 
 class ActionTopNResource(BaseTopNResource):
