@@ -32,6 +32,11 @@ class UseSaaSAuthInfoMixin:
     A：packages/monitor_web/apps.py ready 时由 web 进程写入 GlobalSettings，为通用逻辑
     """
 
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(UseSaaSAuthInfoMixin, self).full_request_data(validated_request_data)
+        validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
+        return validated_request_data
+
     def get_headers(self):
         headers = super(UseSaaSAuthInfoMixin, self).get_headers()
         auth_info = headers.get("x-bkapi-authorization")
