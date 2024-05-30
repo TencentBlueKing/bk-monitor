@@ -63,7 +63,7 @@ export const destroyTimezone = () => {
   window.timezone = dayjs.tz.guess();
   dayjs.tz.setDefault(window.timezone);
 };
-export const getDefautTimezone = () => {
+export const getDefaultTimezone = () => {
   const timezone = sessionStorage.getItem(TIMEZONE_STORE_KEY) || dayjs.tz.guess();
   window.timezone = timezone;
   dayjs.tz.setDefault(window.timezone);

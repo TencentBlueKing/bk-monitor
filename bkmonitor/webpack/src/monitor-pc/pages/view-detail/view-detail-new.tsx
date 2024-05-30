@@ -39,7 +39,7 @@ import SortButton from '../../components/sort-button/sort-button';
 import TimeRange, { TimeRangeType } from '../../components/time-range/time-range';
 // import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../components/time-range/utils';
-import { getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { IRefleshItem } from '../monitor-k8s/components/dashboard-tools';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
 import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
@@ -175,7 +175,7 @@ export default class ViewDetailNew extends tsc<IProps> {
     this.timeRange = tools.timeRange || DEFAULT_TIME_RANGE;
     this.refleshInterval = tools.refleshInterval || -1;
     this.defaultTimezone = window.timezone;
-    this.timezone = tools.timezome || getDefautTimezone();
+    this.timezone = tools.timezome || getDefaultTimezone();
     const { targets } = data.config;
     this.queryconfig = deepClone(targets);
     const str = 'ABCDEFGHIJKLNMOPQRSTUVWXYZ';

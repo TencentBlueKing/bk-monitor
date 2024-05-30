@@ -81,7 +81,7 @@ import { DEFAULT_REFLESH_LIST } from '../../../../common/constant';
 import DropDownMenu from '../../../../components/monitor-dropdown/dropdown-menu.vue';
 import TimeRange, { TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
-import { getDefautTimezone, updateTimezone } from '../../../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../../../i18n/dayjs';
 import { ICompareChangeType, IOption } from '../../../performance/performance-type';
 
 @Component({
@@ -89,8 +89,8 @@ import { ICompareChangeType, IOption } from '../../../performance/performance-ty
   components: {
     DropDownMenu,
     // MonitorDateRange,
-    TimeRange
-  }
+    TimeRange,
+  },
 })
 export default class ToolPanel extends Vue {
   @Ref('panelWrap') refPanelWrap: HTMLDivElement;
@@ -100,22 +100,22 @@ export default class ToolPanel extends Vue {
       return [
         {
           name: this.$t('1 小时'),
-          value: 1 * 60 * 60 * 1000
+          value: 1 * 60 * 60 * 1000,
         },
         {
           name: this.$t('1 天'),
-          value: 24 * 60 * 60 * 1000
+          value: 24 * 60 * 60 * 1000,
         },
         {
           name: this.$t('7 天'),
-          value: 168 * 60 * 60 * 1000
+          value: 168 * 60 * 60 * 1000,
         },
         {
           name: this.$t('1 个月'),
-          value: 720 * 60 * 60 * 1000
-        }
+          value: 720 * 60 * 60 * 1000,
+        },
       ];
-    }
+    },
   })
   readonly timerangeList: IOption[];
 
@@ -123,13 +123,13 @@ export default class ToolPanel extends Vue {
   @Prop({
     default() {
       return DEFAULT_REFLESH_LIST;
-    }
+    },
   })
   readonly refleshList: IOption[];
 
   showText = false;
   timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
-  timezone: string = getDefautTimezone();
+  timezone: string = getDefaultTimezone();
   refleshInterval = 5 * 60 * 1000;
   resizeHandler: Function = null;
 
@@ -151,8 +151,8 @@ export default class ToolPanel extends Vue {
       type,
       tools: {
         timeRange: this.timeRange,
-        refleshInterval: this.refleshInterval
-      }
+        refleshInterval: this.refleshInterval,
+      },
     };
   }
 
@@ -175,7 +175,7 @@ export default class ToolPanel extends Vue {
     };
     this.resizeHandler();
     addListener(this.refPanelWrap, this.resizeHandler);
-    this.timezone = getDefautTimezone();
+    this.timezone = getDefaultTimezone();
   }
 
   beforeDestroy() {
@@ -215,9 +215,9 @@ export default class ToolPanel extends Vue {
       flex-basis: 124px;
       width: 124px;
       padding-left: 15px;
-      line-height: 42px;
-      font-weight: 700;
       font-size: 14px;
+      font-weight: 700;
+      line-height: 42px;
       color: #313238;
     }
 
@@ -256,19 +256,21 @@ export default class ToolPanel extends Vue {
       }
 
       .time-interval {
-        /* stylelint-disable-next-line declaration-no-important */
-        height: 22px!important;
-        padding: 0 8px;
         // border-left: 1px solid #f0f1f5;
         position: relative;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        height: 22px !important;
+        padding: 0 8px;
+
         &:before {
-          content: '';
-          width: 1px;
-          background: #DCDEE5;
-          height: 14px;
           position: absolute;
           top: 50%;
           left: 0px;
+          width: 1px;
+          height: 14px;
+          content: '';
+          background: #dcdee5;
           transform: translateY(-50%);
         }
       }
