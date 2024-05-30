@@ -255,9 +255,9 @@ class DutyBaseInfoSlz(serializers.ModelSerializer):
 
 
 class DutyArrangeSlz(DutyBaseInfoSlz):
-    id = serializers.IntegerField(required=False)
-    user_group_id = serializers.IntegerField(required=False)
-    duty_rule_id = serializers.IntegerField(required=False)
+    id = serializers.IntegerField(required=False, read_only=True)
+    user_group_id = serializers.IntegerField(required=False, allow_null=True)
+    duty_rule_id = serializers.IntegerField(required=False, allow_null=True)
     need_rotation = serializers.BooleanField(required=False, default=False)
 
     users = serializers.ListField(required=False, child=UserSerializer())
@@ -450,10 +450,6 @@ class DutyRuleSlz(serializers.ModelSerializer):
 
 class DutyRuleDetailSlz(DutyRuleSlz):
     duty_arranges = serializers.ListField(child=DutyArrangeSlz(), required=False, default=list)
-    code_hash = serializers.CharField(default="")
-    app = serializers.CharField(default="")
-    path = serializers.CharField(default="")
-    snippet = serializers.CharField(default="")
 
     class Meta:
         model = DutyRule
@@ -848,9 +844,9 @@ class UserGroupDetailSlz(UserGroupSlz):
             duty_arranges_mapping = defaultdict(list)
             if duty_rule_ids:
                 # 获取对应的规则ID信息，用来做展示
+                duty_rules = DutyRule.objects.filter(id__in=duty_rule_ids)
                 kwargs["duty_rules"] = {
-                    rule_data["id"]: rule_data
-                    for rule_data in DutyRuleSlz(instance=DutyRule.objects.filter(id__in=duty_rule_ids), many=True).data
+                    rule_data["id"]: rule_data for rule_data in DutyRuleDetailSlz(instance=duty_rules, many=True).data
                 }
 
             for item in duty_arranges:

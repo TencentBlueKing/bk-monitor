@@ -915,14 +915,23 @@ class GetStrategyListV2Resource(Resource):
                     DataSourceLabel.CUSTOM,
                     DataTypeLabel.EVENT,
                 ):
-                    query_tuples.add(
-                        (
-                            query_config["data_source_label"],
-                            query_config["data_type_label"],
-                            query_config["result_table_id"],
-                            query_config["custom_event_name"],
+                    if query_config["custom_event_name"]:
+                        query_tuples.add(
+                            (
+                                query_config["data_source_label"],
+                                query_config["data_type_label"],
+                                query_config["result_table_id"],
+                                query_config["custom_event_name"],
+                            )
                         )
-                    )
+                    else:
+                        query_tuples.add(
+                            (
+                                query_config["data_source_label"],
+                                query_config["data_type_label"],
+                                query_config["result_table_id"],
+                            )
+                        )
                 elif query_config["data_source_label"] == DataSourceLabel.BK_FTA:
                     query_tuples.add(
                         (
@@ -1642,7 +1651,7 @@ class GetMetricListV2Resource(Resource):
                     }
                 )
             elif (metric.data_source_label, metric.data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
-                data["custom_event_name"] = data["metric_field"]
+                data["custom_event_name"] = data["extend_fields"]["custom_event_name"]
                 data["extend_fields"]["bk_data_id"] = metric.result_table_id
             elif metric.data_source_label == DataSourceLabel.BK_DATA:
                 data["time_field"] = "dtEventTimeStamp"
