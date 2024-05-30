@@ -633,7 +633,6 @@ export default class StrategyView extends tsc<IStrateViewProps> {
           metricMetaId,
           time_field: timeField,
           bkmonitor_strategy_id: bkmonitorStrategyId,
-          custom_event_name: customEventName,
           curRealMetric,
         }) => {
           dataTypeLabel = curRealMetric?.data_type_label || dataTypeLabel;
@@ -645,7 +644,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               return '_index'; // 此类情况field固定为_index
             }
             if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
-              return customEventName;
+              return metricField;
             }
             return metricField || bkmonitorStrategyId;
           };
