@@ -58,6 +58,9 @@ export const setGlobalBizId = () => {
   const isDemo = id => bizList.some(item => +item.bk_biz_id === +id && item.is_demo);
   const spaceUid = getUrlParam('space_uid');
   const spaceItem = spaceUid ? bizList.find(item => item.space_uid === spaceUid) : undefined;
+  if (spaceItem?.bk_biz_id) {
+    bizId = spaceItem.bk_biz_id;
+  }
   const isCanAllIn =
     ['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
     /^#\/(event-center\/detail|share)\//.test(location.hash) ||
