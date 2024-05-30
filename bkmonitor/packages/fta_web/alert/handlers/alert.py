@@ -75,7 +75,7 @@ def readable_name_alias_to_id(node: SearchField):
         result_table_id=metric.result_table_id,
         metric_field=metric.metric_field,
         index_set_id=metric.related_id,
-        custom_event_name=metric.metric_field_name,
+        custom_event_name=metric.extend_fields.get("custom_event_name"),
     )
     node.expr = Phrase(f'"{metric_id}"')
     return

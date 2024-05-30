@@ -132,7 +132,7 @@ def get_metric_id(
         DataSourceLabel.PROMETHEUS: {DataTypeLabel.TIME_SERIES: promql[:125] + "..." if len(promql) > 128 else promql},
         DataSourceLabel.CUSTOM: {
             DataTypeLabel.EVENT: "{}.{}.{}.{}".format(
-                data_source_label, data_type_label, result_table_id, custom_event_name
+                data_source_label, data_type_label, result_table_id, custom_event_name or "__INDEX__"
             ),
             DataTypeLabel.TIME_SERIES: "{}.{}.{}".format(data_source_label, result_table_id, metric_field),
         },

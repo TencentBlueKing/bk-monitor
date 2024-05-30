@@ -915,14 +915,23 @@ class GetStrategyListV2Resource(Resource):
                     DataSourceLabel.CUSTOM,
                     DataTypeLabel.EVENT,
                 ):
-                    query_tuples.add(
-                        (
-                            query_config["data_source_label"],
-                            query_config["data_type_label"],
-                            query_config["result_table_id"],
-                            query_config["custom_event_name"],
+                    if query_config["custom_event_name"]:
+                        query_tuples.add(
+                            (
+                                query_config["data_source_label"],
+                                query_config["data_type_label"],
+                                query_config["result_table_id"],
+                                query_config["custom_event_name"],
+                            )
                         )
-                    )
+                    else:
+                        query_tuples.add(
+                            (
+                                query_config["data_source_label"],
+                                query_config["data_type_label"],
+                                query_config["result_table_id"],
+                            )
+                        )
                 elif query_config["data_source_label"] == DataSourceLabel.BK_FTA:
                     query_tuples.add(
                         (
