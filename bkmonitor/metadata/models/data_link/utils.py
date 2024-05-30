@@ -22,13 +22,11 @@ logger = logging.getLogger("metadata")
 
 def get_bkdata_table_id(table_id: str) -> str:
     """获取计算平台结果表"""
-    # NOTE: 如果以 '__default__'结尾，则取前半部分
-    if table_id.endswith("__default__"):
-        table_id = table_id.split(".__default__")[0]
+    # NOTE: 按照 '__default__'截断，则取前半部分
+    table_id = table_id.split(".__default__")[0]
     # 转换中划线为下划线，
-    name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
     # NOTE: 不能以数字开头，添加一个默认前缀
-    return f"bkm_{name}"
+    return f"bkm_{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
 
 
 def compose_config(tpl: str, render_params: Dict, err_msg_prefix: Optional[str] = "compose config") -> Dict:
