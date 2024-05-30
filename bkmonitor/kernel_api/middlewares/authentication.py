@@ -143,7 +143,7 @@ class JWTAuthenticationMiddleware(LoginRequiredMiddleware):
 
             if request.jwt.is_valid:
                 try:
-                    username = request.jwt.user.username
+                    username = request.jwt.user.username or "admin"
                 except AttributeError:
                     username = "admin"
                 user = auth.authenticate(request=request, username=username)
