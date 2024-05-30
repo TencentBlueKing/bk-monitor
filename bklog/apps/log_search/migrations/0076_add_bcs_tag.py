@@ -18,7 +18,7 @@ def add_bcs_tag(apps, schema_editor):
     IndexSetTag = apps.get_model("log_search", "IndexSetTag")
     LogIndexSet = apps.get_model("log_search", "LogIndexSet")
     CollectorConfig = apps.get_model("log_databus", "CollectorConfig")
-    collect_configs = list(CollectorConfig.objects.filter(bk_app_code="bk_bcs"))
+    collect_configs = list(CollectorConfig.objects.filter(bk_app_code__in=["bk_bcs", "bk_bcs_app"]))
     for config in collect_configs:
         bcs_cluster_id = config.bcs_cluster_id
         try:
