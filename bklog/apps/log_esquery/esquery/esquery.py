@@ -188,6 +188,11 @@ class EsQuery(object):
             mappings=mappings,
         ).body
 
+        if self.search_dict.get("origin_query_string") and self.search_dict["origin_query_string"] != query_string:
+            logger.info(
+                f"attention! query_string is not equal: {self.search_dict['origin_query_string']} => {query_string}"
+            )
+
         logger.info(f"scenario_id => [{scenario_id}], indices => [{index}], body => [{body}]")
 
         if self.search_dict.get("debug"):
@@ -199,8 +204,6 @@ class EsQuery(object):
             bkdata_authentication_method=bkdata_authentication_method,
             bkdata_data_token=bkdata_data_token,
         ).get_instance()
-
-        logger.info(f"[Esquery] scenario_id => [{scenario_id}], indices => [{index}], body => [{body}]")
 
         result: Dict[str:Any] = client.query(index, body, scroll=scroll, track_total_hits=track_total_hits)
 
