@@ -108,7 +108,7 @@ class ESBAuthenticationMiddleware(LoginRequiredMiddleware):
             username = "admin"
         else:
             app_code = request.META.get("HTTP_BK_APP_CODE")
-            username = request.META.get("HTTP_BK_USERNAME")
+            username = request.META.get("HTTP_BK_USERNAME") or "admin"
 
         if app_code:
             user = auth.authenticate(username=username)
@@ -142,7 +142,11 @@ class JWTAuthenticationMiddleware(LoginRequiredMiddleware):
             request.jwt = JWTClient(request)
 
             if request.jwt.is_valid:
-                user = auth.authenticate(request=request, username=request.jwt.user.username)
+                try:
+                    username = request.jwt.user.username or "admin"
+                except AttributeError:
+                    username = "admin"
+                user = auth.authenticate(request=request, username=username)
             else:
                 # jwt校验不成功，则通过token进行校验
                 request.token = AESVerification(request.GET)
