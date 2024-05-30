@@ -1151,13 +1151,21 @@ class SearchAlertResource(Resource):
             "alerts": [],
             "total": 0,
         }
+        alert_id_map = {}
         if show_aggs:
             result["aggs"] = []
             agg_id_map = {}
         if show_dsl:
             is_change = True
         for sliced_result in results:
-            result["alerts"].extend(sliced_result["alerts"])
+            for alert in sliced_result["alerts"]:
+                if alert["id"] not in alert_id_map:
+                    result["alerts"].append(copy.deepcopy(alert))
+                    alert_id_map[alert["id"]] = len(result["alerts"]) - 1
+                else:
+                    alert_index = alert_id_map[alert["id"]]
+                    result["alerts"][alert_index] = alert
+
             result["total"] += sliced_result["total"]
 
             if show_overview:
@@ -1668,12 +1676,12 @@ class AlertTopNResource(Resource):
                     field_map[field["field"]] = len(result["fields"]) - 1
                 else:
                     index = field_map[field["field"]]
-                    result["fields"][index]["bucket_count"] += field["bucket_count"]
                     for bucket in field["buckets"]:
                         if bucket["id"] not in id_map:
                             new_bucket = copy.deepcopy(bucket)
                             result["fields"][index]["buckets"].append(new_bucket)
                             id_map[bucket["id"]] = len(result["fields"][index]["buckets"]) - 1
+                            result["fields"][index]["bucket_count"] += 1
                         else:
                             bucket_index = id_map[bucket["id"]]
                             result["fields"][index]["buckets"][bucket_index]["count"] += bucket["count"]
