@@ -108,7 +108,7 @@ class ESBAuthenticationMiddleware(LoginRequiredMiddleware):
             username = "admin"
         else:
             app_code = request.META.get("HTTP_BK_APP_CODE")
-            username = request.META.get("HTTP_BK_USERNAME")
+            username = request.META.get("HTTP_BK_USERNAME") or "admin"
 
         if app_code:
             user = auth.authenticate(username=username)
