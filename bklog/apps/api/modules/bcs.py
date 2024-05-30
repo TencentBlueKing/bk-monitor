@@ -73,7 +73,7 @@ class _BcsApi:
             method="GET",
             url=(
                 f"{bcs_apigateway_host}bcsapi/v4/bcsproject/v1/projects/"
-                "{{project_code}}/clusters/{{cluster_id}}/native/namespaces",
+                "{{project_code}}/clusters/{{cluster_id}}/native/namespaces"
             ),
             module=self.MODULE,
             description="获取集群命名空间",
