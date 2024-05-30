@@ -21,7 +21,7 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import { Component, Prop, Inject } from 'vue-property-decorator';
+import { Component, Prop, Inject, Watch } from 'vue-property-decorator';
 import _escape from 'lodash/escape';
 import $http from '@/api';
 import './agg-chart.scss';
@@ -32,6 +32,7 @@ export default class AggChart extends tsc<{}> {
   @Prop({ type: String, required: true }) fieldType: string;
   @Prop({ type: Boolean, default: false }) parentExpand: boolean;
   @Prop({ type: Object, required: true }) retrieveParams: any;
+  @Prop({ type: Array, required: true }) datePickerValue: Array<string | number>;
 
   @Inject('addFilterCondition') addFilterCondition;
 
@@ -63,6 +64,11 @@ export default class AggChart extends tsc<{}> {
 
   mounted() {
     this.queryFieldFetchTopList();
+  }
+
+  @Watch('datePickerValue', { deep: true })
+  watchPicker() {
+    this.queryFieldFetchTopList(this.limitSize);
   }
 
   // 计算百分比

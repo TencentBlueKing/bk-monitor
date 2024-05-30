@@ -94,6 +94,15 @@
       span {
         color: #3a84ff;
       }
+
+      .analysis-disabled {
+        color: #979ba5;
+
+        &:hover {
+          /* stylelint-disable-next-line declaration-no-important */
+          color: #979ba5 !important;
+        }
+      }
     }
 
     .analysis-active {

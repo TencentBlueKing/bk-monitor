@@ -60,7 +60,7 @@ export default class FieldItem extends tsc<{}> {
   }
   // 显示融合字段统计比例图表
   get showFieldsChart() {
-    return this.fieldItem.field_type !== 'text';
+    return this.fieldItem.field_type !== 'text' && this.gatherFieldsCount;
   }
   get isShowFieldsCount() {
     return !['object', 'nested', 'text'].includes(this.fieldItem.field_type);
@@ -105,7 +105,6 @@ export default class FieldItem extends tsc<{}> {
     this.analysisActive = true;
     this.fieldAnalysisInstance = new FieldAnalysis().$mount();
     const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
-    this.fieldAnalysisInstance.$props.fieldItem = this.fieldItem;
     const tempList = handleTransformToTimestamp(this.datePickerValue);
     this.fieldAnalysisInstance.$props.queryParams = {
       ...this.retrieveParams,
@@ -115,7 +114,7 @@ export default class FieldItem extends tsc<{}> {
       start_time: tempList[0],
       end_time: tempList[1]
     };
-    this.fieldAnalysisInstance?.$off('statisticsInfoFinish', this.updatePopperInstance);
+    /** 当小窗位置过于靠近底部时会显示不全chart图表，需要等接口更新完后更新Popper位置 */
     this.fieldAnalysisInstance?.$on('statisticsInfoFinish', this.updatePopperInstance);
     this.operationInstance = this.$bkPopover(this.$refs.operationRef, {
       content: this.fieldAnalysisInstance.$el,
@@ -132,6 +131,7 @@ export default class FieldItem extends tsc<{}> {
     });
     this.operationInstance.show(100);
   }
+  /** 更新Popper位置 */
   updatePopperInstance() {
     setTimeout(() => {
       this.operationInstance.popperInstance.update();
@@ -201,8 +201,14 @@ export default class FieldItem extends tsc<{}> {
           >
             {this.isShowFieldsAnalysis && (
               <span
+                v-bk-tooltips={{
+                  content: this.$t('该字段暂无匹配日志'),
+                  disabled: !!this.gatherFieldsCount
+                }}
+                class={{ 'analysis-disabled': !this.gatherFieldsCount }}
                 onClick={e => {
                   e.stopPropagation();
+                  if (!this.gatherFieldsCount) return;
                   this.handleClickAnalysisItem();
                 }}
               >
@@ -225,6 +231,7 @@ export default class FieldItem extends tsc<{}> {
           <AggChart
             retrieve-params={this.retrieveParams}
             parent-expand={this.isExpand}
+            date-picker-value={this.datePickerValue}
             field-name={this.fieldItem.field_name}
             field-type={this.fieldItem.field_type}
           />
