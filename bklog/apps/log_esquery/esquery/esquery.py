@@ -189,9 +189,14 @@ class EsQuery(object):
         ).body
 
         if self.search_dict.get("origin_query_string") and self.search_dict["origin_query_string"] != query_string:
-            logger.info(
-                f"attention! query_string is not equal: {self.search_dict['origin_query_string']} => {query_string}"
-            )
+            if len(self.search_dict["origin_query_string"]) != len(query_string):
+                logger.info(
+                    f"must attention! query_string length not equal: {self.search_dict['origin_query_string']} => {query_string}"
+                )
+            else:
+                logger.info(
+                    f"attention! query_string is not equal: {self.search_dict['origin_query_string']} => {query_string}"
+                )
 
         logger.info(f"scenario_id => [{scenario_id}], indices => [{index}], body => [{body}]")
 
