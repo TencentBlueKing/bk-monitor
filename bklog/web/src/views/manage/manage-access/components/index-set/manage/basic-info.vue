@@ -36,7 +36,15 @@
             {{ indexSetData.index_set_name || '--' }}
           </dd>
           <dt class="description-term">{{ $t('所属集群') }}</dt>
-          <dd class="description-definition">{{ indexSetData.storage_cluster_name || '--' }}</dd>
+          <dd class="description-definition">
+            <span
+              v-bk-tooltips.top="{
+                content: `${indexSetData.storage_cluster_domain_name}:${indexSetData.storage_cluster_port}`,
+                disabled: !indexSetData.storage_cluster_name
+              }"
+              >{{ indexSetData.storage_cluster_name || '-' }}</span
+            >
+          </dd>
         </div>
         <div class="description-row">
           <dt class="description-term">{{ $t('数据分类') }}</dt>

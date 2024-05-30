@@ -381,7 +381,6 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
               <bk-select
                 vModel={this.formData.type}
                 clearable={false}
-                z-index={3001}
               >
                 {this.serviceTypeList.map(option => (
                   <bk-option
@@ -500,10 +499,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                         class='name-input'
                         vModel={param.name}
                       />
-                      <bk-select
-                        vModel={param.operator}
-                        z-index={3001}
-                      >
+                      <bk-select vModel={param.operator}>
                         {Object.keys(this.operatorMaps).map(operator => (
                           <bk-option
                             id={operator}

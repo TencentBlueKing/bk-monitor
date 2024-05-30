@@ -1,5 +1,5 @@
 {
-  "src/**/*.(ts|tsx)": ["eslint --cache --fix", "git add"],
+  "src/**/*.(ts|tsx|js)": ["eslint --cache --fix", "git add"],
   "src/**/*.vue": ["eslint --cache --fix", "git add"],
   "src/**/*.(vue|scss|css|sass)": ["stylelint --cache --fix", "git add"]
 }

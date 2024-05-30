@@ -359,7 +359,9 @@ class IndexSetViewSet(ModelViewSet):
             "result": true
         }
         """
-        return super().retrieve(request, *args, **kwargs)
+        response = super().retrieve(request, *args, **kwargs)
+        response.data = IndexSetHandler.post_list([response.data])[0]
+        return response
 
     def create(self, request, *args, **kwargs):
         """

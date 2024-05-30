@@ -576,8 +576,8 @@ class DutyRule(AbstractRecordModel):
     category = models.CharField(
         "轮值类型",
         choices=(
-            ("regular", _lazy("常规值班")),
-            ("handoff", _lazy("交替轮值")),
+            ("regular", "常规值班"),
+            ("handoff", "交替轮值"),
         ),
         default="regular",
         max_length=64,

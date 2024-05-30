@@ -1,26 +1,31 @@
 .application {
   display: flex;
+
   .add-service-btn {
     display: flex;
+
     .add-service-icon {
       font-size: 24px;
     }
   }
+
   .tools-wrap {
     .application-tools {
       display: flex;
+
       .icon-mc-more-tool {
-        justify-content: center;
-        margin-left: 8px;
-        overflow: hidden;
-        width: 26px;
-        height: 26px;
         display: flex;
         align-items: center;
-        background: #F5F7FA;
-        border-radius: 2px;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        margin-left: 8px;
+        overflow: hidden;
         font-size: 16px;
         cursor: pointer;
+        background: #f5f7fa;
+        border-radius: 2px;
+
         &:hover {
           color: #3a84ff;
           background-color: #eaf3ff;
@@ -28,19 +33,30 @@
       }
     }
   }
+
   .no-data-alert {
     margin: 16px 16px 0;
+
     .bk-alert-wraper {
-      padding: 7px 10px;
       align-items: center;
+      padding: 7px 10px;
+
       .bk-spin {
         margin-right: 6px;
       }
+
       .link {
         margin-left: 6px;
         color: #3a84ff;
         cursor: pointer;
       }
+    }
+  }
+
+  .common-nav-bar.navigation-bar {
+    .item-name.placeholder {
+      font-size: 14px;
+      color: #c4c6cc;
     }
   }
 }
@@ -49,9 +65,11 @@
   .bk-dialog-tool {
     display: none;
   }
+
   .bk-dialog-body {
     /* stylelint-disable-next-line declaration-no-important */
     padding: 3px 0 26px !important;
+
     .no-data-guide-main {
       max-height: 770px;
       padding: 0 24px;

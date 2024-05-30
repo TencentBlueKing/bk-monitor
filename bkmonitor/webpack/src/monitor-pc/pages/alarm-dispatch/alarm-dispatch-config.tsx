@@ -1053,7 +1053,9 @@ export default class AlarmDispatchConfig extends tsc<object> {
   }
   /** 取消 */
   handleCancel() {
-    this.$router.back();
+    this.$router.push({
+      name: 'alarm-dispatch',
+    });
   }
 
   /** 校验追加标签格式 */

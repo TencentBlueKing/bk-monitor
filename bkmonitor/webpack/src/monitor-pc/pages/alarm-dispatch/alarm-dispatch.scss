@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 @mixin flex-center {
   display: flex;
   align-items: center;
@@ -15,7 +16,7 @@
     padding: 16px;
     background: #fff;
     border-radius: 2px;
-    box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
+    box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.05);
 
     .wrap-header {
       display: flex;
@@ -26,17 +27,16 @@
         margin: 0 0 0 auto;
       }
 
-      .icon-zhankai1 ,
+      .icon-zhankai1,
       .icon-shouqi1 {
         margin-right: 4px;
       }
-      
     }
 
     .wrap-content {
       .expan-item {
         margin-top: 16px;
-        border: 1px solid #fff;
+        outline: 1px solid #dcdee5;
 
         .expan-item-header {
           display: flex;
@@ -46,11 +46,14 @@
           color: #63656e;
           cursor: pointer;
           background: #f0f1f5;
-          border: 1px solid #dcdee5;
-          border-bottom: none;
+          border: none;
+          border-bottom: 1px solid #dcdee5;
           border-radius: 2px 2px 0 0;
-          box-shadow: 0 1px 0 0 #dcdee5;
-          transform: translateY(1px);
+          // box-shadow: 0 1px 0 0 #dcdee5;
+          // transform: translateY(1px);
+          &.is-collapse {
+            border-bottom: none;
+          }
 
           .icon-bianji {
             font-size: 20px;
@@ -79,13 +82,13 @@
             display: flex;
             align-items: center;
             width: 260px;
-           
+
             .title {
               max-width: 220px;
               overflow: hidden;
               font-size: 14px;
-              font-weight: 700; 
-              color: #63656e; 
+              font-weight: 700;
+              color: #63656e;
               text-overflow: ellipsis;
               white-space: nowrap;
             }
@@ -173,7 +176,7 @@
           .bk-table-header-wrapper {
             border-bottom: 1px solid #eaebf0;
           }
-          
+
           &.is-expan {
             height: auto;
           }
@@ -192,7 +195,7 @@
             max-width: 98%;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap; 
+            white-space: nowrap;
           }
 
           .alarm-tag:hover {
@@ -204,8 +207,6 @@
           .tag-status {
             height: 18px;
             line-height: 18px;
-            // padding: 0 1px;
-            // width: 32px;
             text-align: center;
           }
 
@@ -227,60 +228,49 @@
             }
           }
 
-          .bk-table td,
-          .bk-table th.is-leaf {
-            border-bottom: none;
-          }
-
-          .bk-table-striped .bk-table-body tr.bk-table-row-striped td {
-            background-color: #fafbfd;
-          }
-
-          .bk-table-empty-text {
-            padding: 15px 0;
-
-            .alarm-group-empty {
-              img {
-                width: 220px;
-                height: 100px;
-              }
-  
-              .empty-text {
-                color: #63656e;
-              }
-  
-              .empty-rule-config {
-                color: #3a84ff;
-                cursor: pointer;
-              }
-            }
-          }
-        }
-
-        
-        &:hover {
-          // border: 1px solid #a3c5fd;
-          .expan-item-header {
-            border: 1px solid #a3c5fd;
-            border-bottom: none;
-          }
-
           .bk-table {
-            border-color: #a3c5fd;
-            border-top-color: #dfe0e5;
+            border: none !important;
 
-            &::before,
-            &::after {
-              background-color: #a3c5fd;
+            &::after,
+            &::before {
+              display: none !important;
             }
-          
-          }
-      
-          .expan-item-header {
-            box-shadow: none;
+
+            td,
+            th.is-leaf {
+              border-bottom: none;
+            }
+
+            .bk-table-striped .bk-table-body tr.bk-table-row-striped td {
+              background-color: #fafbfd;
+            }
+
+            .bk-table-empty-text {
+              padding: 15px 0;
+
+              .alarm-group-empty {
+                img {
+                  width: 220px;
+                  height: 100px;
+                }
+
+                .empty-text {
+                  color: #63656e;
+                }
+
+                .empty-rule-config {
+                  color: #3a84ff;
+                  cursor: pointer;
+                }
+              }
+            }
           }
         }
 
+        &:hover {
+          outline-color: #a3c5fd;
+          box-shadow: 0 1px 0 0 #dcdee5;
+        }
       }
 
       .empty-dispatch-content {
@@ -297,6 +287,14 @@
       .empty-dispatch-text {
         font-size: 24px;
         color: #63656e;
+      }
+
+      .item-footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 16px;
       }
     }
   }

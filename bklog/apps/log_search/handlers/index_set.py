@@ -200,7 +200,7 @@ class IndexSetHandler(APIModel):
     @classmethod
     def post_list(cls, index_sets):
         """
-        补充存储集数据分类、数据源、集群名称字段、标签信息
+        补充存储集数据分类、数据源、集群名称字段、标签信息、es集群端口号 、es集群域名
         :param index_sets:
         :return:
         """
@@ -226,7 +226,12 @@ class IndexSetHandler(APIModel):
             _index["category_name"] = GlobalCategoriesEnum.get_display(_index["category_id"])
             _index["scenario_name"] = scenario_choices.get(_index["scenario_id"])
             _index["storage_cluster_name"] = ",".join(
-                {storage_name for storage_name in cluster_map.get(_index["storage_cluster_id"], "").split(",")}
+                {
+                    storage_name
+                    for storage_name in cluster_map.get(_index["storage_cluster_id"], {})
+                    .get("cluster_name", "")
+                    .split(",")
+                }
             )
 
             normal_idx = [idx for idx in _index["indexes"] if idx["apply_status"] == LogIndexSetData.Status.NORMAL]
@@ -284,6 +289,17 @@ class IndexSetHandler(APIModel):
                         .split(",")
                     }
                 )
+                # 补充集群的port和domain信息
+                _index["storage_cluster_port"] = result.get(_index["index_set_id"], {}).get("storage_cluster_port", "")
+                _index["storage_cluster_domain_name"] = result.get(_index["index_set_id"], {}).get(
+                    "storage_cluster_domain_name", ""
+                )
+            else:
+                storage_cluster_id = _index["storage_cluster_id"]
+                _index["storage_cluster_port"] = cluster_map.get(storage_cluster_id, {}).get("cluster_port", "")
+                _index["storage_cluster_domain_name"] = cluster_map.get(storage_cluster_id, {}).get(
+                    "cluster_domain_name", ""
+                )
 
             # 补充标签信息
             _index.pop("tag_ids")
@@ -301,14 +317,21 @@ class IndexSetHandler(APIModel):
     @staticmethod
     def get_cluster_map():
         """
-        集群ID和集群名称映射关系
+        集群ID和集群名称映射、集群port、集群domain映射关系
         :return:
         """
         cluster_data = TransferApi.get_cluster_info()
         cluster_map = {}
         for cluster_obj in cluster_data:
+            cluster_config = cluster_obj["cluster_config"]
             cluster_map.update(
-                {cluster_obj["cluster_config"]["cluster_id"]: cluster_obj["cluster_config"]["cluster_name"]}
+                {
+                    cluster_config["cluster_id"]: {
+                        "cluster_name": cluster_config["cluster_name"],
+                        "cluster_domain_name": cluster_config["domain_name"],
+                        "cluster_port": cluster_config["port"],
+                    }
+                }
             )
         return cluster_map
 

@@ -7,6 +7,7 @@
   }
 
   .ai-settings-page-content {
+    position: relative;
     padding: 16px 40px 24px 32px;
     background: #ffffff;
     border-radius: 2px;
@@ -60,6 +61,11 @@
           font-weight: 700;
           color: #3a84ff;
         }
+
+        .skeleton-element {
+          width: 80px;
+          height: 16px;
+        }
       }
     }
 
@@ -90,6 +96,12 @@
 
     .scene-detection {
       margin-top: 48px;
+
+      .empty-scene-detection {
+        width: calc(100% - 8px);
+        height: 86px;
+        margin-left: 8px;
+      }
     }
   }
 }
