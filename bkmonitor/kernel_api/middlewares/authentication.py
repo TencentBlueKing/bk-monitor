@@ -142,7 +142,11 @@ class JWTAuthenticationMiddleware(LoginRequiredMiddleware):
             request.jwt = JWTClient(request)
 
             if request.jwt.is_valid:
-                user = auth.authenticate(request=request, username=request.jwt.user.username)
+                try:
+                    username = request.jwt.user.username
+                except AttributeError:
+                    username = "admin"
+                user = auth.authenticate(request=request, username=username)
             else:
                 # jwt校验不成功，则通过token进行校验
                 request.token = AESVerification(request.GET)
