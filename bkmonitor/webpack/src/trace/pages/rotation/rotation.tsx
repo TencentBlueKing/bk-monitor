@@ -28,9 +28,10 @@ import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
+import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
@@ -81,7 +82,6 @@ export default defineComponent({
       showDetail: authorityStore.getAuthorityDetail,
     });
     const tableData = reactive({
-      loading: false,
       data: [],
       pagination: {
         current: 1,
@@ -713,40 +713,44 @@ export default defineComponent({
                 onUpdate:modelValue={v => this.handleSearch(v)}
               ></SearchSelect>
             </div>
-            <Loading loading={this.loading}>
-              <div class='table-content'>
-                <Table
-                  columns={this.tableData.columns
-                    .filter(item => this.settings.checked.includes(item.id))
-                    .map(item => {
-                      return {
-                        ...item,
-                        label: (col: any) => col.name,
-                        render: ({ row, _column }) => this.handleSetFormater(row, item.id),
-                      };
-                    })}
-                  darkHeader={true}
-                  data={this.tableData.data}
-                  pagination={false}
-                  settings={this.settings}
-                  showOverflowTooltip={true}
-                  onColumnFilter={this.handleColumnFilter}
-                  onColumnSort={this.handleColumnSort}
-                  onSettingChange={this.handleSettingChange}
-                ></Table>
-                <Pagination
-                  class='mt-14'
-                  align={'right'}
-                  count={this.tableData.pagination.count}
-                  layout={['total', 'limit', 'list']}
-                  limit={this.tableData.pagination.limit}
-                  location={'right'}
-                  modelValue={this.tableData.pagination.current}
-                  onChange={v => this.handlePageChange(v)}
-                  onLimitChange={v => this.handleLimitChange(v)}
-                ></Pagination>
-              </div>
-            </Loading>
+            <div class='table-content'>
+              {!this.loading ? (
+                [
+                  <Table
+                    columns={this.tableData.columns
+                      .filter(item => this.settings.checked.includes(item.id))
+                      .map(item => {
+                        return {
+                          ...item,
+                          label: (col: any) => col.name,
+                          render: ({ row, _column }) => this.handleSetFormater(row, item.id),
+                        };
+                      })}
+                    darkHeader={true}
+                    data={this.tableData.data}
+                    pagination={false}
+                    settings={this.settings}
+                    showOverflowTooltip={true}
+                    onColumnFilter={this.handleColumnFilter}
+                    onColumnSort={this.handleColumnSort}
+                    onSettingChange={this.handleSettingChange}
+                  ></Table>,
+                  <Pagination
+                    class='mt-14'
+                    align={'right'}
+                    count={this.tableData.pagination.count}
+                    layout={['total', 'limit', 'list']}
+                    limit={this.tableData.pagination.limit}
+                    location={'right'}
+                    modelValue={this.tableData.pagination.current}
+                    onChange={v => this.handlePageChange(v)}
+                    onLimitChange={v => this.handleLimitChange(v)}
+                  ></Pagination>,
+                ]
+              ) : (
+                <TableSkeleton />
+              )}
+            </div>
           </div>
         </div>
 
