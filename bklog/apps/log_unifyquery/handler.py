@@ -43,13 +43,16 @@ class UnifyQueryHandler(object):
         # TODO: UnifyQuery支持字段包含.符号
         if "." in self.search_params["agg_field"]:
             self.search_params["agg_field"] = self.search_params["agg_field"].replace(".", "___")
-
+        # 自动周期转换
         if self.search_params.get("interval", "auto") == "auto":
             interval = self.init_default_interval()
         else:
             interval = self.search_params["interval"]
+
+        # 拼接查询参数列表
         query_list = [
             {
+                "query_string": self.search_params.get("keyword", "*"),
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
                 "table_id": result_table_id,
                 "field_name": self.search_params["agg_field"],
