@@ -1713,6 +1713,16 @@ class EventTopNResource(BaseTopNResource, ApiAuthResource):
         return handler.top_n(fields=validated_request_data["fields"], size=validated_request_data["size"])
 
 
+class ListAlertTagsResultResource(Resource):
+    """
+    获取告警标签
+    """
+
+    def perform_request(self, validated_request_data):
+        handler = AlertQueryHandler(**validated_request_data)
+        return handler.list_tags()
+
+
 class ListAlertTagsResource(Resource):
     """
     获取告警标签
@@ -1722,8 +1732,30 @@ class ListAlertTagsResource(Resource):
         pass
 
     def perform_request(self, validated_request_data):
-        handler = AlertQueryHandler(**validated_request_data)
-        return handler.list_tags()
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        results = resource.alert.list_alert_tags_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    **validated_request_data,
+                }
+                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+            ]
+        )
+
+        result = []
+        id_map = {}
+        for sliced_result in results:
+            for tag in sliced_result:
+                if tag['id'] not in id_map:
+                    result.append(copy.deepcopy(tag))
+                    id_map[tag['id']] = len(result) - 1
+                else:
+                    index = id_map[tag["id"]]
+                    result[index]["count"] += tag["count"]
+        return result
 
 
 class StrategySnapshotResource(Resource):
