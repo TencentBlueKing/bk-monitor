@@ -34,7 +34,7 @@ class KernelSessionAuthentication(SessionAuthentication):
 class AppWhiteListModelBackend(ModelBackend):
     # 经过esb 鉴权， bktoken已经丢失，因此不再对用户名进行校验。
     def authenticate(self, request=None, username=None, password=None, **kwargs):
-        if not username:
+        if username is None:
             return None
         try:
             user_model = get_user_model()
@@ -108,7 +108,7 @@ class ESBAuthenticationMiddleware(LoginRequiredMiddleware):
             username = "admin"
         else:
             app_code = request.META.get("HTTP_BK_APP_CODE")
-            username = request.META.get("HTTP_BK_USERNAME") or "admin"
+            username = request.META.get("HTTP_BK_USERNAME")
 
         if app_code:
             user = auth.authenticate(username=username)
@@ -142,11 +142,7 @@ class JWTAuthenticationMiddleware(LoginRequiredMiddleware):
             request.jwt = JWTClient(request)
 
             if request.jwt.is_valid:
-                try:
-                    username = request.jwt.user.username or "admin"
-                except AttributeError:
-                    username = "admin"
-                user = auth.authenticate(request=request, username=username)
+                user = auth.authenticate(request=request, username=request.jwt.user.username)
             else:
                 # jwt校验不成功，则通过token进行校验
                 request.token = AESVerification(request.GET)
