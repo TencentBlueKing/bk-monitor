@@ -14,6 +14,7 @@ from collections import OrderedDict
 from rest_framework import serializers
 
 from core.drf_resource import Resource
+from metadata import models
 from metadata.service.space_redis import (
     push_and_publish_es_aliases,
     push_and_publish_es_space_router,
@@ -34,6 +35,26 @@ class EsRouter(Resource):
         source_type = serializers.CharField(required=False, label="数据源类型")
 
     def perform_request(self, data: OrderedDict):
+        # 创建结果表和ES存储记录
+        biz_id = models.Space.objects.get_biz_id_by_space(space_type=data["space_type"], space_id=data["space_id"])
+        # 创建结果表
+        models.ResultTable.objects.create(
+            table_id=data["table_id"],
+            table_name_zh=data["table_id"],
+            is_custom_table=True,
+            default_storage=models.ClusterInfo.TYPE_ES,
+            creator="system",
+            bk_biz_id=biz_id,
+        )
+        # 创建es存储记录
+        models.ESStorage.create_table(
+            data["table_id"],
+            is_sync_db=False,
+            cluster_id=data["cluster_id"],
+            enable_create_index=False,
+            source_type=data["source_type"],
+            index_set=data["index_set"],
+        )
         # 推送空间数据
         push_and_publish_es_space_router(space_type=data["space_type"], space_id=data["space_id"])
         # 推送别名到结果表数据

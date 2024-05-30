@@ -1762,9 +1762,28 @@ class ESStorage(models.Model, StorageResultTable):
 
     # 下方三个配置，对于metadata都是透明存储的方式，供用户直接配置使用
     # 从而降低对版本等信息的依赖，格式应该是JSON格式，以便可以直接在创建请求的body中使用
-    index_settings = models.TextField("索引配置信息")
-    mapping_settings = models.TextField("别名配置信息")
+    index_settings = models.TextField("索引配置信息", blank=True, null=True)
+    mapping_settings = models.TextField("别名配置信息", blank=True, null=True)
     storage_cluster_id = models.IntegerField("存储集群")
+    source_type = models.CharField("数据源类型", max_length=16, default="log", help_text="数据源类型，仅对日志内置集群索引进行生命周期管理")
+    index_set = models.TextField("索引集", blank=True, null=True)
+
+    @property
+    def index_set_rule(self):
+        """查询规则
+
+        - 自有: 追加时间戳和read后缀
+        - 数据平台: 追加时间戳和read后缀
+        - 第三方: 不追加任何，直接按照规则处理
+        """
+        if self.source_type == constants.EsSourceType.LOG.value:
+            _index_list = self.index_set.split(",")
+            return ",".join([f"{index.replace('.', '_')}_*_read" for index in _index_list])
+        elif self.source_type == constants.EsSourceType.BKDATA.value:
+            _index_list = self.index_set.split(",")
+            return ",".join([f"{index}_*" for index in _index_list])
+        else:
+            return self.index_set
 
     @classmethod
     def refresh_consul_table_config(cls):
@@ -1850,6 +1869,8 @@ class ESStorage(models.Model, StorageResultTable):
         warm_phase_settings=None,
         time_zone=0,
         enable_create_index=True,
+        source_type=None,
+        index_set=None,
         **kwargs,
     ):
         """
@@ -1866,7 +1887,9 @@ class ESStorage(models.Model, StorageResultTable):
         :param warm_phase_days: 暖数据执行分配的等待天数，默认为 0 (不开启)
         :param warm_phase_settings: 暖数据切换配置，当 warm_phase_days > 0 时，此项必填
         :param time_zone: 时区设置，默认零时区
-        :param enable_create_index: 启用创建索引，默认为 True
+        :param enable_create_index: 启用创建索引，默认为 True；针对非内置的数据源，不能创建索引
+        :param source_type: 数据源类型
+        :param index_set: 索引集
         :param kwargs: 其他配置参数
         :return:
         """
@@ -1923,6 +1946,8 @@ class ESStorage(models.Model, StorageResultTable):
             mapping_settings=json.dumps(mapping_settings),
             storage_cluster_id=cluster_id,
             time_zone=time_zone,
+            source_type=source_type,
+            index_set=index_set,
         )
         logger.info("result_table->[{}] now has es_storage will try to create index.".format(table_id))
 

@@ -15,6 +15,7 @@ from typing import Dict, List
 import requests
 
 from metadata import models
+from metadata.models.constants import EsSourceType
 from metadata.models.space.constants import (
     DATA_LABEL_TO_RESULT_TABLE_CHANNEL,
     DATA_LABEL_TO_RESULT_TABLE_KEY,
@@ -26,7 +27,6 @@ from metadata.models.space.constants import (
     SpaceTypes,
 )
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-from metadata.service.constants import EsSourceType
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
