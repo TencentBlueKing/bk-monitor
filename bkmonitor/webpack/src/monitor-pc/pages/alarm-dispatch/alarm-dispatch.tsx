@@ -38,6 +38,8 @@ import {
 } from 'monitor-api/modules/model';
 import { Debounce, random } from 'monitor-common/utils';
 
+import EmptyStatus from '../../components/empty-status/empty-status';
+import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import emptyImageSrc from '../../static/images/png/empty.png';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmBatchEdit from './components/alarm-batch-edit';
@@ -78,7 +80,7 @@ export default class AlarmDispatch extends tsc<object> {
   currentId = null;
   /** 查看调试效果 */
   isViewDebugEffect = false;
-  emptyText = window.i18n.tc('查无数据');
+  emptyType: EmptyStatusType = 'empty';
   /** 优先级检验提示*/
   priorityErrorMsg: TranslateResult | string = '';
   /* 流程套餐*/
@@ -539,9 +541,9 @@ export default class AlarmDispatch extends tsc<object> {
         )
         .map(item => item.id);
       this.ruleGroups = this.cacheRuleGroups.filter(item => filterRuleGroupList.includes(item.id));
-      this.emptyText = window.i18n.tc('搜索结果为空');
+      this.emptyType = 'search-empty';
     } else {
-      this.emptyText = window.i18n.tc('查无数据');
+      this.emptyType = 'empty';
       this.ruleGroups = this.cacheRuleGroups;
     }
     this.renderGroups = [];
@@ -595,6 +597,13 @@ export default class AlarmDispatch extends tsc<object> {
     this.ruleGroups.forEach(item => item.setExpan(!this.isExpandAll));
   }
 
+  handleEmptyOpreation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.search = '';
+      this.handleSearch();
+    }
+  }
+
   render() {
     return (
       <div
@@ -616,8 +625,16 @@ export default class AlarmDispatch extends tsc<object> {
               disabled={!this.ruleGroups.length}
               onClick={this.handleDebug}
             >
-              {this.$t('调试')}
+              {this.$t('效果调试')}
             </bk-button>
+            <bk-input
+              class='search-input'
+              v-model={this.search}
+              placeholder={`ID/${this.$t('告警组名称')}`}
+              right-icon='bk-icon icon-search'
+              clearable
+              onInput={this.handleSearch}
+            ></bk-input>
             <bk-button
               class='expand-up-btn'
               onClick={this.handleExpandAll}
@@ -625,13 +642,6 @@ export default class AlarmDispatch extends tsc<object> {
               <span class={['icon-monitor', this.isExpandAll ? 'icon-zhankai1' : 'icon-shouqi1']}></span>
               {this.$t(this.isExpandAll ? '展开所有分组' : '收起所有分组')}
             </bk-button>
-            <bk-input
-              class='search-input'
-              v-model={this.search}
-              placeholder={`ID/${this.$t('告警组名称')}`}
-              right-icon='bk-icon icon-search'
-              onInput={this.handleSearch}
-            ></bk-input>
           </div>
           <div class='wrap-content'>
             {this.ruleGroups.length > 0 ? (
@@ -802,11 +812,15 @@ export default class AlarmDispatch extends tsc<object> {
               ]
             ) : (
               <div class='empty-dispatch-content'>
-                <img
+                <EmptyStatus
+                  type={this.emptyType}
+                  onOperation={this.handleEmptyOpreation}
+                ></EmptyStatus>
+                {/* <img
                   alt=''
                   src={emptyImageSrc}
                 />
-                <span class='empty-dispatch-text'>{this.emptyText}</span>
+                <span class='empty-dispatch-text'>{this.emptyText}</span> */}
               </div>
             )}
           </div>
