@@ -249,7 +249,7 @@ class TopoHandler:
 
     @limits(calls=100, period=1)
     def list_span_by_trace_ids(self, trace_ids, max_result_count, index_name):
-        if max_result_count >= constants.DISCOVER_BATCH_SIZE * len(trace_ids):
+        if max_result_count > constants.DISCOVER_BATCH_SIZE * len(trace_ids):
             # 直接获取
             query = {
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
@@ -263,7 +263,7 @@ class TopoHandler:
             res = []
             query = {
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
-                "size": constants.DISCOVER_BATCH_SIZE * len(trace_ids),
+                "size": max_result_count,
             }
             response = self.datasource.es_client.search(index=index_name, body=query, scroll="5m")
             hits = response["hits"]["hits"]
@@ -314,7 +314,7 @@ class TopoHandler:
 
             max_size_count = index_settings[lastly_index].get("settings", {}).get("index", {}).get("max_result_window")
             index_name = lastly_index
-        # ES 1.x-7.x默认值
+        # ES 1.x-7.x默认值为 10000
         max_size_count = int(max_size_count) if max_size_count else self._ES_MAX_RESULT_WINDOWS
 
         if max_size_count >= constants.DISCOVER_BATCH_SIZE:
@@ -334,6 +334,9 @@ class TopoHandler:
         max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
 
         for round_index, trace_ids in enumerate(self.list_trace_ids()):
+            if not trace_ids:
+                continue
+
             trace_id_count += len(trace_ids)
 
             pool = ThreadPool()
