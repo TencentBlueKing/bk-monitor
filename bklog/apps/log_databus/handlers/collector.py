@@ -3719,15 +3719,12 @@ class CollectorHandler(object):
             raise BcsClusterIdNotValidException()
         return cluster_info
 
-    def _get_shared_cluster_namespace(self, bk_biz_id: int, bcs_cluster_id: str) -> List[Any]:
+    @staticmethod
+    def _get_shared_cluster_namespace(bk_biz_id: int, bcs_cluster_id: str) -> List[Any]:
         """
         获取共享集群有权限的namespace
         """
         if not bk_biz_id or not bcs_cluster_id:
-            return []
-
-        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
-        if not cluster_info.get("is_shared"):
             return []
 
         space = Space.objects.get(bk_biz_id=bk_biz_id)
