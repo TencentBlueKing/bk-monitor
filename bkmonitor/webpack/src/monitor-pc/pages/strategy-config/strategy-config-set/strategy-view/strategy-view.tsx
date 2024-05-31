@@ -1125,6 +1125,39 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     refleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
                     strategyTarget={this.strategyTarget}
                   ></MultipleMetricView>,
+                  this.needDescContent && (
+                    <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
+                      <div class='desc-content'>
+                        {this.aiopsModelMdList.map((model, index) => (
+                          <GroupPanel
+                            defaultExpand={true}
+                            expand={index === this.activeModelMd}
+                            show-expand={true}
+                            title={`[${this.$tc('算法说明')}]${model.name}`}
+                          >
+                            {model.instruction && (
+                              <div class='desc-content-doc'>
+                                <div class='desc-content-doc-title'>{this.$t('方案描述')}</div>
+                                <Viewer
+                                  class='strategy-view-desc'
+                                  value={model.instruction}
+                                />
+                              </div>
+                            )}
+                            {model.document && (
+                              <div class='desc-content-doc'>
+                                <div class='desc-content-doc-title'>{this.$t('使用说明')}</div>
+                                <Viewer
+                                  class='strategy-view-desc'
+                                  value={model.document}
+                                />
+                              </div>
+                            )}
+                          </GroupPanel>
+                        ))}
+                      </div>
+                    </div>
+                  ),
                 ];
               }
               return (
