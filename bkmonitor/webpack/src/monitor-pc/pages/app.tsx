@@ -48,7 +48,7 @@ import DashboardContainer from './grafana/dashboard-container/dashboard-containe
 import { getDashboardCache } from './grafana/utils';
 import CommonNavBar from './monitor-k8s/components/common-nav-bar';
 import NavTools from './nav-tools';
-
+import IntelligentModelsStore from '../store/modules/intelligent-models';
 // #if APP !== 'external'
 import BizSelect from '../components/biz-select/biz-select';
 import NoticeGuide, { IStepItem } from '../components/novice-guide/notice-guide';
@@ -401,6 +401,7 @@ export default class App extends tsc<object> {
     this.showBizList = false;
     this.$store.commit('app/SET_BIZ_ID', +v);
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
+    IntelligentModelsStore.clearIntelligentMap();
     const { navId } = this.$route.meta;
     // 处理页面引导页信息
     introduce.clear();
