@@ -411,13 +411,13 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
             },
           }}
         >
-          <bk-form-item label={`${this.$t('监控项')}：`}>
+          <bk-form-item label={this.$t('监控项')}>
             <span class='aiops-monitor-data-text'>{this.$t('场景智能检测')}</span>
           </bk-form-item>
           <bk-form-item
             class='scene-select'
             error-display-type='normal'
-            label={`${this.$t('观测场景')}：`}
+            label={this.$t('观测场景')}
             property={'scene'}
           >
             {this.readonly ? (
@@ -452,7 +452,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
           <bk-form-item
             class='metric-select'
             error-display-type='normal'
-            label={`${this.$t('指标')}：`}
+            label={this.$t('指标')}
             property={'metrics'}
           >
             {this.readonly ? (
@@ -519,7 +519,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
 
           <bk-form-item
             error-display-type='normal'
-            label={`${this.$t('监控目标')}：`}
+            label={this.$t('监控目标')}
           >
             <div class='ip-wrapper'>
               {!this.targetList.length && !this.target.desc.message.length
@@ -570,7 +570,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               content: this.$t('告警生成后，将根据指标的异常程度、发生异常的指标数，为告警自动评级'),
             }}
             error-display-type='normal'
-            label={`${this.$t('生成告警级别')}：`}
+            label={this.$t('生成告警级别')}
             property={'level'}
           >
             <div class='aiops-level-list'>
@@ -601,7 +601,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               )}
             </div>
           </bk-form-item>
-          <bk-form-item label={`${this.$t('敏感度')}：`}>
+          <bk-form-item label={this.$t('敏感度')}>
             <bk-slider
               class={`process-item ${this.readonly ? 'process-item-readonly' : ''}`}
               custom-content={{ 1: { label: this.$t('较少告警') }, 10: { label: this.$t('较多告警') } }}
