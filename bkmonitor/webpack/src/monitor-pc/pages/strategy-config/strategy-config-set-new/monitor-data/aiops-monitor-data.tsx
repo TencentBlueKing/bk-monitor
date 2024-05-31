@@ -570,7 +570,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               content: this.$t('告警生成后，将根据指标的异常程度、发生异常的指标数，为告警自动评级'),
             }}
             error-display-type='normal'
-            label={this.$t('生成告警级别')}
+            label={`${this.$t('生成告警级别')}：`}
             property={'level'}
           >
             <div class='aiops-level-list'>
