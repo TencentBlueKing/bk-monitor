@@ -72,13 +72,13 @@ class _BcsApi:
         self.list_namespaces = DataAPI(
             method="GET",
             url=(
-                f"{bcs_apigateway_host}bcsapi/v4/bcsproject/v1/projects/"
-                "{{project_code}}/clusters/{{cluster_id}}/native/namespaces"
+                bcs_apigateway_host
+                + "bcsapi/v4/bcsproject/v1/projects/"
+                + "{project_code}/clusters/{cluster_id}/native/namespaces"
             ),
             module=self.MODULE,
             description="获取集群命名空间",
             before_request=bcs_before_request,
-            after_request=list_project_after,
             url_keys=["project_code", "cluster_id"],
             header_keys=["Authorization"],
         )
