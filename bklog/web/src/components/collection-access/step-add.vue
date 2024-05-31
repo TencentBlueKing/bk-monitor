@@ -51,9 +51,11 @@
       <div data-test-id="acquisitionConfig_div_baseMessageBox">
         <div class="add-collection-title">{{ $t('基础信息') }}</div>
         <bk-form-item
+          ext-cls="en-bk-form"
           :label="$t('采集名')"
           :required="true"
           :rules="rules.collector_config_name"
+          :icon-offset="120"
           :property="'collector_config_name'"
         >
           <bk-input
@@ -957,7 +959,7 @@ export default {
             trigger: 'blur'
           },
           {
-            max: 50,
+            validator: this.checkEnNameLength,
             message: this.$t('不能多于{n}个字符', { n: 50 }),
             trigger: 'blur'
           },
@@ -2140,6 +2142,12 @@ export default {
     checkEnNameValidator(val) {
       this.isTextValid = new RegExp(/^[A-Za-z0-9_]+$/).test(val);
       return this.isTextValid;
+    },
+    checkEnNameLength(val) {
+      // 编辑时，不需要验证采集项英文名
+      if (this.isUpdate) return true;
+      // 判断字符串长度是否大于50
+      return val.length <= 50;
     },
     handleEnConvert() {
       const str = this.formData.collector_config_name_en;

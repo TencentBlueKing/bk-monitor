@@ -661,7 +661,7 @@ export default class MonitorEcharts extends Vue {
                         });
                       }, 10);
                       this.handleCloseTimer();
-                      this.getSeriesData(timeFrom, timeTo)
+                      this.getSeriesData(timeFrom, timeTo);
                     }
                     this.$emit('data-zoom', this.timeRange);
                   }
@@ -746,7 +746,7 @@ export default class MonitorEcharts extends Vue {
            <span style="background-color:${item.color};margin-right: 4px;width: 6px;height: 6px; border-radius: 50%;"></span>
            <span style="${markColor} flex: 1;color: #fff;">${valueObj.text} ${valueObj.suffix || ''}</span>
           </li>`;
-      });    
+      });
     return `<div style="z-index:12; border-radius: 6px">
         <p style="text-align:center;margin: 0 0 5px 0;font-weight: bold;color: #fff;">${pointTime}</p>
         <ul style="padding: 0;margin: 0;">${liHtmls.join('')}</ul>
