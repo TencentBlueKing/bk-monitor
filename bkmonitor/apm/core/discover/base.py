@@ -336,7 +336,6 @@ class TopoHandler:
         for round_index, trace_ids in enumerate(self.list_trace_ids()):
             if not trace_ids:
                 continue
-            round_start = datetime.datetime.now()
 
             trace_id_count += len(trace_ids)
 
@@ -392,12 +391,6 @@ class TopoHandler:
                     topo_params += pre_calculate_params
 
             pool.map_ignore_exception(self._discover_handle, topo_params)
-            logger.debug(
-                f"[TopoHandler] round finished, "
-                f"traceCount: {len(trace_ids)}, "
-                f"spanCount: {len(all_spans)}, "
-                f"elapsed: {(datetime.datetime.now() - round_start).total_seconds()}s"
-            )
 
         logger.info(
             f"[TopoHandler] discover finished {self.bk_biz_id} {self.app_name} "
