@@ -633,7 +633,6 @@ export default class StrategyView extends tsc<IStrateViewProps> {
           metricMetaId,
           time_field: timeField,
           bkmonitor_strategy_id: bkmonitorStrategyId,
-          custom_event_name: customEventName,
           curRealMetric,
         }) => {
           dataTypeLabel = curRealMetric?.data_type_label || dataTypeLabel;
@@ -645,7 +644,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               return '_index'; // 此类情况field固定为_index
             }
             if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
-              return customEventName;
+              return metricField;
             }
             return metricField || bkmonitorStrategyId;
           };
@@ -796,6 +795,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         index_set_id: indexSetId,
         keywords_query_string: indexStatement,
         bkmonitor_strategy_id: bkmonitorStrategyId,
+        custom_event_name,
       },
     ] = this.metricQueryData;
     // const { startTime, endTime } = handleTimeRange(this.tools.timeRange);
@@ -807,7 +807,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       ? this.metricData.find(item => item.alias === this.alertTabActive)
       : this.metricData[0];
     if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
-      filterDict.event_name = metricField;
+      filterDict.event_name = custom_event_name || undefined;
     }
     let extendData = {};
     if (this.isAlertStrategy) {

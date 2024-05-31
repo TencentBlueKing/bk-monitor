@@ -242,6 +242,7 @@ export default defineComponent({
           <div class='mt8'>
             <Radio.Group
               modelValue={this.noticeDate.shieldCycle}
+              size='small'
               onUpdate:modelValue={v => this.handleChangeShieldCycle(v)}
             >
               {this.shieldCycleList.map(item => (

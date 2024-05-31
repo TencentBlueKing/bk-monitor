@@ -65,7 +65,7 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, TimeRangeType } from '.
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import { type Span } from '../../components/trace-view/typings';
 import VerifyInput from '../../components/verify-input/verify-input';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { destroyTimezone, getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import {
   REFLESH_IMMEDIATE_KEY,
   REFLESH_INTERVAL_KEY,
@@ -168,7 +168,7 @@ export default defineComponent({
     };
     getAppList();
     const timeRange = ref<TimeRangeType>(DEFAULT_TIME_RANGE);
-    const timezone = ref<string>(getDefautTimezone());
+    const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
     const curTimestamp = ref<number[]>(handleTransformToTimestamp(timeRange.value));

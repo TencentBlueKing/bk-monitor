@@ -161,7 +161,7 @@
               ],
               "interval":60,
               "interval_unit":"s",
-              "method":"COUNT",
+              "method":"count_without_time",
               "metric_field":"kube_node_status_capacity_pods",
               "refId":"a",
               "result_table_id":"",

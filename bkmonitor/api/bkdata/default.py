@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 import abc
+import json
 
 import six
 from django.conf import settings
@@ -33,18 +34,19 @@ class UseSaaSAuthInfoMixin:
 
     def full_request_data(self, validated_request_data):
         validated_request_data = super(UseSaaSAuthInfoMixin, self).full_request_data(validated_request_data)
-        validated_request_data.update(
-            {
-                "bk_app_code": settings.SAAS_APP_CODE,
-                "bk_app_secret": settings.SAAS_SECRET_KEY,
-            }
-        )
+        validated_request_data["bk_app_code"] = settings.SAAS_APP_CODE
         return validated_request_data
 
     def get_headers(self):
         headers = super(UseSaaSAuthInfoMixin, self).get_headers()
-        headers["X-Bk-App-Code"] = settings.SAAS_APP_CODE
-        headers["X-Bk-App-Secret"] = settings.SAAS_SECRET_KEY
+        auth_info = headers.get("x-bkapi-authorization")
+        if not auth_info:
+            return headers
+
+        auth_info = json.loads(auth_info)
+        auth_info["bk_app_code"] = settings.SAAS_APP_CODE
+        auth_info["bk_app_secret"] = settings.SAAS_SECRET_KEY
+        headers["x-bkapi-authorization"] = json.dumps(auth_info)
         return headers
 
 
@@ -1050,6 +1052,28 @@ class GetResourceSet(DataAccessAPIResource):
 
     action = "/v3/resourcecenter/resource_sets/{resource_set_id}/"
     method = "GET"
+
+
+class ApplyDataLink(DataAccessAPIResource):
+    """申请数据链路"""
+
+    action = "/v4/apply/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        config = serializers.ListField(default=list, label="资源描述")
+
+
+class GetDataLink(DataAccessAPIResource):
+    """获取数据链路"""
+
+    action = "/v4/namespaces/{namespace}/{kind}/{name}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        kind = serializers.CharField(label="资源类型")
+        namespace = serializers.CharField(label="命名空间")
+        name = serializers.CharField(label="资源名称")
 
 
 class ApplyDataFlow(DataAccessAPIResource):

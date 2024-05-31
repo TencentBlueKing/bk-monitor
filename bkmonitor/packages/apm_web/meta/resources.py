@@ -2046,12 +2046,14 @@ class QueryEndpointStatisticsResource(PageListResource):
         """
         添加 url 归类统计数据
         """
-        res = []
+        match_res = []
+        no_match_res = []
         for summary, items in summary_mappings.items():
             request_count = len(items)
-            res.append(
+
+            (no_match_res, match_res)[summary[-1]].append(
                 {
-                    "summary": summary,
+                    "summary": summary[0],
                     "filter_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
                     "request_count": request_count,
                     "average": round(sum([item["avg_duration"]["value"] for item in items]) / request_count / 1000, 2),
@@ -2060,7 +2062,9 @@ class QueryEndpointStatisticsResource(PageListResource):
                     "operation": {"trace": _("调用链"), "statistics": _("统计")},
                 }
             )
-        return res
+
+        # 匹配到正则的结果优先展示
+        return match_res + no_match_res
 
     def perform_request(self, validated_data):
         """
@@ -2109,14 +2113,18 @@ class QueryEndpointStatisticsResource(PageListResource):
             filter_key = self.GROUP_KEY_ATT_CONFIG.get(tmp_filter_key, "span_name")
             # http_url 归类处理
             if not is_component and filter_key in [OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)]:
-                url = None
+                http_summary_is_match = False
                 for uri in uri_list:
-                    if re.match(uri, summary):
-                        url = SpanHandler.generate_uri(urlparse(summary))
-                        summary_mappings[url].append(bucket)
-                        break
-                if url:
-                    continue
+                    pure_http_url = SpanHandler.generate_uri(urlparse(summary))
+                    if re.match(uri, pure_http_url):
+                        summary_mappings[(uri, True)].append(bucket)
+                        http_summary_is_match = True
+
+                if not http_summary_is_match:
+                    summary_mappings[(summary, False)].append(bucket)
+
+                continue
+
             res.append(
                 {
                     "summary": summary,

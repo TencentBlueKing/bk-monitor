@@ -636,7 +636,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                 result_table_id=metric.result_table_id,
                 index_set_id=metric.related_id,
                 metric_field=metric.metric_field,
-                custom_event_name=metric.metric_field,
+                custom_event_name=metric.extend_fields.get("custom_event_name", ""),
             )
             metric_infos.append(metric_info)
         return metric_infos

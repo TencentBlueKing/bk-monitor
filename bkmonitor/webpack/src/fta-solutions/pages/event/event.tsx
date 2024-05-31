@@ -40,8 +40,6 @@ import {
   searchAlert,
   validateQueryString,
 } from 'monitor-api/modules/alert';
-import { listSpaces } from 'monitor-api/modules/commons';
-import { bizWithAlertStatistics } from 'monitor-api/modules/home';
 import { checkAllowed } from 'monitor-api/modules/iam';
 import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
@@ -52,7 +50,7 @@ import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components
 import SpaceSelect from 'monitor-pc/components/space-select/space-select';
 import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+import { destroyTimezone, getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import SplitPanel from 'monitor-pc/pages/monitor-k8s/components/split-panel';
@@ -240,7 +238,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   /* 默认事件范围为近24小时 */
   timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
   /* 时区 */
-  timezone: string = getDefautTimezone();
+  timezone: string = getDefaultTimezone();
   refleshInterval = 5 * 60 * 1000;
   refleshInstance = null;
   allowedBizList = [];
@@ -365,7 +363,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   noDataType: EmptyStatusType = 'empty';
   noDataString: any = '';
   bussinessTips: TranslateResult = '';
-  allBizList = [];
 
   // 统计 未恢复告警的通知人 栏为空的人数。
   numOfEmptyAssignee = 0;
@@ -478,7 +475,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           vm.queryString = queryString;
         }
       }
-      // await vm.handleGetAllBizList();
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
       vm.handleRefleshChange(vm.refleshInterval);
       // 正常进入告警页情况下不打开详情，只有通过告警通知进入的才展开详情
@@ -521,15 +517,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const { contentWrap } = this.$refs as any;
     (contentWrap as HTMLDivElement).removeEventListener('scroll', this.handleDisbaleHover, false);
     window.clearInterval(this.refleshInstance);
-  }
-  async handleGetAllBizList() {
-    const allBizList = await listSpaces({ show_all: true });
-    // const allBizList = await businessListOption({ show_all: true });
-    this.allBizList = allBizList.map(item => ({
-      id: item.bk_biz_id,
-      text: item.space_name,
-      name: item.space_name,
-    }));
   }
   // 拼一个查询语句，然后查询 未恢复的且处理阶段都不满足 的异常通知人数据（显示是通知人为空）
   setQueryStringForCheckingEmptyAssignee() {
@@ -1065,9 +1052,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.tableLoading = true;
     if (refleshAgg) this.advancedFilterLoading = true;
     // await this.handleValidateQueryString()
-    if (!this.allowedBizList?.length) {
-      await this.handleGetAllowedBizList();
-    }
     await this.$nextTick();
     const promiseList = [];
     if (this.searchType === 'alert') {
@@ -1180,7 +1164,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       // timeRange: 3600000,
       from: 'now-30d',
       to: 'now',
-      timezone: getDefautTimezone(),
+      timezone: getDefaultTimezone(),
       refleshInterval: 300000,
       activePanel: 'list',
       chartInterval: 'auto',
@@ -1222,63 +1206,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       return false;
     });
     return newData;
-  }
-  /**
-   * @description: 获取有权限的业务列表
-   * @param {*}
-   * @return {*}
-   */
-  async handleGetAllowedBizList() {
-    const { business_list, business_with_alert, business_with_permission } = await bizWithAlertStatistics().catch(
-      () => ({})
-    );
-    this.allBizList = business_list.map(item => ({
-      id: item.bk_biz_id,
-      name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
-    }));
-    const data =
-      business_with_permission.map(item => ({
-        ...item,
-        id: item.bk_biz_id,
-        name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
-        sort: this.bizIds.includes(item.id) ? 2 : 1,
-      })) || [];
-    if (business_with_alert?.length) {
-      business_with_alert.forEach(item => {
-        data.push({
-          name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
-          id: item.bk_biz_id,
-          noAuth: true,
-          hasData: true,
-          sort: 2,
-        });
-      });
-    }
-    this.bizIds?.forEach(id => {
-      const bizItem = this.allBizList.find(set => set.id === id);
-      if (bizItem && !data.some(set => set.id === id)) {
-        data.push({
-          name: bizItem.name,
-          id: bizItem.id,
-          noAuth: true,
-          sort: 2,
-        });
-      }
-    });
-    if (data.length) {
-      data.unshift({
-        id: hasDataBizId,
-        name: this.$t('-我有告警的空间-'),
-        sort: 3,
-      });
-      data.unshift({
-        id: authorityBizId,
-        name: this.$t('-我有权限的空间-'),
-        sort: 3,
-      });
-    }
-    data.sort((a, b) => b.sort - a.sort);
-    this.allowedBizList = data;
   }
   /**
    * @description: 获取趋势图表数据

@@ -80,7 +80,6 @@ class CustomReportSubscription(models.Model):
 
     @classmethod
     def create_subscription(cls, bk_biz_id, items, bk_host_ids, plugin_name, op_type="add"):
-
         available_host_ids = get_proxy_host_ids(bk_host_ids) if plugin_name == "bkmonitorproxy" else bk_host_ids
 
         if op_type != "remove" and not available_host_ids:
@@ -186,11 +185,11 @@ class CustomReportSubscription(models.Model):
             .values("bk_biz_id", "bk_data_id", "token", "max_rate")
             .distinct()
         )
+        biz_id_to_data_id_config = {}
         if not result:
             logger.info("no custom report config in database")
-            return
+            return biz_id_to_data_id_config
 
-        biz_id_to_data_id_config = {}
         for r in result:
             max_rate = int(r.get("max_rate", MAX_DATA_ID_THROUGHPUT))
             if max_rate < 0:
@@ -345,7 +344,10 @@ class CustomReportSubscription(models.Model):
             for proxy_biz_id in proxy_biz_ids:
                 current_proxy_hosts = api.cmdb.get_host_by_ip(
                     ips=[
-                        {"ip": proxy.get("inner_ip", ""), "bk_cloud_id": proxy["bk_cloud_id"]}
+                        {
+                            "ip": proxy.get("inner_ip", "") or proxy.get("inner_ipv6", ""),
+                            "bk_cloud_id": proxy["bk_cloud_id"],
+                        }
                         for proxy in proxies
                         if proxy["bk_biz_id"] == proxy_biz_id
                     ],

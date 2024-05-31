@@ -58,7 +58,7 @@ import { LETTERS } from '../../../common/constant';
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
-import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import IntelligentModelsStore from '../../../store/modules/intelligent-models';
 import { ISpaceItem } from '../../../types';
 import { IOptionsItem } from '../../calendar/types';
@@ -387,7 +387,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
   /* 时区 */
-  timezone = getDefautTimezone();
+  timezone = getDefaultTimezone();
   /* 是否可编辑 */
   editAllowed = true;
 
@@ -1182,9 +1182,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       }
       const { metric_list: metricList = [] } = await getMetricListV2({
         bk_biz_id: bizId,
-        // page: 1,
-        // page_size: queryConfigs.length,
-        // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
         conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }],
       }).catch(() => ({}));
       this.metricData = queryConfigs.map(
@@ -1197,7 +1194,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           index_set_id,
           functions,
           intelligent_detect,
-
           metric_field,
           metric_id,
           agg_method,
@@ -1830,7 +1826,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       const submit = {
         index_set_id: item.index_set_id,
         query_string: item.keywords_query_string,
-        custom_event_name: item.metric_field || item.custom_event_name,
+        custom_event_name: item.custom_event_name,
         functions: hasIntelligentDetect ? [] : item.functions,
         intelligent_detect: this.id && hasIntelligentDetect ? item.intelligent_detect : undefined,
         time_field: (hasIntelligentDetect ? 'dtEventTimeStamp' : item.time_field) || 'time',
@@ -2250,28 +2246,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         });
       });
     } else {
-      // const { metric_list: metricList = [] } = await getMetricListV2({
-      //   // page: 1,
-      //   // page_size: res.query_configs.length,
-      //   conditions: [],
-      //   data_type_label: this.metricData?.[0]?.data_type_label || 'time_series',
-      //   page: 1,
-      //   page_size: 1
-      // }).catch(() => {
-      //   this.monitorDataLoading = false;
-      //   return {};
-      // });
-      // if (metricList.length) {
-      //   this.metricData = metricList.map(item => new MetricDetail({
-      //     ...item,
-      //     agg_method: item.agg_method,
-      //     agg_condition: item.agg_condition,
-      //     agg_dimension: item.agg_dimension,
-      //     agg_interval: item.agg_interval,
-      //     alias: item.alias?.toLocaleLowerCase?.() || LETTERS.at(0),
-      //     functions: item.functions || []
-      //   }));
-      // }
       const metricIds = targetRes.query_configs.map(item => item.metric_id);
       this.sourceData.errorMsg = `${metricIds.join('、')}${this.$t('指标不存在')}`;
       this.monitorDataLoading = false;

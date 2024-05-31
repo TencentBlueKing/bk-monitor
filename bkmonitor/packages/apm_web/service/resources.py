@@ -428,24 +428,22 @@ class UriregularVerifyResource(Resource):
         app_name = serializers.CharField()
         service_name = serializers.CharField()
         uris_source = serializers.ListSerializer(child=serializers.CharField())
+        uris = serializers.ListSerializer(child=serializers.CharField())
 
     def perform_request(self, data):
         """
         调试url
         """
-        app = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
-        if not app:
-            raise ValueError(_("应用不存在"))
+        pool = ThreadPool()
+        params = [(index, i, data["uris_source"]) for index, i in enumerate(data["uris"])]
+        match_results = pool.map_ignore_exception(self.uri_regular, params)
+        return list(itertools.chain(*[i for i in match_results if i]))
 
-        uris = UriServiceRelation.objects.filter(
-            bk_biz_id=data["bk_biz_id"], app_name=data["app_name"], service_name=data["service_name"]
-        )
+    def uri_regular(self, index, url_regex, sources):
         res = []
-        for uri in data["uris_source"]:
-            for index, uri_reg in enumerate(uris):
-                if re.match(uri_reg.uri, uri):
-                    res.append(_("{} 匹配到第{}个uri配置: {}").format(uri, index + 1, uri_reg.uri))
-                    break
+        for source in sources:
+            if re.match(url_regex, source):
+                res.append(f"第 {index + 1} 项配置({url_regex})匹配到 url: {source}")
 
         return res
 
