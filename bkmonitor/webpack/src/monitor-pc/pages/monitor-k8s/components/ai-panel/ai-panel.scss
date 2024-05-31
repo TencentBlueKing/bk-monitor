@@ -125,24 +125,23 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 248px;
     height: 180px;
     background: #fafbfd;
     border-radius: 2px;
+
+    .exception-image {
+      width: 176px;
+      height: 80px;
+      margin-top: 24px;
+    }
 
     .no-data-img {
       width: 176px;
       height: 80px;
       margin-top: 24px;
+      object-fit: cover;
       background-image: url('../../../../static/images/png/success.png');
-      object-fit: cover;
-    }
-
-    .no-enabled-img {
-      width: 176px;
-      height: 80px;
-      margin-top: 24px;
-      background-image: url('../../../../static/images/png/no-data.png');
-      object-fit: cover;
     }
 
     .open-btn {

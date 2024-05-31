@@ -87,7 +87,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 对比类型
   @InjectReactive('compareType') compareType: PanelToolsType.CompareId;
-  cancelToken: Function = null;
+  cancelToken = null;
   // 表格数据
   tableData: IAiPanelTableItem[] = [];
   filtersData = {};
@@ -270,16 +270,6 @@ export default class Aipanel extends tsc<ICommonListProps> {
       }
     }
   }
-  handleFilterChange(_val, val: Object = {}) {
-    const { columns } = this.tableRef;
-    this.filtersData = Object.entries(val).reduce((total, [key, value]) => {
-      const column = columns.find(col => col.id === key);
-      if (value.length) {
-        total[column.property] = value;
-      }
-      return total;
-    }, {}) as any;
-  }
 
   handleCloseViewDetail() {
     this.showViewDetail = false;
@@ -300,8 +290,11 @@ export default class Aipanel extends tsc<ICommonListProps> {
   renderResultContent() {
     if (!this.isOpenDetection)
       return (
-        <div class='no-data'>
-          <div class='no-enabled-img'></div>
+        <bk-exception
+          class='no-data'
+          scene='part'
+          type='empty'
+        >
           <div class='no-data-text'>{this.$t('暂未开启主机智能异常检测')}</div>
           <bk-button
             class='open-btn'
@@ -311,7 +304,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
           >
             {this.$t('前往开启')}
           </bk-button>
-        </div>
+        </bk-exception>
       );
 
     if (this.tableData.length)
@@ -383,26 +376,6 @@ export default class Aipanel extends tsc<ICommonListProps> {
           </div>
         )}
         {this.renderResultContent()}
-        {/* <bk-table
-          class="ai-panel-table"
-          ref="table"
-          row-auto-height={true}
-          outer-border={false}
-          data={this.filterTabelData}
-          on-filter-change={this.handleFilterChange}
-        >
-          <bk-table-column
-            show-overflow-tooltip={true}
-            property={'name'}
-            label={this.$t('异常指标')}
-            filters={this.nameFilterOptions}
-            formatter={(row: IAiPanelTableItem) =>
-              <span class="name-col" onClick={() => this.handleSetMetricIndex(row)}>{row.name}</span>}
-          ></bk-table-column>
-          <bk-table-column label={this.$t('指标值')} prop="value" width="80" align="right"/>
-          <bk-table-column label={this.$t('异常分值')} prop="score" width="90" align="right"
-            formatter={(row: IAiPanelTableItem) => <span class="score-col">{row.score}</span>}/>
-        </bk-table> */}
         {this.showViewDetail && (
           <ViewDetail
             show={this.showViewDetail}
