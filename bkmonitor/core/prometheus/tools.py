@@ -18,8 +18,11 @@ from types import MethodType
 from typing import Generator, List, Optional
 
 from django.conf import settings
+from django.utils.functional import cached_property
 from prometheus_client.exposition import push_to_gateway
 from prometheus_client.metrics import MetricWrapperBase
+
+from alarm_backends.core.cluster import get_cluster
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +38,14 @@ def get_udp_socket(address, port) -> socket.socket:
         return socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
 
+@cached_property
 def get_metric_agg_gateway_url(udp: bool = False):
+    if settings.IS_CONTAINER_MODE and get_cluster().name != "default":
+        url = f"bk-monitor-{get_cluster().name}-prom-agg-gateway"
+        if udp:
+            url = f"{url}:81"
+        return url
+
     if udp:
         return settings.METRIC_AGG_GATEWAY_UDP_URL
     return settings.METRIC_AGG_GATEWAY_URL
