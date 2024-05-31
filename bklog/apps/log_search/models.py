@@ -700,6 +700,7 @@ class UserIndexSetSearchHistory(SoftDeleteModel):
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
+    from_favorite_id = models.IntegerField(_("收藏夹ID"), null=True, default=None)
 
     class Meta:
         verbose_name = _("索引集用户检索记录")
