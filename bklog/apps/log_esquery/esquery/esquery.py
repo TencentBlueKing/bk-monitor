@@ -188,10 +188,13 @@ class EsQuery(object):
             mappings=mappings,
         ).body
 
-        if self.search_dict.get("origin_query_string") and self.search_dict["origin_query_string"] != query_string:
+        if self.search_dict.get("origin_query_string") and self.search_dict["origin_query_string"].strip(
+            "*"
+        ) != query_string.strip("*"):
             if len(self.search_dict["origin_query_string"]) != len(query_string):
                 logger.info(
-                    f"must attention! query_string length not equal: {self.search_dict['origin_query_string']} => {query_string}"
+                    f"must attention! query_string length not equal: "
+                    f"{self.search_dict['origin_query_string']} => {query_string}"
                 )
             else:
                 logger.info(
