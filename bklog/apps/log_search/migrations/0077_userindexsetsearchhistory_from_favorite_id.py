@@ -12,6 +12,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='userindexsetsearchhistory',
             name='from_favorite_id',
-            field=models.IntegerField(default=None, null=True, verbose_name='收藏夹ID'),
+            field=models.IntegerField(default=None, null=True, verbose_name='检索收藏ID'),
         ),
     ]
