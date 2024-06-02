@@ -689,7 +689,7 @@ class ConvergeInstance(AbstractRecordModel):
         blank=False,
         db_index=True,
         max_length=64,
-        choices=[("converge", _("收敛事件")), ("action", _("处理事件"))],
+        choices=[("converge", "收敛事件"), ("action", "处理事件")],
     )
 
     bk_biz_id = models.IntegerField("业务编码", db_index=True)
