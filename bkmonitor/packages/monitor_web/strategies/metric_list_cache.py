@@ -18,6 +18,7 @@ from datetime import datetime
 from functools import reduce
 from typing import Dict, Generator, List
 
+import requests
 from django.conf import settings
 from django.db.models import Count, Max, Q
 from django.utils.translation import ugettext as _
@@ -948,7 +949,15 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         # k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
-        bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id)
+        try:
+            bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id)
+        except (requests.exceptions.ConnectionError, BKAPIError) as err:
+            logger.exception("[CustomEventCacheManager] fetch bcs_clusters error: %s" % err)
+            # bcs 未就绪，不影响自定义事件
+            bcs_clusters = []
+
+        if not bcs_clusters:
+            return
         # 启动监控的集群id 列表
         alert_ids = api.kubernetes.fetch_bcs_cluster_alert_enabled_id_list(bk_biz_id=self.bk_biz_id)
         cluster_map = {bcs_cluster["cluster_id"]: bcs_cluster for bcs_cluster in bcs_clusters}
