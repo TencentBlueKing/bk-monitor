@@ -189,7 +189,7 @@ class SearchHandler(object):
         # 检索历史记录
         self.addition = copy.deepcopy(search_dict.get("addition", []))
         self.ip_chooser = copy.deepcopy(search_dict.get("ip_chooser", {}))
-        self.from_favorite_id = self.search_dict.get("from_favorite_id")
+        self.from_favorite_id = self.search_dict.get("from_favorite_id", 0)
 
         self.use_time_range = search_dict.get("use_time_range", True)
         # 构建时间字段
@@ -2399,7 +2399,7 @@ class UnionSearchHandler(object):
                     "params": params,
                     "index_set_ids": sorted(self.index_set_ids),
                     "search_type": search_type,
-                    "from_favorite_id": self.search_dict.get("from_favorite_id"),
+                    "from_favorite_id": self.search_dict.get("from_favorite_id", 0),
                 }
             }
         )
