@@ -58,7 +58,7 @@ import { LETTERS } from '../../../common/constant';
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
-import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import IntelligentModelsStore from '../../../store/modules/intelligent-models';
 import { ISpaceItem } from '../../../types';
 import { IOptionsItem } from '../../calendar/types';
@@ -387,7 +387,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
   /* 时区 */
-  timezone = getDefautTimezone();
+  timezone = getDefaultTimezone();
   /* 是否可编辑 */
   editAllowed = true;
 

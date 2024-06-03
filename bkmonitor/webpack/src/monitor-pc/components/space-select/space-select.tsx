@@ -229,7 +229,7 @@ export default class SpaceSelect extends tsc<
       this.localSpaceList = [...defaultRadioList.map(d => ({ ...nullItem, ...d })), ...this.localSpaceList] as any;
     }
     if (this.hasAuthApply) {
-      this.setAlllowed();
+      this.setAllowed();
     } else {
       if (this.value.length && !this.localValue.length) {
         this.handleWatchValue(this.value);
@@ -239,7 +239,7 @@ export default class SpaceSelect extends tsc<
   }
 
   /* 获取权限信息 */
-  async setAlllowed() {
+  async setAllowed() {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { business_list, business_with_alert, business_with_permission } = await bizWithAlertStatistics().catch(
       () => ({})

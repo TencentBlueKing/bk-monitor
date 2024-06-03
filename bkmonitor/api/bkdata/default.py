@@ -1054,6 +1054,28 @@ class GetResourceSet(DataAccessAPIResource):
     method = "GET"
 
 
+class ApplyDataLink(DataAccessAPIResource):
+    """申请数据链路"""
+
+    action = "/v4/apply/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        config = serializers.ListField(default=list, label="资源描述")
+
+
+class GetDataLink(DataAccessAPIResource):
+    """获取数据链路"""
+
+    action = "/v4/namespaces/{namespace}/{kind}/{name}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        kind = serializers.CharField(label="资源类型")
+        namespace = serializers.CharField(label="命名空间")
+        name = serializers.CharField(label="资源名称")
+
+
 class ApplyDataFlow(DataAccessAPIResource):
     """创建计算平台流程"""
 
