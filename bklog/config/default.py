@@ -1071,6 +1071,9 @@ BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_BKLOG_HOST)
 # 外部版PAAS地址
 EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
 
+# 监控网关地址（新）
+NEW_MONITOR_APIGATEWAY_ROOT = os.getenv("BKAPP_BKMONITOR_APIGW_HOST", "")
+
 # ==============================================================================
 # Templates
 # ==============================================================================
